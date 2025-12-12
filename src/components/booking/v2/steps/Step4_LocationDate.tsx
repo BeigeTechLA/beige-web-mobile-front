@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { Button } from "@/src/components/landing-v2/ui/button";
+import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "../BookingModal";
 import { toast } from "sonner";
 import { DropdownSelect } from "../component/DropdownSelect";
 import { CustomSlider } from "../component/CustomSlider";
 import { DateTimePicker } from "../component/DateTimePicker";
-import { parseDate } from "@/src/components/landing-v2/lib/utils";
+import { parseDate } from "@/src/components/landing/lib/utils";
 
 interface Props {
   data: BookingData;

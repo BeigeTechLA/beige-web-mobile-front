@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@/src/components/landing-v2/ui/button";
+import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "../BookingModal";
 import { toast } from "sonner";
 import { DropdownSelect } from "../component/DropdownSelect";

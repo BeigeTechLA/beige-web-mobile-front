@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Button } from "@/src/components/landing/ui/button";
+import { BookingModal } from "@/src/components/booking/v2/BookingModal";
 
 export const Hero = () => {
   const heroRef = useRef<HTMLElement | null>(null);
@@ -38,8 +39,6 @@ export const Hero = () => {
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   const handleBookShoot = () => {
-    console.log('Hero: Book a Shoot clicked');
-    // Mock booking modal open
     setIsBookingOpen(true);
   };
 
@@ -151,16 +150,11 @@ export const Hero = () => {
         />
       </section>
 
-      {/* Mock Booking Modal Notification */}
-      {isBookingOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-lg max-w-md">
-            <h3 className="text-black text-xl font-bold mb-4">Booking Modal</h3>
-            <p className="text-black mb-4">This would open the booking modal in the real implementation.</p>
-            <Button onClick={() => setIsBookingOpen(false)}>Close</Button>
-          </div>
-        </div>
-      )}
+      {/* Booking Modal */}
+      <BookingModal
+        isOpen={isBookingOpen}
+        onClose={() => setIsBookingOpen(false)}
+      />
     </>
   );
 };

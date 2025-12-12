@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@/src/components/landing-v2/ui/button";
+import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "../BookingModal";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
