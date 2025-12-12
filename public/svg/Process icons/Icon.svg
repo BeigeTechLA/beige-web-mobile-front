@@ -1,0 +1,16 @@
+<svg width="66" height="66" viewBox="0 0 66 66" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="57" height="57" rx="12" transform="matrix(1 0 0 -1 0 57)" fill="url(#paint0_linear_0_395)"/>
+<foreignObject x="-4.83784" y="-4.83784" width="84.6757" height="84.6757"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(6.92px);clip-path:url(#bgblur_0_0_395_clip_path);height:100%;width:100%"></div></foreignObject><rect data-figma-bg-blur-radius="13.8378" x="0.216216" y="-0.216216" width="56.5676" height="56.5676" rx="11.7838" transform="matrix(1 0 0 -1 9 65.5676)" fill="black" fill-opacity="0.68" stroke="white" stroke-width="0.432432"/>
+<path d="M25.1041 35.3125H46.1213C48.2443 35.3125 49.3059 35.3125 49.9654 35.9532C50.625 36.5939 50.625 37.6251 50.625 39.6875V41.875C50.625 46.6873 50.625 49.0934 49.086 50.5884C47.5471 52.0833 45.0702 52.0833 40.1164 52.0833H35.6127C30.6589 52.0833 28.182 52.0833 26.6431 50.5884C25.1041 49.0934 25.1041 46.6873 25.1041 41.875V35.3125Z" fill="white" stroke="white" stroke-width="1.5"/>
+<path d="M25.1016 35.3128C24.5809 33.3325 24.3205 32.3424 24.3845 31.4717C24.4992 29.9124 25.3046 28.491 26.5726 27.6101C27.2805 27.1183 28.2523 26.853 30.1958 26.3224L41.4843 23.2403C41.9869 23.1031 42.2382 23.0345 42.455 22.9955C44.8651 22.5625 47.2325 23.9552 48.0695 26.2985C48.1448 26.5093 48.2122 26.7654 48.3468 27.2775C48.3853 27.4238 48.4045 27.497 48.4155 27.5601C48.5369 28.2618 48.1464 28.9509 47.4893 29.1946C47.4302 29.2166 47.3584 29.2362 47.2148 29.2754L25.1016 35.3128Z" fill="white" stroke="white" stroke-width="1.5"/>
+<path d="M30.2084 34.583L33.125 25.833" stroke="#171717" stroke-width="1.5"/>
+<path d="M40.4166 31.667L43.3333 22.917" stroke="#171717" stroke-width="1.5"/>
+<path d="M31.6666 46.25H36.0416" stroke="#171717" stroke-width="1.5" stroke-linecap="round"/>
+<defs>
+<clipPath id="bgblur_0_0_395_clip_path" transform="translate(4.83784 4.83784)"><rect x="0.216216" y="-0.216216" width="56.5676" height="56.5676" rx="11.7838" transform="matrix(1 0 0 -1 9 65.5676)"/>
+</clipPath><linearGradient id="paint0_linear_0_395" x1="28.5" y1="0" x2="28.5" y2="57" gradientUnits="userSpaceOnUse">
+<stop stop-color="white"/>
+<stop offset="1" stop-color="white" stop-opacity="0.34"/>
+</linearGradient>
+</defs>
+</svg>

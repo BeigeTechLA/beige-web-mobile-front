@@ -1,0 +1,145 @@
+"use client";
+
+import React from "react";
+import { Container } from "@/src/components/landing/ui/container";
+import { DollarSign, Video, Users, Play } from "lucide-react";
+
+export const HowItWorks = () => {
+  // Mock video URL - replace with actual video path
+  const videoUrl = "/videos/How It Works.mp4";
+
+  return (
+    <section
+      id="how-it-works"
+      className="py-20 md:py-32 bg-[#010101] relative overflow-hidden"
+    >
+      <Container>
+        {/* Section label */}
+        <div className="inline-flex items-center border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
+          <p className="text-base text-white">How it works</p>
+        </div>
+
+        {/* Heading + text */}
+        <div className="flex flex-col lg:flex-row justify-between mb-10 gap-10">
+          <h2 className="text-2xl md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
+            Booking a Shoot Has Never <br />
+            Been This Easy.
+          </h2>
+
+          <p className="text-sm lg:text-base leading-[28px] text-white/50 font-light max-w-[500px] lg:text-right">
+            Experience effortless booking with quick access to trusted creators
+            and professionals — all in one seamless platform.
+          </p>
+        </div>
+
+        {/* Main container */}
+        <div className="flex flex-col lg:flex-row gap-8 items-stretch border border-[#e8d1ab]/30 rounded-[20px] overflow-hidden">
+
+          {/* LEFT: Feature Cards */}
+          <div className="w-full lg:w-[420px] flex flex-col border-r border-white/10 lg:rounded-l-[20px] relative overflow-hidden">
+
+            {/* Visible left glow */}
+            <div className="absolute left-0 top-0 h-full w-[3px] bg-gradient-to-b from-[#e8d1ab]/90 via-[#e8d1ab]/50 to-transparent z-30 pointer-events-none" />
+
+            {/* Card 1 */}
+            <div className="relative flex-1 bg-[#111] border-b border-white/10 px-6 lg:px-8 pt-8 pb-6 flex flex-col gap-6 overflow-hidden">
+              {/* Active glow */}
+              <div className="absolute left-0 top-0 h-full w-[8px] bg-gradient-to-r from-[#e8d1ab]/50 to-transparent z-20" />
+
+              {/* Top content */}
+              <div className="flex items-start gap-4 relative z-10">
+                <div className="w-[56px] h-[56px] rounded-[14px] bg-gradient-to-b from-[#e8d1ab] to-[#bfa276] flex items-center justify-center shrink-0 shadow-lg">
+                  <DollarSign className="text-black w-[28px] h-[28px]" />
+                </div>
+
+                <div>
+                  <h3 className="text-[20px] font-medium text-white mb-3">
+                    Instant Pricing
+                  </h3>
+                  <p className="text-[14px] leading-[22px] text-white/50 font-light">
+                    Our dynamic pricing engine pulls data from 4,000+ Beige
+                    shoots to give you real-time, transparent pricing.
+                  </p>
+                </div>
+              </div>
+
+              {/* Mobile-only video inside first card */}
+              <div className="block lg:hidden w-full mt-4">
+                <div className="relative w-full h-[200px] rounded-[14px] overflow-hidden border border-white/10">
+                  <video
+                    className="absolute inset-0 w-full h-full object-cover"
+                    src={videoUrl}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center z-20">
+                    <div className="w-[44px] h-[44px] bg-white rounded-full flex items-center justify-center shadow-lg">
+                      <Play className="w-[18px] h-[18px] text-black ml-0.5" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2 */}
+            <div className="flex-1 bg-[#0b0b0b] border-b border-white/10 px-6 lg:px-8 py-10 flex items-start">
+              <div className="flex items-start gap-4">
+                <div className="w-[56px] h-[56px] rounded-[14px] bg-[#1a1a1a] flex items-center justify-center shrink-0">
+                  <Users className="text-white w-[26px] h-[26px]" />
+                </div>
+                <div>
+                  <h3 className="text-[20px] font-medium text-white mb-3">
+                    Intelligent Matchmaking
+                  </h3>
+                  <p className="text-[14px] leading-[22px] text-white/50 font-light">
+                    Our matchmaking algorithm learns your style to pair you with
+                    the perfect creative instantly.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3 */}
+            <div className="flex-1 bg-[#0b0b0b] px-6 lg:px-8 py-10 flex items-start">
+              <div className="flex items-start gap-4">
+                <div className="w-[56px] h-[56px] rounded-[14px] bg-[#1a1a1a] flex items-center justify-center shrink-0">
+                  <Video className="text-white w-[26px] h-[26px]" />
+                </div>
+                <div>
+                  <h3 className="text-[20px] font-medium text-white mb-3">
+                    The Home for the Future of Content
+                  </h3>
+                  <p className="text-[14px] leading-[22px] text-white/50 font-light">
+                    Join the Beige ecosystem and unlock creators, locations, and
+                    equipment on demand.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop-only RIGHT video */}
+          <div className="hidden lg:flex w-full lg:flex-1 p-[28px]">
+            <div className="w-full h-[700px] overflow-hidden relative rounded-[20px] border border-white/10">
+              <video
+                className="absolute inset-0 w-full h-full object-cover"
+                src={videoUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+              />
+
+              <div className="absolute bottom-8 right-8 w-[50px] h-[50px] bg-white rounded-full flex items-center justify-center cursor-pointer hover:scale-110 transition-transform duration-300 shadow-lg z-20">
+                <Play className="w-[20px] h-[20px] text-black ml-1" />
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </Container>
+    </section>
+  );
+};
