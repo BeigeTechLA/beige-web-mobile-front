@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -55,6 +56,8 @@ const initialData: BookingData = {
 };
 
 export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
+  const router = useRouter();
+
   // Local state management - replacing Redux
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<BookingData>(initialData);
@@ -142,9 +145,9 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
 
       // Wait for loading animation, then navigate
       setTimeout(() => {
-        console.log(`Navigate to: /search-results?shootId=${mockOrderId}`);
+        console.log(`Navigating to: /search-results?shootId=${mockOrderId}`);
 
-        // Close modal after navigation log
+        // Close modal before navigation
         onClose();
 
         // Reset state for next time
@@ -152,6 +155,9 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
         setFormData(initialData);
         setBookingStatus("idle");
         setCurrentBookingId(null);
+
+        // Navigate to search results page
+        router.push(`/search-results?shootId=${mockOrderId}`);
       }, 2000); // 2-second loading animation
     } catch (error: any) {
       console.error("Error creating order:", error);
