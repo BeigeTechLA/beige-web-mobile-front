@@ -24,11 +24,11 @@ const mockCreator = {
   skills: ["Photography Event", "Photography", "Natural Light Photography"],
   equipment: ["Macbook Pro M1", "Adobe Creative Suite", "Body Vibrotic Pro+"],
   images: [
-    "/images/influencer/Influencer1.png",
-    "/images/influencer/Influencer1.png",
-    "/images/influencer/Influencer2.png",
-    "/images/influencer/Influencer3.png",
-    "/images/influencer/Influencer2.png",
+    "/images/influencer/natashaGraziano.png",
+    "/images/influencer/pressaarmani.png",
+    "/images/influencer/cedrictheentertainer.png",
+    "/images/influencer/chiefKeef.png",
+    "/images/influencer/seanKelly.png",
   ],
   portfolio: [
     "/images/projects/interior.png",

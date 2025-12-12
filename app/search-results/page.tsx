@@ -20,7 +20,7 @@ const mockCreators = [
     price: "From $450/Hr",
     rating: 4.5,
     reviews: 120,
-    image: "/images/influencer/Influencer1.png",
+    image: "/images/influencer/natashaGraziano.png",
     isTopMatch: true,
   },
   {
@@ -30,7 +30,7 @@ const mockCreators = [
     price: "From $120/Hr",
     rating: 4.0,
     reviews: 120,
-    image: "/images/influencer/Influencer2.png",
+    image: "/images/influencer/pressaarmani.png",
   },
   {
     id: "lucas-bennett",
@@ -39,7 +39,7 @@ const mockCreators = [
     price: "From $300/Hr",
     rating: 4.2,
     reviews: 101,
-    image: "/images/influencer/Influencer3.png",
+    image: "/images/influencer/cedrictheentertainer.png",
   },
 ];
 
@@ -51,7 +51,7 @@ const additionalCreators = [
     price: "From $200/Hr",
     rating: 4.8,
     reviews: 45,
-    image: "/images/influencer/Influencer1.png",
+    image: "/images/influencer/chiefKeef.png",
   },
   {
     id: "creator-2",
@@ -60,7 +60,7 @@ const additionalCreators = [
     price: "From $200/Hr",
     rating: 4.8,
     reviews: 45,
-    image: "/images/influencer/Influencer2.png",
+    image: "/images/influencer/seanKelly.png",
   },
   {
     id: "creator-3",
@@ -69,7 +69,7 @@ const additionalCreators = [
     price: "From $200/Hr",
     rating: 4.8,
     reviews: 45,
-    image: "/images/influencer/Influencer3.png",
+    image: "/images/influencer/CaseyVeggies.png",
   },
   {
     id: "creator-4",
@@ -78,7 +78,7 @@ const additionalCreators = [
     price: "From $200/Hr",
     rating: 4.8,
     reviews: 45,
-    image: "/images/influencer/Influencer4.png",
+    image: "/images/influencer/Sharukh.png",
   },
 ];
 
@@ -90,7 +90,7 @@ const newCreators = [
     price: "From $150/Hr",
     rating: 5.0,
     reviews: 12,
-    image: "/images/influencer/Influencer4.png",
+    image: "/images/influencer/kingkarlx@2x.png",
   },
   {
     id: "new-talent-2",
@@ -99,7 +99,7 @@ const newCreators = [
     price: "From $150/Hr",
     rating: 5.0,
     reviews: 12,
-    image: "/images/influencer/Influencer3.png",
+    image: "/images/influencer/natashaGraziano.png",
   },
   {
     id: "new-talent-3",
@@ -108,7 +108,7 @@ const newCreators = [
     price: "From $150/Hr",
     rating: 5.0,
     reviews: 12,
-    image: "/images/influencer/Influencer2.png",
+    image: "/images/influencer/pressaarmani.png",
   },
   {
     id: "new-talent-4",
@@ -117,7 +117,7 @@ const newCreators = [
     price: "From $150/Hr",
     rating: 5.0,
     reviews: 12,
-    image: "/images/influencer/Influencer1.png",
+    image: "/images/influencer/cedrictheentertainer.png",
   },
 ];
 
