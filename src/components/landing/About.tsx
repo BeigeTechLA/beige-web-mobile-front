@@ -31,9 +31,8 @@ export const About = () => {
                 muted
                 playsInline
                 className="absolute inset-0 w-full h-full object-cover opacity-80"
-              >
-                <source src="/videosnap.mp4" type="video/mp4" />
-              </video>
+                src="/videosnap.mp4"
+              />
 
               {/* Title Overlay in Image */}
               <div className="absolute top-10 left-10 right-10">

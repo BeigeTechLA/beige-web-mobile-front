@@ -1,15 +1,33 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Button } from "@/src/components/landing/ui/button";
 
 export const Hero = () => {
   const heroRef = useRef<HTMLElement | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const videoFileName = "Hero video.mp4";
 
-  // Mock video URL - replace with actual video path
-  const videoUrl = "/videos/Hero video.mp4";
+  useEffect(() => {
+    const fetchSignedUrl = async () => {
+      try {
+        const response = await fetch(`/api/video/${videoFileName}`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch signed URL.");
+        }
+
+        const data = await response.json();
+        setVideoUrl(data.url);
+      } catch (error) {
+        console.error("Error fetching video URL:", error);
+      }
+    };
+
+    fetchSignedUrl();
+  }, [videoFileName]);
 
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -38,14 +56,17 @@ export const Hero = () => {
         {/* Video Container */}
         <div className="relative w-full">
           {/* Background Video */}
-          <video
-            className="absolute inset-0 w-full h-full object-cover z-0"
-            src={videoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-          />
+          {
+            videoUrl &&
+            <video
+              className="absolute inset-0 w-full h-full object-cover z-0"
+              src={videoUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+          }
 
           {/* Bottom fade overlay */}
           <div className="pointer-events-none absolute bottom-0 left-0 w-full h-18 xl:h-[80px] z-[2] bg-gradient-to-t from-[#010101] via-[#010101]/80 to-transparent" />

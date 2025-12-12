@@ -1,11 +1,30 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Container } from "@/src/components/landing/ui/container";
 
 export const Brands = () => {
-  // Mock video URL - replace with actual video path
-  const videoUrl = "/videos/Brands Video.mp4";
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const videoFileName = "Brands Video.mp4";
+
+  useEffect(() => {
+    const fetchSignedUrl = async () => {
+      try {
+        const response = await fetch(`/api/video/${videoFileName}`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch signed URL.");
+        }
+
+        const data = await response.json();
+        setVideoUrl(data.url);
+      } catch (error) {
+        console.error("Error fetching video URL:", error);
+      }
+    };
+
+    fetchSignedUrl();
+  }, [videoFileName]);
 
   return (
     <section className="py-20 md:py-32 relative overflow-hidden">
