@@ -144,7 +144,7 @@ export const Hero = () => {
 
         {/* Updated SVG overlay replacing all previous overlays */}
         <img
-          src="/svg/Herobannerbackground1.svg"
+          src="/svg/HeroBanner.svg"
           alt="Decorative Overlay"
           className="absolute inset-0 w-full h-full object-cover z-[1] pointer-events-none"
         />

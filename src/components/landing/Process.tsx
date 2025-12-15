@@ -59,11 +59,13 @@ export const Process = () => {
 
             {/* Image */}
             <div className="relative w-full h-[200px] lg:h-[400px] rounded-[24px] overflow-hidden border border-white/10">
-              <Image
-                src="/images/creators.png"
-                alt="Production Process"
-                fill
-                className="object-cover opacity-80"
+               <video
+                className="absolute inset-0 w-full h-full object-cover"
+                src={"/videos/Camera_Operator_Filmmaker.mp4"} //this will be replaced with DO video fetched via api
+                autoPlay
+                loop
+                muted
+                playsInline
               />
 
               <div className="absolute top-6 left-6 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">

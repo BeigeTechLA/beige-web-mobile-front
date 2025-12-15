@@ -1,7 +1,8 @@
 import React from "react";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "../BookingModal";
-import { MapPin, Calendar, Film, DollarSign } from "lucide-react";
+import { MapPin, Film, DollarSign, Clock, CalendarFold } from "lucide-react";
+import { calculateDuration, formatISOToDateTime } from "@/lib/utils";
 
 interface Props {
   data: BookingData;
@@ -33,9 +34,15 @@ export const Step5Review = ({ data, onNext, onBack }: Props) => {
           {/* Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-4">
             <div className="flex items-center gap-3">
-              <div className=""><Calendar className="w-4 h-4 text-[#999]" /></div>
+              <div className=""><Clock className="w-4 h-4 text-[#999]" /></div>
               <div>
-                <p className="text-sm font-medium text-[#1D1D1BCC]">{data.startDate} - {data.endDate}</p>
+                <p className="text-sm font-medium text-[#1D1D1BCC]">{calculateDuration(data.startDate, data.endDate)} <span className="text-[#C58213]">(Estimated Duration)</span></p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className=""><CalendarFold className="w-4 h-4 text-[#999]" /></div>
+              <div>
+                <p className="text-sm font-medium text-[#1D1D1BCC]">{formatISOToDateTime(data.startDate)} - {formatISOToDateTime(data.endDate)}</p>
               </div>
             </div>
 

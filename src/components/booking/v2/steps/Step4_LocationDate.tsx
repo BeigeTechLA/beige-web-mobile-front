@@ -72,17 +72,27 @@ export const Step4LocationDate = ({
           <DateTimePicker
             label="Start Date & Time"
             value={parseDate(data.startDate)}
-            onChange={(date) =>
-              updateData({ startDate: date ? date.toISOString() : "" })
-            }
+            onChange={(date) => {
+              if (!date || isNaN(date.getTime())) {
+                updateData({ startDate: "" });
+                return;
+              }
+
+              updateData({ startDate: date.toISOString() });
+            }}
           />
 
           <DateTimePicker
             label="End Date & Time"
             value={parseDate(data.endDate)}
-            onChange={(date) =>
-              updateData({ endDate: date ? date.toISOString() : "" })
-            }
+            onChange={(date) => {
+              if (!date || isNaN(date.getTime())) {
+                updateData({ endDate: "" });
+                return;
+              }
+
+              updateData({ endDate: date.toISOString() });
+            }}
           />
         </div>
 
