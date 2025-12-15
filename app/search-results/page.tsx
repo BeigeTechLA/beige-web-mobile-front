@@ -1,15 +1,18 @@
 "use client";
 
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import { Star, ArrowRight } from "lucide-react";
+import React, { Suspense } from "react";
+import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
+
+import { Button } from "@/components/ui/button";
+import { Star, ArrowRight } from "lucide-react";
+
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { Suspense } from "react";
+import { Separator } from "@/src/components/landing/Separator";
+import NewCreatorsSection from "./components/NewCreatorsSection";
 
 // Mock creator data
 const mockCreators = [
@@ -143,11 +146,10 @@ const CreatorCard = ({
   creatorId: string;
 }) => (
   <div
-    className={`relative group overflow-hidden rounded-[20px] ${
-      isTopMatch
-        ? "col-span-1 md:col-span-2 lg:col-span-1 lg:row-span-2 h-full"
-        : "h-[400px]"
-    }`}
+    className={`relative group overflow-hidden rounded-[20px] ${isTopMatch
+      ? "col-span-1 md:col-span-2 lg:col-span-1 lg:row-span-2 h-full"
+      : "h-[400px]"
+      }`}
   >
     <Image
       src={image}
@@ -191,9 +193,8 @@ const CreatorCard = ({
           <span className="text-[#E8D1AB] font-medium">{price}</span>
         </div>
         <Link
-          href={`/search-results/${creatorId}${
-            shootId ? `?shootId=${shootId}` : ""
-          }`}
+          href={`/search-results/${creatorId}${shootId ? `?shootId=${shootId}` : ""
+            }`}
         >
           <Button className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black h-9 px-4 rounded-lg text-sm font-medium">
             View Profile
@@ -210,27 +211,27 @@ function SearchResultsContent() {
 
   return (
     <div className="pt-32 pb-20">
-      {/* Header Section */}
-      <div className="text-center pt-8 pb-12 px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-4"
-        >
-          <h2 className="text-3xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60 mb-4">
-            Here is Your Top Matched <br />
-            <span className="text-white">Creative Producer</span>
-          </h2>
-          <p className="text-white/60 max-w-xl mx-auto">
-            Here are matches based on your preferences. Select the best fit for
-            your project.
-          </p>
-        </motion.div>
-      </div>
+      {/* Main Section: Header + Main Grid */}
+      <section className="mb-30">
+        <div className="text-center pt-8 pb-12 px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4"
+          >
+            <h2 className="text-3xl md:text-5xl font-bold text-gradient-white mb-4">
+              Here is Your Top Matched <br />
+              Creative Producer
+            </h2>
+            <p className="text-white/60 max-w-xl mx-auto">
+              Here are matches based on your preferences. Select the best fit for
+              your project.
+            </p>
+          </motion.div>
+        </div>
 
-      {/* Main Grid */}
-      <div className="container mx-auto px-4 md:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Top Match - Ethan Cole */}
           <div className="lg:col-start-2">
             <CreatorCard {...mockCreators[0]} shootId={shootId} creatorId={mockCreators[0].id} />
@@ -244,11 +245,18 @@ function SearchResultsContent() {
             <CreatorCard {...mockCreators[2]} shootId={shootId} creatorId={mockCreators[2].id} />
           </div>
         </div>
+      </section>
 
-        {/* Section: We Think You'll Love These */}
-        <div className="mb-16">
-          <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
-            <h3 className="text-2xl font-medium">We Think You'll Love These</h3>
+      <Separator />
+
+      {/* Section: We Think You'll Love These */}
+      <section className="my-30">
+        <div className="container mx-auto">
+          <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
+            <p className="text-base text-white">Similar Creators</p>
+          </div>
+          <div className="flex items-center justify-between mb-8 pb-4">
+            <h2 className="text-2xl md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-8 tracking-tight">We Think You'll Love These</h2>
             <div className="flex gap-2">
               <button className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10">
                 <ArrowRight className="w-4 h-4 rotate-180" />
@@ -264,19 +272,15 @@ function SearchResultsContent() {
             ))}
           </div>
         </div>
+      </section>
 
-        {/* Section: New Creators */}
-        <div className="mb-16">
-          <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
-            <h3 className="text-2xl font-medium">New Creators on Beige</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {newCreators.map((creator) => (
-              <CreatorCard key={creator.id} {...creator} shootId={shootId} creatorId={creator.id} />
-            ))}
-          </div>
-        </div>
-      </div>
+      <Separator />
+
+      {/* Section: New Creators */}
+      <NewCreatorsSection
+        newCreators={newCreators}
+        shootId={shootId}
+      />
     </div>
   );
 }
