@@ -76,3 +76,13 @@ body {
   --landing-input: 38 4% 14%;
   --landing-ring: 40 40% 93.3%;
 }
+
+/* Hide scrollbar but keep scroll */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE & Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}

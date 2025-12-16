@@ -9,6 +9,8 @@ import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import CreatorGallery from "./components/CreatorGallery";
+import { Separator } from "./components/Separator";
 
 // Mock creator data
 const mockCreator = {
@@ -29,6 +31,8 @@ const mockCreator = {
     "/images/influencer/cedrictheentertainer.png",
     "/images/influencer/chiefKeef.png",
     "/images/influencer/seanKelly.png",
+    "/images/influencer/kingkarlx@2x.png",
+    '/images/influencer/Sharukh.png'
   ],
   portfolio: [
     "/images/projects/interior.png",
@@ -45,7 +49,7 @@ function CreatorProfileContent() {
 
   return (
     <div className="pt-32 pb-20">
-      <div className="container mx-auto px-4 md:px-8">
+      <div className="container mx-auto px-4 md:px-0">
         {/* Back Button */}
         <Link
           href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`}
@@ -57,114 +61,62 @@ function CreatorProfileContent() {
 
         <div className="flex flex-col lg:flex-row gap-12">
           {/* Left: Gallery */}
-          <div className="w-full lg:w-[500px] shrink-0">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 relative aspect-[4/3] rounded-[20px] overflow-hidden">
-                <Image
-                  src={mockCreator.images[0]}
-                  alt={mockCreator.name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              {mockCreator.images.slice(1, 4).map((img, i) => (
-                <div
-                  key={i}
-                  className="relative aspect-square rounded-[16px] overflow-hidden"
-                >
-                  <Image src={img} alt="Portfolio" fill className="object-cover" />
-                </div>
-              ))}
-              {/* Last image with overlay */}
-              <div className="relative aspect-square rounded-[16px] overflow-hidden">
-                <Image
-                  src={mockCreator.images[4]}
-                  alt="More"
-                  fill
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                  <span className="text-white font-medium text-lg">+12</span>
-                </div>
-              </div>
-            </div>
+          <div className="w-1/2">
+            <CreatorGallery mockCreator={mockCreator} />
           </div>
 
           {/* Right: Info */}
-          <div className="flex-1">
+          <div className="flex-1 w-1/2 flex flex-col gap-[30px]">
             {/* Header Info */}
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-bold text-white">
-                    {mockCreator.name}
-                  </h1>
-                  {mockCreator.available && (
-                    <span className="bg-[#4CAF50]/20 text-[#4CAF50] text-xs font-medium px-3 py-1 rounded-full border border-[#4CAF50]/30">
-                      Available
-                    </span>
-                  )}
-                </div>
-                <p className="text-white/60 text-lg mb-4">{mockCreator.role}</p>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1 bg-[#1A1A1A] border border-white/10 px-3 py-1.5 rounded-lg">
-                    <Star className="w-4 h-4 text-[#E8D1AB] fill-[#E8D1AB]" />
-                    <span className="text-white font-medium">
-                      {mockCreator.rating}
-                    </span>
-                    <span className="text-white/60 text-sm">
-                      ({mockCreator.reviews})
-                    </span>
-                  </div>
-                </div>
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-3">
+                <h1 className="text-3xl font-medium text-white">
+                  {mockCreator.name}
+                </h1>
+                <p className="text-[#E8D1AB] text-[22px]">{mockCreator.role}</p>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => console.log("Heart clicked")}
-                  className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors"
-                >
-                  <Heart className="w-5 h-5 text-white" />
-                </button>
-                <button
-                  onClick={() => console.log("Share clicked")}
-                  className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors"
-                >
-                  <Share className="w-5 h-5 text-white" />
-                </button>
-              </div>
+              {mockCreator.available && (
+                <p className="bg-[#EDF7EE] text-[#4CAF50] text-xl px-5 py-3 rounded-full border border-[#4CAF50] leading-[20px]">
+                  Available
+                </p>
+              )}
             </div>
+            <Separator />
 
             {/* About */}
-            <div className="mb-8">
-              <h3 className="text-lg font-bold text-white mb-3">About Creator</h3>
-              <p className="text-white/60 leading-relaxed text-base font-light">
+            <div className="flex flex-col gap-3.5">
+              <h3 className="text-xl font-bold text-white">About Creator</h3>
+              <p className="text-white/60 leading-relaxed text-lg font-normal">
                 {mockCreator.about}
               </p>
             </div>
+            <Separator />
+
 
             {/* Skills */}
-            <div className="mb-8">
-              <h3 className="text-lg font-bold text-white mb-3">Skills</h3>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-3.5">
+              <h3 className="text-xl font-bold text-white">Skills</h3>
+              <div className="flex flex-wrap gap-2.5">
                 {mockCreator.skills.map((skill) => (
                   <span
                     key={skill}
-                    className="px-4 py-2 bg-[#1A1A1A] border border-white/10 rounded-[8px] text-sm text-white/80"
+                    className="px-5 py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
                   >
                     {skill}
                   </span>
                 ))}
               </div>
             </div>
+            <Separator />
 
             {/* Equipment */}
-            <div className="mb-10">
-              <h3 className="text-lg font-bold text-white mb-3">Equipment's</h3>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-3.5">
+              <h3 className="text-xl font-bold text-white">Equipment's</h3>
+              <div className="flex flex-wrap gap-2.5">
                 {mockCreator.equipment.map((item) => (
                   <span
                     key={item}
-                    className="px-4 py-2 bg-[#1A1A1A] border border-white/10 rounded-[8px] text-sm text-white/60 flex items-center gap-2"
+                    className="px-5 py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
                   >
                     {item}
                   </span>
@@ -173,25 +125,25 @@ function CreatorProfileContent() {
             </div>
 
             {/* Action Bar */}
-            <div className="bg-[#1A1A1A] border border-white/10 rounded-[20px] p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div>
-                <p className="text-white/60 text-sm mb-1 font-medium">
-                  Starting Price
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-white/40 text-sm">for 1 hours</span>
-                  <span className="text-3xl font-bold text-white">
-                    ${mockCreator.price}
-                  </span>
+            <div className="bg-[#171717] rounded-[20px] p-7 flex flex-col gap-7 mt-2.5">
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col gap-1">
+                  <p className="text-white text-2xl font-semibold">
+                    Starting Price
+                  </p>
+                  <span className="text-white text-sm">for 1 hour</span>
                 </div>
+
+                <span className="text-3xl font-bold text-white">
+                  ${mockCreator.price}
+                </span>
               </div>
               <Link
-                href={`/search-results/ethan-cole/payment${
-                  shootId ? `?shootId=${shootId}` : ""
-                }`}
+                href={`/search-results/ethan-cole/payment${shootId ? `?shootId=${shootId}` : ""
+                  }`}
                 className="w-full md:w-auto"
               >
-                <Button className="w-full h-[56px] px-10 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-lg font-medium rounded-[12px]">
+                <Button className="w-full h-[71px] px-10 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-2xl font-medium rounded-[12px]">
                   Proceed to Payment
                 </Button>
               </Link>
@@ -206,11 +158,10 @@ function CreatorProfileContent() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 md:flex-none px-8 py-4 text-base transition-colors relative ${
-                  activeTab === tab
-                    ? "text-[#E8D1AB] font-medium"
-                    : "text-white/40 hover:text-white font-normal"
-                }`}
+                className={`flex-1 md:flex-none px-8 py-4 text-base transition-colors relative ${activeTab === tab
+                  ? "text-[#E8D1AB] font-medium"
+                  : "text-white/40 hover:text-white font-normal"
+                  }`}
               >
                 {tab}
                 {activeTab === tab && (
