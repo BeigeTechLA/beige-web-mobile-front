@@ -13,6 +13,7 @@ import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
 import { Separator } from "@/src/components/landing/Separator";
 import NewCreatorsSection from "./components/NewCreatorsSection";
+import SimilarCreatorsSection from "./components/SimilarCreatorsSection";
 
 // Mock creator data
 const mockCreators = [
@@ -250,30 +251,10 @@ function SearchResultsContent() {
       <Separator />
 
       {/* Section: We Think You'll Love These */}
-      <section className="my-30">
-        <div className="container mx-auto">
-          <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
-            <p className="text-base text-white">Similar Creators</p>
-          </div>
-          <div className="flex items-center justify-between mb-8 pb-4">
-            <h2 className="text-2xl md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-8 tracking-tight">We Think You'll Love These</h2>
-            <div className="flex gap-2">
-              <button className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10">
-                <ArrowRight className="w-4 h-4 rotate-180" />
-              </button>
-              <button className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10">
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {additionalCreators.map((creator) => (
-              <CreatorCard key={creator.id} {...creator} shootId={shootId} creatorId={creator.id} />
-            ))}
-          </div>
-        </div>
-      </section>
-
+      <SimilarCreatorsSection
+        additionalCreators={additionalCreators}
+        shootId={shootId}
+      />
       <Separator />
 
       {/* Section: New Creators */}

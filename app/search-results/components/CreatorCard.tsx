@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Star } from "lucide-react";
+import { Plus, Star, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
@@ -22,6 +22,19 @@ const infoVariants = {
   },
 };
 
+interface CreatorCardProps {
+  name: string;
+  role: string;
+  price: string;
+  rating: number;
+  reviews: number;
+  image: string;
+  isTopMatch?: boolean;
+  shootId?: string;
+  creatorId: string;
+  isActive?: boolean;
+}
+
 const CreatorCard = ({
   name,
   role,
@@ -32,23 +45,14 @@ const CreatorCard = ({
   isTopMatch = false,
   shootId,
   creatorId,
-}: {
-  name: string;
-  role: string;
-  price: string;
-  rating: number;
-  reviews: number;
-  image: string;
-  isTopMatch?: boolean;
-  shootId?: string;
-  creatorId: string;
-}) => {
+  isActive = false,
+}: CreatorCardProps) => {
   return (
     <motion.div
       variants={cardVariants}
       initial="rest"
+      animate={isActive ? "hover" : "rest"}
       whileHover="hover"
-      animate="rest"
       transition={{ duration: 0.45, ease: "easeInOut" }}
       className="
         relative
@@ -70,19 +74,25 @@ const CreatorCard = ({
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
-        {/* Rating */}
-        <div className="absolute top-4 right-4 flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
-          <Star className="w-3 h-3 text-[#E8D1AB] fill-[#E8D1AB]" />
-          <span className="text-white text-xs font-medium">
-            {rating} ({reviews})
-          </span>
-        </div>
-
-        {isTopMatch && (
-          <div className="absolute top-4 left-4 bg-[#E8D1AB] text-black text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-            Top Match
+        <div className="absolute top-4 flex items-center justify-between w-full px-2">
+          <div className="w-[90px] h-[21px]">
+            <Image
+              src="/images/logos/beige_logo_vb.png"
+              alt={"Beige logo"}
+              width={90}
+              height={21}
+              priority
+            />
           </div>
-        )}
+
+          {/* Rating */}
+          <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 relative">
+            <Star className="w-[18px] h-[18px] text-[#E8D1AB] fill-[#E4CC17]" />
+            <span className="text-white text-lg font-medium">
+              {rating} ({reviews})
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* INFO PANEL */}
@@ -97,42 +107,48 @@ const CreatorCard = ({
           h-[220px]
           bg-[#0B0B0B]
           border-t border-white/10
-          p-6
+          px-7
+          py-5
+          flex flex-col gap-4
+          pointer-events-auto
         "
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-white text-xl font-medium">{name}</h3>
-              <span className="bg-[#4CAF50]/20 text-[#4CAF50] text-[10px] px-2 py-0.5 rounded-full border border-[#4CAF50]/30">
-                Available
-              </span>
-            </div>
-            <p className="text-white/60 text-sm">{role}</p>
+        <div className="flex items-center justify-between">
+          <div className="flex gap-2.5">
+            <button className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/10 hover:bg-white/20">
+              <ThumbsUp className="text-white w-5 h-5" />
+            </button>
+            <button className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/10 hover:bg-white/20">
+              <ThumbsDown className="text-white w-5 h-5" />
+            </button>
           </div>
-
-          <button className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-white hover:bg-white/10">
-            +
+          <button className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/10 hover:bg-white/20">
+            <Plus className="text-white w-5 h-5" />
           </button>
         </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
+        <div className="flex items-center justify-between">
           <div>
-            <span className="block text-white/40 text-xs">Starting at</span>
-            <span className="text-[#E8D1AB] font-medium">{price}</span>
+            <h3 className="text-white text-2xl font-medium">{name}</h3>
+            <p className="text-white/60 text-base">{role}</p>
           </div>
+          <p className="bg-[#EDF7EE] text-[#4CAF50] text-base px-3.5 py-2 rounded-full border border-[#4CAF50]">
+            Available
+          </p>
+        </div>
 
+        <div className="flex items-center justify-between">
           <Link
-            href={`/search-results/${creatorId}${
-              shootId ? `?shootId=${shootId}` : ""
-            }`}
+            href={`/search-results/${creatorId}${shootId ? `?shootId=${shootId}` : ""
+              }`}
           >
-            <Button className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black h-9 px-4 rounded-lg text-sm font-medium">
+            <Button className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black px-6 py-4 rounded-lg text-base font-medium">
               View Profile
             </Button>
           </Link>
+
+          <div>
+            <span className="text-[#E8D1AB] text-xl font-medium">{price}</span>
+          </div>
         </div>
       </motion.div>
     </motion.div>

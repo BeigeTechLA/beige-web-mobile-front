@@ -19,15 +19,15 @@ interface Creator {
   isTopMatch?: boolean;
 }
 
-interface NewCreatorsSectionProps {
-  newCreators: Creator[];
+interface SimilarCreatorsSectionProps {
+  additionalCreators: Creator[];
   shootId?: string;
 }
 
-const NewCreatorsSection = ({
-  newCreators,
+const SimilarCreatorsSection = ({
+  additionalCreators,
   shootId,
-}: NewCreatorsSectionProps) => {
+}: SimilarCreatorsSectionProps) => {
   const swiperRef = useRef<SwiperType | null>(null);
 
   return (
@@ -35,12 +35,12 @@ const NewCreatorsSection = ({
       <div className="container mx-auto relative overflow-hidden">
         {/* Header */}
         <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
-          <p className="text-base text-white">New on Beige</p>
+          <p className="text-base text-white">Similar Creators</p>
         </div>
 
         <div className="flex items-center justify-between mb-8 pb-4">
           <h2 className="text-2xl md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
-            New Creators on Beige
+            We Think You'll Love These
           </h2>
 
           {/* NAV ARROWS (Desktop only) */}
@@ -72,7 +72,7 @@ const NewCreatorsSection = ({
           }}
           className="!overflow-visible lg:h-[584px]"
         >
-          {newCreators.map((creator) => (
+          {additionalCreators.map((creator) => (
             <SwiperSlide key={creator.id}>
               {({ isActive }) => (
                 <CreatorCard
@@ -90,4 +90,4 @@ const NewCreatorsSection = ({
   );
 };
 
-export default NewCreatorsSection;
+export default SimilarCreatorsSection;

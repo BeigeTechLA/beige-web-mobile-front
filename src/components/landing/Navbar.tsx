@@ -40,7 +40,7 @@ export const Navbar = () => {
         `}
       >
         <div className="h-16 md:h-[88px] flex items-center justify-between px-6">
-          {/* Left: Logo + Links */}
+          {/* Left: Links */}
           <div className="flex items-center gap-12">
             {/* Desktop Links */}
             <div className="hidden lg:flex items-center gap-2">
