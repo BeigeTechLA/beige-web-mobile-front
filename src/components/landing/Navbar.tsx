@@ -24,7 +24,7 @@ export const Navbar = () => {
   }, []);
 
   return (
-    <nav className="fixed top-6 left-0 right-0 z-50 pointer-events-none">
+    <nav className="fixed top-6 left-2 right-2 lg:left-0 lg:right-0 z-50 pointer-events-none">
       {/* FLOATING BAR */}
       <div
         className={`
@@ -33,17 +33,17 @@ export const Navbar = () => {
           px-6
           transition-all duration-300
           ${isScrolled
-            ? "bg-[#050505]/80 backdrop-blur-[12px] border border-white/10"
-            : "bg-[#050505]/60 backdrop-blur-[8px] border border-white/10"
+            ? "bg-[#050505]/80 backdrop-blur-[12px] border-[0.5px] border-[#E8D1AB]/30"
+            : "bg-[#050505]/60 backdrop-blur-[8px] border-[0.5px] border-[#E8D1AB]/30"
           }
-          rounded-[20px]
+          rounded-[10px] lg:rounded-[20px]
         `}
       >
-        <div className="h-16 md:h-[88px] flex items-center justify-between px-6">
+        <div className="h-13 md:h-[88px] flex items-center justify-between lg:px-6">
           {/* Left: Links */}
-          <div className="flex items-center gap-12">
+          <div className="hidden lg:flex tems-center gap-12">
             {/* Desktop Links */}
-            <div className="hidden lg:flex items-center gap-2">
+            <div className="items-center gap-2">
               {navLinks.map((link) => (
                 <button
                   key={link.label}

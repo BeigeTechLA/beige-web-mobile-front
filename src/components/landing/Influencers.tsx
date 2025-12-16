@@ -137,36 +137,70 @@ export const Influencers = () => {
 
 
   return (
-    <section ref={sectionRef} className="py-20 lg:py-32 overflow-hidden">
+    <section ref={sectionRef} className="py-10 lg:py-32 overflow-hidden">
       <Container>
         {/* HEADER */}
-        <div className="text-center mb-12 lg:mb-20 max-h-[941px]">
-          <div className="inline-flex items-center border-b border-t border-white/60 w-fit px-10 py-2 mb-6">
-            <p className="text-base text-white">Top Influentials</p>
+        <div className="text-center mb-6 lg:mb-20 max-h-[941px]">
+          <div className="inline-flex items-center border-b border-t border-white/60 w-fit px-10 py-2 mb-5 md:mb-6">
+            <p className="text-xs md:text-base text-white">Top Influencers</p>
           </div>
-          <h2 className="text-2xl md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-6">
-            Partnered with the World’s Top Influentials
+          <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-6">
+            Partnered with the World’s Top Influencers
           </h2>
-          <p className="text-sm lg:text-base text-white/50 max-w-[640px] mx-auto">
+          <p className="text-xs lg:text-base text-white/50 max-w-[640px] mx-auto">
             Beige Media makes it easy for brands to create any video they need
             with a single, trusted partner.
           </p>
         </div>
 
         {/* MOBILE VIEW */}
-        <div className="flex flex-col gap-10 lg:hidden">
+        <div className="flex flex-col gap-8 lg:hidden">
           {INFLUENCERS.map((item, i) => (
-            <div
-              key={i}
-              className="w-full rounded-[20px] overflow-hidden border border-white/10 bg-black"
-            >
-              <div className="relative w-full h-[360px]">
-                <Image
-                  src={item.image}
-                  alt={item.name}
-                  fill
-                  className="object-cover"
-                />
+            <div className="flex flex-col gap-7" key={i}>
+              {/* Mobile: Image */}
+              <div
+                className="w-full rounded-[10px] overflow-hidden border border-white/10 bg-black"
+              >
+                <div className="relative w-full h-[350px]">
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+              {/* Mobile: Info */}
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <Image
+                    src="/svg/Insta.svg"
+                    alt="Instagram"
+                    width={30}
+                    height={30}
+                  />
+                  <h3 className="text-2xl text-white">
+                    {item.name}
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-2 text-[#ECE1CE] mb-4">
+                  <TrendingUp size={20} />
+                  <span className="text-base font-light">
+                    {current.reach}
+                  </span>
+                </div>
+
+                <p className="text-white/50 text-base mb-13">
+                  {item.bio}
+                </p>
+
+                <div className="inline-flex items-center px-6 py-3 bg-[#ECE1CE] rounded-lg">
+                  <span className="text-black text-xl font-bold mr-2">
+                    {item.followers}
+                  </span>
+                  <span className="text-black/70">Followers</span>
+                </div>
               </div>
             </div>
           ))}

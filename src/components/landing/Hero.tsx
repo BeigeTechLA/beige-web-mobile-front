@@ -14,19 +14,14 @@ export const Hero = () => {
   useEffect(() => {
     const fetchSignedUrl = async () => {
       try {
-        const response = await fetch(`/api/video/${videoFileName}`);
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch signed URL.");
-        }
-
-        const data = await response.json();
+        const res = await fetch(`/api/video/${videoFileName}`);
+        if (!res.ok) throw new Error("Failed to fetch video");
+        const data = await res.json();
         setVideoUrl(data.url);
-      } catch (error) {
-        console.error("Error fetching video URL:", error);
+      } catch (err) {
+        console.error(err);
       }
     };
-
     fetchSignedUrl();
   }, [videoFileName]);
 
@@ -35,122 +30,106 @@ export const Hero = () => {
     offset: ["start start", "end start"],
   });
 
-  const y1 = useTransform(scrollYProgress, [0, 1], [0, -200]);
+  const y = useTransform(scrollYProgress, [0, 1], [0, -200]);
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
-
-  const handleBookShoot = () => {
-    setIsBookingOpen(true);
-  };
-
-  const handleFindWork = () => {
-    console.log('Hero: Find a Creative Work clicked');
-  };
 
   return (
     <>
+      {/*  HERO  */}
       <section
         ref={heroRef}
-        className="pt-30 lg:pt-36 pb-20 overflow-hidden min-h-screen flex flex-col items-center"
+        className="relative h-[85vh] xl:h-screen 2xl:h-[85vh] 2xl:max-h-[900px] overflow-hidden flex flex-col items-center"
       >
-        {/* Video Container */}
-        <div className="relative w-full">
-          {/* Background Video */}
-          {
-            videoUrl &&
-            <video
-              className="absolute inset-0 w-full h-full object-cover z-0"
-              src={videoUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
-            />
-          }
+        {/*  BACKGROUND VIDEO  */}
+        {videoUrl && (
+          <motion.video
+            style={{ y, opacity }}
+            className="absolute inset-0 w-full h-full object-cover z-0"
+            src={videoUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
+        )}
 
-          {/* Bottom fade overlay */}
-          <div className="pointer-events-none absolute bottom-0 left-0 w-full h-18 xl:h-[80px] z-[2] bg-gradient-to-t from-[#010101] via-[#010101]/80 to-transparent" />
+        {/*  CONTENT  */}
+        <div className="relative z-[3] w-full pt-28 lg:pt-36 lg:pb-44">
+          <div className="container mx-auto px-4 flex flex-col items-center text-center">
+            {/* Badge */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="mb-6 lg:mb-12"
+            >
+              <div className="rounded-full border border-white/10 bg-white/5 backdrop-blur px-4 py-1.5 text-xs lg:text-sm text-white/70">
+                ✦ Beige Launches in Miami Art Basil 2025 →
+              </div>
+            </motion.div>
 
-          {/* Content */}
-          <div className="relative z-10 w-full">
-            <div className="container mx-auto px-4 md:px-6 flex flex-col items-center">
-              {/* Launch Badge */}
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="mb-12"
+            {/* Headline */}
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-lg sm:text-4xl md:text-6xl lg:text-[64px] leading-tight font-bold text-gradient-white mb-4 lg:mb-7"
+            >
+              The Ultimate Platform for Livestreaming, Photography & Videography
+            </motion.h1>
+
+            {/* Buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="flex gap-6"
+            >
+              <Button
+                onClick={() => setIsBookingOpen(true)}
+                className="h-7 lg:h-12 px-5 lg:px-8 rounded-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-[#2A2A2A] text-xs lg:text-lg"
               >
-                <div className="w-auto px-6 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm flex items-center justify-center gap-2">
-                  <span className="text-[#ECE1CE]">✦</span>
-                  <span className="text-white/70 text-sm font-medium">
-                    Beige Launches in Miami Art Basil 2025 →
-                  </span>
-                </div>
-              </motion.div>
+                Book a Shoot
+              </Button>
 
-              {/* Headline */}
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.1 }}
-                className="text-center max-w-[1237px] mb-16"
+              <Button
+                className="h-7 lg:h-12 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-xs lg:text-lg"
               >
-                <h1 className="text-xl md:text-6xl lg:text-[64px] leading-[1.1] font-bold tracking-tight text-gradient-white">
-                  The Ultimate Platform for Livestreaming,
-                  <br />
-                  Photography & Videography
-                </h1>
-              </motion.div>
-
-              {/* Buttons */}
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.3 }}
-                className="flex flex-col sm:flex-row gap-6 items-center justify-center mb-32 xl:mb-[541px]"
-              >
-                <Button
-                  onClick={handleBookShoot}
-                  className="w-[180px] h-[56px] rounded-full text-base font-medium bg-[#1A1A1A] text-white hover:bg-[#2A2A2A] border border-white/10"
-                >
-                  Book a Shoot
-                </Button>
-                <Button
-                  onClick={handleFindWork}
-                  className="w-[200px] h-[56px] rounded-full text-base font-medium bg-[#ECE1CE] text-[#030303] hover:bg-[#dcb98a]"
-                >
-                  Find a Creative Work
-                </Button>
-              </motion.div>
-            </div>
+                Find a Creative Work
+              </Button>
+            </motion.div>
           </div>
         </div>
 
-        {/* Subheadline section under video */}
-        <div className="relative z-10 w-full">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-center max-w-[300px] lg:max-w-[600px] mb-12 mx-auto"
-          >
-            <p className="text-sm md:text-base text-[#999999] leading-relaxed">
-              From cultural moments to world-class productions, book the
-              perfect creator for live streaming, videography, and
-              photography in minutes with our AI-powered platform.
-            </p>
-          </motion.div>
-        </div>
+        {/*  BOTTOM FADE  */}
+        <div
+          className="pointer-events-none absolute bottom-0 left-0 w-full
+            h-[80px] lg:h-[120px] z-[4] bg-gradient-to-t from-[#010101] via-[#010101]/85 to-transparent
+          "
+        />
 
-        {/* Updated SVG overlay replacing all previous overlays */}
+        {/*  SVG OVERLAY  */}
         <img
           src="/svg/HeroBanner.svg"
           alt="Decorative Overlay"
-          className="absolute inset-0 w-full h-full object-cover z-[1] pointer-events-none"
+          className="absolute inset-0 w-full h-full object-cover z-[2] pointer-events-none"
         />
       </section>
 
-      {/* Booking Modal */}
+      {/*  SUBHEADLINE  */}
+      <section className="relative z-[5] bg-[#010101] pb-14 lg:pb-24">
+        <motion.p
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="max-w-[600px] mx-auto text-center text-xs sm:text-sm md:text-base text-[#999999] px-4"
+        >
+          From cultural moments to world-class productions, book the perfect
+          creator for live streaming, videography, and photography in minutes
+          with our AI-powered platform.
+        </motion.p>
+      </section>
+
       <BookingModal
         isOpen={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}

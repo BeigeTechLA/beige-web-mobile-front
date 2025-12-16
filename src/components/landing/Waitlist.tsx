@@ -41,25 +41,25 @@ export const Waitlist = () => {
   };
 
   return (
-    <section className="py-20 md:py-32 bg-[#010101] relative overflow-hidden">
+    <section className="py-10 md:py-32 bg-[#010101] relative overflow-hidden">
       <Container>
-        <div className="p-10 lg:py-[100px] lg:px-[50px] bg-[#171717] rounded-[20px] mx-auto text-center">
+        <div className="p-5 lg:p-10 lg:py-[100px] lg:px-[50px] bg-[#171717] rounded-[20px] mx-auto text-center">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-24"
+            className="text-center mb-5 lg:mb-24"
           >
-            <div className="inline-flex items-center border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
-              <p className="text-base text-white">Contact Us</p>
+            <div className="inline-flex items-center border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
+              <p className="text-xs md:text-base text-white">Contact Us</p>
             </div>
 
-            <h2 className="text-2xl md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-6 tracking-tight">
+            <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-6 tracking-tight">
               Coming to Your City Soon.
             </h2>
-            <p className="text-white/50 text-sm lg:text-base lg:max-w-2/3 mx-auto font-light">
+            <p className="text-white/50 text-xs lg:text-base lg:max-w-2/3 mx-auto font-light">
               We&apos;re currently launching in Los Angeles, but we&apos;re expanding to
               new cities soon. Join our waitlist to be the first to know when
               Beige becomes available in your area and get priority access when
@@ -75,21 +75,21 @@ export const Waitlist = () => {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="w-full lg:w-1/2 text-left p-6 lg:p-16"
+              className="w-full lg:w-1/2 text-left p-5 lg:p-16"
             >
-              <div className="mb-12">
+              <div className="mb-5 lg:mb-12">
                 <p className="text-xl lg:text-[28px] text-white font-light">
                   Get Early Access to Beige
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4 lg:gap-6">
                 <div className="relative">
-                  <label className="absolute -top-[10px] left-[20px] bg-[#010101] px-2 text-white/60 text-sm tracking-wide">
+                  <label className="absolute -top-[10px] left-[20px] bg-[#010101] px-2 text-white/60 text-[10px] lg:text-sm tracking-wide">
                     Full Name*
                   </label>
                   <input
-                    className="w-full h-[74px] bg-[#010101] border border-white/20 rounded-[14px] px-6 text-white text-lg outline-none focus:border-white/60 transition-all"
+                    className="w-full h-14 lg:h-[74px] bg-[#010101] border border-white/20 rounded-[5px] lg:rounded-xl px-6 text-white text-base lg:text-lg outline-none focus:border-white/60 transition-all"
                     type="text"
                     name="name"
                     required
@@ -98,11 +98,11 @@ export const Waitlist = () => {
                   />
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-[10px] left-[20px] bg-[#010101] px-2 text-white/60 text-sm tracking-wide">
+                  <label className="absolute -top-[10px] left-[20px] bg-[#010101] px-2 text-white/60 text-[10px] lg:text-sm tracking-wide">
                     Email ID*
                   </label>
                   <input
-                    className="w-full h-[74px] bg-[#010101] border border-white/20 rounded-[14px] px-6 text-white text-lg outline-none focus:border-white/60 transition-all"
+                    className="w-full h-14 lg:h-[74px] bg-[#010101] border border-white/20 rounded-[5px] lg:rounded-xl px-6 text-white text-base lg:text-lg outline-none focus:border-white/60 transition-all"
                     type="email"
                     name="email"
                     required
@@ -111,11 +111,11 @@ export const Waitlist = () => {
                   />
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-[10px] left-[20px] bg-[#010101] px-2 text-white/60 text-sm tracking-wide">
+                  <label className="absolute -top-[10px] left-[20px] bg-[#010101] px-2 text-white/60 text-[10px] lg:text-sm tracking-wide">
                     Mobile Number
                   </label>
                   <input
-                    className="w-full h-[74px] bg-[#010101] border border-white/20 rounded-[14px] px-6 text-white text-lg outline-none focus:border-white/60 transition-all"
+                    className="w-full h-14 lg:h-[74px] bg-[#010101] border border-white/20 rounded-[5px] lg:rounded-xl px-6 text-white text-base lg:text-lg outline-none focus:border-white/60 transition-all"
                     type="tel"
                     name="phone"
                     value={formData.phone}
@@ -123,11 +123,11 @@ export const Waitlist = () => {
                   />
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-[10px] left-[20px] bg-[#010101] px-2 text-white/60 text-sm tracking-wide">
+                  <label className="absolute -top-[10px] left-[20px] bg-[#010101] px-2 text-white/60 text-[10px] lg:text-sm tracking-wide">
                     Company Name
                   </label>
                   <input
-                    className="w-full h-[74px] bg-[#010101] border border-white/20 rounded-[14px] px-6 text-white text-lg outline-none focus:border-white/60 transition-all"
+                    className="w-full h-14 lg:h-[74px] bg-[#010101] border border-white/20 rounded-[5px] lg:rounded-xl px-6 text-white text-base lg:text-lg outline-none focus:border-white/60 transition-all"
                     type="text"
                     name="company"
                     value={formData.company}
@@ -135,11 +135,11 @@ export const Waitlist = () => {
                   />
                 </div>
                 <div className="relative">
-                  <label className="absolute -top-[10px] left-[20px] bg-[#010101] px-2 text-white/60 text-sm tracking-wide">
+                  <label className="absolute -top-[10px] left-[20px] bg-[#010101] px-2 text-white/60 text-[10px] lg:text-sm tracking-wide">
                     Location (City)*
                   </label>
                   <input
-                    className="w-full h-[74px] bg-[#010101] border border-white/20 rounded-[14px] px-6 text-white text-lg outline-none focus:border-white/60 transition-all"
+                    className="w-full h-14 lg:h-[74px] bg-[#010101] border border-white/20 rounded-[5px] lg:rounded-xl px-6 text-white text-base lg:text-lg outline-none focus:border-white/60 transition-all"
                     type="text"
                     name="city"
                     required
@@ -148,20 +148,20 @@ export const Waitlist = () => {
                   />
                 </div>
 
-                <div className="mt-4">
+                <div className="mt-4 flex justify-center lg:justify-start">
                   <Button
                     type="submit"
-                    className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-[56px] pl-4 pr-2 rounded-[10px] text-xl font-medium flex items-center justify-between gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] transition-all lg:min-w-[240px]"
+                    className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 md:h-[56px] pl-4  pr-1 lg:pr-2 rounded-[5px] lg:rounded-[10px] text-sm md:text-xl font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] transition-all md:min-w-[240px]"
                     disabled={status === "loading"}
                   >
-                    <span className="pr-4 text-sm lg:text-base">
+                    <span className="lg:pr-4 text-sm md:text-xl">
                       {status === "loading"
                         ? "Joining..."
                         : "Join Waitlist"}
                     </span>
 
                     {/* Right Dark Icon Box */}
-                    <div className="bg-[#1A1A1A] w-[48px] h-[48px] rounded-[10px] flex items-center justify-center">
+                    <div className="bg-[#1A1A1A] w-8 h-8 lg:w-12 lg:h-12 rounded-[5px] flex items-center justify-center">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="22"
@@ -194,12 +194,12 @@ export const Waitlist = () => {
               transition={{ duration: 0.6 }}
               className="w-full lg:w-1/2 flex items-center justify-center"
             >
-              <div className="relative w-full h-[300px] lg:h-[700px] xl:h-[800px] max-w-[500px] lg:max-w-none">
+              <div className="relative w-full h-[225px] lg:h-[700px] xl:h-[800px] max-w-[500px] lg:max-w-none">
                 <Image
                   src="/images/misc/SquareGlobe.png"
                   alt="Global Reach"
                   fill
-                  className="object-contain"
+                  className="object-cover lg:object-contain"
                   priority
                 />
               </div>

@@ -61,12 +61,12 @@ export const FAQ = () => {
   };
 
   return (
-    <section className="py-20 md:py-32 relative overflow-hidden">
+    <section className="py-10 lg:py-32 relative overflow-hidden">
       <Container>
-        <div className="border-b border-t border-b-white/60 border-t-white/60 w-[140px] py-2 text-center mb-6">
-          <p className="text-base text-white">FAQ</p>
+        <div className="border-b border-t border-b-white/60 border-t-white/60 w-[140px] py-2 text-center mb-5 md:mb-6">
+          <p className="text-xs md:text-base text-white">FAQ</p>
         </div>
-        <div className="flex flex-col lg:flex-row gap-16 lg:gap-24 items-start">
+        <div className="flex flex-col lg:flex-row gap-7 lg:gap-24 items-start">
           {/* Left Content */}
           <div className="w-full lg:w-1/3 shrink-0">
             {/* Section Title */}
@@ -75,10 +75,10 @@ export const FAQ = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="mb-16"
+              className="lg:mb-16"
             >
-              <h2 className="text-2xl md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-8 tracking-tight">
-                Everything You Need<br />to Know!
+              <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
+                Everything You Need to Know!
               </h2>
             </motion.div>
           </div>
@@ -101,15 +101,15 @@ export const FAQ = () => {
                     transition={{ delay: index * 0.05, duration: 0.5 }}
                     className={`
                       ${!isLast ? "border-b border-white/10" : ""}
-                      ${isFirst ? "pt-0" : "pt-6"}
-                      ${isLast ? "pb-0" : "pb-6"}
+                      ${isFirst ? "pt-0" : "pt-5 lg:pt-6"}
+                      ${isLast ? "pb-0" : "pb-5 lg:pb-6"}
                     `}
                   >
                     <button
                       onClick={() => toggleItem(index)}
                       className="flex justify-between items-center w-full text-left group"
                     >
-                      <span className="text-lg lg:text-[28px] text-white transition-colors pr-8">
+                      <span className="text-sm lg:text-[28px] text-white transition-colors pr-8">
                         {item.question}
                       </span>
 
@@ -136,7 +136,7 @@ export const FAQ = () => {
                           transition={{ duration: 0.3, ease: "easeInOut" }}
                           className="overflow-hidden"
                         >
-                          <p className="text-white/70 lg:text-xl leading-relaxed mt-4 pr-12">
+                          <p className="text-white/70 text-xs lg:text-xl leading-relaxed mt-2 lg:mt-4 pr-12">
                             {item.answer}
                           </p>
                         </motion.div>
