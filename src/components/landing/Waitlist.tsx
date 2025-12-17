@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
 import { Button } from "@/src/components/landing/ui/button";
 import Image from "next/image";
+import { useJoinWaitlistMutation } from "@/lib/redux/features/waitlist/waitlistApi";
+import { toast } from "sonner";
 
 interface FormState {
   name: string;
@@ -23,6 +25,7 @@ export const Waitlist = () => {
     city: "",
   });
 
+  const [joinWaitlist, { isLoading }] = useJoinWaitlistMutation();
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
@@ -34,10 +37,33 @@ export const Waitlist = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Waitlist form submitted:', formData);
     setStatus("loading");
-    // Mock submission
-    setTimeout(() => setStatus("success"), 1500);
+
+    try {
+      await joinWaitlist(formData).unwrap();
+      setStatus("success");
+      toast.success("You have successfully joined the waitlist!");
+
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          company: "",
+          city: "",
+        });
+        setStatus("idle");
+      }, 3000);
+    } catch (error: unknown) {
+      setStatus("error");
+      const errorMessage = error && typeof error === 'object' && 'message' in error
+        ? (error as { message: string }).message
+        : "Failed to join waitlist. Please try again.";
+      toast.error(errorMessage);
+
+      setTimeout(() => setStatus("idle"), 3000);
+    }
   };
 
   return (
@@ -152,10 +178,10 @@ export const Waitlist = () => {
                   <Button
                     type="submit"
                     className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 md:h-[56px] pl-4  pr-1 lg:pr-2 rounded-[5px] lg:rounded-[10px] text-sm md:text-xl font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] transition-all md:min-w-[240px]"
-                    disabled={status === "loading"}
+                    disabled={status === "loading" || isLoading}
                   >
                     <span className="lg:pr-4 text-sm md:text-xl">
-                      {status === "loading"
+                      {status === "loading" || isLoading
                         ? "Joining..."
                         : "Join Waitlist"}
                     </span>
@@ -181,6 +207,11 @@ export const Waitlist = () => {
                 {status === "success" && (
                   <div className="text-green-400 mt-4 p-4 bg-green-900/20 border border-green-900/50 rounded-lg">
                     You have successfully joined the waitlist!
+                  </div>
+                )}
+                {status === "error" && (
+                  <div className="text-red-400 mt-4 p-4 bg-red-900/20 border border-red-900/50 rounded-lg">
+                    Failed to join waitlist. Please try again.
                   </div>
                 )}
               </form>

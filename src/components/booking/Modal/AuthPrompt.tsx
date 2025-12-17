@@ -22,12 +22,14 @@ import {
 } from "@mui/icons-material";
 import {
   useLoginMutation,
-  useLazyGetAuthPermissionsQuery,
-} from "../../../redux/features/auth/authApi";
+  useGetPermissionsQuery,
+} from "@/lib/redux/features/auth/authApi";
 import Cookies from "js-cookie";
-import { useQuickRegisterMutation } from "../../../redux/features/booking/bookingApi";
-import { useAuth } from "../../../hooks/useAuth";
-import type { BookingFormData } from "../../../redux/features/booking/bookingSlice";
+import { useQuickRegisterMutation } from "@/lib/redux/features/auth/authApi";
+import { useAuth } from "@/lib/hooks/useAuth";
+import type { BookingData } from "@/lib/types";
+
+type BookingFormData = BookingData;
 
 interface AuthPromptProps {
   onContinueAsGuest: () => void;

@@ -24,11 +24,13 @@ import {
   LocationOn,
   CameraAlt,
 } from "@mui/icons-material";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "../../../redux/store";
-import { updateFormData } from "../../../redux/features/booking/bookingSlice";
-import { selectCurrentUser } from "../../../redux/features/auth/authSlice";
-import { useAuth } from "../../../hooks/useAuth";
+import { useDispatch } from "react-redux";
+import { useAppSelector } from "@/lib/redux/hooks";
+import type { RootState } from "@/lib/redux/store";
+import { setBookingData } from "@/lib/redux/features/booking/bookingSlice";
+import { useAuth } from "@/lib/hooks/useAuth";
+
+const updateFormData = setBookingData;
 
 interface AuthenticatedBookingFormProps {
   onValidationChange?: (isValid: boolean) => void;

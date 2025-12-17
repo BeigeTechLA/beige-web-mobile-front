@@ -20,22 +20,19 @@ import { Close as CloseIcon, LocationOn, ArrowBack } from "@mui/icons-material";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
-import { RootState } from "../../../redux/store";
+import { useAppSelector } from "@/lib/redux/hooks";
+import type { RootState } from "@/lib/redux/store";
 import {
-  closeBookingModal,
-  updateFormData,
-  setSubmitting,
-  setAuthStatus,
-  showAuthPrompt,
-  hideAuthPrompt,
-  setContinueAsGuest,
-  prefillUserData,
-  BookingFormData,
-} from "../../../redux/features/booking/bookingSlice";
-import { selectCurrentUser } from "../../../redux/features/auth/authSlice";
-import { useAuth } from "../../../hooks/useAuth";
+  setBookingData,
+  clearBooking,
+  setDraft,
+} from "@/lib/redux/features/booking/bookingSlice";
+import { useAuth } from "@/lib/hooks/useAuth";
+import type { BookingData } from "@/lib/types";
+
+type BookingFormData = BookingData;
 import AuthPrompt from "./AuthPrompt";
 import GuestBookingForm from "./GuestBookingForm";
 import AuthenticatedBookingForm from "./AuthenticatedBookingForm";

@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
+import { useAppSelector } from "@/lib/redux/hooks";
 import { Button, ButtonProps } from "@mui/material";
-import { RootState } from "../../redux/store";
-import { openBookingModal } from "../../redux/features/booking/bookingSlice";
+import type { RootState } from "@/lib/redux/store";
 import BookingModal from "./Modal/BookingModal";
-import { DefaultButton } from "../Buttons/DefaultButton";
+
+// Placeholder for DefaultButton - create this component or use MUI Button
+const DefaultButton = Button;
 
 interface BookingModalButtonProps {
   children?: React.ReactNode;
@@ -46,11 +48,9 @@ const BookingModalButton: React.FC<BookingModalButtonProps> = ({
   fullWidth = false,
 }) => {
   const dispatch = useDispatch();
-  const { isModalOpen } = useSelector((state: RootState) => state.booking);
   const [localModalOpen, setLocalModalOpen] = useState(false);
 
   const handleOpenModal = () => {
-    dispatch(openBookingModal());
     setLocalModalOpen(true);
   };
 
