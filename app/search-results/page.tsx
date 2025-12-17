@@ -1,19 +1,15 @@
 "use client";
 
 import React, { Suspense } from "react";
-import Link from "next/link";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
-
-import { Button } from "@/components/ui/button";
-import { Star, ArrowRight } from "lucide-react";
 
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
 import { Separator } from "@/src/components/landing/Separator";
+
 import NewCreatorsSection from "./components/NewCreatorsSection";
 import SimilarCreatorsSection from "./components/SimilarCreatorsSection";
+import HeroSection from "./components/HeroSection";
 
 // Mock creator data
 const mockCreators = [
@@ -24,7 +20,7 @@ const mockCreators = [
     price: "From $450/Hr",
     rating: 4.5,
     reviews: 120,
-    image: "/images/influencer/natashaGraziano.png",
+    image: "/images/influencer/pressaarmani.png",
     isTopMatch: true,
   },
   {
@@ -33,8 +29,8 @@ const mockCreators = [
     role: "Videography Specialist",
     price: "From $120/Hr",
     rating: 4.0,
+    image: "/images/influencer/natashaGraziano.png",
     reviews: 120,
-    image: "/images/influencer/pressaarmani.png",
   },
   {
     id: "lucas-bennett",
@@ -44,6 +40,24 @@ const mockCreators = [
     rating: 4.2,
     reviews: 101,
     image: "/images/influencer/cedrictheentertainer.png",
+  },
+  {
+    id: "josh-bennett",
+    name: "Josh Bennett",
+    role: "Photographer Specialist",
+    price: "From $200/Hr",
+    rating: 4.0,
+    reviews: 191,
+    image: "/images/influencer/Sharukh.png",
+  },
+  {
+    id: "lia-cole",
+    name: "Lia Cole",
+    role: "Photographer Specialist",
+    price: "From $230/Hr",
+    rating: 4.1,
+    reviews: 141,
+    image: "/images/influencer/pressaarmani.png",
   },
 ];
 
@@ -125,86 +139,6 @@ const newCreators = [
   },
 ];
 
-const CreatorCard = ({
-  name,
-  role,
-  price,
-  rating,
-  reviews,
-  image,
-  isTopMatch = false,
-  shootId,
-  creatorId,
-}: {
-  name: string;
-  role: string;
-  price: string;
-  rating: number;
-  reviews: number;
-  image: string;
-  isTopMatch?: boolean;
-  shootId?: string;
-  creatorId: string;
-}) => (
-  <div
-    className={`relative group overflow-hidden rounded-[20px] ${isTopMatch
-      ? "col-span-1 md:col-span-2 lg:col-span-1 lg:row-span-2 h-full"
-      : "h-[400px]"
-      }`}
-  >
-    <Image
-      src={image}
-      alt={name}
-      fill
-      className="object-cover transition-transform duration-700 group-hover:scale-105"
-    />
-    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-
-    {/* Top Badge */}
-    <div className="absolute top-4 right-4 flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
-      <Star className="w-3 h-3 text-[#E8D1AB] fill-[#E8D1AB]" />
-      <span className="text-white text-xs font-medium">
-        {rating} ({reviews})
-      </span>
-    </div>
-
-    {isTopMatch && (
-      <div className="absolute top-4 left-4 bg-[#E8D1AB] text-black text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-        Top Match
-      </div>
-    )}
-
-    {/* Content */}
-    <div className="absolute bottom-0 left-0 w-full p-6">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-white text-xl font-medium">{name}</h3>
-            <span className="bg-[#4CAF50]/20 text-[#4CAF50] text-[10px] px-2 py-0.5 rounded-full border border-[#4CAF50]/30">
-              Available
-            </span>
-          </div>
-          <p className="text-white/60 text-sm">{role}</p>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
-        <div className="flex flex-col">
-          <span className="text-white/40 text-xs">Starting at</span>
-          <span className="text-[#E8D1AB] font-medium">{price}</span>
-        </div>
-        <Link
-          href={`/search-results/${creatorId}${shootId ? `?shootId=${shootId}` : ""
-            }`}
-        >
-          <Button className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black h-9 px-4 rounded-lg text-sm font-medium">
-            View Profile
-          </Button>
-        </Link>
-      </div>
-    </div>
-  </div>
-);
 
 function SearchResultsContent() {
   const searchParams = useSearchParams();
@@ -213,41 +147,7 @@ function SearchResultsContent() {
   return (
     <div className="pt-32 pb-20">
       {/* Main Section: Header + Main Grid */}
-      <section className="mb-30">
-        <div className="text-center pt-8 pb-12 px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4"
-          >
-            <h2 className="text-3xl md:text-5xl font-bold text-gradient-white mb-4">
-              Here is Your Top Matched <br />
-              Creative Producer
-            </h2>
-            <p className="text-white/60 max-w-xl mx-auto">
-              Here are matches based on your preferences. Select the best fit for
-              your project.
-            </p>
-          </motion.div>
-        </div>
-
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Top Match - Ethan Cole */}
-          <div className="lg:col-start-2">
-            <CreatorCard {...mockCreators[0]} shootId={shootId} creatorId={mockCreators[0].id} />
-          </div>
-
-          {/* Other Matches */}
-          <div className="flex flex-col gap-6 lg:col-start-1 lg:row-start-1">
-            <CreatorCard {...mockCreators[1]} shootId={shootId} creatorId={mockCreators[1].id} />
-          </div>
-          <div className="flex flex-col gap-6 lg:col-start-3 lg:row-start-1">
-            <CreatorCard {...mockCreators[2]} shootId={shootId} creatorId={mockCreators[2].id} />
-          </div>
-        </div>
-      </section>
-
+      <HeroSection matchedCreators={mockCreators} shootId={shootId} />
       <Separator />
 
       {/* Section: We Think You'll Love These */}
@@ -255,13 +155,17 @@ function SearchResultsContent() {
         additionalCreators={additionalCreators}
         shootId={shootId}
       />
-      <Separator />
 
       {/* Section: New Creators */}
       <NewCreatorsSection
         newCreators={newCreators}
         shootId={shootId}
       />
+
+      {/* Fix the footer styling before implementing this */}
+      {/* <div className="my-24">
+        <Separator />
+      </div> */}
     </div>
   );
 }

@@ -128,7 +128,7 @@ const CreatorCard = ({
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-white text-2xl font-medium">{name}</h3>
+            <h3 className="text-white text-xl font-medium">{name}</h3>
             <p className="text-white/60 text-base">{role}</p>
           </div>
           <p className="bg-[#EDF7EE] text-[#4CAF50] text-base px-3.5 py-2 rounded-full border border-[#4CAF50]">
@@ -147,7 +147,7 @@ const CreatorCard = ({
           </Link>
 
           <div>
-            <span className="text-[#E8D1AB] text-xl font-medium">{price}</span>
+            <span className="text-[#E8D1AB] text-xl font-bold">{price}</span>
           </div>
         </div>
       </motion.div>
