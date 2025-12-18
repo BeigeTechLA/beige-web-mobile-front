@@ -62,7 +62,7 @@ export interface Creator {
   location?: string;
   experience_years?: number;
   skills?: string | string[]; // Can be string (from DB) or array
-  equipment?: string[];
+  equipment?: string | string[]; // Can be string (from DB) or array
   is_available?: boolean;
   created_at?: string;
 }
@@ -79,7 +79,7 @@ export interface CreatorSearchParams {
 export interface CreatorProfile extends Creator {
   portfolio?: PortfolioItem[];
   reviews?: Review[];
-  certifications?: string[];
+  certifications?: string | string[]; // Can be string (from DB) or array
   experience_years?: number;
 }
 

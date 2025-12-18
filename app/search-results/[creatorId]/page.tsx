@@ -173,12 +173,15 @@ function CreatorProfileContent() {
               )}
 
               {/* Skills */}
-              {profile.skills && profile.skills.length > 0 && (
+              {profile.skills && (
                 <>
                   <div className="flex flex-col gap-3.5">
                     <h3 className="text-xl font-bold text-white">Skills</h3>
                     <div className="flex flex-wrap gap-2.5">
-                      {profile.skills.map((skill, index) => (
+                      {(Array.isArray(profile.skills)
+                        ? profile.skills
+                        : profile.skills.split(',').map(s => s.trim())
+                      ).map((skill, index) => (
                         <span
                           key={`${skill}-${index}`}
                           className="px-5 py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
@@ -193,12 +196,15 @@ function CreatorProfileContent() {
               )}
 
               {/* Equipment */}
-              {profile.equipment && profile.equipment.length > 0 && (
+              {profile.equipment && (
                 <>
                   <div className="flex flex-col gap-3.5">
                     <h3 className="text-xl font-bold text-white">Equipment&apos;s</h3>
                     <div className="flex flex-wrap gap-2.5">
-                      {profile.equipment.map((item, index) => (
+                      {(Array.isArray(profile.equipment)
+                        ? profile.equipment
+                        : profile.equipment.split(',').map(s => s.trim())
+                      ).map((item, index) => (
                         <span
                           key={`${item}-${index}`}
                           className="px-5 py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
