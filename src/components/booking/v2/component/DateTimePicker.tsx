@@ -36,9 +36,15 @@ export const DateTimePicker: React.FC<Props> = ({
               "& .MuiOutlinedInput-root": {
                 borderRadius: "12px",
                 backgroundColor: "#FAFAFA",
-                height: "82px",
+                height: {
+                  xs: "56px",   // mobile
+                  md: "82px",   // desktop
+                },
                 paddingLeft: "12px",
-                fontSize: "16px",
+                fontSize: {
+                  xs: "14px",
+                  md: "16px",
+                },
                 color: "#1A1A1A",
 
                 // Remove focus outline (browser default)
@@ -73,7 +79,10 @@ export const DateTimePicker: React.FC<Props> = ({
               // ---- Label ----
               "& .MuiInputLabel-root": {
                 color: "#00000099 !important",
-                fontSize: "18px",
+                fontSize: {
+                  xs: "14px",
+                  md: "18px",
+                },
                 backgroundColor: "#FAFAFA",
                 padding: "0px 6px",
                 marginLeft: "2px",

@@ -55,7 +55,6 @@ export default function LandingPageV2() {
       <Separator />
 
       <Waitlist />
-      <Separator />
 
       <Footer />
     </main>

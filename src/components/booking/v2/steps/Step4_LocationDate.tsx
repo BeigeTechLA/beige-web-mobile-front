@@ -98,14 +98,14 @@ export const Step4LocationDate = ({
 
         {/* LOCATION */}
         <div className="relative w-full">
-          <label className="absolute -top-3 left-4 bg-[#FAFAFA] px-2 text-base text-[#000]/60">
+         <label className="absolute -top-2 lg:-top-3 left-4 bg-[#FAFAFA] px-2 text-sm lg:text-base text-[#000]/60">
             Location
           </label>
           <input
             type="text"
             value={data.location}
             onChange={(e) => updateData({ location: e.target.value })}
-            className="h-[82px] w-full rounded-[12px] border border-[#E5E5E5] px-4 text-[#1A1A1A] outline-none focus:border-[#1A1A1A] bg-[#FAFAFA]"
+            className="h-14 lg:h-[82px] w-full rounded-[12px] border border-[#E5E5E5] px-4 text-[#1A1A1A] outline-none focus:border-[#1A1A1A] bg-[#FAFAFA]"
             placeholder="Enter location"
           />
         </div>
@@ -182,7 +182,7 @@ export const Step4LocationDate = ({
       <div className="grid grid-cols-2 gap-4 px-8 md:px-[50px]">
         <Button
           onClick={onBack}
-          className="h-[96px] bg-[#1A1A1A] hover:bg-[#333] text-white font-medium text-lg rounded-[12px]"
+          className="h-14 lg:h-[96px] bg-[#1A1A1A] hover:bg-[#333] text-white font-medium text-base lg:text-lg rounded-[12px]"
         >
           Back
         </Button>
@@ -190,7 +190,7 @@ export const Step4LocationDate = ({
         <Button
           onClick={handleNext}
           disabled={!data.startDate || !data.location}
-          className="h-[96px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-lg rounded-[12px]"
+          className="h-14 lg:h-[96px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-lg rounded-[12px]"
         >
           Next
         </Button>

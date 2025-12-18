@@ -147,7 +147,7 @@ export const Step6Loading = () => {
         transition={{ delay: 0.2 }}
         className="text-center z-10 mt-24"
       >
-        <h3 className="text-xl md:text-[33px] font-light text-white tracking-wide mb-2">
+        <h3 className="text-base lg:text-[33px] font-light text-white tracking-wide mb-2">
           Finding the Perfect Creator for You...
         </h3>
       </motion.div>

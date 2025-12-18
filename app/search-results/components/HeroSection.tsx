@@ -40,7 +40,7 @@ const HeroSection = ({ matchedCreators, shootId }: HeroSectionProps) => {
   }
 
   return (
-    <section className="mb-30 overflow-hidden relative isolate">
+    <section className="mb-14 lg:mb-30 overflow-hidden relative isolate">
       {/* Heading */}
       <div className="relative text-center py-8 lg:py-18 px-4 z-10">
         <motion.div
@@ -59,12 +59,12 @@ const HeroSection = ({ matchedCreators, shootId }: HeroSectionProps) => {
       {/* Swiper Wrapper */}
       <div className="relative max-w-[1500px] mx-auto z-10">
         {/* LEFT NAV */}
-        <button className="creator-next absolute left-[100px] top-1/2 -translate-y-1/2 z-10 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
+        <button className="creator-next absolute left-5 lg:left-[100px] top-1/2 -translate-y-1/2 z-10 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
           <ArrowDownLeft className="text-white/60 w-4 h-4 lg:w-7 lg:h-7" />
         </button>
 
         {/* RIGHT NAV */}
-        <button className="creator-prev absolute right-[100px] top-1/2 -translate-y-1/2 z-10 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
+        <button className="creator-prev absolute right-5 lg:right-[100px] top-1/2 -translate-y-1/2 z-10 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
           <ArrowUpRight className="text-white/60 w-4 h-4 lg:w-7 lg:h-7" />
         </button>
 

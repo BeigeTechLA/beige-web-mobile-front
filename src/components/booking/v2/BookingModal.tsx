@@ -204,11 +204,11 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className={`relative w-full max-w-fit bg-[#FAFAFA] ${step === 6 ? "" : "rounded-[24px]"} shadow-2xl min-h-[500px] flex flex-col overflow-y-scroll`}
+            className={`relative w-full max-w-fit bg-[#FAFAFA] ${step === 6 ? "" : "rounded-xl lg:rounded-[24px]"} shadow-2xl min-h-[500px] flex flex-col overflow-y-scroll`}
           >
             {/* Header (Close Button) */}
             {step !== 6 && (
-              <div className="absolute top-10 right-10 md:top-[50px] md:right-[50px] z-10">
+              <div className="absolute top-5 right-5 md:top-[50px] md:right-[50px] z-10">
                 <button
                   onClick={handleClose}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"

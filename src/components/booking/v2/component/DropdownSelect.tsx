@@ -36,13 +36,13 @@ export const DropdownSelect = ({
   return (
     <div className="relative w-full" ref={ref}>
       {/* Floating Label */}
-      <label className="absolute -top-3 left-4 bg-[#FAFAFA] px-2 text-base text-black/60">
+      <label className="absolute -top-2 lg:-top-3 left-4 bg-[#FAFAFA] px-2 text-sm lg:text-base text-black/60">
         {label}
       </label>
 
       {/* Trigger */}
       <div
-        className="h-[82px] w-full rounded-[12px] border border-[#E5E5E5] bg-[#FAFAFA] px-4 flex items-center justify-between cursor-pointer"
+        className="h-14 lg:h-[82px] w-full rounded-[12px] border border-[#E5E5E5] bg-[#FAFAFA] px-4 flex items-center justify-between cursor-pointer"
         onClick={() => setOpen((prev) => !prev)}
       >
         <span className="text-black text-base">
@@ -58,7 +58,7 @@ export const DropdownSelect = ({
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute top-[90px] left-0 w-full bg-[#FAFAFA] border border-[#E5E5E5] rounded-[12px] shadow-lg z-40 py-2">
+        <div className="absolute top-16 lg:top-[90px] left-0 w-full bg-[#FAFAFA] border border-[#E5E5E5] rounded-[12px] shadow-lg z-40 py-2">
           {options.map((opt) => {
             const selected = opt === value;
 

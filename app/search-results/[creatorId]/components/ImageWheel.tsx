@@ -11,7 +11,7 @@ export default function ImageWheel({ images }: ImageWheelProps) {
   const total = images.length;
   // This defines the constant spread between each page
   const angleStep = 360 / total;
-  
+
   const rotation = useMotionValue(0);
   const smoothRotation = useSpring(rotation, {
     stiffness: 80,
@@ -42,15 +42,15 @@ export default function ImageWheel({ images }: ImageWheelProps) {
 
   return (
     <div
-      className="relative w-full h-[600px] flex items-center justify-center touch-none select-none overflow-visible"
+      className="relative w-full h-[400px] lg:h-[600px] flex items-center justify-center touch-none select-none overflow-visible"
       style={{ perspective: "2000px" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      <div 
-        className="absolute left-1/2 top-1/2 -translate-y-1/2 w-[220px] h-[350px] lg:w-[550px] lg:h-[420px]" 
+      <div
+        className="absolute left-1/2 top-1/2 -translate-y-1/2 w-[180px] h-[320px] lg:w-[550px] lg:h-[420px]"
         style={{ transformStyle: "preserve-3d" }}
       >
         {images.map((src, i) => {
@@ -66,8 +66,8 @@ export default function ImageWheel({ images }: ImageWheelProps) {
                 transformStyle: "preserve-3d",
                 rotateY: useTransform(smoothRotation, (v) => v + baseAngle),
                 backfaceVisibility: "visible",
-                zIndex: useTransform(smoothRotation, (v) => 
-                   Math.round(100 - Math.abs(((v + baseAngle + 180) % 360) - 180))
+                zIndex: useTransform(smoothRotation, (v) =>
+                  Math.round(100 - Math.abs(((v + baseAngle + 180) % 360) - 180))
                 ),
               }}
             >

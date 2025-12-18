@@ -37,14 +37,14 @@ export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
   ];
 
   return (
-    <div className="flex flex-col h-full justify-center lg:w-[760px] mx-0 w-full py-8 md:py-[50px]">
-      <h2 className="text-3xl font-bold text-[#1A1A1A] pb-10 md:pb-[50px] px-8 md:px-[50px] border-b border-b-[#CACACA]">
+    <div className="flex flex-col h-full justify-center lg:w-[760px] mx-0 w-full py-6 md:py-[50px]">
+      <h2 className="text-xl lg:text-3xl font-bold text-[#1A1A1A] pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
         Book Your Shoot Now
       </h2>
 
       {/* Project Needs */}
-      <div className="p-8 md:p-[50px] pb-0 md:pb-0">
-        <label className="text-xl font-medium text-[#212122E5] mb-3 md:mb-6 block">
+      <div className="p-6 md:p-[50px] pb-0 md:pb-0">
+        <label className="text-base lg:text-xl font-medium text-[#212122E5] mb-3 md:mb-6 block">
           My Project Needs
         </label>
 
@@ -60,18 +60,18 @@ export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
                   projectType: item.value,
                 })
               }
-              className={`h-[82px] rounded-[12px] border px-4 flex items-center justify-between transition-all
+              className={`h-14 lg:h-[82px] rounded-[12px] border px-2 lg:px-4 flex items-center justify-between transition-all
                 ${
                   data.projectType === item.value
                     ? "border-[#1A1A1A] bg-[#1A1A1A] text-white"
                     : "border-[#E5E5E5] hover:border-[#CCCCCC] text-[#1A1A1A]"
                 }`}
             >
-              <span className="font-medium text-lg">{item.label}</span>
+              <span className="font-medium text-sm lg:text-lg pr-2">{item.label}</span>
 
               {data.projectType === item.value ? (
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  className="w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center"
                   style={{
                     background:
                       "linear-gradient(134deg, #E8D1AB 17.17%, #E6AA46 76.39%)",
@@ -80,7 +80,7 @@ export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
                   <div className="w-2 h-2 rounded-full bg-black" />
                 </div>
               ) : (
-                <div className="w-8 h-8 rounded-full border border-[#E5E5E5]" />
+                <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full border border-[#E5E5E5]" />
               )}
             </button>
           ))}
@@ -89,11 +89,11 @@ export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
 
       {/* Content Type */}
       <div className="p-8 md:p-[50px] pb-0 md:pb-0">
-        <label className="text-xl font-medium text-[#212122E5] mb-3 md:mb-6 block">
+        <label className="text-base lg:text-xl font-medium text-[#212122E5] mb-3 md:mb-6 block">
           Content Type
         </label>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {contentTypes.map((value) => (
             <button
               key={value}
@@ -102,18 +102,18 @@ export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
                   contentType: value,
                 })
               }
-              className={`h-[82px] rounded-[12px] border px-4 flex items-center justify-between transition-all
+              className={`h-14 lg:h-[82px] rounded-[12px] border px-4 flex items-center justify-between transition-all
                 ${
                   data.contentType === value
                     ? "border-[#1A1A1A] bg-[#1A1A1A] text-white"
                     : "border-[#E5E5E5] hover:border-[#CCCCCC] text-[#1A1A1A]"
                 }`}
             >
-              <span className="font-medium text-lg capitalize">{value}</span>
+              <span className="font-medium text-sm lg:text-lg capitalize">{value}</span>
 
               {data.contentType === value ? (
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  className="w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center"
                   style={{
                     background:
                       "linear-gradient(134deg, #E8D1AB 17.17%, #E6AA46 76.39%)",
@@ -122,7 +122,7 @@ export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
                   <div className="w-2 h-2 rounded-full bg-black" />
                 </div>
               ) : (
-                <div className="w-8 h-8 rounded-full border border-[#E5E5E5]" />
+                <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full border border-[#E5E5E5]" />
               )}
             </button>
           ))}
@@ -134,7 +134,7 @@ export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
         <Button
           onClick={handleNext}
           disabled={!data.projectType || !data.contentType}
-          className="w-full h-[96px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-2xl rounded-[12px]"
+          className="w-full h-14 lg:h-[96px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-2xl rounded-[12px]"
         >
           Next
         </Button>

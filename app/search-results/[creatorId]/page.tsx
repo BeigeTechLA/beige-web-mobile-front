@@ -108,7 +108,7 @@ function CreatorProfileContent() {
   const swiperRef = useRef<SwiperType | null>(null);
 
   return (
-    <div className="pt-32 pb-20">
+    <div className="pt-20 lg:pt-32 pb-20">
       <div className="px-4 md:px-0">
         <section className="mx-auto mt-12 container">
           {/* Back Button */}
@@ -123,22 +123,22 @@ function CreatorProfileContent() {
           {/* CP Info Section */}
           <div className="flex flex-col lg:flex-row gap-12">
             {/* Left: Gallery */}
-            <div className="w-1/2">
+            <div className="lg:w-1/2">
               <CreatorGallery mockCreator={mockCreator} />
             </div>
 
             {/* Right: Info */}
-            <div className="flex-1 w-1/2 flex flex-col gap-[30px]">
+            <div className="flex-1 lg:w-1/2 flex flex-col gap-3 lg:gap-[30px]">
               {/* Header Info */}
               <div className="flex items-start justify-between">
                 <div className="flex flex-col gap-3">
-                  <h1 className="text-3xl font-medium text-white">
+                  <h1 className="text-lg lg:text-3xl font-medium text-white">
                     {mockCreator.name}
                   </h1>
-                  <p className="text-[#E8D1AB] text-[22px]">{mockCreator.role}</p>
+                  <p className="text-[#E8D1AB] text-sm lg:text-[22px]">{mockCreator.role}</p>
                 </div>
                 {mockCreator.available && (
-                  <p className="bg-[#EDF7EE] text-[#4CAF50] text-xl px-5 py-3 rounded-full border border-[#4CAF50] leading-[20px]">
+                  <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50] lg:leading-[20px]">
                     Available
                   </p>
                 )}
@@ -147,8 +147,8 @@ function CreatorProfileContent() {
 
               {/* About */}
               <div className="flex flex-col gap-3.5">
-                <h3 className="text-xl font-bold text-white">About Creator</h3>
-                <p className="text-white/60 leading-relaxed text-lg font-normal">
+                <h3 className="text-base lg:text-xl font-bold text-white">About Creator</h3>
+                <p className="text-white/60 leading-relaxed text-sm lg:text-lg font-normal">
                   {mockCreator.about}
                 </p>
               </div>
@@ -157,12 +157,12 @@ function CreatorProfileContent() {
 
               {/* Skills */}
               <div className="flex flex-col gap-3.5">
-                <h3 className="text-xl font-bold text-white">Skills</h3>
+                <h3 className="text-base lg:text-xl font-bold text-white">Skills</h3>
                 <div className="flex flex-wrap gap-2.5">
                   {mockCreator.skills.map((skill) => (
                     <span
                       key={skill}
-                      className="px-5 py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
+                      className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
                     >
                       {skill}
                     </span>
@@ -173,12 +173,12 @@ function CreatorProfileContent() {
 
               {/* Equipment */}
               <div className="flex flex-col gap-3.5">
-                <h3 className="text-xl font-bold text-white">Equipment's</h3>
+                <h3 className="text-base lg:text-xl font-bold text-white">Equipments</h3>
                 <div className="flex flex-wrap gap-2.5">
                   {mockCreator.equipment.map((item) => (
                     <span
                       key={item}
-                      className="px-5 py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
+                      className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
                     >
                       {item}
                     </span>
@@ -187,16 +187,16 @@ function CreatorProfileContent() {
               </div>
 
               {/* Action Bar */}
-              <div className="bg-[#171717] rounded-[20px] p-7 flex flex-col gap-7 mt-2.5">
+              <div className="bg-[#171717] rounded-xl lg:rounded-[20px] p-4 lg:p-7 flex flex-col gap-7 mt-2.5">
                 <div className="flex justify-between items-center">
                   <div className="flex flex-col gap-1">
-                    <p className="text-white text-2xl font-semibold">
+                    <p className="text-white text-lg lg:text-2xl font-semibold">
                       Starting Price
                     </p>
-                    <span className="text-white text-sm">for 1 hour</span>
+                    <span className="text-white text-xs lg:text-sm">for 1 hour</span>
                   </div>
 
-                  <span className="text-3xl font-bold text-white">
+                  <span className="text-xl lg:text-3xl font-bold text-white">
                     ${mockCreator.price}
                   </span>
                 </div>
@@ -205,7 +205,7 @@ function CreatorProfileContent() {
                     }`}
                   className="w-full md:w-auto"
                 >
-                  <Button className="w-full h-[71px] px-10 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-2xl font-medium rounded-[12px]">
+                  <Button className="w-full h-12 lg:h-[71px] px-5 lg:px-10 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium rounded-[12px]">
                     Proceed to Payment
                   </Button>
                 </Link>
@@ -215,7 +215,7 @@ function CreatorProfileContent() {
         </section>
 
         {/* Tabs Section */}
-        <section className="my-20">
+        <section className="my-10 lg:my-20">
           <div className="flex justify-center border-b border-t border-white/10 mb-8 w-full gap-20">
             {tabs.map((tab) => (
               <button
@@ -247,15 +247,15 @@ function CreatorProfileContent() {
         </section>
         <CenteredSeparator />
 
-        <section className="mt-20 overflow-hidden">
-          <div className="container mx-auto relative overflow-hidden">
+        <section className="mt-14 lg:mt-20 overflow-hidden">
+          <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
             {/* Header */}
-            <div className="flex flex-col items-center justify-center mb-8 pb-4">
+            <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
               <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
-                <p className="text-base text-white">Recommendations</p>
+                <p className="text-xs md:text-base text-white">Recommendations</p>
               </div>
 
-              <h2 className="text-2xl md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
+              <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
                 Recommended Creators for you
               </h2>
             </div>

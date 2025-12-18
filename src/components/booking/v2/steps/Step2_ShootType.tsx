@@ -33,8 +33,8 @@ export const Step2ShootType = ({ data, updateData, onNext, onBack }: Props) => {
   };
 
   return (
-    <div className="flex flex-col h-full justify-center lg:w-[760px] mx-0 w-full py-8 md:py-[50px] overflow-visible relative">
-      <h2 className="text-3xl font-bold text-[#1A1A1A] pb-10 md:pb-[50px] px-8 md:px-[50px] border-b border-b-[#CACACA]">
+    <div className="flex flex-col h-full justify-center w-full lg:w-[760px] mx-0 py-6 md:py-[50px] overflow-visible relative">
+      <h2 className="text-xl lg:text-3xl font-bold text-[#1A1A1A] pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
         Select Shoot Type and Edits
       </h2>
 
@@ -68,14 +68,14 @@ export const Step2ShootType = ({ data, updateData, onNext, onBack }: Props) => {
       <div className="grid grid-cols-2 gap-4 px-8 md:px-[50px]">
         <Button
           onClick={onBack}
-          className="h-[96px] bg-[#1A1A1A] hover:bg-[#333] text-white font-medium text-lg md:text-2xl rounded-[12px]"
+          className="h-14 lg:h-[96px] bg-[#1A1A1A] hover:bg-[#333] text-white font-medium text-base lg:text-2xl rounded-[12px]"
         >
           Back
         </Button>
         <Button
           onClick={handleNext}
           disabled={!data.shootType || !data.editType}
-          className="h-[96px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-lg md:text-2xl rounded-[12px]"
+          className="h-14 lg:h-[96px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium  text-base lg:text-2xl rounded-[12px]"
         >
           Next
         </Button>
