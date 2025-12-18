@@ -1,62 +1,29 @@
 "use client";
 
-import React from "react";
+import React, {useState} from "react";
 import { motion } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
 import { Button } from "@/src/components/landing/ui/button";
 
-const TESTIMONIALS = [
-  {
-    quote: "Chris Bentley shares his excitement about working with Beige, praising the team for their professionalism, amazing shots, and smooth collaboration. He's inspired by the experience and looks forward to buying a mansion in Dallas with Beige's help when the time comes.",
-    author: "Chris B",
-    role: "Award Winning Dallas Real Estate Broker",
-  },
-  {
-    quote: "Excellent service, timely production, and high-quality editing. They handled multiple locations with ease and kept everything organized and stress-free. The team went above and beyond to ensure every detail was captured perfectly. Highly recommend Beige for any local production.",
-    author: "Daniel L",
-    role: "Founder and CEO of Growth Glitch",
-  },
-  {
-    quote: "From consultation to final output, Beige was professional, communicative and efficient. Delivered a high-quality video exactly as envisioned. Seamless process — I would absolutely work with them again.",
-    author: "Kevin F (Co-Founder)",
-    role: "Off Season Athlete Marketing Company",
-  },
-  {
-    quote: "Professional, patient, and handled a busy shoot with ease — thanks to thorough planning and smooth execution. The team stayed flexible throughout the day and ensured every detail was captured perfectly. Highly recommend them for any production or brand activation.",
-    author: "Keana C",
-    role: "Agency Representative",
-  },
-  {
-    quote: "Despite a long shoot, the team's professionalism and smooth workflow made the entire video production feel effortless. Their creativity, coordination, and attention to detail ensured everything ran on schedule.",
-    author: "Allie",
-    role: "Event Organizer",
-  },
-  {
-    quote: "Excellent service, timely production, and high-quality editing. They handled multiple locations with ease and kept everything organized and stress-free. The team went above and beyond to ensure every detail was captured perfectly. Highly recommend Beige for any local production.",
-    author: "Daniel L",
-    role: "Founder and CEO of Growth Glitch",
-  },
-  {
-    quote: "From consultation to final output, Beige was professional, communicative and efficient. Delivered a high-quality video exactly as envisioned. Seamless process — I would absolutely work with them again.",
-    author: "Kevin F (Co-Founder)",
-    role: "Off Season Athlete Marketing Company",
-  },
-  {
-    quote: "Excellent service, timely production, and high-quality editing. They handled multiple locations with ease and kept everything organized and stress-free. The team went above and beyond to ensure every detail was captured perfectly. Highly recommend Beige for any local production.",
-    author: "Daniel L",
-    role: "Founder and CEO of Growth Glitch",
-  },
-  {
-    quote: "Despite a long shoot, the team's professionalism and smooth workflow made the entire video production feel effortless. Their creativity, coordination, and attention to detail ensured everything ran on schedule.",
-    author: "Allie",
-    role: "Event Organizer",
-  },
-];
+import { TESTIMONIALS } from "./data/testimonials";
+
+const INITIAL_COUNT = 6;
+const LOAD_MORE_COUNT = 3;
 
 export const Testimonials = () => {
-  const handleViewMore = () => {
-    console.log('Testimonials: View More clicked');
+  const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
+
+  const handleViewToggle = () => {
+    if (visibleCount >= TESTIMONIALS.length) {
+      setVisibleCount(INITIAL_COUNT);
+    } else {
+      setVisibleCount((prev) =>
+        Math.min(prev + LOAD_MORE_COUNT, TESTIMONIALS.length)
+      );
+    }
   };
+
+  const isAllVisible = visibleCount >= TESTIMONIALS.length;
 
   return (
     <section className="py-15 md:py-32 relative overflow-hidden">
@@ -83,7 +50,7 @@ export const Testimonials = () => {
 
         {/* Masonry Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 lg:mb-16">
-          {TESTIMONIALS.map((testimonial, i) => (
+          {TESTIMONIALS.slice(0, visibleCount).map((testimonial, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 30 }}
@@ -104,7 +71,7 @@ export const Testimonials = () => {
                   </div>
                 </div>
 
-                <p className="text-xs md:text-base md:leading-[26px] font-light text-white/50">
+                <p className="text-xs md:text-base md:leading-[26px] font-light text-white/50 whitespace-pre-line">
                   &quot;{testimonial.quote}&quot;
                 </p>
               </div>
@@ -115,10 +82,10 @@ export const Testimonials = () => {
         {/* View More Button */}
         <div className="flex justify-center">
           <Button
-            onClick={handleViewMore}
+            onClick={handleViewToggle}
             className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 md:h-[56px] pl-4  pr-1 lg:pr-2 rounded-[5px] lg:rounded-[10px] text-sm md:text-xl font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] transition-all md:min-w-[240px]"
           >
-            <span className="lg:pr-4">View More</span>
+            <span className="lg:pr-4">{isAllVisible ? "View Less" : "View More"}</span>
 
             {/* Right Dark Icon Box */}
             <div className="bg-[#1A1A1A] w-8 h-8 lg:w-12 lg:h-12 rounded-[5px] flex items-center justify-center">

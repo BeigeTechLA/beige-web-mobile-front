@@ -12,44 +12,24 @@ interface FAQItem {
 
 const FAQ_ITEMS: FAQItem[] = [
   {
-    question: "What services does Beige Media offer?",
+    question: "How does booking work?",
     answer:
-      "We provide professional livestreaming, photography, and videography services for events, conferences, and special occasions.",
+      "Booking with Beige is simple and fast. Just select your service type, choose your preferred date and time, provide project details, and our AI will match you with the perfect creative partner. You'll receive confirmation within minutes and can communicate directly with your assigned professional through our platform.",
   },
   {
-    question: "How far in advance should I book?",
+    question: "What types of content can you create?",
     answer:
-      "We recommend booking at least 2-4 weeks in advance for best availability.",
+      "We offer a comprehensive range of content creation services including professional photography, videography, drone footage, 360° virtual tours, product photography, event coverage, corporate videos, social media content, and much more. Our creative partners specialize in various industries and content types to meet your specific needs.",
   },
   {
-    question: "Do you provide equipment?",
+    question: "How quickly can I get my content delivered?",
     answer:
-      "Yes, all professional equipment is included in our service packages.",
+      "Standard turnaround time is 5-7 business days for photos and 10-14 business days for videos. However, we offer rush delivery options for urgent projects. The exact timeline depends on your project's complexity and scope. You'll receive a detailed timeline during the booking process.",
   },
   {
-    question: "What's your coverage area?",
+    question: "What is your pricing structure?",
     answer:
-      "We primarily serve the Miami area but are available for events nationwide.",
-  },
-  {
-    question: "Can I see samples of your work?",
-    answer:
-      "Yes, check our Showcase section or contact us for a full portfolio.",
-  },
-  {
-    question: "What's included in your packages?",
-    answer:
-      "Each package includes professional crew, equipment, editing, and delivery of final content.",
-  },
-  {
-    question: "What is your cancellation policy?",
-    answer:
-      "We offer flexible cancellation up to 7 days before your event. Contact us for specific terms and conditions.",
-  },
-  {
-    question: "Can you accommodate last-minute bookings?",
-    answer:
-      "While we prefer advance bookings, we'll do our best to accommodate last-minute requests based on availability. Contact us directly to discuss urgent needs.",
+      "Our pricing is transparent and customized based on your specific needs including shoot type, duration, location, and deliverables. We offer competitive rates with no hidden fees. You'll receive a detailed quote before confirming your booking, and we accept various payment methods for your convenience.",
   },
 ];
 
