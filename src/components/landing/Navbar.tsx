@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const navLinks = [
   { label: "Home", href: "/", isButton: true },
@@ -16,12 +18,40 @@ const navLinks = [
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleNavClick = (href: string) => {
+    setMobileOpen(false);
+
+    if (href.startsWith("#")) {
+      // Smooth scroll to section
+      const element = document.querySelector(href);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
+    } else {
+      // Navigate to page
+      router.push(href);
+    }
+  };
+
+  const handleLogin = () => {
+    setMobileOpen(false);
+    // TODO: Implement login modal or navigate to login page
+    router.push("/login");
+  };
+
+  const handleInvestor = () => {
+    setMobileOpen(false);
+    // TODO: Implement investor page or form
+    router.push("/investor");
+  };
 
   return (
     <nav className="fixed top-6 left-2 right-2 lg:left-0 lg:right-0 z-50 pointer-events-none">
@@ -41,12 +71,13 @@ export const Navbar = () => {
       >
         <div className="h-13 md:h-[88px] flex items-center justify-between lg:px-6">
           {/* Left: Links */}
-          <div className="hidden lg:flex tems-center gap-12">
+          <div className="hidden lg:flex items-center gap-12">
             {/* Desktop Links */}
-            <div className="items-center gap-2">
+            <div className="flex items-center gap-2">
               {navLinks.map((link) => (
                 <button
                   key={link.label}
+                  onClick={() => handleNavClick(link.href)}
                   className={`
                     text-lg font-medium transition-all px-4 py-2 rounded-lg
                     ${link.isButton
@@ -62,7 +93,7 @@ export const Navbar = () => {
           </div>
 
           {/* Logo */}
-          <button className="flex items-center">
+          <button onClick={() => handleNavClick("/")} className="flex items-center">
             <div className="relative">
               <Image
                 src="/images/logos/beige_logo_vb.png"
@@ -77,10 +108,16 @@ export const Navbar = () => {
 
           {/* Right Buttons */}
           <div className="hidden lg:flex items-center gap-4">
-            <button className="text-white text-lg font-medium hover:text-[#ECE1CE] transition px-6 py-3 border border-white/20 rounded-[10px] hover:bg-white/5">
+            <button
+              onClick={handleLogin}
+              className="text-white text-lg font-medium hover:text-[#ECE1CE] transition px-6 py-3 border border-white/20 rounded-[10px] hover:bg-white/5"
+            >
               Login
             </button>
-            <Button className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-[10px] text-lg font-medium">
+            <Button
+              onClick={handleInvestor}
+              className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-[10px] text-lg font-medium"
+            >
               Become a Investor
             </Button>
           </div>
@@ -111,16 +148,23 @@ export const Navbar = () => {
                 {navLinks.map((link) => (
                   <button
                     key={link.label}
+                    onClick={() => handleNavClick(link.href)}
                     className="text-2xl text-white hover:text-[#ECE1CE] text-left"
                   >
                     {link.label}
                   </button>
                 ))}
                 <div className="flex flex-col gap-4 mt-8">
-                  <button className="text-xl text-white text-left">
+                  <button
+                    onClick={handleLogin}
+                    className="text-xl text-white text-left"
+                  >
                     Login
                   </button>
-                  <Button className="w-full h-[60px] text-lg">
+                  <Button
+                    onClick={handleInvestor}
+                    className="w-full h-[60px] text-lg"
+                  >
                     Become a Investor
                   </Button>
                 </div>

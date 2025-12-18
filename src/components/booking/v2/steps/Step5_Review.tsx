@@ -8,9 +8,10 @@ interface Props {
   data: BookingData;
   onNext: () => void;
   onBack: () => void;
+  updateData: (updates: Partial<BookingData>) => void;
 }
 
-export const Step5Review = ({ data, onNext, onBack }: Props) => {
+export const Step5Review = ({ data, onNext, onBack, updateData }: Props) => {
   return (
     <div className="flex flex-col h-full justify-center lg:w-[760px] mx-0 w-full py-8 md:py-[50px]">
       <h2 className="text-3xl font-bold text-[#1A1A1A] pb-10 md:pb-[50px] px-8 md:px-[50px] border-b border-b-[#CACACA]">
@@ -75,6 +76,24 @@ export const Step5Review = ({ data, onNext, onBack }: Props) => {
         {/* Map Placeholder */}
         <div className="mt-6 h-[80px] w-full bg-[#F5F5F5] rounded-[10px] overflow-hidden relative">
           <div className="absolute inset-0 opacity-10 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center" />
+        </div>
+
+        {/* Email Input */}
+        <div className="mt-8">
+          <label className="block text-sm font-medium text-[#1A1A1A] mb-2">
+            Your Email Address *
+          </label>
+          <input
+            type="email"
+            value={data.guestEmail}
+            onChange={(e) => updateData({ guestEmail: e.target.value })}
+            placeholder="email@example.com"
+            className="w-full h-[56px] px-4 border border-[#D4D4D4] rounded-[12px] text-[#1A1A1A] placeholder:text-[#999] focus:outline-none focus:border-[#E8D1AB] focus:ring-2 focus:ring-[#E8D1AB]/20"
+            required
+          />
+          <p className="text-xs text-[#666] mt-2">
+            We'll send booking confirmation and creator matches to this email
+          </p>
         </div>
       </div>
 

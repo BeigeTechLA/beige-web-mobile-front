@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { useCreateGuestBookingMutation } from "@/lib/redux/features/booking/guestBookingApi";
 import { Step1ProjectNeeds } from "./steps/Step1_ProjectNeeds";
 import { Step2ShootType } from "./steps/Step2_ShootType";
 import { Step3InfoBudget } from "./steps/Step3_InfoBudget";
@@ -23,6 +24,7 @@ export type BookingData = {
   shootType: string;
   editType: string;
   shootName: string;
+  guestEmail: string;
   crewSize: string;
   referenceLink: string;
   specialNote: string;
@@ -42,6 +44,7 @@ const initialData: BookingData = {
   shootType: "",
   editType: "",
   shootName: "",
+  guestEmail: "",
   crewSize: "",
   referenceLink: "",
   specialNote: "",
@@ -57,6 +60,7 @@ const initialData: BookingData = {
 
 export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
   const router = useRouter();
+  const [createGuestBooking, { isLoading: isCreating }] = useCreateGuestBookingMutation();
 
   // Local state management - replacing Redux
   const [currentStep, setCurrentStep] = useState(0);
@@ -108,44 +112,79 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
       return;
     }
 
-    console.log("Validation passed, creating order...");
+    if (!formData.guestEmail || formData.guestEmail.trim() === "") {
+      toast.error("Email Required", {
+        description: "Please provide your email address",
+      });
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.guestEmail)) {
+      toast.error("Invalid Email", {
+        description: "Please enter a valid email address",
+      });
+      return;
+    }
+
+    console.log("Validation passed, creating guest booking...");
 
     // Show loading step immediately
     setCurrentStep(5); // Step 6 in 1-indexed = 5 in 0-indexed
     setBookingStatus("creating");
 
     try {
-      // Mock order data preparation
-      const orderData = {
+      // Prepare order data for guest booking API
+      const orderData: any = {
         order_name: formData.shootName || "Untitled Shoot",
-        project_type: formData.projectType,
-        content_type: formData.contentType,
-        shoot_type: formData.shootType,
-        edit_type: formData.editType,
+        guest_email: formData.guestEmail,
+        project_type: formData.projectType || undefined,
+        content_type: formData.contentType || undefined,
+        shoot_type: formData.shootType || undefined,
+        edit_type: formData.editType || undefined,
         start_date_time: formData.startDate,
-        end_date: formData.endDate,
-        location: formData.location,
-        need_studio: formData.needStudio,
-        studio: formData.studio,
-        studio_time_duration: formData.studioTimeDuration,
-        budget_min: formData.budgetMin,
-        budget_max: formData.budgetMax,
-        crew_size: formData.crewSize,
-        reference_link: formData.referenceLink,
-        special_note: formData.specialNote,
-        status: "pending",
+        duration_hours: 0, // Required field - will be calculated based on end_date in the future
+        location: formData.location || undefined,
+        budget_min: formData.budgetMin || undefined,
+        budget_max: formData.budgetMax || undefined,
+        crew_size: formData.crewSize || undefined,
       };
 
-      console.log("Order created:", orderData);
+      // Add optional fields only if they have values
+      if (formData.endDate) {
+        orderData.end_time = formData.endDate;
+      }
+      if (formData.referenceLink) {
+        orderData.description = `Reference: ${formData.referenceLink}`;
+      }
+      if (formData.specialNote) {
+        orderData.description = orderData.description
+          ? `${orderData.description}\n\nNotes: ${formData.specialNote}`
+          : `Notes: ${formData.specialNote}`;
+      }
+      // Store studio info in description for now since API doesn't have dedicated fields
+      if (formData.needStudio) {
+        const studioInfo = `Studio: ${formData.studio || 'TBD'}, Duration: ${formData.studioTimeDuration}h`;
+        orderData.description = orderData.description
+          ? `${orderData.description}\n\n${studioInfo}`
+          : studioInfo;
+      }
 
-      // Mock order ID
-      const mockOrderId = `order_${Date.now()}`;
-      setCurrentBookingId(mockOrderId);
+      console.log("Creating guest booking with data:", orderData);
+
+      // Call the guest booking API
+      const result = await createGuestBooking(orderData).unwrap();
+      const realBookingId = result.booking_id;
+
+      console.log("Guest booking created successfully:", result);
+
+      setCurrentBookingId(realBookingId.toString());
       setBookingStatus("created");
 
       // Wait for loading animation, then navigate
       setTimeout(() => {
-        console.log(`Navigating to: /search-results?shootId=${mockOrderId}`);
+        console.log(`Navigating to: /search-results?shootId=${realBookingId}`);
 
         // Close modal before navigation
         onClose();
@@ -157,7 +196,7 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
         setCurrentBookingId(null);
 
         // Navigate to search results page
-        router.push(`/search-results?shootId=${mockOrderId}`);
+        router.push(`/search-results?shootId=${realBookingId}`);
       }, 2000); // 2-second loading animation
     } catch (error: any) {
       console.error("Error creating order:", error);
@@ -254,6 +293,7 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
               {step === 5 && (
                 <Step5Review
                   data={formData}
+                  updateData={updateData}
                   onNext={handleFindCreative}
                   onBack={prevStep}
                 />
