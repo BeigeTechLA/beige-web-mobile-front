@@ -145,7 +145,7 @@ function SearchResultsContent() {
   const shootId = searchParams.get("shootId") || undefined;
 
   return (
-    <div className="pt-32 pb-20">
+    <div className="pt-20 md:pt-32 pb-20">
       {/* Main Section: Header + Main Grid */}
       <HeroSection matchedCreators={mockCreators} shootId={shootId} />
       <Separator />
