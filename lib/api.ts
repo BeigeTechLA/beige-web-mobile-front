@@ -13,7 +13,7 @@ const api = axios.create({
 export const creatorApi = {
   getById: async (creatorId: string): Promise<Creator> => {
     const response = await api.get(`/creators/${creatorId}`);
-    return response.data;
+    return response.data.data || response.data;
   },
 };
 
@@ -22,14 +22,14 @@ export const reviewApi = {
     const response = await api.get(`/reviews/by-creator/${creatorId}`, {
       params: { limit },
     });
-    return response.data;
+    return response.data.data || response.data;
   },
 };
 
 export const equipmentApi = {
   getByCreator: async (creatorId: string): Promise<Equipment[]> => {
     const response = await api.get(`/equipment/by-creator/${creatorId}`);
-    return response.data;
+    return response.data.data || response.data;
   },
 };
 

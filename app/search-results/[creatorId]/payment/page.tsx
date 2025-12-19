@@ -61,8 +61,8 @@ function PaymentContent() {
         ]);
 
         setCreator(creatorData);
-        setReviews(reviewsData);
-        setEquipment(equipmentData);
+        setReviews(Array.isArray(reviewsData) ? reviewsData : []);
+        setEquipment(Array.isArray(equipmentData) ? equipmentData : []);
         setStep("form");
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -77,9 +77,11 @@ function PaymentContent() {
   }, [creatorId]);
 
   // Calculate pricing
-  const equipmentCost = equipment
-    .filter((item) => selectedEquipmentIds.includes(item.id))
-    .reduce((sum, item) => sum + item.price, 0);
+  const equipmentCost = Array.isArray(equipment)
+    ? equipment
+        .filter((item) => selectedEquipmentIds.includes(item.id))
+        .reduce((sum, item) => sum + item.price, 0)
+    : 0;
 
   const totalAmount = creator
     ? creator.hourly_rate * (bookingData.hours || 1) + equipmentCost
