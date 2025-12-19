@@ -8,7 +8,7 @@ import { CreditCard } from 'lucide-react';
 interface StripePaymentFormProps {
   clientSecret: string;
   amount: number;
-  onSuccess: () => void;
+  onSuccess: (paymentIntentId: string) => void;
   onError: (error: string) => void;
 }
 
