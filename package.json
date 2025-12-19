@@ -15,6 +15,7 @@
     "@mui/material": "^6.5.0",
     "@mui/x-date-pickers": "^7.29.4",
     "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@reduxjs/toolkit": "^2.11.2",
     "aws-sdk": "^2.1693.0",
     "axios": "^1.13.2",

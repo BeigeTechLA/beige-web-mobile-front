@@ -4,6 +4,12 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/src/components/landing/ui/tooltip";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,14 +49,16 @@ export const Navbar = () => {
 
   const handleLogin = () => {
     setMobileOpen(false);
-    // TODO: Implement login modal or navigate to login page
-    router.push("/login");
+    // Login is disabled - will be enabled soon
   };
 
   const handleInvestor = () => {
     setMobileOpen(false);
-    // TODO: Implement investor page or form
-    router.push("/investor");
+    // Redirect to Typeform for investor interest
+    const typeformUrl = process.env.NEXT_PUBLIC_INVESTOR_TYPEFORM_URL;
+    if (typeformUrl) {
+      window.open(typeformUrl, "_blank");
+    }
   };
 
   return (
@@ -108,12 +116,21 @@ export const Navbar = () => {
 
           {/* Right Buttons */}
           <div className="hidden lg:flex items-center gap-4">
-            <button
-              onClick={handleLogin}
-              className="text-white text-lg font-medium hover:text-[#ECE1CE] transition px-6 py-3 border border-white/20 rounded-[10px] hover:bg-white/5"
-            >
-              Login
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    disabled
+                    className="text-white/40 text-lg font-medium cursor-not-allowed px-6 py-3 border border-white/10 rounded-[10px]"
+                  >
+                    Login
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>We will enable login soon</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button
               onClick={handleInvestor}
               className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-[10px] text-lg font-medium"
@@ -155,12 +172,21 @@ export const Navbar = () => {
                   </button>
                 ))}
                 <div className="flex flex-col gap-4 mt-8">
-                  <button
-                    onClick={handleLogin}
-                    className="text-xl text-white text-left"
-                  >
-                    Login
-                  </button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          disabled
+                          className="text-xl text-white/40 text-left cursor-not-allowed"
+                        >
+                          Login
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>We will enable login soon</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <Button
                     onClick={handleInvestor}
                     className="w-full h-[60px] text-lg"
