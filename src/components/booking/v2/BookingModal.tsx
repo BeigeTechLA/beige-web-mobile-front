@@ -243,10 +243,10 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className={`relative w-full max-w-fit bg-[#FAFAFA] ${step === 6 ? "" : "rounded-xl lg:rounded-[24px]"} shadow-2xl min-h-[500px] flex flex-col overflow-y-scroll`}
+            className={`relative w-full max-w-fit bg-[#FAFAFA] ${step === 6 ? "" : "rounded-xl lg:rounded-[24px]"} shadow-2xl min-h-[500px] max-h-9/10 flex flex-col overflow-y-scroll`}
           >
             {/* Header (Close Button) */}
-            {step !== 6 && (
+            {/* {step !== 6 && (
               <div className="absolute top-5 right-5 md:top-[50px] md:right-[50px] z-10">
                 <button
                   onClick={handleClose}
@@ -255,15 +255,16 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                   <X className="w-6 h-6 text-gray-500" />
                 </button>
               </div>
-            )}
+            )} */}
 
             {/* Step Content */}
-            <div className="flex-1 p-0 flex flex-col">
+            <div className="flex-1 p-0 flex flex-col min-h-0 max-h-[100dvh] overflow-y-auto">
               {step === 1 && (
                 <Step1ProjectNeeds
                   data={formData}
                   updateData={updateData}
                   onNext={nextStep}
+                  handleClose={handleClose}
                 />
               )}
               {step === 2 && (
@@ -272,6 +273,7 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                   updateData={updateData}
                   onNext={nextStep}
                   onBack={prevStep}
+                  handleClose={handleClose}
                 />
               )}
               {step === 3 && (
@@ -280,6 +282,7 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                   updateData={updateData}
                   onNext={nextStep}
                   onBack={prevStep}
+                  handleClose={handleClose}
                 />
               )}
               {step === 4 && (
@@ -288,6 +291,7 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                   updateData={updateData}
                   onNext={nextStep}
                   onBack={prevStep}
+                  handleClose={handleClose}
                 />
               )}
               {step === 5 && (
@@ -296,6 +300,7 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                   updateData={updateData}
                   onNext={handleFindCreative}
                   onBack={prevStep}
+                  handleClose={handleClose}
                 />
               )}
               {step === 6 && <Step6Loading />}

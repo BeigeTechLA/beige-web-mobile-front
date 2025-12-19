@@ -1,16 +1,17 @@
 import React from "react";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "../BookingModal";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
   data: BookingData;
   updateData: (data: Partial<BookingData>) => void;
   onNext: () => void;
+  handleClose: () => void;
 }
 
-export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
+export const Step1ProjectNeeds = ({ data, updateData, onNext, handleClose }: Props) => {
   const handleNext = () => {
     // Validate Step 1 fields
     if (!data.projectType) {
@@ -38,9 +39,20 @@ export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
 
   return (
     <div className="flex flex-col h-full justify-center lg:w-[760px] mx-0 w-full py-6 md:py-[50px]">
-      <h2 className="text-xl lg:text-3xl font-bold text-[#1A1A1A] pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
-        Book Your Shoot Now
-      </h2>
+      <div className="flex justify-between items-start pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
+        <h2 className="text-xl lg:text-3xl font-bold text-[#1A1A1A]">
+          Book Your Shoot Now
+        </h2>
+
+        <div className="top-5 right-5 md:top-[50px] md:right-[50px] z-10">
+          <button
+            onClick={handleClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        </div>
+      </div>
 
       {/* Project Needs */}
       <div className="p-6 md:p-[50px] pb-0 md:pb-0">
@@ -61,10 +73,9 @@ export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
                 })
               }
               className={`h-14 lg:h-[82px] rounded-[12px] border px-2 lg:px-4 flex items-center justify-between transition-all
-                ${
-                  data.projectType === item.value
-                    ? "border-[#1A1A1A] bg-[#1A1A1A] text-white"
-                    : "border-[#E5E5E5] hover:border-[#CCCCCC] text-[#1A1A1A]"
+                ${data.projectType === item.value
+                  ? "border-[#1A1A1A] bg-[#1A1A1A] text-white"
+                  : "border-[#E5E5E5] hover:border-[#CCCCCC] text-[#1A1A1A]"
                 }`}
             >
               <span className="font-medium text-sm lg:text-lg pr-2">{item.label}</span>
@@ -103,10 +114,9 @@ export const Step1ProjectNeeds = ({ data, updateData, onNext }: Props) => {
                 })
               }
               className={`h-14 lg:h-[82px] rounded-[12px] border px-4 flex items-center justify-between transition-all
-                ${
-                  data.contentType === value
-                    ? "border-[#1A1A1A] bg-[#1A1A1A] text-white"
-                    : "border-[#E5E5E5] hover:border-[#CCCCCC] text-[#1A1A1A]"
+                ${data.contentType === value
+                  ? "border-[#1A1A1A] bg-[#1A1A1A] text-white"
+                  : "border-[#E5E5E5] hover:border-[#CCCCCC] text-[#1A1A1A]"
                 }`}
             >
               <span className="font-medium text-sm lg:text-lg capitalize">{value}</span>

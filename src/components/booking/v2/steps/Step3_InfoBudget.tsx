@@ -2,12 +2,14 @@ import React from "react";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "../BookingModal";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 
 interface Props {
   data: BookingData;
   updateData: (data: Partial<BookingData>) => void;
   onNext: () => void;
   onBack: () => void;
+  handleClose: () => void;
 }
 
 export const Step3InfoBudget = ({
@@ -15,6 +17,7 @@ export const Step3InfoBudget = ({
   updateData,
   onNext,
   onBack,
+  handleClose
 }: Props) => {
   const handleNext = () => {
     // Validate Step 3 fields
@@ -45,9 +48,20 @@ export const Step3InfoBudget = ({
 
   return (
     <div className="flex flex-col h-full justify-center w-[300px] md:w-[800px] lg:w-[1200px] mx-0 py-6 md:py-[50px]">
-      <h2 className="text-xl lg:text-3xl font-bold text-[#1A1A1A] pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
-        Add Information & Budget
-      </h2>
+
+      <div className="flex justify-between items-start pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
+        <h2 className="text-xl lg:text-3xl font-bold text-[#1A1A1A]">
+          Add Information & Budget
+        </h2>
+        <div className="top-5 right-5 md:top-[50px] md:right-[50px] z-10">
+          <button
+            onClick={handleClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        </div>
+      </div>
 
       {/* --- Grid 1 --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 md:p-[50px] pb-0 md:pb-0">
@@ -112,16 +126,12 @@ export const Step3InfoBudget = ({
         {/* Budget Range */}
         <div className="relative w-full">
           <div className="w-full bg-white rounded-[12px] p-3 lg:p-6">
-
-            {/* LABEL (inside box, aligned left) */}
             <label className="block mb-3 text-sm lg:text-base font-medium text-[#000]/60">
               Budget Range
             </label>
 
-            {/* TRACK */}
             <div className="relative w-full h-1 lg:h-[6px] bg-[#3A3A3A] rounded-full mt-2 mb-6">
-
-              {/* ACTIVE RANGE — fully visible, no clipping */}
+              {/* ACTIVE RANGE */}
               <div
                 className="absolute h-1 lg:h-[6px] bg-[#E8D1AB] rounded-full pointer-events-none"
                 style={{
@@ -143,15 +153,8 @@ export const Step3InfoBudget = ({
                     budgetMin: Math.min(newMin, data.budgetMax - 500),
                   });
                 }}
-                className="absolute top-[-10px] left-0 z-[3] appearance-none bg-transparent w-full pointer-events-auto
-                [&::-webkit-slider-thumb]:appearance-none
-                [&::-webkit-slider-thumb]:w-5
-                [&::-webkit-slider-thumb]:h-5
-                [&::-webkit-slider-thumb]:rounded-md
-                [&::-webkit-slider-thumb]:bg-[#E8D1AB]
-                [&::-webkit-slider-thumb]:cursor-pointer
-                [&::-webkit-slider-thumb]:border
-                [&::-webkit-slider-thumb]:border-[#CBB894]"
+                // Added pointer-events-none and dynamic z-index logic
+                className={`absolute top-[-10px] left-0 w-full appearance-none bg-transparent pointer-events-none focus:outline-none ${data.budgetMin > 15000 ? 'z-[5]' : 'z-[3]'} [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-md [&::-webkit-slider-thumb]:bg-[#E8D1AB] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[#CBB894] [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:pointer-events-auto`}
               />
 
               {/* MAX SLIDER */}
@@ -167,15 +170,8 @@ export const Step3InfoBudget = ({
                     budgetMax: Math.max(newMax, data.budgetMin + 500),
                   });
                 }}
-                className="absolute top-[-10px] left-0 z-[2] appearance-none bg-transparent w-full pointer-events-auto
-                [&::-webkit-slider-thumb]:appearance-none
-                [&::-webkit-slider-thumb]:w-5
-                [&::-webkit-slider-thumb]:h-5
-                [&::-webkit-slider-thumb]:rounded-md
-                [&::-webkit-slider-thumb]:bg-[#E8D1AB]
-                [&::-webkit-slider-thumb]:cursor-pointer
-                [&::-webkit-slider-thumb]:border
-                [&::-webkit-slider-thumb]:border-[#CBB894]"
+                // Added pointer-events-none
+                className="absolute top-[-10px] left-0 z-[4] w-full appearance-none bg-transparent pointer-events-none focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-md [&::-webkit-slider-thumb]:bg-[#E8D1AB] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[#CBB894] [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:pointer-events-auto"
               />
             </div>
 

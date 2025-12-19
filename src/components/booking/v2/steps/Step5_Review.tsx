@@ -1,22 +1,34 @@
 import React from "react";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "../BookingModal";
-import { MapPin, Film, DollarSign, Clock, CalendarFold } from "lucide-react";
+import { MapPin, Film, DollarSign, Clock, CalendarFold,X } from "lucide-react";
 import { calculateDuration, formatISOToDateTime } from "@/lib/utils";
 
 interface Props {
   data: BookingData;
+  updateData: (data: Partial<BookingData>) => void;
   onNext: () => void;
   onBack: () => void;
-  updateData: (updates: Partial<BookingData>) => void;
+  handleClose: () => void;
 }
 
-export const Step5Review = ({ data, onNext, onBack, updateData }: Props) => {
+export const Step5Review = ({ data, onNext, onBack, updateData, handleClose }: Props) => {
   return (
     <div className="flex flex-col h-full justify-center lg:w-[760px] mx-0 w-full py-8 md:py-[50px]">
-      <h2 className="text-xl lg:text-3xl font-bold text-[#1A1A1A] pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
+       <div className="flex justify-between items-start pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
+        <h2 className="text-xl lg:text-3xl font-bold text-[#1A1A1A]">
         Review and Confirm
       </h2>
+
+              <div className="top-5 right-5 md:top-[50px] md:right-[50px] z-10">
+                <button
+                  onClick={handleClose}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-500" />
+                </button>
+              </div>
+              </div>
 
       <div className="p-6 md:p-[50px]">
         <div className="bg-white rounded-[20px] p-6 shadow-sm mb-10">
@@ -73,10 +85,10 @@ export const Step5Review = ({ data, onNext, onBack, updateData }: Props) => {
         </div>
 
 
-        {/* Map Placeholder */}
-        <div className="mt-6 h-[80px] w-full bg-[#F5F5F5] rounded-[10px] overflow-hidden relative">
+        {/* Map Placeholder: Has been removed temporarily */}
+        {/* <div className="mt-6 h-[80px] w-full bg-[#F5F5F5] rounded-[10px] overflow-hidden relative">
           <div className="absolute inset-0 opacity-10 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/World_map_blank_without_borders.svg')] bg-cover bg-center" />
-        </div>
+        </div> */}
 
         {/* Email Input */}
         <div className="mt-8">
@@ -105,7 +117,7 @@ export const Step5Review = ({ data, onNext, onBack, updateData }: Props) => {
           }}
           className="w-full h-14 lg:h-[64px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-lg rounded-[12px]"
         >
-          Find a Creative
+          Find Creative Partner
         </Button>
         <button
           onClick={onBack}

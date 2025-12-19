@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { TextField } from "@mui/material";
+import React, { useMemo, useState } from "react";
 import {
   DateTimePicker as MuiDateTimePicker,
   LocalizationProvider,
@@ -12,33 +11,87 @@ interface Props {
   label: string;
   value: Date | null;
   onChange: (date: Date | null) => void;
+  /** Optional minimum allowed datetime */
+  minDateTime?: Date;
+  /** Optional custom validation */
+  validate?: (date: Date | null) => string | null;
 }
 
 export const DateTimePicker: React.FC<Props> = ({
   label,
   value,
   onChange,
+  minDateTime,
+  validate,
 }) => {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const now = useMemo(() => new Date(), []);
+
+  const effectiveMinDateTime = minDateTime ?? now;
+
+  const handleChange = (date: Date | null) => {
+    if (validate) {
+      const validationError = validate(date);
+      setError(validationError);
+    } else {
+      setError(null);
+    }
+
+    onChange(date);
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <MuiDateTimePicker
         label={label}
         value={value}
-        onChange={onChange}
+        onChange={handleChange}
+        open={open}
+        onOpen={() => setOpen(true)}
+        onClose={() => setOpen(false)}
+        minDateTime={effectiveMinDateTime}
+        shouldDisableTime={(timeValue, clockType) => {
+          if (!value) return false;
+
+          const now = new Date();
+          const selectedDate = value as Date;
+          const isToday =
+            selectedDate.toDateString() === now.toDateString();
+
+          if (!isToday) return false;
+
+          const time = Number(timeValue);
+          if (clockType === "hours") {
+            return time < now.getHours();
+          }
+
+          if (clockType === "minutes") {
+            return (
+              selectedDate.getHours() === now.getHours() &&
+              time < now.getMinutes()
+            );
+          }
+
+          return false;
+        }}
+
         slotProps={{
           textField: {
             fullWidth: true,
-            InputLabelProps: {
-              shrink: true,
-            },
+            error: Boolean(error),
+            helperText: error,
+            onClick: () => setOpen(true),
+            InputLabelProps: { shrink: true },
             sx: {
-              // Remove the BLUE OUTLINE completely
+              cursor: "pointer",
               "& .MuiOutlinedInput-root": {
                 borderRadius: "12px",
                 backgroundColor: "#FAFAFA",
                 height: {
-                  xs: "56px",   // mobile
-                  md: "82px",   // desktop
+                  xs: "56px",
+                  md: "82px",
                 },
                 paddingLeft: "12px",
                 fontSize: {
@@ -46,13 +99,10 @@ export const DateTimePicker: React.FC<Props> = ({
                   md: "16px",
                 },
                 color: "#1A1A1A",
-
-                // Remove focus outline (browser default)
                 "&:focus-within": {
                   outline: "none",
                   boxShadow: "none",
                 },
-
                 "& .MuiOutlinedInput-notchedOutline": {
                   borderColor: "#E5E5E5",
                 },
@@ -65,9 +115,8 @@ export const DateTimePicker: React.FC<Props> = ({
                   boxShadow: "none !important",
                 },
               },
-
-              // Remove focus ring ON INPUT ELEMENT (the culprit)
               "& input": {
+                cursor: "pointer",
                 outline: "none !important",
                 boxShadow: "none !important",
               },
@@ -75,8 +124,6 @@ export const DateTimePicker: React.FC<Props> = ({
                 outline: "none !important",
                 boxShadow: "none !important",
               },
-
-              // ---- Label ----
               "& .MuiInputLabel-root": {
                 color: "#00000099 !important",
                 fontSize: {
@@ -88,20 +135,64 @@ export const DateTimePicker: React.FC<Props> = ({
                 marginLeft: "2px",
                 transform: "translate(14px, -12px) scale(0.85)",
               },
-
               "& .MuiInputLabel-root.Mui-focused": {
                 color: "#00000099 !important",
               },
-
               "& .MuiInputBase-input": {
                 paddingTop: "20px",
                 fontSize: "16px",
               },
-
               "& .MuiSvgIcon-root": {
                 color: "#1A1A1A",
               },
             },
+          },
+
+          mobilePaper: {
+            sx: {
+              "& .MuiPaper-root": {
+                borderRadius: "12px",
+              },
+              // Header text (Selected Date/Time) to Black
+              "& .MuiDateTimePickerToolbar-root *": {
+                color: "#1A1A1A !important",
+              },
+              // Tab Icons and Underline
+              "& .MuiTabs-indicator": {
+                backgroundColor: "#E8D1AB !important",
+              },
+              "& .MuiTab-root.Mui-selected": {
+                color: "#E8D1AB !important",
+              },
+              // Date Selection
+              "& .MuiPickersDay-root.Mui-selected": {
+                backgroundColor: "#E8D1AB !important",
+                color: "#1A1A1A !important",
+              },
+              // Clock Selection (Pin, Pointer, Thumb)
+              "& .MuiClock-pin": {
+                backgroundColor: "#E8D1AB !important",
+              },
+              "& .MuiClockPointer-root": {
+                backgroundColor: "#E8D1AB !important",
+              },
+              "& .MuiClockPointer-thumb": {
+                backgroundColor: "#E8D1AB !important",
+                borderColor: "#E8D1AB !important",
+              },
+              "& .MuiClockNumber-root.Mui-selected": {
+                color: "#1A1A1A !important",
+              },
+            }
+          },
+
+          actionBar: {
+            sx: {
+              "& .MuiButton-root": {
+                color: "#1A1A1A !important",
+                fontWeight: "bold",
+              }
+            }
           },
 
           popper: {
@@ -111,12 +202,31 @@ export const DateTimePicker: React.FC<Props> = ({
                 padding: "12px",
                 backgroundColor: "#FFFFFF",
 
+                // Ensure header remains black
+                "& .MuiDateTimePickerToolbar-root *": {
+                  color: "#1A1A1A !important",
+                },
+
+                // Tabs and Icons for Desktop
+                "& .MuiTabs-indicator": {
+                  backgroundColor: "#E8D1AB !important",
+                },
+                "& .MuiTab-root.Mui-selected": {
+                  color: "#E8D1AB !important",
+                },
+
+                // Selected Date/Time items on Desktop
                 "& .MuiPickersDay-root.Mui-selected": {
                   backgroundColor: "#E8D1AB !important",
-                  color: "#000 !important",
+                  color: "#1A1A1A !important",
                 },
                 "& .MuiPickersDay-today": {
                   borderColor: "#E8D1AB !important",
+                },
+
+                // Clock elements on Desktop
+                "& .MuiClock-pin": {
+                  backgroundColor: "#E8D1AB !important",
                 },
                 "& .MuiClockPointer-root": {
                   backgroundColor: "#E8D1AB !important",
@@ -125,18 +235,19 @@ export const DateTimePicker: React.FC<Props> = ({
                   backgroundColor: "#E8D1AB !important",
                   borderColor: "#E8D1AB !important",
                 },
-                "& .MuiClockNumber-root": {
-                  color: "#000 !important",
-                },
-                "& .MuiPickersLayout-actionBar .MuiButton-root": {
-                  color: "#000 !important",
+                "& .MuiClockNumber-root.Mui-selected": {
+                  color: "#1A1A1A !important",
                 },
 
+                // General selection override to prevent blue
                 "& .Mui-selected": {
-                  backgroundColor: "#000 !important",
-                  color: "#fff !important",
+                  backgroundColor: "#E8D1AB !important",
+                  color: "#1A1A1A !important",
                 },
 
+                "& .MuiPickersLayout-actionBar .MuiButton-root": {
+                  color: "#1A1A1A !important",
+                },
               },
             },
           },

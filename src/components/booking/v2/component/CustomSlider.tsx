@@ -20,7 +20,7 @@ interface SliderProps {
 }
 
 export const CustomSlider = ({
-  label = "Add Custom Time Duration",
+  label = "Adjust total studio time required",
   value,
   onChange,
 

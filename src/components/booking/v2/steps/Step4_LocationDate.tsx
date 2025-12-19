@@ -2,17 +2,45 @@ import React, { useState } from "react";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "../BookingModal";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 import { DropdownSelect } from "../component/DropdownSelect";
 import { CustomSlider } from "../component/CustomSlider";
 import { DateTimePicker } from "../component/DateTimePicker";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { LocationPicker } from "../component/LocationPicker";
 
+const validateFutureDateTime = (date: Date | null) => {
+  if (!date) return "Date & time is required";
+  const now = new Date();
+
+  if (date < now) {
+    return "Selected date & time must be in the future";
+  }
+
+  return null;
+};
+
+const validateEndDateTime = (date: Date | null, startDateISO: string): string | null => {
+  if (!date) return "End date & time is required";
+  const startDate = parseDate(startDateISO);
+
+  if (!startDate || isNaN(startDate.getTime())) {
+    return null;
+  }
+
+  if (date < startDate) {
+    return "End date & time cannot be earlier than start date & time";
+  }
+
+  return null;
+};
+
 interface Props {
   data: BookingData;
   updateData: (data: Partial<BookingData>) => void;
   onNext: () => void;
   onBack: () => void;
+  handleClose: () => void;
 }
 
 export const Step4LocationDate = ({
@@ -20,6 +48,7 @@ export const Step4LocationDate = ({
   updateData,
   onNext,
   onBack,
+  handleClose
 }: Props) => {
   const handleNext = () => {
     // Validate Step 4 fields
@@ -61,15 +90,25 @@ export const Step4LocationDate = ({
   };
 
   return (
-    <div className="flex flex-col h-full justify-center lg:w-[760px] mx-0 w-full py-8 md:py-[50px]">
-      <h2 className="text-3xl font-bold text-[#1A1A1A] pb-10 md:pb-[50px] px-8 md:px-[50px] border-b border-b-[#CACACA]">
-        Tell Us When & Where to Shoot
-      </h2>
+    <div className="flex flex-col lg:h-full justify-center lg:w-[760px] mx-0 w-full py-8 md:py-[50px]">
+      <div className="flex justify-between items-start pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
+        <h2 className="text-xl lg:text-3xl font-bold text-[#1A1A1A]">
+          Tell Us When & Where to Shoot
+        </h2>
+        <div className="top-5 right-5 md:top-[50px] md:right-[50px] z-10">
+          <button
+            onClick={handleClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        </div>
+      </div>
 
       <div className="flex flex-col gap-9 p-8 md:p-[50px]">
 
         {/* DATE RANGE WITH FLOATING LABEL */}
-        <div className="flex gap-6">
+        <div className="flex flex-col lg:flex-row gap-6">
           <DateTimePicker
             label="Start Date & Time"
             value={parseDate(data.startDate)}
@@ -81,6 +120,7 @@ export const Step4LocationDate = ({
 
               updateData({ startDate: date.toISOString() });
             }}
+            validate={validateFutureDateTime}
           />
 
           <DateTimePicker
@@ -94,6 +134,8 @@ export const Step4LocationDate = ({
 
               updateData({ endDate: date.toISOString() });
             }}
+            minDateTime={new Date(data.startDate)}
+            validate={(date) => validateEndDateTime(date, data.startDate)}
           />
         </div>
 
