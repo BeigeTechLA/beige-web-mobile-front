@@ -111,6 +111,9 @@ Applied same fixes to all carousel sections:
 ✅ `app/search-results/components/NewCreatorsSection.tsx`
 - Added `preventClicks={false}` and `preventClicksPropagation={false}` (lines 69-70)
 
+✅ `app/search-results/[creatorId]/page.tsx`
+- Added `preventClicks={false}` and `preventClicksPropagation={false}` to recommended creators carousel (lines 308-309)
+
 ---
 
 ## Issue 2: Navigation Shows Home Before Results

@@ -305,6 +305,8 @@ function CreatorProfileContent() {
                   slidesPerView={1.1}
                   grabCursor
                   centeredSlides={false}
+                  preventClicks={false}
+                  preventClicksPropagation={false}
                   breakpoints={{
                     640: { slidesPerView: 1.5 },
                     768: { slidesPerView: 2 },
@@ -314,12 +316,11 @@ function CreatorProfileContent() {
                 >
                   {recommendedCreators.map((creator) => (
                     <SwiperSlide key={creator.id} className="h-auto">
-                      {({ isActive }) => (
+                      {() => (
                         <CreatorCard
                           {...creator}
                           shootId={shootId}
                           creatorId={creator.id}
-                          isActive={isActive}
                         />
                       )}
                     </SwiperSlide>
