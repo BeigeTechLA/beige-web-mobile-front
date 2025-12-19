@@ -42,8 +42,15 @@ export interface GuestBookingResponse {
   project_name: string;
   guest_email: string;
   event_date: string;
+  start_time?: string;
+  duration_hours?: number | null;
   event_location: LocationObject | null;
-  budget: number | null;
+  budget: number | string | null;
+  event_type?: string | null;
+  description?: string | null;
+  crew_size_needed?: number | null;
+  skills_needed?: string | null;
+  equipments_needed?: string | null;
   is_draft: boolean;
   created_at: any;
 }
@@ -62,7 +69,14 @@ export const guestBookingApi = createApi({
       }),
       transformResponse: (response: ApiResponse<GuestBookingResponse>) => response.data!,
     }),
+    getGuestBookingById: builder.query<GuestBookingResponse, string>({
+      query: (id) => `guest-bookings/${id}`,
+      transformResponse: (response: ApiResponse<GuestBookingResponse>) => response.data!,
+    }),
   }),
 });
 
-export const { useCreateGuestBookingMutation } = guestBookingApi;
+export const {
+  useCreateGuestBookingMutation,
+  useGetGuestBookingByIdQuery
+} = guestBookingApi;

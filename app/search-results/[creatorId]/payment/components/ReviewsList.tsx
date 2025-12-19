@@ -37,12 +37,12 @@ export function ReviewsList({ reviews }: ReviewsListProps) {
                 />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-[#E8D1AB]/20 flex items-center justify-center text-[#E8D1AB] font-medium">
-                  {review.reviewer_name.charAt(0).toUpperCase()}
+                  {review.reviewer_name?.[0]?.toUpperCase() || 'A'}
                 </div>
               )}
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-sm lg:text-base">{review.reviewer_name}</span>
+                  <span className="font-medium text-sm lg:text-base">{review.reviewer_name || 'Anonymous'}</span>
                   <div className="flex items-center gap-1">
                     {[...Array(5)].map((_, i) => (
                       <Star

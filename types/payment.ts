@@ -2,7 +2,8 @@ export interface Creator {
   id: string;
   name: string;
   role: string;
-  hourly_rate: number;
+  price?: number;
+  hourly_rate?: number;
   location: string;
   profile_image: string;
   rating: number;

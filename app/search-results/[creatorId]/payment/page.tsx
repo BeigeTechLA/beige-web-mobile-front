@@ -16,9 +16,12 @@ import { PricingBreakdown } from "./components/PricingBreakdown";
 import { ReviewsList } from "./components/ReviewsList";
 import { EquipmentSelector } from "./components/EquipmentSelector";
 import { BookingForm } from "./components/BookingForm";
+import { BookingDisplay } from "./components/BookingDisplay";
 import { StripePaymentForm } from "./components/StripePaymentForm";
 import { creatorApi, reviewApi, equipmentApi, paymentApi } from "@/lib/api";
 import type { Creator, Review, Equipment, BookingFormData } from "@/types/payment";
+import { useGetGuestBookingByIdQuery } from "@/lib/redux/features/booking/guestBookingApi";
+import { formatLocationForDisplay } from "@/lib/utils/locationHelpers";
 import { toast } from "sonner";
 
 // Initialize Stripe - Replace with your publishable key
@@ -29,6 +32,12 @@ function PaymentContent() {
   const searchParams = useSearchParams();
   const creatorId = params.creatorId as string;
   const shootId = searchParams.get("shootId");
+
+  // Fetch guest booking if shootId exists
+  const { data: guestBooking, isLoading: isLoadingBooking } = useGetGuestBookingByIdQuery(
+    shootId || '',
+    { skip: !shootId }
+  );
 
   // State
   const [step, setStep] = useState<"loading" | "form" | "payment" | "success">("loading");
@@ -63,18 +72,80 @@ function PaymentContent() {
         setCreator(creatorData);
         setReviews(Array.isArray(reviewsData) ? reviewsData : []);
         setEquipment(Array.isArray(equipmentData) ? equipmentData : []);
-        setStep("form");
+
+        // Always go to payment step
+        setStep("payment");
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load creator information');
-        setStep("form");
+        setStep("payment");
       }
     };
 
     if (creatorId) {
       fetchData();
     }
-  }, [creatorId]);
+  }, [creatorId, shootId]);
+
+  // Pre-fill booking data from guest booking when available
+  useEffect(() => {
+    if (guestBooking) {
+      setBookingData({
+        hours: guestBooking.duration_hours || 1,
+        shoot_date: guestBooking.event_date || '',
+        location: formatLocationForDisplay(guestBooking.event_location),
+        shoot_type: guestBooking.event_type || '',
+        special_requests: guestBooking.description || '',
+        selected_equipment_ids: [],
+      });
+    }
+  }, [guestBooking]);
+
+  // Auto-create payment intent when on payment step
+  useEffect(() => {
+    const createPaymentIntent = async () => {
+      if (creator && step === "payment" && !clientSecret) {
+        try {
+          // Calculate total amount
+          const hourlyRate = creator.price || creator.hourly_rate || 0;
+          const hours = bookingData.hours || 1;
+          const amount = hourlyRate * hours;
+
+          // Use guest booking data if available, otherwise use current bookingData
+          const paymentData: BookingFormData = shootId && guestBooking
+            ? {
+                hours: guestBooking.duration_hours || 1,
+                shoot_date: guestBooking.event_date || '',
+                location: formatLocationForDisplay(guestBooking.event_location),
+                shoot_type: guestBooking.event_type || '',
+                special_requests: guestBooking.description || '',
+                selected_equipment_ids: [],
+              }
+            : {
+                hours: bookingData.hours || 1,
+                shoot_date: bookingData.shoot_date || '',
+                location: bookingData.location || '',
+                shoot_type: bookingData.shoot_type || '',
+                special_requests: bookingData.special_requests || '',
+                selected_equipment_ids: selectedEquipmentIds,
+              };
+
+          const response = await paymentApi.createIntent(
+            creatorId,
+            paymentData,
+            amount
+          );
+
+          setClientSecret(response.client_secret);
+        } catch (error) {
+          console.error('Error creating payment intent:', error);
+          toast.error('Failed to initialize payment');
+        }
+      }
+    };
+
+    createPaymentIntent();
+  }, [shootId, guestBooking, creator, step, clientSecret, creatorId, bookingData, selectedEquipmentIds]);
 
   // Calculate pricing
   const equipmentCost = Array.isArray(equipment)
@@ -84,7 +155,7 @@ function PaymentContent() {
     : 0;
 
   const totalAmount = creator
-    ? creator.hourly_rate * (bookingData.hours || 1) + equipmentCost
+    ? (creator.price || creator.hourly_rate || 0) * (bookingData.hours || 1) + equipmentCost
     : 0;
 
   // Handle equipment toggle
@@ -202,7 +273,9 @@ function PaymentContent() {
                 </h2>
                 <p className="text-white/70 mx-auto text-xs lg:text-base">
                   {step === "form"
-                    ? "Fill in your booking details to continue"
+                    ? shootId && guestBooking
+                      ? "Review your booking details and proceed to payment"
+                      : "Fill in your booking details to continue"
                     : "Review your booking details and complete your payment to secure your session"}
                 </p>
               </motion.div>
@@ -213,10 +286,14 @@ function PaymentContent() {
               <div className="lg:col-span-7 space-y-5">
                 {step === "form" ? (
                   <>
-                    <BookingForm
-                      formData={bookingData}
-                      onChange={handleBookingFieldChange}
-                    />
+                    {shootId && guestBooking ? (
+                      <BookingDisplay bookingData={bookingData} />
+                    ) : (
+                      <BookingForm
+                        formData={bookingData}
+                        onChange={handleBookingFieldChange}
+                      />
+                    )}
                     <EquipmentSelector
                       equipment={equipment}
                       selectedIds={selectedEquipmentIds}
@@ -285,7 +362,7 @@ function PaymentContent() {
                     {/* Pricing Breakdown */}
                     {creator && (
                       <PricingBreakdown
-                        hourlyRate={creator.hourly_rate}
+                        hourlyRate={creator.price || creator.hourly_rate || 0}
                         hours={bookingData.hours || 1}
                         equipmentCost={equipmentCost}
                       />
