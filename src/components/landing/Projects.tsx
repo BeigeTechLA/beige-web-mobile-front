@@ -47,7 +47,7 @@ export const Projects = () => {
   const swiperRef = useRef<SwiperType | null>(null);
 
   return (
-    <section className="py-10 lg:py-32 border-t border-white/5 relative overflow-hidden">
+    <section id="find-work" className="py-10 lg:py-32 border-t border-white/5 relative overflow-hidden">
       <Container className="overflow-hidden">
 
         {/* Header */}

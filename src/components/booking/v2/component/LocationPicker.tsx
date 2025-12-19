@@ -242,7 +242,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-[#E5E5E5] bg-[#FAFAFA] flex items-center justify-between">
+      <div className="p-3 border-t border-[#E5E5E5] bg-[#FAFAFA] flex flex-col lg:flex-row items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-[#666]">
           {marker ? (
             <>
@@ -253,7 +253,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             <span className="text-[#666]">No location selected</span>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col lg:flex-row gap-2">
           <button
             type="button"
             onClick={() => setIsExpanded(false)}
