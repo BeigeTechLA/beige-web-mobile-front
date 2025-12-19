@@ -4,6 +4,20 @@ import { Plus, Star, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
+// DummyImage List: To be removed later
+const crewImages = [
+  "/images/crew/CREW(1).png",
+  "/images/crew/CREW(2).png",
+  "/images/crew/CREW(3).png",
+  "/images/crew/CREW(4).png",
+  "/images/crew/CREW(5).png",
+  "/images/crew/CREW(7).png",
+  "/images/crew/CREW(6).png",
+  "/images/crew/CREW(8).png",
+  "/images/crew/CREW(9).png",
+  "/images/crew/CREW(10).png"
+]
+
 const INFO_HEIGHT = 220;
 
 const cardVariants = {
@@ -47,6 +61,16 @@ const CreatorCard = ({
   creatorId,
   isActive = false,
 }: CreatorCardProps) => {
+  // Temporary code until images are avilable
+  const isInvalidImage =
+    !image ||
+    image.trim().length === 0 ||
+    image === "/images/influencer/default.png";
+
+  const fallbackImage = isInvalidImage
+    ? crewImages[parseInt(creatorId) % 10]
+    : image;
+
   return (
     <motion.div
       variants={cardVariants}
@@ -65,7 +89,7 @@ const CreatorCard = ({
       {/* IMAGE */}
       <div className="relative w-full h-[364px] overflow-hidden">
         <Image
-          src={image}
+          src={fallbackImage}
           alt={name}
           fill
           priority

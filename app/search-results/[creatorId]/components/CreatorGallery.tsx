@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { Images } from "lucide-react";
+
+// temporary set. to be removed once data is available
+const tempImages = [
+  "/images/crew/CREW(9).png",
+  "/images/crew/CREW70.png",
+  "/images/crew/CREW71.png",
+  "/images/crew/CREW72.png",
+  "/images/crew/CREW74.png",
+]
 
 interface Creator {
   id: string;
@@ -25,8 +35,9 @@ interface CreatorGalleryProps {
 export default function CreatorGallery({
   mockCreator,
 }: CreatorGalleryProps) {
+  const galleryImages = mockCreator.images.length === 0 ? tempImages : mockCreator.images
   const [activeImage, setActiveImage] = useState<string>(
-    mockCreator.images[0]
+    galleryImages[0]
   );
 
   return (
@@ -43,7 +54,7 @@ export default function CreatorGallery({
           pr-1
         "
       >
-        {mockCreator.images.map((img, i) => (
+        {galleryImages.map((img, i) => (
           <button
             key={i}
             onClick={() => setActiveImage(img)}

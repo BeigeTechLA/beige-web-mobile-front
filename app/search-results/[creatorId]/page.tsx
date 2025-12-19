@@ -109,7 +109,7 @@ function CreatorProfileContent() {
     price: creator.hourly_rate ? `From $${creator.hourly_rate}/Hr` : "Contact for pricing",
     rating: creator.rating || 0,
     reviews: creator.total_reviews || 0,
-    image: creator.profile_image || "/images/default-avatar.png"
+    image: creator.profile_image || '/images/influencer/default.png',
   })) || [];
 
   return (
