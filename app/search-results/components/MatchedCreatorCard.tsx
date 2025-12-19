@@ -108,8 +108,18 @@ const MatchedCreatorCard = ({
             <Link
               href={`/search-results/${creatorId}${shootId ? `?shootId=${shootId}` : ""
                 }`}
+              onClick={(e) => {
+                // Prevent Swiper from interfering with navigation
+                e.stopPropagation();
+              }}
             >
-              <Button className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium">
+              <Button
+                className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
+                onClick={(e) => {
+                  // Ensure click event reaches the Link
+                  e.stopPropagation();
+                }}
+              >
                 Book Now
               </Button>
             </Link>

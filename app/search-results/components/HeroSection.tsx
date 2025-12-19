@@ -80,6 +80,12 @@ const HeroSection = ({ matchedCreators, shootId }: HeroSectionProps) => {
           loop={creators.length > 5}
           slidesPerView={3}
           spaceBetween={30}
+          allowTouchMove={true}
+          allowSlideNext={true}
+          allowSlidePrev={true}
+          preventClicks={false}
+          preventClicksPropagation={false}
+          slideToClickedSlide={true}
           coverflowEffect={{
             rotate: 15,
             stretch: 0,
