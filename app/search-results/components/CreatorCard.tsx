@@ -79,7 +79,6 @@ const CreatorCard = ({
     <motion.div
       variants={cardVariants}
       initial="rest"
-      animate={isActive ? "hover" : "rest"}
       whileHover="hover"
       transition={{ duration: 0.45, ease: "easeInOut" }}
       className="
