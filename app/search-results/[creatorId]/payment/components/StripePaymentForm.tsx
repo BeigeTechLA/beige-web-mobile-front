@@ -70,7 +70,7 @@ export function StripePaymentForm({ clientSecret, amount, onSuccess, onError }: 
         console.error('Payment error:', paymentError);
         onError(paymentError.message || 'Payment failed');
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        onSuccess();
+        onSuccess(paymentIntent.id);
       }
     } catch (err) {
       console.error('Unexpected payment error:', err);
