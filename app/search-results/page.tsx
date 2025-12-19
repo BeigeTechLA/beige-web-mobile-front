@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -10,157 +10,137 @@ import { Separator } from "@/src/components/landing/Separator";
 import NewCreatorsSection from "./components/NewCreatorsSection";
 import SimilarCreatorsSection from "./components/SimilarCreatorsSection";
 import HeroSection from "./components/HeroSection";
+import { useSearchCreatorsQuery } from "@/lib/redux/features/creators/creatorsApi";
+import type { Creator } from "@/lib/types";
 
-// Mock creator data
-const mockCreators = [
-  {
-    id: "ethan-cole",
-    name: "Ethan Cole",
-    role: "Photographer Specialist",
-    price: "From $450/Hr",
-    rating: 4.5,
-    reviews: 120,
-    image: "/images/influencer/pressaarmani.png",
-    isTopMatch: true,
-  },
-  {
-    id: "angela-kia",
-    name: "Angela Kia",
-    role: "Videography Specialist",
-    price: "From $120/Hr",
-    rating: 4.0,
-    image: "/images/influencer/natashaGraziano.png",
-    reviews: 120,
-  },
-  {
-    id: "lucas-bennett",
-    name: "Lucas Bennett",
-    role: "Photographer Specialist",
-    price: "From $300/Hr",
-    rating: 4.2,
-    reviews: 101,
-    image: "/images/influencer/cedrictheentertainer.png",
-  },
-  {
-    id: "josh-bennett",
-    name: "Josh Bennett",
-    role: "Photographer Specialist",
-    price: "From $200/Hr",
-    rating: 4.0,
-    reviews: 191,
-    image: "/images/influencer/Sharukh.png",
-  },
-  {
-    id: "lia-cole",
-    name: "Lia Cole",
-    role: "Photographer Specialist",
-    price: "From $230/Hr",
-    rating: 4.1,
-    reviews: 141,
-    image: "/images/influencer/pressaarmani.png",
-  },
-];
+// Type for frontend creator display
+interface DisplayCreator {
+  id: string;
+  name: string;
+  role: string;
+  price: string;
+  rating: number;
+  reviews: number;
+  image: string;
+  isTopMatch?: boolean;
+}
 
-const additionalCreators = [
-  {
-    id: "creator-1",
-    name: "Sarah Mitchell",
-    role: "Visual Artist",
-    price: "From $200/Hr",
-    rating: 4.8,
-    reviews: 45,
-    image: "/images/influencer/chiefKeef.png",
-  },
-  {
-    id: "creator-2",
-    name: "Michael Chen",
-    role: "Visual Artist",
-    price: "From $200/Hr",
-    rating: 4.8,
-    reviews: 45,
-    image: "/images/influencer/seanKelly.png",
-  },
-  {
-    id: "creator-3",
-    name: "Emily Rodriguez",
-    role: "Visual Artist",
-    price: "From $200/Hr",
-    rating: 4.8,
-    reviews: 45,
-    image: "/images/influencer/CaseyVeggies.png",
-  },
-  {
-    id: "creator-4",
-    name: "David Park",
-    role: "Visual Artist",
-    price: "From $200/Hr",
-    rating: 4.8,
-    reviews: 45,
-    image: "/images/influencer/Sharukh.png",
-  },
-];
-
-const newCreators = [
-  {
-    id: "new-talent-1",
-    name: "Isabella Torres",
-    role: "Creative Director",
-    price: "From $150/Hr",
-    rating: 5.0,
-    reviews: 12,
-    image: "/images/influencer/kingkarlx@2x.png",
-  },
-  {
-    id: "new-talent-2",
-    name: "Alex Kim",
-    role: "Creative Director",
-    price: "From $150/Hr",
-    rating: 5.0,
-    reviews: 12,
-    image: "/images/influencer/natashaGraziano.png",
-  },
-  {
-    id: "new-talent-3",
-    name: "Jordan Lee",
-    role: "Creative Director",
-    price: "From $150/Hr",
-    rating: 5.0,
-    reviews: 12,
-    image: "/images/influencer/pressaarmani.png",
-  },
-  {
-    id: "new-talent-4",
-    name: "Taylor Morgan",
-    role: "Creative Director",
-    price: "From $150/Hr",
-    rating: 5.0,
-    reviews: 12,
-    image: "/images/influencer/cedrictheentertainer.png",
-  },
-];
-
+// Transform backend creator to frontend structure
+const transformCreator = (c: Creator, isTopMatch: boolean = false): DisplayCreator => ({
+  id: String(c.crew_member_id),
+  name: c.name,
+  role: c.role_name || "Creative Professional",
+  price: c.hourly_rate ? `From $${c.hourly_rate}/Hr` : "Contact for pricing",
+  rating: c.rating || 0,
+  reviews: c.total_reviews || 0,
+  image: c.profile_image || '/images/influencer/default.png',
+  isTopMatch,
+});
 
 function SearchResultsContent() {
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId") || undefined;
 
+  // Extract search parameters
+  const budget = searchParams.get("budget") ? Number(searchParams.get("budget")) : undefined;
+  const location = searchParams.get("location") || undefined;
+  const content_type = searchParams.get("content_type") ? Number(searchParams.get("content_type")) : undefined;
+
+  // Fetch creators from backend API
+  const { data, isLoading, error } = useSearchCreatorsQuery({
+    budget,
+    location,
+    content_type,
+    page: 1,
+    limit: 20,
+  });
+
+  // Transform and split creators into sections
+  const { matchedCreators, additionalCreators, newCreators } = useMemo(() => {
+    if (!data?.data || data.data.length === 0) {
+      return {
+        matchedCreators: [],
+        additionalCreators: [],
+        newCreators: [],
+      };
+    }
+
+    const allCreators = data.data;
+
+    // First 5 as top matches
+    const matched = allCreators.slice(0, 5).map((c, idx) => transformCreator(c, idx === 0));
+
+    // Split remaining creators between additional and new
+    const remaining = allCreators.slice(5);
+    const midpoint = Math.ceil(remaining.length / 2);
+
+    const additional = remaining.slice(0, midpoint).map(c => transformCreator(c));
+    const newOnes = remaining.slice(midpoint).map(c => transformCreator(c));
+
+    return {
+      matchedCreators: matched,
+      additionalCreators: additional,
+      newCreators: newOnes,
+    };
+  }, [data]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="pt-32 pb-20 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mb-4"></div>
+          <p className="text-white text-lg">Finding the perfect creators for you...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="pt-32 pb-20 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md">
+          <p className="text-red-400 text-lg mb-4">Unable to load creators at this time.</p>
+          <p className="text-gray-400">Please try again later or adjust your search criteria.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (matchedCreators.length === 0) {
+    return (
+      <div className="pt-32 pb-20 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md">
+          <p className="text-white text-lg mb-4">No creators found matching your criteria.</p>
+          <p className="text-gray-400">Try adjusting your budget, location, or content type filters.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pt-20 md:pt-32 pb-20">
       {/* Main Section: Header + Main Grid */}
-      <HeroSection matchedCreators={mockCreators} shootId={shootId} />
+      <HeroSection matchedCreators={matchedCreators} shootId={shootId} />
       <Separator />
 
       {/* Section: We Think You'll Love These */}
-      <SimilarCreatorsSection
-        additionalCreators={additionalCreators}
-        shootId={shootId}
-      />
+      {additionalCreators.length > 0 && (
+        <SimilarCreatorsSection
+          additionalCreators={additionalCreators}
+          shootId={shootId}
+        />
+      )}
 
       {/* Section: New Creators */}
-      <NewCreatorsSection
-        newCreators={newCreators}
-        shootId={shootId}
-      />
+      {newCreators.length > 0 && (
+        <NewCreatorsSection
+          newCreators={newCreators}
+          shootId={shootId}
+        />
+      )}
 
       {/* Fix the footer styling before implementing this */}
       {/* <div className="my-24">

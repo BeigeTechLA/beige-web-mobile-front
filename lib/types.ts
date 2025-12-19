@@ -47,7 +47,7 @@ export interface QuickRegisterData {
 // Creator Types
 export interface Creator {
   crew_member_id: number;
-  user_id: number;
+  user_id?: number; // Optional for mock creators
   name: string;
   email?: string;
   phone?: string;
@@ -60,8 +60,9 @@ export interface Creator {
   total_jobs?: number;
   bio?: string;
   location?: string;
-  skills?: string[];
-  equipment?: string[];
+  experience_years?: number;
+  skills?: string | string[]; // Can be string (from DB) or array
+  equipment?: string | string[]; // Can be string (from DB) or array
   is_available?: boolean;
   created_at?: string;
 }
@@ -78,7 +79,7 @@ export interface CreatorSearchParams {
 export interface CreatorProfile extends Creator {
   portfolio?: PortfolioItem[];
   reviews?: Review[];
-  certifications?: string[];
+  certifications?: string | string[]; // Can be string (from DB) or array
   experience_years?: number;
 }
 

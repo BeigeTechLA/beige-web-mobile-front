@@ -4,6 +4,7 @@ import bookingReducer from './features/booking/bookingSlice';
 import { authApi } from './features/auth/authApi';
 import { creatorsApi } from './features/creators/creatorsApi';
 import { bookingsApi } from './features/booking/bookingApi';
+import { guestBookingApi } from './features/booking/guestBookingApi';
 import { waitlistApi } from './features/waitlist/waitlistApi';
 
 export const store = configureStore({
@@ -13,6 +14,7 @@ export const store = configureStore({
     [authApi.reducerPath]: authApi.reducer,
     [creatorsApi.reducerPath]: creatorsApi.reducer,
     [bookingsApi.reducerPath]: bookingsApi.reducer,
+    [guestBookingApi.reducerPath]: guestBookingApi.reducer,
     [waitlistApi.reducerPath]: waitlistApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
@@ -20,6 +22,7 @@ export const store = configureStore({
       authApi.middleware,
       creatorsApi.middleware,
       bookingsApi.middleware,
+      guestBookingApi.middleware,
       waitlistApi.middleware
     ),
 });

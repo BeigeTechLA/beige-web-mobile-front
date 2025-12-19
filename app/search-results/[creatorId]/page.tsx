@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, Suspense, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -19,93 +19,98 @@ import CreatorGallery from "./components/CreatorGallery";
 import ImageWheel from "./components/ImageWheel";
 
 import { Separator as CenteredSeparator } from "@/src/components/landing/Separator";
+import {
+  useGetCreatorProfileQuery,
+  useGetCreatorPortfolioQuery,
+  useSearchCreatorsQuery
+} from "@/lib/redux/features/creators/creatorsApi";
 import "swiper/css";
-
-// Mock creator data
-const mockCreator = {
-  id: "ethan-cole",
-  name: "Ethan Cole",
-  role: "Photographer Specialist",
-  rating: 4.5,
-  reviews: 120,
-  price: 450,
-  available: true,
-  about:
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam eu turpis molestie, dictum est a, mattis tellus. Sed dignissim, metus nec fringilla accumsan, risus sem sollicitudin lacus, ut interdum tellus elit sed risus. Maecenas eget condimentum velit, sit amet feugiat lectus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.",
-  skills: ["Photography Event", "Photography", "Natural Light Photography"],
-  equipment: ["Macbook Pro M1", "Adobe Creative Suite", "Body Vibrotic Pro+"],
-  images: [
-    "/images/influencer/natashaGraziano.png",
-    "/images/influencer/pressaarmani.png",
-    "/images/influencer/cedrictheentertainer.png",
-    "/images/influencer/chiefKeef.png",
-    "/images/influencer/seanKelly.png",
-    "/images/influencer/kingkarlx@2x.png",
-    '/images/influencer/Sharukh.png'
-  ],
-  portfolio: [
-    "/images/projects/interior.png",
-    "/images/projects/smiles.png",
-    "/images/projects/creator.png",
-    "/images/projects/rollsroyce.png",
-    "/images/projects/robots.png",
-    "/images/influencer/kingkarlx@2x.png",
-    '/images/influencer/Sharukh.png',
-    "/images/influencer/cedrictheentertainer.png",
-    "/images/influencer/chiefKeef.png",
-    "/images/influencer/seanKelly.png",
-  ],
-};
-
-// RecommendedCreators
-const recommendedCreators = [
-  {
-    id: "new-talent-1",
-    name: "Isabella Torres",
-    role: "Creative Director",
-    price: "From $150/Hr",
-    rating: 5.0,
-    reviews: 12,
-    image: "/images/influencer/kingkarlx@2x.png",
-  },
-  {
-    id: "new-talent-2",
-    name: "Alex Kim",
-    role: "Creative Director",
-    price: "From $150/Hr",
-    rating: 5.0,
-    reviews: 12,
-    image: "/images/influencer/natashaGraziano.png",
-  },
-  {
-    id: "new-talent-3",
-    name: "Jordan Lee",
-    role: "Creative Director",
-    price: "From $150/Hr",
-    rating: 5.0,
-    reviews: 12,
-    image: "/images/influencer/pressaarmani.png",
-  },
-  {
-    id: "new-talent-4",
-    name: "Taylor Morgan",
-    role: "Creative Director",
-    price: "From $150/Hr",
-    rating: 5.0,
-    reviews: 12,
-    image: "/images/influencer/cedrictheentertainer.png",
-  },
-];
-
 
 const tabs = ["Portfolios"];  //"Work History", "FAQs", "Reviews"
 
 function CreatorProfileContent() {
   const [activeTab, setActiveTab] = useState("Portfolios");
   const searchParams = useSearchParams();
+  const params = useParams();
   const shootId = searchParams.get("shootId") ?? undefined;
 
+  // Extract and parse creatorId from URL params
+  const creatorId = params.creatorId as string;
+  const creatorIdNumber = Number(creatorId);
+
+  // Fetch creator profile data
+  const {
+    data: profile,
+    isLoading: isLoadingProfile,
+    error: profileError
+  } = useGetCreatorProfileQuery(creatorIdNumber, {
+    skip: !creatorIdNumber || isNaN(creatorIdNumber)
+  });
+
+  // Fetch creator portfolio data
+  const {
+    data: portfolioData,
+    isLoading: isLoadingPortfolio
+  } = useGetCreatorPortfolioQuery(
+    { id: creatorIdNumber, page: 1, limit: 12 },
+    { skip: !creatorIdNumber || isNaN(creatorIdNumber) }
+  );
+
+  // Fetch recommended creators (using search API)
+  const { data: recommendedData } = useSearchCreatorsQuery({
+    page: 1,
+    limit: 4
+  });
+
   const swiperRef = useRef<SwiperType | null>(null);
+
+  // Loading state
+  if (isLoadingProfile || isLoadingPortfolio) {
+    return (
+      <div className="pt-32 pb-20 flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 text-[#E8D1AB] animate-spin" />
+          <p className="text-white/60 text-lg">Loading creator profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state - 404 or other errors
+  if (profileError || !profile) {
+    return (
+      <div className="pt-32 pb-20 flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-6 text-center max-w-md">
+          <div className="text-6xl">😔</div>
+          <h2 className="text-3xl font-bold text-white">Creator Not Found</h2>
+          <p className="text-white/60 text-lg">
+            The creator you&apos;re looking for doesn&apos;t exist or has been removed.
+          </p>
+          <Link
+            href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Search Results
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Prepare portfolio images
+  const portfolioImages = portfolioData?.data?.map(item => item.image_url || item.video_url).filter(Boolean) || [];
+
+  // Prepare recommended creators
+  const recommendedCreators = recommendedData?.data?.slice(0, 4).map(creator => ({
+    id: creator.crew_member_id.toString(),
+    name: creator.name,
+    role: creator.role_name || "Content Creator",
+    price: creator.hourly_rate ? `From $${creator.hourly_rate}/Hr` : "Contact for pricing",
+    rating: creator.rating || 0,
+    reviews: creator.total_reviews || 0,
+    image: creator.profile_image || "/images/default-avatar.png"
+  })) || [];
 
   return (
     <div className="pt-20 lg:pt-32 pb-20">
@@ -124,7 +129,14 @@ function CreatorProfileContent() {
           <div className="flex flex-col lg:flex-row gap-12">
             {/* Left: Gallery */}
             <div className="lg:w-1/2">
-              <CreatorGallery mockCreator={mockCreator} />
+              <CreatorGallery
+                mockCreator={{
+                  images: portfolioImages.slice(0, 7),
+                  name: profile.name,
+                  rating: profile.rating || 0,
+                  reviews: profile.total_reviews || 0
+                }}
+              />
             </div>
 
             {/* Right: Info */}
@@ -133,11 +145,13 @@ function CreatorProfileContent() {
               <div className="flex items-start justify-between">
                 <div className="flex flex-col gap-3">
                   <h1 className="text-lg lg:text-3xl font-medium text-white">
-                    {mockCreator.name}
+                    {profile.name}
                   </h1>
-                  <p className="text-[#E8D1AB] text-sm lg:text-[22px]">{mockCreator.role}</p>
+                  <p className="text-[#E8D1AB] text-sm lg:text-[22px]">
+                    {profile.role_name || "Content Creator"}
+                  </p>
                 </div>
-                {mockCreator.available && (
+                {profile.is_available && (
                   <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50] lg:leading-[20px]">
                     Available
                   </p>
@@ -146,45 +160,63 @@ function CreatorProfileContent() {
               <Separator />
 
               {/* About */}
-              <div className="flex flex-col gap-3.5">
-                <h3 className="text-base lg:text-xl font-bold text-white">About Creator</h3>
-                <p className="text-white/60 leading-relaxed text-sm lg:text-lg font-normal">
-                  {mockCreator.about}
-                </p>
-              </div>
-              <Separator />
-
+              {profile.bio && (
+                <>
+                  <div className="flex flex-col gap-3.5">
+                    <h3 className="text-base lg:text-xl font-bold text-white">About Creator</h3>
+                    <p className="text-white/60 leading-relaxed text-sm lg:text-lg font-normal">
+                      {profile.bio}
+                    </p>
+                  </div>
+                  <Separator />
+                </>
+              )}
 
               {/* Skills */}
-              <div className="flex flex-col gap-3.5">
-                <h3 className="text-base lg:text-xl font-bold text-white">Skills</h3>
-                <div className="flex flex-wrap gap-2.5">
-                  {mockCreator.skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <Separator />
+              {profile.skills && (
+                <>
+                  <div className="flex flex-col gap-3.5">
+                    <h3 className="text-base lg:text-xl font-bold text-white">Skills</h3>
+                    <div className="flex flex-wrap gap-2.5">
+                      {(Array.isArray(profile.skills)
+                        ? profile.skills
+                        : profile.skills.split(',').map(s => s.trim())
+                      ).map((skill, index) => (
+                        <span
+                          key={`${skill}-${index}`}
+                          className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              )}
 
               {/* Equipment */}
-              <div className="flex flex-col gap-3.5">
-                <h3 className="text-base lg:text-xl font-bold text-white">Equipments</h3>
-                <div className="flex flex-wrap gap-2.5">
-                  {mockCreator.equipment.map((item) => (
-                    <span
-                      key={item}
-                      className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              {profile.equipment && (
+                <>
+                  <div className="flex flex-col gap-3.5">
+                    <h3 className="text-base lg:text-xl font-bold text-white">Equipment&apos;s</h3>
+                    <div className="flex flex-wrap gap-2.5">
+                      {(Array.isArray(profile.equipment)
+                        ? profile.equipment
+                        : profile.equipment.split(',').map(s => s.trim())
+                      ).map((item, index) => (
+                        <span
+                          key={`${item}-${index}`}
+                          className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              )}
 
               {/* Action Bar */}
               <div className="bg-[#171717] rounded-xl lg:rounded-[20px] p-4 lg:p-7 flex flex-col gap-7 mt-2.5">
@@ -197,12 +229,11 @@ function CreatorProfileContent() {
                   </div>
 
                   <span className="text-xl lg:text-3xl font-bold text-white">
-                    ${mockCreator.price}
+                    {profile.hourly_rate ? `$${profile.hourly_rate}` : "Contact"}
                   </span>
                 </div>
                 <Link
-                  href={`/search-results/ethan-cole/payment${shootId ? `?shootId=${shootId}` : ""
-                    }`}
+                  href={`/search-results/${creatorId}/payment${shootId ? `?shootId=${shootId}` : ""}`}
                   className="w-full md:w-auto"
                 >
                   <Button className="w-full h-12 lg:h-[71px] px-5 lg:px-10 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium rounded-[12px]">
@@ -235,7 +266,13 @@ function CreatorProfileContent() {
           </div>
 
           {activeTab === "Portfolios" && (
-            <ImageWheel images={mockCreator.portfolio} />
+            portfolioImages.length > 0 ? (
+              <ImageWheel images={portfolioImages} />
+            ) : (
+              <div className="py-10 text-center text-white/40">
+                No portfolio items available yet.
+              </div>
+            )
           )}
 
           {/* Content based on active tab */}
@@ -262,31 +299,37 @@ function CreatorProfileContent() {
 
             <div>
               {/* CAROUSEL */}
-              <Swiper
-                spaceBetween={24}
-                slidesPerView={1.1}
-                grabCursor
-                centeredSlides={false}
-                breakpoints={{
-                  640: { slidesPerView: 1.5 },
-                  768: { slidesPerView: 2 },
-                  1280: { slidesPerView: 3 },
-                }}
-                className="!overflow-visible"
-              >
-                {recommendedCreators.map((creator) => (
-                  <SwiperSlide key={creator.id} className="h-auto">
-                    {({ isActive }) => (
-                      <CreatorCard
-                        {...creator}
-                        shootId={shootId}
-                        creatorId={creator.id}
-                        isActive={isActive}
-                      />
-                    )}
-                  </SwiperSlide>
-                ))}
-              </Swiper>
+              {recommendedCreators.length > 0 ? (
+                <Swiper
+                  spaceBetween={24}
+                  slidesPerView={1.1}
+                  grabCursor
+                  centeredSlides={false}
+                  breakpoints={{
+                    640: { slidesPerView: 1.5 },
+                    768: { slidesPerView: 2 },
+                    1280: { slidesPerView: 3 },
+                  }}
+                  className="!overflow-visible"
+                >
+                  {recommendedCreators.map((creator) => (
+                    <SwiperSlide key={creator.id} className="h-auto">
+                      {({ isActive }) => (
+                        <CreatorCard
+                          {...creator}
+                          shootId={shootId}
+                          creatorId={creator.id}
+                          isActive={isActive}
+                        />
+                      )}
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+              ) : (
+                <div className="py-10 text-center text-white/40">
+                  No recommendations available at this time.
+                </div>
+              )}
             </div>
 
           </div>

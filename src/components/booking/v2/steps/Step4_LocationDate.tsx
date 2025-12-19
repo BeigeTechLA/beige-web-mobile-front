@@ -6,6 +6,7 @@ import { DropdownSelect } from "../component/DropdownSelect";
 import { CustomSlider } from "../component/CustomSlider";
 import { DateTimePicker } from "../component/DateTimePicker";
 import { parseDate } from "@/src/components/landing/lib/utils";
+import { LocationPicker } from "../component/LocationPicker";
 
 interface Props {
   data: BookingData;
@@ -97,18 +98,11 @@ export const Step4LocationDate = ({
         </div>
 
         {/* LOCATION */}
-        <div className="relative w-full">
-         <label className="absolute -top-2 lg:-top-3 left-4 bg-[#FAFAFA] px-2 text-sm lg:text-base text-[#000]/60">
-            Location
-          </label>
-          <input
-            type="text"
-            value={data.location}
-            onChange={(e) => updateData({ location: e.target.value })}
-            className="h-14 lg:h-[82px] w-full rounded-[12px] border border-[#E5E5E5] px-4 text-[#1A1A1A] outline-none focus:border-[#1A1A1A] bg-[#FAFAFA]"
-            placeholder="Enter location"
-          />
-        </div>
+        <LocationPicker
+          value={data.location}
+          onChange={(address) => updateData({ location: address })}
+          placeholder="Click to select location on map"
+        />
 
         {/* STUDIO TOGGLE */}
         <div className="flex items-center gap-4 p-4 rounded-[12px]">
