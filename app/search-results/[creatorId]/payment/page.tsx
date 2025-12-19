@@ -156,9 +156,30 @@ function PaymentContent() {
     : 0;
 
   // Handle payment success
-  const handlePaymentSuccess = () => {
-    setStep("success");
-    toast.success('Payment successful!');
+  const handlePaymentSuccess = async (paymentIntentId: string) => {
+    try {
+      const hourlyRate = creator?.price || creator?.hourly_rate || 0;
+
+      // Confirm payment and save to database
+      const response = await paymentApi.confirmBooking(paymentIntentId, {
+        creator_id: creatorId,
+        hours: bookingData.hours || 1,
+        hourly_rate: hourlyRate,
+        shoot_date: bookingData.shoot_date || '',
+        location: bookingData.location || '',
+        shoot_type: bookingData.shoot_type || '',
+        special_requests: bookingData.special_requests || '',
+        selected_equipment_ids: [],
+        guest_email: guestBooking?.guest_email,
+      });
+
+      console.log('Payment confirmed and saved:', response);
+      setStep("success");
+      toast.success('Payment successful!');
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      toast.error('Payment succeeded but failed to save booking. Please contact support.');
+    }
   };
 
   // Handle payment error

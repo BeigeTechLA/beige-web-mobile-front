@@ -99,11 +99,19 @@ export const paymentApi = {
 
   confirmBooking: async (
     paymentIntentId: string,
-    bookingData: BookingFormData & { creator_id: string }
+    bookingData: BookingFormData & { creator_id: string; guest_email?: string; hourly_rate?: number }
   ): Promise<BookingResponse> => {
-    const response = await api.post('/bookings/confirm', {
-      payment_intent_id: paymentIntentId,
-      ...bookingData,
+    const response = await api.post('/payments/confirm', {
+      paymentIntentId: paymentIntentId,
+      creator_id: bookingData.creator_id,
+      hours: bookingData.hours,
+      hourly_rate: bookingData.hourly_rate,
+      equipment: [], // No equipment for now
+      shoot_date: bookingData.shoot_date,
+      location: bookingData.location,
+      shoot_type: bookingData.shoot_type,
+      notes: bookingData.special_requests || '',
+      guest_email: bookingData.guest_email,
     });
     return response.data;
   },
