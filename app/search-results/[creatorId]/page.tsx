@@ -229,7 +229,7 @@ function CreatorProfileContent() {
                   </div>
 
                   <span className="text-xl lg:text-3xl font-bold text-white">
-                    {profile.hourly_rate ? `$${profile.hourly_rate}` : "Contact"}
+                    {profile.price ? `$${profile.price}` : "Contact"}
                   </span>
                 </div>
                 <Link
