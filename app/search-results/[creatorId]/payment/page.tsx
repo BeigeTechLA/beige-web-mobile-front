@@ -14,9 +14,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BookingSummaryModal } from "./components/BookingSumaryModal";
 import { PricingBreakdown } from "./components/PricingBreakdown";
 import { ReviewsList } from "./components/ReviewsList";
-import { EquipmentSelector } from "./components/EquipmentSelector";
-import { BookingForm } from "./components/BookingForm";
-import { BookingDisplay } from "./components/BookingDisplay";
 import { StripePaymentForm } from "./components/StripePaymentForm";
 import { creatorApi, reviewApi, equipmentApi, paymentApi } from "@/lib/api";
 import type { Creator, Review, Equipment, BookingFormData } from "@/types/payment";
@@ -40,11 +37,10 @@ function PaymentContent() {
   );
 
   // State
-  const [step, setStep] = useState<"loading" | "form" | "payment" | "success">("loading");
+  const [step, setStep] = useState<"loading" | "payment" | "success">("loading");
   const [creator, setCreator] = useState<Creator | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
   const [bookingData, setBookingData] = useState<Partial<BookingFormData>>({
     hours: 1,
     shoot_date: '',
@@ -55,7 +51,6 @@ function PaymentContent() {
   });
   const [clientSecret, setClientSecret] = useState<string>('');
   const [showSummary, setShowSummary] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
 
   // Fetch data on mount
   useEffect(() => {
@@ -101,42 +96,48 @@ function PaymentContent() {
     }
   }, [guestBooking]);
 
-  // Auto-create payment intent when on payment step
+  // Auto-create payment intent when guest booking is loaded
   useEffect(() => {
     const createPaymentIntent = async () => {
-      if (creator && step === "payment" && !clientSecret) {
-        try {
-          // Calculate total amount
-          const hourlyRate = creator.price || creator.hourly_rate || 0;
-          const hours = bookingData.hours || 1;
-          const amount = hourlyRate * hours;
+      console.log('Payment intent useEffect triggered', {
+        shootId,
+        hasGuestBooking: !!guestBooking,
+        hasCreator: !!creator,
+        step,
+        hasClientSecret: !!clientSecret,
+      });
 
-          // Use guest booking data if available, otherwise use current bookingData
-          const paymentData: BookingFormData = shootId && guestBooking
-            ? {
-                hours: guestBooking.duration_hours || 1,
-                shoot_date: guestBooking.event_date || '',
-                location: formatLocationForDisplay(guestBooking.event_location),
-                shoot_type: guestBooking.event_type || '',
-                special_requests: guestBooking.description || '',
-                selected_equipment_ids: [],
-              }
-            : {
-                hours: bookingData.hours || 1,
-                shoot_date: bookingData.shoot_date || '',
-                location: bookingData.location || '',
-                shoot_type: bookingData.shoot_type || '',
-                special_requests: bookingData.special_requests || '',
-                selected_equipment_ids: selectedEquipmentIds,
-              };
+      // Only create payment intent when we have valid guest booking data
+      if (shootId && guestBooking && creator && step === "payment" && !clientSecret) {
+        console.log('Creating payment intent with data:', {
+          creatorId,
+          guestBooking,
+          hourlyRate: creator.price || creator.hourly_rate || 0,
+        });
+
+        try {
+          const hourlyRate = creator.price || creator.hourly_rate || 0;
+
+          const paymentData = {
+            hours: guestBooking.duration_hours || 1,
+            shoot_date: guestBooking.event_date || '',
+            location: formatLocationForDisplay(guestBooking.event_location),
+            shoot_type: guestBooking.event_type || '',
+            special_requests: guestBooking.description || '',
+            selected_equipment_ids: [],
+            guest_email: guestBooking.guest_email,
+          };
+
+          console.log('Payment data being sent:', paymentData);
 
           const response = await paymentApi.createIntent(
             creatorId,
             paymentData,
-            amount
+            hourlyRate
           );
 
-          setClientSecret(response.client_secret);
+          console.log('Payment intent created successfully:', response);
+          setClientSecret(response.clientSecret);
         } catch (error) {
           console.error('Error creating payment intent:', error);
           toast.error('Failed to initialize payment');
@@ -145,63 +146,14 @@ function PaymentContent() {
     };
 
     createPaymentIntent();
-  }, [shootId, guestBooking, creator, step, clientSecret, creatorId, bookingData, selectedEquipmentIds]);
+  }, [shootId, guestBooking, creator, step, clientSecret, creatorId]);
 
-  // Calculate pricing
-  const equipmentCost = Array.isArray(equipment)
-    ? equipment
-        .filter((item) => selectedEquipmentIds.includes(item.id))
-        .reduce((sum, item) => sum + item.price, 0)
-    : 0;
+  // Calculate pricing - no equipment selection for now
+  const equipmentCost = 0;
 
   const totalAmount = creator
-    ? (creator.price || creator.hourly_rate || 0) * (bookingData.hours || 1) + equipmentCost
+    ? (creator.price || creator.hourly_rate || 0) * (bookingData.hours || 1)
     : 0;
-
-  // Handle equipment toggle
-  const handleEquipmentToggle = (equipmentId: string) => {
-    setSelectedEquipmentIds((prev) =>
-      prev.includes(equipmentId)
-        ? prev.filter((id) => id !== equipmentId)
-        : [...prev, equipmentId]
-    );
-  };
-
-  // Handle booking form field changes
-  const handleBookingFieldChange = (field: keyof BookingFormData, value: any) => {
-    setBookingData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  // Handle proceed to payment
-  const handleProceedToPayment = async () => {
-    // Validate form
-    if (!bookingData.hours || !bookingData.shoot_date || !bookingData.location || !bookingData.shoot_type) {
-      toast.error('Please fill in all required booking details');
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-
-      // Create payment intent
-      const response = await paymentApi.createIntent(
-        creatorId,
-        {
-          ...bookingData,
-          selected_equipment_ids: selectedEquipmentIds,
-        } as BookingFormData,
-        totalAmount
-      );
-
-      setClientSecret(response.client_secret);
-      setStep("payment");
-    } catch (error) {
-      console.error('Error creating payment intent:', error);
-      toast.error('Failed to initialize payment');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   // Handle payment success
   const handlePaymentSuccess = () => {
@@ -221,6 +173,23 @@ function PaymentContent() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB] mx-auto mb-4"></div>
           <p className="text-white/60">Loading creator information...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Validate shootId exists - users must create a booking first
+  if (!shootId && step !== "loading") {
+    return (
+      <div className="relative pt-20 md:pt-32 pb-20 min-h-[calc(100vh-80px)] flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Booking Required</h2>
+          <p className="text-white/60 mb-6">Please create a booking first before proceeding to payment.</p>
+          <Link href="/">
+            <Button className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black">
+              Create Booking
+            </Button>
+          </Link>
         </div>
       </div>
     );
@@ -252,7 +221,7 @@ function PaymentContent() {
         className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0"
       />
       <div className="container mx-auto mt-12 px-4 md:px-0 relative z-10">
-        {step === "form" || step === "payment" ? (
+        {step === "payment" ? (
           <div className="relative isolate overflow-hidden">
             {/* Back Link */}
             <Link
@@ -269,46 +238,22 @@ function PaymentContent() {
                 animate={{ opacity: 1, y: 0 }}
               >
                 <h2 className="text-lg lg:text-[64px] lg:leading-[76px] font-bold text-gradient-white mb-3 lg:mb-5">
-                  {step === "form" ? "Book Your Session" : "Confirm and Pay"}
+                  Confirm and Pay
                 </h2>
                 <p className="text-white/70 mx-auto text-xs lg:text-base">
-                  {step === "form"
-                    ? shootId && guestBooking
-                      ? "Review your booking details and proceed to payment"
-                      : "Fill in your booking details to continue"
-                    : "Review your booking details and complete your payment to secure your session"}
+                  Review your booking details and complete your payment to secure your session
                 </p>
               </motion.div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mx-auto">
-              {/* Left Column: Booking/Payment Form */}
+              {/* Left Column: Payment Form */}
               <div className="lg:col-span-7 space-y-5">
-                {step === "form" ? (
-                  <>
-                    {shootId && guestBooking ? (
-                      <BookingDisplay bookingData={bookingData} />
-                    ) : (
-                      <BookingForm
-                        formData={bookingData}
-                        onChange={handleBookingFieldChange}
-                      />
-                    )}
-                    <EquipmentSelector
-                      equipment={equipment}
-                      selectedIds={selectedEquipmentIds}
-                      onToggle={handleEquipmentToggle}
-                    />
-                    <div className="flex justify-end">
-                      <Button
-                        onClick={handleProceedToPayment}
-                        disabled={isProcessing}
-                        className="h-14 lg:h-[96px] px-5 lg:px-12 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium rounded-[10px] lg:rounded-[20px] shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] disabled:opacity-50"
-                      >
-                        {isProcessing ? 'Processing...' : 'Proceed to Payment'}
-                      </Button>
-                    </div>
-                  </>
+                {!clientSecret ? (
+                  <div className="bg-[#171717] rounded-[20px] p-6 lg:p-10 flex flex-col items-center justify-center min-h-[400px]">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB] mb-4"></div>
+                    <p className="text-white/60">Initializing payment...</p>
+                  </div>
                 ) : (
                   <Elements stripe={stripePromise}>
                     <StripePaymentForm

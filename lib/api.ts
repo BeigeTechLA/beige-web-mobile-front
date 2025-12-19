@@ -79,15 +79,22 @@ export const equipmentApi = {
 export const paymentApi = {
   createIntent: async (
     creatorId: string,
-    bookingData: BookingFormData,
-    amount: number
+    bookingData: BookingFormData & { guest_email?: string },
+    hourlyRate: number
   ): Promise<PaymentIntentResponse> => {
     const response = await api.post('/payments/create-intent', {
       creator_id: creatorId,
-      ...bookingData,
-      amount,
+      hours: bookingData.hours,
+      hourly_rate: hourlyRate,
+      equipment: [], // No equipment for now
+      shoot_date: bookingData.shoot_date,
+      location: bookingData.location,
+      shoot_type: bookingData.shoot_type,
+      notes: bookingData.special_requests || '',
+      guest_email: bookingData.guest_email,
     });
-    return response.data;
+    // API returns { success: true, data: { clientSecret, paymentIntentId, pricing } }
+    return response.data.data;
   },
 
   confirmBooking: async (

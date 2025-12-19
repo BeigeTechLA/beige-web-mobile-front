@@ -39,11 +39,18 @@ export function StripePaymentForm({ clientSecret, amount, onSuccess, onError }: 
     e.preventDefault();
 
     if (!stripe || !elements) {
+      onError('Payment system not initialized');
+      return;
+    }
+
+    if (!clientSecret) {
+      onError('Payment not initialized. Please refresh the page.');
       return;
     }
 
     const cardElement = elements.getElement(CardElement);
     if (!cardElement) {
+      onError('Card information not found');
       return;
     }
 
@@ -60,12 +67,14 @@ export function StripePaymentForm({ clientSecret, amount, onSuccess, onError }: 
       });
 
       if (paymentError) {
+        console.error('Payment error:', paymentError);
         onError(paymentError.message || 'Payment failed');
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
         onSuccess();
       }
     } catch (err) {
-      onError('An unexpected error occurred');
+      console.error('Unexpected payment error:', err);
+      onError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsProcessing(false);
     }

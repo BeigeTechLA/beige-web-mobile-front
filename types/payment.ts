@@ -47,9 +47,15 @@ export interface PricingBreakdown {
 }
 
 export interface PaymentIntentResponse {
-  client_secret: string;
-  payment_intent_id: string;
-  amount: number;
+  clientSecret: string;
+  paymentIntentId: string;
+  pricing: {
+    cp_cost: number;
+    equipment_cost: number;
+    subtotal: number;
+    beige_margin: number;
+    total_amount: number;
+  };
 }
 
 export interface BookingResponse {
