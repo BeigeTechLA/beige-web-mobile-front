@@ -65,13 +65,29 @@ export interface Creator {
   equipment?: string | string[]; // Can be string (from DB) or array
   is_available?: boolean;
   created_at?: string;
+  // New: Skill-based scoring fields
+  matchScore?: number; // Number of matching skills (0-N)
+  matchingSkills?: string[]; // Which skills matched the search query
 }
 
 export interface CreatorSearchParams {
-  budget?: number;
-  location?: string;
-  skills?: string;
-  content_type?: number;
+  // Budget filtering
+  budget?: number; // Legacy: max budget (for backward compatibility)
+  min_budget?: number; // New: minimum hourly rate
+  max_budget?: number; // New: maximum hourly rate
+
+  // Location filtering
+  location?: string; // Plain text or Mapbox JSON: {"lat":34.0522,"lng":-118.2437,"address":"Los Angeles, CA"}
+  maxDistance?: number; // Distance in miles for proximity search (requires lat/lng in location)
+
+  // Skills filtering (triggers skill-based scoring)
+  skills?: string; // Comma-separated skills or JSON array
+
+  // Role filtering
+  content_type?: number; // Legacy: single role ID (for backward compatibility)
+  content_types?: string; // New: multiple role IDs (comma-separated or array)
+
+  // Pagination
   page?: number;
   limit?: number;
 }

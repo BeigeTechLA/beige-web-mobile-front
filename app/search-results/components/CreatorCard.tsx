@@ -47,6 +47,8 @@ interface CreatorCardProps {
   shootId?: string;
   creatorId: string;
   isActive?: boolean;
+  matchScore?: number; // New: skill match score
+  matchingSkills?: string[]; // New: which skills matched
 }
 
 const CreatorCard = ({
@@ -60,6 +62,8 @@ const CreatorCard = ({
   shootId,
   creatorId,
   isActive = false,
+  matchScore,
+  matchingSkills,
 }: CreatorCardProps) => {
   // Temporary code until images are avilable
   const isInvalidImage =
@@ -109,12 +113,23 @@ const CreatorCard = ({
             />
           </div>
 
-          {/* Rating */}
-          <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-white/10 relative">
-            <Star className="w-3 h-3 lg:w-[18px] lg:h-[18px] text-[#E8D1AB] fill-[#E4CC17]" />
-            <span className="text-white text-sm lg:text-lg font-medium">
-              {rating} ({reviews})
-            </span>
+          <div className="flex items-center gap-2">
+            {/* Match Score Badge (if skill scoring is active) */}
+            {matchScore !== undefined && matchScore > 0 && (
+              <div className="flex items-center gap-1 bg-green-500/20 backdrop-blur-md px-2 py-1 lg:px-3 lg:py-2 rounded-full border border-green-400/40 relative">
+                <span className="text-xs lg:text-sm text-green-300 font-medium">
+                  {matchScore} skill{matchScore !== 1 ? 's' : ''} matched
+                </span>
+              </div>
+            )}
+
+            {/* Rating */}
+            <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-white/10 relative">
+              <Star className="w-3 h-3 lg:w-[18px] lg:h-[18px] text-[#E8D1AB] fill-[#E4CC17]" />
+              <span className="text-white text-sm lg:text-lg font-medium">
+                {rating} ({reviews})
+              </span>
+            </div>
           </div>
         </div>
       </div>

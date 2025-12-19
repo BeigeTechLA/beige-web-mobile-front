@@ -19,6 +19,8 @@ interface Creator {
   reviews: number;
   image: string;
   isTopMatch?: boolean;
+  matchScore?: number; // New: skill match score
+  matchingSkills?: string[]; // New: which skills matched
 }
 
 interface HeroSectionProps {
