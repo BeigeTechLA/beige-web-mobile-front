@@ -267,7 +267,11 @@ function PaymentContent() {
                           <div>
                             <h4 className="font-medium text-base lg:text-2xl">{creator.name}</h4>
                             <span className="text-xs lg:text-sm">{creator.role}</span>
-                            <p className="text-xs text-black/60 mt-1">{creator.location}</p>
+                            <p className="text-xs text-black/60 mt-1">
+                              {typeof creator.location === 'string'
+                                ? creator.location
+                                : creator.location?.address || 'Location not specified'}
+                            </p>
                           </div>
 
                           <div className="flex items-center gap-1 text-xs lg:text-sm">

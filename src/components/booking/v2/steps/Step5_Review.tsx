@@ -62,7 +62,11 @@ export const Step5Review = ({ data, onNext, onBack, updateData, handleClose }: P
             <div className="flex items-center gap-3">
               <div className=""><MapPin className="w-4 h-4 text-[#999]" /></div>
               <div>
-                <p className="text-sm font-medium text-[#1A1A1A]">{data.location}</p>
+                <p className="text-sm font-medium text-[#1A1A1A]">
+                  {typeof data.location === 'string'
+                    ? data.location
+                    : data.location?.address || 'Location not specified'}
+                </p>
               </div>
             </div>
 

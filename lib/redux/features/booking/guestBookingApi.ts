@@ -28,12 +28,21 @@ export interface GuestBookingData {
   is_draft?: boolean;
 }
 
+export interface LocationObject {
+  address: string | null;
+  coordinates: {
+    lat: number;
+    lng: number;
+  } | null;
+  hasCoordinates: boolean;
+}
+
 export interface GuestBookingResponse {
   booking_id: number;
   project_name: string;
   guest_email: string;
   event_date: string;
-  event_location: any;
+  event_location: LocationObject | null;
   budget: number | null;
   is_draft: boolean;
   created_at: any;

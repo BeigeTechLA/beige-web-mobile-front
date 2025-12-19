@@ -50,7 +50,13 @@ export function EquipmentSelector({ equipment, selectedIds, onToggle }: Equipmen
                 {item.description && (
                   <p className="text-white/60 text-xs lg:text-sm">{item.description}</p>
                 )}
-                <p className="text-white/40 text-xs mt-1">{item.location}</p>
+                {item.location && (
+                  <p className="text-white/40 text-xs mt-1">
+                    {typeof item.location === 'string'
+                      ? item.location
+                      : item.location?.address || ''}
+                  </p>
+                )}
               </div>
               <span className="font-medium text-sm lg:text-base">${item.price}</span>
             </label>
