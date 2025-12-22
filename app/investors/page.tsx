@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Navbar } from "@/src/components/landing/Navbar"
-import Footer from "@/src/components/landing/Footer"
+import { Footer } from "@/src/components/landing/Footer"
 import { InvestorForm } from "@/components/investors/InvestorForm"
 import { InvestorSuccess } from "@/components/investors/InvestorSuccess"
 
