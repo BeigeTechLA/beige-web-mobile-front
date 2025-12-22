@@ -56,7 +56,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
   }
 
   return (
-    <div className="w-full max-w-[600px] rounded-3xl border border-[#333333] bg-[#0A0A0A]/90 p-8 backdrop-blur-sm">
+    <div className="w-full">
       <h3 className="mb-6 text-xl font-medium text-white">Investor Information Form</h3>
       
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
