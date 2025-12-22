@@ -1,22 +1,22 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { ArrowRight } from "lucide-react"
-import { toast } from "sonner"
+import * as React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useSubmitInvestorInterestMutation } from "@/lib/redux/features/investors/investorApi"
+} from "@/components/ui/select";
+import { useSubmitInvestorInterestMutation } from "@/lib/redux/features/investors/investorApi";
 
 const investorSchema = z.object({
   firstName: z.string().min(2, "First Name is required"),
@@ -27,20 +27,21 @@ const investorSchema = z.object({
   investmentRounds: z.string().min(1, "Please select an investment round"),
   investmentTiming: z.string().min(1, "Please select when you want to invest"),
   investmentAmount: z.string().min(1, "Please select an investment amount"),
-})
+});
 
-type InvestorFormValues = z.infer<typeof investorSchema>
+type InvestorFormValues = z.infer<typeof investorSchema>;
 
 interface InvestorFormProps {
-  onSuccess: () => void
+  onSuccess: () => void;
 }
 
 export function InvestorForm({ onSuccess }: InvestorFormProps) {
-  const [submitInvestorInterest, { isLoading: isSubmitting }] = useSubmitInvestorInterestMutation()
-  
+  const [submitInvestorInterest, { isLoading: isSubmitting }] =
+    useSubmitInvestorInterestMutation();
+
   const form = useForm<InvestorFormValues>({
     resolver: zodResolver(investorSchema),
-  })
+  });
 
   const onSubmit = async (data: InvestorFormValues) => {
     try {
@@ -53,20 +54,27 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
         investmentRounds: data.investmentRounds,
         investmentTiming: data.investmentTiming,
         investmentAmount: data.investmentAmount,
-      }).unwrap()
-      
-      toast.success("Thank you for your interest! Our team will contact you soon.")
-      onSuccess()
+      }).unwrap();
+
+      toast.success(
+        "Thank you for your interest! Our team will contact you soon."
+      );
+      onSuccess();
     } catch (error: any) {
-      const errorMessage = error?.data?.message || error?.message || "Submission failed. Please try again."
-      toast.error(errorMessage)
+      const errorMessage =
+        error?.data?.message ||
+        error?.message ||
+        "Submission failed. Please try again.";
+      toast.error(errorMessage);
     }
-  }
+  };
 
   return (
     <div className="w-full">
-      <h3 className="mb-6 text-xl font-medium text-white">Investor Information Form</h3>
-      
+      <h3 className="mb-6 text-xl font-medium text-white">
+        Investor Information Form
+      </h3>
+
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -77,7 +85,9 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
               className="border-[#333333] bg-[#111111] placeholder:text-neutral-500"
             />
             {form.formState.errors.firstName && (
-              <p className="text-xs text-red-500">{form.formState.errors.firstName.message}</p>
+              <p className="text-xs text-red-500">
+                {form.formState.errors.firstName.message}
+              </p>
             )}
           </div>
           <div className="space-y-2">
@@ -88,7 +98,9 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
               className="border-[#333333] bg-[#111111] placeholder:text-neutral-500"
             />
             {form.formState.errors.lastName && (
-              <p className="text-xs text-red-500">{form.formState.errors.lastName.message}</p>
+              <p className="text-xs text-red-500">
+                {form.formState.errors.lastName.message}
+              </p>
             )}
           </div>
         </div>
@@ -102,7 +114,9 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
             className="border-[#333333] bg-[#111111] placeholder:text-neutral-500"
           />
           {form.formState.errors.email && (
-            <p className="text-xs text-red-500">{form.formState.errors.email.message}</p>
+            <p className="text-xs text-red-500">
+              {form.formState.errors.email.message}
+            </p>
           )}
         </div>
 
@@ -116,7 +130,9 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
               className="border-[#333333] bg-[#111111] placeholder:text-neutral-500"
             />
             {form.formState.errors.phoneNumber && (
-              <p className="text-xs text-red-500">{form.formState.errors.phoneNumber.message}</p>
+              <p className="text-xs text-red-500">
+                {form.formState.errors.phoneNumber.message}
+              </p>
             )}
           </div>
           <div className="space-y-2">
@@ -127,14 +143,16 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
               className="border-[#333333] bg-[#111111] placeholder:text-neutral-500"
             />
             {form.formState.errors.country && (
-              <p className="text-xs text-red-500">{form.formState.errors.country.message}</p>
+              <p className="text-xs text-red-500">
+                {form.formState.errors.country.message}
+              </p>
             )}
           </div>
         </div>
 
         <div className="space-y-2">
-          <Select 
-            onValueChange={(value) => form.setValue("investmentRounds", value)} 
+          <Select
+            onValueChange={(value) => form.setValue("investmentRounds", value)}
             defaultValue={form.getValues("investmentRounds")}
             disabled={isSubmitting}
           >
@@ -149,12 +167,14 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
             </SelectContent>
           </Select>
           {form.formState.errors.investmentRounds && (
-            <p className="text-xs text-red-500">{form.formState.errors.investmentRounds.message}</p>
+            <p className="text-xs text-red-500">
+              {form.formState.errors.investmentRounds.message}
+            </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <Select 
+          <Select
             onValueChange={(value) => form.setValue("investmentTiming", value)}
             defaultValue={form.getValues("investmentTiming")}
             disabled={isSubmitting}
@@ -170,12 +190,14 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
             </SelectContent>
           </Select>
           {form.formState.errors.investmentTiming && (
-            <p className="text-xs text-red-500">{form.formState.errors.investmentTiming.message}</p>
+            <p className="text-xs text-red-500">
+              {form.formState.errors.investmentTiming.message}
+            </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <Select 
+          <Select
             onValueChange={(value) => form.setValue("investmentAmount", value)}
             defaultValue={form.getValues("investmentAmount")}
             disabled={isSubmitting}
@@ -191,7 +213,9 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
             </SelectContent>
           </Select>
           {form.formState.errors.investmentAmount && (
-            <p className="text-xs text-red-500">{form.formState.errors.investmentAmount.message}</p>
+            <p className="text-xs text-red-500">
+              {form.formState.errors.investmentAmount.message}
+            </p>
           )}
         </div>
 
@@ -202,10 +226,12 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
             disabled={isSubmitting}
           >
             {isSubmitting ? "Sending..." : "Submit"}
-            {!isSubmitting && <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
+            {!isSubmitting && (
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            )}
           </Button>
         </div>
       </form>
     </div>
-  )
+  );
 }

@@ -1,12 +1,12 @@
-import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './features/auth/authSlice';
-import bookingReducer from './features/booking/bookingSlice';
-import { authApi } from './features/auth/authApi';
-import { creatorsApi } from './features/creators/creatorsApi';
-import { bookingsApi } from './features/booking/bookingApi';
-import { guestBookingApi } from './features/booking/guestBookingApi';
-import { waitlistApi } from './features/waitlist/waitlistApi';
-import { investorApi } from './features/investors/investorApi';
+import { configureStore } from "@reduxjs/toolkit";
+import authReducer from "./features/auth/authSlice";
+import bookingReducer from "./features/booking/bookingSlice";
+import { authApi } from "./features/auth/authApi";
+import { creatorsApi } from "./features/creators/creatorsApi";
+import { bookingsApi } from "./features/booking/bookingApi";
+import { guestBookingApi } from "./features/booking/guestBookingApi";
+import { waitlistApi } from "./features/waitlist/waitlistApi";
+import { investorApi } from "./features/investors/investorApi";
 
 export const store = configureStore({
   reducer: {
