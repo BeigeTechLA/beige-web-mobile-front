@@ -108,7 +108,7 @@ export const Step4LocationDate = ({
       <div className="flex flex-col gap-9 p-8 md:p-[50px]">
 
         {/* DATE RANGE WITH FLOATING LABEL */}
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex flex-col lg:flex-row gap-6 w-full">
           <DateTimePicker
             label="Start Date & Time"
             value={parseDate(data.startDate)}

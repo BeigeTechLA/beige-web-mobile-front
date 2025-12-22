@@ -46,6 +46,30 @@ export const Step3InfoBudget = ({
     onNext();
   };
 
+  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percentage = clickX / rect.width;
+    const clickedValue = Math.round((percentage * 20000) / 100) * 100;
+
+    // Determine which thumb is closer to the click
+    const distanceToMin = Math.abs(clickedValue - data.budgetMin);
+    const distanceToMax = Math.abs(clickedValue - data.budgetMax);
+
+    if (distanceToMin < distanceToMax) {
+      // Clicked closer to Min
+      updateData({
+        budgetMin: Math.min(clickedValue, data.budgetMax - 500),
+      });
+    } else {
+      // Clicked closer to Max
+      updateData({
+        budgetMax: Math.max(clickedValue, data.budgetMin + 500),
+      });
+    }
+  };
+
+
   return (
     <div className="flex flex-col h-full justify-center w-[300px] md:w-[800px] lg:w-[1200px] mx-0 py-6 md:py-[50px]">
 
@@ -75,7 +99,7 @@ export const Step3InfoBudget = ({
             value={data.shootName}
             onChange={(e) => updateData({ shootName: e.target.value })}
             className="h-14 lg:h-[82px] w-full rounded-[12px] border border-[#E5E5E5] px-4 text-[#1A1A1A] outline-none focus:border-[#1A1A1A] bg-[#FAFAFA]"
-            placeholder="Project Name"
+            placeholder="Shoot Name"
           />
         </div>
 
@@ -130,10 +154,13 @@ export const Step3InfoBudget = ({
               Budget Range
             </label>
 
-            <div className="relative w-full h-1 lg:h-[6px] bg-[#3A3A3A] rounded-full mt-2 mb-6">
+            <div
+              onClick={handleTrackClick}
+              className="relative w-full h-1 lg:h-[6px] bg-[#3A3A3A] rounded-full mt-2 mb-6"
+            >
               {/* ACTIVE RANGE */}
               <div
-                className="absolute h-1 lg:h-[6px] bg-[#E8D1AB] rounded-full pointer-events-none"
+                className="absolute h-1 lg:h-[6px] bg-[#E8D1AB] rounded-full pointer-events-none cursor-pointer"
                 style={{
                   left: `${(data.budgetMin / 20000) * 100}%`,
                   width: `${((data.budgetMax - data.budgetMin) / 20000) * 100}%`,
@@ -153,7 +180,6 @@ export const Step3InfoBudget = ({
                     budgetMin: Math.min(newMin, data.budgetMax - 500),
                   });
                 }}
-                // Added pointer-events-none and dynamic z-index logic
                 className={`absolute top-[-10px] left-0 w-full appearance-none bg-transparent pointer-events-none focus:outline-none ${data.budgetMin > 15000 ? 'z-[5]' : 'z-[3]'} [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-md [&::-webkit-slider-thumb]:bg-[#E8D1AB] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[#CBB894] [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:pointer-events-auto`}
               />
 
@@ -170,7 +196,6 @@ export const Step3InfoBudget = ({
                     budgetMax: Math.max(newMax, data.budgetMin + 500),
                   });
                 }}
-                // Added pointer-events-none
                 className="absolute top-[-10px] left-0 z-[4] w-full appearance-none bg-transparent pointer-events-none focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-md [&::-webkit-slider-thumb]:bg-[#E8D1AB] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[#CBB894] [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:pointer-events-auto"
               />
             </div>

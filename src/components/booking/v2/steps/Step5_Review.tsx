@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "../BookingModal";
-import { MapPin, Film, DollarSign, Clock, CalendarFold,X } from "lucide-react";
+import { MapPin, Film, DollarSign, Clock, CalendarFold, X } from "lucide-react";
 import { calculateDuration, formatISOToDateTime } from "@/lib/utils";
 
 interface Props {
@@ -15,20 +15,20 @@ interface Props {
 export const Step5Review = ({ data, onNext, onBack, updateData, handleClose }: Props) => {
   return (
     <div className="flex flex-col h-full justify-center lg:w-[760px] mx-0 w-full py-8 md:py-[50px]">
-       <div className="flex justify-between items-start pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
+      <div className="flex justify-between items-start pb-6 md:pb-[50px] px-6 md:px-[50px] border-b border-b-[#CACACA]">
         <h2 className="text-xl lg:text-3xl font-bold text-[#1A1A1A]">
-        Review and Confirm
-      </h2>
+          Review and Confirm
+        </h2>
 
-              <div className="top-5 right-5 md:top-[50px] md:right-[50px] z-10">
-                <button
-                  onClick={handleClose}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X className="w-6 h-6 text-gray-500" />
-                </button>
-              </div>
-              </div>
+        <div className="top-5 right-5 md:top-[50px] md:right-[50px] z-10">
+          <button
+            onClick={handleClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        </div>
+      </div>
 
       <div className="p-6 md:p-[50px]">
         <div className="bg-white rounded-[20px] p-6 shadow-sm mb-10">
@@ -72,7 +72,7 @@ export const Step5Review = ({ data, onNext, onBack, updateData, handleClose }: P
 
             <div className="flex items-center gap-3">
               <div className="text-[#999] font-serif italic">
-                <DollarSign className="w-4 h-4 text-[#999]"/>
+                <DollarSign className="w-4 h-4 text-[#999]" />
               </div>
               <div>
                 <p className="text-sm font-medium text-[#1A1A1A]">Up to ${data.budgetMax}</p>

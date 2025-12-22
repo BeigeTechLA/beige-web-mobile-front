@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -60,6 +60,20 @@ const initialData: BookingData = {
 
 export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
   const router = useRouter();
+
+  // UseEffect to prevent and renable scrolling depending on if modal is open or closed
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
   const [createGuestBooking, { isLoading: isCreating }] = useCreateGuestBookingMutation();
 
   // Local state management - replacing Redux
