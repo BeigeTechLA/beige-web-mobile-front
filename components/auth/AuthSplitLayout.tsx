@@ -1,21 +1,21 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Image from "next/image"
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AuthSplitLayoutProps {
-  children: React.ReactNode
-  image?: string
-  video?: string
-  imageAlt?: string
-  backLink?: string
-  onBack?: () => void
-  backLabel?: string
-  step?: number
-  totalSteps?: number
+  children: React.ReactNode;
+  image?: string;
+  video?: string;
+  imageAlt?: string;
+  backLink?: string;
+  onBack?: () => void;
+  backLabel?: string;
+  step?: number;
+  totalSteps?: number;
 }
 
 export function AuthSplitLayout({
@@ -79,7 +79,7 @@ export function AuthSplitLayout({
                 {backLabel}
               </button>
             ) : null}
-            
+
             {step && totalSteps && (
               <div className="text-sm font-medium text-neutral-400 ml-auto">
                 {step}/{totalSteps}
@@ -91,6 +91,5 @@ export function AuthSplitLayout({
         </div>
       </div>
     </div>
-  )
+  );
 }
-
