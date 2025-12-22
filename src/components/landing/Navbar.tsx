@@ -1,12 +1,6 @@
 "use client";
 
 import { Button } from "@/src/components/landing/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/src/components/landing/ui/tooltip";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import Image from "next/image";
@@ -53,7 +47,7 @@ export const Navbar = () => {
 
   const handleLogin = () => {
     setMobileOpen(false);
-    // Login is disabled - will be enabled soon
+    router.push("/login");
   };
 
   const handleInvestor = () => {
@@ -121,21 +115,12 @@ export const Navbar = () => {
 
           {/* Right Buttons */}
           <div className="hidden lg:flex items-center gap-4">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    disabled
-                    className="text-white/40 text-lg font-medium cursor-not-allowed px-6 py-3 border border-white/10 rounded-[10px]"
-                  >
-                    Login
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>We will enable login soon</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <button
+              onClick={handleLogin}
+              className="text-white hover:text-[#ECE1CE] text-lg font-medium transition-colors px-6 py-3 border border-white/30 hover:border-[#ECE1CE]/50 rounded-[10px]"
+            >
+              Login
+            </button>
             <Button
               onClick={handleInvestor}
               className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-[10px] text-lg font-medium"
@@ -211,13 +196,10 @@ export const Navbar = () => {
 
                 <div className="flex flex-col gap-4">
                   <button
-                    disabled
-                    className="text-2xl text-white/50 text-left cursor-not-allowed"
+                    onClick={handleLogin}
+                    className="text-2xl text-white hover:text-[#ECE1CE] text-left transition-colors"
                   >
-                    Login{" "}
-                    <span className="text-xs block text-white/40">
-                      Coming soon
-                    </span>
+                    Login
                   </button>
 
                   <Button
