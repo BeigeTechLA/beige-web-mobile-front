@@ -10,19 +10,25 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 const step3Schema = z.object({
-  portfolioLink: z.string().url("Please enter a valid URL"),
-  hourlyRate: z.string().min(1, "Hourly rate is required"),
+  portfolioLink: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+  hourlyRate: z.string().optional(),
   combineRate: z.string().optional(),
 })
 
 type Step3Values = z.infer<typeof step3Schema>
 
 interface Step3ProfileProps {
-  onNext: (data: Step3Values) => void;
+  onNext: (data: {
+    portfolioLink?: string;
+    hourlyRate?: number;
+    availability?: Record<string, unknown>;
+    socialLinks?: Record<string, string>;
+  }) => void;
+  isSubmitting?: boolean;
   initialData?: Step3Values;
 }
 
-export function Step3Profile({ onNext, initialData }: Step3ProfileProps) {
+export function Step3Profile({ onNext, isSubmitting, initialData }: Step3ProfileProps) {
   const form = useForm<Step3Values>({
     resolver: zodResolver(step3Schema),
     defaultValues: initialData || {
@@ -33,7 +39,13 @@ export function Step3Profile({ onNext, initialData }: Step3ProfileProps) {
   })
 
   const onSubmit = (data: Step3Values) => {
-    onNext(data)
+    // Parse hourly rate to number if provided
+    const hourlyRate = data.hourlyRate ? parseFloat(data.hourlyRate.replace(/[^0-9.]/g, '')) : undefined
+    
+    onNext({
+      portfolioLink: data.portfolioLink || undefined,
+      hourlyRate: hourlyRate && !isNaN(hourlyRate) ? hourlyRate : undefined,
+    })
   }
 
   return (
@@ -49,10 +61,11 @@ export function Step3Profile({ onNext, initialData }: Step3ProfileProps) {
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="portfolioLink">Portfolio Link</Label>
+          <Label htmlFor="portfolioLink">Portfolio Link (Optional)</Label>
           <Input
             id="portfolioLink"
             placeholder="https://yourportfolio.com"
+            disabled={isSubmitting}
             {...form.register("portfolioLink")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -62,10 +75,11 @@ export function Step3Profile({ onNext, initialData }: Step3ProfileProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="hourlyRate">Photography Hourly Rate</Label>
+          <Label htmlFor="hourlyRate">Photography Hourly Rate (Optional)</Label>
           <Input
             id="hourlyRate"
             placeholder="$0.00"
+            disabled={isSubmitting}
             {...form.register("hourlyRate")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -75,10 +89,11 @@ export function Step3Profile({ onNext, initialData }: Step3ProfileProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="combineRate">Combine Rate</Label>
+          <Label htmlFor="combineRate">Combine Rate (Optional)</Label>
           <Input
             id="combineRate"
             placeholder="$0.00"
+            disabled={isSubmitting}
             {...form.register("combineRate")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -90,11 +105,11 @@ export function Step3Profile({ onNext, initialData }: Step3ProfileProps) {
         <Button
           type="submit"
           className="w-full bg-[#ECE1CE] text-black hover:bg-[#DCD1BE] h-12 text-base font-medium mt-8"
+          disabled={isSubmitting}
         >
-          Finish Account Creation
+          {isSubmitting ? "Completing Profile..." : "Finish Account Creation"}
         </Button>
       </form>
     </div>
   )
 }
-

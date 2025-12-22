@@ -6,6 +6,7 @@ import { creatorsApi } from './features/creators/creatorsApi';
 import { bookingsApi } from './features/booking/bookingApi';
 import { guestBookingApi } from './features/booking/guestBookingApi';
 import { waitlistApi } from './features/waitlist/waitlistApi';
+import { investorApi } from './features/investors/investorApi';
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     [bookingsApi.reducerPath]: bookingsApi.reducer,
     [guestBookingApi.reducerPath]: guestBookingApi.reducer,
     [waitlistApi.reducerPath]: waitlistApi.reducer,
+    [investorApi.reducerPath]: investorApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -23,7 +25,8 @@ export const store = configureStore({
       creatorsApi.middleware,
       bookingsApi.middleware,
       guestBookingApi.middleware,
-      waitlistApi.middleware
+      waitlistApi.middleware,
+      investorApi.middleware
     ),
 });
 

@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Eye, EyeOff } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,9 +15,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/hooks/useAuth"
 
 const creatorSignupSchema = z.object({
-  name: z.string().min(2, "Name is required"),
+  firstName: z.string().min(2, "First name is required"),
+  lastName: z.string().min(2, "Last name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Valid phone number is required"),
+  location: z.string().optional(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
   terms: z.boolean().refine((val) => val === true, "You must accept the terms"),
@@ -28,19 +31,21 @@ const creatorSignupSchema = z.object({
 type CreatorSignupFormValues = z.infer<typeof creatorSignupSchema>
 
 interface Step0BasicInfoProps {
-  onNext: (data: CreatorSignupFormValues) => void;
+  onNext: (data: { crew_member_id: number; email: string }) => void;
 }
 
 export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
   const [showPassword, setShowPassword] = React.useState(false)
-  const { register, isLoading } = useAuth()
+  const { registerCreatorStep1, isCreatorRegistrationLoading } = useAuth()
   
   const form = useForm<CreatorSignupFormValues>({
     resolver: zodResolver(creatorSignupSchema),
     defaultValues: {
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       phone: "",
+      location: "",
       password: "",
       confirmPassword: "",
       terms: false,
@@ -49,24 +54,29 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
 
   const onSubmit = async (data: CreatorSignupFormValues) => {
     try {
-      // In a real app, we might register here, or just pass data to next step
-      // For now, let's assume we register first, then verify, then add details.
-      // Or we collect all data and register at the end?
-      // Screenshot "Finish Account Creation" is at Step 3.
-      // But Verify Email is usually after basic info.
+      // Create FormData for the API call (supports file upload for profile photo)
+      const formData = new FormData()
+      formData.append('first_name', data.firstName)
+      formData.append('last_name', data.lastName)
+      formData.append('email', data.email)
+      formData.append('phone_number', data.phone)
+      formData.append('password', data.password)
+      if (data.location) {
+        formData.append('location', data.location)
+      }
       
-      // Let's assume we register here.
-      await register({
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        role: "creator", // user_type_id: 2
-        // phone: data.phone
+      const result = await registerCreatorStep1(formData)
+      
+      toast.success("Account created! Please verify your email.")
+      
+      // Pass crew_member_id and email to the next step
+      onNext({ 
+        crew_member_id: result.crew_member_id, 
+        email: data.email 
       })
-      
-      onNext(data)
-    } catch (error) {
-      console.error("Registration failed", error)
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Registration failed. Please try again."
+      toast.error(errorMessage)
     }
   }
 
@@ -82,18 +92,34 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            placeholder="John Doe"
-            disabled={isLoading}
-            {...form.register("name")}
-            className="border-neutral-800 bg-neutral-900/50"
-          />
-          {form.formState.errors.name && (
-            <p className="text-xs text-red-500">{form.formState.errors.name.message}</p>
-          )}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="firstName">First Name</Label>
+            <Input
+              id="firstName"
+              placeholder="John"
+              disabled={isCreatorRegistrationLoading}
+              {...form.register("firstName")}
+              className="border-neutral-800 bg-neutral-900/50"
+            />
+            {form.formState.errors.firstName && (
+              <p className="text-xs text-red-500">{form.formState.errors.firstName.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lastName">Last Name</Label>
+            <Input
+              id="lastName"
+              placeholder="Doe"
+              disabled={isCreatorRegistrationLoading}
+              {...form.register("lastName")}
+              className="border-neutral-800 bg-neutral-900/50"
+            />
+            {form.formState.errors.lastName && (
+              <p className="text-xs text-red-500">{form.formState.errors.lastName.message}</p>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -102,7 +128,7 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
             id="email"
             type="email"
             placeholder="name@example.com"
-            disabled={isLoading}
+            disabled={isCreatorRegistrationLoading}
             {...form.register("email")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -117,7 +143,7 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
             id="phone"
             type="tel"
             placeholder="+1 (555) 000-0000"
-            disabled={isLoading}
+            disabled={isCreatorRegistrationLoading}
             {...form.register("phone")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -127,12 +153,23 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="location">Location (Optional)</Label>
+          <Input
+            id="location"
+            placeholder="Los Angeles, CA"
+            disabled={isCreatorRegistrationLoading}
+            {...form.register("location")}
+            className="border-neutral-800 bg-neutral-900/50"
+          />
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="password">Create Password</Label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              disabled={isLoading}
+              disabled={isCreatorRegistrationLoading}
               {...form.register("password")}
               className="border-neutral-800 bg-neutral-900/50 pr-10"
             />
@@ -158,7 +195,7 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
           <Input
             id="confirmPassword"
             type="password"
-            disabled={isLoading}
+            disabled={isCreatorRegistrationLoading}
             {...form.register("confirmPassword")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -185,12 +222,11 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
         <Button
           type="submit"
           className="w-full bg-[#ECE1CE] text-black hover:bg-[#DCD1BE] h-12 text-base font-medium mt-4"
-          disabled={isLoading}
+          disabled={isCreatorRegistrationLoading}
         >
-          {isLoading ? "Creating Account..." : "Create Account"}
+          {isCreatorRegistrationLoading ? "Creating Account..." : "Create Account"}
         </Button>
       </form>
     </div>
   )
 }
-

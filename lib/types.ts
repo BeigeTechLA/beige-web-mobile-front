@@ -1,22 +1,24 @@
 // API Response Types
 
 export interface ApiResponse<T = unknown> {
-  error: boolean;
+  success?: boolean;
+  error?: boolean;
   message?: string;
   data?: T;
 }
 
 // Auth Types
 export interface User {
-  user_id: number;
-  email: string;
+  id: number;
   name: string;
-  phone?: string;
-  company?: string;
-  user_type_id: number;
-  profile_image?: string;
-  created_at: string;
-  updated_at: string;
+  email: string;
+  phone_number?: string;
+  instagram_handle?: string;
+  userTypeId: number;
+  userRole: string;
+  email_verified?: number;
+  crew_member_id?: number | null;
+  created_at?: string;
 }
 
 export interface AuthTokens {
@@ -29,13 +31,25 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface LoginResponse {
+  message: string;
+  token: string;
+  user: User;
+}
+
 export interface RegisterData {
+  name: string;
   email: string;
   password: string;
-  name: string;
-  phone?: string;
-  company?: string;
-  user_type_id?: number;
+  phone_number?: string;
+  instagram_handle?: string;
+  userType: number; // 1 = client, 2 = creator
+}
+
+export interface RegisterResponse {
+  message: string;
+  userId: number;
+  verificationCode: string;
 }
 
 export interface QuickRegisterData {
@@ -44,10 +58,75 @@ export interface QuickRegisterData {
   phone?: string;
 }
 
+export interface VerifyEmailData {
+  email: string;
+  verificationCode: string;
+}
+
+// Creator Registration Types
+export interface CreatorRegistrationStep1Data {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone_number?: string;
+  location?: string;
+  password: string;
+  working_distance?: number;
+  profile_photo?: File;
+}
+
+export interface CreatorRegistrationStep1Response {
+  message: string;
+  crew_member_id: number;
+  verificationCode: string;
+}
+
+export interface CreatorRegistrationStep2Data {
+  crew_member_id: number;
+  primary_role?: number;
+  years_of_experience?: string;
+  hourly_rate?: number;
+  bio?: string;
+  skills: string[]; // JSON array of skills/specialties
+  equipment_ownership: string[]; // JSON array of equipment
+}
+
+export interface CreatorRegistrationStep3Data {
+  crew_member_id: number;
+  availability?: Record<string, unknown>;
+  certifications?: string[];
+  social_media_links?: {
+    portfolio?: string;
+    instagram?: string;
+    linkedin?: string;
+    website?: string;
+  };
+}
+
+// Investor Types
+export interface InvestorData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber?: string;
+  country?: string;
+  investmentRounds?: string;
+  investmentTiming?: string;
+  investmentAmount?: string;
+}
+
+export interface InvestorResponse {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  status: 'pending' | 'contacted' | 'converted' | 'declined';
+}
+
 // Creator Types
 export interface Creator {
   crew_member_id: number;
-  user_id?: number; // Optional for mock creators
+  user_id?: number;
   name: string;
   email?: string;
   phone?: string;
@@ -61,33 +140,23 @@ export interface Creator {
   bio?: string;
   location?: string;
   experience_years?: number;
-  skills?: string | string[]; // Can be string (from DB) or array
-  equipment?: string | string[]; // Can be string (from DB) or array
+  skills?: string | string[];
+  equipment?: string | string[];
   is_available?: boolean;
   created_at?: string;
-  // New: Skill-based scoring fields
-  matchScore?: number; // Number of matching skills (0-N)
-  matchingSkills?: string[]; // Which skills matched the search query
+  matchScore?: number;
+  matchingSkills?: string[];
 }
 
 export interface CreatorSearchParams {
-  // Budget filtering
-  budget?: number; // Legacy: max budget (for backward compatibility)
-  min_budget?: number; // New: minimum hourly rate
-  max_budget?: number; // New: maximum hourly rate
-
-  // Location filtering
-  location?: string; // Plain text or Mapbox JSON: {"lat":34.0522,"lng":-118.2437,"address":"Los Angeles, CA"}
-  maxDistance?: number; // Distance in miles for proximity search (requires lat/lng in location)
-
-  // Skills filtering (triggers skill-based scoring)
-  skills?: string; // Comma-separated skills or JSON array
-
-  // Role filtering
-  content_type?: number; // Legacy: single role ID (for backward compatibility)
-  content_types?: string; // New: multiple role IDs (comma-separated or array)
-
-  // Pagination
+  budget?: number;
+  min_budget?: number;
+  max_budget?: number;
+  location?: string;
+  maxDistance?: number;
+  skills?: string;
+  content_type?: number;
+  content_types?: string;
   page?: number;
   limit?: number;
 }
@@ -95,7 +164,7 @@ export interface CreatorSearchParams {
 export interface CreatorProfile extends Creator {
   portfolio?: PortfolioItem[];
   reviews?: Review[];
-  certifications?: string | string[]; // Can be string (from DB) or array
+  certifications?: string | string[];
   experience_years?: number;
 }
 

@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { ArrowRight } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useSubmitInvestorInterestMutation } from "@/lib/redux/features/investors/investorApi"
 
 const investorSchema = z.object({
   firstName: z.string().min(2, "First Name is required"),
@@ -22,9 +24,9 @@ const investorSchema = z.object({
   email: z.string().email("Invalid email address"),
   phoneNumber: z.string().min(10, "Valid phone number is required"),
   country: z.string().min(2, "Country is required"),
-  investmentRounds: z.string({ required_error: "Please select an investment round" }),
-  investmentTiming: z.string({ required_error: "Please select when you want to invest" }),
-  investmentAmount: z.string({ required_error: "Please select an investment amount" }),
+  investmentRounds: z.string().min(1, "Please select an investment round"),
+  investmentTiming: z.string().min(1, "Please select when you want to invest"),
+  investmentAmount: z.string().min(1, "Please select an investment amount"),
 })
 
 type InvestorFormValues = z.infer<typeof investorSchema>
@@ -34,24 +36,30 @@ interface InvestorFormProps {
 }
 
 export function InvestorForm({ onSuccess }: InvestorFormProps) {
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [submitInvestorInterest, { isLoading: isSubmitting }] = useSubmitInvestorInterestMutation()
   
   const form = useForm<InvestorFormValues>({
     resolver: zodResolver(investorSchema),
   })
 
   const onSubmit = async (data: InvestorFormValues) => {
-    setIsSubmitting(true)
     try {
-      // Simulate API call
-      console.log("Investor Form Data:", data)
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      await submitInvestorInterest({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phoneNumber: data.phoneNumber,
+        country: data.country,
+        investmentRounds: data.investmentRounds,
+        investmentTiming: data.investmentTiming,
+        investmentAmount: data.investmentAmount,
+      }).unwrap()
       
+      toast.success("Thank you for your interest! Our team will contact you soon.")
       onSuccess()
-    } catch (error) {
-      console.error("Submission failed", error)
-    } finally {
-      setIsSubmitting(false)
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Submission failed. Please try again."
+      toast.error(errorMessage)
     }
   }
 
@@ -64,6 +72,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
           <div className="space-y-2">
             <Input
               placeholder="First Name*"
+              disabled={isSubmitting}
               {...form.register("firstName")}
               className="border-[#333333] bg-[#111111] placeholder:text-neutral-500"
             />
@@ -74,6 +83,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
           <div className="space-y-2">
             <Input
               placeholder="Last Name*"
+              disabled={isSubmitting}
               {...form.register("lastName")}
               className="border-[#333333] bg-[#111111] placeholder:text-neutral-500"
             />
@@ -87,6 +97,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
           <Input
             placeholder="Email ID*"
             type="email"
+            disabled={isSubmitting}
             {...form.register("email")}
             className="border-[#333333] bg-[#111111] placeholder:text-neutral-500"
           />
@@ -100,6 +111,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
             <Input
               placeholder="Phone Number*"
               type="tel"
+              disabled={isSubmitting}
               {...form.register("phoneNumber")}
               className="border-[#333333] bg-[#111111] placeholder:text-neutral-500"
             />
@@ -110,6 +122,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
           <div className="space-y-2">
             <Input
               placeholder="Country*"
+              disabled={isSubmitting}
               {...form.register("country")}
               className="border-[#333333] bg-[#111111] placeholder:text-neutral-500"
             />
@@ -123,6 +136,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
           <Select 
             onValueChange={(value) => form.setValue("investmentRounds", value)} 
             defaultValue={form.getValues("investmentRounds")}
+            disabled={isSubmitting}
           >
             <SelectTrigger className="border-[#333333] bg-[#111111] text-neutral-500 data-[state=open]:text-white data-[value]:text-white">
               <SelectValue placeholder="What rounds do you invest in?" />
@@ -143,6 +157,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
           <Select 
             onValueChange={(value) => form.setValue("investmentTiming", value)}
             defaultValue={form.getValues("investmentTiming")}
+            disabled={isSubmitting}
           >
             <SelectTrigger className="border-[#333333] bg-[#111111] text-neutral-500 data-[state=open]:text-white data-[value]:text-white">
               <SelectValue placeholder="When are you looking to invest?" />
@@ -163,6 +178,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
           <Select 
             onValueChange={(value) => form.setValue("investmentAmount", value)}
             defaultValue={form.getValues("investmentAmount")}
+            disabled={isSubmitting}
           >
             <SelectTrigger className="border-[#333333] bg-[#111111] text-neutral-500 data-[state=open]:text-white data-[value]:text-white">
               <SelectValue placeholder="Amount interested to Invest" />
@@ -193,4 +209,3 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
     </div>
   )
 }
-

@@ -2,10 +2,12 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Eye, EyeOff } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,7 +31,8 @@ type UserSignupFormValues = z.infer<typeof userSignupSchema>
 
 export function UserSignupForm() {
   const [showPassword, setShowPassword] = React.useState(false)
-  const { register, isLoading } = useAuth() // Assuming register method exists
+  const { register: registerUser, isRegisterLoading } = useAuth()
+  const router = useRouter()
   
   const form = useForm<UserSignupFormValues>({
     resolver: zodResolver(userSignupSchema),
@@ -45,17 +48,21 @@ export function UserSignupForm() {
 
   const onSubmit = async (data: UserSignupFormValues) => {
     try {
-      await register({
+      const result = await registerUser({
         name: data.name,
         email: data.email,
         password: data.password,
-        role: "user", // or whatever the role string is
-        // phone: data.phone // If supported by backend
+        phone_number: data.phone,
+        userType: 1, // 1 = client
       })
-      // Redirect handled by hook or logic
-      console.log("Registered User", data)
-    } catch (error) {
-      console.error("Registration failed", error)
+      
+      toast.success("Account created! Please verify your email.")
+      
+      // Redirect to verify email page
+      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`)
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Registration failed. Please try again."
+      toast.error(errorMessage)
     }
   }
 
@@ -76,7 +83,7 @@ export function UserSignupForm() {
           <Input
             id="name"
             placeholder="John Doe"
-            disabled={isLoading}
+            disabled={isRegisterLoading}
             {...form.register("name")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -91,7 +98,7 @@ export function UserSignupForm() {
             id="email"
             type="email"
             placeholder="name@example.com"
-            disabled={isLoading}
+            disabled={isRegisterLoading}
             {...form.register("email")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -106,7 +113,7 @@ export function UserSignupForm() {
             id="phone"
             type="tel"
             placeholder="+1 (555) 000-0000"
-            disabled={isLoading}
+            disabled={isRegisterLoading}
             {...form.register("phone")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -121,7 +128,7 @@ export function UserSignupForm() {
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              disabled={isLoading}
+              disabled={isRegisterLoading}
               {...form.register("password")}
               className="border-neutral-800 bg-neutral-900/50 pr-10"
             />
@@ -147,7 +154,7 @@ export function UserSignupForm() {
           <Input
             id="confirmPassword"
             type="password"
-            disabled={isLoading}
+            disabled={isRegisterLoading}
             {...form.register("confirmPassword")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -174,12 +181,17 @@ export function UserSignupForm() {
         <Button
           type="submit"
           className="w-full bg-[#ECE1CE] text-black hover:bg-[#DCD1BE] h-12 text-base font-medium mt-4"
-          disabled={isLoading}
+          disabled={isRegisterLoading}
         >
-          {isLoading ? "Creating Account..." : "Create Account"}
+          {isRegisterLoading ? "Creating Account..." : "Create Account"}
         </Button>
       </form>
+
+      <div className="text-center pt-4">
+        <p className="text-sm text-neutral-400">
+          Already have an account? <Link href="/login" className="text-white hover:underline">Sign in</Link>
+        </p>
+      </div>
     </div>
   )
 }
-

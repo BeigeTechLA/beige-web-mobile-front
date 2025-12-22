@@ -3,10 +3,12 @@
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Eye, EyeOff, ArrowRight, Star } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +26,8 @@ type LoginFormValues = z.infer<typeof loginSchema>
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false)
-  const { login, isLoading } = useAuth()
+  const { login, isLoginLoading } = useAuth()
+  const router = useRouter()
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -37,12 +40,18 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
-      await login({ email: data.email, password: data.password })
-      // Redirect handled by logic or router
-      // For now we just log
-      console.log("Logged in", data)
-    } catch (error) {
-      console.error("Login failed", error)
+      const result = await login({ email: data.email, password: data.password })
+      toast.success(result.message || "Login successful!")
+      
+      // Redirect based on user role
+      if (result.user.userRole === 'creator') {
+        router.push('/dashboard') // or creator dashboard
+      } else {
+        router.push('/') // or client dashboard
+      }
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Login failed. Please check your credentials."
+      toast.error(errorMessage)
     }
   }
 
@@ -62,7 +71,7 @@ export function LoginForm() {
             id="email"
             placeholder="name@example.com"
             type="email"
-            disabled={isLoading}
+            disabled={isLoginLoading}
             {...form.register("email")}
             className="border-neutral-800 bg-neutral-900/50"
           />
@@ -77,7 +86,7 @@ export function LoginForm() {
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              disabled={isLoading}
+              disabled={isLoginLoading}
               {...form.register("password")}
               className="border-neutral-800 bg-neutral-900/50 pr-10"
             />
@@ -121,9 +130,9 @@ export function LoginForm() {
         <Button
           type="submit"
           className="w-full bg-[#ECE1CE] text-black hover:bg-[#DCD1BE] h-12 text-base font-medium"
-          disabled={isLoading}
+          disabled={isLoginLoading}
         >
-          {isLoading ? "Logging in..." : "Login"}
+          {isLoginLoading ? "Logging in..." : "Login"}
         </Button>
       </form>
 
@@ -135,10 +144,9 @@ export function LoginForm() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link href="/signup/user" className="group relative block overflow-hidden rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 transition-colors">
             <div className="flex h-full flex-col p-4">
-               {/* Use a placeholder div or Image if available */}
                <div className="mb-3 h-32 w-full overflow-hidden rounded-lg bg-neutral-800 relative">
                   <Image 
-                    src="/images/influencer/natashaGraziano.png" // Placeholder
+                    src="/images/influencer/natashaGraziano.png"
                     alt="User"
                     fill
                     className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
@@ -160,7 +168,7 @@ export function LoginForm() {
             <div className="flex h-full flex-col p-4">
                <div className="mb-3 h-32 w-full overflow-hidden rounded-lg bg-neutral-800 relative">
                   <Image 
-                    src="/images/man-with-tripod-and-camera.png" // Placeholder
+                    src="/images/man-with-tripod-and-camera.png"
                     alt="Creator"
                     fill
                     className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
@@ -196,4 +204,3 @@ export function LoginForm() {
     </div>
   )
 }
-

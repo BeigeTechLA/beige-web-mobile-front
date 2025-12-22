@@ -2,12 +2,14 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout"
 import { Step0BasicInfo } from "@/components/auth/creator-steps/Step0BasicInfo"
 import { VerifyEmailStep } from "@/components/auth/VerifyEmailStep"
 import { Step1Specialties } from "@/components/auth/creator-steps/Step1Specialties"
 import { Step2Experience } from "@/components/auth/creator-steps/Step2Experience"
 import { Step3Profile } from "@/components/auth/creator-steps/Step3Profile"
+import { useAuth } from "@/lib/hooks/useAuth"
 
 // Enum for steps to make it readable
 enum CreatorStep {
@@ -18,39 +20,131 @@ enum CreatorStep {
   PROFILE = 4
 }
 
+interface CreatorFormData {
+  email?: string;
+  crew_member_id?: number;
+  specialties?: string[];
+  equipment?: string[];
+  yearsOfExperience?: string;
+  bio?: string;
+  primaryRole?: number;
+  portfolioLink?: string;
+  hourlyRate?: number;
+  availability?: Record<string, unknown>;
+  socialLinks?: Record<string, string>;
+}
+
 export function CreatorSignupFlow() {
   const router = useRouter()
+  const { verifyEmail, registerCreatorStep2, registerCreatorStep3 } = useAuth()
   const [step, setStep] = React.useState<CreatorStep>(CreatorStep.BASIC_INFO)
-  const [formData, setFormData] = React.useState<any>({})
+  const [formData, setFormData] = React.useState<CreatorFormData>({})
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
 
-  const handleBasicInfoSubmit = (data: any) => {
-    setFormData((prev: any) => ({ ...prev, ...data }))
+  const handleBasicInfoSubmit = (data: { crew_member_id: number; email: string }) => {
+    setFormData((prev) => ({ ...prev, ...data }))
     setStep(CreatorStep.VERIFY_EMAIL)
   }
 
-  const handleVerifySubmit = (code: string) => {
-    console.log("Verifying code:", code)
-    // Call API to verify
-    // On success:
-    setStep(CreatorStep.SPECIALTIES)
+  const handleVerifySubmit = async (code: string) => {
+    if (!formData.email) {
+      toast.error("Email not found. Please start over.")
+      return
+    }
+    
+    setIsSubmitting(true)
+    try {
+      await verifyEmail({ email: formData.email, verificationCode: code })
+      toast.success("Email verified successfully!")
+      setStep(CreatorStep.SPECIALTIES)
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Verification failed. Please try again."
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleSpecialtiesSubmit = (data: any) => {
-    setFormData((prev: any) => ({ ...prev, ...data }))
+  const handleResendCode = async () => {
+    // In development, the backend uses a static code "123456"
+    toast.info("A new verification code has been sent to your email.")
+  }
+
+  const handleSpecialtiesSubmit = (data: { specialties: string[] }) => {
+    setFormData((prev) => ({ ...prev, ...data }))
     setStep(CreatorStep.EXPERIENCE)
   }
 
-  const handleExperienceSubmit = (data: any) => {
-    setFormData((prev: any) => ({ ...prev, ...data }))
-    setStep(CreatorStep.PROFILE)
+  const handleExperienceSubmit = async (data: { 
+    equipment: string[];
+    yearsOfExperience: string;
+    bio?: string;
+  }) => {
+    // Store the data and move to next step
+    setFormData((prev) => ({ ...prev, ...data }))
+    
+    // Now call Step 2 API with specialties + experience data
+    setIsSubmitting(true)
+    try {
+      if (!formData.crew_member_id) {
+        throw new Error("Crew member ID not found")
+      }
+
+      await registerCreatorStep2({
+        crew_member_id: formData.crew_member_id,
+        skills: formData.specialties || [],
+        equipment_ownership: data.equipment,
+        years_of_experience: data.yearsOfExperience,
+        bio: data.bio,
+      })
+      
+      toast.success("Professional details saved!")
+      setStep(CreatorStep.PROFILE)
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Failed to save professional details."
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleProfileSubmit = (data: any) => {
-    const finalData = { ...formData, ...data }
-    console.log("Final submission:", finalData)
-    // Call API to update profile with all details
-    // On success:
-    router.push("/dashboard") // or where appropriate
+  const handleProfileSubmit = async (data: {
+    portfolioLink?: string;
+    hourlyRate?: number;
+    availability?: Record<string, unknown>;
+    socialLinks?: Record<string, string>;
+  }) => {
+    setIsSubmitting(true)
+    try {
+      if (!formData.crew_member_id) {
+        throw new Error("Crew member ID not found")
+      }
+
+      // Create FormData for step 3 (supports file uploads)
+      const formDataToSend = new FormData()
+      formDataToSend.append('crew_member_id', formData.crew_member_id.toString())
+      
+      if (data.availability) {
+        formDataToSend.append('availability', JSON.stringify(data.availability))
+      }
+      
+      if (data.socialLinks || data.portfolioLink) {
+        formDataToSend.append('social_media_links', JSON.stringify({
+          ...data.socialLinks,
+          portfolio: data.portfolioLink,
+        }))
+      }
+
+      await registerCreatorStep3(formDataToSend)
+      
+      toast.success("Profile completed! Welcome to Beige!")
+      router.push("/login") // Redirect to login to sign in with new credentials
+    } catch (error: any) {
+      const errorMessage = error?.data?.message || error?.message || "Failed to complete profile."
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleBack = () => {
@@ -67,39 +161,35 @@ export function CreatorSignupFlow() {
     switch (step) {
       case CreatorStep.BASIC_INFO:
         return {
-          image: "/images/creator2.jpg", // Placeholder
+          image: "/images/creator2.jpg",
           imageAlt: "Creator Signup",
           showStep: false,
           backLink: "/login"
         }
       case CreatorStep.VERIFY_EMAIL:
         return {
-          // Verify Email screen usually centers the content or keeps the same image
-          // Screenshot 4 is centered, dark background.
-          // But our AuthSplitLayout is split. We can use it or a different layout.
-          // Let's use split for consistency or override.
           image: "/images/creator2.jpg",
           imageAlt: "Verify Email",
           showStep: false,
-          backLink: undefined // No back link shown on verify usually, or generic back
+          backLink: undefined
         }
       case CreatorStep.SPECIALTIES:
         return {
-          image: "/images/misc/profile.png", // Placeholder for "couple yellow dress"
+          image: "/images/misc/profile.png",
           imageAlt: "Specialties",
           step: 1,
           totalSteps: 3
         }
       case CreatorStep.EXPERIENCE:
         return {
-          image: "/images/man-with-tripod-and-camera.png", // Placeholder for "guy beanie"
+          image: "/images/man-with-tripod-and-camera.png",
           imageAlt: "Experience",
           step: 2,
           totalSteps: 3
         }
       case CreatorStep.PROFILE:
         return {
-          image: "/images/influencer/natashaGraziano.png", // Placeholder for "girl flowers"
+          image: "/images/influencer/natashaGraziano.png",
           imageAlt: "Profile",
           step: 3,
           totalSteps: 3
@@ -110,19 +200,6 @@ export function CreatorSignupFlow() {
   }
 
   const stepProps = getStepProps()
-
-  // For Verify Email, we might want a different layout if it's strictly centered like the screenshot.
-  // The screenshot shows a centered modal-like look.
-  // If step === VERIFY_EMAIL, we can render differently.
-  
-  if (step === CreatorStep.VERIFY_EMAIL) {
-     // We can reuse AuthSplitLayout but maybe with a different image or just blank on left?
-     // Or we can just center it.
-     // Let's stick to AuthSplitLayout for now to keep it simple, but pass no image if we want full width?
-     // No, AuthSplitLayout enforces split.
-     // If we want exactly the screenshot (centered card), we might need a separate wrapper.
-     // But let's keep consistent split layout for now.
-  }
 
   return (
     <AuthSplitLayout
@@ -138,13 +215,22 @@ export function CreatorSignupFlow() {
          <VerifyEmailStep 
            email={formData.email || "your email"} 
            onVerify={handleVerifySubmit}
-           onResend={() => console.log("Resend")}
+           onResend={handleResendCode}
          />
        )}
        {step === CreatorStep.SPECIALTIES && <Step1Specialties onNext={handleSpecialtiesSubmit} />}
-       {step === CreatorStep.EXPERIENCE && <Step2Experience onNext={handleExperienceSubmit} />}
-       {step === CreatorStep.PROFILE && <Step3Profile onNext={handleProfileSubmit} />}
+       {step === CreatorStep.EXPERIENCE && (
+         <Step2Experience 
+           onNext={handleExperienceSubmit} 
+           isSubmitting={isSubmitting}
+         />
+       )}
+       {step === CreatorStep.PROFILE && (
+         <Step3Profile 
+           onNext={handleProfileSubmit}
+           isSubmitting={isSubmitting}
+         />
+       )}
     </AuthSplitLayout>
   )
 }
-
