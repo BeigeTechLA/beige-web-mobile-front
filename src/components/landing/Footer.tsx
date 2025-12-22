@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Instagram, Linkedin, Youtube, Facebook, ArrowRight, PhoneCall, Mail } from "lucide-react";
 import { Container } from "@/src/components/landing/ui/container";
 import { Button } from "@/src/components/landing/ui/button";
@@ -9,8 +10,23 @@ import Link from "next/link";
 import { Separator } from "./Separator";
 
 export const Footer = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+
   const handleLinkClick = (label: string, href: string) => {
     console.log(`Footer Navigation: ${label} clicked (href: ${href})`);
+    if (href.startsWith("#")) {
+      if (pathname !== "/") {
+        router.push("/" + href);
+      } else {
+        const element = document.querySelector(href);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }
+    } else {
+      router.push(href);
+    }
   };
 
   const handleStartProject = () => {

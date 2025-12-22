@@ -12,7 +12,7 @@ import {
 } from "@/src/components/landing/ui/tooltip";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 const navLinks = [
   { label: "Home", href: "/", isButton: true },
@@ -25,6 +25,7 @@ export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -36,10 +37,14 @@ export const Navbar = () => {
     setMobileOpen(false);
 
     if (href.startsWith("#")) {
-      // Smooth scroll to section
-      const element = document.querySelector(href);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
+      if (pathname !== "/") {
+        router.push("/" + href);
+      } else {
+        // Smooth scroll to section
+        const element = document.querySelector(href);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
       }
     } else {
       // Navigate to page
@@ -54,11 +59,7 @@ export const Navbar = () => {
 
   const handleInvestor = () => {
     setMobileOpen(false);
-    // Redirect to Typeform for investor interest
-    const typeformUrl = process.env.NEXT_PUBLIC_INVESTOR_TYPEFORM_URL;
-    if (typeformUrl) {
-      window.open(typeformUrl, "_blank");
-    }
+    router.push("/investors");
   };
 
   return (
