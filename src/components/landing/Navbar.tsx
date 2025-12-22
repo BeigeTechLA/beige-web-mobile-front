@@ -1,8 +1,5 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import {
   Tooltip,
@@ -10,9 +7,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/src/components/landing/ui/tooltip";
+import { AnimatePresence, motion } from "framer-motion";
+import { Menu, X } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const navLinks = [
   { label: "Home", href: "/", isButton: true },
@@ -71,9 +70,10 @@ export const Navbar = () => {
           mx-auto max-w-[1600px]
           px-6
           transition-all duration-300
-          ${isScrolled
-            ? "bg-[#050505]/80 backdrop-blur-[12px] border-[0.5px] border-[#E8D1AB]/30"
-            : "bg-[#050505]/60 backdrop-blur-[8px] border-[0.5px] border-[#E8D1AB]/30"
+          ${
+            isScrolled
+              ? "bg-[#050505]/80 backdrop-blur-[12px] border-[0.5px] border-[#E8D1AB]/30"
+              : "bg-[#050505]/60 backdrop-blur-[8px] border-[0.5px] border-[#E8D1AB]/30"
           }
           rounded-[10px] lg:rounded-[20px]
         `}
@@ -89,9 +89,10 @@ export const Navbar = () => {
                   onClick={() => handleNavClick(link.href)}
                   className={`
                     text-lg font-medium transition-all px-4 py-2 rounded-lg
-                    ${link.isButton
-                      ? "bg-white text-black hover:bg-white/90"
-                      : "text-white/70 hover:text-[#ECE1CE]"
+                    ${
+                      link.isButton
+                        ? "bg-white text-black hover:bg-white/90"
+                        : "text-white/70 hover:text-[#ECE1CE]"
                     }
                   `}
                 >
@@ -102,7 +103,10 @@ export const Navbar = () => {
           </div>
 
           {/* Logo */}
-          <button onClick={() => handleNavClick("/")} className="flex items-center">
+          <button
+            onClick={() => handleNavClick("/")}
+            className="flex items-center"
+          >
             <div className="relative">
               <Image
                 src="/images/logos/beige_logo_vb.png"
@@ -142,11 +146,11 @@ export const Navbar = () => {
 
           {/* Mobile Hamburger */}
           <button
-            className="lg:hidden text-white"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
+            className="lg:hidden text-white p-2"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
           >
-            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+            <Menu size={28} />
           </button>
         </div>
       </div>
@@ -155,56 +159,76 @@ export const Navbar = () => {
       <AnimatePresence>
         {mobileOpen && (
           <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60] lg:hidden pointer-events-auto"
+              onClick={() => setMobileOpen(false)}
+            />
+
+            {/* Drawer Content */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ duration: 0.3 }}
-              className="fixed top-0 right-0 bottom-0 w-full sm:w-[375px] bg-[#050505] border-l border-white/10 z-40 lg:hidden"
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 bottom-0 w-full sm:w-[400px] bg-[#050505] z-[70] lg:hidden pointer-events-auto flex flex-col"
             >
-              <div className="flex flex-col gap-8 p-8 pt-32">
+              <div className="flex items-center justify-between px-8 h-24 border-b border-white/10">
+                <Image
+                  src="/images/logos/beige_logo_vb.png"
+                  alt="BEIGE"
+                  width={120}
+                  height={24}
+                  className="object-contain"
+                />
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  className="text-white p-2 hover:bg-white/10 rounded-full transition-colors"
+                >
+                  <X size={28} />
+                </button>
+              </div>
+
+              {/* Mobile Links */}
+              <div className="flex flex-col gap-6 p-8 overflow-y-auto">
                 {navLinks.map((link) => (
                   <button
                     key={link.label}
                     onClick={() => handleNavClick(link.href)}
-                    className="text-2xl text-white hover:text-[#ECE1CE] text-left"
+                    className={`
+                      text-2xl font-medium transition-all text-left py-2
+                      ${link.isButton ? "text-[#ECE1CE]" : "text-white/70"}
+                    `}
                   >
                     {link.label}
                   </button>
                 ))}
-                <div className="flex flex-col gap-4 mt-8">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          disabled
-                          className="text-xl text-white/40 text-left cursor-not-allowed"
-                        >
-                          Login
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>We will enable login soon</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+
+                <hr className="border-white/10 my-4" />
+
+                <div className="flex flex-col gap-4">
+                  <button
+                    disabled
+                    className="text-2xl text-white/50 text-left cursor-not-allowed"
+                  >
+                    Login{" "}
+                    <span className="text-xs block text-white/40">
+                      Coming soon
+                    </span>
+                  </button>
+
                   <Button
                     onClick={handleInvestor}
-                    className="w-full h-[60px] text-lg"
+                    className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[64px] rounded-[15px] text-xl font-semibold mt-4"
                   >
                     Become a Investor
                   </Button>
                 </div>
               </div>
             </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
-              onClick={() => setMobileOpen(false)}
-            />
           </>
         )}
       </AnimatePresence>

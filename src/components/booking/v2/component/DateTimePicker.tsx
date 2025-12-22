@@ -11,9 +11,7 @@ interface Props {
   label: string;
   value: Date | null;
   onChange: (date: Date | null) => void;
-  /** Optional minimum allowed datetime */
   minDateTime?: Date;
-  /** Optional custom validation */
   validate?: (date: Date | null) => string | null;
 }
 
@@ -43,7 +41,10 @@ export const DateTimePicker: React.FC<Props> = ({
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
+    <LocalizationProvider
+      dateAdapter={AdapterDateFns}
+      localeText={{ dateTimePickerToolbarTitle: "Select Date & Time" }}
+    >
       <MuiDateTimePicker
         label={label}
         value={value}
@@ -151,12 +152,101 @@ export const DateTimePicker: React.FC<Props> = ({
           mobilePaper: {
             sx: {
               "& .MuiPaper-root": {
-                borderRadius: "12px",
+                borderRadius: "16px",
               },
               // Header text (Selected Date/Time) to Black
+              "& .MuiDateTimePickerToolbar-root": {
+                padding: "20px",
+                "& .MuiTypography-overline": {
+                  textTransform: "none !important",
+                  fontSize: "16px",
+                  fontWeight: 500,
+                  color: "#1A1A1A99 !important"
+                }
+              },
               "& .MuiDateTimePickerToolbar-root *": {
                 color: "#1A1A1A !important",
               },
+
+              // 2. Alignment and Font Size Fix for Selected Values
+              "& .MuiPickersToolbar-content": {
+                display: "flex !important",
+                flexDirection: "row !important",
+                alignItems: "baseline !important",
+                gap: "4px",
+
+                "& .MuiDateTimePickerToolbar-dateContainer": {
+                  display: "flex !important",
+                  flexDirection: "row !important",
+                  alignItems: "baseline !important",
+                  gap: "6px",
+                  "& span, & h4": {
+                    fontSize: "20px !important",
+                    fontWeight: "700 !important",
+                    lineHeight: "1 !important",
+                  },
+                  "& .MuiPickersToolbarText-root:first-of-type": {
+                    fontSize: "20px !important",
+                  }
+                },
+
+                // Target the date/time container specifically
+                "& .MuiDateTimePickerToolbar-dateContainer, & .MuiDateTimePickerToolbar-timeContainer": {
+                  display: "flex",
+                  alignItems: "baseline",
+                  "& h4, & span": {
+                    fontSize: "20px !important",
+                    fontWeight: "700 !important",
+                    lineHeight: "1 !important",
+                  }
+                },
+
+                // Fix the colon separator position
+                "& .MuiDateTimePickerToolbar-separator": {
+                  fontSize: "22px !important",
+                  fontWeight: "700 !important",
+                  margin: "0 2px",
+                  display: "inline-flex",
+                  alignSelf: "center",
+                },
+
+                // 3. AM/PM ALIGNMENT & HIGHLIGHTING
+                "& .MuiDateTimePickerToolbar-ampmSelection": {
+                  display: "flex",
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  marginLeft: "8px",
+                  gap: "6px",
+                  "& .MuiButtonBase-root": {
+                    padding: "2px 4px",
+                    minWidth: "auto",
+                    borderRadius: "4px",
+                    transition: "all 0.2s ease",
+
+                    // Default (Unselected) State
+                    "& .MuiTypography-root": {
+                      fontSize: "12px !important",
+                      fontWeight: "500",
+                      lineHeight: "1.2",
+                      color: "#1A1A1A !important",
+                    },
+
+                    // Selected State Highlight
+                    "&.Mui-selected": {
+                      backgroundColor: "transparent",
+                      "& .MuiTypography-root": {
+                        color: "#1A1A1A !important",
+                      },
+                    },
+
+                    // Hover state for better feedback
+                    "&:hover": {
+                      backgroundColor: "#E8D1AB !important",
+                    }
+                  }
+                }
+              },
+
               // Tab Icons and Underline
               "& .MuiTabs-indicator": {
                 backgroundColor: "#E8D1AB !important",
@@ -202,7 +292,12 @@ export const DateTimePicker: React.FC<Props> = ({
                 padding: "12px",
                 backgroundColor: "#FFFFFF",
 
-                // Ensure header remains black
+                // Header styles for Desktop
+                "& .MuiDateTimePickerToolbar-root": {
+                  "& .MuiTypography-overline": {
+                    textTransform: "none !important",
+                  }
+                },
                 "& .MuiDateTimePickerToolbar-root *": {
                   color: "#1A1A1A !important",
                 },
