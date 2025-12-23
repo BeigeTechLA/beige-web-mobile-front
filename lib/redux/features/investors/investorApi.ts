@@ -24,3 +24,4 @@ export const investorApi = createApi({
 });
 
 export const { useSubmitInvestorInterestMutation } = investorApi;
+

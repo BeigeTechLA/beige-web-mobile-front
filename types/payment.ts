@@ -36,6 +36,7 @@ export interface BookingFormData {
   shoot_type: string;
   special_requests?: string;
   selected_equipment_ids: string[];
+  referral_code?: string;
 }
 
 export interface PricingBreakdown {

@@ -51,6 +51,11 @@ function PaymentContent() {
   });
   const [clientSecret, setClientSecret] = useState<string>('');
   const [showSummary, setShowSummary] = useState(false);
+  
+  // Referral code state
+  const [referralCode, setReferralCode] = useState<string>('');
+  const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
+  const [referralAffiliateName, setReferralAffiliateName] = useState<string>('');
 
   // Fetch data on mount
   useEffect(() => {
@@ -171,6 +176,7 @@ function PaymentContent() {
         special_requests: bookingData.special_requests || '',
         selected_equipment_ids: [],
         guest_email: guestBooking?.guest_email,
+        referral_code: referralCodeValid ? referralCode : undefined,
       });
 
       console.log('Payment confirmed and saved:', response);
@@ -282,6 +288,12 @@ function PaymentContent() {
                       amount={totalAmount}
                       onSuccess={handlePaymentSuccess}
                       onError={handlePaymentError}
+                      referralCode={referralCode}
+                      onReferralCodeChange={(code, isValid, affiliateName) => {
+                        setReferralCode(code);
+                        setReferralCodeValid(isValid);
+                        setReferralAffiliateName(affiliateName);
+                      }}
                     />
                   </Elements>
                 )}
