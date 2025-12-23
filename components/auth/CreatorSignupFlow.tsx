@@ -237,7 +237,7 @@ export function CreatorSignupFlow() {
         <Step2Experience
           onNext={handleExperienceSubmit}
           isSubmitting={isSubmitting}
-           step={stepProps.step}
+          step={stepProps.step}
           totalSteps={stepProps.totalSteps}
         />
       )}
@@ -246,7 +246,7 @@ export function CreatorSignupFlow() {
         <Step3Profile
           onNext={handleProfileSubmit}
           isSubmitting={isSubmitting}
-           step={stepProps.step}
+          step={stepProps.step}
           totalSteps={stepProps.totalSteps}
         />
       )}
