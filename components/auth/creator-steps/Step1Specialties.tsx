@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { ProgressBar } from "../ProgressBar"
 
 const SPECIALTIES = [
   "Corporate Photography",
@@ -25,9 +26,11 @@ const SPECIALTIES = [
 interface Step1SpecialtiesProps {
   onNext: (data: { specialties: string[] }) => void;
   initialData?: string[];
+  step?: number;
+  totalSteps?: number;
 }
 
-export function Step1Specialties({ onNext, initialData = [] }: Step1SpecialtiesProps) {
+export function Step1Specialties({ onNext, initialData = [], step, totalSteps }: Step1SpecialtiesProps) {
   const [selected, setSelected] = React.useState<string[]>(initialData)
 
   const toggleSpecialty = (specialty: string) => {
@@ -39,20 +42,30 @@ export function Step1Specialties({ onNext, initialData = [] }: Step1SpecialtiesP
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 lg:space-y-10">
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-white">
-          Professional Specialties
-        </h1>
-        <p className="text-neutral-400">
+        <div className="flex justify-beteween items-center">
+          <h1 className="text-lg lg:text-[28px] font-semibold tracking-tight text-white">
+            Professional Specialties
+          </h1>
+          {step && totalSteps && (
+            <div className="text-base lg:text-2xl font-medium text-white/60 ml-auto">
+              <span className="text-[#E8D1AB]">{step}</span>/{totalSteps}
+            </div>
+          )}
+        </div>
+        <p className="lg:text-lg text-white/60">
           Select your area of expertise
         </p>
       </div>
+      <div className="mb-8">
+       <ProgressBar currentStep={step} totalSteps={totalSteps} />
+      </div>
 
       <div className="space-y-4">
-        <label className="text-sm font-medium text-neutral-400">
+        <p className="text-sm lg:text-lg font-medium text-white mb-3 lg:mb-5">
           What services do you offer?
-        </label>
+        </p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {SPECIALTIES.map((specialty) => (
             <button
@@ -60,10 +73,10 @@ export function Step1Specialties({ onNext, initialData = [] }: Step1SpecialtiesP
               type="button"
               onClick={() => toggleSpecialty(specialty)}
               className={cn(
-                "px-3 py-3 rounded-lg border text-xs sm:text-sm font-medium transition-all duration-200",
+                "px-3 py-3 lg:py-6 rounded-lg border text-xs lg:text-sm font-medium transition-all duration-200",
                 selected.includes(specialty)
-                  ? "bg-[#BEA784] text-black border-[#BEA784]"
-                  : "bg-transparent text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
+                  ? "bg-[#1B1A1A] text-[#E8D1AB] border-[#E8D1AB]"
+                  : "bg-transparent text-white/30 border-white/30 hover:border-[#E8D1AB] hover:text-[#E8D1AB]"
               )}
             >
               {specialty}
@@ -74,7 +87,7 @@ export function Step1Specialties({ onNext, initialData = [] }: Step1SpecialtiesP
 
       <Button
         onClick={() => onNext({ specialties: selected })}
-        className="w-full bg-[#ECE1CE] text-black hover:bg-[#DCD1BE] h-12 text-base font-medium mt-8"
+        className="w-full bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-9 lg:h-[76px] text-sm md:text-xl font-medium mt-8 lg:mt-15"
         disabled={selected.length === 0}
       >
         Continue

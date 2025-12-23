@@ -30,7 +30,7 @@ export function AuthSplitLayout({
   totalSteps,
 }: AuthSplitLayoutProps) {
   return (
-    <div className="flex min-h-screen w-full bg-black text-white">
+    <div className="flex min-h-screen w-full bg-[#101010] text-white">
       {/* Left Column - Image/Video */}
       <div className="hidden lg:relative lg:flex lg:w-1/2 lg:flex-col lg:overflow-hidden">
         {video ? (
@@ -59,7 +59,7 @@ export function AuthSplitLayout({
 
       {/* Right Column - Content */}
       <div className="flex w-full flex-col justify-center px-8 lg:w-1/2 lg:px-20 xl:px-32">
-        <div className="mx-auto w-full max-w-[520px] py-12">
+        <div className="mx-auto w-full max-w-[520px] lg:py-12">
           {/* Header Navigation */}
           <div className="mb-8 flex items-center justify-between">
             {backLink ? (
@@ -79,12 +79,12 @@ export function AuthSplitLayout({
                 {backLabel}
               </button>
             ) : null}
-
+            {/* 
             {step && totalSteps && (
               <div className="text-sm font-medium text-neutral-400 ml-auto">
                 {step}/{totalSteps}
               </div>
-            )}
+            )} */}
           </div>
 
           {children}

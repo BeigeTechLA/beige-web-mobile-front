@@ -4,7 +4,7 @@ import { LoginForm } from "@/components/auth/LoginForm"
 export default function LoginPage() {
   return (
     <AuthSplitLayout 
-      video="/videosnap.mp4"
+      video="/videos/LoginVideo.mp4"
     >
       <LoginForm />
     </AuthSplitLayout>

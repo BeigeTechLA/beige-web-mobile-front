@@ -51,7 +51,7 @@ export function CreatorSignupFlow() {
       toast.error("Email not found. Please start over.")
       return
     }
-    
+
     setIsSubmitting(true)
     try {
       await verifyEmail({ email: formData.email, verificationCode: code })
@@ -75,14 +75,14 @@ export function CreatorSignupFlow() {
     setStep(CreatorStep.EXPERIENCE)
   }
 
-  const handleExperienceSubmit = async (data: { 
+  const handleExperienceSubmit = async (data: {
     equipment: string[];
     yearsOfExperience: string;
     bio?: string;
   }) => {
     // Store the data and move to next step
     setFormData((prev) => ({ ...prev, ...data }))
-    
+
     // Now call Step 2 API with specialties + experience data
     setIsSubmitting(true)
     try {
@@ -97,7 +97,7 @@ export function CreatorSignupFlow() {
         years_of_experience: data.yearsOfExperience,
         bio: data.bio,
       })
-      
+
       toast.success("Professional details saved!")
       setStep(CreatorStep.PROFILE)
     } catch (error: any) {
@@ -123,11 +123,11 @@ export function CreatorSignupFlow() {
       // Create FormData for step 3 (supports file uploads)
       const formDataToSend = new FormData()
       formDataToSend.append('crew_member_id', formData.crew_member_id.toString())
-      
+
       if (data.availability) {
         formDataToSend.append('availability', JSON.stringify(data.availability))
       }
-      
+
       if (data.socialLinks || data.portfolioLink) {
         formDataToSend.append('social_media_links', JSON.stringify({
           ...data.socialLinks,
@@ -136,7 +136,7 @@ export function CreatorSignupFlow() {
       }
 
       await registerCreatorStep3(formDataToSend)
-      
+
       toast.success("Profile completed! Welcome to Beige!")
       router.push("/login") // Redirect to login to sign in with new credentials
     } catch (error: any) {
@@ -161,35 +161,35 @@ export function CreatorSignupFlow() {
     switch (step) {
       case CreatorStep.BASIC_INFO:
         return {
-          image: "/images/creator2.jpg",
+          image: "/images/loginsignup/Creator1.png",
           imageAlt: "Creator Signup",
           showStep: false,
           backLink: "/login"
         }
       case CreatorStep.VERIFY_EMAIL:
         return {
-          image: "/images/creator2.jpg",
+          // image: "/images/creator2.jpg",
           imageAlt: "Verify Email",
           showStep: false,
           backLink: undefined
         }
       case CreatorStep.SPECIALTIES:
         return {
-          image: "/images/misc/profile.png",
+          image: "/images/loginsignup/creatorSpecialities.png",
           imageAlt: "Specialties",
           step: 1,
           totalSteps: 3
         }
       case CreatorStep.EXPERIENCE:
         return {
-          image: "/images/man-with-tripod-and-camera.png",
+          image: "/images/loginsignup/creatorEquipments.png",
           imageAlt: "Experience",
           step: 2,
           totalSteps: 3
         }
       case CreatorStep.PROFILE:
         return {
-          image: "/images/influencer/natashaGraziano.png",
+          image: "/images/loginsignup/creatorOnlineProfile.png",
           imageAlt: "Profile",
           step: 3,
           totalSteps: 3
@@ -201,36 +201,55 @@ export function CreatorSignupFlow() {
 
   const stepProps = getStepProps()
 
+  if (step === CreatorStep.VERIFY_EMAIL) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <VerifyEmailStep
+          email={formData.email || "your email"}
+          onVerify={handleVerifySubmit}
+          onResend={handleResendCode}
+        />
+      </div>
+    );
+  }
+
   return (
     <AuthSplitLayout
       image={stepProps.image}
       imageAlt={stepProps.imageAlt}
       backLink={step === CreatorStep.BASIC_INFO ? "/login" : undefined}
-      onBack={step > CreatorStep.BASIC_INFO && step !== CreatorStep.VERIFY_EMAIL ? handleBack : undefined}
+      onBack={step > CreatorStep.SPECIALTIES ? handleBack : undefined}
       step={stepProps.step}
       totalSteps={stepProps.totalSteps}
     >
-       {step === CreatorStep.BASIC_INFO && <Step0BasicInfo onNext={handleBasicInfoSubmit} />}
-       {step === CreatorStep.VERIFY_EMAIL && (
-         <VerifyEmailStep 
-           email={formData.email || "your email"} 
-           onVerify={handleVerifySubmit}
-           onResend={handleResendCode}
-         />
-       )}
-       {step === CreatorStep.SPECIALTIES && <Step1Specialties onNext={handleSpecialtiesSubmit} />}
-       {step === CreatorStep.EXPERIENCE && (
-         <Step2Experience 
-           onNext={handleExperienceSubmit} 
-           isSubmitting={isSubmitting}
-         />
-       )}
-       {step === CreatorStep.PROFILE && (
-         <Step3Profile 
-           onNext={handleProfileSubmit}
-           isSubmitting={isSubmitting}
-         />
-       )}
+      {step === CreatorStep.BASIC_INFO && (
+        <Step0BasicInfo
+          onNext={handleBasicInfoSubmit} />
+      )}
+
+      {step === CreatorStep.SPECIALTIES && (
+        <Step1Specialties onNext={handleSpecialtiesSubmit}
+          step={stepProps.step}
+          totalSteps={stepProps.totalSteps} />
+      )}
+
+      {step === CreatorStep.EXPERIENCE && (
+        <Step2Experience
+          onNext={handleExperienceSubmit}
+          isSubmitting={isSubmitting}
+           step={stepProps.step}
+          totalSteps={stepProps.totalSteps}
+        />
+      )}
+
+      {step === CreatorStep.PROFILE && (
+        <Step3Profile
+          onNext={handleProfileSubmit}
+          isSubmitting={isSubmitting}
+           step={stepProps.step}
+          totalSteps={stepProps.totalSteps}
+        />
+      )}
     </AuthSplitLayout>
-  )
+  );
 }
