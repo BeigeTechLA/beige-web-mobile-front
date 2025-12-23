@@ -5,6 +5,7 @@ import { Container } from "../../../components/ui/container";
 import { TrendingUp } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { SlidingHeading } from "./SlidingHeading";
 
 const INFLUENCERS = [
   {
@@ -140,11 +141,9 @@ export const Influencers = () => {
         {/* HEADER */}
         <div className="text-center mb-6 lg:mb-20">
           <div className="inline-flex items-center border-b border-t border-white/60 w-fit px-10 py-2 mb-5 md:mb-6">
-            <p className="text-xs md:text-base text-white">Top Influencers</p>
+            <p className="text-xs md:text-base text-white">Top Creators</p>
           </div>
-          <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-6">
-            Partnered with the World’s Top Influencers
-          </h2>
+          <SlidingHeading />
           <p className="text-xs lg:text-base text-white/50 max-w-[640px] mx-auto">
             Beige Media makes it easy for brands to create any video they need
             with a single, trusted partner.

@@ -52,6 +52,18 @@ body {
     background-clip: text;
     -webkit-text-fill-color: transparent;
   }
+
+  .text-gradient-grey {
+    background: linear-gradient(92deg,
+     #ffffffF0 0%,
+        #ffffff73 40%,
+        #ffffff59 80%,
+        #ffffff33 100%
+      );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 
 /* Dark mode overrides for landing v2 */
