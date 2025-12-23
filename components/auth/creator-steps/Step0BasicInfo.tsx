@@ -36,8 +36,9 @@ interface Step0BasicInfoProps {
 
 export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
   const [showPassword, setShowPassword] = React.useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false)
   const { registerCreatorStep1, isCreatorRegistrationLoading } = useAuth()
-  
+
   const form = useForm<CreatorSignupFormValues>({
     resolver: zodResolver(creatorSignupSchema),
     defaultValues: {
@@ -64,15 +65,15 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
       if (data.location) {
         formData.append('location', data.location)
       }
-      
+
       const result = await registerCreatorStep1(formData)
-      
+
       toast.success("Account created! Please verify your email.")
-      
+
       // Pass crew_member_id and email to the next step
-      onNext({ 
-        crew_member_id: result.crew_member_id, 
-        email: data.email 
+      onNext({
+        crew_member_id: result.crew_member_id,
+        email: data.email
       })
     } catch (error: any) {
       const errorMessage = error?.data?.message || error?.message || "Registration failed. Please try again."
@@ -83,38 +84,38 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-white">
+        <h1 className="text-lg lg:text-[28px] font-semibold tracking-tight text-white">
           Join Our Creative Community
         </h1>
-        <p className="text-neutral-400">
+        <p className="lg:text-lg text-white/60">
           Complete your application to become a Beige content producer.
         </p>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 lg:space-y-9 text-sm lg:text-base lg:mt-14">
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="firstName">First Name</Label>
+          <div className="relative space-y-2">
+            <Label htmlFor="firstName" className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60">First Name</Label>
             <Input
               id="firstName"
               placeholder="John"
               disabled={isCreatorRegistrationLoading}
               {...form.register("firstName")}
-              className="border-neutral-800 bg-neutral-900/50"
+              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
             />
             {form.formState.errors.firstName && (
               <p className="text-xs text-red-500">{form.formState.errors.firstName.message}</p>
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="lastName">Last Name</Label>
+          <div className="relative space-y-2">
+            <Label htmlFor="lastName" className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Last Name</Label>
             <Input
               id="lastName"
               placeholder="Doe"
               disabled={isCreatorRegistrationLoading}
               {...form.register("lastName")}
-              className="border-neutral-800 bg-neutral-900/50"
+              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
             />
             {form.formState.errors.lastName && (
               <p className="text-xs text-red-500">{form.formState.errors.lastName.message}</p>
@@ -122,56 +123,56 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">Email Address</Label>
+        <div className="relative space-y-2">
+          <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email Address</Label>
           <Input
             id="email"
             type="email"
             placeholder="name@example.com"
             disabled={isCreatorRegistrationLoading}
             {...form.register("email")}
-            className="border-neutral-800 bg-neutral-900/50"
+            className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
           />
           {form.formState.errors.email && (
             <p className="text-xs text-red-500">{form.formState.errors.email.message}</p>
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="phone">Phone Number</Label>
+        <div className="relative space-y-2">
+          <Label htmlFor="phone" className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Phone Number</Label>
           <Input
             id="phone"
             type="tel"
             placeholder="+1 (555) 000-0000"
             disabled={isCreatorRegistrationLoading}
             {...form.register("phone")}
-            className="border-neutral-800 bg-neutral-900/50"
+            className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
           />
           {form.formState.errors.phone && (
             <p className="text-xs text-red-500">{form.formState.errors.phone.message}</p>
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="location">Location (Optional)</Label>
+        <div className="relative space-y-2">
+          <Label htmlFor="location" className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Location (Optional)</Label>
           <Input
             id="location"
             placeholder="Los Angeles, CA"
             disabled={isCreatorRegistrationLoading}
             {...form.register("location")}
-            className="border-neutral-800 bg-neutral-900/50"
+            className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="password">Create Password</Label>
+        <div className="relative space-y-2">
+          <Label htmlFor="password" className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none">Create Password</Label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
               disabled={isCreatorRegistrationLoading}
               {...form.register("password")}
-              className="border-neutral-800 bg-neutral-900/50 pr-10"
+              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
             />
             <button
               type="button"
@@ -179,9 +180,9 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
             >
               {showPassword ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-4 w-4 lg:h-6 lg:w-6" />
               )}
             </button>
           </div>
@@ -190,38 +191,51 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            disabled={isCreatorRegistrationLoading}
-            {...form.register("confirmPassword")}
-            className="border-neutral-800 bg-neutral-900/50"
-          />
+        <div className="relative space-y-2">
+          <Label htmlFor="confirmPassword" className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none">Confirm Password</Label>
+          <div className="relative">
+            <Input
+              id="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              disabled={isCreatorRegistrationLoading}
+              {...form.register("confirmPassword")}
+              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base autofill:bg-[#101010] autofill:text-white autofill:shadow-[inset_0_0_0_1000px_#101010] autofill:[-webkit-text-fill-color:#ffffff] transition-colors"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+            >
+              {showConfirmPassword ? (
+                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
+              ) : (
+                <Eye className="h-4 w-4 lg:h-6 lg:w-6" />
+              )}
+            </button>
+          </div>
           {form.formState.errors.confirmPassword && (
             <p className="text-xs text-red-500">{form.formState.errors.confirmPassword.message}</p>
           )}
         </div>
 
         <div className="flex items-start space-x-2 pt-2">
-          <Checkbox 
-            id="terms" 
+          <Checkbox
+            id="terms"
             checked={form.watch("terms")}
             onCheckedChange={(checked) => form.setValue("terms", checked as boolean)}
-            className="border-neutral-600 data-[state=checked]:bg-[#BEA784] data-[state=checked]:border-[#BEA784] mt-1"
+            className="border-neutral-600 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] lg:w-5 lg:h-5 data-[state=checked]:text-[#101010]"
           />
           <Label htmlFor="terms" className="text-neutral-400 leading-tight">
-            By creating an account, you agree to our <Link href="/terms" className="text-white hover:underline">Terms of Services</Link> and <Link href="/privacy" className="text-white hover:underline">Privacy Policy</Link>
+            By creating an account, you agree to our <Link href="/terms" className="text-[#E8D1AB] underline">Terms of Services</Link> and <Link href="/privacy" className="text-[#E8D1AB] underline">Privacy Policy</Link>
           </Label>
         </div>
         {form.formState.errors.terms && (
-            <p className="text-xs text-red-500">{form.formState.errors.terms.message}</p>
+          <p className="text-xs text-red-500">{form.formState.errors.terms.message}</p>
         )}
 
         <Button
           type="submit"
-          className="w-full bg-[#ECE1CE] text-black hover:bg-[#DCD1BE] h-12 text-base font-medium mt-4"
+          className="w-full bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-9 lg:h-[76px] text-sm md:text-xl font-medium mt-1"
           disabled={isCreatorRegistrationLoading}
         >
           {isCreatorRegistrationLoading ? "Creating Account..." : "Create Account"}

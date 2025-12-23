@@ -38,7 +38,7 @@ export const Brands = () => {
             </div>
 
             <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-8 tracking-tight">
-              Trusted by the World&apos;s Most Influential People
+              Trusted by the World&apos;s Most Influential Brands
             </h2>
 
             <p className="text-white/70 text-xs lg:text-base lg:leading-[28px] font-light">

@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { useSearchParams } from "next/navigation"
-import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout"
 import { VerifyEmailStep } from "@/components/auth/VerifyEmailStep"
 
 function VerifyEmailContent() {
@@ -15,9 +14,9 @@ function VerifyEmailContent() {
   }
 
   return (
-    <VerifyEmailStep 
-      email={email} 
-      onVerify={handleVerify} 
+    <VerifyEmailStep
+      email={email}
+      onVerify={handleVerify}
       onResend={() => console.log("Resend")}
     />
   )
@@ -25,14 +24,8 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <AuthSplitLayout 
-      image="/images/creator2.jpg" // Placeholder
-      imageAlt="Verify Email"
-      backLink="/login"
-    >
-      <React.Suspense fallback={<div className="text-white">Loading...</div>}>
-        <VerifyEmailContent />
-      </React.Suspense>
-    </AuthSplitLayout>
+    <React.Suspense fallback={<div className="text-white">Loading...</div>}>
+      <VerifyEmailContent />
+    </React.Suspense>
   )
 }
