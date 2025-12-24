@@ -16,23 +16,64 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://book.beige.app"),
-  title: "Beige - On Demand Videographers and Creative Professionals",
-  description: "Connect with talented creators for your next project",
+  title: {
+    default: "BeigeAI - On Demand Videographers and Creative Professionals",
+    template: "%s | BeigeAI",
+  },
+  description: "Connect with talented creators for your next project. BeigeAI connects you with professional videographers, photographers, and creative professionals on demand.",
+  keywords: ["videographers", "photographers", "creative professionals", "on demand", "BeigeAI", "video production", "content creation"],
+  authors: [{ name: "BeigeAI" }],
+  creator: "BeigeAI",
+  publisher: "BeigeAI",
+  applicationName: "BeigeAI",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/images/logos/beige_logo_vb.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/images/logos/beige_logo_vb.png", type: "image/png" },
+    ],
+    shortcut: ["/icon.png"],
+  },
+  manifest: "/manifest.json",
   openGraph: {
-    title: "Beige - On Demand Videographers and Creative Professionals",
+    title: "BeigeAI - On Demand Videographers and Creative Professionals",
     description: "Connect with talented creators for your next project",
     url: "https://book.beige.app/",
-    siteName: "Beige App",
+    siteName: "BeigeAI",
     images: [
       {
         url: "/og-preview.png",
         width: 1200,
         height: 630,
-        alt: "Beige App Preview Image",
+        alt: "BeigeAI Preview Image",
       },
     ],
     locale: "en_US",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BeigeAI - On Demand Videographers and Creative Professionals",
+    description: "Connect with talented creators for your next project",
+    images: ["/og-preview.png"],
+    creator: "@BeigeAI",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    // google: "your-google-verification-code",
+    // yandex: "your-yandex-verification-code",
   },
 };
 

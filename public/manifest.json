@@ -1,0 +1,26 @@
+{
+  "name": "BeigeAI - On Demand Creative Professionals",
+  "short_name": "BeigeAI",
+  "description": "Connect with talented videographers, photographers, and creative professionals on demand",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101010",
+  "theme_color": "#E8D1AB",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/logos/beige_logo_vb.png",
+      "sizes": "1920x550",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "photo"],
+  "screenshots": [
+    {
+      "src": "/og-preview.png",
+      "sizes": "1200x630",
+      "type": "image/png"
+    }
+  ]
+}
