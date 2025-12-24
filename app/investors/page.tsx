@@ -62,6 +62,12 @@ export default function InvestorPage() {
                 </div>
               </div>
             </div>
+            {/*  SVG OVERLAY  */}
+            <img
+              src="/svg/HeroBanner.svg"
+              alt="Decorative Overlay"
+              className="absolute inset-0 w-full h-full object-cover z-[2] pointer-events-none"
+            />
           </main>
         </>
       )}
