@@ -14,6 +14,10 @@ interface SliderProps {
   trackColor?: string;
   fillColor?: string;
   thumbColor?: string;
+  bgColour?: string;
+  titleTextColour?: string;
+  labelTextColour?: string;
+  labelSize?: string;
 
   labels?: string[];
   showLabels?: boolean;
@@ -31,6 +35,10 @@ export const CustomSlider = ({
   trackColor = "#1A1A1A",
   fillColor = "#E1CAA1",
   thumbColor = "#E1CAA1",
+  bgColour = "white",
+  titleTextColour = "[#1A1A1A]",
+  labelTextColour = "[#4A4A4A]",
+  labelSize = "text-sm",
 
   labels = ["02h", "04h", "08h", "12h", "16h", "20h", "24h"],
   showLabels = true,
@@ -38,10 +46,10 @@ export const CustomSlider = ({
   const percent = ((value - min) / (max - min)) * 100;
 
   return (
-    <div className="w-full p-4 rounded-[12px] bg-white">
+    <div className={`w-full p-4 rounded-[12px] bg-${bgColour}`}>
       {/* Label */}
       {label && (
-        <p className="text-[#1A1A1A] font-medium mb-4">{label}</p>
+        <p className={`text-${titleTextColour} font-medium mb-4`}>{label}</p>
       )}
 
       {/* Slider Container */}
@@ -101,7 +109,7 @@ export const CustomSlider = ({
 
       {/* Labels */}
       {showLabels && (
-        <div className="mt-4 flex justify-between text-[#4A4A4A] text-sm">
+        <div className={`mt-4 flex justify-between text-${labelTextColour} ${labelSize}`}>
           {labels.map((l) => (
             <span key={l}>{l}</span>
           ))}

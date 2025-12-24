@@ -295,3 +295,10 @@ export const liveStreamAddons: Addon[] = [
   { id: "4kcamera_first_hour", label: "Livestream – 4K Camera (first hour)", price: 1650 },
   { id: "4kcamera_additional_hour", label: "Livestream – 4K Camera (additional hour)", price: 550 },
 ];
+
+export const studio: { key: string; value: string }[] = [
+  { key: "studio1", value: "Studio 1" },
+  { key: "studio2", value: "Studio 2" },
+  { key: "studio3", value: "Studio 3" },
+  { key: "studio4", value: "Studio 4" },
+];

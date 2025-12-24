@@ -10,8 +10,8 @@ import { StepProgressTracker } from "@/components/book-a-shoot/StepProgressTrack
 
 import { Step1ProjectDetails } from "@/components/book-a-shoot/Step1ProjectDetails";
 import { Step2MoreDetails } from "@/components/book-a-shoot/Step2MoreDetails";
-// import Step3DateTime from "@/src/components/book-a-shoot/Step3DateTime";
-// import Step4Review from "@/src/components/book-a-shoot/Step4Review";
+import { Step3DateTime } from "@/components/book-a-shoot/Step3DateTime";
+// import Step4Review from "@/components/book-a-shoot/Step4Review";
 
 import { ArrowLeft } from "lucide-react";
 
@@ -39,7 +39,7 @@ export type BookingData = {
   needStudio: boolean;
   studio: string;
   studioTimeDuration: number;
-  wantsAddons: "yes" | "no"| null;
+  wantsAddons: "yes" | "no" | null;
   addons: Record<string, number>;
 };
 
@@ -104,8 +104,7 @@ export default function InvestorPage() {
       case 2:
         return <Step2MoreDetails {...props} />;
       case 3:
-        return <div className="text-white">Step 3 Component Here</div>;
-      // return <Step3DateTime {...props} />;
+        return <Step3DateTime {...props} />;
       case 4:
         return <div className="text-white">Step 4 Component Here</div>;
       // return <Step4Review {...props} />;
