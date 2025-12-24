@@ -43,12 +43,8 @@ export function LoginForm() {
       const result = await login({ email: data.email, password: data.password })
       toast.success(result.message || "Login successful!")
 
-      // Redirect based on user role
-      if (result.user.userRole === 'creator') {
-        router.push('/dashboard') // or creator dashboard
-      } else {
-        router.push('/') // or client dashboard
-      }
+      // Redirect to affiliate dashboard
+      router.push('/affiliate/dashboard')
     } catch (error: any) {
       const errorMessage = error?.data?.message || error?.message || "Login failed. Please check your credentials."
       toast.error(errorMessage)

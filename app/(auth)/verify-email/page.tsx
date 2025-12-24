@@ -34,11 +34,11 @@ function VerifyEmailContent() {
 
       toast.success(result.message || "Email verified successfully!")
 
-      // If user was auto-logged in, redirect to dashboard
+      // If user was auto-logged in, redirect to affiliate dashboard
       // Otherwise redirect to login
       setTimeout(() => {
         if (result.token) {
-          router.push('/') // or dashboard
+          router.push('/affiliate/dashboard')
         } else {
           router.push('/login')
         }
