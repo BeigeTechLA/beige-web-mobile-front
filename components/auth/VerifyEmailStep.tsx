@@ -9,9 +9,11 @@ interface VerifyEmailStepProps {
   email: string
   onVerify: (code: string) => void
   onResend: () => void
+  isVerifying?: boolean
+  isResending?: boolean
 }
 
-export function VerifyEmailStep({ email, onVerify, onResend }: VerifyEmailStepProps) {
+export function VerifyEmailStep({ email, onVerify, onResend, isVerifying = false, isResending = false }: VerifyEmailStepProps) {
   const [otp, setOtp] = React.useState(["", "", "", "", "", ""])
   const inputRefs = React.useRef<(HTMLInputElement | null)[]>([])
 
@@ -90,14 +92,14 @@ export function VerifyEmailStep({ email, onVerify, onResend }: VerifyEmailStepPr
 
         <div className="space-y-4 lg:space-y-8 w-full">
           <p className="text-sm text-[#969696]">
-            Didn't received any code ? <button onClick={onResend} className="text-[#E8D1AB] hover:underline">Resend OTP</button>
+            Didn't received any code ? <button onClick={onResend} disabled={isResending} className="text-[#E8D1AB] hover:underline disabled:opacity-50">{isResending ? "Sending..." : "Resend OTP"}</button>
           </p>
           <Button
             onClick={() => onVerify(otp.join(""))}
             className="w-5/6 lg:w-full bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-9 lg:h-[76px] text-sm md:text-xl font-medium mt-1"
-            disabled={otp.some(d => !d)}
+            disabled={otp.some(d => !d) || isVerifying}
           >
-            Verify Email
+            {isVerifying ? "Verifying..." : "Verify Email"}
           </Button>
         </div>
       </div>

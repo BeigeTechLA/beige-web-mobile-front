@@ -6,6 +6,8 @@ import {
   useLoginMutation,
   useRegisterMutation,
   useQuickRegisterMutation,
+  useSendOTPMutation,
+  useResendOTPMutation,
   useVerifyEmailMutation,
   useGetCurrentUserQuery,
   useRegisterCreatorStep1Mutation,
@@ -30,6 +32,8 @@ export const useAuth = () => {
   const [loginMutation, { isLoading: isLoginLoading, error: loginError }] = useLoginMutation();
   const [registerMutation, { isLoading: isRegisterLoading, error: registerError }] = useRegisterMutation();
   const [quickRegisterMutation, { isLoading: isQuickRegisterLoading }] = useQuickRegisterMutation();
+  const [sendOTPMutation, { isLoading: isSendOTPLoading }] = useSendOTPMutation();
+  const [resendOTPMutation, { isLoading: isResendOTPLoading }] = useResendOTPMutation();
   const [verifyEmailMutation, { isLoading: isVerifyEmailLoading }] = useVerifyEmailMutation();
   const [forgotPasswordMutation, { isLoading: isForgotPasswordLoading }] = useForgotPasswordMutation();
   const [resetPasswordMutation, { isLoading: isResetPasswordLoading }] = useResetPasswordMutation();
@@ -62,10 +66,24 @@ export const useAuth = () => {
     return result;
   }, [quickRegisterMutation, dispatch]);
 
+  const sendOTP = useCallback(async (email: string) => {
+    const result = await sendOTPMutation({ email }).unwrap();
+    return result;
+  }, [sendOTPMutation]);
+
+  const resendOTP = useCallback(async (email: string) => {
+    const result = await resendOTPMutation({ email }).unwrap();
+    return result;
+  }, [resendOTPMutation]);
+
   const verifyEmail = useCallback(async (data: VerifyEmailData) => {
     const result = await verifyEmailMutation(data).unwrap();
+    // If verification returns a token, automatically log in the user
+    if (result.token && result.user) {
+      dispatch(setCredentials({ user: result.user, token: result.token }));
+    }
     return result;
-  }, [verifyEmailMutation]);
+  }, [verifyEmailMutation, dispatch]);
 
   const forgotPassword = useCallback(async (email: string) => {
     const result = await forgotPasswordMutation({ email }).unwrap();
@@ -112,6 +130,8 @@ export const useAuth = () => {
     isLoading: isLoading || isLoginLoading || isRegisterLoading || isQuickRegisterLoading,
     isLoginLoading,
     isRegisterLoading,
+    isSendOTPLoading,
+    isResendOTPLoading,
     isVerifyEmailLoading,
     isForgotPasswordLoading,
     isResetPasswordLoading,
@@ -121,6 +141,8 @@ export const useAuth = () => {
     login,
     register,
     quickRegister,
+    sendOTP,
+    resendOTP,
     verifyEmail,
     forgotPassword,
     resetPassword,

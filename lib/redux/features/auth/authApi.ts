@@ -60,8 +60,26 @@ export const authApi = createApi({
       transformResponse: (response: LoginResponse) => response,
     }),
 
+    // Send OTP to email for verification
+    sendOTP: builder.mutation<{ success: boolean; message: string }, { email: string }>({
+      query: (data) => ({
+        url: 'auth/send-otp',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
+    // Resend OTP to email
+    resendOTP: builder.mutation<{ success: boolean; message: string }, { email: string }>({
+      query: (data) => ({
+        url: 'auth/resend-otp',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
     // Verify email with verification code
-    verifyEmail: builder.mutation<{ message: string }, VerifyEmailData>({
+    verifyEmail: builder.mutation<{ success: boolean; message: string; token?: string; user?: any }, VerifyEmailData>({
       query: (data) => ({
         url: 'auth/verify-email',
         method: 'POST',
@@ -147,6 +165,8 @@ export const {
   useLoginMutation,
   useRegisterMutation,
   useQuickRegisterMutation,
+  useSendOTPMutation,
+  useResendOTPMutation,
   useVerifyEmailMutation,
   useGetCurrentUserQuery,
   useGetPermissionsQuery,
