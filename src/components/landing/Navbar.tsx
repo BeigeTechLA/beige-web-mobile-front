@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Separator } from "./Separator";
 
 const navLinks = [
   { label: "Home", href: "/", isButton: true },
@@ -64,10 +65,9 @@ export const Navbar = () => {
           mx-auto max-w-[1600px]
           px-6
           transition-all duration-300
-          ${
-            isScrolled
-              ? "bg-[#050505]/80 backdrop-blur-[12px] border-[0.5px] border-[#E8D1AB]/30"
-              : "bg-[#050505]/60 backdrop-blur-[8px] border-[0.5px] border-[#E8D1AB]/30"
+          ${isScrolled
+            ? "bg-[#050505]/80 backdrop-blur-[12px] border-[0.5px] border-[#E8D1AB]/30"
+            : "bg-[#050505]/60 backdrop-blur-[8px] border-[0.5px] border-[#E8D1AB]/30"
           }
           rounded-[10px] lg:rounded-[20px]
         `}
@@ -83,10 +83,9 @@ export const Navbar = () => {
                   onClick={() => handleNavClick(link.href)}
                   className={`
                     text-lg font-medium transition-all px-4 py-2 rounded-lg
-                    ${
-                      link.isButton
-                        ? "bg-white text-black hover:bg-white/90"
-                        : "text-white/70 hover:text-[#ECE1CE]"
+                    ${link.isButton
+                      ? "bg-white text-black hover:bg-white/90"
+                      : "text-white/70 hover:text-[#ECE1CE]"
                     }
                   `}
                 >
@@ -161,7 +160,7 @@ export const Navbar = () => {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed top-0 right-0 bottom-0 w-full sm:w-[400px] bg-[#050505] z-[70] lg:hidden pointer-events-auto flex flex-col"
             >
-              <div className="flex items-center justify-between px-8 h-24 border-b border-white/10">
+              <div className="flex items-center justify-between px-5 py-8 ">
                 <Image
                   src="/images/logos/beige_logo_vb.png"
                   alt="BEIGE"
@@ -171,43 +170,43 @@ export const Navbar = () => {
                 />
                 <button
                   onClick={() => setMobileOpen(false)}
-                  className="text-white p-2 hover:bg-white/10 rounded-full transition-colors"
+                  className="text-white p-2 hover:bg-white/10 bg-[#171717] rounded-full transition-colors"
                 >
                   <X size={28} />
                 </button>
               </div>
+              <Separator />
 
               {/* Mobile Links */}
-              <div className="flex flex-col gap-6 p-8 overflow-y-auto">
+              <div className="flex flex-col gap-10 p-5 overflow-y-auto">
                 {navLinks.map((link) => (
                   <button
                     key={link.label}
                     onClick={() => handleNavClick(link.href)}
                     className={`
-                      text-2xl font-medium transition-all text-left py-2
-                      ${link.isButton ? "text-[#ECE1CE]" : "text-white/70"}
+                      text-lg font-normal transition-all text-left
+                      ${link.isButton ? "text-[#ECE1CE]" : "text-[#B8ACAC]"}
                     `}
                   >
                     {link.label}
                   </button>
                 ))}
-
-                <hr className="border-white/10 my-4" />
+                <Separator />
 
                 <div className="flex flex-col gap-4">
                   <button
                     onClick={handleLogin}
-                    className="text-2xl text-white hover:text-[#ECE1CE] text-left transition-colors"
+                    className="text-white hover:text-[#ECE1CE] text-base font-medium transition-colors py-6 border border-white/30 hover:border-[#ECE1CE]/50 rounded-[10px]"
                   >
                     Login
                   </button>
 
-                  <Button
+                  <button
                     onClick={handleInvestor}
-                    className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[64px] rounded-[15px] text-xl font-semibold mt-4"
+                    className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] py-6 rounded-[10px] text-base font-medium mt-4"
                   >
                     Become a Investor
-                  </Button>
+                  </button>
                 </div>
               </div>
             </motion.div>

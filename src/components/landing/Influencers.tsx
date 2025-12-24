@@ -31,7 +31,7 @@ const INFLUENCERS = [
   },
   {
     name: "Sean Kelly",
-    followers: "3,637",
+    followers: "12M",
     reach: "512k Reach in 48 Hours",
     bio: "Digital creator and brand builder.",
     image: "/images/influencer/seanKelly.png",
