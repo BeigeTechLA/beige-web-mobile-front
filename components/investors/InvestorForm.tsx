@@ -71,6 +71,19 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
     resolver: zodResolver(investorSchema),
   });
 
+  // Sync MultiSelectDropdown values with react-hook-form
+  React.useEffect(() => {
+    form.setValue("investmentRounds", selectedRounds.join(","), { shouldValidate: selectedRounds.length > 0 });
+  }, [selectedRounds, form]);
+
+  React.useEffect(() => {
+    form.setValue("investmentTiming", selectedTimings.join(","), { shouldValidate: selectedTimings.length > 0 });
+  }, [selectedTimings, form]);
+
+  React.useEffect(() => {
+    form.setValue("investmentAmount", selectedBudget.join(","), { shouldValidate: selectedBudget.length > 0 });
+  }, [selectedBudget, form]);
+
   const onSubmit = async (data: InvestorFormValues) => {
     try {
       await submitInvestorInterest({

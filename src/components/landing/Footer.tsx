@@ -40,8 +40,10 @@ export const Footer = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 mb-24">
           {/* Logo & CTA Column */}
           <div className="lg:col-span-1 flex flex-col gap-8">
-            <button
-              onClick={() => handleLinkClick('Logo', '/')}
+            <a
+              href="https://book.beige.app"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-block"
             >
               <div className="relative w-[140px] h-[36px] lg:w-[228px] lg:h-10">
@@ -53,7 +55,7 @@ export const Footer = () => {
                   priority
                 />
               </div>
-            </button>
+            </a>
 
             <div className="mt-8">
               <Button

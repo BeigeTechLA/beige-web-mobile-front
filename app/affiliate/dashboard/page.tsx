@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   CheckCircle,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -90,7 +91,7 @@ export default function AffiliateDashboardPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return `SAR ${amount.toLocaleString("en-US", {
+    return `$${amount.toLocaleString("en-US", {
       minimumFractionDigits: 2,
     })}`;
   };
@@ -158,6 +159,13 @@ export default function AffiliateDashboardPage() {
           <LayoutDashboard size={20} />
           <span>Overview</span>
         </button>
+        <Link
+          href="/book-a-shoot"
+          className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors"
+        >
+          <Camera size={20} />
+          <span>Book A Shoot</span>
+        </Link>
         <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50">
           <Wallet size={20} />
           <span>Payouts (Soon)</span>
@@ -448,7 +456,7 @@ export default function AffiliateDashboardPage() {
                   <div>
                     <p className="font-medium text-white mb-1">You Earn</p>
                     <p className="text-sm text-white/40">
-                      Get SAR 200 for every completed booking.
+                      Get $200 for every completed booking.
                     </p>
                   </div>
                 </div>

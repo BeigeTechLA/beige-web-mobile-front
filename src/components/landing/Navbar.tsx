@@ -96,8 +96,10 @@ export const Navbar = () => {
           </div>
 
           {/* Logo */}
-          <button
-            onClick={() => handleNavClick("/")}
+          <a
+            href="https://book.beige.app"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center"
           >
             <div className="relative">
@@ -110,7 +112,7 @@ export const Navbar = () => {
                 priority
               />
             </div>
-          </button>
+          </a>
 
           {/* Right Buttons */}
           <div className="hidden lg:flex items-center gap-4">

@@ -180,7 +180,14 @@ export default function SearchResultsPage() {
   return (
     <main className="bg-[#101010] min-h-screen text-white">
       <Navbar />
-      <Suspense fallback={<div className="min-h-screen bg-[#101010]" />}>
+      <Suspense fallback={
+        <div className="pt-32 pb-20 flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mb-4"></div>
+            <p className="text-white text-lg">Finding the perfect creators for you...</p>
+          </div>
+        </div>
+      }>
         <SearchResultsContent />
       </Suspense>
       <Footer />
