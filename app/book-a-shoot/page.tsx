@@ -11,7 +11,8 @@ import { StepProgressTracker } from "@/components/book-a-shoot/StepProgressTrack
 import { Step1ProjectDetails } from "@/components/book-a-shoot/Step1ProjectDetails";
 import { Step2MoreDetails } from "@/components/book-a-shoot/Step2MoreDetails";
 import { Step3DateTime } from "@/components/book-a-shoot/Step3DateTime";
-// import Step4Review from "@/components/book-a-shoot/Step4Review";
+import { Step4Services } from "@/components/book-a-shoot/Step4Services";
+// import Step5Review from "@/components/book-a-shoot/Step5Review";
 
 import { ArrowLeft } from "lucide-react";
 
@@ -19,6 +20,7 @@ const MY_STEPS = [
   { label: "Project Details" },
   { label: "More Details" },
   { label: "Date & Time" },
+  { label: "Services" },
   { label: "Review & Match" },
 ];
 
@@ -33,6 +35,8 @@ export type BookingData = {
   specialNote: string;
   budgetMin: number;
   budgetMax: number;
+  quoteTotal: number;
+  selectedServices: Array<{ item_id: number; quantity: number }>;
   startDate: string;
   endDate: string;
   location: string;
@@ -55,6 +59,8 @@ const initialData: BookingData = {
   specialNote: "",
   budgetMin: 100,
   budgetMax: 15000,
+  quoteTotal: 0,
+  selectedServices: [],
   startDate: "",
   endDate: "",
   location: "",
@@ -106,8 +112,10 @@ export default function InvestorPage() {
       case 3:
         return <Step3DateTime {...props} />;
       case 4:
-        return <div className="text-white">Step 4 Component Here</div>;
-      // return <Step4Review {...props} />;
+        return <Step4Services {...props} />;
+      case 5:
+        return <div className="text-white">Step 5 Review Component Here</div>;
+      // return <Step5Review {...props} />;
       default:
         return null;
     }
