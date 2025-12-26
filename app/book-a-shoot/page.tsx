@@ -1,20 +1,30 @@
-"use client"
+"use client";
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
+import { toast } from "sonner";
 
-import { Navbar } from "@/src/components/landing/Navbar"
-import { Footer } from "@/src/components/landing/Footer"
-import { Step6Loading } from "@/src/components/booking/v2"
+import { Navbar } from "@/src/components/landing/Navbar";
+import { Footer } from "@/src/components/landing/Footer";
+import { Step6Loading } from "@/src/components/booking/v2";
 import { StepProgressTracker } from "@/components/book-a-shoot/StepProgressTracker";
 
 import { Step1ProjectDetails } from "@/components/book-a-shoot/Step1ProjectDetails";
 import { Step2MoreDetails } from "@/components/book-a-shoot/Step2MoreDetails";
 import { Step3DateTime } from "@/components/book-a-shoot/Step3DateTime";
 import { Step4Services } from "@/components/book-a-shoot/Step4Services";
-// import Step5Review from "@/components/book-a-shoot/Step5Review";
+import { Step5Review } from "@/components/book-a-shoot/Step5Review";
 
 import { ArrowLeft } from "lucide-react";
+import { useCreateGuestBookingMutation } from "@/lib/redux/features/booking/guestBookingApi";
+import { useSaveQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
+import {
+  selectQuote,
+  selectSelectedItems,
+  selectShootHours,
+} from "@/lib/redux/features/pricing/pricingSlice";
+import type { QuoteCalculation } from "@/lib/api/pricing";
 
 const MY_STEPS = [
   { label: "Project Details" },
@@ -26,7 +36,8 @@ const MY_STEPS = [
 
 export type BookingData = {
   serviceType: "shoot_edit" | "shoot_raw" | "edit_files" | null;
-  contentType: ("videographer" | "photographer" | "cinematographer" | "all")[]; shootType: string;
+  contentType: ("videographer" | "photographer" | "cinematographer" | "all")[];
+  shootType: string;
   editType: string;
   shootName: string;
   guestEmail: string;
@@ -35,14 +46,19 @@ export type BookingData = {
   specialNote: string;
   budgetMin: number;
   budgetMax: number;
+  // Quote related fields
+  quoteId: number | null;
   quoteTotal: number;
+  calculatedQuote: QuoteCalculation | null;
   selectedServices: Array<{ item_id: number; quantity: number }>;
+  // Date & Location
   startDate: string;
   endDate: string;
   location: string;
   needStudio: boolean;
   studio: string;
   studioTimeDuration: number;
+  // Legacy addons - will use API pricing
   wantsAddons: "yes" | "no" | null;
   addons: Record<string, number>;
 };
@@ -59,7 +75,9 @@ const initialData: BookingData = {
   specialNote: "",
   budgetMin: 100,
   budgetMax: 15000,
+  quoteId: null,
   quoteTotal: 0,
+  calculatedQuote: null,
   selectedServices: [],
   startDate: "",
   endDate: "",
@@ -68,31 +86,130 @@ const initialData: BookingData = {
   studio: "",
   studioTimeDuration: 0,
   wantsAddons: null,
-  addons: {}
+  addons: {},
 };
 
-export default function InvestorPage() {
+export default function BookAShootPage() {
   const router = useRouter();
-  const [isSearching, setIsSearching] = useState(false)
-  const [activeStep, setActiveStep] = useState(1) // Start at step 1
+  const [isSearching, setIsSearching] = useState(false);
+  const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState<BookingData>(initialData);
+
+  // Redux state for pricing
+  const quote = useSelector(selectQuote);
+  const selectedItems = useSelector(selectSelectedItems);
+  const shootHours = useSelector(selectShootHours);
+
+  // API mutations
+  const [createGuestBooking, { isLoading: isCreatingBooking }] =
+    useCreateGuestBookingMutation();
+  const [saveQuote, { isLoading: isSavingQuote }] = useSaveQuoteMutation();
 
   // Helper to update specific fields in formData
   const updateData = (newData: Partial<typeof formData>) => {
     setFormData((prev) => ({ ...prev, ...newData }));
   };
 
-  const nextStep = () => setActiveStep((prev) => Math.min(prev + 1, MY_STEPS.length));
+  const nextStep = () =>
+    setActiveStep((prev) => Math.min(prev + 1, MY_STEPS.length));
   const prevStep = () => setActiveStep((prev) => Math.max(prev - 1, 1));
-  const backHome = () => { router.push(`/`); }
+  const backHome = () => {
+    router.push(`/`);
+  };
 
-  const handleFindCreative = () => {
+  // Calculate duration in hours from start and end dates
+  const calculateDurationHours = (): number => {
+    if (!formData.startDate || !formData.endDate) return shootHours || 3;
+    const start = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    const diffMs = end.getTime() - start.getTime();
+    const hours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+    return hours;
+  };
+
+  const handleFindCreative = async () => {
+    // Validate email
+    if (!formData.guestEmail || !formData.guestEmail.includes("@")) {
+      toast.error("Email Required", {
+        description: "Please enter a valid email address.",
+      });
+      return;
+    }
+
     setIsSearching(true);
-    // Simulate API call or matching logic
-    setTimeout(() => {
-      // Logic after "searching" is done
-      console.log("Form Submitted:", formData);
-    }, 3000);
+
+    try {
+      // Step 1: Save the quote if we have selected items
+      let savedQuoteId: number | null = null;
+
+      if (selectedItems.length > 0 && quote) {
+        try {
+          const savedQuote = await saveQuote({
+            items: selectedItems,
+            shootHours: calculateDurationHours(),
+            eventType: formData.shootType,
+            guestEmail: formData.guestEmail,
+            notes: formData.specialNote || undefined,
+          }).unwrap();
+
+          savedQuoteId = savedQuote.quote_id;
+          console.log("Quote saved:", savedQuoteId);
+        } catch (quoteError) {
+          console.error("Failed to save quote:", quoteError);
+          // Continue anyway - booking can proceed without quote
+        }
+      }
+
+      // Step 2: Create the guest booking
+      const bookingData = {
+        order_name: formData.shootName || `${formData.shootType} Shoot`,
+        guest_email: formData.guestEmail,
+        project_type: formData.serviceType,
+        content_type: formData.contentType.join(","),
+        shoot_type: formData.shootType,
+        edit_type: formData.editType,
+        description: formData.specialNote,
+        event_type: formData.shootType,
+        start_date_time: formData.startDate,
+        duration_hours: calculateDurationHours(),
+        end_time: formData.endDate,
+        budget_min: quote?.total || formData.budgetMin,
+        budget_max: quote?.total || formData.budgetMax,
+        crew_size: formData.crewSize,
+        location: formData.location,
+        skills_needed: formData.contentType.join(","),
+        equipments_needed:
+          selectedItems.length > 0 ? JSON.stringify(selectedItems) : undefined,
+        is_draft: false,
+      };
+
+      const bookingResult = await createGuestBooking(bookingData).unwrap();
+
+      console.log("Booking created:", bookingResult);
+      toast.success("Booking Created!", {
+        description: "We're now finding the best creators for your project.",
+      });
+
+      // Step 3: Navigate to search results with booking context
+      const searchParams = new URLSearchParams({
+        booking_id: String(bookingResult.booking_id),
+        shoot_type: formData.shootType,
+        location: formData.location || "",
+        budget: String(quote?.total || formData.budgetMax),
+      });
+
+      // Short delay to show the loading animation then navigate
+      setTimeout(() => {
+        router.push(`/search-results?${searchParams.toString()}`);
+      }, 2000);
+    } catch (error: unknown) {
+      console.error("Error creating booking:", error);
+      setIsSearching(false);
+      toast.error("Booking Failed", {
+        description:
+          (error as { message?: string })?.message || "Please try again.",
+      });
+    }
   };
 
   // Logic to determine which component to show
@@ -114,19 +231,23 @@ export default function InvestorPage() {
       case 4:
         return <Step4Services {...props} />;
       case 5:
-        return <div className="text-white">Step 5 Review Component Here</div>;
-      // return <Step5Review {...props} />;
+        return (
+          <Step5Review
+            {...props}
+            isSubmitting={isCreatingBooking || isSavingQuote}
+          />
+        );
       default:
         return null;
     }
   };
 
   return (
-    <div className="bg-[#101010] min-h-screen text-white selection:bg-[#ECE1CE] selection:text-black">
+    <>
       {isSearching ? (
         <Step6Loading />
       ) : (
-        <>
+        <div className="bg-[#101010] min-h-screen text-white selection:bg-[#ECE1CE] selection:text-black">
           <Navbar />
           <main className="relative pt-24 lg:pt-44 pb-16 min-h-screen flex flex-col items-center">
             <div className="w-full container z-20 px-4 md:px-6">
@@ -140,18 +261,15 @@ export default function InvestorPage() {
             </div>
 
             <div className="container relative z-10 mx-auto px-4 md:px-6 flex flex-col items-center">
-              <StepProgressTracker
-                steps={MY_STEPS}
-                currentStep={activeStep}
-              />
+              <StepProgressTracker steps={MY_STEPS} currentStep={activeStep} />
               <div className="w-full max-w-4xl lg:max-w-5xl min-h-[400px]">
                 {renderStep()}
               </div>
             </div>
           </main>
-        </>
+          <Footer />
+        </div>
       )}
-      <Footer />
-    </div>
-  )
+    </>
+  );
 }

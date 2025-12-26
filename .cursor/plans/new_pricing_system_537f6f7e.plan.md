@@ -129,63 +129,17 @@ erDiagram
     }
 ```
 
-**Key Tables:**| Table | Purpose |
-
-|-------|---------|
-
-| `pricing_categories` | 8 categories: Pre-Production, Services, Editing, Crew & Labor, Equipment Add-Ons, Artist, Livestream, Post-Production, Studios, Scripting, Travel |
-
-| `pricing_items` | ~90 items with rates, linked to categories and pricing mode |
-
-| `pricing_discount_tiers` | Hours-based discounts (0.5h=0%, 1h=5%, 1.5h=10%... 3h+=25-30%) |
-
-| `quotes` / `quote_line_items` | Store calculated quotes for bookings |---
+**Key Tables:**| Table | Purpose ||-------|---------|| `pricing_categories` | 8 categories: Pre-Production, Services, Editing, Crew & Labor, Equipment Add-Ons, Artist, Livestream, Post-Production, Studios, Scripting, Travel || `pricing_items` | ~90 items with rates, linked to categories and pricing mode || `pricing_discount_tiers` | Hours-based discounts (0.5h=0%, 1h=5%, 1.5h=10%... 3h+=25-30%) || `quotes` / `quote_line_items` | Store calculated quotes for bookings |---
 
 ## Backend Implementation
 
 ### Files to Create/Modify
 
-| File | Purpose |
-
-|------|---------|
-
-| `migrations/create_pricing_catalog.sql` | Database migration for new tables |
-
-| `src/models/pricing_categories.js` | Sequelize model |
-
-| `src/models/pricing_items.js` | Sequelize model |
-
-| `src/models/pricing_discount_tiers.js` | Sequelize model |
-
-| `src/models/quotes.js` | Sequelize model |
-
-| `src/models/quote_line_items.js` | Sequelize model |
-
-| [`src/controllers/pricing.controller.js`](src/controllers/pricing.controller.js) | Replace with new catalog-based logic |
-
-| `src/services/pricing.service.js` | Core pricing calculation engine |
-
-| [`src/routes/pricing.routes.js`](src/routes/pricing.routes.js) | Add new endpoints |
-
-| `scripts/seed-pricing-catalog.js` | Seed script with all pricing data |
+| File | Purpose ||------|---------|| `migrations/create_pricing_catalog.sql` | Database migration for new tables || `src/models/pricing_categories.js` | Sequelize model || `src/models/pricing_items.js` | Sequelize model || `src/models/pricing_discount_tiers.js` | Sequelize model || `src/models/quotes.js` | Sequelize model || `src/models/quote_line_items.js` | Sequelize model || [`src/controllers/pricing.controller.js`](src/controllers/pricing.controller.js) | Replace with new catalog-based logic || `src/services/pricing.service.js` | Core pricing calculation engine || [`src/routes/pricing.routes.js`](src/routes/pricing.routes.js) | Add new endpoints || `scripts/seed-pricing-catalog.js` | Seed script with all pricing data |
 
 ### New API Endpoints
 
-| Method | Endpoint | Description |
-
-|--------|----------|-------------|
-
-| GET | `/api/pricing/catalog` | Get full pricing catalog (categories + items) |
-
-| GET | `/api/pricing/catalog?mode=wedding` | Get wedding-specific catalog |
-
-| GET | `/api/pricing/discounts` | Get discount tier table |
-
-| POST | `/api/pricing/calculate` | Calculate quote from selected items |
-
-| POST | `/api/pricing/quotes` | Save a quote to database |
-
-| GET | `/api/pricing/quotes/:id` | Retrieve saved quote |
+| Method | Endpoint | Description ||--------|----------|-------------|| GET | `/api/pricing/catalog` | Get full pricing catalog (categories + items) || GET | `/api/pricing/catalog?mode=wedding` | Get wedding-specific catalog || GET | `/api/pricing/discounts` | Get discount tier table || POST | `/api/pricing/calculate` | Calculate quote from selected items || POST | `/api/pricing/quotes` | Save a quote to database || GET | `/api/pricing/quotes/:id` | Retrieve saved quote |
 
 ### Calculation Logic
 
@@ -206,19 +160,7 @@ erDiagram
 
 ### Files to Create/Modify
 
-| File | Purpose |
-
-|------|---------|
-
-| `lib/redux/slices/pricingSlice.ts` | Redux state for pricing catalog and quote |
-
-| `components/book-a-shoot/QuoteBuilder.tsx` | Main interactive quote builder |
-
-| `components/book-a-shoot/CategorySection.tsx` | Collapsible category with items |
-
-| `components/book-a-shoot/PricingSummary.tsx` | Live pricing breakdown |
-
-| `lib/api/pricing.ts` | API client for pricing endpoints |
+| File | Purpose ||------|---------|| `lib/redux/slices/pricingSlice.ts` | Redux state for pricing catalog and quote || `components/book-a-shoot/QuoteBuilder.tsx` | Main interactive quote builder || `components/book-a-shoot/CategorySection.tsx` | Collapsible category with items || `components/book-a-shoot/PricingSummary.tsx` | Live pricing breakdown || `lib/api/pricing.ts` | API client for pricing endpoints |
 
 ### Quote Builder UI Flow
 
@@ -285,4 +227,3 @@ The seed script will populate all ~90 pricing items from your spreadsheet, organ
 - **Livestream** (4 items): iPhone and 4K options
 - **Post-Production** (5 items): Same-day, Next-day, Expedited editing, Revisions, Album
 - **Studios** (4 items): Green screen, Backdrop, Studio reservations
-- **Scripting** (3 items): By duration

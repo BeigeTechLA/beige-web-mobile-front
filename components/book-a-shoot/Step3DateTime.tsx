@@ -80,6 +80,23 @@ const datePickerColours = {
   tabIconSelected: "#E8D1AB",
 }
 
+const darkThemeColors = {
+  inputBg: "#101010",
+  inputBorder: "#ffffff4d",
+  inputBorderHover: "##99FFFFFF",
+  labelText: "#ffffff99",
+  primaryText: "#FFFFFF",
+  secondaryText: "#ffffff99",
+  paperBg: "#1A1A1A",
+  divider: "#ffffff1a",
+  accent: "#E8D1AB",
+  accentHover: "#dcb98a",
+  buttonPrimaryText: "#1A1A1A",
+  buttonSecondaryText: "#fff",
+  buttonSecondaryBg: "#ffffff4d",
+  buttonSecondaryBgHover: "#ffffff4d",
+};
+
 export const Step3DateTime = ({ data, updateData, onNext }: Props) => {
   const handleNext = () => {
     // Validate Step 4 fields
@@ -129,8 +146,7 @@ export const Step3DateTime = ({ data, updateData, onNext }: Props) => {
           <p className="text-xs lg:text-sm text-[#939393]">Let us know your preferred schedule and location.</p>
         </div>
 
-        <div className="flex flex-col gap-9 p-8 md:p-[50px]">
-
+        <div className="flex flex-col gap-9 p-8 lg:p-0">
           <div className="flex flex-col lg:flex-row gap-6 w-full">
             <DateTimePicker
               label="Start Date & Time"
@@ -160,6 +176,7 @@ export const Step3DateTime = ({ data, updateData, onNext }: Props) => {
               }}
               minDateTime={new Date(data.startDate)}
               validate={(date) => validateEndDateTime(date, data.startDate)}
+              colors={datePickerColours}
             />
           </div>
 
@@ -168,6 +185,7 @@ export const Step3DateTime = ({ data, updateData, onNext }: Props) => {
             value={data.location}
             onChange={(address) => updateData({ location: address })}
             placeholder="Click to select location on map"
+            colors={darkThemeColors}
           />
 
           {/* STUDIO TOGGLE */}

@@ -1,11 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { useDispatch } from "react-redux";
-import { useAppSelector } from "@/lib/redux/hooks";
+import React from "react";
+import { useRouter } from "next/navigation";
 import { Button, ButtonProps } from "@mui/material";
-import type { RootState } from "@/lib/redux/store";
-import BookingModal from "./Modal/BookingModal";
 
 // Placeholder for DefaultButton - create this component or use MUI Button
 const DefaultButton = Button;
@@ -47,15 +44,10 @@ const BookingModalButton: React.FC<BookingModalButtonProps> = ({
   disabled = false,
   fullWidth = false,
 }) => {
-  const dispatch = useDispatch();
-  const [localModalOpen, setLocalModalOpen] = useState(false);
+  const router = useRouter();
 
-  const handleOpenModal = () => {
-    setLocalModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setLocalModalOpen(false);
+  const handleNavigate = () => {
+    router.push('/book-a-shoot');
   };
 
   const renderButton = () => {
@@ -65,7 +57,7 @@ const BookingModalButton: React.FC<BookingModalButtonProps> = ({
           variant={muiVariant}
           color={muiColor}
           size={muiSize}
-          onClick={handleOpenModal}
+          onClick={handleNavigate}
           disabled={disabled}
           fullWidth={fullWidth}
           sx={sx}
@@ -84,7 +76,7 @@ const BookingModalButton: React.FC<BookingModalButtonProps> = ({
         fontSize={fontSize}
         size={size}
         width={width}
-        onClick={handleOpenModal}
+        onClick={handleNavigate}
         disabled={disabled}
         className={className}
       >
@@ -93,15 +85,7 @@ const BookingModalButton: React.FC<BookingModalButtonProps> = ({
     );
   };
 
-  return (
-    <>
-      {renderButton()}
-      <BookingModal
-        open={localModalOpen}
-        onClose={handleCloseModal}
-      />
-    </>
-  );
+  return renderButton();
 };
 
 export default BookingModalButton;

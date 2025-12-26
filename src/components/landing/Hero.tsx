@@ -2,13 +2,13 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { Button } from "@/src/components/landing/ui/button";
-import { BookingModal } from "@/src/components/booking/v2/BookingModal";
 
 export const Hero = () => {
   const heroRef = useRef<HTMLElement | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const router = useRouter();
   const videoFileName = "Hero video.mp4";
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export const Hero = () => {
               className="flex gap-6"
             >
               <Button
-                onClick={() => setIsBookingOpen(true)}
+                onClick={() => router.push('/book-a-shoot')}
                 className="h-7 lg:h-12 px-5 lg:px-8 rounded-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-[#2A2A2A] text-xs lg:text-lg"
               >
                 Book a Shoot
@@ -129,11 +129,6 @@ export const Hero = () => {
           with our AI-powered platform.
         </motion.p>
       </section>
-
-      <BookingModal
-        isOpen={isBookingOpen}
-        onClose={() => setIsBookingOpen(false)}
-      />
     </>
   );
 };

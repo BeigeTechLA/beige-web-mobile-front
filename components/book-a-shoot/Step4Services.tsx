@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { ArrowRight } from 'lucide-react';
+import { useSelector } from 'react-redux';
 import { QuoteBuilder } from './QuoteBuilder';
 import type { BookingData } from '@/app/book-a-shoot/page';
 import type { SelectedItem } from '@/lib/api/pricing';
+import { selectQuote, selectSelectedItems } from '@/lib/redux/features/pricing/pricingSlice';
 
 interface Step4ServicesProps {
   data: BookingData;
@@ -14,35 +16,49 @@ interface Step4ServicesProps {
 }
 
 export function Step4Services({ data, updateData, onNext, onBack }: Step4ServicesProps) {
-  const [isValid, setIsValid] = useState(false);
-  const [quoteTotal, setQuoteTotal] = useState(0);
-  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
+  // Get quote state from Redux
+  const reduxQuote = useSelector(selectQuote);
+  const reduxSelectedItems = useSelector(selectSelectedItems);
+  
+  const [localQuoteTotal, setLocalQuoteTotal] = useState(0);
+  const [localSelectedItems, setLocalSelectedItems] = useState<SelectedItem[]>([]);
+
+  // Determine validity - either from local state or redux
+  const isValid = useMemo(() => {
+    return (reduxSelectedItems.length > 0) || (localSelectedItems.length > 0);
+  }, [reduxSelectedItems, localSelectedItems]);
+
+  const quoteTotal = reduxQuote?.total || localQuoteTotal;
+  const displayItems = reduxSelectedItems.length > 0 ? reduxSelectedItems : localSelectedItems;
 
   // Handle quote changes from the QuoteBuilder
   const handleQuoteChange = useCallback((quoteData: { total: number; items: SelectedItem[] } | null) => {
     if (quoteData) {
-      setQuoteTotal(quoteData.total);
-      setSelectedItems(quoteData.items);
-      setIsValid(quoteData.items.length > 0);
+      setLocalQuoteTotal(quoteData.total);
+      setLocalSelectedItems(quoteData.items);
       
       // Store in booking data
       updateData({
-        addons: quoteData.items.reduce((acc, item) => {
-          acc[String(item.item_id)] = item.quantity;
-          return acc;
-        }, {} as Record<string, number>),
-        budgetMin: quoteData.total,
-        budgetMax: quoteData.total,
+        selectedServices: quoteData.items,
+        quoteTotal: quoteData.total,
       });
     } else {
-      setQuoteTotal(0);
-      setSelectedItems([]);
-      setIsValid(false);
+      setLocalQuoteTotal(0);
+      setLocalSelectedItems([]);
     }
   }, [updateData]);
 
-  // Derive shoot hours from date/time if available
-  const shootHours = data.studioTimeDuration || 3;
+  // Calculate shoot hours from start/end dates or fallback
+  const shootHours = useMemo(() => {
+    if (data.startDate && data.endDate) {
+      const start = new Date(data.startDate);
+      const end = new Date(data.endDate);
+      const diffMs = end.getTime() - start.getTime();
+      const hours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+      return hours;
+    }
+    return data.studioTimeDuration || 3;
+  }, [data.startDate, data.endDate, data.studioTimeDuration]);
 
   return (
     <div className="w-full py-8">
@@ -58,7 +74,7 @@ export function Step4Services({ data, updateData, onNext, onBack }: Step4Service
       </div>
 
       {/* Quote Builder */}
-      <div className="bg-white rounded-xl overflow-hidden">
+      <div className="bg-[#171717] rounded-xl overflow-hidden border border-white/10">
         <QuoteBuilder
           eventType={data.shootType}
           initialHours={shootHours}
@@ -81,9 +97,9 @@ export function Step4Services({ data, updateData, onNext, onBack }: Step4Service
           onClick={onNext}
           disabled={!isValid}
           className={`
-            flex items-center gap-2 px-8 py-3 rounded-lg font-semibold transition-all
+            flex items-center gap-2 px-8 py-3 lg:py-4 rounded-[12px] font-bold text-base lg:text-xl transition-all
             ${isValid
-              ? 'bg-[#C9A227] text-white hover:bg-[#B08D1F]'
+              ? 'bg-[#E8D1AB] text-black hover:bg-[#dcb98a]'
               : 'bg-white/20 text-white/50 cursor-not-allowed'
             }
           `}
@@ -94,12 +110,12 @@ export function Step4Services({ data, updateData, onNext, onBack }: Step4Service
       </div>
 
       {/* Selected Summary */}
-      {selectedItems.length > 0 && (
+      {displayItems.length > 0 && (
         <div className="mt-6 p-4 bg-white/10 rounded-lg">
           <p className="text-sm text-white/70">
-            You&apos;ve selected {selectedItems.length} service{selectedItems.length !== 1 ? 's' : ''} 
+            You&apos;ve selected {displayItems.length} service{displayItems.length !== 1 ? 's' : ''} 
             for an estimated total of{' '}
-            <span className="text-[#C9A227] font-bold">${quoteTotal.toFixed(2)}</span>
+            <span className="text-[#E8D1AB] font-bold">${quoteTotal.toFixed(2)}</span>
           </p>
         </div>
       )}

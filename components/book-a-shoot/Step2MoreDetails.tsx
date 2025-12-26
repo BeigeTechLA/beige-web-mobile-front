@@ -1,12 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "@/app/book-a-shoot/page";
 import { toast } from "sonner";
-import { AddOns } from "./AddOns";
-
-import { Addon, weddingEquipmentAddOns, weddingEditingPostProductionAddOns, weddingArtistAddOns, crewAndLaborAddOns, equipmentAddOns, artistAddOns, scriptingAddOns, editingPostProductionAddOns, studioAndBackgroundAddOns, liveStreamAddons } from "@/app/data/shootData";
 
 interface Props {
   data: BookingData;
@@ -16,12 +13,6 @@ interface Props {
 }
 
 export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
-  console.log(data);
-
-  const handleAddonUpdate = (newAddons: Record<string, number>) => {
-    updateData({ addons: newAddons });
-  };
-
   const handleNext = () => {
     if (!data.shootName) {
       toast.error("Input Required", { description: "Please enter a shoot name." });
@@ -47,34 +38,6 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
       updateData({
         budgetMax: Math.max(clickedValue, data.budgetMin + 500),
       });
-    }
-  };
-
-  const renderAddonGroups = () => {
-    if (data.wantsAddons === "no") return null;
-
-    if (data.wantsAddons === "yes") {
-      if (data.shootType === "wedding") {
-        return (
-          <>
-            <AddOns title="Wedding Equipment" items={weddingEquipmentAddOns} value={data.addons || {}} onChange={handleAddonUpdate} />
-            <AddOns title="Wedding Editing & Post" items={weddingEditingPostProductionAddOns} value={data.addons || {}} onChange={handleAddonUpdate} />
-            <AddOns title="Wedding Artists" items={weddingArtistAddOns} value={data.addons || {}} onChange={handleAddonUpdate} />
-          </>
-        );
-      } else {
-        return (
-          <>
-            <AddOns title="Crew & Labor" items={crewAndLaborAddOns} value={data.addons || {}} onChange={handleAddonUpdate} />
-            <AddOns title="Equipment" items={equipmentAddOns} value={data.addons || {}} onChange={handleAddonUpdate} />
-            <AddOns title="Artists" items={artistAddOns} value={data.addons || {}} onChange={handleAddonUpdate} />
-            <AddOns title="Scripting" items={scriptingAddOns} value={data.addons || {}} onChange={handleAddonUpdate} />
-            <AddOns title="Editing & Post Production" items={editingPostProductionAddOns} value={data.addons || {}} onChange={handleAddonUpdate} />
-            <AddOns title="Studio & Background" items={studioAndBackgroundAddOns} value={data.addons || {}} onChange={handleAddonUpdate} />
-            <AddOns title="Live Stream" items={liveStreamAddons} value={data.addons || {}} onChange={handleAddonUpdate} />
-          </>
-        );
-      }
     }
   };
 
@@ -215,37 +178,23 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
           </div>
         </div>
 
-        <hr className="border-white/10 my-4" />
-
-        <div className="flex flex-col gap-6 lg:gap-10">
-          <h2 className="text-lg lg:text-[28px] font-bold text-white">Do you want the Add on?</h2>
-
-          <div className="flex gap-3 lg:gap-6">
-            {[
-              { value: "yes", label: "Yes" },
-              { value: "no", label: "No" },
-            ].map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => updateData({ wantsAddons: item.value as "yes" | "no" })}
-                className={`h-14 lg:h-[82px] lg:w-[140px] rounded-2xl border px-2 lg:px-4 flex items-center justify-between transition-all ${data.wantsAddons === item.value
-                  ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
-                  : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                  }`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">{item.label}</span>
-                <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.wantsAddons === item.value ? "bg-black" : "border border-[#E5E5E5]"
-                  }`}>
-                  {data.wantsAddons === item.value && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Render grouped components based on Shoot Type */}
-          <div className="flex flex-col gap-8 mt-4">
-            {renderAddonGroups()}
+        {/* Info box about services step */}
+        <div className="p-4 lg:p-6 bg-[#1A1A1A] border border-white/10 rounded-[12px]">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-[#E8D1AB]/20 rounded-full flex items-center justify-center shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8D1AB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+            </div>
+            <div>
+              <h4 className="text-white font-medium text-base lg:text-lg mb-1">Services & Add-ons</h4>
+              <p className="text-white/60 text-sm lg:text-base">
+                You&apos;ll be able to select specific services, equipment, and add-ons with live pricing in the next steps. 
+                Our dynamic pricing automatically applies discounts based on your shoot duration.
+              </p>
+            </div>
           </div>
         </div>
       </div>

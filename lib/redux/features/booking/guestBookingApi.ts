@@ -26,6 +26,8 @@ export interface GuestBookingData {
   skills_needed?: string;
   equipments_needed?: string;
   is_draft?: boolean;
+  // Pricing quote reference
+  quote_id?: number;
 }
 
 export interface LocationObject {
@@ -52,7 +54,9 @@ export interface GuestBookingResponse {
   skills_needed?: string | null;
   equipments_needed?: string | null;
   is_draft: boolean;
-  created_at: any;
+  created_at: string;
+  // Pricing quote reference
+  quote_id?: number | null;
 }
 
 export const guestBookingApi = createApi({

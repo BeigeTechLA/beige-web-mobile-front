@@ -13,6 +13,7 @@ export interface DateTimePickerColors {
   inputBorder: string;
   inputBorderHover: string;
   inputBorderFocus: string;
+  inputDisabled: string;
   labelText: string;
   iconColor: string;
   accent: string;
@@ -36,31 +37,45 @@ export interface DateTimePickerColors {
 }
 
 const defaultColors: DateTimePickerColors = {
-  inputBackground: "#101010",
-  inputText: "#FFFFFF",
-  inputBorder: "#ffffff4d",
-  inputBorderHover: "#E8D1AB",
-  inputBorderFocus: "#E8D1AB",
-  labelText: "#ffffff99",
-  iconColor: "#E8D1AB",
+  /* Input */
+  inputBackground: "#FAFAFA",
+  inputText: "#101010",
+  inputBorder: "#10101033",
+  inputBorderHover: "#10101099",
+  inputBorderFocus: "#10101099",
+  labelText: "#10101099",
+  iconColor: "#101010",
+  inputDisabled: "#10101099",
+
+  /* Accent */
   accent: "#E8D1AB",
   accentText: "#101010",
   hoverAccent: "#E8D1AB",
-  paperBackground: "#101010",
-  toolbarText: "#FFFFFF",
-  mutedText: "#ffffff99",
-  calendarHeaderText: "#FFFFFF",
-  weekdayLabelText: "#ffffff99",
-  dayNumberText: "#FFFFFF",
-  navigationIconColor: "#E8D1AB",
-  clockNumberColor: "#FFFFFF",
+
+  /* Calendar / Paper */
+  paperBackground: "#FFFFFF",
+  toolbarText: "#101010",
+  mutedText: "#10101099",
+
+  /* Calendar text */
+  calendarHeaderText: "#101010",
+  weekdayLabelText: "#10101099",
+  dayNumberText: "#101010",
+  navigationIconColor: "#101010",
+  clockNumberColor: "#101010",
+
+  /* Desktop */
   desktopTimeAccent: "#E8D1AB",
+  desktopCalendarText: "#101010",
+
+  /* Mobile */
+  mobileCalendarBackground: "#FFFFFF",
   mobileSelectedText: "#101010",
-  selectedHeaderDateTime: "#E8D1AB",
-  tabIconColor: "#ffffff99",
+
+  /* Selected / Tabs */
+  selectedHeaderDateTime: "#101010B3", // 70% opacity
+  tabIconColor: "#10101099",
   tabIconSelected: "#E8D1AB",
-  mobileCalendarBackground: "#101010",
-  desktopCalendarText: "#FFFFFF",
 };
 
 interface Props {
@@ -174,6 +189,10 @@ export const DateTimePicker: React.FC<Props> = ({
             InputLabelProps: { shrink: true },
             sx: {
               cursor: "pointer",
+              "& .MuiInputBase-input.Mui-disabled": {
+                color: `${colors.inputDisabled} !important`,
+                WebkitTextFillColor: colors.inputDisabled,
+              },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "12px",
                 backgroundColor: colors.inputBackground,
@@ -181,8 +200,8 @@ export const DateTimePicker: React.FC<Props> = ({
                 paddingLeft: "12px",
                 fontSize: { xs: "14px", md: "16px" },
                 color: colors.inputText,
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: colors.inputBorder },
-                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: colors.inputBorderHover },
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: colors.inputBorder, borderWidth: 0.5 },
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: colors.inputBorderHover, borderWidth: 0.5 },
                 "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                   borderColor: `${colors.inputBorderFocus} !important`,
                 },
