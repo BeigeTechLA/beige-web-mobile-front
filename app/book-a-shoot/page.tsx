@@ -185,6 +185,15 @@ export default function BookAShootPage() {
       const bookingResult = await createGuestBooking(bookingData).unwrap();
 
       console.log("Booking created:", bookingResult);
+      console.log("🔍 DEBUG: Form data for search:", {
+        contentType: formData.contentType,
+        shootType: formData.shootType,
+        location: formData.location,
+        budgetMin: formData.budgetMin,
+        budgetMax: formData.budgetMax,
+        quoteTotal: quote?.total,
+      });
+
       toast.success("Booking Created!", {
         description: "We're now finding the best creators for your project.",
       });
@@ -192,10 +201,14 @@ export default function BookAShootPage() {
       // Step 3: Navigate to search results with booking context
       const searchParams = new URLSearchParams({
         booking_id: String(bookingResult.booking_id),
-        shoot_type: formData.shootType,
+        content_types: formData.contentType.join(","), // FIX: Pass role types for filtering
         location: formData.location || "",
-        budget: String(quote?.total || formData.budgetMax),
+        min_budget: String(formData.budgetMin || 0),
+        max_budget: String(quote?.total || formData.budgetMax),
       });
+
+      console.log("🔍 DEBUG: Search URL params:", searchParams.toString());
+      console.log("🔍 DEBUG: Full search URL:", `/search-results?${searchParams.toString()}`);
 
       setTimeout(() => {
         router.push(`/search-results?${searchParams.toString()}`);

@@ -55,6 +55,18 @@ function SearchResultsContent() {
   const content_type = searchParams.get("content_type") ? Number(searchParams.get("content_type")) : undefined;
   const content_types = searchParams.get("content_types") || undefined;
 
+  console.log("🔍 DEBUG: Search params extracted from URL:", {
+    booking_id: shootId,
+    budget,
+    min_budget,
+    max_budget,
+    location,
+    maxDistance,
+    skills,
+    content_type,
+    content_types,
+  });
+
   // Fetch creators from backend API with all new parameters
   const { data, isLoading, error } = useSearchCreatorsQuery({
     // Budget filters (new: min/max range support)
@@ -76,6 +88,13 @@ function SearchResultsContent() {
     // Pagination
     page: 1,
     limit: 20,
+  });
+
+  console.log("🔍 DEBUG: Search API response:", {
+    isLoading,
+    error: error ? String(error) : null,
+    dataCount: data?.data?.length || 0,
+    data: data?.data || [],
   });
 
   // Transform and split creators into sections
