@@ -11,7 +11,7 @@ import { StepProgressTracker } from "@/components/book-a-shoot/StepProgressTrack
 import { Step1ProjectDetails } from "@/components/book-a-shoot/Step1ProjectDetails";
 import { Step2MoreDetails } from "@/components/book-a-shoot/Step2MoreDetails";
 import { Step3DateTime } from "@/components/book-a-shoot/Step3DateTime";
-// import Step4Review from "@/components/book-a-shoot/Step4Review";
+import { Step4Review } from "@/components/book-a-shoot/Step4Review";
 
 import { ArrowLeft } from "lucide-react";
 
@@ -106,19 +106,20 @@ export default function InvestorPage() {
       case 3:
         return <Step3DateTime {...props} />;
       case 4:
-        return <div className="text-white">Step 4 Component Here</div>;
-      // return <Step4Review {...props} />;
+        // return <div className="text-white">Step 4 Component Here</div>;
+        return <Step4Review {...props} />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="bg-[#101010] min-h-screen text-white selection:bg-[#ECE1CE] selection:text-black">
+    <>
       {isSearching ? (
         <Step6Loading />
       ) : (
-        <>
+        <div className="bg-[#101010] min-h-screen text-white selection:bg-[#ECE1CE] selection:text-black">
+
           <Navbar />
           <main className="relative pt-24 lg:pt-44 pb-16 min-h-screen flex flex-col items-center">
             <div className="w-full container z-20 px-4 md:px-6">
@@ -141,9 +142,9 @@ export default function InvestorPage() {
               </div>
             </div>
           </main>
-        </>
+          <Footer />
+        </div>
       )}
-      <Footer />
-    </div>
+    </>
   )
 }
