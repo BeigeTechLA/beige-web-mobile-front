@@ -50,7 +50,7 @@ const HeroSection = ({ matchedCreators, shootId }: HeroSectionProps) => {
           animate={{ opacity: 1, y: 0 }}
         >
           <h2 className="text-lg lg:text-[64px] lg:leading-[76px] font-bold text-gradient-white mb-5">
-            Here is Your Top Matched <br /> Creative Producer
+            You've Matched  With Your <br />Beige Creative Partner
           </h2>
           <p className="text-xs lg:text-base text-white/70 mx-auto">
             Here are the matches based on your preferences. Select the best fit for your project.

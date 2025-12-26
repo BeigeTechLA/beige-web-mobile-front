@@ -160,6 +160,7 @@ export const Step3DateTime = ({ data, updateData, onNext }: Props) => {
               }}
               minDateTime={new Date(data.startDate)}
               validate={(date) => validateEndDateTime(date, data.startDate)}
+              colors={datePickerColours}
             />
           </div>
 
