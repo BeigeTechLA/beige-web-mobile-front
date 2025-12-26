@@ -13,8 +13,7 @@ import { StepProgressTracker } from "@/components/book-a-shoot/StepProgressTrack
 import { Step1ProjectDetails } from "@/components/book-a-shoot/Step1ProjectDetails";
 import { Step2MoreDetails } from "@/components/book-a-shoot/Step2MoreDetails";
 import { Step3DateTime } from "@/components/book-a-shoot/Step3DateTime";
-import { Step4Services } from "@/components/book-a-shoot/Step4Services";
-import { Step5Review } from "@/components/book-a-shoot/Step5Review";
+import { Step4Review } from "@/components/book-a-shoot/Step4Review";
 
 import { ArrowLeft } from "lucide-react";
 import { useCreateGuestBookingMutation } from "@/lib/redux/features/booking/guestBookingApi";
@@ -30,7 +29,6 @@ const MY_STEPS = [
   { label: "Project Details" },
   { label: "More Details" },
   { label: "Date & Time" },
-  { label: "Services" },
   { label: "Review & Match" },
 ];
 
@@ -58,7 +56,7 @@ export type BookingData = {
   needStudio: boolean;
   studio: string;
   studioTimeDuration: number;
-  // Legacy addons - will use API pricing
+  // Add-ons
   wantsAddons: "yes" | "no" | null;
   addons: Record<string, number>;
 };
@@ -84,7 +82,7 @@ const initialData: BookingData = {
   location: "",
   needStudio: false,
   studio: "",
-  studioTimeDuration: 0,
+  studioTimeDuration: 3,
   wantsAddons: null,
   addons: {},
 };
@@ -119,7 +117,8 @@ export default function BookAShootPage() {
 
   // Calculate duration in hours from start and end dates
   const calculateDurationHours = (): number => {
-    if (!formData.startDate || !formData.endDate) return shootHours || 3;
+    if (!formData.startDate || !formData.endDate)
+      return formData.studioTimeDuration || shootHours || 3;
     const start = new Date(formData.startDate);
     const end = new Date(formData.endDate);
     const diffMs = end.getTime() - start.getTime();
@@ -156,7 +155,6 @@ export default function BookAShootPage() {
           console.log("Quote saved:", savedQuoteId);
         } catch (quoteError) {
           console.error("Failed to save quote:", quoteError);
-          // Continue anyway - booking can proceed without quote
         }
       }
 
@@ -181,6 +179,7 @@ export default function BookAShootPage() {
         equipments_needed:
           selectedItems.length > 0 ? JSON.stringify(selectedItems) : undefined,
         is_draft: false,
+        quote_id: savedQuoteId || undefined,
       };
 
       const bookingResult = await createGuestBooking(bookingData).unwrap();
@@ -198,7 +197,6 @@ export default function BookAShootPage() {
         budget: String(quote?.total || formData.budgetMax),
       });
 
-      // Short delay to show the loading animation then navigate
       setTimeout(() => {
         router.push(`/search-results?${searchParams.toString()}`);
       }, 2000);
@@ -229,10 +227,8 @@ export default function BookAShootPage() {
       case 3:
         return <Step3DateTime {...props} />;
       case 4:
-        return <Step4Services {...props} />;
-      case 5:
         return (
-          <Step5Review
+          <Step4Review
             {...props}
             isSubmitting={isCreatingBooking || isSavingQuote}
           />
@@ -253,7 +249,7 @@ export default function BookAShootPage() {
             <div className="w-full container z-20 px-4 md:px-6">
               <button
                 onClick={activeStep === 1 ? backHome : prevStep}
-                className={`flex items-center text-sm lg:text-lg transition-colors text-white/70 hover:text-white`}
+                className="flex items-center text-sm lg:text-lg transition-colors text-white/70 hover:text-white"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
