@@ -15,6 +15,7 @@ interface Creator {
   rating: number;
   reviews: number;
   image: string;
+  hourlyRate?: number;
   isTopMatch?: boolean;
 }
 

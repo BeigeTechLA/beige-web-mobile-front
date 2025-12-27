@@ -3,11 +3,12 @@
 import React, { useState, Suspense, useRef } from "react";
 import { useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
+import { useSelector, useDispatch } from "react-redux";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Check, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -24,19 +25,53 @@ import {
   useGetCreatorPortfolioQuery,
   useSearchCreatorsQuery
 } from "@/lib/redux/features/creators/creatorsApi";
+import {
+  selectSelectedCreatorIds,
+  selectCanAddMoreCreators,
+  selectIsCrewComplete,
+  selectCrewSize,
+  selectSelectedCreatorsCount,
+  addCreator,
+  removeCreator,
+  SelectedCreator,
+} from "@/lib/redux/features/booking/bookingSlice";
 import "swiper/css";
 
 const tabs = ["Portfolios"];  //"Work History", "FAQs", "Reviews"
 
+// DummyImage List: To be removed later
+const crewImages = [
+  "/images/crew/CREW(1).png",
+  "/images/crew/CREW(2).png",
+  "/images/crew/CREW(3).png",
+  "/images/crew/CREW(4).png",
+  "/images/crew/CREW(5).png",
+  "/images/crew/CREW(7).png",
+  "/images/crew/CREW(6).png",
+  "/images/crew/CREW(8).png",
+  "/images/crew/CREW(9).png",
+  "/images/crew/CREW(10).png",
+];
+
 function CreatorProfileContent() {
+  const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState("Portfolios");
   const searchParams = useSearchParams();
   const params = useParams();
-  const shootId = searchParams.get("shootId") ?? undefined;
+  const shootId = searchParams.get("shootId") ?? searchParams.get("booking_id") ?? undefined;
+
+  // Redux selectors for crew management
+  const selectedCreatorIds = useSelector(selectSelectedCreatorIds);
+  const canAddMore = useSelector(selectCanAddMoreCreators);
+  const isCrewComplete = useSelector(selectIsCrewComplete);
+  const crewSize = useSelector(selectCrewSize);
+  const selectedCount = useSelector(selectSelectedCreatorsCount);
 
   // Extract and parse creatorId from URL params
   const creatorId = params.creatorId as string;
   const creatorIdNumber = Number(creatorId);
+
+  const isSelected = selectedCreatorIds.includes(creatorId);
 
   // Fetch creator profile data
   const {
@@ -63,6 +98,31 @@ function CreatorProfileContent() {
   });
 
   const swiperRef = useRef<SwiperType | null>(null);
+
+  // Get fallback image
+  const getFallbackImage = (id: string) => {
+    return crewImages[parseInt(id) % 10];
+  };
+
+  const handleAddToCrew = () => {
+    if (!profile) return;
+
+    const profileImage = profile.profile_image || getFallbackImage(creatorId);
+
+    const creator: SelectedCreator = {
+      id: creatorId,
+      name: profile.name,
+      role: profile.role_name || "Content Creator",
+      image: profileImage,
+      hourlyRate: profile.hourly_rate || 0,
+    };
+
+    dispatch(addCreator(creator));
+  };
+
+  const handleRemoveFromCrew = () => {
+    dispatch(removeCreator(creatorId));
+  };
 
   // Loading state
   if (isLoadingProfile || isLoadingPortfolio) {
@@ -106,7 +166,7 @@ function CreatorProfileContent() {
     id: creator.crew_member_id.toString(),
     name: creator.name,
     role: creator.role_name || "Content Creator",
-    price: creator.hourly_rate ? `From $${creator.hourly_rate}/Hr` : "Contact for pricing",
+    hourlyRate: creator.hourly_rate || 0,
     rating: creator.rating || 0,
     reviews: creator.total_reviews || 0,
     image: creator.profile_image || '/images/influencer/default.png',
@@ -151,11 +211,19 @@ function CreatorProfileContent() {
                     {profile.role_name || "Content Creator"}
                   </p>
                 </div>
-                {profile.is_available && (
-                  <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50] lg:leading-[20px]">
-                    Available
-                  </p>
-                )}
+                <div className="flex items-center gap-2">
+                  {isSelected && (
+                    <div className="flex items-center gap-1 bg-green-500/90 px-3 py-2 rounded-full">
+                      <Check className="w-4 h-4 text-white" />
+                      <span className="text-sm text-white font-medium">In Crew</span>
+                    </div>
+                  )}
+                  {profile.is_available && (
+                    <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50] lg:leading-[20px]">
+                      Available
+                    </p>
+                  )}
+                </div>
               </div>
               <Separator />
 
@@ -218,28 +286,65 @@ function CreatorProfileContent() {
                 </>
               )}
 
-              {/* Action Bar */}
-              <div className="bg-[#171717] rounded-xl lg:rounded-[20px] p-4 lg:p-7 flex flex-col gap-7 mt-2.5">
+              {/* Action Bar - Crew Selection */}
+              <div className="bg-[#171717] rounded-xl lg:rounded-[20px] p-4 lg:p-7 flex flex-col gap-5 mt-2.5">
+                {/* Crew Status */}
                 <div className="flex justify-between items-center">
                   <div className="flex flex-col gap-1">
-                    <p className="text-white text-lg lg:text-2xl font-semibold">
-                      Starting Price
+                    <p className="text-white text-lg lg:text-xl font-semibold">
+                      Your Crew
                     </p>
-                    <span className="text-white text-xs lg:text-sm">for 1 hour</span>
+                    <span className="text-white/60 text-sm">
+                      {selectedCount} of {crewSize} selected
+                    </span>
                   </div>
 
-                  <span className="text-xl lg:text-3xl font-bold text-white">
-                    {profile.price ? `$${profile.price}` : "Contact"}
-                  </span>
+                  {isCrewComplete && (
+                    <div className="flex items-center gap-1 text-green-400 text-sm font-medium">
+                      <Check className="w-4 h-4" />
+                      Complete
+                    </div>
+                  )}
                 </div>
-                <Link
-                  href={`/search-results/${creatorId}/payment${shootId ? `?shootId=${shootId}` : ""}`}
-                  className="w-full md:w-auto"
-                >
-                  <Button className="w-full h-12 lg:h-[71px] px-5 lg:px-10 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium rounded-[12px]">
-                    Proceed to Payment
+
+                {/* Add/Remove Button */}
+                {isSelected ? (
+                  <Button
+                    onClick={handleRemoveFromCrew}
+                    className="w-full h-12 lg:h-[60px] px-5 lg:px-10 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-base lg:text-xl font-medium rounded-[12px]"
+                  >
+                    <X className="w-5 h-5 mr-2" />
+                    Remove from Crew
                   </Button>
-                </Link>
+                ) : canAddMore ? (
+                  <Button
+                    onClick={handleAddToCrew}
+                    className="w-full h-12 lg:h-[60px] px-5 lg:px-10 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-xl font-medium rounded-[12px]"
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Add to Crew
+                  </Button>
+                ) : (
+                  <Button
+                    disabled
+                    className="w-full h-12 lg:h-[60px] px-5 lg:px-10 bg-white/10 text-white/40 text-base lg:text-xl font-medium rounded-[12px] cursor-not-allowed"
+                  >
+                    Crew is Full
+                  </Button>
+                )}
+
+                {/* Proceed to Payment (only when crew is complete) */}
+                {isCrewComplete && (
+                  <Link
+                    href={`/search-results/payment${shootId ? `?shootId=${shootId}` : ""}`}
+                    className="w-full"
+                  >
+                    <Button className="w-full h-12 lg:h-[60px] px-5 lg:px-10 bg-green-500 hover:bg-green-600 text-white text-base lg:text-xl font-medium rounded-[12px]">
+                      Proceed to Payment
+                      <ChevronRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           </div>

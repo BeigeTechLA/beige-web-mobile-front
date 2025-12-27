@@ -1,7 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
-import { Star } from "lucide-react";
+import { Star, Plus, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  selectSelectedCreatorIds,
+  selectCanAddMoreCreators,
+  addCreator,
+  removeCreator,
+  SelectedCreator,
+} from "@/lib/redux/features/booking/bookingSlice";
 
 // DummyImage List: To be removed later
 const crewImages = [
@@ -14,8 +24,8 @@ const crewImages = [
   "/images/crew/CREW(6).png",
   "/images/crew/CREW(8).png",
   "/images/crew/CREW(9).png",
-  "/images/crew/CREW(10).png"
-]
+  "/images/crew/CREW(10).png",
+];
 
 interface MatchedCreatorCardProps {
   name: string;
@@ -23,12 +33,13 @@ interface MatchedCreatorCardProps {
   rating: number;
   reviews: number;
   image: string;
+  hourlyRate?: number;
   isTopMatch?: boolean;
   shootId?: string;
   creatorId: string;
   isActive?: boolean;
-  matchScore?: number; // New: skill match score
-  matchingSkills?: string[]; // New: which skills matched
+  matchScore?: number;
+  matchingSkills?: string[];
 }
 
 const MatchedCreatorCard = ({
@@ -37,25 +48,56 @@ const MatchedCreatorCard = ({
   rating,
   reviews,
   image,
+  hourlyRate = 0,
   isTopMatch = false,
   shootId,
   creatorId,
   matchScore,
   matchingSkills,
 }: MatchedCreatorCardProps) => {
-  // Temporary code until images are avilable
+  const dispatch = useDispatch();
+  const selectedCreatorIds = useSelector(selectSelectedCreatorIds);
+  const canAddMore = useSelector(selectCanAddMoreCreators);
+
+  const isSelected = selectedCreatorIds.includes(creatorId);
+
+  // Temporary code until images are available
   const isInvalidImage =
     !image ||
     image.trim().length === 0 ||
     image === "/images/influencer/default.png";
 
   const fallbackImage = isInvalidImage
-    ? crewImages[parseInt(creatorId)%10]
+    ? crewImages[parseInt(creatorId) % 10]
     : image;
+
+  const handleAddToCrew = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const creator: SelectedCreator = {
+      id: creatorId,
+      name,
+      role,
+      image: fallbackImage,
+      hourlyRate,
+    };
+
+    dispatch(addCreator(creator));
+  };
+
+  const handleRemoveFromCrew = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dispatch(removeCreator(creatorId));
+  };
 
   return (
     <div
-      className={`relative group overflow-hidden rounded-lg lg:rounded-[20px] h-[330px] lg:w-[474px] lg:h-[567px] border border-white/40`}>
+      className={`relative group overflow-hidden rounded-lg lg:rounded-[20px] h-[330px] lg:w-[474px] lg:h-[567px] border ${
+        isSelected ? "border-green-400/60" : "border-white/40"
+      }`}
+    >
       <div className="relative w-full h-[200px] lg:h-[407px] overflow-hidden">
         <Image
           src={fallbackImage}
@@ -65,14 +107,24 @@ const MatchedCreatorCard = ({
           className="object-cover transition-transform duration-700 group-hover:scale-105"
         />
 
-        {/* <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" /> */}
+        {/* Selected Indicator */}
+        {isSelected && (
+          <div className="absolute top-2 left-2 lg:top-4 lg:left-4 z-10">
+            <div className="flex items-center gap-1 bg-green-500/90 backdrop-blur-md px-2 py-1 lg:px-3 lg:py-2 rounded-full">
+              <Check className="w-3 h-3 lg:w-4 lg:h-4 text-white" />
+              <span className="text-xs lg:text-sm text-white font-medium">
+                In Crew
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="absolute top-2 right-2 lg:top-4 lg:right-3 flex items-center justify-end gap-2 w-full px-2">
           {/* Match Score Badge (if skill scoring is active) */}
           {matchScore !== undefined && matchScore > 0 && (
             <div className="flex items-center gap-1 bg-green-500/20 backdrop-blur-md px-2 py-1 lg:px-3 lg:py-2 rounded-full border border-green-400/40 relative">
               <span className="text-xs lg:text-sm text-green-300 font-medium">
-                {matchScore} skill{matchScore !== 1 ? 's' : ''} matched
+                {matchScore} skill{matchScore !== 1 ? "s" : ""} matched
               </span>
             </div>
           )}
@@ -88,13 +140,13 @@ const MatchedCreatorCard = ({
       </div>
 
       {/* Content */}
-      <div
-        className="w-full bg-[#0B0B0B] p-3 lg:p-6 flex flex-col gap-4 pointer-events-auto"
-      >
+      <div className="w-full bg-[#0B0B0B] p-3 lg:p-6 flex flex-col gap-4 pointer-events-auto">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-white text-base lg:text-xl font-medium">{name}</h3>
+              <h3 className="text-white text-base lg:text-xl font-medium">
+                {name}
+              </h3>
               <p className="text-white/60 text-xs lg:text-base">{role}</p>
             </div>
             <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50]">
@@ -102,23 +154,40 @@ const MatchedCreatorCard = ({
             </p>
           </div>
 
-          <div className="flex items-center justify-start">
+          <div className="flex items-center gap-2">
+            {isSelected ? (
+              // Remove from Crew button
+              <Button
+                onClick={handleRemoveFromCrew}
+                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Remove
+              </Button>
+            ) : canAddMore ? (
+              // Add to Crew button
+              <Button
+                onClick={handleAddToCrew}
+                className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add to Crew
+              </Button>
+            ) : null}
+
+            {/* View Profile Link */}
             <Link
-              href={`/search-results/${creatorId}${shootId ? `?shootId=${shootId}` : ""
-                }`}
-              onClick={(e) => {
-                // Prevent Swiper from interfering with navigation
-                e.stopPropagation();
-              }}
+              href={`/search-results/${creatorId}${
+                shootId ? `?shootId=${shootId}` : ""
+              }`}
+              onClick={(e) => e.stopPropagation()}
             >
               <Button
-                className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
-                onClick={(e) => {
-                  // Ensure click event reaches the Link
-                  e.stopPropagation();
-                }}
+                variant="outline"
+                className="border-white/30 hover:border-white/50 text-white hover:text-white hover:bg-white/10 px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
+                onClick={(e) => e.stopPropagation()}
               >
-                Book Now
+                View Profile
               </Button>
             </Link>
           </div>

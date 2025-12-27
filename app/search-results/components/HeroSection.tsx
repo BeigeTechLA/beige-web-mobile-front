@@ -17,6 +17,7 @@ interface Creator {
   rating: number;
   reviews: number;
   image: string;
+  hourlyRate?: number;
   isTopMatch?: boolean;
   matchScore?: number; // New: skill match score
   matchingSkills?: string[]; // New: which skills matched

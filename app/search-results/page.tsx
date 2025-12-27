@@ -21,6 +21,7 @@ interface DisplayCreator {
   rating: number;
   reviews: number;
   image: string;
+  hourlyRate: number;
   isTopMatch?: boolean;
   matchScore?: number; // New: skill match score
   matchingSkills?: string[]; // New: which skills matched
@@ -34,6 +35,7 @@ const transformCreator = (c: Creator, isTopMatch: boolean = false): DisplayCreat
   rating: c.rating || 0,
   reviews: c.total_reviews || 0,
   image: c.profile_image || '/images/influencer/default.png',
+  hourlyRate: c.hourly_rate || 0,
   isTopMatch,
   matchScore: c.matchScore, // Pass through match score
   matchingSkills: c.matchingSkills, // Pass through matching skills
