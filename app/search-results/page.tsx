@@ -2,6 +2,7 @@
 
 import React, { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSelector } from "react-redux";
 
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
@@ -11,6 +12,7 @@ import NewCreatorsSection from "./components/NewCreatorsSection";
 import SimilarCreatorsSection from "./components/SimilarCreatorsSection";
 import HeroSection from "./components/HeroSection";
 import { useSearchCreatorsQuery } from "@/lib/redux/features/creators/creatorsApi";
+import { selectCrewSize } from "@/lib/redux/features/booking/bookingSlice";
 import type { Creator } from "@/lib/types";
 
 // Type for frontend creator display
@@ -43,14 +45,17 @@ const transformCreator = (c: Creator, isTopMatch: boolean = false): DisplayCreat
 
 function SearchResultsContent() {
   const searchParams = useSearchParams();
-  const shootId = searchParams.get("shootId") || undefined;
+  const shootId = searchParams.get("shootId") || searchParams.get("booking_id") || undefined;
+
+  // Get crew size from Redux for auto radius expansion
+  const crewSize = useSelector(selectCrewSize);
 
   // Extract search parameters (supports both legacy and new params)
   const budget = searchParams.get("budget") ? Number(searchParams.get("budget")) : undefined;
   const min_budget = searchParams.get("min_budget") ? Number(searchParams.get("min_budget")) : undefined;
   const max_budget = searchParams.get("max_budget") ? Number(searchParams.get("max_budget")) : undefined;
   const location = searchParams.get("location") || undefined;
-  const maxDistance = searchParams.get("maxDistance") ? Number(searchParams.get("maxDistance")) : undefined;
+  const maxDistance = searchParams.get("maxDistance") ? Number(searchParams.get("maxDistance")) : 50; // Default 50 miles
   const skills = searchParams.get("skills") || undefined;
   const content_type = searchParams.get("content_type") ? Number(searchParams.get("content_type")) : undefined;
   const content_types = searchParams.get("content_types") || undefined;
@@ -65,6 +70,7 @@ function SearchResultsContent() {
     skills,
     content_type,
     content_types,
+    crewSize,
   });
 
   // Fetch creators from backend API with all new parameters
@@ -84,6 +90,9 @@ function SearchResultsContent() {
     // Role filters (new: multiple roles support)
     content_type,
     content_types,
+
+    // Auto radius expansion: find at least as many creators as crew size
+    required_count: crewSize || 1,
 
     // Pagination
     page: 1,

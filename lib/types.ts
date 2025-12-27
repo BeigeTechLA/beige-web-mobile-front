@@ -157,8 +157,19 @@ export interface CreatorSearchParams {
   skills?: string;
   content_type?: number;
   content_types?: string;
+  required_count?: number; // Minimum creators to find (enables auto radius expansion)
   page?: number;
   limit?: number;
+}
+
+// Search metadata returned by the API
+export interface SearchMeta {
+  requestedCount: number;
+  foundCount: number;
+  initialRadius: number | null;
+  actualRadius: number | null;
+  radiusExpanded: boolean;
+  radiusUnlimited: boolean;
 }
 
 export interface CreatorProfile extends Creator {
