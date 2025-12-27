@@ -108,5 +108,3 @@ flowchart TD
 ---
 
 ## Files to Modify
-
-| File | Changes ||------|---------|| `lib/redux/features/booking/bookingSlice.ts` | Add selectedCreators state and actions || `components/ui/CartIcon.tsx` | Show X/Y progress, add dropdown with selected creators || `app/search-results/components/MatchedCreatorCard.tsx` | Add to Crew button logic || `app/search-results/components/CreatorCard.tsx` | Add to Crew button logic |
