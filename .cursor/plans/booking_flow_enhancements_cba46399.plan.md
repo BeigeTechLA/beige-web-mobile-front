@@ -140,4 +140,3 @@ In `confirmPayment` controller:
 2. Implement multicheck dropdown (Point 1)
 3. Add pricing tooltips (Point 2)
 4. Build dynamic crew size (Point 3)
-5. Add cart icon (Point 5)
