@@ -12,7 +12,6 @@ interface Creator {
   id: string;
   name: string;
   role: string;
-  price: string;
   rating: number;
   reviews: number;
   image: string;

@@ -32,14 +32,21 @@ const MY_STEPS = [
   { label: "Review & Match" },
 ];
 
+export type CrewBreakdown = {
+  videographer: number;
+  photographer: number;
+  cinematographer: number;
+};
+
 export type BookingData = {
   serviceType: "shoot_edit" | "shoot_raw" | "edit_files" | null;
   contentType: ("videographer" | "photographer" | "cinematographer" | "all")[];
   shootType: string;
-  editType: string;
+  editType: string[]; // Changed to array for multi-select
   shootName: string;
   guestEmail: string;
-  crewSize: string;
+  crewSize: number; // Changed to number for dynamic crew size
+  crewBreakdown: CrewBreakdown; // Breakdown of crew by type
   referenceLink: string;
   specialNote: string;
   budgetMin: number;
@@ -65,10 +72,11 @@ const initialData: BookingData = {
   serviceType: null,
   contentType: [],
   shootType: "",
-  editType: "",
+  editType: [],
   shootName: "",
   guestEmail: "",
-  crewSize: "",
+  crewSize: 1,
+  crewBreakdown: { videographer: 0, photographer: 0, cinematographer: 0 },
   referenceLink: "",
   specialNote: "",
   budgetMin: 100,
@@ -165,7 +173,7 @@ export default function BookAShootPage() {
         project_type: formData.serviceType,
         content_type: formData.contentType.join(","),
         shoot_type: formData.shootType,
-        edit_type: formData.editType,
+        edit_type: formData.editType.join(","), // Join array for API
         description: formData.specialNote,
         event_type: formData.shootType,
         start_date_time: formData.startDate,
@@ -173,7 +181,7 @@ export default function BookAShootPage() {
         end_time: formData.endDate,
         budget_min: quote?.total || formData.budgetMin,
         budget_max: quote?.total || formData.budgetMax,
-        crew_size: formData.crewSize,
+        crew_size: String(formData.crewSize),
         location: formData.location,
         skills_needed: formData.contentType.join(","),
         equipments_needed:

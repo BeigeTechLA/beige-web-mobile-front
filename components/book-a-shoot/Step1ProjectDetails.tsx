@@ -4,9 +4,28 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "@/app/book-a-shoot/page";
 import { toast } from "sonner";
-import { Check } from "lucide-react";
+import { Check, Info } from "lucide-react";
 import DropdownSelect from "./DropdownSelect";
+import MultiSelectDropdown from "./MultiSelectDropdown";
 import { shootTypes, weddingEditTypes, musicEditTypes, commercialEditTypes, tvSeriesEditTypes, podcastEditTypes, shortFilmEditTypes, movieEditTypes, corporateEventEditTypes, privateEventEditTypes } from "@/app/data/shootData";
+import { useGetCatalogQuery } from "@/lib/redux/features/pricing/pricingApi";
+import { formatCurrency } from "@/lib/api/pricing";
+
+// Tooltip component for displaying pricing info
+const PriceTooltip = ({ rate, isVisible }: { rate: number | null; isVisible: boolean }) => {
+  if (!isVisible || rate === null) return null;
+  
+  return (
+    <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-50 animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-[#1A1A1A] border border-[#E8D1AB]/30 rounded-lg px-3 py-2 shadow-xl">
+        <p className="text-[#E8D1AB] text-sm font-medium whitespace-nowrap">
+          From {formatCurrency(rate)}/hr
+        </p>
+      </div>
+      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#1A1A1A] border-b border-r border-[#E8D1AB]/30 rotate-45" />
+    </div>
+  );
+};
 
 interface Props {
   data: BookingData;
@@ -15,9 +34,47 @@ interface Props {
   onBack: () => void;
 }
 
+// Content type to pricing category slug mapping
+const CONTENT_TYPE_SLUGS: Record<string, string> = {
+  videographer: "videographer",
+  photographer: "photographer", 
+  cinematographer: "cinematographer",
+};
+
 export const Step1ProjectDetails = ({ data, updateData, onNext }: Props) => {
   const [shootType, setShootType] = useState<string | null>(null);
   const [editTypeOptions, setEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
+  const [hoveredType, setHoveredType] = useState<string | null>(null);
+  
+  // Fetch pricing catalog to get base rates
+  const { data: categories } = useGetCatalogQuery({ mode: "general" });
+  
+  // Extract base rates for each content type from catalog
+  const getBaseRate = (contentType: string): number | null => {
+    if (!categories || contentType === "all") return null;
+    
+    // Look for items that match the content type
+    for (const category of categories) {
+      for (const item of category.items) {
+        const itemNameLower = item.name.toLowerCase();
+        const contentTypeLower = contentType.toLowerCase();
+        
+        // Check if this is a base rate item for this content type
+        if (itemNameLower.includes(contentTypeLower) && item.rate_type === "per_hour") {
+          return parseFloat(String(item.rate));
+        }
+      }
+    }
+    
+    // Fallback rates if not found in catalog
+    const fallbackRates: Record<string, number> = {
+      videographer: 150,
+      photographer: 120,
+      cinematographer: 200,
+    };
+    
+    return fallbackRates[contentType] || null;
+  };
 
   const handleNext = () => {
     // Validation
@@ -37,8 +94,8 @@ export const Step1ProjectDetails = ({ data, updateData, onNext }: Props) => {
     }
 
     // Edit Type is only required if we are editing
-    if (data.serviceType !== "shoot_raw" && !data.editType) {
-      toast.error("Selection Required", { description: "Please select an edit type." });
+    if (data.serviceType !== "shoot_raw" && (!data.editType || data.editType.length === 0)) {
+      toast.error("Selection Required", { description: "Please select at least one edit type." });
       return;
     }
 
@@ -174,27 +231,37 @@ export const Step1ProjectDetails = ({ data, updateData, onNext }: Props) => {
                   updateData({ contentType: newValues as any });
                 };
 
+                const rate = getBaseRate(value);
+                const showTooltip = hoveredType === value && value !== "all";
+                
                 return (
-                  <button
-                    key={value}
-                    onClick={handleToggle}
-                    className={`h-14 lg:h-[82px] rounded-2xl border px-6 flex items-center justify-between transition-all duration-300 ${isSelected
-                      ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
-                      : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                      }`}
-                  >
-                    <span className="font-medium text-sm lg:text-lg capitalize">
-                      {value}
-                    </span>
-                    <div
-                      className={`w-6 h-6 lg:w-8 lg:h-8 rounded-sm flex items-center justify-center transition-all ${isSelected
-                        ? "bg-[#1A1A1A] text-white shadow-sm"
-                        : "border border-white/20 bg-transparent"
+                  <div key={value} className="relative">
+                    <PriceTooltip rate={rate} isVisible={showTooltip} />
+                    <button
+                      onClick={handleToggle}
+                      onMouseEnter={() => setHoveredType(value)}
+                      onMouseLeave={() => setHoveredType(null)}
+                      className={`w-full h-14 lg:h-[82px] rounded-2xl border px-6 flex items-center justify-between transition-all duration-300 ${isSelected
+                        ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
+                        : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"
                         }`}
                     >
-                      {isSelected && <Check size={20} strokeWidth={3.5} />}
-                    </div>
-                  </button>
+                      <span className="font-medium text-sm lg:text-lg capitalize flex items-center gap-2">
+                        {value}
+                        {value !== "all" && (
+                          <Info size={14} className={`${isSelected ? "text-black/40" : "text-white/30"}`} />
+                        )}
+                      </span>
+                      <div
+                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-sm flex items-center justify-center transition-all ${isSelected
+                          ? "bg-[#1A1A1A] text-white shadow-sm"
+                          : "border border-white/20 bg-transparent"
+                          }`}
+                      >
+                        {isSelected && <Check size={20} strokeWidth={3.5} />}
+                      </div>
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -215,18 +282,18 @@ export const Step1ProjectDetails = ({ data, updateData, onNext }: Props) => {
                 setShootType(value);
                 updateData({
                   shootType: value,
-                  editType: undefined,
+                  editType: [],
                 });
               }}
               bgColour={"bg-[#101010]"}
             />
 
-            {/* Edit Type - Only show if service involves editing */}
-            <DropdownSelect
+            {/* Edit Type - Multi-select, only show if service involves editing */}
+            <MultiSelectDropdown
               title="Edit Type"
               options={editTypeOptions}
               value={data.editType}
-              onChange={(value) => updateData({ editType: value })}
+              onChange={(values) => updateData({ editType: values })}
               bgColour={"bg-[#101010]"}
             />
           </div>

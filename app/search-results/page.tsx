@@ -18,7 +18,6 @@ interface DisplayCreator {
   id: string;
   name: string;
   role: string;
-  price: string;
   rating: number;
   reviews: number;
   image: string;
@@ -32,7 +31,6 @@ const transformCreator = (c: Creator, isTopMatch: boolean = false): DisplayCreat
   id: String(c.crew_member_id),
   name: c.name,
   role: c.role_name || "Creative Professional",
-  price: c.hourly_rate ? `From $${c.hourly_rate}/Hr` : "Contact for pricing",
   rating: c.rating || 0,
   reviews: c.total_reviews || 0,
   image: c.profile_image || '/images/influencer/default.png',
@@ -176,6 +174,7 @@ function SearchResultsContent() {
         <SimilarCreatorsSection
           additionalCreators={additionalCreators}
           shootId={shootId}
+          contentTypes={content_types}
         />
       )}
 

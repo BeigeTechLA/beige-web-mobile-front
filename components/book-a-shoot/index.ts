@@ -10,5 +10,6 @@ export { QuoteBuilder } from './QuoteBuilder';
 export { PricingSummary, PricingSummaryCompact } from './PricingSummary';
 export { AddOns } from './AddOns';
 export { DropdownSelect } from './DropdownSelect';
+export { default as MultiSelectDropdown } from './MultiSelectDropdown';
 export { QuantityControl } from './QuantityControl';
 

@@ -39,7 +39,6 @@ const infoVariants = {
 interface CreatorCardProps {
   name: string;
   role: string;
-  price: string;
   rating: number;
   reviews: number;
   image: string;
@@ -54,7 +53,6 @@ interface CreatorCardProps {
 const CreatorCard = ({
   name,
   role,
-  price,
   rating,
   reviews,
   image,
@@ -162,7 +160,7 @@ const CreatorCard = ({
           </p>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-start">
           <Link
             href={`/search-results/${creatorId}${shootId ? `?shootId=${shootId}` : ""
               }`}
@@ -181,10 +179,6 @@ const CreatorCard = ({
               View Profile
             </Button>
           </Link>
-
-          <div>
-            <span className="text-[#E8D1AB] text-base lg:text-xl font-bold">{price}</span>
-          </div>
         </div>
       </motion.div>
     </motion.div>

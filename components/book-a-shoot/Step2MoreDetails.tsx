@@ -3,9 +3,16 @@
 import React, { useEffect, useMemo, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Button } from "@/src/components/landing/ui/button";
-import { BookingData } from "@/app/book-a-shoot/page";
+import { BookingData, CrewBreakdown } from "@/app/book-a-shoot/page";
 import { toast } from "sonner";
-import { ChevronUp, ChevronDown, Loader2 } from "lucide-react";
+import {
+  ChevronUp,
+  ChevronDown,
+  Loader2,
+  Plus,
+  Minus,
+  Users,
+} from "lucide-react";
 import { QuantityControl } from "./QuantityControl";
 import {
   useGetCatalogQuery,
@@ -20,6 +27,10 @@ import {
   setCatalog,
   setPricingMode,
 } from "@/lib/redux/features/pricing/pricingSlice";
+import {
+  setCrewSize as setReduxCrewSize,
+  setCrewBreakdown as setReduxCrewBreakdown,
+} from "@/lib/redux/features/booking/bookingSlice";
 import { formatCurrency, determinePricingMode } from "@/lib/api/pricing";
 import type { PricingCategory } from "@/lib/api/pricing";
 
@@ -28,6 +39,103 @@ interface Props {
   updateData: (data: Partial<BookingData>) => void;
   onNext: () => void;
   onBack: () => void;
+}
+
+// Content type display names
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  videographer: "Videographer",
+  photographer: "Photographer",
+  cinematographer: "Cinematographer",
+};
+
+// Crew Size Stepper Component
+function CrewSizeStepper({
+  value,
+  onIncrease,
+  onDecrease,
+  min = 1,
+  max = 20,
+}: {
+  value: number;
+  onIncrease: () => void;
+  onDecrease: () => void;
+  min?: number;
+  max?: number;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={onDecrease}
+        disabled={value <= min}
+        className="w-10 h-10 lg:w-12 lg:h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+      >
+        <Minus className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
+      </button>
+      <span className="text-white text-xl lg:text-2xl font-bold w-12 text-center">
+        {value}
+      </span>
+      <button
+        type="button"
+        onClick={onIncrease}
+        disabled={value >= max}
+        className="w-10 h-10 lg:w-12 lg:h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+      >
+        <Plus className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
+      </button>
+    </div>
+  );
+}
+
+// Crew Breakdown Row Component
+function CrewBreakdownRow({
+  type,
+  label,
+  count,
+  onIncrease,
+  onDecrease,
+  canIncrease,
+}: {
+  type: string;
+  label: string;
+  count: number;
+  onIncrease: () => void;
+  onDecrease: () => void;
+  canIncrease: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between py-4 border-b border-white/10 last:border-0">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-[#E8D1AB]/10 flex items-center justify-center">
+          <Users className="w-5 h-5 text-[#E8D1AB]" />
+        </div>
+        <span className="text-white font-medium text-base lg:text-lg">
+          {label}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onDecrease}
+          disabled={count <= 0}
+          className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          <Minus className="w-4 h-4 text-white" />
+        </button>
+        <span className="text-white text-lg font-medium w-8 text-center">
+          {count}
+        </span>
+        <button
+          type="button"
+          onClick={onIncrease}
+          disabled={!canIncrease}
+          className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          <Plus className="w-4 h-4 text-white" />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // Collapsible AddOn Category Component
@@ -161,6 +269,15 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
     }
   }, [pricingMode, dispatch]);
 
+  // Sync crew size and breakdown to Redux for global access (cart icon, etc.)
+  useEffect(() => {
+    dispatch(setReduxCrewSize(data.crewSize));
+  }, [data.crewSize, dispatch]);
+
+  useEffect(() => {
+    dispatch(setReduxCrewBreakdown(data.crewBreakdown));
+  }, [data.crewBreakdown, dispatch]);
+
   // Update catalog in Redux when data loads
   useEffect(() => {
     if (categories) {
@@ -275,34 +392,125 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
         </div>
 
         <div className="flex flex-col gap-4 lg:gap-9">
-          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-            {/* Shoot Name */}
-            <div className="relative w-full">
-              <label className="absolute -top-2 lg:-top-3 left-4 bg-[#101010] px-2 text-sm lg:text-base text-white/60">
-                Shoot Name
-              </label>
-              <input
-                type="text"
-                value={data.shootName}
-                onChange={(e) => updateData({ shootName: e.target.value })}
-                className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-[#E8D1AB] bg-[#101010]"
-                placeholder="Shoot Name"
+          {/* Shoot Name */}
+          <div className="relative w-full">
+            <label className="absolute -top-2 lg:-top-3 left-4 bg-[#101010] px-2 text-sm lg:text-base text-white/60">
+              Shoot Name
+            </label>
+            <input
+              type="text"
+              value={data.shootName}
+              onChange={(e) => updateData({ shootName: e.target.value })}
+              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-[#E8D1AB] bg-[#101010]"
+              placeholder="Shoot Name"
+            />
+          </div>
+
+          {/* Dynamic Crew Size Section */}
+          <div className="bg-[#171717] rounded-[16px] p-4 lg:p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-white font-medium text-base lg:text-lg">
+                  Total Crew Size
+                </h3>
+                <p className="text-white/50 text-sm mt-1">
+                  Set the total crew members needed
+                </p>
+              </div>
+              <CrewSizeStepper
+                value={data.crewSize}
+                onIncrease={() => updateData({ crewSize: data.crewSize + 1 })}
+                onDecrease={() => {
+                  const newSize = Math.max(1, data.crewSize - 1);
+                  // Also adjust breakdown if total exceeds new size
+                  const currentTotal = Object.values(data.crewBreakdown).reduce(
+                    (a, b) => a + b,
+                    0
+                  );
+                  if (currentTotal > newSize) {
+                    // Proportionally reduce breakdown
+                    const breakdown = { ...data.crewBreakdown };
+                    let excess = currentTotal - newSize;
+                    const types = Object.keys(
+                      breakdown
+                    ) as (keyof CrewBreakdown)[];
+                    for (const type of types.reverse()) {
+                      if (excess <= 0) break;
+                      const reduction = Math.min(breakdown[type], excess);
+                      breakdown[type] -= reduction;
+                      excess -= reduction;
+                    }
+                    updateData({ crewSize: newSize, crewBreakdown: breakdown });
+                  } else {
+                    updateData({ crewSize: newSize });
+                  }
+                }}
+                min={1}
+                max={20}
               />
             </div>
 
-            {/* Crew Size */}
-            <div className="relative w-full">
-              <label className="absolute -top-2 lg:-top-3 left-4 bg-[#101010] px-2 text-sm lg:text-base text-white/60">
-                Add Crew Size
-              </label>
-              <input
-                type="text"
-                value={data.crewSize}
-                onChange={(e) => updateData({ crewSize: e.target.value })}
-                className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-[#E8D1AB] bg-[#101010]"
-                placeholder="e.g. 2-5"
-              />
-            </div>
+            {/* Crew Breakdown - Only show if content types are selected */}
+            {data.contentType.length > 0 && data.contentType[0] !== "all" && (
+              <>
+                <hr className="border-white/10 mb-4" />
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-white/70 text-sm lg:text-base">
+                      Crew Breakdown
+                    </h4>
+                    <span className="text-[#E8D1AB] text-sm">
+                      {Object.values(data.crewBreakdown).reduce(
+                        (a, b) => a + b,
+                        0
+                      )}{" "}
+                      / {data.crewSize} assigned
+                    </span>
+                  </div>
+                  {data.contentType
+                    .filter((type) => type !== "all")
+                    .map((type) => {
+                      const currentTotal = Object.values(
+                        data.crewBreakdown
+                      ).reduce((a, b) => a + b, 0);
+                      const canIncrease = currentTotal < data.crewSize;
+                      const breakdownKey = type as keyof CrewBreakdown;
+
+                      return (
+                        <CrewBreakdownRow
+                          key={type}
+                          type={type}
+                          label={CONTENT_TYPE_LABELS[type] || type}
+                          count={data.crewBreakdown[breakdownKey] || 0}
+                          canIncrease={canIncrease}
+                          onIncrease={() => {
+                            if (canIncrease) {
+                              updateData({
+                                crewBreakdown: {
+                                  ...data.crewBreakdown,
+                                  [breakdownKey]:
+                                    (data.crewBreakdown[breakdownKey] || 0) + 1,
+                                },
+                              });
+                            }
+                          }}
+                          onDecrease={() => {
+                            if (data.crewBreakdown[breakdownKey] > 0) {
+                              updateData({
+                                crewBreakdown: {
+                                  ...data.crewBreakdown,
+                                  [breakdownKey]:
+                                    data.crewBreakdown[breakdownKey] - 1,
+                                },
+                              });
+                            }
+                          }}
+                        />
+                      );
+                    })}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Reference Link */}

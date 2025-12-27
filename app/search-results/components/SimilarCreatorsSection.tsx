@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 import "swiper/css";
@@ -12,7 +12,6 @@ interface Creator {
   id: string;
   name: string;
   role: string;
-  price: string;
   rating: number;
   reviews: number;
   image: string;
@@ -22,13 +21,56 @@ interface Creator {
 interface SimilarCreatorsSectionProps {
   additionalCreators: Creator[];
   shootId?: string;
+  contentTypes?: string; // comma-separated content types from URL params
 }
+
+// Helper to format content types for display
+const formatContentTypesHeading = (contentTypes?: string): string => {
+  if (!contentTypes) return "";
+  
+  const types = contentTypes.split(",").map(t => t.trim()).filter(Boolean);
+  if (types.length === 0) return "";
+  
+  // Map content type keys to display names and pluralize
+  const typeLabels: Record<string, string> = {
+    videographer: "Videographers",
+    photographer: "Photographers",
+    cinematographer: "Cinematographers",
+    all: "Creatives",
+  };
+  
+  const displayTypes = types
+    .filter(t => t !== "all") // Filter out "all" if other types are present
+    .map(t => typeLabels[t.toLowerCase()] || `${t.charAt(0).toUpperCase()}${t.slice(1)}s`);
+  
+  // If only "all" was selected or no specific types
+  if (displayTypes.length === 0) {
+    return types.includes("all") ? "Creatives" : "";
+  }
+  
+  // Join with "&" for 2 items, or ", " and "&" for 3+ items
+  if (displayTypes.length === 1) {
+    return displayTypes[0];
+  } else if (displayTypes.length === 2) {
+    return `${displayTypes[0]} & ${displayTypes[1]}`;
+  } else {
+    const last = displayTypes.pop();
+    return `${displayTypes.join(", ")} & ${last}`;
+  }
+};
 
 const SimilarCreatorsSection = ({
   additionalCreators,
   shootId,
+  contentTypes,
 }: SimilarCreatorsSectionProps) => {
   const swiperRef = useRef<SwiperType | null>(null);
+  
+  // Generate dynamic heading based on content types
+  const headingText = useMemo(() => {
+    const typeText = formatContentTypesHeading(contentTypes);
+    return typeText ? `We Think You'll Love These ${typeText}` : "We Think You'll Love These";
+  }, [contentTypes]);
 
   return (
     <section className="mt-14 lg:mt-30 overflow-hidden">
@@ -40,7 +82,7 @@ const SimilarCreatorsSection = ({
 
         <div className="flex items-center justify-between mb-4 lg:mb-8 pb-4">
           <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
-            We Think You'll Love These
+            {headingText}
           </h2>
 
           {/* NAV ARROWS (Desktop only) */}

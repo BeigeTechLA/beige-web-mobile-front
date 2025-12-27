@@ -20,7 +20,6 @@ const crewImages = [
 interface MatchedCreatorCardProps {
   name: string;
   role: string;
-  price: string;
   rating: number;
   reviews: number;
   image: string;
@@ -35,7 +34,6 @@ interface MatchedCreatorCardProps {
 const MatchedCreatorCard = ({
   name,
   role,
-  price,
   rating,
   reviews,
   image,
@@ -104,7 +102,7 @@ const MatchedCreatorCard = ({
             </p>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-start">
             <Link
               href={`/search-results/${creatorId}${shootId ? `?shootId=${shootId}` : ""
                 }`}
@@ -123,10 +121,6 @@ const MatchedCreatorCard = ({
                 Book Now
               </Button>
             </Link>
-
-            <div>
-              <span className="text-[#E8D1AB] text-base lg:text-xl font-bold">{price}</span>
-            </div>
           </div>
         </div>
       </div>

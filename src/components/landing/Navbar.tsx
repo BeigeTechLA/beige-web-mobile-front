@@ -7,6 +7,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Separator } from "./Separator";
+import { CartIcon } from "@/components/ui/CartIcon";
 
 const navLinks = [
   { label: "Home", href: "/", isButton: true },
@@ -20,6 +21,9 @@ export const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  
+  // Show cart icon only on search-results pages
+  const showCartIcon = pathname?.startsWith("/search-results");
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -116,6 +120,9 @@ export const Navbar = () => {
 
           {/* Right Buttons */}
           <div className="hidden lg:flex items-center gap-4">
+            {/* Cart Icon - Only on search/matchmaking pages */}
+            {showCartIcon && <CartIcon />}
+            
             <button
               onClick={handleLogin}
               className="text-white hover:text-[#ECE1CE] text-lg font-medium transition-colors px-6 py-3 border border-white/30 hover:border-[#ECE1CE]/50 rounded-[10px]"
@@ -130,14 +137,17 @@ export const Navbar = () => {
             </Button>
           </div>
 
-          {/* Mobile Hamburger */}
-          <button
-            className="lg:hidden text-white p-2"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Open menu"
-          >
-            <Menu size={28} />
-          </button>
+          {/* Mobile: Cart Icon + Hamburger */}
+          <div className="lg:hidden flex items-center gap-3">
+            {showCartIcon && <CartIcon className="scale-90" />}
+            <button
+              className="text-white p-2"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
+            >
+              <Menu size={28} />
+            </button>
+          </div>
         </div>
       </div>
 
