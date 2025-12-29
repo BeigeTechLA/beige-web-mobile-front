@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useSelector } from "react-redux";
+import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingData } from "@/app/book-a-shoot/page";
 import { toast } from "sonner";
@@ -15,8 +15,10 @@ import {
   selectQuote,
   selectShootHours,
   selectSelectedItems,
+  setQuote,
 } from "@/lib/redux/features/pricing/pricingSlice";
 import { formatCurrency } from "@/lib/api/pricing";
+import { useCalculateQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
 
 interface Props {
   data: BookingData;
@@ -47,12 +49,108 @@ export const Step4Review = ({
   onNext,
   isSubmitting = false,
 }: Props) => {
+  const dispatch = useDispatch();
   const [costSummaryOpen, setCostSummaryOpen] = useState(true);
+  const [isCalculatingPrice, setIsCalculatingPrice] = useState(false);
 
   // Get quote data from Redux
   const quote = useSelector(selectQuote);
   const shootHours = useSelector(selectShootHours);
   const selectedItems = useSelector(selectSelectedItems);
+
+  // API mutation for calculating quote
+  const [calculateQuote] = useCalculateQuoteMutation();
+
+  // Pricing item IDs for crew roles
+  const CREW_ROLE_ITEMS = {
+    videographer: 11,  // $275/hr
+    photographer: 10,   // $275/hr
+    cinematographer: 12 // $410/hr
+  };
+
+  // Calculate duration in hours
+  const calculateDurationHours = (): number => {
+    if (!data.startDate || !data.endDate) return data.studioTimeDuration || 3;
+    const start = new Date(data.startDate);
+    const end = new Date(data.endDate);
+    const diffMs = end.getTime() - start.getTime();
+    const hours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60) * 100) / 100);
+    return hours;
+  };
+
+  // Calculate pricing based on crew breakdown
+  useEffect(() => {
+    const calculateCrewPricing = async () => {
+      // Only calculate if we have crew breakdown
+      const totalCrew = Object.values(data.crewBreakdown).reduce((a, b) => a + b, 0);
+      if (totalCrew === 0) {
+        // No crew selected, clear the quote
+        return;
+      }
+
+      setIsCalculatingPrice(true);
+
+      try {
+        // Convert crew breakdown to pricing items
+        const crewItems = [];
+
+        if (data.crewBreakdown.videographer > 0) {
+          crewItems.push({
+            item_id: CREW_ROLE_ITEMS.videographer,
+            quantity: data.crewBreakdown.videographer
+          });
+        }
+
+        if (data.crewBreakdown.photographer > 0) {
+          crewItems.push({
+            item_id: CREW_ROLE_ITEMS.photographer,
+            quantity: data.crewBreakdown.photographer
+          });
+        }
+
+        if (data.crewBreakdown.cinematographer > 0) {
+          crewItems.push({
+            item_id: CREW_ROLE_ITEMS.cinematographer,
+            quantity: data.crewBreakdown.cinematographer
+          });
+        }
+
+        // Combine crew items with any selected add-ons
+        const allItems = [...crewItems, ...selectedItems];
+
+        if (allItems.length > 0) {
+          const hours = calculateDurationHours();
+          const result = await calculateQuote({
+            items: allItems,
+            shootHours: hours,
+            eventType: data.shootType,
+          }).unwrap();
+
+          // Update Redux state with calculated quote
+          dispatch(setQuote(result));
+
+          // Update booking data with quote total
+          updateData({ quoteTotal: result.total });
+        }
+      } catch (error) {
+        console.error('Failed to calculate crew pricing:', error);
+      } finally {
+        setIsCalculatingPrice(false);
+      }
+    };
+
+    calculateCrewPricing();
+  }, [
+    data.crewBreakdown,
+    data.startDate,
+    data.endDate,
+    data.studioTimeDuration,
+    data.shootType,
+    selectedItems,
+    calculateQuote,
+    dispatch,
+    updateData
+  ]);
 
   // Validate email before submission
   const handleSubmit = () => {
@@ -125,7 +223,14 @@ export const Step4Review = ({
                 </p>
               </div>
               <div className="p-4 lg:px-6 lg:py-5 rounded-[10px] text-base lg:text-xl bg-[#E8D1AB] text-black font-medium whitespace-nowrap self-start">
-                Total {formatCurrency(totalAmount)}
+                {isCalculatingPrice ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Calculating...
+                  </span>
+                ) : (
+                  `Total ${formatCurrency(totalAmount)}`
+                )}
               </div>
             </div>
 

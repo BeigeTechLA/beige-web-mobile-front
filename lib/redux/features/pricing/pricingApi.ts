@@ -113,9 +113,25 @@ export const pricingApi = createApi({
     // Get single pricing item
     getItem: builder.query<PricingItem, number>({
       query: (itemId) => `/pricing/items/${itemId}`,
-      transformResponse: (response: { success: boolean; data: PricingItem }) => 
+      transformResponse: (response: { success: boolean; data: PricingItem }) =>
         response.data,
       providesTags: (result, error, id) => [{ type: 'Item', id }],
+    }),
+
+    // Calculate quote from selected creators
+    calculateQuoteFromCreators: builder.mutation<QuoteCalculation & { creators: any[] }, {
+      creator_ids: number[];
+      shoot_hours: number;
+      event_type?: string;
+      add_on_items?: SelectedItem[];
+    }>({
+      query: (body) => ({
+        url: '/pricing/calculate-from-creators',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: { success: boolean; data: { quote: QuoteCalculation & { creators: any[] } } }) =>
+        response.data.quote,
     }),
   }),
 });
@@ -128,5 +144,6 @@ export const {
   useGetQuoteQuery,
   useGetAllItemsQuery,
   useGetItemQuery,
+  useCalculateQuoteFromCreatorsMutation,
 } = pricingApi;
 
