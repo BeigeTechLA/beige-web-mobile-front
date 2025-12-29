@@ -146,13 +146,44 @@ export default function BookAShootPage() {
     setIsSearching(true);
 
     try {
-      // Step 1: Save the quote if we have selected items
+      // Step 1: Save the quote if we have one (from crew breakdown or add-ons)
       let savedQuoteId: number | null = null;
 
-      if (selectedItems.length > 0 && quote) {
+      if (quote && quote.total > 0) {
         try {
+          // Build items list from crew breakdown if no add-ons selected
+          const CREW_ROLE_ITEMS = {
+            videographer: 11,
+            photographer: 10,
+            cinematographer: 12
+          };
+
+          let quoteItems = [...selectedItems];
+
+          // If no add-ons but we have crew breakdown, add crew items
+          if (quoteItems.length === 0) {
+            if (formData.crewBreakdown.videographer > 0) {
+              quoteItems.push({
+                item_id: CREW_ROLE_ITEMS.videographer,
+                quantity: formData.crewBreakdown.videographer
+              });
+            }
+            if (formData.crewBreakdown.photographer > 0) {
+              quoteItems.push({
+                item_id: CREW_ROLE_ITEMS.photographer,
+                quantity: formData.crewBreakdown.photographer
+              });
+            }
+            if (formData.crewBreakdown.cinematographer > 0) {
+              quoteItems.push({
+                item_id: CREW_ROLE_ITEMS.cinematographer,
+                quantity: formData.crewBreakdown.cinematographer
+              });
+            }
+          }
+
           const savedQuote = await saveQuote({
-            items: selectedItems,
+            items: quoteItems,
             shootHours: calculateDurationHours(),
             eventType: formData.shootType,
             guestEmail: formData.guestEmail,
@@ -160,10 +191,13 @@ export default function BookAShootPage() {
           }).unwrap();
 
           savedQuoteId = savedQuote.quote_id;
-          console.log("Quote saved:", savedQuoteId);
+          console.log("Quote saved:", { quote_id: savedQuoteId, total: quote.total, itemsCount: quoteItems.length });
         } catch (quoteError) {
           console.error("Failed to save quote:", quoteError);
+          toast.error("Failed to save pricing. Continuing with booking...");
         }
+      } else {
+        console.log("No quote to save (quote total is 0 or undefined)");
       }
 
       // Step 2: Create the guest booking

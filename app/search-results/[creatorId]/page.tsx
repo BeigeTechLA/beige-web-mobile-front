@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, Suspense, useRef } from "react";
-import { useSearchParams, useParams } from "next/navigation";
+import { useSearchParams, useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
+import { toast } from "sonner";
+import axios from "axios";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
@@ -27,6 +29,7 @@ import {
 } from "@/lib/redux/features/creators/creatorsApi";
 import {
   selectSelectedCreatorIds,
+  selectSelectedCreators,
   selectCanAddMoreCreators,
   selectIsCrewComplete,
   selectCrewSize,
@@ -55,13 +58,16 @@ const crewImages = [
 
 function CreatorProfileContent() {
   const dispatch = useDispatch();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("Portfolios");
+  const [isAssigning, setIsAssigning] = useState(false);
   const searchParams = useSearchParams();
   const params = useParams();
   const shootId = searchParams.get("shootId") ?? searchParams.get("booking_id") ?? undefined;
 
   // Redux selectors for crew management
   const selectedCreatorIds = useSelector(selectSelectedCreatorIds);
+  const selectedCreators = useSelector(selectSelectedCreators);
   const canAddMore = useSelector(selectCanAddMoreCreators);
   const isCrewComplete = useSelector(selectIsCrewComplete);
   const crewSize = useSelector(selectCrewSize);
@@ -122,6 +128,37 @@ function CreatorProfileContent() {
 
   const handleRemoveFromCrew = () => {
     dispatch(removeCreator(creatorId));
+  };
+
+  const handleProceedToPayment = async () => {
+    if (!shootId) {
+      toast.error("Booking ID not found");
+      return;
+    }
+
+    if (selectedCreators.length === 0) {
+      toast.error("No creators selected");
+      return;
+    }
+
+    setIsAssigning(true);
+
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
+      const creatorIds = selectedCreators.map(c => parseInt(c.id));
+
+      await axios.post(
+        `${API_BASE_URL}/guest-bookings/${shootId}/assign-creators`,
+        { creator_ids: creatorIds }
+      );
+
+      router.push(`/search-results/payment?shootId=${shootId}`);
+    } catch (error: any) {
+      console.error('Error assigning creators:', error);
+      toast.error(error.response?.data?.message || 'Failed to assign creators. Please try again.');
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
   // Loading state
@@ -335,15 +372,23 @@ function CreatorProfileContent() {
 
                 {/* Proceed to Payment (only when crew is complete) */}
                 {isCrewComplete && (
-                  <Link
-                    href={`/search-results/payment${shootId ? `?shootId=${shootId}` : ""}`}
-                    className="w-full"
+                  <Button
+                    onClick={handleProceedToPayment}
+                    disabled={isAssigning}
+                    className="w-full h-12 lg:h-[60px] px-5 lg:px-10 bg-green-500 hover:bg-green-600 text-white text-base lg:text-xl font-medium rounded-[12px] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Button className="w-full h-12 lg:h-[60px] px-5 lg:px-10 bg-green-500 hover:bg-green-600 text-white text-base lg:text-xl font-medium rounded-[12px]">
-                      Proceed to Payment
-                      <ChevronRight className="w-5 h-5 ml-2" />
-                    </Button>
-                  </Link>
+                    {isAssigning ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Assigning Crew...
+                      </>
+                    ) : (
+                      <>
+                        Proceed to Payment
+                        <ChevronRight className="w-5 h-5 ml-2" />
+                      </>
+                    )}
+                  </Button>
                 )}
               </div>
             </div>

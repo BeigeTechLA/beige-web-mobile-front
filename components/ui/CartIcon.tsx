@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Users, X, Check, ChevronRight } from "lucide-react";
+import { Users, X, Check, ChevronRight, Loader2 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import axios from "axios";
 import {
   selectCrewSize,
   selectSelectedCreators,
@@ -34,15 +35,17 @@ interface CartIconProps {
 
 export const CartIcon = ({ className = "" }: CartIconProps) => {
   const dispatch = useDispatch();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId") || searchParams.get("booking_id");
-  
+
   const crewSize = useSelector(selectCrewSize);
   const selectedCreators = useSelector(selectSelectedCreators);
   const selectedCount = useSelector(selectSelectedCreatorsCount);
   const isCrewComplete = useSelector(selectIsCrewComplete);
-  
+
   const [isOpen, setIsOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -61,6 +64,52 @@ export const CartIcon = ({ className = "" }: CartIconProps) => {
 
   const handleRemove = (creatorId: string) => {
     dispatch(removeCreator(creatorId));
+  };
+
+  const handleProceedToPayment = async () => {
+    if (!shootId) {
+      toast.error("Booking ID not found");
+      console.error('Missing shootId');
+      return;
+    }
+
+    if (selectedCreators.length === 0) {
+      toast.error("No creators selected");
+      console.error('No creators selected');
+      return;
+    }
+
+    setIsAssigning(true);
+
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
+      const creatorIds = selectedCreators.map(c => parseInt(c.id));
+
+      console.log('Assigning creators:', {
+        shootId,
+        creatorIds,
+        creatorsCount: creatorIds.length
+      });
+
+      const response = await axios.post(
+        `${API_BASE_URL}/guest-bookings/${shootId}/assign-creators`,
+        { creator_ids: creatorIds }
+      );
+
+      console.log('Creators assigned successfully:', response.data);
+
+      setIsOpen(false);
+      router.push(`/search-results/payment?shootId=${shootId}`);
+    } catch (error: any) {
+      console.error('Error assigning creators:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      toast.error(error.response?.data?.message || 'Failed to assign creators. Please try again.');
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
   const getFallbackImage = (creatorId: string) => {
@@ -162,14 +211,23 @@ export const CartIcon = ({ className = "" }: CartIconProps) => {
           {selectedCreators.length > 0 && (
             <div className="px-4 py-3 border-t border-white/10 bg-[#151515]">
               {isCrewComplete ? (
-                <Link
-                  href={`/search-results/payment${shootId ? `?shootId=${shootId}` : ""}`}
-                  className="w-full flex items-center justify-center gap-2 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium py-3 rounded-lg transition-colors"
-                  onClick={() => setIsOpen(false)}
+                <button
+                  onClick={handleProceedToPayment}
+                  disabled={isAssigning}
+                  className="w-full flex items-center justify-center gap-2 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Proceed to Payment
-                  <ChevronRight className="w-4 h-4" />
-                </Link>
+                  {isAssigning ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Assigning Crew...
+                    </>
+                  ) : (
+                    <>
+                      Proceed to Payment
+                      <ChevronRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
               ) : (
                 <div className="text-center text-white/50 text-sm py-2">
                   Select {crewSize - selectedCount} more creator
