@@ -84,7 +84,12 @@ export const Step4Review = ({
       // Only calculate if we have crew breakdown
       const totalCrew = Object.values(data.crewBreakdown).reduce((a, b) => a + b, 0);
       if (totalCrew === 0) {
-        // No crew selected, clear the quote
+        // No crew selected, don't calculate
+        return;
+      }
+
+      // Prevent calculation if already calculating
+      if (isCalculatingPrice) {
         return;
       }
 
@@ -128,9 +133,6 @@ export const Step4Review = ({
 
           // Update Redux state with calculated quote
           dispatch(setQuote(result));
-
-          // Update booking data with quote total
-          updateData({ quoteTotal: result.total });
         }
       } catch (error) {
         console.error('Failed to calculate crew pricing:', error);
@@ -149,7 +151,6 @@ export const Step4Review = ({
     selectedItems,
     calculateQuote,
     dispatch,
-    updateData
   ]);
 
   // Validate email before submission
