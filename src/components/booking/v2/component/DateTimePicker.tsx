@@ -167,6 +167,7 @@ export const DateTimePicker: React.FC<Props> = ({
         onOpen={() => setOpen(true)}
         onClose={() => setOpen(false)}
         minDateTime={effectiveMinDateTime}
+        // ampm={false}
         shouldDisableTime={(timeValue, clockType) => {
           if (!value) return false;
           const now = new Date();
@@ -180,7 +181,16 @@ export const DateTimePicker: React.FC<Props> = ({
           }
           return false;
         }}
+        format="MM/dd/yyyy HH:mm" // Change this line
         slotProps={{
+          day: (ownerState) => ({
+            sx: {
+              ...(ownerState.day.getTime() < new Date().setHours(0, 0, 0, 0) && {
+                color: `${colors.mutedText} !important`,
+                opacity: 0.5,
+              }),
+            },
+          }),
           textField: {
             fullWidth: true,
             placeholder: "MM/DD/YYYY HH:MM am/pm",
@@ -289,6 +299,19 @@ export const DateTimePicker: React.FC<Props> = ({
                 ...interiorStyles,
                 "& .MuiTabs-indicator": { backgroundColor: colors.tabIconSelected },
                 "& .MuiTab-root.Mui-selected": { color: `${colors.tabIconSelected} !important` },
+
+                // --- UPDATED SCROLLBAR FIX ---
+                "& .MuiMultiSectionDigitalClock-root": {
+                  "& .MuiMultiSectionDigitalClockSection-root": {
+                    scrollbarWidth: "none", // For Firefox
+                    msOverflowStyle: "none", // For Internet Explorer/Edge
+                    "&::-webkit-scrollbar": {
+                      display: "none", // For Chrome, Safari, and Opera
+                    },
+                    // Ensure overflow is allowed so scrolling actually works
+                    overflowY: "auto !important",
+                  },
+                },
               },
             },
           },

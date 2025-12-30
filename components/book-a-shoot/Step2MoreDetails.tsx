@@ -401,6 +401,14 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
       return;
     }
 
+    const crewSet = Object.values(data.crewBreakdown).reduce((a, b) => a + b, 0);
+    if (data.crewSize !== crewSet) {
+      toast.error("Input Required", {
+        description: "Please add a crew members as per requirement .",
+      });
+      return;
+    }
+
     onNext();
   };
 
