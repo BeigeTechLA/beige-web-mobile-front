@@ -145,8 +145,7 @@ export const Influencers = () => {
           </div>
           <SlidingHeading />
           <p className="text-xs lg:text-base text-white/50 max-w-[640px] mx-auto">
-            Beige Media makes it easy for brands to create any video they need
-            with a single, trusted partner.
+            Beige Media makes it easy for brands to create any video they need with a single, trusted partner. Our fast, simple, and transparent process takes the stress out of video production, making it smooth and hassle-free.
           </p>
         </div>
 

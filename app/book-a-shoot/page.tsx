@@ -80,7 +80,7 @@ const initialData: BookingData = {
   referenceLink: "",
   specialNote: "",
   budgetMin: 100,
-  budgetMax: 15000,
+  budgetMax: 20000,
   quoteId: null,
   quoteTotal: 0,
   calculatedQuote: null,

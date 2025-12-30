@@ -1,15 +1,15 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
+
 import { motion } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
 import { Button } from "@/src/components/landing/ui/button";
 import { Stats } from "./Stats";
 
 export const About = () => {
-  const handleViewMore = () => {
-    console.log('About: View More clicked');
-  };
+  const router = useRouter();
 
   return (
     <section id="about" className="py-10 md:py-32 relative overflow-hidden">
@@ -62,22 +62,22 @@ export const About = () => {
 
             {/* Heading */}
             <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-8 tracking-tight text-center lg:text-left">
-              Where Culture Gets Captured. <br />
-              Instantly.
+              The modern way to book<br />
+              a shoot.
             </h2>
 
             {/* Description */}
             <p className="mx-auto lg:mx-0 text-white/60 text-xs lg:text-base leading-relaxed max-w-[600px] mb-5 lg:mb-12 font-light text-center lg:text-left">
-              From cultural moments and IRL streams to music videos, corporate events, weddings, and films—book the perfect photographer, videographer, or livestream creator in minutes through our AI-powered content marketplace.
+              Choose your content, Get matched instantly, Book everything in one place.
             </p>
 
             {/* View More Button */}
             <div className="flex justify-center lg:justify-start">
               <Button
-                onClick={handleViewMore}
+                onClick={() => router.push('/book-a-shoot')}
                 className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 md:h-[56px] pl-4  pr-1 lg:pr-2 rounded-[5px] lg:rounded-[10px] text-sm md:text-xl font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] transition-all md:min-w-[240px]"
               >
-                <span className="lg:pr-4">View More</span>
+                <span className="lg:pr-4">Book a shoot</span>
 
                 {/* Right Dark Icon Box */}
                 <div className="bg-[#1A1A1A] w-8 h-8 lg:w-12 lg:h-12 rounded-[5px] flex items-center justify-center">

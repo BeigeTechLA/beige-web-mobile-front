@@ -34,6 +34,10 @@ import {
 import { formatCurrency, determinePricingMode } from "@/lib/api/pricing";
 import type { PricingCategory } from "@/lib/api/pricing";
 
+const BUDGET_MIN = 100;
+const BUDGET_MAX = 20000;
+const MIN_GAP = 500;
+
 interface Props {
   data: BookingData;
   updateData: (data: Partial<BookingData>) => void;
@@ -162,9 +166,8 @@ function AddOnCategory({
     <div className="bg-[#171717] rounded-lg lg:rounded-[22px] overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between p-4 lg:px-[30px] ${
-          isOpen ? "lg:py-[30px]" : "lg:py-6"
-        } text-white font-medium text-base lg:text-xl`}
+        className={`w-full flex items-center justify-between p-4 lg:px-[30px] ${isOpen ? "lg:py-[30px]" : "lg:py-6"
+          } text-white font-medium text-base lg:text-xl`}
       >
         <span className="flex items-center gap-3">
           {category.name}
@@ -356,15 +359,29 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const percentage = clickX / rect.width;
-    const clickedValue = Math.round((percentage * 20000) / 100) * 100;
+
+    const rawValue =
+      BUDGET_MIN + percentage * (BUDGET_MAX - BUDGET_MIN);
+
+    const clickedValue = Math.round(rawValue / 100) * 100;
 
     const distanceToMin = Math.abs(clickedValue - data.budgetMin);
     const distanceToMax = Math.abs(clickedValue - data.budgetMax);
 
     if (distanceToMin < distanceToMax) {
-      updateData({ budgetMin: Math.min(clickedValue, data.budgetMax - 500) });
+      updateData({
+        budgetMin: Math.max(
+          BUDGET_MIN,
+          Math.min(clickedValue, data.budgetMax - MIN_GAP)
+        ),
+      });
     } else {
-      updateData({ budgetMax: Math.max(clickedValue, data.budgetMin + 500) });
+      updateData({
+        budgetMax: Math.min(
+          BUDGET_MAX,
+          Math.max(clickedValue, data.budgetMin + MIN_GAP)
+        ),
+      });
     }
   };
 
@@ -375,6 +392,23 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
       });
       return;
     }
+
+    const urlRegex = /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w\-._~:/?#[\]@!$&'()*+,;=]*)?$/;
+    if ((data.referenceLink !== "") && !urlRegex.test(data.referenceLink)) {
+      toast.error("Input Required", {
+        description: "Please enter a valid reference link.",
+      });
+      return;
+    }
+
+    const crewSet = Object.values(data.crewBreakdown).reduce((a, b) => a + b, 0);
+    if (data.crewSize !== crewSet) {
+      toast.error("Input Required", {
+        description: "Please add a crew members as per requirement .",
+      });
+      return;
+    }
+
     onNext();
   };
 
@@ -555,9 +589,8 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
                     className="absolute h-1 lg:h-[6px] bg-[#E8D1AB] rounded-full pointer-events-none"
                     style={{
                       left: `${(data.budgetMin / 20000) * 100}%`,
-                      width: `${
-                        ((data.budgetMax - data.budgetMin) / 20000) * 100
-                      }%`,
+                      width: `${((data.budgetMax - data.budgetMin) / 20000) * 100
+                        }%`,
                     }}
                   />
                   <input
@@ -566,17 +599,17 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
                     max="20000"
                     step="100"
                     value={data.budgetMin}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
                       updateData({
-                        budgetMin: Math.min(
-                          Number(e.target.value),
-                          data.budgetMax - 500
+                        budgetMin: Math.max(
+                          BUDGET_MIN,
+                          Math.min(value, data.budgetMax - MIN_GAP)
                         ),
-                      })
-                    }
-                    className={`absolute top-[-10px] left-0 w-full appearance-none bg-transparent pointer-events-none focus:outline-none ${
-                      data.budgetMin > 15000 ? "z-[5]" : "z-[3]"
-                    } [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-md [&::-webkit-slider-thumb]:bg-[#E8D1AB] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto`}
+                      });
+                    }}
+                    className={`absolute top-[-10px] left-0 w-full appearance-none bg-transparent pointer-events-none focus:outline-none ${data.budgetMin > 15000 ? "z-[5]" : "z-[3]"
+                      } [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-md [&::-webkit-slider-thumb]:bg-[#E8D1AB] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto`}
                   />
                   <input
                     type="range"
@@ -637,21 +670,19 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
                 onClick={() =>
                   updateData({ wantsAddons: item.value as "yes" | "no" })
                 }
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-4 flex items-center justify-between transition-all ${
-                  data.wantsAddons === item.value
-                    ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
-                    : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                }`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-4 flex items-center justify-between transition-all ${data.wantsAddons === item.value
+                  ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
+                  : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"
+                  }`}
               >
                 <span className="font-medium text-sm lg:text-lg pr-2">
                   {item.label}
                 </span>
                 <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${
-                    data.wantsAddons === item.value
-                      ? "bg-black"
-                      : "border border-[#E5E5E5]"
-                  }`}
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.wantsAddons === item.value
+                    ? "bg-black"
+                    : "border border-[#E5E5E5]"
+                    }`}
                 >
                   {data.wantsAddons === item.value && (
                     <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />

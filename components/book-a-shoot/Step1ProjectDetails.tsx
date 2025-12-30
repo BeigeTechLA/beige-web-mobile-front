@@ -200,7 +200,7 @@ export const Step1ProjectDetails = ({ data, updateData, onNext }: Props) => {
             <label className="text-base lg:text-xl font-medium text-[#A9A9A9]/90 mb-3 md:mb-6 block">
               Content Type
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 lg:gap-6">
+            <div className="flex flex-col lg:flex-row gap-3 lg:gap-6">
               {contentTypes.map((value) => {
                 const isSelected = data.contentType?.includes(value);
 
@@ -235,25 +235,25 @@ export const Step1ProjectDetails = ({ data, updateData, onNext }: Props) => {
                 const showTooltip = hoveredType === value && value !== "all";
                 
                 return (
-                  <div key={value} className="relative">
+                  <div key={value} className="relative shrink-0 lg:min-w-[200px]">
                     <PriceTooltip rate={rate} isVisible={showTooltip} />
                     <button
                       onClick={handleToggle}
                       onMouseEnter={() => setHoveredType(value)}
                       onMouseLeave={() => setHoveredType(null)}
-                      className={`w-full h-14 lg:h-[82px] rounded-2xl border px-6 flex items-center justify-between transition-all duration-300 ${isSelected
+                      className={`w-full h-14 lg:h-[82px] rounded-2xl border px-6 flex gap-2 lg:gap-4 items-center justify-between transition-all duration-300 ${isSelected
                         ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
                         : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"
                         }`}
                     >
-                      <span className="font-medium text-sm lg:text-lg capitalize flex items-center gap-2">
+                      <span className="font-medium text-sm lg:text-lg capitalize flex items-center gap-2 shrink-0">
                         {value}
                         {value !== "all" && (
                           <Info size={14} className={`${isSelected ? "text-black/40" : "text-white/30"}`} />
                         )}
                       </span>
                       <div
-                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-sm flex items-center justify-center transition-all ${isSelected
+                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-sm flex items-center justify-center transition-all shrink-0 ${isSelected
                           ? "bg-[#1A1A1A] text-white shadow-sm"
                           : "border border-white/20 bg-transparent"
                           }`}

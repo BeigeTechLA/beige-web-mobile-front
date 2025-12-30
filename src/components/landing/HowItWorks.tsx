@@ -129,11 +129,10 @@ export const HowItWorks = () => {
                 </div>
                 <div>
                   <h3 className="text-base lg:text-2xl font-medium text-white mb-1.5 lg:mb-2.5">
-                    The Home for the Future of Content
+                    One Central Hub For Your Content
                   </h3>
                   <p className="text-xs lg:text-base lg:leading-[22px] text-white/50 font-light">
-                    Join the Beige ecosystem and unlock creators, locations, and
-                    equipment on demand.
+                    Manage your entire shoot from pre-production, production, post-production to  content distribution—all powered by the best AI tools.
                   </p>
                 </div>
               </div>

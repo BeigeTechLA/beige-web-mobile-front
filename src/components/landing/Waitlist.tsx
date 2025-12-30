@@ -83,7 +83,7 @@ export const Waitlist = () => {
             </div>
 
             <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-6 tracking-tight">
-              Coming to Your City Soon.
+              Get Early Access
             </h2>
             <p className="text-white/50 text-xs lg:text-base lg:max-w-2/3 mx-auto font-light">
               We&apos;re currently launching in Los Angeles, but we&apos;re expanding to

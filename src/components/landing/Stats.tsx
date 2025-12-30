@@ -1,13 +1,14 @@
 "use client";
 
 import React from "react";
+
 import { motion } from "framer-motion";
 
 const STATS = [
-  { value: "$10M+", label: "In Shoots Produced By Our Creatives" },
-  { value: "5,000+", label: `Beige Creatives In Our Ecosystem` },
-  { value: "4,000+", label: "Shoots Booked" },
-  { value: ">60", label: "Seconds To Book A Shoot" },
+  { value: "$10M+", label: "In Content Produced On Beige" },
+  { value: "5,000+", label: `Verified Creators On Beige` },
+  { value: "4,000+", label: "Shoots Booked on Beige" },
+  { value: "100%", label: "Vetted Creatives" },
 ];
 
 export const Stats = () => {
