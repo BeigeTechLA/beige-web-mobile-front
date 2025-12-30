@@ -1,31 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Container } from "@/src/components/landing/ui/container";
+import BrandMarquee from "./BrandsMarquee";
 
 export const Brands = () => {
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const videoFileName = "Brands Video.mp4";
-
-  useEffect(() => {
-    const fetchSignedUrl = async () => {
-      try {
-        const response = await fetch(`/api/video/${videoFileName}`);
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch signed URL.");
-        }
-
-        const data = await response.json();
-        setVideoUrl(data.url);
-      } catch (error) {
-        console.error("Error fetching video URL:", error);
-      }
-    };
-
-    fetchSignedUrl();
-  }, [videoFileName]);
-
   return (
     <section className="py-10 md:py-32 relative overflow-hidden">
       <Container>
@@ -48,20 +27,7 @@ export const Brands = () => {
 
           {/* Right Grid */}
           <div className="w-full">
-            <div className="relative w-full h-[300px] md:h-[400px] lg:h-[500px] overflow-hidden">
-              <div className="pointer-events-none absolute -top-2 left-0 w-full h-10 lg:h-[80px] z-[2] bg-gradient-to-t from-transparent via-[#010101]/80 to-[#010101]" />
-              {
-                videoUrl &&
-                <video
-                className="absolute inset-0 w-full h-full object-cover"
-                src={videoUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-              />}
-              <div className="pointer-events-none absolute -bottom-2 left-0 w-full h-10 lg:h-[80px] z-[2] bg-gradient-to-t from-[#010101] via-[#010101]/80 to-transparent" />
-            </div>
+            <BrandMarquee />
           </div>
         </div>
       </Container>
