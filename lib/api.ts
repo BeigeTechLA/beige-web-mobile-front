@@ -245,3 +245,24 @@ export const affiliateApi = {
     return response.data.data;
   },
 };
+
+
+export const getEquipmentSuggestions = async (queryParams = {}) => {
+  try {
+    const response = await api.get(
+      'admin/equipment-autocomplete',
+      {
+        params: queryParams,
+      }
+    );
+
+    return response;
+  } catch (error) {
+    console.error('Get Equipment Suggestions Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch equipment suggestions',
+    };
+  }
+};
