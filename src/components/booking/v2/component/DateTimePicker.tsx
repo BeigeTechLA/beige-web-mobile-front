@@ -183,6 +183,7 @@ export const DateTimePicker: React.FC<Props> = ({
         slotProps={{
           textField: {
             fullWidth: true,
+            placeholder: "MM/DD/YYYY HH:MM am/pm",
             error: Boolean(error),
             helperText: error,
             onClick: () => setOpen(true),
