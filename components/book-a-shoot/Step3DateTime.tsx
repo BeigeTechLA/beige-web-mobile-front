@@ -9,6 +9,7 @@ import DropdownSelect from "./DropdownSelect";
 import { LocationPicker } from "@/src/components/booking/v2/component/LocationPicker";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { studio } from "@/app/data/shootData";
+import { addDays, setHours, setMilliseconds, setMinutes, setSeconds } from "date-fns";
 
 interface Props {
   data: BookingData;
@@ -97,7 +98,21 @@ const darkThemeColors = {
   buttonSecondaryBgHover: "#ffffff4d",
 };
 
-export const Step3DateTime = ({ data, updateData, onNext }: Props) => {
+export const Step3DateTime = ({ data, updateData, onNext, onBack }: Props) => {
+  useEffect(() => {
+    // only when startDate is empty, set default as : 9:00 AM next day
+    if (data.startDate === "") {
+      let date = addDays(new Date(), 1);
+      date = setHours(date, 9);
+      date = setMinutes(date, 0);
+      date = setSeconds(date, 0);
+      date = setMilliseconds(date, 0);
+      const utcResult = date.toISOString();
+
+      updateData({ startDate: utcResult });
+    }
+  }, [data])
+
   const handleNext = () => {
     // Validate Step 4 fields
     if (!data.startDate || data.startDate.trim() === "") {
@@ -146,7 +161,7 @@ export const Step3DateTime = ({ data, updateData, onNext }: Props) => {
           <p className="text-xs lg:text-sm text-[#939393]">Let us know your preferred schedule and location.</p>
         </div>
 
-        <div className="flex flex-col gap-9 p-8 lg:p-0">
+        <div className="flex flex-col gap-9">
           <div className="flex flex-col lg:flex-row gap-6 w-full">
             <DateTimePicker
               label="Start Date & Time"
@@ -156,7 +171,6 @@ export const Step3DateTime = ({ data, updateData, onNext }: Props) => {
                   updateData({ startDate: "" });
                   return;
                 }
-
                 updateData({ startDate: date.toISOString() });
               }}
               validate={validateFutureDateTime}
@@ -165,13 +179,13 @@ export const Step3DateTime = ({ data, updateData, onNext }: Props) => {
 
             <DateTimePicker
               label="End Date & Time"
+              disabled={data.startDate === ""}
               value={parseDate(data.endDate)}
               onChange={(date) => {
                 if (!date || isNaN(date.getTime())) {
                   updateData({ endDate: "" });
                   return;
                 }
-
                 updateData({ endDate: date.toISOString() });
               }}
               minDateTime={new Date(data.startDate)}
@@ -255,11 +269,15 @@ export const Step3DateTime = ({ data, updateData, onNext }: Props) => {
             </>
           }
         </div>
-
-
       </div>
 
-      <div className="pt-8">
+      <div className="flex flex-col-reverse md:flex-row gap-6">
+        <Button
+          onClick={onBack}
+          className="h-12 lg:h-[72px] w-full md:w-[185px] bg-[#101010] hover:bg-white/5 text-white font-bold text-base lg:text-xl rounded-[12px] border border-white/20"
+        >
+          Back
+        </Button>
         <Button
           onClick={handleNext}
           className="h-12 lg:h-[72px] w-full md:w-[185px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold text-base lg:text-xl rounded-[12px]"

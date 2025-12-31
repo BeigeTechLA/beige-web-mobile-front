@@ -85,6 +85,7 @@ interface Props {
   minDateTime?: Date;
   validate?: (date: Date | null) => string | null;
   colors?: Partial<DateTimePickerColors>;
+  disabled?: boolean;
 }
 
 export const DateTimePicker: React.FC<Props> = ({
@@ -94,6 +95,7 @@ export const DateTimePicker: React.FC<Props> = ({
   minDateTime,
   validate,
   colors: customColors,
+  disabled = false,
 }) => {
   const colors = { ...defaultColors, ...customColors };
   const [open, setOpen] = useState(false);
@@ -166,6 +168,7 @@ export const DateTimePicker: React.FC<Props> = ({
         open={open}
         onOpen={() => setOpen(true)}
         onClose={() => setOpen(false)}
+        disabled={disabled}
         minDateTime={effectiveMinDateTime}
         // ampm={false}
         shouldDisableTime={(timeValue, clockType) => {
@@ -181,7 +184,7 @@ export const DateTimePicker: React.FC<Props> = ({
           }
           return false;
         }}
-        format="MM/dd/yyyy HH:mm" // Change this line
+        // format="MM/dd/yyyy HH:mm" // Change this line
         slotProps={{
           day: (ownerState) => ({
             sx: {
