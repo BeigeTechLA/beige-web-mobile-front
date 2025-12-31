@@ -15,6 +15,7 @@ type MultiSelectDropdownProps = {
   bgColour: string;
   onChange: (keys: string[]) => void;
   maxDisplay?: number; // Max number of pills to display before showing "+N more"
+  isDisabled?: boolean; // Added prop
 };
 
 export default function MultiSelectDropdown({
@@ -24,6 +25,7 @@ export default function MultiSelectDropdown({
   bgColour,
   onChange,
   maxDisplay = 2,
+  isDisabled=false,
 }: MultiSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -45,6 +47,7 @@ export default function MultiSelectDropdown({
   const remainingCount = selectedOptions.length - maxDisplay;
 
   const handleToggle = (key: string) => {
+    if (isDisabled) return; // Guard clause
     if (value.includes(key)) {
       onChange(value.filter((k) => k !== key));
     } else {
@@ -54,19 +57,21 @@ export default function MultiSelectDropdown({
 
   const handleRemove = (key: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isDisabled) return; // Guard clause
     onChange(value.filter((k) => k !== key));
   };
 
   const handleClearAll = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isDisabled) return; // Guard clause
     onChange([]);
   };
 
   return (
-    <div className="relative w-full max-w-md" ref={dropdownRef}>
+    <div className={`relative w-full max-w-md ${isDisabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`} ref={dropdownRef}>
       <div
         className={`min-h-14 lg:min-h-[82px] relative ${bgColour} rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40`}
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => !isDisabled && setOpen((p) => !p)} // Check isDisabled here
       >
         <span className={`absolute -top-3 left-4 ${bgColour} px-3 text-sm lg:text-base text-white/60 rounded`}>
           {title}
@@ -108,7 +113,7 @@ export default function MultiSelectDropdown({
           )}
         </div>
 
-        {open ? (
+        {open && !isDisabled ? (
           <ChevronUp className="text-white flex-shrink-0" />
         ) : (
           <ChevronDown className="text-white flex-shrink-0" />
@@ -116,7 +121,7 @@ export default function MultiSelectDropdown({
       </div>
 
       {/* Dropdown */}
-      {open && (
+      {open && !isDisabled && ( // Added extra safety check here
         <div 
           className={`absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto`}
         >
@@ -135,7 +140,7 @@ export default function MultiSelectDropdown({
               >
                 {/* Checkbox */}
                 <div
-                  className={`w-5 h-5 rounded flex items-center justify-center border transition-all
+                  className={`w-5 h-5 shrink-0 rounded flex items-center justify-center border transition-all
                     ${isSelected
                       ? "border-[#E8D1AB] bg-[#E8D1AB]"
                       : "border-white/30"
