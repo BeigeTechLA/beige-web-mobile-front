@@ -32,7 +32,7 @@ export default function RotatingInput() {
         {/* Outer Container mimicking the screenshot border: min-w-[300px] md:min-w-[450px] */}
         <div className="relative flex items-center p-3 lg:p-4 border border-[#706E73] rounded-[10px] bg-[#171717] overflow-hidden shadow-[0_8px_40px_0_rgba(255,255,255,0.05),_19px_10px_18.9px_0_rgba(255,255,255,0.07)]">
           {/* Vertical Cursor Pipe */}
-          <span className="mr-1 text-[#E8D1AB]">|</span>
+          {/* <span className="mr-1 text-[#E8D1AB]">|</span> */}
 
           <div className="relative flex-grow">
             <AnimatePresence mode="wait">

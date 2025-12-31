@@ -232,7 +232,7 @@ function AddOnCategory({
   );
 }
 
-export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
+export const Step2MoreDetails = ({ data, updateData, onNext, onBack }: Props) => {
   const dispatch = useDispatch();
 
   // Use ref to avoid stale closure issues with updateData
@@ -264,6 +264,21 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
     selectedItems.forEach((item) => map.set(item.item_id, item.quantity));
     return map;
   }, [selectedItems]);
+
+  // Initial crewSize should be equal to length of content Type in previous step. Can be changed by user later.
+  useEffect(() => {
+    updateData({ crewSize: data.contentType.filter((type) => type !== "all").length })
+    updateData({
+      crewBreakdown: Object.fromEntries(
+        (Object.entries(data.crewBreakdown) as [keyof typeof data.crewBreakdown, number][]).map(
+          ([role, _]) => [
+            role,
+            data.contentType.includes(role) ? 1 : 0
+          ]
+        )
+      ) as typeof data.crewBreakdown,
+    });
+  }, [])
 
   // Update pricing mode in Redux when data changes
   useEffect(() => {
@@ -557,7 +572,7 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
               value={data.referenceLink}
               onChange={(e) => updateData({ referenceLink: e.target.value })}
               className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-[#E8D1AB] bg-[#101010]"
-              placeholder="URL"
+              placeholder="https://sample.link/for-reference"
             />
           </div>
 
@@ -701,7 +716,8 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
                   <span className="ml-2 text-white/60">Loading add-ons...</span>
                 </div>
               ) : categories && categories.length > 0 ? (
-                categories.map((category) => (
+                // Excluded "services" category as we are already handling services in crewBreakdown.
+                categories.filter(category => category.slug !== "services").map((category) => (
                   <AddOnCategory
                     key={category.category_id}
                     category={category}
@@ -743,7 +759,13 @@ export const Step2MoreDetails = ({ data, updateData, onNext }: Props) => {
         </div>
       </div>
 
-      <div className="pt-8">
+      <div className="flex flex-col-reverse md:flex-row gap-6">
+        <Button
+          onClick={onBack}
+          className="h-12 lg:h-[72px] w-full md:w-[185px] bg-[#101010] hover:bg-white/5 text-white font-bold text-base lg:text-xl rounded-[12px] border border-white/20"
+        >
+          Back
+        </Button>
         <Button
           onClick={handleNext}
           className="h-12 lg:h-[72px] w-full md:w-[185px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold text-base lg:text-xl rounded-[12px]"
