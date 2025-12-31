@@ -12,6 +12,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }) => {
   const [tagInput, setTagInput] = useState("");
 
   const [imagePreview, setImagePreview] = useState(null);
+  const [rawFile, setRawFile] = useState(null);
   const fileRef = useRef(null);
 
   // Design Tokens
@@ -24,6 +25,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }) => {
       setTags([]);
       setTagInput("");
       setImagePreview(null);
+      setRawFile(null); // Reset file
       setAddTagsOpen(false);
     }
   }, [open]);
@@ -31,6 +33,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }) => {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setRawFile(file); // <--- Store the binary file
     setImagePreview(URL.createObjectURL(file));
   };
 
@@ -39,15 +42,17 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }) => {
   };
 
   const handleAdd = () => {
-    if (!title.trim()) return;
+    if (!title.trim() || !rawFile) return;
     onAdd({
       id: Date.now(),
       title,
       tags,
-      image: imagePreview
+      image: imagePreview, // For UI display
+      file: rawFile        // <--- For API upload
     });
     onClose();
   };
+
 
   return (
     <>

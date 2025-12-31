@@ -40,11 +40,24 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
+      // The 'result' variable will now contain the JSON object you provided
       const result = await login({ email: data.email, password: data.password })
+      
       toast.success(result.message || "Login successful!")
 
-      // Redirect to affiliate dashboard
-      router.push('/affiliate/dashboard')
+      // Extract user_type_id from the response
+      const userTypeId = result?.user?.user_type_id
+
+      // Logic for conditional redirection
+      if (userTypeId === 1) {
+        router.push('/affiliate/dashboard')
+      } else if (userTypeId === 2) {
+        router.push('/creator/dashboard/request')
+      } else {
+        // Fallback in case user_type_id is missing or different
+        router.push('/dashboard') 
+      }
+
     } catch (error: any) {
       const errorMessage = error?.data?.message || error?.message || "Login failed. Please check your credentials."
       toast.error(errorMessage)

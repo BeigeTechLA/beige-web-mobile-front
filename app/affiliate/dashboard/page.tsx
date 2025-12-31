@@ -73,6 +73,7 @@ export default function AffiliateDashboardPage() {
 
   const handleLogout = () => {
     logout();
+    localStorage.clear();
     router.push("/login");
   };
 

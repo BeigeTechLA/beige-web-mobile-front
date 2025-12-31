@@ -266,3 +266,112 @@ export const getEquipmentSuggestions = async (queryParams = {}) => {
     };
   }
 };
+
+export const getStatusCount = async (payload: { crew_member_id: number }) => {
+  try {
+    const response = await api.post(
+      "creator/status-count",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Get Status Count Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch status counts",
+    };
+  }
+};
+
+
+export const getPendingProjects = async (payload: { crew_member_id: number }) => {
+  try {
+    const response = await api.post(
+      "creator/pending-projects",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Get Pending Projects Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch pending projects",
+    };
+  }
+};
+
+export const GetUpcomingShoots = async (payload: { crew_member_id: number }) => {
+  try {
+    const response = await api.post(
+      "creator/upcoming-accepted-project",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Get Upcoming Shoots Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch upcoming shoots",
+    };
+  }
+};
+
+
+export const acceptOrDeclineProject = async (payload: {
+  project_id: number;
+  crew_member_id: number;
+  crew_accept: 0 | 1 | 2;
+}) => {
+  try {
+    const response = await api.post(
+      "creator/accept-project",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Accept/Decline Project Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to process accept/decline request",
+    };
+  }
+};
+
+export const getProject = async (projectId: number) => {
+  try {
+    const response = await api.get(`admin/get-project/${projectId}`);
+    return response.data;
+  } catch (error) {
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch project details",
+    };
+  }
+};
+

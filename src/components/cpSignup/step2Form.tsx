@@ -18,21 +18,56 @@ import AddSkills from "./addSkills";
 import {
   ArrowLeft,
   CircleDollarSign,
+  Loader2, // Added for loading state
 } from "lucide-react";
 import { roleOptions, skillOptions } from "@/app/data/staticData";
+import { useRegisterCreatorStep2Mutation } from "@/lib/redux/features/auth/authApi";
+import { toast } from "sonner";
 
 export default function Step2Form({ data, setData, nextStep, prevStep }) {
-  const [loading, setLoading] = useState(false);
+  // 1. Initialize the RTK Query Mutation
+  const [registerStep2, { isLoading }] = useRegisterCreatorStep2Mutation();
 
-  // Design tokens from Step 1
-  // Added placeholder color here as well to ensure total consistency
   const inputClasses = "h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white placeholder:text-white/40 outline-none focus:border-[#E8D1AB] focus-visible:ring-0 focus-visible:ring-offset-0 bg-[#101010] text-sm lg:text-base";
   const labelClasses = "absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none";
-  
   const sectionClasses = "rounded-[12px] border border-white/30 bg-[#101010] p-6 space-y-4";
 
   const handleSubmit = async () => {
-    nextStep();
+    // 2. Basic Validation
+    if (!data.crew_member_id) {
+      toast.error("Session Error", { description: "Crew ID missing. Please go back to step 1." });
+      return;
+    }
+    if (!data.role || !data.yoe || !data.hourlyRate) {
+      toast.error("Missing Fields", { description: "Please fill in Role, Experience and Hourly Rate." });
+      return;
+    }
+
+    try {
+      const payload = {
+        crew_member_id: data.crew_member_id,
+        primary_role: data.role,
+        years_of_experience: Number(data.yoe),
+        hourly_rate: Number(data.hourlyRate),
+        bio: data.bio || "",
+        // Convert skills/equipment objects to simple string arrays if necessary
+        skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
+        equipment_ownership: data.equipments || [],
+      };
+
+      // 4. Call API
+      await registerStep2(payload).unwrap();
+
+      toast.success("Step 2 Completed", { description: "Your creative profile has been updated." });
+      
+      // 5. Move to next step
+      nextStep();
+    } catch (err: any) {
+      console.error("Step 2 API Error:", err);
+      toast.error("Failed to save", { 
+        description: err?.data?.message || "Something went wrong while saving your details." 
+      });
+    }
   };
 
   return (
@@ -88,7 +123,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           </div>
         </div>
 
-        {/* Bio / About - Fixed placeholder color with ! modifier */}
+        {/* Bio / About */}
         <div className="relative">
           <Label className={labelClasses}>Bio / About</Label>
           <Textarea
@@ -133,7 +168,8 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           <button
             type="button"
             onClick={prevStep}
-            className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] border border-white/30 hover:bg-white/10 transition-colors"
+            disabled={isLoading}
+            className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] border border-white/30 hover:bg-white/10 transition-colors disabled:opacity-50"
           >
             <ArrowLeft className="w-6 h-6 text-white" />
           </button>
@@ -141,10 +177,17 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={isLoading}
             className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-14 lg:h-[76px] rounded-[12px] text-lg font-semibold transition-all"
           >
-            {loading ? "Saving..." : "Next Step"}
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Saving...
+              </span>
+            ) : (
+              "Next Step"
+            )}
           </Button>
         </div>
 

@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import Cookies from 'js-cookie';
 import { setCredentials, logout as logoutAction } from '../redux/features/auth/authSlice';
 import {
   useLoginMutation,
@@ -48,8 +49,17 @@ export const useAuth = () => {
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     const result = await loginMutation(credentials).unwrap();
-    // Backend returns { message, token, user }
-    dispatch(setCredentials({ user: result.user, token: result.token }));
+    
+    if (result.token && result.user) {
+      Cookies.set('revure_token', result.token, { expires: 7 }); 
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('revure_user', JSON.stringify(result.user));
+      }
+
+      dispatch(setCredentials({ user: result.user, token: result.token }));
+    }
+    
     return result;
   }, [loginMutation, dispatch]);
 

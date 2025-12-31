@@ -18,16 +18,21 @@ import {
   Eye,
   EyeOff,
   Camera,
+  Loader2, // Import Loader icon
 } from "lucide-react";
 import { distanceOptions } from "@/app/data/staticData";
 import Link from "next/link";
+import { useRegisterCreatorStep1Mutation } from "@/lib/redux/features/auth/authApi";
+import { toast } from "sonner"; // Assuming you use sonner or similar for notifications
 
 export default function Step1Form({ data, setData, nextStep, prevStep }) {
   const fileInputRef = useRef(null);
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [cropModalOpen, setCropModalOpen] = useState(false);
+
+  // 1. Initialize the API Hook
+  const [registerStep1, { isLoading }] = useRegisterCreatorStep1Mutation();
 
   const inputClasses = "h-14 lg:h-[82px] w-full rounded-[12px] border border-white/20 p-4 text-white outline-none focus:border-[#E8D1AB] focus-visible:ring-0 focus-visible:ring-offset-0 bg-[#101010] text-sm lg:text-base";
   const labelClasses = "absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none";
@@ -49,14 +54,60 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
     setCropModalOpen(false);
   };
 
+  // 2. Handle Submit Logic
+  // ... inside Step1Form component ...
+
+  const handleNext = async () => {
+    if (!data.firstName || !data.lastName || !data.email || !data.password) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("first_name", data.firstName);
+      formData.append("last_name", data.lastName);
+      formData.append("email", data.email);
+      formData.append("password", data.password);
+      
+      if (data.location) {
+        formData.append("location", typeof data.location === 'object' ? JSON.stringify(data.location) : data.location);
+      }
+      if (data.workingDistance) {
+        formData.append("working_distance", data.workingDistance);
+      }
+      if (data.profileImage) {
+        formData.append("profile_photo", data.profileImage, "profile-picture.jpg");
+      }
+
+      // 1. Call the API
+      const response = await registerStep1(formData).unwrap();
+      
+      // 2. SAVE the IDs into the shared state
+      setData({ 
+        ...data, 
+        crew_member_id: response.crew_member_id, // Save this!
+        user_id: response.user_id 
+      });
+
+      toast.success("Step 1 completed!");
+      
+      // 3. Proceed
+      nextStep();
+    } catch (err) {
+      toast.error(err?.data?.message || "Registration failed");
+    }
+  };
+
   return (
     <div className="space-y-8 bg-[#101010] text-white p-2">
       <form className="space-y-6 lg:space-y-9 lg:mt-14" onSubmit={(e) => e.preventDefault()}>
         {/* Name Fields */}
         <div className="grid grid-cols-2 gap-4">
           <div className="relative">
-            <Label className={labelClasses}>First Name</Label>
+            <Label className={labelClasses}>First Name *</Label>
             <Input
+              required
               placeholder="John"
               value={data.firstName}
               onChange={(e) => setData({ ...data, firstName: e.target.value })}
@@ -64,8 +115,9 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
             />
           </div>
           <div className="relative">
-            <Label className={labelClasses}>Last Name</Label>
+            <Label className={labelClasses}>Last Name *</Label>
             <Input
+              required
               placeholder="Doe"
               value={data.lastName}
               onChange={(e) => setData({ ...data, lastName: e.target.value })}
@@ -76,8 +128,9 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
         {/* Email */}
         <div className="relative">
-          <Label className={labelClasses}>Email Address</Label>
+          <Label className={labelClasses}>Email Address *</Label>
           <Input
+            required
             type="email"
             placeholder="name@example.com"
             value={data.email}
@@ -88,9 +141,10 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
         {/* Password */}
         <div className="relative">
-          <Label className={labelClasses}>Password</Label>
+          <Label className={labelClasses}>Password *</Label>
           <div className="relative">
             <Input
+              required
               type={showPassword ? "text" : "password"}
               placeholder="Create password"
               value={data.password}
@@ -142,9 +196,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           <p className="text-sm text-white/40 mb-5">Add photo to build connection and trust</p>
 
           <div className="flex items-center gap-5">
-            {/* Inner Circle Container */}
             <div className="h-20 w-20 rounded-full border border-[#E8D1AB]/30 bg-[#1A1A1A] flex items-center justify-center overflow-hidden flex-shrink-0">
-              {/* Uses uploaded preview if exists, otherwise shows default image */}
               <img
                 src={data.profilePreview || "/images/loginsignup/profile_temp.png"}
                 alt="Profile"
@@ -152,7 +204,6 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
               />
             </div>
             
-            {/* Upload Button */}
             <button
               type="button"
               onClick={() => fileInputRef.current.click()}
@@ -176,18 +227,25 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           <button
             type="button"
             onClick={prevStep}
-            className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] border border-white/20 bg-[#101010] hover:bg-white/5 transition-colors"
+            disabled={isLoading}
+            className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] border border-white/20 bg-[#101010] hover:bg-white/5 transition-colors disabled:opacity-50"
           >
             <ArrowLeft className="w-6 h-6 text-white" />
           </button>
 
           <Button
             type="button"
-            onClick={nextStep}
-            disabled={loading}
+            onClick={handleNext} // Call the new handler
+            disabled={isLoading}
             className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-14 lg:h-[76px] rounded-[12px] text-lg font-semibold transition-all"
           >
-            Next Step
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="animate-spin h-5 w-5" /> Saving...
+              </span>
+            ) : (
+              "Next Step"
+            )}
           </Button>
         </div>
 
