@@ -18,8 +18,12 @@ import {
 import { useRouter } from "next/navigation";
 
 // UI Components
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogHeader,
+} from "@/components/ui/dialog"; import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -77,17 +81,17 @@ export default function RequestsShootsPage() {
   }, [crewMemberId]);
 
   const getCrewMemberId = () => {
-  const userStr = localStorage.getItem("revure_user");
-  if (!userStr) return null;
+    const userStr = localStorage.getItem("revure_user");
+    if (!userStr) return null;
 
-  try {
-    const user = JSON.parse(userStr);
-    console.log("user:::::", user)
-    return user?.crew_member_id ?? null;
-  } catch {
-    return null;
-  }
-};
+    try {
+      const user = JSON.parse(userStr);
+      console.log("user:::::", user)
+      return user?.crew_member_id ?? null;
+    } catch {
+      return null;
+    }
+  };
 
   /* ---------------- FETCH DATA ---------------- */
   const fetchData = async () => {
@@ -105,7 +109,7 @@ export default function RequestsShootsPage() {
       // 1. Fetch Stats
       const statsPayload = { creator_id: crew_member_id };
       const statsResponse = await getStatusCount(statsPayload);
-      
+
       // FIX: Check for !statsResponse.error instead of .success
       if (statsResponse && statsResponse.error === false) {
         setDashboardStats(statsResponse.data);
@@ -153,101 +157,101 @@ export default function RequestsShootsPage() {
 
 
   const formatLocation = (locationInput) => {
-  if (!locationInput || locationInput === "Location TBD") return "Location TBD";
+    if (!locationInput || locationInput === "Location TBD") return "Location TBD";
 
-  let addressStr = locationInput;
+    let addressStr = locationInput;
 
-  // 1. Try to parse JSON if it's an object/stringified JSON
-  try {
-    const parsed = typeof locationInput === 'string' ? JSON.parse(locationInput) : locationInput;
-    if (parsed && parsed.address) {
-      addressStr = parsed.address;
+    // 1. Try to parse JSON if it's an object/stringified JSON
+    try {
+      const parsed = typeof locationInput === 'string' ? JSON.parse(locationInput) : locationInput;
+      if (parsed && parsed.address) {
+        addressStr = parsed.address;
+      }
+    } catch (e) {
+      // Not JSON, addressStr remains the original string (e.g., "Avenel, NJ")
     }
-  } catch (e) {
-    // Not JSON, addressStr remains the original string (e.g., "Avenel, NJ")
-  }
 
-  // 2. Extract City, State, Country from a full address string
-  // Example input: "Scott Avenue, Los Angeles, California 90026, United States"
-  const parts = addressStr.split(',').map(p => p.trim());
+    // 2. Extract City, State, Country from a full address string
+    // Example input: "Scott Avenue, Los Angeles, California 90026, United States"
+    const parts = addressStr.split(',').map(p => p.trim());
 
-  if (parts.length >= 3) {
-    const country = parts[parts.length - 1];
-    const stateZip = parts[parts.length - 2];
-    const city = parts[parts.length - 3];
+    if (parts.length >= 3) {
+      const country = parts[parts.length - 1];
+      const stateZip = parts[parts.length - 2];
+      const city = parts[parts.length - 3];
 
-    // Remove numbers (Zip Code) from the state part
-    const state = stateZip.replace(/\d+/g, '').trim();
+      // Remove numbers (Zip Code) from the state part
+      const state = stateZip.replace(/\d+/g, '').trim();
 
-    return `${city}, ${state}, ${country}`;
-  }
+      return `${city}, ${state}, ${country}`;
+    }
 
-  // Fallback for short strings like "Chicago, IL"
-  return addressStr;
-};
+    // Fallback for short strings like "Chicago, IL"
+    return addressStr;
+  };
   /* ---------------- ACTIONS ---------------- */
- /* ---------------- ACTIONS ---------------- */
-const handleAcceptProject = async (projectId: number, accept: boolean) => {
-  const crew_member_id = getCrewMemberId();
+  /* ---------------- ACTIONS ---------------- */
+  const handleAcceptProject = async (projectId: number, accept: boolean) => {
+    const crew_member_id = getCrewMemberId();
 
-  if (!crew_member_id) {
-    toast.error("Invalid user session");
-    return;
-  }
-
-  try {
-    const response = await acceptOrDeclineProject({
-      project_id: projectId,
-      crew_member_id,
-      crew_accept: accept ? 1 : 2,
-    });
-
-    // CHANGE: Check for error === false to match your other API logic
-    if (response && response.error === false) {
-      // 1. Show Success Message
-      toast.success(
-        accept ? "Shoot request accepted" : "Shoot request declined"
-      );
-
-      // 2. IMMEDIATELY Close Modals
-      setAcceptShootEvent(null);
-      setDeclineShootEvent(null);
-      
-      // 3. Reset form states (especially for decline)
-      setDeclineReason("Schedule conflict");
-      setDeclineComments("");
-
-      // 4. Refresh Data
-      // We await this to ensure the UI stays in a loading state if needed 
-      // or simply to ensure completion before concluding the function
-      await fetchData();
-    } else {
-      // Handle case where API returns error: true
-      toast.error(response?.message || "Failed to update project status");
+    if (!crew_member_id) {
+      toast.error("Invalid user session");
+      return;
     }
-  } catch (err) {
-    console.error("Action Error:", err);
-    toast.error("An unexpected error occurred");
-  }
-};
 
- const handleOpenProjectDetails = async (projectId: number) => {
-  try {
-    const res = await getProject(projectId);
+    try {
+      const response = await acceptOrDeclineProject({
+        project_id: projectId,
+        crew_member_id,
+        crew_accept: accept ? 1 : 2,
+      });
 
-    // API uses `error: false`, not `success`
-    if (!res?.error && res?.data) {
-      setProjectDetailsData(res.data); 
-      // res.data = { project, assignedCrew, assignedEquipment }
+      // CHANGE: Check for error === false to match your other API logic
+      if (response && response.error === false) {
+        // 1. Show Success Message
+        toast.success(
+          accept ? "Shoot request accepted" : "Shoot request declined"
+        );
 
-      setProjectDetailsOpen(true);
-    } else {
-      toast.error(res?.message || "Failed to load project details");
+        // 2. IMMEDIATELY Close Modals
+        setAcceptShootEvent(null);
+        setDeclineShootEvent(null);
+
+        // 3. Reset form states (especially for decline)
+        setDeclineReason("Schedule conflict");
+        setDeclineComments("");
+
+        // 4. Refresh Data
+        // We await this to ensure the UI stays in a loading state if needed 
+        // or simply to ensure completion before concluding the function
+        await fetchData();
+      } else {
+        // Handle case where API returns error: true
+        toast.error(response?.message || "Failed to update project status");
+      }
+    } catch (err) {
+      console.error("Action Error:", err);
+      toast.error("An unexpected error occurred");
     }
-  } catch (e) {
-    toast.error("Failed to load project details");
-  }
-};
+  };
+
+  const handleOpenProjectDetails = async (projectId: number) => {
+    try {
+      const res = await getProject(projectId);
+
+      // API uses `error: false`, not `success`
+      if (!res?.error && res?.data) {
+        setProjectDetailsData(res.data);
+        // res.data = { project, assignedCrew, assignedEquipment }
+
+        setProjectDetailsOpen(true);
+      } else {
+        toast.error(res?.message || "Failed to load project details");
+      }
+    } catch (e) {
+      toast.error("Failed to load project details");
+    }
+  };
 
   /* ---------------- FILTERING ---------------- */
   const filteredProjects = projects.filter((p) => {
@@ -274,54 +278,65 @@ const handleAcceptProject = async (projectId: number, accept: boolean) => {
           <p className="text-white/60">Manage your production schedule and requests</p>
         </div>
         <div className="flex items-center gap-3">
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-                <Input 
-                    placeholder="Search projects..." 
-                    className="pl-10 bg-[#1A1A1A] border-white/5 w-[250px]"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="bg-[#1A1A1A] border-white/5 w-[140px]">
-                    <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-            </Select>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+            <Input
+              placeholder="Search projects..."
+              className="pl-10 bg-[#1A1A1A] border-white/5 w-[250px]"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="bg-[#1A1A1A] border-white/5 w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       {/* Stats Grid - Matching Affiliate Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Pending Requests"
-          value={dashboardStats?.pendingRequests || 0}
-          icon={<Clock />}
-          color="text-yellow-400"
-        />
-        <StatCard
-          label="Confirmed Shoots"
-          value={dashboardStats?.confirmedRequests || 0}
-          icon={<Camera />}
-          color="text-[#E8D1AB]"
-        />
-        <StatCard
-          label="Completed"
-          value={dashboardStats?.completedShoots || 0}
-          icon={<CheckCircle2 />}
-          color="text-green-400"
-        />
-        <StatCard
-          label="Declined"
-          value={dashboardStats?.declinedRequests || 0}
-          icon={<Ban />}
-          color="text-red-400"
-        />
+       <StatCard
+  label="Pending Requests"
+  value={dashboardStats?.pendingRequests || 0}
+  icon={<Clock />}
+  iconColor="text-yellow-500"
+  valueColor="text-yellow-500"
+  hoverBorder="hover:border-yellow-500/30"
+/>
+
+<StatCard
+  label="Confirmed Shoots"
+  value={dashboardStats?.confirmedRequests || 0}
+  icon={<Camera />}
+  iconColor="text-[#E8D1AB]"
+  hoverBorder="hover:border-[#E8D1AB]/30"
+/>
+
+<StatCard
+  label="Completed"
+  value={dashboardStats?.completedShoots || 0}
+  icon={<CheckCircle2 />}
+  iconColor="text-green-400"
+  valueColor="text-green-400"
+  hoverBorder="hover:border-green-400/30"
+/>
+
+<StatCard
+  label="Declined"
+  value={dashboardStats?.declinedRequests || 0}
+  icon={<Ban />}
+  iconColor="text-red-400"
+  valueColor="text-red-400"
+  hoverBorder="hover:border-red-400/30"
+/>
+
       </div>
 
       {/* Projects List */}
@@ -334,11 +349,10 @@ const handleAcceptProject = async (projectId: number, accept: boolean) => {
             >
               <div className="flex justify-between items-start mb-4">
                 <span
-                  className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                    item.status === "Confirmed"
+                  className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${item.status === "Confirmed"
                       ? "bg-green-400/10 text-green-400"
                       : "bg-blue-400/10 text-blue-400"
-                  }`}
+                    }`}
                 >
                   {item.status}
                 </span>
@@ -356,12 +370,12 @@ const handleAcceptProject = async (projectId: number, accept: boolean) => {
                 </div>
                 <div className="flex items-center gap-3 text-white/60 text-sm">
                   <MapPin size={16} className="text-[#E8D1AB]" />
-                          <div className="flex items-center gap-3 text-white/60 text-sm">
-                              <MapPin size={16} className="text-[#E8D1AB]" />
-                              <span className="truncate">
-                                  {formatLocation(item.event_location || item.location)}
-                              </span>
-                          </div>
+                  <div className="flex items-center gap-3 text-white/60 text-sm">
+                    <MapPin size={16} className="text-[#E8D1AB]" />
+                    <span className="truncate">
+                      {formatLocation(item.event_location || item.location)}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center justify-between pt-4 border-t border-white/5">
@@ -410,15 +424,34 @@ const handleAcceptProject = async (projectId: number, accept: boolean) => {
       {/* Accept Modal */}
       <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
         <DialogContent className="bg-[#111] border-white/10 text-white max-w-sm">
+
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-xl font-bold">
+              Accept Shoot?
+            </DialogTitle>
+          </DialogHeader>
+
           <div className="text-center p-4">
             <CheckCircle2 className="mx-auto h-12 w-12 text-[#E8D1AB] mb-4" />
-            <h2 className="text-xl font-bold mb-2">Accept Shoot?</h2>
-            <p className="text-white/60 text-sm mb-6">Confirming will add this project to your active schedule.</p>
+
+            <p className="text-white/60 text-sm mb-6">
+              Confirming will add this project to your active schedule.
+            </p>
+
             <div className="flex gap-3">
-              <Button variant="ghost" className="flex-1" onClick={() => setAcceptShootEvent(null)}>Cancel</Button>
-              <Button 
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => setAcceptShootEvent(null)}
+              >
+                Cancel
+              </Button>
+
+              <Button
                 className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d4be9a]"
-                onClick={() => handleAcceptProject(acceptShootEvent.project_id, true)}
+                onClick={() =>
+                  handleAcceptProject(acceptShootEvent.project_id, true)
+                }
               >
                 Confirm
               </Button>
@@ -427,12 +460,17 @@ const handleAcceptProject = async (projectId: number, accept: boolean) => {
         </DialogContent>
       </Dialog>
 
+
       {/* Decline Modal */}
       <Dialog open={!!declineShootEvent} onOpenChange={() => setDeclineShootEvent(null)}>
         <DialogContent className="bg-[#111] border-white/10 text-white">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <AlertTriangle className="text-red-500" /> Decline Request
-          </h2>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <AlertTriangle className="text-red-500" />
+              Decline Request
+            </DialogTitle>
+          </DialogHeader>
+
           <div className="space-y-4">
             <div>
               <Label className="text-white/60 mb-2 block">Reason for declining</Label>
@@ -450,7 +488,7 @@ const handleAcceptProject = async (projectId: number, accept: boolean) => {
             </div>
             <div>
               <Label className="text-white/60 mb-2 block">Additional Comments (Optional)</Label>
-              <Textarea 
+              <Textarea
                 className="bg-[#1A1A1A] border-white/5 text-white"
                 placeholder="Let the team know why..."
                 value={declineComments}
@@ -458,13 +496,13 @@ const handleAcceptProject = async (projectId: number, accept: boolean) => {
               />
             </div>
             <div className="flex gap-3 pt-4">
-                <Button variant="ghost" className="flex-1" onClick={() => setDeclineShootEvent(null)}>Cancel</Button>
-                <Button 
-                    className="flex-1 bg-red-600 text-white hover:bg-red-700"
-                    onClick={() => handleAcceptProject(declineShootEvent.project_id, false)}
-                >
-                    Decline Shoot
-                </Button>
+              <Button variant="ghost" className="flex-1" onClick={() => setDeclineShootEvent(null)}>Cancel</Button>
+              <Button
+                className="flex-1 bg-red-600 text-white hover:bg-red-700"
+                onClick={() => handleAcceptProject(declineShootEvent.project_id, false)}
+              >
+                Decline Shoot
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -474,35 +512,39 @@ const handleAcceptProject = async (projectId: number, accept: boolean) => {
 }
 
 /* ---------------- SHARED COMPONENT ---------------- */
-/* ---------------- SHARED COMPONENT ---------------- */
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  icon: React.ReactElement;
+  iconColor: string;
+  hoverBorder: string;
+  valueColor?: string;
+}
+
 function StatCard({
   label,
   value,
   icon,
-  color = "text-white",
-}: {
-  label: string;
-  value: string | number;
-  icon: React.ReactNode;
-  color?: string;
-}) {
+  iconColor,
+  hoverBorder,
+  valueColor = "text-white",
+}: StatCardProps) {
   return (
-    <div className="relative bg-[#111] border border-white/5 rounded-xl p-5 group hover:border-[#E8D1AB]/20 transition-all overflow-hidden">
-      {/* Icon - Positioned Top Right */}
-      <div className={`absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-all duration-300 transform group-hover:scale-110 ${color}`}>
-        {React.isValidElement(icon) 
-          ? React.cloneElement(icon as React.ReactElement<any>, { size: 28, strokeWidth: 2.5 }) 
-          : icon}
+    <div
+      className={`bg-[#111] rounded-xl p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[10px] flex flex-col justify-center`}
+    >
+      {/* Background Icon - Slightly larger and adjusted position */}
+      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
+        {React.cloneElement(icon, { size: 44, className: iconColor })}
       </div>
 
-      {/* Content */}
       <div className="relative z-10">
-        <p className="text-white/40 text-[10px] mb-1 uppercase tracking-[0.15em] font-bold">
+        <p className="text-white/40 text-sm font-medium mb-3 uppercase tracking-wider">
           {label}
         </p>
-        <div className={`text-3xl font-bold tracking-tight ${color}`}>
+        <p className={`text-4xl font-bold ${valueColor}`}>
           {value}
-        </div>
+        </p>
       </div>
     </div>
   );

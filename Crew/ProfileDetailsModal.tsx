@@ -7,8 +7,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogClose 
 } from "@/components/ui/dialog";
-import { Calendar, MapPin, Clock, Video, Package } from "lucide-react";
+import { Calendar, MapPin, Clock, Video, Package, X } from "lucide-react";
 
 const platformNames: Record<number, string> = {
   1: "Twitch", 2: "Youtube", 3: "Facebook", 4: "Twitter", 5: "LinkedIn", 6: "Custom RTMP",
@@ -56,6 +57,9 @@ const ProjectDetailsModal = ({ open, onOpenChange, project }: any) => {
       >
         {/* HEADER */}
         <div className="p-8 border-b border-white/5 bg-[#0D0D0D]">
+          <DialogClose className="absolute right-6 top-6 text-white/50 hover:text-white transition-colors">
+            <X size={24} />
+          </DialogClose>
           <DialogHeader className="text-left">
             <div className="mb-4"><StatusBadge project={project.project} /></div>
             <DialogTitle className="text-2xl font-bold text-white leading-tight">

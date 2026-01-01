@@ -27,7 +27,6 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
       url: URL.createObjectURL(file),
     };
 
-    // Call onChange directly with the new array
     onChange([...value, newCert]);
   };
 
@@ -40,22 +39,21 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
     if (!cert?.file) return;
     const url = URL.createObjectURL(cert.file);
     window.open(url, "_blank");
-    // Revoke after a minute to save memory
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
   return (
-    <div className={`w-full border border-white/30 rounded-xl p-5 ${bg}`}>
-      <div className="flex justify-between items-center mb-4">
-        <div>
+    <div className={`w-full border border-white/30 rounded-xl p-4 sm:p-5 ${bg}`}>
+      <div className="flex justify-between items-center mb-4 gap-2">
+        <div className="min-w-0">
           <h2 className="text-base font-semibold text-white">Certifications</h2>
-          <p className="text-sm text-white/50">Max {MAX_CERTS} files</p>
+          <p className="text-xs sm:text-sm text-white/50">Max {MAX_CERTS} files</p>
         </div>
 
-        <Button asChild className="bg-[#E8D1AB] text-black hover:bg-[#DCD1BE]">
+        <Button asChild className="bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] shrink-0">
           <label className="cursor-pointer flex items-center gap-2">
             <Upload size={16} />
-            Upload
+            <span className="text-sm">Upload</span>
             <input
               ref={inputRef}
               type="file"
@@ -67,25 +65,31 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         {value.map((cert) => (
           <div
             key={cert.id}
-            className="border border-white/10 bg-white/5 rounded-xl p-4 flex justify-between items-center text-sm"
+            className="border border-white/10 bg-white/5 rounded-xl p-3 sm:p-4 flex justify-between items-center text-sm gap-3"
           >
-            <div className="flex items-center gap-3">
-              <LinkIcon size={18} className="text-[#E8D1AB]" />
-              <div className="flex flex-col">
-                <span className="font-medium text-white">{cert.name}</span>
-                <span className="text-white/40 text-xs">{cert.size}</span>
+            {/* Left side: Icon and Name */}
+            <div className="flex items-center gap-3 min-w-0"> 
+              <div className="shrink-0">
+                <LinkIcon size={18} className="text-[#E8D1AB]" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="font-medium text-white truncate block">
+                  {cert.name}
+                </span>
+                <span className="text-white/40 text-[10px] sm:text-xs">{cert.size}</span>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            {/* Right side: Buttons */}
+            <div className="flex gap-1 sm:gap-2 shrink-0">
               <button 
                 type="button" 
                 onClick={() => viewCertificate(cert)}
-                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white"
+                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
               >
                 <Eye size={18} />
               </button>
@@ -93,7 +97,7 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
               <button
                 type="button"
                 onClick={() => removeCert(cert.id)}
-                className="p-2 hover:bg-red-500/10 rounded-lg text-white/40 hover:text-red-500"
+                className="p-2 hover:bg-red-500/10 rounded-lg text-white/40 hover:text-red-500 transition-colors"
               >
                 <Trash2 size={18} />
               </button>
