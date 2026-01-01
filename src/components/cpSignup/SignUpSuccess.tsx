@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Zap, CheckCircle2, Globe, ArrowRight } from "lucide-react";
 import { SOCIAL_ICONS } from "@/app/data/staticData";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { toast } from "sonner";
 
 const getShortLocation = (location) => {
   if (!location) return "California, US";
@@ -21,13 +23,46 @@ export default function SignupSuccess({ data }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  const { login } = useAuth();
+
   // Profile image fallback
   const profileImage = data?.profilePreview || "/images/loginsignup/profile_temp.png";
 
-  const handleGoToDashboard = () => {
+  const handleGoToDashboard = async () => {
+    // Safety check for credentials
+    if (!data?.email || !data?.password) {
+      toast.error("Missing credentials. Please try logging in manually.");
+      router.push("/login");
+      return;
+    }
+
     setLoading(true);
-    // Add navigation logic here
-    router.push("/dashboard");
+    try {
+      // Execute login using data passed from the signup process
+      const result = await login({ 
+        email: data.email, 
+        password: data.password 
+      });
+      
+      toast.success(result.message || "Login successful!");
+
+      // Redirection logic based on user_type_id (matching your LoginForm logic)
+      const userTypeId = result?.user?.user_type_id;
+
+      if (userTypeId === 1) {
+        router.push('/affiliate/dashboard');
+      } else if (userTypeId === 2) {
+        router.push('/creator/dashboard/request');
+      } else {
+        router.push('/dashboard'); 
+      }
+    } catch (error) {
+      const errorMessage = error?.data?.message || error?.message || "Auto-login failed. Please sign in.";
+      toast.error(errorMessage);
+      router.push("/login");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
