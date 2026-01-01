@@ -9,13 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Trash2 } from "lucide-react";
 import { getEquipmentSuggestions } from "@/lib/api";
-import { cn } from "@/lib/utils"; // Ensure you have this utility
 
-export default function AddEquipments({ value = [], onChange }) {
+// Added 'names' to props
+export default function AddEquipments({ value = [], names = [], onChange }) {
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [inputValue, setInputValue] = useState("");
-  const [selectedMap, setSelectedMap] = useState({});
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -49,24 +48,23 @@ export default function AddEquipments({ value = [], onChange }) {
 
   const handleSelectSuggestion = (equipment) => {
     if (!value.includes(equipment.equipment_id)) {
-      onChange([...value, equipment.equipment_id]);
-      setSelectedMap((prev) => ({
-        ...prev,
-        [equipment.equipment_id]: equipment.equipment_name,
-      }));
+      // Create new arrays for both IDs and Names
+      const nextIds = [...value, equipment.equipment_id];
+      const nextNames = [...names, equipment.equipment_name];
+      
+      // Pass both to parent
+      onChange(nextIds, nextNames);
     }
     setInputValue("");
     setSuggestions([]);
     setOpen(false);
   };
 
-  const removeEquipment = (id) => {
-    onChange(value.filter((v) => v !== id));
-    setSelectedMap((prev) => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
+  const removeEquipment = (index) => {
+    // Filter both arrays by index to keep them in sync
+    const nextIds = value.filter((_, i) => i !== index);
+    const nextNames = names.filter((_, i) => i !== index);
+    onChange(nextIds, nextNames);
   };
 
   return (
@@ -85,7 +83,6 @@ export default function AddEquipments({ value = [], onChange }) {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            // MATCHING SELECT TRIGGER STYLING
             className="h-12 w-full bg-[#111111] border-[#333333] text-white placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#BEA784] focus-visible:ring-offset-0"
           />
         </PopoverTrigger>
@@ -93,7 +90,6 @@ export default function AddEquipments({ value = [], onChange }) {
         <PopoverContent
           align="start"
           side="bottom"
-          // MATCHING SELECT CONTENT STYLING
           className="p-0 w-[var(--radix-popover-trigger-width)] bg-[#111111] border-[#333333] text-white shadow-md overflow-hidden"
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
@@ -107,7 +103,6 @@ export default function AddEquipments({ value = [], onChange }) {
                 <CommandItem
                   key={equipment.equipment_id}
                   onSelect={() => handleSelectSuggestion(equipment)}
-                  // MATCHING SELECT ITEM STYLING
                   className="px-3 py-2 cursor-pointer text-white aria-selected:bg-neutral-800 aria-selected:text-white"
                 >
                   {equipment.equipment_name}
@@ -118,17 +113,17 @@ export default function AddEquipments({ value = [], onChange }) {
         </PopoverContent>
       </Popover>
 
-      {/* Selected Items List Styled to match */}
+      {/* Selected Items List: Now uses the 'names' array directly */}
       <div className="flex flex-col gap-3 mt-4">
-        {value.map((id, i) => (
+        {names.map((name, i) => (
           <div
-            key={`${i}_${id}`}
+            key={`${i}_${value[i]}`}
             className="border border-[#333333] bg-[#111111] rounded-md px-3 py-3 flex justify-between items-center text-sm text-white shadow-sm"
           >
-            <span>{selectedMap[id] || "Equipment Not Found"}</span>
+            <span>{name}</span>
             <Trash2
               className="cursor-pointer text-red-500 hover:text-red-400 w-4 h-4 transition-colors"
-              onClick={() => removeEquipment(id)}
+              onClick={() => removeEquipment(i)}
             />
           </div>
         ))}

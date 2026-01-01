@@ -252,7 +252,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
         <div className="flex items-center justify-center gap-2 text-sm text-white/30 pt-4">
           <div className="h-[1px] flex-grow bg-white/5"></div>
           <span>Already have an account?</span>
-          <Link href="/loginCrew" className="text-[#E8D1AB] hover:underline">Log in</Link>
+          <Link href="/login" className="text-[#E8D1AB] hover:underline">Log in</Link>
           <div className="h-[1px] flex-grow bg-white/5"></div>
         </div>
       </form>

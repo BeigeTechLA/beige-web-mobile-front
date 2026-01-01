@@ -39,144 +39,148 @@ const skillOptions = [
   { value: "17", label: "Cinematographer" },
 ];
 
+// ... (keep imports and options as they are)
+
 const ProfileCard = ({ data }) => {
-    console.log(data)
+  console.log(data)
   const role = roleOptions.find(option => option.value === data?.role)?.label || "";
   const skills = data?.skills?.map(skillId => skillOptions.find(option => option.value === skillId)?.label).join(", ");
   const profileImage = data?.profilePreview || "/images/loginsignup/profile_temp.png";
 
   return (
-    <div className="flex flex-col gap-4 flex-grow overflow-y-scroll [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
-          <Image
-            src={profileImage}
-            alt="Profile Image"
-            className="w-full h-full object-cover"
-            width={48}
-            height={48}
-          />
-        </div>
-        <div className="w-2/5">
-          <p className="font-semibold text-white">
-            {data?.firstName !== "" ? data.firstName : "John"} {data?.lastName !== "" ? data.lastName : "Doe"}
-          </p>
-          <p className="text-sm text-gray-400">{data?.location || "New York, USA"}</p>
-        </div>
-
-        <button
-          type="button"
-          className="ml-auto flex items-center justify-center gap-2 px-3 py-2 bg-white text-black font-semibold rounded-full text-sm w-2/5 hover:bg-gray-200 transition-colors"
-        >
-          <Zap className="w-4 h-4 fill-black" />
-          View Details
-        </button>
-      </div>
-
-      {data?.links?.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
-          {data?.links.map((link) => (
-            <SocMedTab key={link.id} socMedItem={link} />
-          ))}
-        </div>
-      )}
-
-      {Object.keys(data).length !== 0 && (
-        <>
-          <div className="flex flex-col gap-6">
-            <div className="flex gap-6 items-center">
-              {data?.hourlyRate !== "" && (
-                <div className="flex flex-col gap-[1px] flex-1">
-                  <p className="text-base font-medium text-white">${data?.hourlyRate}</p>
-                  <p className="text-xs text-gray-400">/Hour</p>
-                </div>
-              )}
-
-              {data?.yoe !== "" && (
-                <div className="flex flex-col gap-[1px] flex-1">
-                  <p className="text-base font-medium text-white">{data?.yoe}</p>
-                  <p className="text-xs text-gray-400">Experience</p>
-                </div>
-              )}
-
-              {data?.workingDistance && (
-                <div className="flex flex-col gap-[1px] flex-1">
-                  <p className="text-base font-medium text-white">{data.workingDistance}</p>
-                  <p className="text-xs text-gray-400">Working Distance</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-6 items-center">
-              {data?.email && (
-                <div className="flex flex-col gap-[1px] flex-1">
-                  <p className="text-base font-medium text-white break-all">{data.email}</p>
-                  <p className="text-xs text-gray-400">Email</p>
-                </div>
-              )}
-
-              {role !== "" && (
-                <div className="flex flex-col gap-[1px] flex-1">
-                  <p className="text-base font-medium text-white">{role}</p>
-                  <p className="text-xs text-gray-400">Role</p>
-                </div>
-              )}
-            </div>
+    /* Change 1: Set container to relative and h-full */
+    <div className="relative h-full flex flex-col">
+      
+      <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide flex flex-col gap-6 pb-20 
+        [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        
+        {/* Profile Header */}
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden shrink-0">
+            <Image
+              src={profileImage}
+              alt="Profile Image"
+              className="w-full h-full object-cover"
+              width={48}
+              height={48}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-white truncate">
+              {data?.firstName || "John"} {data?.lastName || "Doe"}
+            </p>
+            <p className="text-sm text-gray-400 truncate">{data?.location || "New York, USA"}</p>
           </div>
 
-          {skills && skills.length !== 0 && (
-            <div className="flex gap-6">
+          <button
+            type="button"
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-white text-black font-semibold rounded-full text-sm hover:bg-gray-200 transition-colors shrink-0"
+          >
+            <Zap className="w-4 h-4 fill-black" />
+            <span className="hidden sm:inline">Details</span>
+          </button>
+        </div>
+
+        {/* Social Links */}
+        {data?.links?.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {data?.links.map((link) => (
+              <SocMedTab key={link.id} socMedItem={link} />
+            ))}
+          </div>
+        )}
+
+        {/* Stats / Details Grid */}
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+            {data?.hourlyRate && (
               <div className="flex flex-col gap-[1px]">
-                <p className="text-base font-medium text-white">{skills}</p>
-                <p className="text-xs text-gray-400">Skills</p>
+                <p className="text-base font-medium text-white">${data?.hourlyRate}</p>
+                <p className="text-xs text-gray-400">/Hour</p>
               </div>
+            )}
+            {data?.yoe && (
+              <div className="flex flex-col gap-[1px]">
+                <p className="text-base font-medium text-white">{data?.yoe}</p>
+                <p className="text-xs text-gray-400">Experience</p>
+              </div>
+            )}
+            {data?.workingDistance && (
+              <div className="flex flex-col gap-[1px]">
+                <p className="text-base font-medium text-white">{data.workingDistance}</p>
+                <p className="text-xs text-gray-400">Range</p>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {data?.email && (
+              <div className="flex flex-col gap-[1px]">
+                <p className="text-base font-medium text-white break-all">{data.email}</p>
+                <p className="text-xs text-gray-400">Email</p>
+              </div>
+            )}
+            {role && (
+              <div className="flex flex-col gap-[1px]">
+                <p className="text-base font-medium text-white">{role}</p>
+                <p className="text-xs text-gray-400">Role</p>
+              </div>
+            )}
+          </div>
+
+          {skills && (
+            <div className="flex flex-col gap-[1px]">
+              <p className="text-base font-medium text-white">{skills}</p>
+              <p className="text-xs text-gray-400">Skills</p>
             </div>
           )}
 
           {data?.bio && (
-            <div className="flex gap-6">
-              <div className="flex flex-col gap-[1px]">
-                <p className="text-base font-medium text-white">{data.bio}</p>
-                <p className="text-xs text-gray-400">Bio</p>
-              </div>
+            <div className="flex flex-col gap-[1px]">
+              <p className="text-base font-medium text-white leading-relaxed">{data.bio}</p>
+              <p className="text-xs text-gray-400">Bio</p>
             </div>
           )}
 
-          {data?.equipments && data.equipments.length > 0 && (
-            <div className="flex gap-6">
-              <div className="flex flex-col gap-[1px]">
-                <p className="text-base font-medium text-white">{data.equipments.join(", ")}</p>
-                <p className="text-xs text-gray-400">Equipments</p>
-              </div>
+          {data?.equipments?.length > 0 && (
+            <div className="flex flex-col gap-[1px]">
+              <p className="text-base font-medium text-white">{data.equipmentNames.join(", ")}</p>
+              <p className="text-xs text-gray-400">Equipment</p>
             </div>
           )}
-        </>
-      )}
-
-      <p className="text-gray-400 text-sm mt-2">
-        Let&apos;s complete your profile to help you discover the best opportunities.
-      </p>
-
-      {data?.featuredWork?.length > 0 && (
-        <div className="flex gap-4 flex-wrap">
-          {data.featuredWork.map((work, index) => (
-            <div
-              key={index}
-              className="w-[230px] h-[172px] py-4 px-3 flex items-end bg-center bg-cover bg-no-repeat rounded-lg"
-              style={{
-                backgroundImage: work?.image ? `url(${work.image})` : "none",
-                backgroundColor: work?.image ? "transparent" : "#333",
-              }}
-            >
-              <span className="text-sm font-medium text-white drop-shadow-md">
-                {work.title}
-              </span>
-            </div>
-          ))}
         </div>
-      )}
 
-      <div className="absolute bottom-0 left-0 w-full h-[70px] bg-gradient-to-t from-black/40 to-transparent rounded-b-2xl pointer-events-none" />
+        {/* Featured Work Images */}
+        {data?.featuredWork?.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs text-gray-400 uppercase tracking-widest">Featured Work</p>
+            <div className="grid grid-cols-1 gap-4">
+              {data.featuredWork.map((work, index) => (
+                <div
+                  key={index}
+                  className="w-full aspect-video relative flex items-end p-4 bg-zinc-900 rounded-xl overflow-hidden group"
+                >
+                  {work?.image && (
+                    <Image 
+                      src={work.image} 
+                      alt={work.title} 
+                      fill 
+                      className="object-cover transition-transform group-hover:scale-105"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  <span className="relative z-10 text-sm font-medium text-white">
+                    {work.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Change 3: Improved bottom fade overlay */}
+      <div className="absolute bottom-0 left-0 w-full h-20 bg-gradient-to-t from-[#141414] via-[#141414]/80 to-transparent pointer-events-none rounded-b-[32px]" />
     </div>
   );
 };

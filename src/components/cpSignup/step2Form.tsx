@@ -157,8 +157,18 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           </div>
           <div className="w-full">
             <AddEquipments
-              value={data.equipments}
-              onChange={(v) => setData({ ...data, equipments: v })}
+              // Pass IDs
+              value={data.equipments || []}
+              // Pass Names (for display and storage in data)
+              names={data.equipmentNames || []}
+              // Update both in the 'data' state
+              onChange={(ids, names) => 
+                setData({ 
+                  ...data, 
+                  equipments: ids, 
+                  equipmentNames: names 
+                })
+              }
             />
           </div>
         </div>
@@ -195,7 +205,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
         <div className="flex items-center justify-center gap-2 text-sm text-white/40 pt-4 pb-10">
           <div className="h-[1px] flex-grow bg-white/10"></div>
           <span>Already have an account?</span>
-          <Link href="/loginCrew" className="text-[#E8D1AB] hover:underline">
+          <Link href="/login" className="text-[#E8D1AB] hover:underline">
             Log in
           </Link>
           <div className="h-[1px] flex-grow bg-white/10"></div>
