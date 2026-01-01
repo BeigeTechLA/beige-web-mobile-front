@@ -100,7 +100,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
   };
 
   return (
-    <div className="space-y-8 bg-[#101010] text-white p-2">
+    <div className="space-y-8 bg-[#101010] text-white p-2 relative z-10">
       <form className="space-y-6 lg:space-y-9 lg:mt-14" onSubmit={(e) => e.preventDefault()}>
         {/* Name Fields */}
         <div className="grid grid-cols-2 gap-4">
