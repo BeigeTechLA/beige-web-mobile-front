@@ -157,8 +157,18 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           </div>
           <div className="w-full">
             <AddEquipments
-              value={data.equipments}
-              onChange={(v) => setData({ ...data, equipments: v })}
+              // Pass IDs
+              value={data.equipments || []}
+              // Pass Names (for display and storage in data)
+              names={data.equipmentNames || []}
+              // Update both in the 'data' state
+              onChange={(ids, names) => 
+                setData({ 
+                  ...data, 
+                  equipments: ids, 
+                  equipmentNames: names 
+                })
+              }
             />
           </div>
         </div>

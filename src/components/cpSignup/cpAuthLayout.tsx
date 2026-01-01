@@ -118,13 +118,18 @@ function CpAuthLayout({
                 <div className="absolute bottom-0 left-0 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-blue-500/5 blur-[80px] md:blur-[120px] rounded-full -ml-20 -mb-20 md:-ml-40 md:-mb-40" />
 
                 {/* THE CARD: h-auto on mobile, fixed height on desktop */}
-                <div className="relative z-10 w-full max-w-[500px] h-auto min-h-[350px] lg:h-[80vh] bg-white/[0.03] border border-white/10 backdrop-blur-3xl rounded-[32px] flex flex-col overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] transform transition-transform duration-700 ease-out lg:hover:translate-y-[-20px]">
-                  
+                <div className="relative z-10 w-full max-w-[500px] 
+    /* Desktop height is fixed to 80% of viewport */
+    h-auto min-h-[400px] lg:h-[80vh] 
+    bg-white/[0.03] border border-white/10 backdrop-blur-3xl 
+    rounded-[32px] flex flex-col overflow-hidden 
+    shadow-[0_20px_50px_rgba(0,0,0,0.5)] 
+    transform transition-transform duration-700 ease-out 
+    lg:hover:translate-y-[-10px]">
                   {/* CONTENT INSIDE THE CARD */}
-                  <div className="flex-1 p-6 md:p-10 lg:p-8">
+                  <div className="flex-1 h-full p-6 md:p-10 lg:p-8 flex flex-col overflow-hidden">
                     {rightCardContent}
                   </div>
-
                   {/* BOTTOM FADE - only show on desktop where the card has a fixed scroll area */}
                   <div className="hidden lg:block pointer-events-none absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-[#0D0D0D] to-transparent opacity-90" />
                 </div>
