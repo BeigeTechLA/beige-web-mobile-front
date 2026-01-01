@@ -37,6 +37,7 @@ function CpAuthLayout({
     relative
     h-[100dvh]
     overflow-y-auto
+    overflow-x-hidden
     overscroll-contain
   "
 >
@@ -62,7 +63,8 @@ function CpAuthLayout({
           }`}
         >
           {/* LEFT SECTION - Form Content */}
-          <div className="p-6 md:p-14 lg:p-20 flex flex-col pt-28 lg:pt-10">
+          {/* <div className="p-6 md:p-14 lg:p-20 flex flex-col pt-28 lg:pt-10"> */}
+          <div className="px-4 py-6 md:p-14 lg:p-20 flex flex-col pt-28 lg:pt-10">
             
             {!hideRightSection && (
               <div className="flex flex-col gap-10">
@@ -97,7 +99,8 @@ function CpAuthLayout({
             )}
 
             {/* FORM CONTENT */}
-            <div className="w-full max-w-xl">
+            {/* <div className="w-full max-w-xl"> */}
+            <div className="w-full max-w-none lg:max-w-xl">
               {leftContent}
             </div>
           </div>
