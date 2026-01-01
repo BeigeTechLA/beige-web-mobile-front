@@ -142,7 +142,7 @@ function Sidebar({
           `}
         >
           <LayoutDashboard size={20} />
-          <span>Overview</span>
+          <span>Affiliate</span>
         </Link>
 
       </div>
