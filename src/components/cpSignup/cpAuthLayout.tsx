@@ -107,7 +107,8 @@ function CpAuthLayout({
 
           {/* RIGHT SECTION - Stacks below on mobile */}
           {!hideRightSection && (
-            <div className="relative bg-[#0D0D0D] min-h-screen border-t lg:border-t-0 lg:border-l border-white/5 pb-10 lg:pb-0">
+            // <div className="relative bg-[#0D0D0D] min-h-screen border-t lg:border-t-0 lg:border-l border-white/5 pb-10 lg:pb-0">
+            <div className="relative bg-[#0D0D0D] min-h-0 lg:min-h-screen border-t lg:border-t-0 lg:border-l border-white/5 pb-10 lg:pb-0">
 
               
               {/* 
