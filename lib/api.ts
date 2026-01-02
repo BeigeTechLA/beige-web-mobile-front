@@ -375,3 +375,20 @@ export const getProject = async (projectId: number) => {
   }
 };
 
+
+export const updateReferralCode = async (payload: {
+  affiliate_id: number;
+  referral_code: string;
+}) => {
+  try {
+    const response = await api.put(
+      "affiliates/update/referral",
+      payload
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Update Referral Code Error:", error);
+    throw error;
+  }
+};

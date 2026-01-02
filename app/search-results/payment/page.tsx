@@ -274,7 +274,7 @@ function MultiCreatorPaymentContent() {
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
 
         const response = await axios.get(
-          `${API_BASE_URL}/guest-bookings/${shootId}/payment-details`
+          `${API_BASE_URL}guest-bookings/${shootId}/payment-details`
         );
 
         if (!response.data.success) {
@@ -329,7 +329,7 @@ function MultiCreatorPaymentContent() {
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
 
         const response = await axios.post(
-          `${API_BASE_URL}/payments/create-intent-multi`,
+          `${API_BASE_URL}payments/create-intent-multi`,
           {
             booking_id: shootId,
             amount: quote.total,
@@ -355,7 +355,7 @@ function MultiCreatorPaymentContent() {
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
 
       await axios.post(
-        `${API_BASE_URL}/payments/confirm-multi`,
+        `${API_BASE_URL}payments/confirm-multi`,
         {
           paymentIntentId,
           booking_id: shootId,

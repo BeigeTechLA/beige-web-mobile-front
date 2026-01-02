@@ -8,8 +8,6 @@ import Step1Form from "./step1Form";
 import Step2Form from "./step2Form";
 import Step3Form from "./step3Form";
 import SignupSuccess from "./SignUpSuccess";
-// import Step3Form from "components/cpSignup/Step3Form";
-// import SignupSuccess from "components/cpSignup/SignupSuccess";
 import ProfileCard from "./profileCard";
 
 export default function CpSignupPage() {
@@ -33,6 +31,7 @@ export default function CpSignupPage() {
     certifications: [],
     featuredWork: [],
     links: [],
+    crew_member_id: null, // Add crew_member_id to the state
   });
 
   const nextStep = () => setStep((s) => s + 1);
@@ -64,6 +63,7 @@ export default function CpSignupPage() {
             data={data}
             setData={setData}
             nextStep={nextStep}
+            crew_member_id={data.crew_member_id} // Pass crew_member_id if it exists
           />
         );
 
