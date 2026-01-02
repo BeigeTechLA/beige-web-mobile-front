@@ -4,16 +4,24 @@ import React, { useState, useRef, useEffect } from "react";
 import { Tag, X, Upload, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { compressImage } from "@/lib/utils";
 
-const FeaturedWorkModal = ({ open, onClose, onAdd }) => {
+interface FeaturedWorkModalProps {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (item: any) => void;
+}
+
+const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState([]);
   const [addTagsOpen, setAddTagsOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [rawFiles, setRawFiles] = useState<File[]>([]);
+  const [isCompressing, setIsCompressing] = useState(false);
 
-  const [imagePreview, setImagePreview] = useState(null);
-  const [rawFile, setRawFile] = useState(null);
-  const fileRef = useRef(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Design Tokens
   const inputClasses = "h-14 w-full rounded-[12px] border border-white/20 bg-[#1A1A1A] px-4 text-white placeholder:text-white/40 outline-none focus:border-[#E8D1AB] focus:ring-0 transition-all";
@@ -24,17 +32,39 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }) => {
       setTitle("");
       setTags([]);
       setTagInput("");
-      setImagePreview(null);
-      setRawFile(null); // Reset file
+      setImagePreviews([]);
+      setRawFiles([]);
       setAddTagsOpen(false);
     }
   }, [open]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setRawFile(file); // <--- Store the binary file
-    setImagePreview(URL.createObjectURL(file));
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    try {
+      setIsCompressing(true); // Start Loader
+
+      const compressedFiles = await Promise.all(
+        files.map(async (file) => {
+          if (file.type.startsWith('image/')) {
+            // Compression can take time for multiple large files
+            return await compressImage(file);
+          }
+          return file;
+        })
+      );
+
+      const previews = compressedFiles.map((file) => URL.createObjectURL(file));
+
+      setRawFiles((prev) => [...prev, ...compressedFiles]);
+      setImagePreviews((prev) => [...prev, ...previews]);
+    } catch (error) {
+      console.error("Error during file processing:", error);
+    } finally {
+      setIsCompressing(false); // Stop Loader
+      if (fileRef.current) fileRef.current.value = "";
+    }
   };
 
   const removeTag = (t) => {
@@ -42,44 +72,43 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }) => {
   };
 
   const handleAdd = () => {
-    if (!title.trim() || !rawFile) return;
+    if (!title.trim() || rawFiles.length === 0) return;
+
     onAdd({
       id: Date.now(),
       title,
       tags,
-      image: imagePreview, // For UI display
-      file: rawFile        // <--- For API upload
+      previews: imagePreviews, // UI
+      files: rawFiles,         // API
     });
+
     onClose();
   };
-
 
   return (
     <>
       {/* BACKDROP */}
       <div
-        className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-40 transition-opacity duration-300 ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
+        className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-40 transition-opacity duration-300 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
         onClick={onClose}
       />
 
       {/* MAIN CENTERED MODAL */}
       <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
-          open ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
-        }`}
+        className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${open ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+          }`}
       >
         <div className={`${modalBg} w-full md:w-[600px] lg:w-[738px] max-h-[90vh] flex flex-col overflow-hidden relative`}>
-          
+
           {/* HEADER */}
           <div className="flex items-center justify-between px-8 pt-6 pb-2">
             <div>
               <h3 className="text-xl font-bold text-white">Add Featured Work</h3>
               <p className="text-sm text-white/40">Upload a project to showcase on your profile</p>
             </div>
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               className="p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
             >
               <X size={24} />
@@ -88,7 +117,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }) => {
 
           {/* CONTENT */}
           <div className="px-8 py-6 overflow-auto flex-1 space-y-6">
-            
+
             {/* TITLE INPUT */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-white/60 ml-1">Project Title</label>
@@ -101,41 +130,79 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }) => {
             </div>
 
             {/* UPLOAD / PREVIEW AREA */}
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <label className="text-sm font-medium text-white/60 ml-1">Thumbnail / Media</label>
-              {!imagePreview ? (
+
+              {imagePreviews.length === 0 ? (
                 <div
-                  className="border-2 border-dashed border-white/10 rounded-[12px] h-56 flex flex-col items-center justify-center bg-white/5 hover:bg-white/10 hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
-                  onClick={() => fileRef.current?.click()}
+                  className={`border-2 border-dashed border-white/10 rounded-[12px] h-56 flex flex-col items-center justify-center bg-white/5 transition-all group ${isCompressing ? "opacity-50 cursor-wait" : "hover:bg-white/10 hover:border-[#E8D1AB]/40 cursor-pointer"
+                    }`}
+                  onClick={() => !isCompressing && fileRef.current?.click()}
                 >
                   <div className="p-4 rounded-full bg-[#1A1A1A] border border-white/10 mb-4 group-hover:scale-110 transition-transform">
-                    <Upload className="w-8 h-8 text-[#E8D1AB]" />
+                    {isCompressing ? (
+                      <Upload className="w-8 h-8 text-[#E8D1AB] animate-bounce" />
+                    ) : (
+                      <Upload className="w-8 h-8 text-[#E8D1AB]" />
+                    )}
                   </div>
                   <div className="text-center px-6">
                     <div className="font-bold text-white text-lg">
-                      Upload Project Image or Video
+                      {isCompressing ? "Optimizing Files..." : "Upload Project Images or Videos"}
                     </div>
                     <div className="text-sm text-white/40 mt-1">
-                      Drag and drop or click to browse files
+                      {isCompressing ? "Please wait a moment" : "Drag and drop or click to browse files"}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="relative rounded-[12px] overflow-hidden border border-white/20 h-56 group">
-                  <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <Button 
-                       variant="destructive" 
-                       size="sm" 
-                       onClick={() => setImagePreview(null)}
-                       className="rounded-full"
-                    >
-                        Change Image
-                    </Button>
-                  </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 relative">
+                  {/* Show an overlay if adding more files and compressing */}
+                  {isCompressing && (
+                    <div className="absolute inset-0 z-20 bg-black/40 backdrop-blur-[2px] rounded-[12px] flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-4 border-[#E8D1AB] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[#E8D1AB] font-medium text-sm">Processing...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {imagePreviews.map((src, index) => (
+                    <div key={index} className="relative rounded-[12px] overflow-hidden border border-white/20 aspect-square group">
+                      <img src={src} className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => {
+                          URL.revokeObjectURL(src);
+                          setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+                          setRawFiles((prev) => prev.filter((_, i) => i !== index));
+                        }}
+                        className="absolute top-2 right-2 bg-black/60 rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                      >
+                        <X size={14} className="text-white" />
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => !isCompressing && fileRef.current?.click()}
+                    disabled={isCompressing}
+                    className="flex items-center justify-center border border-dashed border-white/20 rounded-[12px] aspect-square hover:bg-white/5 transition disabled:opacity-50"
+                  >
+                    <Upload className="text-white/60" />
+                  </button>
                 </div>
               )}
-              <input ref={fileRef} type="file" onChange={handleFileChange} className="hidden" accept="image/*,video/*" />
+
+              {/* RESTORED INPUT FIELD - This was missing/commented out */}
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+                accept="image/*,video/*"
+              />
             </div>
 
             {/* TAGS PREVIEW IN MAIN MODAL */}
@@ -169,12 +236,19 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }) => {
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleAdd} 
-              disabled={!title || !imagePreview}
+            {/* <Button
+              onClick={handleAdd}
+              disabled={!title || imagePreviews.length === 0}
               className="rounded-[12px] h-12 px-10 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] font-bold"
             >
               Add Project
+            </Button> */}
+            <Button
+              onClick={handleAdd}
+              disabled={!title || imagePreviews.length === 0 || isCompressing}
+              className="rounded-[12px] h-12 px-10 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] font-bold disabled:opacity-50"
+            >
+              {isCompressing ? "Processing..." : "Add Project"}
             </Button>
           </div>
 

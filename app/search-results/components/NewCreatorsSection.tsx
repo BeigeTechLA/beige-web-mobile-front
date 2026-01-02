@@ -72,7 +72,7 @@ const NewCreatorsSection = ({
             768: { slidesPerView: 2 },
             1280: { slidesPerView: 3 },
           }}
-          className="!overflow-visible lg:h-[584px]"
+          className="!overflow-visible h-[424px] lg:h-[590px] !p-[2px]"
         >
           {newCreators.map((creator) => (
             <SwiperSlide key={creator.id}>

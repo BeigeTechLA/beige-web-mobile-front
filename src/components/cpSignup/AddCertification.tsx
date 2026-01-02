@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useRef } from "react";
+import React, { useState, useRef, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { Eye, Trash2, Upload, LinkIcon } from "lucide-react";
+import { Eye, Trash2, Upload, LinkIcon, Loader2 } from "lucide-react";
+import { compressImage, compressPDF } from "@/lib/utils";
 
 const MAX_CERTS = 10;
 
 const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
   const inputRef = useRef(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleUpload = (e) => {
+  const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (inputRef.current) inputRef.current.value = "";
     if (!file) return;
@@ -19,23 +21,46 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
       return;
     }
 
-    const newCert = {
-      id: crypto.randomUUID(),
-      name: file.name,
-      size: (file.size / 1024 / 1024).toFixed(1) + " MB",
-      file,
-      url: URL.createObjectURL(file),
-    };
+    try {
+      setIsProcessing(true);
+      let processedFile = file;
 
-    onChange([...value, newCert]);
+      if (file.type.startsWith('image/')) {
+        processedFile = await compressImage(file);
+      } else if (file.type === 'application/pdf') {
+        processedFile = await compressPDF(file);
+      }
+
+      const newCert = {
+        id: crypto.randomUUID(),
+        name: processedFile.name,
+        size: (processedFile.size / 1024 / 1024).toFixed(1) + " MB",
+        file: processedFile,
+        url: URL.createObjectURL(processedFile),
+      };
+
+      onChange([...value, newCert]);
+    } catch (error) {
+      console.error("Compression failed:", error);
+      const fallbackCert = {
+        id: crypto.randomUUID(),
+        name: file.name,
+        size: (file.size / 1024 / 1024).toFixed(1) + " MB",
+        file: file,
+        url: URL.createObjectURL(file),
+      };
+      onChange([...value, fallbackCert]);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const removeCert = (id) => {
+  const removeCert = (id: string) => {
     const updated = value.filter((c) => c.id !== id);
     onChange(updated);
   };
 
-  const viewCertificate = (cert) => {
+  const viewCertificate = (cert: any) => {
     if (!cert?.file) return;
     const url = URL.createObjectURL(cert.file);
     window.open(url, "_blank");
@@ -50,16 +75,25 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
           <p className="text-xs sm:text-sm text-white/50">Max {MAX_CERTS} files</p>
         </div>
 
-        <Button asChild className="bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] shrink-0">
-          <label className="cursor-pointer flex items-center gap-2">
-            <Upload size={16} />
-            <span className="text-sm">Upload</span>
+        <Button
+          asChild
+          className="bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] shrink-0"
+          disabled={isProcessing || value.length >= MAX_CERTS}
+        >
+          <label className={`${isProcessing ? 'cursor-not-allowed' : 'cursor-pointer'} flex items-center gap-2`}>
+            {isProcessing ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Upload size={16} />
+            )}
+            <span className="text-sm">{isProcessing ? "Processing..." : "Upload"}</span>
             <input
               ref={inputRef}
               type="file"
               accept="image/png,image/jpeg,application/pdf"
               className="hidden"
               onChange={handleUpload}
+              disabled={isProcessing}
             />
           </label>
         </Button>
@@ -72,7 +106,7 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
             className="border border-white/10 bg-white/5 rounded-xl p-3 sm:p-4 flex justify-between items-center text-sm gap-3"
           >
             {/* Left side: Icon and Name */}
-            <div className="flex items-center gap-3 min-w-0"> 
+            <div className="flex items-center gap-3 min-w-0">
               <div className="shrink-0">
                 <LinkIcon size={18} className="text-[#E8D1AB]" />
               </div>
@@ -86,8 +120,8 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
 
             {/* Right side: Buttons */}
             <div className="flex gap-1 sm:gap-2 shrink-0">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => viewCertificate(cert)}
                 className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
               >

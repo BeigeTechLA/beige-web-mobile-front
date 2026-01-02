@@ -1,0 +1,27 @@
+/* FeaturedWork.module.css */
+.featuredSwiper :global(.swiper-pagination-bullets) {
+    bottom: 40px !important;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    z-index: 50 !important;
+    /* Higher than gradient and content */
+    padding: 0 20px;
+    width: 100%;
+}
+
+.featuredSwiper :global(.swiper-pagination-bullet) {
+    width: 100%;
+    max-width: 28px;
+    height: 3px;
+    border-radius: 2px;
+    background: #ffffff;
+    opacity: 1;
+    margin: 0 !important;
+    transition: all 0.3s ease;
+}
+
+.featuredSwiper :global(.swiper-pagination-bullet-active) {
+    background: #E8D1AB;
+    width: 40px;
+}

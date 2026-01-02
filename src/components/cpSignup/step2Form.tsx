@@ -71,7 +71,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
   };
 
   return (
-    <div className="space-y-8 bg-[#101010] text-white p-2 relative z-10">
+    <div className="space-y-8 bg-[#101010] text-white pt-4 lg:p-2 relative z-10">
       <form className="space-y-6 lg:space-y-9 lg:mt-14" onSubmit={(e) => e.preventDefault()}>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -152,7 +152,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
         {/* Equipment Section */}
         <div className={sectionClasses}>
           <div>
-            <h2 className="text-base font-semibold text-white">Equipment Ownership</h2>
+            <h2 className="text-base font-semibold text-white">Equipments Owned</h2>
             <p className="text-sm text-white/50">List the gear you own or use</p>
           </div>
           <div className="w-full">
@@ -202,7 +202,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
         </div>
 
         {/* Footer Link */}
-        <div className="flex items-center justify-center gap-2 text-sm text-white/40 pt-4 pb-10">
+        <div className="flex items-center justify-center gap-2 text-sm text-white/40 pt-4">
           <div className="h-[1px] flex-grow bg-white/10"></div>
           <span>Already have an account?</span>
           <Link href="/login" className="text-[#E8D1AB] hover:underline">

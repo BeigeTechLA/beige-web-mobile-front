@@ -55,7 +55,7 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
       });
 
       (featuredWork || []).forEach((item) => {
-        const workFile = item.file; 
+        const workFile = item.file;
         if (workFile instanceof File) {
           formData.append("recent_work", workFile);
         }
@@ -90,16 +90,16 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
   };
 
   return (
-    <div className="space-y-8 bg-[#101010] text-white p-2 relative z-10">
+    <div className="space-y-8 bg-[#101010] text-white pt-4 lg:p-2 relative z-10">
       <form className="space-y-6 lg:space-y-9 lg:mt-14" onSubmit={(e) => e.preventDefault()}>
-        
+
         {/* Social Links Section */}
         <div className={sectionClasses}>
           <div>
             <h2 className="text-base font-semibold text-white">Social & Professional Links</h2>
             <p className="text-sm text-white/50">Add links to your IMDb, LinkedIn, or Instagram</p>
           </div>
-          
+
           <div className="flex flex-col gap-3">
             {links.map((link) => (
               <SocMedLink key={link.id} socmedItem={link} deleteLink={deleteLink} />
@@ -120,11 +120,11 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
 
         {/* Featured Work Section */}
         <div className={sectionClasses}>
-            <FeaturedWork 
-                value={featuredWork} 
-                onChange={setFeaturedWork} 
-                darkTheme={true} 
-            />
+          <FeaturedWork
+            value={featuredWork}
+            onChange={setFeaturedWork}
+            darkTheme={true}
+          />
         </div>
 
         {/* Certifications Section */}
@@ -179,7 +179,7 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
         </div>
 
         {/* Footer Link */}
-        <div className="flex items-center justify-center gap-2 text-sm text-white/40 pt-4 pb-10">
+        <div className="flex items-center justify-center gap-2 text-sm text-white/40 pt-4">
           <div className="h-[1px] flex-grow bg-white/10"></div>
           <span>Already have an account?</span>
           <Link href="/login" className="text-[#E8D1AB] hover:underline">
@@ -207,22 +207,22 @@ const SocMedLink = ({ socmedItem, deleteLink }) => {
     <div className="w-full flex items-center justify-between bg-white/5 border border-white/10 px-4 py-3 rounded-[12px] hover:border-white/30 transition-all">
       <div className="flex items-center gap-4">
         <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[#1A1A1A] border border-white/10">
-            {platform?.src ? (
+          {platform?.src ? (
             <img src={platform.src} alt="" className="w-5 h-5" />
-            ) : platform?.icon ? (
+          ) : platform?.icon ? (
             <platform.icon className="w-5 h-5 text-[#E8D1AB]" />
-            ) : (
+          ) : (
             <Globe className="w-5 h-5 text-[#E8D1AB]" />
-            )}
+          )}
         </div>
 
         <div className="flex flex-col">
-            <span className="text-white text-sm font-medium">
+          <span className="text-white text-sm font-medium">
             {socmedItem.name}
-            </span>
-            <span className="text-white/40 text-xs truncate max-w-[200px] lg:max-w-xs">
-                {socmedItem.url}
-            </span>
+          </span>
+          <span className="text-white/40 text-xs truncate max-w-[200px] lg:max-w-xs">
+            {socmedItem.url}
+          </span>
         </div>
       </div>
 

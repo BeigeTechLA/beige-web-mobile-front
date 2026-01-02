@@ -3,8 +3,18 @@
 import { useState } from "react";
 import { SOCIAL_ICONS } from "@/app/data/staticData";
 import { Zap, Globe } from "lucide-react";
-import Link from "next/link"; 
-import Image from "next/image"; 
+import Link from "next/link";
+import Image from "next/image";
+import type { FeaturedWorkItem } from "./FeaturedWork";
+
+// Swiper Imports
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination } from 'swiper/modules';
+
+// Swiper Styles
+import 'swiper/css';
+import 'swiper/css/pagination';
+import styles from './FeaturedWork.module.css'
 
 const roleOptions = [
   { value: "1", label: "Director" },
@@ -50,10 +60,9 @@ const ProfileCard = ({ data }) => {
   return (
     /* Change 1: Set container to relative and h-full */
     <div className="relative h-full flex flex-col">
-      
       <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide flex flex-col gap-6 pb-20 
         [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        
+
         {/* Profile Header */}
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden shrink-0">
@@ -155,25 +164,44 @@ const ProfileCard = ({ data }) => {
           <div className="space-y-3">
             <p className="text-xs text-gray-400 uppercase tracking-widest">Featured Work</p>
             <div className="grid grid-cols-1 gap-4">
-              {data.featuredWork.map((work, index) => (
-                <div
-                  key={index}
-                  className="w-full aspect-video relative flex items-end p-4 bg-zinc-900 rounded-xl overflow-hidden group"
-                >
-                  {work?.image && (
-                    <Image 
-                      src={work.image} 
-                      alt={work.title} 
-                      fill 
-                      className="object-cover transition-transform group-hover:scale-105"
-                    />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                  <span className="relative z-10 text-sm font-medium text-white">
-                    {work.title}
-                  </span>
-                </div>
-              ))}
+              {data.featuredWork.map((work: FeaturedWorkItem, index: number) => {
+                const images = work.previews?.length ? work.previews : work.image ? [work.image] : [];
+
+                return (
+                  <div
+                    key={index}
+                    className="w-full aspect-video relative rounded-xl overflow-hidden bg-zinc-900 group"
+                  >
+                    {images.length > 0 ? (
+                      <Swiper
+                        modules={[Pagination]}
+                        pagination={{ clickable: true }}
+                        className={`${styles.featuredSwiper} w-full h-full`}
+                      >
+                        {images.map((src, idx) => (
+                          <SwiperSlide key={idx}>
+                            <img
+                              src={src}
+                              alt={`${work.title} ${idx}`}
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
+                            />
+                          </SwiperSlide>
+                        ))}
+                      </Swiper>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Globe className="w-8 h-8 text-white/10" />
+                      </div>
+                    )}
+
+                    {/* Content Overlays */}
+                    {/* <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent z-10 pointer-events-none" /> */}
+                    <span className="absolute bottom-4 left-4 z-20 text-sm font-medium text-white pointer-events-none">
+                      {work.title}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

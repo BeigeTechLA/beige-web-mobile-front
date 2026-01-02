@@ -1,8 +1,9 @@
 'use client';
 
-import React from "react";
+import React, { useState, ChangeEvent } from "react";
 import { Upload, Eye, Trash2, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { compressImage, compressPDF } from "@/lib/utils";
 
 const UploadResumePortfolio = ({
   resume,
@@ -12,22 +13,41 @@ const UploadResumePortfolio = ({
   bgColour = "bg-[#101010]",
   buttonBgColour = "bg-white/5 hover:bg-white/10",
 }) => {
-  const handleUpload = (e, type) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleUpload = async (e: ChangeEvent<HTMLInputElement>, type: "resume" | "portfolio") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const fileData = {
-      name: file.name,
-      size: (file.size / 1024 / 1024).toFixed(1) + " MB",
-      file: file,
-      url: URL.createObjectURL(file),
-    };
+    try {
+      setIsProcessing(true);
+      let processedFile = file;
 
-    if (type === "resume") setResume(fileData);
-    if (type === "portfolio") setPortfolio(fileData);
+      if (file.type.startsWith('image/')) {
+        processedFile = await compressImage(file);
+      } else if (file.type === 'application/pdf') {
+        processedFile = await compressPDF(file);
+      }
+
+      const fileData = {
+        name: processedFile.name,
+        size: (processedFile.size / 1024 / 1024).toFixed(1) + " MB",
+        file: processedFile,
+        url: URL.createObjectURL(processedFile),
+      };
+
+      if (type === "resume") setResume(fileData);
+      if (type === "portfolio") setPortfolio(fileData);
+
+    } catch (error) {
+      console.error("Upload process error:", error);
+    } finally {
+      setIsProcessing(false);
+      e.target.value = "";
+    }
   };
 
-  const openFileInNewTab = (url) => {
+  const openFileInNewTab = (url: string) => {
     window.open(url, "_blank");
   };
 
@@ -46,7 +66,8 @@ const UploadResumePortfolio = ({
           <p className={labelClasses}>Resume / CV</p>
           {!resume ? (
             <label
-              className={`flex items-center justify-center gap-3 border border-dashed border-white/20 rounded-xl p-8 cursor-pointer ${buttonBgColour} transition group`}
+              className={`flex items-center justify-center gap-3 border border-dashed border-white/20 rounded-xl p-8 ${isProcessing ? "opacity-50 cursor-not-allowed" : `cursor-pointer ${buttonBgColour}`
+                } transition group`}
             >
               <Upload size={18} className="text-[#E8D1AB]" />
               <span className="text-white/80 text-sm group-hover:text-white">Upload Resume</span>

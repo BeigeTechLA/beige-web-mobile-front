@@ -7,6 +7,16 @@ import { Zap, CheckCircle2, Globe, ArrowRight, Mail, HardDrive } from "lucide-re
 import { SOCIAL_ICONS } from "@/app/data/staticData";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { toast } from "sonner";
+import type { FeaturedWorkItem } from "./FeaturedWork";
+
+// Swiper Imports
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination } from 'swiper/modules';
+
+// Swiper Styles
+import 'swiper/css';
+import 'swiper/css/pagination';
+import styles from './FeaturedWork.module.css'
 
 const roleOptions = [
   { value: "1", label: "Director" },
@@ -49,7 +59,7 @@ export default function SignupSuccess({ data }) {
   const roleLabel = roleOptions.find(opt => opt.value === data?.role)?.label || "Creative";
   const skillLabels = data?.skills?.map(id => skillOptions.find(opt => opt.value === id)?.label).filter(Boolean).join(", ");
   const profileImage = data?.profilePreview || "/images/loginsignup/profile_temp.png";
-  
+
   // Format equipment names for display
   const equipmentLabels = data?.equipmentNames?.length > 0 ? data.equipmentNames.join(", ") : null;
 
@@ -77,7 +87,7 @@ export default function SignupSuccess({ data }) {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center bg-[#0A0A0A] px-4 py-12">
-      
+
       {/* Header */}
       <div className="flex flex-col items-center mb-10 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="w-16 h-16 bg-[#E8D1AB]/10 border border-[#E8D1AB]/30 rounded-full flex items-center justify-center mb-4">
@@ -89,10 +99,10 @@ export default function SignupSuccess({ data }) {
 
       {/* DETAILED PROFILE CARD */}
       <div className="w-full max-w-xl bg-[#111111] border border-white/10 rounded-[32px] overflow-hidden flex flex-col shadow-2xl mb-10">
-        
+
         <div className="p-8 max-h-[60vh] overflow-y-auto space-y-8 
           [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          
+
           {/* Header Info */}
           <div className="flex items-start gap-4">
             <div className="relative shrink-0">
@@ -103,13 +113,13 @@ export default function SignupSuccess({ data }) {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-2xl font-bold text-white truncate">{data?.firstName} {data?.lastName}</h3>
-              
+
               {/* Location */}
               <p className="text-white/50 flex items-center gap-1.5 text-sm mt-1">
                 <Globe size={14} className="text-[#E8D1AB]" />
                 {data?.location || "Location not set"}
               </p>
-              
+
               {/* Email Address */}
               <p className="text-white/50 flex items-center gap-1.5 text-sm mt-1 truncate">
                 <Mail size={14} className="text-[#E8D1AB]" />
@@ -172,16 +182,46 @@ export default function SignupSuccess({ data }) {
               <p className="text-[10px] text-[#E8D1AB] uppercase font-bold tracking-wider">
                 Featured Portfolio
               </p>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                {data.featuredWork.map((work, index) => (
-                  <div key={index} className="relative aspect-video rounded-xl overflow-hidden border border-white/10 group bg-white/5">
-                    <img src={work.image || "/images/placeholder.png"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt={work.title} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
-                    <p className="absolute bottom-2 left-2 right-2 text-white text-[10px] md:text-xs font-medium truncate">
-                      {work.title}
-                    </p>
-                  </div>
-                ))}
+              <div className="grid grid-cols-1 gap-3 sm:gap-4">
+                {data.featuredWork.map((work: FeaturedWorkItem, index: number) => {
+                  const images = work.previews?.length ? work.previews : work.image ? [work.image] : [];
+
+                  return (
+                    <div
+                      key={index}
+                      className="w-full aspect-video relative rounded-xl overflow-hidden bg-zinc-900 group"
+                    >
+                      {images.length > 0 ? (
+                        <Swiper
+                          modules={[Pagination]}
+                          pagination={{ clickable: true }}
+                          className={`${styles.featuredSwiper} w-full h-full`}
+                        >
+                          {images.map((src, idx) => (
+                            <SwiperSlide key={idx}>
+                              <img
+                                src={src}
+                                alt={`${work.title} ${idx}`}
+                                className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
+                              />
+                            </SwiperSlide>
+                          ))}
+                        </Swiper>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Globe className="w-8 h-8 text-white/10" />
+                        </div>
+                      )}
+
+                      {/* Content Overlays */}
+                      {/* <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent z-10 pointer-events-none" /> */}
+                      <span className="absolute bottom-4 left-4 z-20 text-sm font-medium text-white pointer-events-none">
+                        {work.title}
+                      </span>
+                    </div>
+                  );
+                })}
+
               </div>
             </div>
           )}

@@ -63,6 +63,7 @@ export default function CpSignupPage() {
             data={data}
             setData={setData}
             nextStep={nextStep}
+            prevStep={handleBack}
             crew_member_id={data.crew_member_id} // Pass crew_member_id if it exists
           />
         );

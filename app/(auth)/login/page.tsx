@@ -5,6 +5,7 @@ export default function LoginPage() {
   return (
     <AuthSplitLayout 
       video="/videos/LoginVideo.mp4"
+      backLink="/"
     >
       <LoginForm />
     </AuthSplitLayout>
