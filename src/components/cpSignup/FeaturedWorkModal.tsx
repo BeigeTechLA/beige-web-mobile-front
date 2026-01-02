@@ -19,6 +19,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
   const [tagInput, setTagInput] = useState("");
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [rawFiles, setRawFiles] = useState<File[]>([]);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -42,9 +43,18 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
     if (!files.length) return;
 
     try {
+      setIsCompressing(true); // Start Loader
+
       const compressedFiles = await Promise.all(
-        files.map(file => file.type.startsWith('image/') ? compressImage(file) : file)
+        files.map(async (file) => {
+          if (file.type.startsWith('image/')) {
+            // Compression can take time for multiple large files
+            return await compressImage(file);
+          }
+          return file;
+        })
       );
+
       const previews = compressedFiles.map((file) => URL.createObjectURL(file));
 
       setRawFiles((prev) => [...prev, ...compressedFiles]);
@@ -52,6 +62,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
     } catch (error) {
       console.error("Error during file processing:", error);
     } finally {
+      setIsCompressing(false); // Stop Loader
       if (fileRef.current) fileRef.current.value = "";
     }
   };
@@ -119,36 +130,49 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
             </div>
 
             {/* UPLOAD / PREVIEW AREA */}
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <label className="text-sm font-medium text-white/60 ml-1">Thumbnail / Media</label>
+
               {imagePreviews.length === 0 ? (
                 <div
-                  className="border-2 border-dashed border-white/10 rounded-[12px] h-56 flex flex-col items-center justify-center bg-white/5 hover:bg-white/10 hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
-                  onClick={() => fileRef.current?.click()}
+                  className={`border-2 border-dashed border-white/10 rounded-[12px] h-56 flex flex-col items-center justify-center bg-white/5 transition-all group ${isCompressing ? "opacity-50 cursor-wait" : "hover:bg-white/10 hover:border-[#E8D1AB]/40 cursor-pointer"
+                    }`}
+                  onClick={() => !isCompressing && fileRef.current?.click()}
                 >
                   <div className="p-4 rounded-full bg-[#1A1A1A] border border-white/10 mb-4 group-hover:scale-110 transition-transform">
-                    <Upload className="w-8 h-8 text-[#E8D1AB]" />
+                    {isCompressing ? (
+                      <Upload className="w-8 h-8 text-[#E8D1AB] animate-bounce" />
+                    ) : (
+                      <Upload className="w-8 h-8 text-[#E8D1AB]" />
+                    )}
                   </div>
                   <div className="text-center px-6">
                     <div className="font-bold text-white text-lg">
-                      Upload Project Images or Videos
+                      {isCompressing ? "Optimizing Files..." : "Upload Project Images or Videos"}
                     </div>
                     <div className="text-sm text-white/40 mt-1">
-                      Drag and drop or click to browse files
+                      {isCompressing ? "Please wait a moment" : "Drag and drop or click to browse files"}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {imagePreviews.map((src, index) => (
-                    <div
-                      key={index}
-                      className="relative rounded-[12px] overflow-hidden border border-white/20 aspect-square group"
-                    >
-                      <img src={src} className="w-full h-full object-cover" />
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 relative">
+                  {/* Show an overlay if adding more files and compressing */}
+                  {isCompressing && (
+                    <div className="absolute inset-0 z-20 bg-black/40 backdrop-blur-[2px] rounded-[12px] flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-4 border-[#E8D1AB] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[#E8D1AB] font-medium text-sm">Processing...</span>
+                      </div>
+                    </div>
+                  )}
 
+                  {imagePreviews.map((src, index) => (
+                    <div key={index} className="relative rounded-[12px] overflow-hidden border border-white/20 aspect-square group">
+                      <img src={src} className="w-full h-full object-cover" />
                       <button
                         onClick={() => {
+                          URL.revokeObjectURL(src);
                           setImagePreviews((prev) => prev.filter((_, i) => i !== index));
                           setRawFiles((prev) => prev.filter((_, i) => i !== index));
                         }}
@@ -159,16 +183,18 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
                     </div>
                   ))}
 
-                  {/* ADD MORE TILE */}
                   <button
-                    onClick={() => fileRef.current?.click()}
-                    className="flex items-center justify-center border border-dashed border-white/20 rounded-[12px] aspect-square hover:bg-white/5 transition"
+                    type="button"
+                    onClick={() => !isCompressing && fileRef.current?.click()}
+                    disabled={isCompressing}
+                    className="flex items-center justify-center border border-dashed border-white/20 rounded-[12px] aspect-square hover:bg-white/5 transition disabled:opacity-50"
                   >
                     <Upload className="text-white/60" />
                   </button>
                 </div>
               )}
 
+              {/* RESTORED INPUT FIELD - This was missing/commented out */}
               <input
                 ref={fileRef}
                 type="file"
@@ -210,12 +236,19 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
             >
               Cancel
             </Button>
-            <Button
+            {/* <Button
               onClick={handleAdd}
               disabled={!title || imagePreviews.length === 0}
               className="rounded-[12px] h-12 px-10 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] font-bold"
             >
               Add Project
+            </Button> */}
+            <Button
+              onClick={handleAdd}
+              disabled={!title || imagePreviews.length === 0 || isCompressing}
+              className="rounded-[12px] h-12 px-10 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] font-bold disabled:opacity-50"
+            >
+              {isCompressing ? "Processing..." : "Add Project"}
             </Button>
           </div>
 

@@ -81,7 +81,6 @@ const CreatorCard = ({
 
   const isSelected = selectedCreatorIds.includes(creatorId);
 
-  // Temporary code until images are available
   const isInvalidImage =
     !image ||
     image.trim().length === 0 ||
@@ -112,33 +111,101 @@ const CreatorCard = ({
     dispatch(removeCreator(creatorId));
   };
 
+  const InfoContent = () => (
+    <div className="rounded-b-[20px] lg:rounded-none flex flex-col gap-2 gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2.5">
+          <button className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/10 hover:bg-white/20">
+            <ThumbsUp className="text-white w-5 h-5" />
+          </button>
+          <button className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/10 hover:bg-white/20">
+            <ThumbsDown className="text-white w-5 h-5" />
+          </button>
+        </div>
+
+        {isSelected ? (
+          <button
+            onClick={handleRemoveFromCrew}
+            className="w-12 h-12 rounded-full border border-red-500/30 flex items-center justify-center bg-red-500/10 hover:bg-red-500/20 transition-colors"
+          >
+            <X className="text-red-400 w-5 h-5" />
+          </button>
+        ) : canAddMore ? (
+          <button
+            onClick={handleAddToCrew}
+            className="w-12 h-12 rounded-full border border-green-500/30 flex items-center justify-center bg-green-500/10 hover:bg-green-500/20 transition-colors"
+          >
+            <Plus className="text-green-400 w-5 h-5" />
+          </button>
+        ) : (
+          <button
+            disabled
+            className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center bg-white/5 opacity-50 cursor-not-allowed"
+          >
+            <Plus className="text-white/30 w-5 h-5" />
+          </button>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-white text-base lg:text-xl font-medium">
+            {name}
+          </h3>
+          <p className="text-white/60 text-xs lg:text-base">{role}</p>
+        </div>
+        <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50]">
+          Available
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {isSelected ? (
+          <Button
+            onClick={handleRemoveFromCrew}
+            className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
+          >
+            <X className="w-4 h-4 mr-1" />
+            Remove
+          </Button>
+        ) : canAddMore ? (
+          <Button
+            onClick={handleAddToCrew}
+            className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Add to Crew
+          </Button>
+        ) : null}
+
+        <Link
+          href={`/search-results/${creatorId}${shootId ? `?shootId=${shootId}` : ""
+            }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="outline"
+            className="border-white/30 hover:border-white/50 text-white hover:text-white hover:bg-white/10 px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
+          >
+            View Profile
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+
   return (
-    <motion.div
-      variants={cardVariants}
-      initial="rest"
-      whileHover="hover"
-      transition={{ duration: 0.45, ease: "easeInOut" }}
-      className={`
-        relative
-        overflow-hidden
-        rounded-[20px]
-        bg-black
-        w-full
-        ${isSelected ? "ring-2 ring-green-400/60" : ""}
-      `}
-    >
+    <CardWrapper isSelected={isSelected}>
       {/* IMAGE */}
-      <div className="relative w-full h-[364px] overflow-hidden">
+      <div className="relative w-full h-[240px] md:h-[364px] overflow-hidden rounded-t-[20px]">
         <Image
           src={fallbackImage}
           alt={name}
           fill
           priority
-          className="object-cover transition-transform duration-700 group-hover:scale-105"
+          className="object-cover"
         />
-
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-
         {/* Selected Indicator */}
         {isSelected && (
           <div className="absolute top-4 left-2 z-10">
@@ -150,7 +217,6 @@ const CreatorCard = ({
             </div>
           </div>
         )}
-
         <div className="absolute top-4 flex items-center justify-between w-full px-2">
           <div className="w-[90px] h-[21px]">
             <Image
@@ -162,7 +228,7 @@ const CreatorCard = ({
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-full">
             {/* Match Score Badge (if skill scoring is active) */}
             {matchScore !== undefined && matchScore > 0 && (
               <div className="flex items-center gap-1 bg-green-500/20 backdrop-blur-md px-2 py-1 lg:px-3 lg:py-2 rounded-full border border-green-400/40 relative">
@@ -171,7 +237,6 @@ const CreatorCard = ({
                 </span>
               </div>
             )}
-
             {/* Rating */}
             <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-white/10 relative">
               <Star className="w-3 h-3 lg:w-[18px] lg:h-[18px] text-[#E8D1AB] fill-[#E4CC17]" />
@@ -183,95 +248,63 @@ const CreatorCard = ({
         </div>
       </div>
 
-      {/* INFO PANEL */}
+      {/* MOBILE – ALWAYS VISIBLE */}
+      <div className="md:hidden w-full bg-[#0B0B0B] border-t border-white/10 p-3 flex flex-col gap-4">
+        <InfoContent />
+      </div>
+
+      {/* DESKTOP – HOVER ANIMATED (UNCHANGED) */}
       <motion.div
         variants={infoVariants}
         transition={{ duration: 0.45, ease: "easeInOut" }}
-        className=" absolute bottom-0 left-0 w-full h-[220px] bg-[#0B0B0B] border-t border-white/10 p-3 lg:px-7 lg:py-5 flex flex-col gap-4 pointer-events-auto"
+        className="hidden md:flex absolute bottom-0 left-0 w-full h-[220px] bg-[#0B0B0B] border-t border-white/10 p-3 lg:px-7 lg:py-5 flex-col gap-4"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2.5">
-            <button className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/10 hover:bg-white/20">
-              <ThumbsUp className="text-white w-5 h-5" />
-            </button>
-            <button className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/10 hover:bg-white/20">
-              <ThumbsDown className="text-white w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Add/Remove Crew Button */}
-          {isSelected ? (
-            <button
-              onClick={handleRemoveFromCrew}
-              className="w-12 h-12 rounded-full border border-red-500/30 flex items-center justify-center bg-red-500/10 hover:bg-red-500/20 transition-colors"
-            >
-              <X className="text-red-400 w-5 h-5" />
-            </button>
-          ) : canAddMore ? (
-            <button
-              onClick={handleAddToCrew}
-              className="w-12 h-12 rounded-full border border-green-500/30 flex items-center justify-center bg-green-500/10 hover:bg-green-500/20 transition-colors"
-            >
-              <Plus className="text-green-400 w-5 h-5" />
-            </button>
-          ) : (
-            <button
-              disabled
-              className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center bg-white/5 opacity-50 cursor-not-allowed"
-            >
-              <Plus className="text-white/30 w-5 h-5" />
-            </button>
-          )}
-        </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-white text-base lg:text-xl font-medium">
-              {name}
-            </h3>
-            <p className="text-white/60 text-xs lg:text-base">{role}</p>
-          </div>
-          <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50]">
-            Available
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {isSelected ? (
-            <Button
-              onClick={handleRemoveFromCrew}
-              className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
-            >
-              <X className="w-4 h-4 mr-1" />
-              Remove
-            </Button>
-          ) : canAddMore ? (
-            <Button
-              onClick={handleAddToCrew}
-              className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add to Crew
-            </Button>
-          ) : null}
-
-          <Link
-            href={`/search-results/${creatorId}${
-              shootId ? `?shootId=${shootId}` : ""
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Button
-              variant="outline"
-              className="border-white/30 hover:border-white/50 text-white hover:text-white hover:bg-white/10 px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
-              onClick={(e) => e.stopPropagation()}
-            >
-              View Profile
-            </Button>
-          </Link>
-        </div>
+        <InfoContent />
       </motion.div>
-    </motion.div>
+    </CardWrapper>
   );
 };
+
+const CardWrapper = ({ children, isSelected }: { children: React.ReactNode, isSelected: boolean }) => {
+  return (
+    <>
+      {/* MOBILE – NO MOTION */}
+      <div
+        className={`
+          md:hidden
+          relative
+          rounded-[20px]
+          bg-black
+          w-full
+          h-[420px]
+          overflow-hidden
+           ${isSelected ? "ring-2 ring-green-400/60" : ""}
+        `}
+      >
+        {children}
+      </div>
+
+      {/* DESKTOP */}
+      <motion.div
+        variants={cardVariants}
+        initial="rest"
+        whileHover="hover"
+        transition={{ duration: 0.45, ease: "easeInOut" }}
+        className={`
+          hidden md:block
+          relative
+          rounded-[20px]
+          overflow-hidden
+          bg-black
+          w-full
+           ${isSelected ? "ring-2 ring-green-400/60" : ""}
+        `}
+      >
+        {children}
+      </motion.div>
+    </>
+  );
+};
+
 
 export default CreatorCard;

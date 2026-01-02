@@ -1,15 +1,18 @@
 /* FeaturedWork.module.css */
-.swiperContainer :global(.swiper-pagination-bullets) {
+.featuredSwiper :global(.swiper-pagination-bullets) {
     bottom: 40px !important;
     display: flex;
     justify-content: center;
     gap: 6px;
     z-index: 50 !important;
     /* Higher than gradient and content */
+    padding: 0 20px;
+    width: 100%;
 }
 
-.swiperContainer :global(.swiper-pagination-bullet) {
-    width: 28px;
+.featuredSwiper :global(.swiper-pagination-bullet) {
+    width: 100%;
+    max-width: 28px;
     height: 3px;
     border-radius: 2px;
     background: #ffffff;
@@ -18,7 +21,7 @@
     transition: all 0.3s ease;
 }
 
-.swiperContainer :global(.swiper-pagination-bullet-active) {
+.featuredSwiper :global(.swiper-pagination-bullet-active) {
     background: #E8D1AB;
     width: 40px;
 }

@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import imageCompression from "browser-image-compression";
+import { PDFDocument } from 'pdf-lib';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -95,7 +96,6 @@ export function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(
   };
 }
 
-
 export interface CompressionSettings {
   maxSizeMB?: number;
   maxWidthOrHeight?: number;
@@ -128,5 +128,27 @@ export async function compressImage(
   } catch (error) {
     console.error('Image compression failed:', error);
     return file; // Fallback to original file if compression fails
+  }
+}
+
+/**
+ * Compresses a PDF by optimizing object streams and removing metadata.
+ */
+export async function compressPDF(file: File): Promise<File> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(arrayBuffer);
+
+    const compressedBytes = await pdfDoc.save({
+      useObjectStreams: true,
+      addDefaultPage: false
+    });
+
+    const blobPart = new Uint8Array(compressedBytes);
+
+    return new File([blobPart], file.name, { type: 'application/pdf' });
+  } catch (error) {
+    console.error("PDF compression failed, returning original file:", error);
+    return file;
   }
 }

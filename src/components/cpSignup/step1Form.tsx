@@ -35,6 +35,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
   const fileInputRef = useRef(null);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedImage, setSelectedImage] = useState<SelectedImageState | null>(null); const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   // 1. Initialize the API Hook
   const [registerStep1, { isLoading }] = useRegisterCreatorStep1Mutation();
@@ -45,17 +46,26 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const compressedFile = await compressImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedImage({
-          file: compressedFile,
-          preview: reader.result as string
-        });
-        setCropModalOpen(true);
-      };
+      try {
+        setIsCompressing(true); // Start Loader
+        const compressedFile = await compressImage(file);
 
-      reader.readAsDataURL(compressedFile);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setSelectedImage({
+            file: compressedFile,
+            preview: reader.result as string
+          });
+          setCropModalOpen(true);
+          setIsCompressing(false); // Stop Loader
+        };
+
+        reader.readAsDataURL(compressedFile);
+      } catch (error) {
+        console.error("Compression failed:", error);
+        setIsCompressing(false);
+        toast.error("Failed to process image.");
+      }
     }
   };
 
@@ -207,11 +217,18 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
           <div className="flex items-center gap-5">
             <div className="h-20 w-20 rounded-full border border-[#E8D1AB]/30 bg-[#1A1A1A] flex items-center justify-center overflow-hidden flex-shrink-0">
-              <img
-                src={data.profilePreview || "/images/loginsignup/profile_temp.png"}
-                alt="Profile"
-                className="h-full w-full object-cover"
-              />
+              {/* Loader to show processing when image compression is ongoing */}
+              {isCompressing ? (
+                <div className="flex items-center justify-center">
+                  <Loader2 className="animate-spin h-6 w-6 text-[#E8D1AB]" />
+                </div>
+              ) : (
+                <img
+                  src={data.profilePreview || "/images/loginsignup/profile_temp.png"}
+                  alt="Profile"
+                  className="h-full w-full object-cover"
+                />
+              )}
             </div>
 
             <button
