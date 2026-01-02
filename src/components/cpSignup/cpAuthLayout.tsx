@@ -1,23 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
+
+type CpAuthLayoutProps = {
+  step?: string;
+  title?: string;
+  description?: string;
+  onBack?: () => void;
+  leftContent: ReactNode;
+  rightCardContent?: ReactNode;
+  hideRightSection?: boolean;
+};
 
 function CpAuthLayout({
   step = "",
   title = "",
   description = "",
   onBack = () => {},
-  leftContent,
+  leftContent ,
   rightCardContent,
   hideRightSection = false,
-}) {
+}: CpAuthLayoutProps) {
   const router = useRouter();
 
   const handleBack = () => {
-    if (step === 1) {
+    if (step === "Step 1/3") { //Changing it from 1 to "Step 1/3" as step is a string 
       router.push("/");
     } else {
       onBack();
@@ -64,7 +74,7 @@ function CpAuthLayout({
         >
           {/* LEFT SECTION - Form Content */}
           {/* <div className="p-6 md:p-14 lg:p-20 flex flex-col pt-28 lg:pt-10"> */}
-          <div className="px-4 py-6 md:p-14 lg:p-20 flex flex-col pt-28 lg:pt-10">
+          <div className="px-4 py-6 md:p-14 lg:p-20 flex flex-col pt-16 lg:pt-10">
             
             {!hideRightSection && (
               <div className="flex flex-col gap-10">

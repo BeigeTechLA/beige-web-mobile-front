@@ -64,6 +64,7 @@ export default function CpSignupPage() {
             data={data}
             setData={setData}
             nextStep={nextStep}
+            prevStep={handleBack}
           />
         );
 

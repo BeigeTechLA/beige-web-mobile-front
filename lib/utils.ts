@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import imageCompression from "browser-image-compression";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -92,4 +93,40 @@ export function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(
       func.apply(this, args);
     }, wait);
   };
+}
+
+
+export interface CompressionSettings {
+  maxSizeMB?: number;
+  maxWidthOrHeight?: number;
+}
+/**
+ * Compresses an image file for upload.
+ * @param file The original File object from the user.
+ * @param settings Optional overrides for size and dimensions.
+ * @returns A promise resolving to the compressed File object.
+ */
+export async function compressImage(
+  file: File,
+  settings: CompressionSettings = {}
+): Promise<File> {
+  const options = {
+    maxSizeMB: settings.maxSizeMB ?? 1,
+    maxWidthOrHeight: settings.maxWidthOrHeight ?? 1920,
+    useWebWorker: true,
+    onIteration: (iteration: number) => console.log(`Compression iteration: ${iteration}`),
+  };
+
+  try {
+    const compressedBlob = await imageCompression(file, options);
+
+    // Convert Blob back to File to maintain metadata
+    return new File([compressedBlob], file.name, {
+      type: file.type,
+      lastModified: Date.now(),
+    });
+  } catch (error) {
+    console.error('Image compression failed:', error);
+    return file; // Fallback to original file if compression fails
+  }
 }
