@@ -92,7 +92,7 @@ export const CartIcon = ({ className = "" }: CartIconProps) => {
       });
 
       const response = await axios.post(
-        `${API_BASE_URL}/guest-bookings/${shootId}/assign-creators`,
+        `${API_BASE_URL}guest-bookings/${shootId}/assign-creators`,
         { creator_ids: creatorIds }
       );
 

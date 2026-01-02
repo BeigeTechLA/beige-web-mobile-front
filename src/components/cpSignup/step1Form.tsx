@@ -77,47 +77,100 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
   // 2. Handle Submit Logic
   // ... inside Step1Form component ...
 
+  // const handleNext = async () => {
+  //   if (!data.firstName || !data.lastName || !data.email || !data.password) {
+  //     toast.error("Please fill in all required fields");
+  //     return;
+  //   }
+
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append("first_name", data.firstName);
+  //     formData.append("last_name", data.lastName);
+  //     formData.append("email", data.email);
+  //     formData.append("password", data.password);
+      
+  //     if (data.location) {
+  //       formData.append("location", typeof data.location === 'object' ? JSON.stringify(data.location) : data.location);
+  //     }
+  //     if (data.workingDistance) {
+  //       formData.append("working_distance", data.workingDistance);
+  //     }
+  //     if (data.profileImage) {
+  //       formData.append("profile_photo", data.profileImage, "profile-picture.jpg");
+  //     }
+
+  //     // 1. Call the API
+  //     const response = await registerStep1(formData).unwrap();
+      
+  //     // 2. SAVE the IDs into the shared state
+  //     setData({ 
+  //       ...data, 
+  //       crew_member_id: response.crew_member_id,
+  //       user_id: response.user_id 
+  //     });
+
+  //     toast.success("Step 1 completed!");
+      
+  //     // 3. Proceed
+  //     nextStep();
+  //   } catch (err) {
+  //     toast.error(err?.data?.message || "Registration failed");
+  //   }
+  // };
+
   const handleNext = async () => {
-    if (!data.firstName || !data.lastName || !data.email || !data.password) {
-      toast.error("Please fill in all required fields");
-      return;
+  if (!data.firstName || !data.lastName || !data.email || !data.password) {
+    toast.error("Please fill in all required fields");
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("first_name", data.firstName);
+    formData.append("last_name", data.lastName);
+    formData.append("email", data.email);
+    formData.append("password", data.password);
+
+    // Check if crew_member_id exists, and append it to formData if available
+    if (data.crew_member_id) {
+      formData.append("crew_member_id", data.crew_member_id);
     }
 
-    try {
-      const formData = new FormData();
-      formData.append("first_name", data.firstName);
-      formData.append("last_name", data.lastName);
-      formData.append("email", data.email);
-      formData.append("password", data.password);
-
-      if (data.location) {
-        formData.append("location", typeof data.location === 'object' ? JSON.stringify(data.location) : data.location);
-      }
-      if (data.workingDistance) {
-        formData.append("working_distance", data.workingDistance);
-      }
-      if (data.profileImage) {
-        formData.append("profile_photo", data.profileImage, "profile-picture.jpg");
-      }
-
-      // 1. Call the API
-      const response = await registerStep1(formData).unwrap();
-
-      // 2. SAVE the IDs into the shared state
-      setData({
-        ...data,
-        crew_member_id: response.crew_member_id, // Save this!
-        user_id: response.user_id
-      });
-
-      toast.success("Step 1 completed!");
-
-      // 3. Proceed
-      nextStep();
-    } catch (err) {
-      toast.error(err?.data?.message || "Registration failed");
+    // Check if user_id exists, and append it to formData if available
+    if (data.user_id) {
+      formData.append("user_id", data.user_id);  // Only append user_id if it's available
     }
-  };
+
+    if (data.location) {
+      formData.append("location", typeof data.location === 'object' ? JSON.stringify(data.location) : data.location);
+    }
+    if (data.workingDistance) {
+      formData.append("working_distance", data.workingDistance);
+    }
+    if (data.profileImage) {
+      formData.append("profile_photo", data.profileImage, "profile-picture.jpg");
+    }
+
+    // Call the API
+    const response = await registerStep1(formData).unwrap();
+
+    // Save the response IDs into the shared state
+    setData({
+      ...data,
+      crew_member_id: response.crew_member_id, // Save the crew_member_id from the response
+      user_id: response.user_id, // Save the user_id from the response
+    });
+
+    toast.success("Step 1 completed!");
+
+    // Proceed to next step
+    nextStep();
+  } catch (err) {
+    toast.error(err?.data?.message || "Registration failed");
+  }
+};
+
 
   return (
     <div className="space-y-8 bg-[#101010] text-white pt-4 lg:p-2 relative z-10">
