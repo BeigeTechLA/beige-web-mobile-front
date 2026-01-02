@@ -119,11 +119,17 @@ export default function BookAShootPage() {
   const nextStep = () =>
     setActiveStep((prev) => Math.min(prev + 1, MY_STEPS.length));
   const prevStep = () => setActiveStep((prev) => Math.max(prev - 1, 1));
+
   const backHome = () => {
-    router.push(`/`);
+    const storedUser = localStorage.getItem("revure_user");
+
+    if (storedUser) {
+      router.push("/affiliate/dashboard");
+    } else {
+      router.push("/");
+    }
   };
 
-  // Calculate duration in hours from start and end dates
   const calculateDurationHours = (): number => {
     if (!formData.startDate || !formData.endDate)
       return formData.studioTimeDuration || shootHours || 3;

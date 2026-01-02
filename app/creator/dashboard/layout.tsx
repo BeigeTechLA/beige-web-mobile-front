@@ -8,6 +8,8 @@ import {
   Menu,
   X,
   LogOut,
+  Wallet,   // Added Wallet icon
+  Settings, // Added Settings icon
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -93,6 +95,7 @@ function Sidebar({
 
   const handleLogout = () => {
     logout();
+    localStorage.clear();
     onClose?.();
   };
 
@@ -145,6 +148,17 @@ function Sidebar({
           <span>Affiliate</span>
         </Link>
 
+        {/* New Payouts Button */}
+        <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50">
+          <Wallet size={20} />
+          <span>Payouts (Soon)</span>
+        </button>
+
+        {/* New Settings Button */}
+        <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50">
+          <Settings size={20} />
+          <span>Settings (Soon)</span>
+        </button>
       </div>
 
       {/* User & Logout */}

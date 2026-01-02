@@ -61,6 +61,24 @@ export const Step4Review = ({
   // API mutation for calculating quote
   const [calculateQuote] = useCalculateQuoteMutation();
 
+  useEffect(() => {
+  // Only auto-fill if the email is currently empty in the state
+  if (!data.guestEmail) {
+    const storedUser = localStorage.getItem("revure_user");
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        // Check if the email exists in the stored object
+        if (parsedUser && parsedUser.email) {
+          updateData({ guestEmail: parsedUser.email });
+        }
+      } catch (error) {
+        console.error("Error parsing revure_user from localStorage:", error);
+      }
+    }
+  }
+}, []);
+
   // Pricing item IDs for crew roles
   const CREW_ROLE_ITEMS = {
     videographer: 11,  // $275/hr

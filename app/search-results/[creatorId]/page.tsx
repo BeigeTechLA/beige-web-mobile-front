@@ -148,7 +148,7 @@ function CreatorProfileContent() {
       const creatorIds = selectedCreators.map(c => parseInt(c.id));
 
       await axios.post(
-        `${API_BASE_URL}/guest-bookings/${shootId}/assign-creators`,
+        `${API_BASE_URL}guest-bookings/${shootId}/assign-creators`,
         { creator_ids: creatorIds }
       );
 
