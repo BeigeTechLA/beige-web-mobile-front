@@ -39,7 +39,7 @@ export const EarlySignup = () => {
             onClick={handleEarlySignup}
             className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 md:h-[56px] pl-4 pr-1 lg:pr-2 rounded-[5px] lg:rounded-[10px] text-sm md:text-xl font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] transition-all md:min-w-[240px]"
           >
-            <span className="lg:pr-4">Signup Early</span>
+            <span className="lg:pr-4">Get Started</span>
             <div className="bg-[#1A1A1A] w-8 h-8 lg:w-12 lg:h-12 rounded-[5px] flex items-center justify-center">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
