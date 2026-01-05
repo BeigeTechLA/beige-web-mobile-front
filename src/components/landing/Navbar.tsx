@@ -67,6 +67,11 @@ export const Navbar = () => {
     router.push("/login");
   };
 
+  const handleSignup = () => {
+    setMobileOpen(false);
+    router.push("/login");
+  };
+
   const handleInvestor = () => {
     setMobileOpen(false);
     router.push("/investors");
@@ -94,15 +99,27 @@ export const Navbar = () => {
     <nav className="fixed top-6 left-2 right-2 lg:left-0 lg:right-0 z-50 pointer-events-none">
       <div
         className={`
-          pointer-events-auto mx-auto max-w-[1600px] px-6 transition-all duration-300
+          pointer-events-auto mx-auto max-w-[1600px] px-6 lg:px-0 transition-all duration-300
           ${isScrolled
             ? "bg-[#050505]/80 backdrop-blur-[12px] border-[0.5px] border-[#E8D1AB]/30"
             : "bg-[#050505]/60 backdrop-blur-[8px] border-[0.5px] border-[#E8D1AB]/30"
           }
-          rounded-[10px] lg:rounded-[20px]
+          rounded-full
         `}
       >
         <div className="h-13 md:h-[88px] flex items-center justify-between lg:px-6">
+          {/* Logo */}
+          <a href="https://book.beige.app" target="_blank" rel="noopener noreferrer" className="flex items-center">
+            <Image
+              src="/images/logos/beige_logo_vb.png"
+              alt="BEIGE"
+              width={158}
+              height={32}
+              className="w-[120px] h-[24px] md:w-[158px] md:h-[32px] object-contain"
+              priority
+            />
+          </a>
+
           {/* Left: Links */}
           <div className="hidden lg:flex items-center gap-12">
             <div className="flex items-center gap-2">
@@ -124,17 +141,6 @@ export const Navbar = () => {
             </div>
           </div>
 
-          {/* Logo */}
-          <a href="https://book.beige.app" target="_blank" rel="noopener noreferrer" className="flex items-center">
-            <Image
-              src="/images/logos/beige_logo_vb.png"
-              alt="BEIGE"
-              width={158}
-              height={32}
-              className="w-[120px] h-[24px] md:w-[158px] md:h-[32px] object-contain"
-              priority
-            />
-          </a>
 
           {/* Right Buttons / Profile */}
           <div className="hidden lg:flex items-center gap-4">
@@ -146,14 +152,20 @@ export const Navbar = () => {
                   onClick={handleLogin}
                   className="text-white hover:text-[#ECE1CE] text-lg font-medium transition-colors px-6 py-3 border border-white/30 hover:border-[#ECE1CE]/50 rounded-[10px]"
                 >
-                  Login
+                  Login / Sign up
                 </button>
-                <Button
+                {/* <Button
                   onClick={handleInvestor}
                   className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-[10px] text-lg font-medium"
                 >
                   Become a Investor
-                </Button>
+                </Button> */}
+                 {/* <Button
+                  onClick={handleInvestor}
+                  className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-[10px] text-lg font-medium"
+                >
+                  Sign up
+                </Button> */}
               </>
             ) : (
               <div className="relative group">
@@ -258,11 +270,14 @@ export const Navbar = () => {
                 {!localUser ? (
                   <div className="flex flex-col gap-4">
                     <button onClick={handleLogin} className="text-white py-6 border border-white/30 rounded-[10px] text-base font-medium">
-                      Login
+                      Login / Sign up
                     </button>
-                    <button onClick={handleInvestor} className="bg-[#E8D1AB] text-black py-6 rounded-[10px] text-base font-medium">
+                    {/* <button onClick={handleInvestor} className="bg-[#E8D1AB] text-black py-6 rounded-[10px] text-base font-medium">
                       Become a Investor
-                    </button>
+                    </button> */}
+                    {/* <button onClick={handleInvestor} className="bg-[#E8D1AB] text-black py-6 rounded-[10px] text-base font-medium">
+                      Sign Up
+                    </button> */}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
