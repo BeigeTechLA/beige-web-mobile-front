@@ -108,7 +108,7 @@ export const Influencers = ({ autoplay = false }) => {
               transition={{ duration: 0.4 }}
               className="text-center"
             >
-              <h3 className="text-white text-lg md:text-5xl font-black italic uppercase tracking-tighter mb-2 lg:mb-4">
+              <h3 className="text-white text-2xl lg:text-5xl leading-[1.1] font-medium  mb-2 lg:mb-4">
                 {activeItem?.name}
               </h3>
 
@@ -127,7 +127,7 @@ export const Influencers = ({ autoplay = false }) => {
                 }
               </div>
 
-              <p className="text-white/50 text-sm leading-relaxed max-w-lg mx-auto italic font-medium">
+              <p className="text-[#E8D1AB]/60 text-sm leading-relaxed max-w-lg mx-auto italic font-medium">
                 "{activeItem?.bio}"
               </p>
             </motion.div>
@@ -141,9 +141,9 @@ export const Influencers = ({ autoplay = false }) => {
 
 const SocialMetric = ({ icon, label, value, href }: any) => (
   <a href={href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group cursor-pointer">
-    <span className="text-[#4ADE80] group-hover:scale-110 transition-transform">{icon}</span>
+    <span className="text-[#E8D1AB] group-hover:scale-120 transition-transform">{icon}</span>
     <span className="text-white/40 text-[10px] tracking-widest uppercase font-bold">{label}</span>
-    <span className="text-white font-black text-sm lg:text-lg">{value}</span>
+    <span className="text-white/80 text-sm lg:text-lg font-semibold">{value}</span>
   </a>
 );
 
