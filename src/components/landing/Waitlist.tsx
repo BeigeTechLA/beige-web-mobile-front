@@ -86,10 +86,11 @@ export const Waitlist = () => {
               Get Early Access
             </h2>
             <p className="text-white/50 text-xs lg:text-base lg:max-w-2/3 mx-auto font-light">
-              We&apos;re currently launching in Los Angeles, but we&apos;re expanding to
-              new cities soon. Join our waitlist to be the first to know when
+              {/* We&apos;re currently launching in Los Angeles, but we&apos;re expanding to
+              new cities soon. 
+              Join our waitlist to be the first to know when
               Beige becomes available in your area and get priority access when
-              we launch.
+              we launch. */}
             </p>
           </motion.div>
 

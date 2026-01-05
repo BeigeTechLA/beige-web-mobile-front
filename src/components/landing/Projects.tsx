@@ -20,19 +20,18 @@ export const Projects = () => {
       <Container className="overflow-hidden">
 
         {/* Header */}
-        <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
+        {/* <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
           <p className="text-xs md:text-base text-white">Our Projects</p>
-        </div>
+        </div> */}
 
         {/* Title + Nav */}
         <div className="flex flex-col md:flex-row justify-between items-start mb-5 md:mb-16 gap-8">
           <div>
             <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-4 tracking-tight">
-              #Shot On Beige
+              #ShotOnBeige
             </h2>
             <p className="text-white/50 text-xs lg:text-base font-light max-w-2xl">
-              Highlighting standout work crafted by our top creators across
-              diverse industries and styles.
+              Video content captured on Beige.
             </p>
           </div>
 

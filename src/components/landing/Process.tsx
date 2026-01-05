@@ -9,26 +9,28 @@ const STEPS = [
   {
     icon: Brain,
     title: "AI Matchmaking",
+    subtext: "The right creative. Every time.",
     description:
-      "Our proprietary AI Matchmaking Algorithm connects you with the perfect videographer or photographer — customized to your shoot type using insights from over 4,000+ Beige productions.",
+      "Our proprietary matching engine pairs you with the best-fit videographer or photographer based on shoot type, style, location, and performance data from thousands of real productions.",
   },
   {
     icon: Clapperboard,
-    title: "Pre Production",
+    title: "Pre-Production",
+    subtext: "Zero back-and-forth. Full clarity.",
     description:
-      "Once you've approved your Beige Creative Partner, we move into pre-production. Our team handles all the planning to ensure your shoot is smooth, efficient, and tailored to your goals.",
+      "Scopes, timelines, logistics, and expectations are locked in upfront so everyone shows up aligned and ready to execute.",
   },
   {
     icon: Video,
     title: "Production",
-    description:
-      "Lights, camera, action! Your assigned Beige Creative captures your content based on the strategy and materials defined during pre-production.",
+    subtext: "Show up. Shoot. Done.",
+    description: "Your creative partner captures exactly what was planned—on time, on brand, and without surprises.",
   },
   {
     icon: Film,
-    title: "AI Powered-Post Production",
-    description:
-      "Our team edits your content into polished, on-brand assets across your desired formats — ready for immediate distribution across platforms.",
+    title: "AI-Powered Post-Production",
+    subtext: "Edited, optimized, and ready to ship.",
+    description: "We turn raw footage into polished, platform-ready assets using a blend of expert editors and AI-assisted workflows—built for social, fast enough for culture.",
   },
 ];
 
@@ -58,22 +60,19 @@ export const Process = () => {
   return (
     <section className="py-10 lg:py-32 bg-[#010101] relative overflow-hidden">
       <Container>
-        <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
+        {/* <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
           <p className="text-xs md:text-base text-white">Our Process</p>
-        </div>
+        </div> */}
 
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-24">
           {/* Left */}
           <div className="w-full lg:w-1/2 flex flex-col gap-10 md:gap-12">
             <div>
               <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-8 tracking-tight">
-                Beige is built by creators, <br />
-                for creators.
+                Built by creatives. <br />Powered for scale.
               </h2>
               <p className="text-white/50 text-xs lg:text-base lg:leading-[28px] font-light max-w-[500px]">
-                Beige Media makes it easy for brands to create any video they
-                need with a single, trusted partner. Our fast, simple, and
-                transparent process takes the stress out of video production.
+                Beige is the modern operating system for content production—connecting brands with elite creators, streamlined workflows, and predictable outcomes in minutes, not weeks.
               </p>
             </div>
 
@@ -97,6 +96,11 @@ export const Process = () => {
                 </span>
               </div>
             </div>
+
+            {/* Body */}
+            <p className="my-2 lg:mt-4 text-[#E8D1AB] text-sm lg:text-lg lg:leading-[28px] font-light">
+              From one-off shoots to always-on content, Beige replaces the chaos of traditional production with a fast, transparent, AI-powered marketplace. Tell us what you need. We handle the rest—from matching to delivery.
+            </p>
           </div>
 
           {/* Right Side: Steps List */}
@@ -149,6 +153,9 @@ const ProcessSteps = ({ steps }: { steps: typeof STEPS }) => {
                 >
                   {step.title}
                 </h3>
+                <p className={`text-sm md:text-base leading-[24px] ${isActive ? "text-[#E8D1AB]/80" : "text-white/70"} font-medium`}>
+                  {step.subtext}
+                </p>
 
                 <p className="text-xs md:text-[15px] leading-[24px] text-white/60 font-light">
                   {step.description}

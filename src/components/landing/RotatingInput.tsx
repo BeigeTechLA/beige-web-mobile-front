@@ -5,12 +5,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 
 const options = [
-  "a cool AI Editing for my clothing brand.",
-  "corporate event photos.",
-  "to book a music video shoot.",
-  "to book a family photo shoot.",
-  "a wedding videographer.",
-  "a photographer for my birthday party.",
+  "viral social media videos ",
+  "corporate event photos ",
+  "a commercial for tech company ",
+  "a wedding videographer",
+  "a music video",
+  "a photographer for my birthday party",
+  "a family photo shoot",
+  "wedding photos ",
+  "product photos "
 ];
 
 export default function RotatingInput() {
