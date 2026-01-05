@@ -16,6 +16,7 @@ import { FAQ } from "@/src/components/landing/FAQ";
 import { Waitlist } from "@/src/components/landing/Waitlist";
 import { Footer } from "@/src/components/landing/Footer";
 import { Separator } from "@/src/components/landing/Separator";
+import { EarlySignup } from "./EarlySignup";
 
 export default function LandingPageV2() {
   return (
@@ -54,7 +55,8 @@ export default function LandingPageV2() {
       <FAQ />
       <Separator />
 
-      <Waitlist />
+      {/* <Waitlist /> */}
+      <EarlySignup />
 
       <Footer />
     </main>

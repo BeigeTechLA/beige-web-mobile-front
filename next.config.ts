@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
     // Ignore TypeScript errors during build for UI-only migration
     ignoreBuildErrors: true,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "drive.google.com",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

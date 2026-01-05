@@ -34,9 +34,9 @@ export const HowItWorks = () => {
     >
       <Container>
         {/* Section label */}
-        <div className="inline-flex items-center border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
+        {/* <div className="inline-flex items-center border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
           <p className="text-xs md:text-base text-white">How it works</p>
-        </div>
+        </div> */}
 
         {/* Heading + text */}
         <div className="flex flex-col lg:flex-row justify-between mb-7 md:mb-10 gap-2.5 md:gap-10">
@@ -46,7 +46,7 @@ export const HowItWorks = () => {
           </h2>
 
           <p className="text-xs lg:text-base lg:leading-[28px] text-white/50 font-light max-w-[500px] lg:text-right">
-            Experience effortless booking with quick access to trusted creators and professionals— all in one seamless platform, helping you find the perfect match for every shoot with ease and confidence, while giving you full control over availability, pricing, and project details.
+            Manage your entire shoot from pre-production, production, post-production, and distribution—all powered by the unique synergies formed between real Beige Creatives and world class AI Tools.
           </p>
         </div>
 
@@ -75,8 +75,8 @@ export const HowItWorks = () => {
                     Instant Pricing
                   </h3>
                   <p className="text-xs lg:text-base lg:leading-[22px] text-white/50 font-light">
-                    Our dynamic pricing engine pulls data from 4,000+ Beige
-                    shoots to give you real-time, transparent pricing.
+                    No need to wait for endless quotes.<br/>
+                    Our dynamic pricing engine pulls data from over 4,000 Beige Shoots to give you real-time pricing for your shoot.
                   </p>
                 </div>
               </div>
@@ -114,8 +114,7 @@ export const HowItWorks = () => {
                     Intelligent Matchmaking
                   </h3>
                   <p className="text-xs lg:text-base lg:leading-[22px] text-white/50 font-light">
-                    Our matchmaking algorithm learns your style to pair you with
-                    the perfect creative instantly.
+                    Our proprietary matchmaking algorithm learns your creative style and pairs you with the perfect creative.
                   </p>
                 </div>
               </div>
@@ -129,10 +128,10 @@ export const HowItWorks = () => {
                 </div>
                 <div>
                   <h3 className="text-base lg:text-2xl font-medium text-white mb-1.5 lg:mb-2.5">
-                    One Central Hub For Your Content
+                    One Home For Your Content
                   </h3>
                   <p className="text-xs lg:text-base lg:leading-[22px] text-white/50 font-light">
-                    Manage your entire shoot from pre-production, production, post-production to  content distribution—all powered by the best AI tools.
+                    Beige is the modern ecosystem for creating any type of content you can imagine. We combine in-person production with the best AI tools to make the entire production process seamless.
                   </p>
                 </div>
               </div>

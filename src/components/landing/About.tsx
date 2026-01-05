@@ -62,13 +62,12 @@ export const About = () => {
 
             {/* Heading */}
             <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-8 tracking-tight text-center lg:text-left">
-              The modern way to book<br />
-              a shoot.
+              Beige is the modern way to book a shoot.
             </h2>
 
             {/* Description */}
             <p className="mx-auto lg:mx-0 text-white/60 text-xs lg:text-base leading-relaxed max-w-[600px] mb-5 lg:mb-12 font-light text-center lg:text-left">
-              Choose your content, Get matched instantly, Book everything in one place.
+              Choose your content type. Get matched with a creative team instantly. Book everything in one place
             </p>
 
             {/* View More Button */}

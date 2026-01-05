@@ -6,9 +6,9 @@ import { motion } from "framer-motion";
 
 const STATS = [
   { value: "$10M+", label: "In Content Produced On Beige" },
-  { value: "5,000+", label: `Verified Creators On Beige` },
-  { value: "4,000+", label: "Shoots Booked on Beige" },
-  { value: "100%", label: "Vetted Creatives" },
+  { value: "5K+", label: `Verified Creatives on Beige` },
+  { value: "4K+", label: "Shoots Books on Beige" },
+  { value: "60 Seconds", label: "Book A Shoot In Under 60 Seconds" },
 ];
 
 export const Stats = () => {

@@ -20,9 +20,8 @@ export default function ProjectCard({
 }: ProjectCardProps) {
   const [hovered, setHovered] = useState(false);
 
-  const videoSrc = hovered
-    ? `${project.video}?autoplay=1&muted=1&loop=1&playsinline=1`
-    : `${project.video}?muted=1&playsinline=1`;
+  const vimeoHoverSrc = (id: string, play: boolean) =>
+    `https://player.vimeo.com/video/${id}?autoplay=${play ? 1 : 0}&muted=1&loop=1&controls=0&title=0&byline=0&portrait=0&badge=0&autopause=0&playsinline=1`;
 
   return (
     <motion.div
@@ -34,8 +33,8 @@ export default function ProjectCard({
     >
       <div className="relative rounded-[20px] overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-white/20 transition-all duration-500 h-[300px] lg:h-[500px]">
         <iframe
-          src={videoSrc}
-          allow="autoplay; picture-in-picture"
+          src={vimeoHoverSrc(project.video, hovered)}
+          allow="autoplay; fullscreen; picture-in-picture"
           className="absolute inset-0 w-full h-full object-cover"
           loading="lazy"
         />

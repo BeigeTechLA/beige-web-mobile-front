@@ -76,7 +76,7 @@ export const Hero = () => {
               transition={{ duration: 0.8 }}
               className="text-2xl lg:text-[58px] leading-tight font-bold text-gradient-white mb-2"
             >
-              Create Content. Instantly.
+              Create Content Instantly.
             </motion.h1>
 
             {/* Sub-headline */}
@@ -86,7 +86,7 @@ export const Hero = () => {
               transition={{ duration: 0.8 }}
               className="text-base lg:text-[32px] leading-tight text-white/70 mb-4 lg:mb-8"
             >
-              Video, photo, livestreams, AI edits, and locations—one platform.
+              Video, Photo, & Editing All in One Platform
             </motion.h4>
 
             {/* New section */}

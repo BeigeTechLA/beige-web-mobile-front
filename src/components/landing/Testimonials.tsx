@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useState} from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
 import { Button } from "@/src/components/landing/ui/button";
@@ -40,12 +40,11 @@ export const Testimonials = () => {
           </div>
 
           <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-8 tracking-tight">
-            What our Clients Say <br />
-            about Beige.
+            What Our Users Say <br /> about Beige.
           </h2>
-          <p className="text-white/50 text-xs lg:text-base max-w-[720px] mx-auto font-light">
+          {/* <p className="text-white/50 text-xs lg:text-base max-w-[720px] mx-auto font-light">
             See how Beige has helped clients book top creators with confidence, providing reliable talent, transparent details, and seamless communication for projects of every size and style.
-          </p>
+          </p> */}
         </motion.div>
 
         {/* Masonry Layout */}

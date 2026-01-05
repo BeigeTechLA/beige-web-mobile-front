@@ -33,6 +33,10 @@ export const Footer = () => {
     console.log('Footer: Start Your Project clicked');
   };
 
+  const handleInvestor = () => {
+    router.push("/investors");
+  };
+
   return (
     <footer className="pb-8 lg:pt-24 lg:pb-16">
       <Separator />
@@ -57,7 +61,7 @@ export const Footer = () => {
               </div>
             </a>
 
-            <div className="mt-8">
+            {/* <div className="mt-8"> */}
               <Button
                 onClick={handleStartProject}
                 className="bg-transparent border border-white/20 hover:bg-white/5 text-white h-[56px] px-6 rounded-full flex items-center gap-3 w-fit transition-all group"
@@ -66,7 +70,14 @@ export const Footer = () => {
                 Start Your Project with Beige
                 <ArrowRight size={16} className="text-white/50 group-hover:translate-x-1 transition-transform" />
               </Button>
-            </div>
+            {/* </div> */}
+
+            <Button
+              onClick={handleInvestor}
+              className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-full text-lg font-medium w-fit"
+            >
+              Become a Investor
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-0">

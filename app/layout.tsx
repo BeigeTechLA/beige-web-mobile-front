@@ -29,10 +29,11 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/icon.png", type: "image/png" },
-      { url: "/images/logos/beige_logo_vb.png", type: "image/png" },
+      // { url: "/images/logos/beige_logo_vb.png", type: "image/png" },
     ],
     apple: [
-      { url: "/images/logos/beige_logo_vb.png", type: "image/png" },
+      // { url: "/images/logos/beige_logo_vb.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png" },
     ],
     shortcut: ["/icon.png"],
   },
