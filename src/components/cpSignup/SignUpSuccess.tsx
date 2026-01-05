@@ -93,8 +93,8 @@ export default function SignupSuccess({ data }) {
         <div className="w-16 h-16 bg-[#E8D1AB]/10 border border-[#E8D1AB]/30 rounded-full flex items-center justify-center mb-4">
           <CheckCircle2 className="w-8 h-8 text-[#E8D1AB]" />
         </div>
-        <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Profile Completed!</h1>
-        <p className="text-white/50 max-w-md text-sm">Review your live creative profile below.</p>
+        <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Application Completed.</h1>
+        <p className="text-white/50 max-w-md text-sm">Our team will review and get back to you shortly.</p>
       </div>
 
       {/* DETAILED PROFILE CARD */}

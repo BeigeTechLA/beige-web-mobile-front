@@ -94,7 +94,7 @@ function CpAuthLayout({
                       </p>
                     )}
                     {title && (
-                      <h1 className="text-3xl lg:text-5xl font-semibold text-white leading-tight">
+                      <h1 className="text-xl lg:text-3xl font-semibold text-white leading-tight">
                         {title}
                       </h1>
                     )}

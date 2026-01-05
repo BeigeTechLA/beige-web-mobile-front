@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft,
+  ArrowRight,
   Eye,
   EyeOff,
   Camera,
@@ -130,6 +131,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
     formData.append("first_name", data.firstName);
     formData.append("last_name", data.lastName);
     formData.append("email", data.email);
+     formData.append("phone_number", data.phoneNumber);
     formData.append("password", data.password);
 
     // Check if crew_member_id exists, and append it to formData if available
@@ -212,6 +214,18 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           />
         </div>
 
+        <div className="relative">
+          <Label className={labelClasses}>Phone Number *</Label>
+          <Input
+            required
+            type="tel"
+            placeholder="+1 (555) 000-0000"
+            value={data.phoneNumber || ""}
+            onChange={(e) => setData({ ...data, phoneNumber: e.target.value })}
+            className={inputClasses}
+          />
+        </div>
+
         {/* Password */}
         <div className="relative">
           <Label className={labelClasses}>Password *</Label>
@@ -245,7 +259,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
         {/* Working Distance */}
         <div className="relative">
-          <Label className={labelClasses}>Travel Radius</Label>
+          <Label className={labelClasses}>Shoot Radius</Label>
           <Select
             value={data.workingDistance}
             onValueChange={(v) => setData({ ...data, workingDistance: v })}
@@ -277,9 +291,10 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
                 </div>
               ) : (
                 <img
-                  src={data.profilePreview || "/images/loginsignup/profile_temp.png"}
+                  src={data.profilePreview || "/images/loginsignup/Group.png"}
                   alt="Profile"
-                  className="h-full w-full object-cover"
+                  // CHANGED: object-contain makes the logo fit inside, p-3 adds space so it doesn't touch the borders
+                  className="h-full w-full object-contain p-1"
                 />
               )}
             </div>
@@ -313,20 +328,18 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
             <ArrowLeft className="w-6 h-6 text-white" />
           </button>
 
-          <Button
+          <button
             type="button"
-            onClick={handleNext} // Call the new handler
+            onClick={handleNext}
             disabled={isLoading}
-            className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-14 lg:h-[76px] rounded-[12px] text-lg font-semibold transition-all"
+            className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] bg-[#E8D1AB] hover:bg-[#DCD1BE] transition-all disabled:opacity-50"
           >
             {isLoading ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="animate-spin h-5 w-5" /> Saving...
-              </span>
+              <Loader2 className="animate-spin w-6 h-6 text-black" />
             ) : (
-              "Next Step"
+              <ArrowRight className="w-6 h-6 text-black" />
             )}
-          </Button>
+          </button>
         </div>
 
         <div className="flex items-center justify-center gap-2 text-sm text-white/30 pt-4">

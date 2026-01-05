@@ -206,8 +206,23 @@ export default function BookAShootPage() {
         console.log("No quote to save (quote total is 0 or undefined)");
       }
 
+      let userId: number | undefined = undefined;
+
+      try {
+        const storedUser = localStorage.getItem("revure_user");
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          if (parsedUser?.id) {
+            userId = Number(parsedUser.id);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to parse revure_user from localStorage", err);
+      }
+
       // Step 2: Create the guest booking
       const bookingData = {
+        ...(userId ? { user_id: userId } : {}),
         order_name: formData.shootName || `${formData.shootType} Shoot`,
         guest_email: formData.guestEmail,
         project_type: formData.serviceType,

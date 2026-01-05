@@ -6,59 +6,85 @@ import { X, Plus, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-const AddSkills = ({ value = [], onChange, options }) => {
-  const [tempSelected, setTempSelected] = useState([]);
+type SkillOption = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+type AddSkillsProps = {
+  value?: string[];
+  onChange: (val: string[]) => void;
+  options: SkillOption[];
+};
+
+const AddSkills = ({
+  value = [],
+  onChange,
+  options
+}: AddSkillsProps) => {
+  const [tempSelected, setTempSelected] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
 
-  const toggleTempSkill = (id) => {
+  const toggleTempSkill = (id: string) => {
     setTempSelected((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
   };
 
   const handleAddSkills = () => {
-    if (tempSelected.length === 0) return;
+    if (!tempSelected.length) return;
+
     const newSkills = tempSelected.filter((id) => !value.includes(id));
     onChange([...value, ...newSkills]);
+
     setTempSelected([]);
     setOpen(false);
   };
 
-  const removeSkill = (id) => {
+  const removeSkill = (id: string) => {
     onChange(value.filter((s) => s !== id));
   };
 
-  const getLabel = (id) => {
+  const getLabel = (id: string) => {
     const found = options.find((opt) => opt.value === id);
     return found ? found.label : id;
   };
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Trigger Row */}
       <div className="flex gap-3 items-center">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            {/* STYLED TO MATCH SELECT TRIGGER */}
             <Button
               variant="outline"
               className={cn(
-                "flex-1 h-12 justify-between bg-[#111111] border-[#333333] text-white font-normal hover:bg-[#111111] hover:text-white focus:ring-1 focus:ring-[#BEA784] focus:ring-offset-0 transition-none",
+                "flex-1 h-12 justify-between bg-[#111111] border-[#333333] text-white font-normal",
+                "hover:bg-[#111111] hover:text-white",
+                "focus:ring-1 focus:ring-[#BEA784] focus:ring-offset-0 transition-none",
                 !tempSelected.length && "text-muted-foreground"
               )}
             >
-              {tempSelected.length > 0
+              {tempSelected.length
                 ? `${tempSelected.length} skills selected`
                 : "Select skills..."}
               <Plus className="ml-2 h-4 w-4 opacity-50" />
             </Button>
           </PopoverTrigger>
-          
-          {/* STYLED TO MATCH SELECT CONTENT */}
-          <PopoverContent 
-            className="w-[300px] p-0 bg-[#111111] border-[#333333] text-white shadow-md" 
+
+          {/* Dropdown */}
+          <PopoverContent
+            className="w-[320px] p-0 bg-[#111111] border-[#333333] text-white shadow-md"
             align="start"
           >
-            <div className="max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
+            {/* 
+               The classes below hide the scrollbar:
+               1. [&::-webkit-scrollbar]:hidden (Chrome/Safari)
+               2. [scrollbar-width:none] (Firefox)
+               3. [-ms-overflow-style:none] (IE/Edge)
+            */}
+            <div className="max-h-[300px] overflow-y-auto p-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
               {options.map((opt) => {
                 const isSelected = tempSelected.includes(opt.value);
                 const isAlreadyAdded = value.includes(opt.value);
@@ -66,18 +92,39 @@ const AddSkills = ({ value = [], onChange, options }) => {
                 return (
                   <div
                     key={opt.value}
-                    onClick={() => !isAlreadyAdded && toggleTempSkill(opt.value)}
+                    onClick={() =>
+                      !isAlreadyAdded && toggleTempSkill(opt.value)
+                    }
                     className={cn(
-                      "relative flex items-center justify-between px-3 py-2 rounded-sm cursor-pointer text-sm transition-colors",
-                      "hover:bg-neutral-800 hover:text-white", // Hover effect only on items
+                      "relative flex items-start justify-between gap-3 px-3 py-2.5 rounded-sm cursor-pointer transition-colors",
+                      "hover:bg-neutral-800",
                       isSelected && "bg-neutral-800",
-                      isAlreadyAdded && "opacity-40 cursor-not-allowed grayscale"
+                      isAlreadyAdded &&
+                        "opacity-40 cursor-not-allowed grayscale"
                     )}
                   >
-                    <span className="flex-1">{opt.label}</span>
-                    <div className="flex items-center gap-2">
-                        {isAlreadyAdded && <span className="text-[10px] font-bold text-[#BEA784]">ADDED</span>}
-                        {isSelected && <Check className="w-4 h-4 text-[#BEA784]" />}
+                    {/* Label + Description */}
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-white">
+                        {opt.label}
+                      </span>
+                      {opt.description && (
+                        <span className="text-xs text-muted-foreground leading-snug">
+                          {opt.description}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Right indicators */}
+                    <div className="flex items-center gap-2 pt-1">
+                      {isAlreadyAdded && (
+                        <span className="text-[10px] font-bold text-[#BEA784]">
+                          ADDED
+                        </span>
+                      )}
+                      {isSelected && (
+                        <Check className="w-4 h-4 text-[#BEA784]" />
+                      )}
                     </div>
                   </div>
                 );
@@ -86,24 +133,24 @@ const AddSkills = ({ value = [], onChange, options }) => {
           </PopoverContent>
         </Popover>
 
-        {/* ADD BUTTON STYLED TO MATCH THEME */}
+        {/* Add Button */}
         <Button
           type="button"
           onClick={handleAddSkills}
-          disabled={tempSelected.length === 0}
-          className="bg-[#BEA784] hover:bg-[#a38d6b] h-12 px-6 font-semibold text-black disabled:opacity-50 transition-colors"
+          disabled={!tempSelected.length}
+          className="bg-[#BEA784] hover:bg-[#a38d6b] h-12 px-6 font-semibold text-black disabled:opacity-50"
         >
           <Plus className="w-4 h-4 mr-1" />
-          Add {tempSelected.length > 0 && `(${tempSelected.length})`}
+          Add {tempSelected.length ? `(${tempSelected.length})` : ""}
         </Button>
       </div>
 
-      {/* Selected Tags Display */}
+      {/* Selected Skills */}
       <div className="flex flex-wrap gap-2">
         {value.map((id) => (
           <div
             key={id}
-            className="px-3 py-1.5 border border-[#333333] bg-[#111111] shadow-sm text-sm text-white font-medium rounded-md flex items-center gap-2"
+            className="px-3 py-1.5 border border-[#333333] bg-[#111111] text-sm text-white font-medium rounded-md flex items-center gap-2"
           >
             {getLabel(id)}
             <button
