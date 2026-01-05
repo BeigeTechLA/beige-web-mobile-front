@@ -98,10 +98,10 @@ export default function CpSignupPage() {
       step={`Step ${step}/3`}
       title={
         step === 1
-          ? "Build Your Creative Profile"
+          ? "Apply To Become A Beige Creative Partner"
           : step === 2
           ? "Professional Details"
-          : "Social Engagement"
+          : "Portfolio"
       }
       description={
         step === 1

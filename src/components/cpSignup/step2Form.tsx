@@ -2,13 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,10 +10,12 @@ import AddEquipments from "./addEquipment";
 import AddSkills from "./addSkills";
 import {
   ArrowLeft,
+  ArrowRight,
   CircleDollarSign,
-  Loader2, // Added for loading state
+  Loader2,
+  Check, // Added Check icon for selected states
 } from "lucide-react";
-import { roleOptions, skillOptions } from "@/app/data/staticData";
+import { roleOptions, videographerSkills, photographerSkills, editorSkills } from "@/app/data/staticData";
 import { useRegisterCreatorStep2Mutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
 
@@ -32,25 +27,57 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
   const labelClasses = "absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none";
   const sectionClasses = "rounded-[12px] border border-white/30 bg-[#101010] p-6 space-y-4";
 
+  // Helper to handle multi-select toggle
+  const toggleRole = (roleValue: string) => {
+    const currentRoles = data.roles || []; // Using 'roles' as an array
+    if (currentRoles.includes(roleValue)) {
+      // Remove if already selected
+      setData({ ...data, roles: currentRoles.filter((r) => r !== roleValue) });
+    } else {
+      // Add if not selected
+      setData({ ...data, roles: [...currentRoles, roleValue] });
+    }
+  };
+
+ const getSkillOptionsByRole = () => {
+  const roles = data.roles || [];
+  const listsToMerge = [];
+
+  if (roles.includes("9")) {
+    listsToMerge.push(videographerSkills);
+  }
+  if (roles.includes("10")) {
+    listsToMerge.push(photographerSkills);
+  }
+  if (roles.includes("11")) {
+    listsToMerge.push(editorSkills);
+  }
+
+  // If no roles selected, return empty, otherwise merge them
+  if (listsToMerge.length === 0) return [];
+  
+  return mergeUniqueSkills(...listsToMerge);
+};
+
   const handleSubmit = async () => {
-    // 2. Basic Validation
+    // 2. Validation
     if (!data.crew_member_id) {
       toast.error("Session Error", { description: "Crew ID missing. Please go back to step 1." });
       return;
     }
-    if (!data.role || !data.yoe || !data.hourlyRate) {
-      toast.error("Missing Fields", { description: "Please fill in Role, Experience and Hourly Rate." });
+    // Check if at least one role is selected
+    if (!data.roles || data.roles.length === 0 || !data.yoe || !data.hourlyRate) {
+      toast.error("Missing Fields", { description: "Please select at least one Role, Experience and Hourly Rate." });
       return;
     }
 
     try {
       const payload = {
         crew_member_id: data.crew_member_id,
-        primary_role: data.role,
+        primary_role: data.roles, 
         years_of_experience: Number(data.yoe),
         hourly_rate: Number(data.hourlyRate),
         bio: data.bio || "",
-        // Convert skills/equipment objects to simple string arrays if necessary
         skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
         equipment_ownership: data.equipments || [],
       };
@@ -70,31 +97,49 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
     }
   };
 
+   const mergeUniqueSkills = (...lists) => {
+    const map = new Map();
+    lists.flat().forEach((skill) => {
+      if (skill && !map.has(skill.value)) {
+        map.set(skill.value, skill);
+      }
+    });
+    return Array.from(map.values());
+  };
+
   return (
     <div className="space-y-8 bg-[#101010] text-white pt-4 lg:p-2 relative z-10">
       <form className="space-y-6 lg:space-y-9 lg:mt-14" onSubmit={(e) => e.preventDefault()}>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Primary Role */}
-          <div className="relative">
-            <Label className={labelClasses}>Primary Role</Label>
-            <Select
-              value={data.role}
-              onValueChange={(v) => setData({ ...data, role: v })}
-            >
-              <SelectTrigger className={`${inputClasses} text-left flex items-center`}>
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1A1A1A] border-white/20 text-white">
-                {roleOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="focus:bg-[#E8D1AB] focus:text-black">
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Primary Roles Multi-Select Grid */}
+        <div className={sectionClasses}>
+          <div>
+            <h2 className="text-base font-semibold text-white">Select Your Role</h2>
+            <p className="text-sm text-white/50">Select all roles that apply to you</p>
           </div>
+          <div className="flex flex-wrap gap-2 lg:gap-3">
+            {roleOptions.map((opt) => {
+              const isSelected = data.roles?.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleRole(opt.value)}
+                  className={`px-4 py-2 lg:px-6 lg:py-3 rounded-full border text-sm lg:text-base transition-all flex items-center gap-2 ${
+                    isSelected 
+                      ? "bg-[#E8D1AB] border-[#E8D1AB] text-black font-semibold shadow-[0_0_15px_rgba(232,209,171,0.3)]" 
+                      : "bg-transparent border-white/20 text-white hover:border-white/50"
+                  }`}
+                >
+                  {isSelected && <Check className="w-4 h-4" />}
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Years of Experience */}
           <div className="relative">
             <Label className={labelClasses}>Years of Experience</Label>
@@ -106,20 +151,20 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
               className={inputClasses}
             />
           </div>
-        </div>
 
-        {/* Hourly Rate */}
-        <div className="relative">
-          <Label className={labelClasses}>Hourly Rate ($)</Label>
+          {/* Hourly Rate */}
           <div className="relative">
-            <CircleDollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-[#E8D1AB] w-5 h-5 lg:w-6 lg:h-6" />
-            <Input
-              type="number"
-              placeholder="0.00"
-              value={data.hourlyRate}
-              onChange={(e) => setData({ ...data, hourlyRate: e.target.value })}
-              className={`${inputClasses} pl-12 lg:pl-14`}
-            />
+            <Label className={labelClasses}>Desired Rates ($)</Label>
+            <div className="relative">
+              <CircleDollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-[#E8D1AB] w-5 h-5 lg:w-6 lg:h-6" />
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={data.hourlyRate}
+                onChange={(e) => setData({ ...data, hourlyRate: e.target.value })}
+                className={`${inputClasses} pl-12 lg:pl-14`}
+              />
+            </div>
           </div>
         </div>
 
@@ -142,26 +187,24 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           </div>
           <div className="w-full">
             <AddSkills
-              options={skillOptions}
-              value={data.skills}
-              onChange={(v) => setData({ ...data, skills: v })}
-            />
+  options={getSkillOptionsByRole()}
+  value={data.skills}
+  onChange={(v) => setData({ ...data, skills: v })}
+/>
+
           </div>
         </div>
 
         {/* Equipment Section */}
         <div className={sectionClasses}>
           <div>
-            <h2 className="text-base font-semibold text-white">Equipments Owned</h2>
+            <h2 className="text-base font-semibold text-white">What Equipment Do You Own?</h2>
             <p className="text-sm text-white/50">List the gear you own or use</p>
           </div>
           <div className="w-full">
             <AddEquipments
-              // Pass IDs
               value={data.equipments || []}
-              // Pass Names (for display and storage in data)
               names={data.equipmentNames || []}
-              // Update both in the 'data' state
               onChange={(ids, names) => 
                 setData({ 
                   ...data, 
@@ -174,31 +217,28 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex items-center gap-4 pt-4">
+       <div className="flex items-center gap-4 pt-4">
           <button
             type="button"
             onClick={prevStep}
             disabled={isLoading}
-            className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] border border-white/30 hover:bg-white/10 transition-colors disabled:opacity-50"
+            className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] border border-white/20 bg-[#101010] hover:bg-white/5 transition-colors disabled:opacity-50"
           >
             <ArrowLeft className="w-6 h-6 text-white" />
           </button>
 
-          <Button
+          <button
             type="button"
             onClick={handleSubmit}
             disabled={isLoading}
-            className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-14 lg:h-[76px] rounded-[12px] text-lg font-semibold transition-all"
+            className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] bg-[#E8D1AB] hover:bg-[#DCD1BE] transition-all disabled:opacity-50"
           >
             {isLoading ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Saving...
-              </span>
+              <Loader2 className="animate-spin w-6 h-6 text-black" />
             ) : (
-              "Next Step"
+              <ArrowRight className="w-6 h-6 text-black" />
             )}
-          </Button>
+          </button>
         </div>
 
         {/* Footer Link */}
