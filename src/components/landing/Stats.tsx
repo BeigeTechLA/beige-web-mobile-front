@@ -8,7 +8,7 @@ const STATS = [
   { value: "$10M+", label: "In Content Produced On Beige" },
   { value: "5K+", label: `Verified Creatives on Beige` },
   { value: "4K+", label: "Shoots Books on Beige" },
-  { value: "60 Seconds", label: "Book A Shoot In Under 60 Seconds" },
+  { value: "60 Seconds", label: "Book A Shoot In Under 60 Secs" },
 ];
 
 export const Stats = () => {
