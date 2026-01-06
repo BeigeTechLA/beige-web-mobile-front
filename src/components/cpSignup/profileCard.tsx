@@ -238,7 +238,7 @@ const ProfileCard = ({ data }) => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex flex-col gap-6">
             {data?.email && (
               <div className="flex flex-col gap-[1px]">
                 <p className="text-base font-medium text-white break-all">{data.email}</p>
@@ -252,7 +252,6 @@ const ProfileCard = ({ data }) => {
               </div>
             )}
           </div>
-
           {skills && (
             <div className="flex flex-col gap-[1px]">
               <p className="text-base font-medium text-white">{skills}</p>

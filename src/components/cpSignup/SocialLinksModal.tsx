@@ -100,18 +100,29 @@ export default function SocialLinksModal({ open, onClose, links, onChange }) {
                 onChange={(e) => setLinkUrl(e.target.value)}
                 className="h-11 bg-[#1A1A1A] border-white/20 text-white"
               />
-              <Input
-                placeholder="Name the link..."
-                value={selectedPlatform !== "custom" ? SOCIAL_ICONS.find((p) => p.id === selectedPlatform)?.label || "" : linkName}
-                disabled={selectedPlatform !== "custom"}
-                onChange={(e) => { if (selectedPlatform === "custom") setLinkName(e.target.value); }}
-                className="h-11 bg-[#1A1A1A] border-white/20 text-white disabled:opacity-50"
-              />
+
+              {/* Only show the name input if the platform is "custom" */}
+              {selectedPlatform === "custom" && (
+                <Input
+                  placeholder="Name the link (e.g. My Portfolio)"
+                  value={linkName}
+                  onChange={(e) => setLinkName(e.target.value)}
+                  className="h-11 bg-[#1A1A1A] border-white/20 text-white"
+                />
+              )}
+
               <div className="flex justify-end mt-6 gap-3">
-                <Button variant="outline" onClick={() => setScreen("list")} className="rounded-full px-6 border-white/20 text-white hover:bg-white/5">
+                <Button
+                  variant="outline"
+                  onClick={() => setScreen("list")}
+                  className="rounded-full px-6 border-white/20 text-white hover:bg-white/5"
+                >
                   Back
                 </Button>
-                <Button onClick={saveLink} className="rounded-full px-6 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE]">
+                <Button
+                  onClick={saveLink}
+                  className="rounded-full px-6 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE]"
+                >
                   Save Link
                 </Button>
               </div>

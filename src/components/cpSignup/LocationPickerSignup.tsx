@@ -178,23 +178,31 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
       return;
     }
 
+    if (marker && searchQuery === marker.address) {
+      setSearchResults([]);
+      return;
+    }
+
     const timeout = setTimeout(() => {
       handleSearch();
     }, 400);
 
     return () => clearTimeout(timeout);
-  }, [searchQuery, handleSearch]);
+  }, [searchQuery, handleSearch, marker]); // Add marker to dependencies
 
   /* -------------------------- SELECT RESULT -------------------------- */
 
   const selectSearchResult = (result: any) => {
     const [lng, lat] = result.center;
+    const selectedAddress = result.place_name;
 
-    setMarker({
+    const newMarker = {
       lat,
       lng,
-      address: result.place_name
-    });
+      address: selectedAddress
+    };
+
+    setMarker(newMarker);
 
     setViewState(prev => ({
       ...prev,
@@ -203,9 +211,12 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
       zoom: 14
     }));
 
+    // 1. Clear results immediately
     setSearchResults([]);
-    setSearchQuery(result.place_name);
+    // 2. Update query (this will trigger the useEffect)
+    setSearchQuery(selectedAddress);
   };
+
 
   /* ------------------------- CLEAR / CONFIRM ------------------------- */
 
