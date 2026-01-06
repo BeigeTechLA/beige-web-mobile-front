@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { LocationPickerSignup } from "./LocationPickerSignup";
 import CropProfileModal from "./cropProfileModal";
@@ -19,12 +18,12 @@ import {
   Eye,
   EyeOff,
   Camera,
-  Loader2, // Import Loader icon
+  Loader2,
 } from "lucide-react";
 import { distanceOptions } from "@/app/data/staticData";
 import Link from "next/link";
 import { useRegisterCreatorStep1Mutation } from "@/lib/redux/features/auth/authApi";
-import { toast } from "sonner"; // Assuming you use sonner or similar for notifications
+import { toast } from "sonner"; 
 import { compressImage } from "@/lib/utils";
 
 interface SelectedImageState {
@@ -33,12 +32,12 @@ interface SelectedImageState {
 }
 
 export default function Step1Form({ data, setData, nextStep, prevStep }) {
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<SelectedImageState | null>(null); const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<SelectedImageState | null>(null);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
 
-  // 1. Initialize the API Hook
   const [registerStep1, { isLoading }] = useRegisterCreatorStep1Mutation();
 
   const inputClasses = "h-14 lg:h-[82px] w-full rounded-[12px] border border-white/20 p-4 text-white outline-none focus:border-[#E8D1AB] focus-visible:ring-0 focus-visible:ring-offset-0 bg-[#101010] text-sm lg:text-base";
@@ -48,7 +47,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
     const file = e.target.files?.[0];
     if (file) {
       try {
-        setIsCompressing(true); // Start Loader
+        setIsCompressing(true);
         const compressedFile = await compressImage(file);
 
         const reader = new FileReader();
@@ -58,7 +57,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
             preview: reader.result as string
           });
           setCropModalOpen(true);
-          setIsCompressing(false); // Stop Loader
+          setIsCompressing(false);
         };
 
         reader.readAsDataURL(compressedFile);
@@ -75,104 +74,56 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
     setCropModalOpen(false);
   };
 
-  // 2. Handle Submit Logic
-  // ... inside Step1Form component ...
-
-  // const handleNext = async () => {
-  //   if (!data.firstName || !data.lastName || !data.email || !data.password) {
-  //     toast.error("Please fill in all required fields");
-  //     return;
-  //   }
-
-  //   try {
-  //     const formData = new FormData();
-  //     formData.append("first_name", data.firstName);
-  //     formData.append("last_name", data.lastName);
-  //     formData.append("email", data.email);
-  //     formData.append("password", data.password);
-      
-  //     if (data.location) {
-  //       formData.append("location", typeof data.location === 'object' ? JSON.stringify(data.location) : data.location);
-  //     }
-  //     if (data.workingDistance) {
-  //       formData.append("working_distance", data.workingDistance);
-  //     }
-  //     if (data.profileImage) {
-  //       formData.append("profile_photo", data.profileImage, "profile-picture.jpg");
-  //     }
-
-  //     // 1. Call the API
-  //     const response = await registerStep1(formData).unwrap();
-      
-  //     // 2. SAVE the IDs into the shared state
-  //     setData({ 
-  //       ...data, 
-  //       crew_member_id: response.crew_member_id,
-  //       user_id: response.user_id 
-  //     });
-
-  //     toast.success("Step 1 completed!");
-      
-  //     // 3. Proceed
-  //     nextStep();
-  //   } catch (err) {
-  //     toast.error(err?.data?.message || "Registration failed");
-  //   }
-  // };
-
   const handleNext = async () => {
-  if (!data.firstName || !data.lastName || !data.email || !data.password) {
-    toast.error("Please fill in all required fields");
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    formData.append("first_name", data.firstName);
-    formData.append("last_name", data.lastName);
-    formData.append("email", data.email);
-     formData.append("phone_number", data.phoneNumber);
-    formData.append("password", data.password);
-
-    // Check if crew_member_id exists, and append it to formData if available
-    if (data.crew_member_id) {
-      formData.append("crew_member_id", data.crew_member_id);
+    // UPDATED VALIDATION: Checking every single field
+    if (
+      !data.firstName || 
+      !data.lastName || 
+      !data.email || 
+      !data.phoneNumber || 
+      !data.password || 
+      !data.location || 
+      !data.workingDistance || 
+      !data.profileImage
+    ) {
+      toast.error("Please fill in all fields, including your profile picture.");
+      return;
     }
 
-    // Check if user_id exists, and append it to formData if available
-    if (data.user_id) {
-      formData.append("user_id", data.user_id);  // Only append user_id if it's available
-    }
+    try {
+      const formData = new FormData();
+      formData.append("first_name", data.firstName);
+      formData.append("last_name", data.lastName);
+      formData.append("email", data.email);
+      formData.append("phone_number", data.phoneNumber);
+      formData.append("password", data.password);
 
-    if (data.location) {
+      if (data.crew_member_id) {
+        formData.append("crew_member_id", data.crew_member_id);
+      }
+
+      if (data.user_id) {
+        formData.append("user_id", data.user_id);
+      }
+
       formData.append("location", typeof data.location === 'object' ? JSON.stringify(data.location) : data.location);
-    }
-    if (data.workingDistance) {
       formData.append("working_distance", data.workingDistance);
-    }
-    if (data.profileImage) {
       formData.append("profile_photo", data.profileImage, "profile-picture.jpg");
+
+      const response = await registerStep1(formData).unwrap();
+
+      setData({
+        ...data,
+        crew_member_id: response.crew_member_id,
+        user_id: response.user_id,
+      });
+
+      toast.success("Step 1 completed!");
+      nextStep();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Registration failed");
     }
-
-    // Call the API
-    const response = await registerStep1(formData).unwrap();
-
-    // Save the response IDs into the shared state
-    setData({
-      ...data,
-      crew_member_id: response.crew_member_id, // Save the crew_member_id from the response
-      user_id: response.user_id, // Save the user_id from the response
-    });
-
-    toast.success("Step 1 completed!");
-
-    // Proceed to next step
-    nextStep();
-  } catch (err) {
-    toast.error(err?.data?.message || "Registration failed");
-  }
-};
-
+  };
 
   return (
     <div className="space-y-8 bg-[#101010] text-white pt-4 lg:p-2 relative z-10">
@@ -214,6 +165,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           />
         </div>
 
+        {/* Phone */}
         <div className="relative">
           <Label className={labelClasses}>Phone Number *</Label>
           <Input
@@ -248,18 +200,19 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           </div>
         </div>
 
-        {/* Location */}
+        {/* Location - Added Asterisk to Label implicitly via placeholder or UI component */}
         <div className="w-full">
+          <Label className="text-sm text-white/60 mb-2 block ml-1">Location *</Label>
           <LocationPickerSignup
             value={data.location}
             onChange={(v) => setData({ ...data, location: v })}
-            placeholder="Add Your Location"
+            placeholder="Search Your Location *"
           />
         </div>
 
         {/* Working Distance */}
         <div className="relative">
-          <Label className={labelClasses}>Shoot Radius</Label>
+          <Label className={labelClasses}>Shoot Radius *</Label>
           <Select
             value={data.workingDistance}
             onValueChange={(v) => setData({ ...data, workingDistance: v })}
@@ -279,21 +232,17 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
         {/* Profile Picture Section */}
         <div className="rounded-[12px] border border-white/20 bg-[#101010] p-6 mt-4">
-          <h2 className="text-base font-semibold text-white">Profile Picture</h2>
-          <p className="text-sm text-white/40 mb-5">Add photo to build connection and trust</p>
+          <h2 className="text-base font-semibold text-white">Profile Picture *</h2>
+          <p className="text-sm text-white/40 mb-5">Required: Add photo to build connection and trust</p>
 
           <div className="flex items-center gap-5">
-            <div className="h-20 w-20 rounded-full border border-[#E8D1AB]/30 bg-[#1A1A1A] flex items-center justify-center overflow-hidden flex-shrink-0">
-              {/* Loader to show processing when image compression is ongoing */}
+            <div className={`h-20 w-20 rounded-full ${data.profileImage ? 'border-[#E8D1AB]' : 'border-red-500/50'} bg-[#1A1A1A] flex items-center justify-center overflow-hidden flex-shrink-0`}>
               {isCompressing ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="animate-spin h-6 w-6 text-[#E8D1AB]" />
-                </div>
+                <Loader2 className="animate-spin h-6 w-6 text-[#E8D1AB]" />
               ) : (
                 <img
                   src={data.profilePreview || "/images/loginsignup/Group.png"}
                   alt="Profile"
-                  // CHANGED: object-contain makes the logo fit inside, p-3 adds space so it doesn't touch the borders
                   className="h-full w-full object-contain p-1"
                 />
               )}
@@ -301,7 +250,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
             <button
               type="button"
-              onClick={() => fileInputRef.current.click()}
+              onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-2 h-12 px-6 rounded-[12px] border border-[#E8D1AB]/30 bg-[#E8D1AB]/5 text-sm font-medium text-[#E8D1AB] transition hover:bg-[#E8D1AB]/10"
             >
               <Camera className="h-4 w-4" />
@@ -340,13 +289,6 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
               <ArrowRight className="w-6 h-6 text-black" />
             )}
           </button>
-        </div>
-
-        <div className="flex items-center justify-center gap-2 text-sm text-white/30 pt-4">
-          <div className="h-[1px] flex-grow bg-white/5"></div>
-          <span>Already have an account?</span>
-          <Link href="/login" className="text-[#E8D1AB] hover:underline">Log in</Link>
-          <div className="h-[1px] flex-grow bg-white/5"></div>
         </div>
       </form>
 

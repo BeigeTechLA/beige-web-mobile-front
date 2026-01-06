@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea"; 
 import AddEquipments from "./addEquipment";
@@ -13,14 +12,13 @@ import {
   ArrowRight,
   CircleDollarSign,
   Loader2,
-  Check, // Added Check icon for selected states
+  Check,
 } from "lucide-react";
 import { roleOptions, videographerSkills, photographerSkills, editorSkills } from "@/app/data/staticData";
 import { useRegisterCreatorStep2Mutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
 
 export default function Step2Form({ data, setData, nextStep, prevStep }) {
-  // 1. Initialize the RTK Query Mutation
   const [registerStep2, { isLoading }] = useRegisterCreatorStep2Mutation();
 
   const inputClasses = "h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white placeholder:text-white/40 outline-none focus:border-[#E8D1AB] focus-visible:ring-0 focus-visible:ring-offset-0 bg-[#101010] text-sm lg:text-base";
@@ -36,60 +34,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
     }
   };
 
- const getSkillOptionsByRole = () => {
-  const roles = data.roles || [];
-  const listsToMerge = [];
-
-  if (roles.includes("9")) {
-    listsToMerge.push(videographerSkills);
-  }
-  if (roles.includes("10")) {
-    listsToMerge.push(photographerSkills);
-  }
-  if (roles.includes("11")) {
-    listsToMerge.push(editorSkills);
-  }
-
-  if (listsToMerge.length === 0) return [];
-  
-  return mergeUniqueSkills(...listsToMerge);
-};
-
-  const handleSubmit = async () => {
-    if (!data.crew_member_id) {
-      toast.error("Session Error", { description: "Crew ID missing. Please go back to step 1." });
-      return;
-    }
-    if (!data.roles || data.roles.length === 0 || !data.yoe || !data.hourlyRate) {
-      toast.error("Missing Fields", { description: "Please select at least one Role, Experience and Hourly Rate." });
-      return;
-    }
-
-    try {
-      const payload = {
-        crew_member_id: data.crew_member_id,
-        primary_role: data.roles, 
-        years_of_experience: Number(data.yoe),
-        hourly_rate: Number(data.hourlyRate),
-        bio: data.bio || "",
-        skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
-        equipment_ownership: data.equipments || [],
-      };
-
-      await registerStep2(payload).unwrap();
-
-      toast.success("Step 2 Completed", { description: "Your creative profile has been updated." });
-      
-      nextStep();
-    } catch (err: any) {
-      console.error("Step 2 API Error:", err);
-      toast.error("Failed to save", { 
-        description: err?.data?.message || "Something went wrong while saving your details." 
-      });
-    }
-  };
-
-   const mergeUniqueSkills = (...lists) => {
+  const mergeUniqueSkills = (...lists) => {
     const map = new Map();
     lists.flat().forEach((skill) => {
       if (skill && !map.has(skill.value)) {
@@ -99,15 +44,71 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
     return Array.from(map.values());
   };
 
+  const getSkillOptionsByRole = () => {
+    const roles = data.roles || [];
+    const listsToMerge = [];
+    if (roles.includes("9")) listsToMerge.push(videographerSkills);
+    if (roles.includes("10")) listsToMerge.push(photographerSkills);
+    if (roles.includes("11")) listsToMerge.push(editorSkills);
+    if (listsToMerge.length === 0) return [];
+    return mergeUniqueSkills(...listsToMerge);
+  };
+
+  const handleSubmit = async () => {
+    // 1. Check Technical ID
+    if (!data.crew_member_id) {
+      toast.error("Session Error", { description: "Crew ID missing. Please go back to step 1." });
+      return;
+    }
+
+    // 2. REQUIRED FIELD VALIDATION
+    if (!data.roles || data.roles.length === 0) {
+      toast.error("Required Field", { description: "Please select at least one Role." });
+      return;
+    }
+    if (!data.yoe || data.yoe === "") {
+      toast.error("Required Field", { description: "Please enter your Years of Experience." });
+      return;
+    }
+    if (!data.hourlyRate || data.hourlyRate === "") {
+      toast.error("Required Field", { description: "Please enter your Desired Hourly Rate." });
+      return;
+    }
+    if (!data.skills || data.skills.length === 0) {
+      toast.error("Required Field", { description: "Please select at least one Skill." });
+      return;
+    }
+
+    try {
+      const payload = {
+        crew_member_id: data.crew_member_id,
+        primary_role: data.roles, 
+        years_of_experience: Number(data.yoe),
+        hourly_rate: Number(data.hourlyRate),
+        bio: data.bio || "", // Optional
+        skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
+        equipment_ownership: data.equipments || [], // Optional
+      };
+
+      await registerStep2(payload).unwrap();
+      toast.success("Step 2 Completed");
+      nextStep();
+    } catch (err: any) {
+      toast.error("Failed to save", { 
+        description: err?.data?.message || "Something went wrong." 
+      });
+    }
+  };
+
   return (
     <div className="space-y-8 bg-[#101010] text-white pt-4 lg:p-2 relative z-10">
       <form className="space-y-6 lg:space-y-9 lg:mt-14" onSubmit={(e) => e.preventDefault()}>
         
-        {/* Primary Roles Multi-Select Grid */}
+        {/* Roles (Required) */}
         <div className={sectionClasses}>
           <div>
-            <h2 className="text-base font-semibold text-white">Select Your Role</h2>
-            <p className="text-sm text-white/50">Select all roles that apply to you</p>
+            <h2 className="text-base font-semibold text-white">Select Your Role *</h2>
+            <p className="text-sm text-white/50">Select at least one role</p>
           </div>
           <div className="flex flex-wrap gap-2 lg:gap-3">
             {roleOptions.map((opt) => {
@@ -132,82 +133,81 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Years of Experience */}
+          {/* Experience (Required) */}
           <div className="relative">
-            <Label className={labelClasses}>Years of Experience</Label>
-           <Input
-  type="number"
-  min="0" // Prevents negative via UI arrows
-  placeholder="e.g. 5"
-  value={data.yoe}
-  onWheel={(e) => e.currentTarget.blur()} // Prevents scroll changes
-  onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()} // Blocks negative sign and exponents
-  onChange={(e) => {
-    const value = e.target.value;
-    if (value === "" || Number(value) >= 0) {
-      setData({ ...data, yoe: value });
-    }
-  }}
-  className={inputClasses}
-/>
+            <Label className={labelClasses}>Years of Experience *</Label>
+            <Input
+              type="number"
+              min="0"
+              placeholder="e.g. 5"
+              value={data.yoe}
+              onWheel={(e) => e.currentTarget.blur()}
+              onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "" || Number(value) >= 0) {
+                  setData({ ...data, yoe: value });
+                }
+              }}
+              className={inputClasses}
+            />
           </div>
 
-          {/* Hourly Rate */}
+          {/* Rate (Required) */}
           <div className="relative">
-            <Label className={labelClasses}>Desired Rates ($)</Label>
+            <Label className={labelClasses}>Desired Rates ($) *</Label>
             <div className="relative">
               <CircleDollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-[#E8D1AB] w-5 h-5 lg:w-6 lg:h-6" />
               <Input
-  type="number"
-  min="0" // Prevents negative via UI arrows
-  placeholder="0.00"
-  value={data.hourlyRate}
-  onWheel={(e) => e.currentTarget.blur()} // Prevents scroll changes
-  onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()} // Blocks negative sign and exponents
-  onChange={(e) => {
-    const value = e.target.value;
-    if (value === "" || Number(value) >= 0) {
-      setData({ ...data, hourlyRate: value });
-    }
-  }}
-  className={`${inputClasses} pl-12 lg:pl-14`}
-/>
+                type="number"
+                min="0"
+                placeholder="0.00"
+                value={data.hourlyRate}
+                onWheel={(e) => e.currentTarget.blur()}
+                onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "" || Number(value) >= 0) {
+                    setData({ ...data, hourlyRate: value });
+                  }
+                }}
+                className={`${inputClasses} pl-12 lg:pl-14`}
+              />
             </div>
           </div>
         </div>
 
-        {/* Bio / About */}
+        {/* Bio (Optional) */}
         <div className="relative">
-          <Label className={labelClasses}>Bio / About</Label>
+          <Label className={labelClasses}>Bio / About (Optional)</Label>
           <Textarea
-            placeholder="Brief description of expertise and background..."
+            placeholder="Brief description of expertise..."
             value={data.bio}
             onChange={(e) => setData({ ...data, bio: e.target.value })}
             className={`${inputClasses} !bg-[#101010] !border-white/30 !text-white placeholder:!text-white/40 !pt-6 min-h-[140px] resize-none focus:!border-[#E8D1AB]`}
           />
         </div>
 
-        {/* Skills Section */}
+        {/* Skills (Required) */}
         <div className={sectionClasses}>
           <div>
-            <h2 className="text-base font-semibold text-white">Skills</h2>
-            <p className="text-sm text-white/50">Select your core competencies</p>
+            <h2 className="text-base font-semibold text-white">Skills *</h2>
+            <p className="text-sm text-white/50">Select at least one competency</p>
           </div>
           <div className="w-full">
             <AddSkills
-  options={getSkillOptionsByRole()}
-  value={data.skills}
-  onChange={(v) => setData({ ...data, skills: v })}
-/>
-
+              options={getSkillOptionsByRole()}
+              value={data.skills}
+              onChange={(v) => setData({ ...data, skills: v })}
+            />
           </div>
         </div>
 
-        {/* Equipment Section */}
+        {/* Equipment (Optional) */}
         <div className={sectionClasses}>
           <div>
-            <h2 className="text-base font-semibold text-white">What Equipment Do You Own?</h2>
-            <p className="text-sm text-white/50">List the gear you own or use</p>
+            <h2 className="text-base font-semibold text-white">Equipment (Optional)</h2>
+            <p className="text-sm text-white/50">List the gear you own</p>
           </div>
           <div className="w-full">
             <AddEquipments
@@ -224,8 +224,8 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           </div>
         </div>
 
-        {/* Navigation Buttons */}
-       <div className="flex items-center gap-4 pt-4">
+        {/* Navigation */}
+        <div className="flex items-center gap-4 pt-4">
           <button
             type="button"
             onClick={prevStep}
@@ -249,13 +249,10 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           </button>
         </div>
 
-        {/* Footer Link */}
         <div className="flex items-center justify-center gap-2 text-sm text-white/40 pt-4">
           <div className="h-[1px] flex-grow bg-white/10"></div>
           <span>Already have an account?</span>
-          <Link href="/login" className="text-[#E8D1AB] hover:underline">
-            Log in
-          </Link>
+          <Link href="/login" className="text-[#E8D1AB] hover:underline">Log in</Link>
           <div className="h-[1px] flex-grow bg-white/10"></div>
         </div>
       </form>

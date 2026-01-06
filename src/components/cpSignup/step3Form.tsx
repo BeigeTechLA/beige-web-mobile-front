@@ -33,8 +33,15 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
     }));
   }, [featuredWork, links, resume, portfolio, setData]);
 
-  
   const handleSubmit = async () => {
+    // 1. Validation: Only Featured Work is required
+    if (!featuredWork || featuredWork.length === 0) {
+      toast.error("Required Field", { 
+        description: "Please add at least one item to your Featured Work." 
+      });
+      return;
+    }
+
     try {
       if (!data.crew_member_id) {
         toast.error("Session Error", { description: "Crew ID missing." });
@@ -44,17 +51,21 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
       const formData = new FormData();
       formData.append("crew_member_id", String(data.crew_member_id));
 
+      // Optional: Resume
       const resumeFile = resume instanceof File ? resume : resume?.file;
       if (resumeFile instanceof File) formData.append("resume", resumeFile);
 
+      // Optional: Portfolio
       const portfolioFile = portfolio instanceof File ? portfolio : portfolio?.file;
       if (portfolioFile instanceof File) formData.append("portfolio", portfolioFile);
 
+      // Optional: Certifications
       (data.certifications || []).forEach((item) => {
         const file = item instanceof File ? item : item?.file;
         if (file instanceof File) formData.append("certifications", file);
       });
 
+      // Required: Featured Work
       (featuredWork || []).forEach((item) => {
         const workFile = item.file;
         if (workFile instanceof File) {
@@ -68,7 +79,7 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
       }));
       formData.append("work_details", JSON.stringify(workMetadata));
 
-      // 5. Social Links
+      // Optional: Social Links
       const socialLinksPayload = {};
       links.forEach((l) => {
         if (l.platform && l.url) socialLinksPayload[l.platform] = l.url;
@@ -78,11 +89,11 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
       // API CALL
       await registerStep3(formData).unwrap();
 
-      toast.success("Profile Created");
+      toast.success("Profile Created Successfully!");
       nextStep();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Step 3 API Error:", err);
-      toast.error("Failed to upload work", { description: err?.data?.message });
+      toast.error("Failed to upload work", { description: err?.data?.message || "Internal Server Error" });
     }
   };
 
@@ -94,10 +105,10 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
     <div className="space-y-8 bg-[#101010] text-white pt-4 lg:p-2 relative z-10">
       <form className="space-y-6 lg:space-y-9 lg:mt-14" onSubmit={(e) => e.preventDefault()}>
 
-        {/* Social Links Section */}
+        {/* Social Links (Optional) */}
         <div className={sectionClasses}>
           <div>
-            <h2 className="text-base font-semibold text-white">Social & Professional Links</h2>
+            <h2 className="text-base font-semibold text-white">Social & Professional Links (Optional)</h2>
             <p className="text-sm text-white/50">Add links to your IMDb, LinkedIn, or Instagram</p>
           </div>
 
@@ -119,8 +130,12 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
           </div>
         </div>
 
-        {/* Featured Work Section */}
+        {/* Featured Work (REQUIRED) */}
         <div className={sectionClasses}>
+          <div className="mb-2">
+            <h2 className="text-base font-semibold text-white">Featured Work *</h2>
+            <p className="text-sm text-white/50">Showcase your best projects (Required)</p>
+          </div>
           <FeaturedWork
             value={featuredWork}
             onChange={setFeaturedWork}
@@ -128,8 +143,11 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
           />
         </div>
 
-        {/* Certifications Section */}
+        {/* Certifications (Optional) */}
         <div className={sectionClasses}>
+          <div>
+            <h2 className="text-base font-semibold text-white">Certifications (Optional)</h2>
+          </div>
           <AddCertification
             value={data.certifications}
             onChange={(v) =>
@@ -139,8 +157,11 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
           />
         </div>
 
-        {/* Resume & Portfolio Section */}
+        {/* Resume & Portfolio (Optional) */}
         <div className={sectionClasses}>
+          <div>
+            <h2 className="text-base font-semibold text-white">Documents (Optional)</h2>
+          </div>
           <UploadResumePortfolio
             resume={resume}
             setResume={setResume}
@@ -178,16 +199,6 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
             )}
           </Button>
         </div>
-
-        {/* Footer Link */}
-        <div className="flex items-center justify-center gap-2 text-sm text-white/40 pt-4">
-          <div className="h-[1px] flex-grow bg-white/10"></div>
-          <span>Already have an account?</span>
-          <Link href="/login" className="text-[#E8D1AB] hover:underline">
-            Log in
-          </Link>
-          <div className="h-[1px] flex-grow bg-white/10"></div>
-        </div>
       </form>
 
       <SocialLinksModal
@@ -200,10 +211,8 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
   );
 }
 
-// Sub-component for Social Media Link items
 const SocMedLink = ({ socmedItem, deleteLink }) => {
   const platform = SOCIAL_ICONS.find((p) => p.id === socmedItem.platform);
-
   return (
     <div className="w-full flex items-center justify-between bg-white/5 border border-white/10 px-4 py-3 rounded-[12px] hover:border-white/30 transition-all">
       <div className="flex items-center gap-4">
@@ -216,17 +225,11 @@ const SocMedLink = ({ socmedItem, deleteLink }) => {
             <Globe className="w-5 h-5 text-[#E8D1AB]" />
           )}
         </div>
-
         <div className="flex flex-col">
-          <span className="text-white text-sm font-medium">
-            {socmedItem.name}
-          </span>
-          <span className="text-white/40 text-xs truncate max-w-[200px] lg:max-w-xs">
-            {socmedItem.url}
-          </span>
+          <span className="text-white text-sm font-medium">{socmedItem.name}</span>
+          <span className="text-white/40 text-xs truncate max-w-[200px] lg:max-w-xs">{socmedItem.url}</span>
         </div>
       </div>
-
       <button
         type="button"
         onClick={() => deleteLink(socmedItem.id)}
