@@ -55,6 +55,15 @@ export const bookingsApi = createApi({
       transformResponse: (response: ApiResponse<Booking>) => response.data!,
       invalidatesTags: (result, error, { id }) => [{ type: 'Booking', id }, 'Booking'],
     }),
+    getBookings: builder.mutation<BookingResponse, number>({
+      query: (user_id) => ({
+        url: 'bookings/user',
+        method: 'POST',
+        body: { user_id },
+      }),
+      transformResponse: (response: ApiResponse<BookingResponse>) => response.data!,
+      invalidatesTags: ['Booking'],
+    }),
   }),
 });
 
@@ -63,4 +72,5 @@ export const {
   useGetUserBookingsQuery,
   useGetBookingQuery,
   useUpdateBookingMutation,
+  useGetBookingsMutation
 } = bookingsApi;
