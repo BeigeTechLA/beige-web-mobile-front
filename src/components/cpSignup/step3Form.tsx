@@ -33,6 +33,7 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
     }));
   }, [featuredWork, links, resume, portfolio, setData]);
 
+  
   const handleSubmit = async () => {
     try {
       if (!data.crew_member_id) {

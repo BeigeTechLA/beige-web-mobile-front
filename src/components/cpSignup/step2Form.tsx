@@ -27,14 +27,11 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
   const labelClasses = "absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none";
   const sectionClasses = "rounded-[12px] border border-white/30 bg-[#101010] p-6 space-y-4";
 
-  // Helper to handle multi-select toggle
   const toggleRole = (roleValue: string) => {
-    const currentRoles = data.roles || []; // Using 'roles' as an array
+    const currentRoles = data.roles || [];
     if (currentRoles.includes(roleValue)) {
-      // Remove if already selected
       setData({ ...data, roles: currentRoles.filter((r) => r !== roleValue) });
     } else {
-      // Add if not selected
       setData({ ...data, roles: [...currentRoles, roleValue] });
     }
   };
@@ -53,19 +50,16 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
     listsToMerge.push(editorSkills);
   }
 
-  // If no roles selected, return empty, otherwise merge them
   if (listsToMerge.length === 0) return [];
   
   return mergeUniqueSkills(...listsToMerge);
 };
 
   const handleSubmit = async () => {
-    // 2. Validation
     if (!data.crew_member_id) {
       toast.error("Session Error", { description: "Crew ID missing. Please go back to step 1." });
       return;
     }
-    // Check if at least one role is selected
     if (!data.roles || data.roles.length === 0 || !data.yoe || !data.hourlyRate) {
       toast.error("Missing Fields", { description: "Please select at least one Role, Experience and Hourly Rate." });
       return;
@@ -82,12 +76,10 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
         equipment_ownership: data.equipments || [],
       };
 
-      // 4. Call API
       await registerStep2(payload).unwrap();
 
       toast.success("Step 2 Completed", { description: "Your creative profile has been updated." });
       
-      // 5. Move to next step
       nextStep();
     } catch (err: any) {
       console.error("Step 2 API Error:", err);
@@ -143,13 +135,21 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           {/* Years of Experience */}
           <div className="relative">
             <Label className={labelClasses}>Years of Experience</Label>
-            <Input
-              type="number"
-              placeholder="e.g. 5"
-              value={data.yoe}
-              onChange={(e) => setData({ ...data, yoe: e.target.value })}
-              className={inputClasses}
-            />
+           <Input
+  type="number"
+  min="0" // Prevents negative via UI arrows
+  placeholder="e.g. 5"
+  value={data.yoe}
+  onWheel={(e) => e.currentTarget.blur()} // Prevents scroll changes
+  onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()} // Blocks negative sign and exponents
+  onChange={(e) => {
+    const value = e.target.value;
+    if (value === "" || Number(value) >= 0) {
+      setData({ ...data, yoe: value });
+    }
+  }}
+  className={inputClasses}
+/>
           </div>
 
           {/* Hourly Rate */}
@@ -158,12 +158,20 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
             <div className="relative">
               <CircleDollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-[#E8D1AB] w-5 h-5 lg:w-6 lg:h-6" />
               <Input
-                type="number"
-                placeholder="0.00"
-                value={data.hourlyRate}
-                onChange={(e) => setData({ ...data, hourlyRate: e.target.value })}
-                className={`${inputClasses} pl-12 lg:pl-14`}
-              />
+  type="number"
+  min="0" // Prevents negative via UI arrows
+  placeholder="0.00"
+  value={data.hourlyRate}
+  onWheel={(e) => e.currentTarget.blur()} // Prevents scroll changes
+  onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()} // Blocks negative sign and exponents
+  onChange={(e) => {
+    const value = e.target.value;
+    if (value === "" || Number(value) >= 0) {
+      setData({ ...data, hourlyRate: value });
+    }
+  }}
+  className={`${inputClasses} pl-12 lg:pl-14`}
+/>
             </div>
           </div>
         </div>
