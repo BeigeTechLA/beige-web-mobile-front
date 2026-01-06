@@ -91,9 +91,6 @@ export const Influencers = ({ autoplay = false }) => {
                 progress={smoothProgress}
               />
             ))}
-            <div className="absolute inset-0 flex justify-center items-center z-50">
-              <div className="w-[1.5px] h-[360px] lg:h-[390px] bg-[#4ADE80] shadow-[0_0_20px_#4ADE80] opacity-60" />
-            </div>
           </div>
         </div>
 
@@ -112,7 +109,7 @@ export const Influencers = ({ autoplay = false }) => {
                 {activeItem?.name}
               </h3>
 
-              <div className="flex flex-wrap justify-center items-center gap-6 mb-6">
+              <div className="flex flex-wrap justify-center items-center gap-6 mb-3">
                 {
                   activeItem?.instagramFollowers &&
                   <SocialMetric icon={<Instagram size={20} />} label="IG" value={activeItem?.instagramFollowers} href={activeItem?.instagram} />
@@ -127,8 +124,8 @@ export const Influencers = ({ autoplay = false }) => {
                 }
               </div>
 
-              <p className="text-[#E8D1AB]/60 text-sm leading-relaxed max-w-lg mx-auto italic font-medium">
-                "{activeItem?.bio}"
+              <p className="text-white/60 text-sm leading-relaxed max-w-lg mx-auto font-medium">
+                {activeItem?.bio}
               </p>
             </motion.div>
           </AnimatePresence>
@@ -161,22 +158,14 @@ const Card = ({ item, index, total, progress }: any) => {
   const scale = useTransform(offset, (o) => 1.1 - Math.abs(o) * 0.1);
   const opacity = useTransform(offset, [-4, -3, 0, 3, 4], [0, 1, 1, 1, 0]);
 
-  const clipPath = useTransform(offset, (o) => {
-    const percentage = 50 + (o * 100);
-    return `inset(0 0 0 ${100 - percentage}%)`;
-  });
-
   return (
     <motion.div
       style={{ x, z, rotateY, scale, opacity, transformOrigin: "center center", backfaceVisibility: "hidden" }}
       className="absolute w-[200px] h-[320px] lg:w-[240px] lg:h-[360px] rounded-[24px] overflow-hidden border border-white/10 shadow-2xl"
     >
-      <div className="absolute inset-0 grayscale brightness-75">
+      <div className="absolute inset-0">
         <Image src={item.image} alt={item.name} fill className="object-cover" />
       </div>
-      <motion.div className="absolute inset-0 z-10" style={{ clipPath }}>
-        <Image src={item.image} alt={item.name} fill className="object-cover" />
-      </motion.div>
       <div className="absolute inset-0 z-20 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
     </motion.div>
   );
