@@ -8,8 +8,9 @@ import {
   Menu,
   X,
   LogOut,
-  Wallet,   // Added Wallet icon
-  Settings, // Added Settings icon
+  Wallet,
+  Settings,
+  Calendar
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -147,6 +148,21 @@ function Sidebar({
           <LayoutDashboard size={20} />
           <span>Affiliate</span>
         </Link>
+        <Link
+          href="/creator/dashboard/availability"
+          onClick={onClose}
+          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
+            ${
+              isActive("/creator/dashboard/availability")
+                ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                : "text-white/60 hover:text-white hover:bg-white/5"
+            }
+          `}
+        >
+          <Calendar size={20} />
+          <span>Availability</span>
+        </Link>
+
 
         {/* New Payouts Button */}
         <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50">

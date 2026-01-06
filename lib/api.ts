@@ -392,3 +392,77 @@ export const updateReferralCode = async (payload: {
     throw error;
   }
 };
+
+export const getCrewAvailability = async (payload) => {
+  try {
+    const response = await api.post("creator/availability", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Get Crew Availability Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch crew availability',
+    };
+  }
+};
+
+export const getProjectDetails = async (payload) => {
+  try {
+    const response = await api.post("creator/project-details", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Get Project Details Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch project details',
+    };
+  }
+};
+
+
+export const AddAvailability = async (payload) => {
+  try {
+    const response = await api.post("creator/add-availability", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Get Crew Availability Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch crew availability',
+    };
+  }
+};
+
+// export const getProjectDetails = async (payload) => {
+//   try {
+//     const response = await api.post("", payload, {
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//     });
+//     return response;
+//   } catch (error) {
+//     console.error('Get Project Details Error:', error);
+//     return {
+//       success: false,
+//       data: null,
+//       error: 'Failed to fetch project details',
+//     };
+//   }
+// };
+
