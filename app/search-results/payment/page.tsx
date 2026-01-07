@@ -271,7 +271,7 @@ function MultiCreatorPaymentContent() {
 
       try {
         setIsLoading(true);
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
+        const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/').replace(/\/$/, '') + '/';
 
         const response = await axios.get(
           `${API_BASE_URL}guest-bookings/${shootId}/payment-details`
@@ -326,7 +326,7 @@ function MultiCreatorPaymentContent() {
       }
 
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
+        const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/').replace(/\/$/, '') + '/';
 
         const response = await axios.post(
           `${API_BASE_URL}payments/create-intent-multi`,
@@ -352,7 +352,7 @@ function MultiCreatorPaymentContent() {
   // Handle payment success
   const handlePaymentSuccess = async (paymentIntentId: string) => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/').replace(/\/$/, '') + '/';
 
       await axios.post(
         `${API_BASE_URL}payments/confirm-multi`,
