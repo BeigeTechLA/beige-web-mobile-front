@@ -13,6 +13,7 @@ import {
   Calendar
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 
@@ -33,9 +34,7 @@ export default function AffiliateLayout({
 
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-[#111] border-b border-white/10 px-4 h-16 flex items-center justify-between">
-        <span className="text-xl font-bold tracking-widest text-[#E8D1AB]">
-          BEIGE
-        </span>
+        <Image src="/images/logos/beige_logo_vb.png" alt="BEIGE" width={120} height={24} className="object-contain" />
         <button
           onClick={() => setIsSidebarOpen(true)}
           className="p-2 text-white"
@@ -111,9 +110,14 @@ function Sidebar({
           onClick={onClose}
           className="flex items-center gap-2"
         >
-          <span className="text-2xl font-bold tracking-widest text-[#E8D1AB]">
-            BEIGE
-          </span>
+          <Image
+            src="/images/logos/beige_logo_vb.png"
+            alt="BEIGE"
+            width={158}
+            height={32}
+            className="w-[120px] h-[24px] md:w-[158px] md:h-[32px] object-contain"
+            priority
+          />
         </Link>
       </div>
 
@@ -123,10 +127,9 @@ function Sidebar({
           href="/creator/dashboard/request"
           onClick={onClose}
           className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
-            ${
-              isActive("/creator/dashboard/request")
-                ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-                : "text-white/60 hover:text-white hover:bg-white/5"
+            ${isActive("/creator/dashboard/request")
+              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+              : "text-white/60 hover:text-white hover:bg-white/5"
             }
           `}
         >
@@ -138,10 +141,9 @@ function Sidebar({
           href="/creator/dashboard"
           onClick={onClose}
           className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
-            ${
-              isActive("/creator/dashboard")
-                ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-                : "text-white/60 hover:text-white hover:bg-white/5"
+            ${isActive("/creator/dashboard")
+              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+              : "text-white/60 hover:text-white hover:bg-white/5"
             }
           `}
         >
@@ -152,10 +154,9 @@ function Sidebar({
           href="/creator/dashboard/availability"
           onClick={onClose}
           className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
-            ${
-              isActive("/creator/dashboard/availability")
-                ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-                : "text-white/60 hover:text-white hover:bg-white/5"
+            ${isActive("/creator/dashboard/availability")
+              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+              : "text-white/60 hover:text-white hover:bg-white/5"
             }
           `}
         >
