@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import Image from "next/image";
 import { CreditCard, Calendar, MapPin, Clock, Loader2 } from "lucide-react";
+import { useCalculateQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
 
 interface Props {
   data: BookingDataV3;
@@ -23,7 +24,25 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+// Crew role to pricing item ID mapping (from backend pricing_items table)
+const CREW_ROLE_ITEMS = {
+  videographer: 11,
+  photographer: 10,
+  cinematographer: 12
+};
+
+// Crew role display names and base rates (for display purposes)
+const CREW_ROLE_INFO = {
+  videographer: { label: "Videographer", baseRate: 275 },
+  photographer: { label: "Photographer", baseRate: 275 },
+  cinematographer: { label: "Cinematographer", baseRate: 410 }
+};
+
 export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, onBack, onConfirm, isSubmitting }) => {
+  const [calculateQuote, { isLoading: isCalculating }] = useCalculateQuoteMutation();
+  const [quoteTotal, setQuoteTotal] = useState<number | null>(null);
+  const [crewBreakdown, setCrewBreakdown] = useState<Array<{ role: string; cost: number }>>([]);
+  const [durationHours, setDurationHours] = useState<number>(0);
 
   const handlePay = () => {
     if (!data.fullName || !data.email) {
@@ -34,10 +53,102 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
     onConfirm();
   };
 
-  // Mock total calculation
-  // Base package + extra team members + add-ons logic would go here
-  const basePrice = 3251.00;
-  const total = basePrice; // + extras
+  // Calculate duration in hours
+  useEffect(() => {
+    if (!data.startDate || !data.endDate) {
+      setDurationHours(0);
+      return;
+    }
+
+    const start = new Date(data.startDate);
+    const end = new Date(data.endDate);
+    const diffMs = end.getTime() - start.getTime();
+    const hours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+    setDurationHours(hours);
+  }, [data.startDate, data.endDate]);
+
+  // Calculate quote when component mounts or data changes
+  useEffect(() => {
+    const fetchQuote = async () => {
+      // Build items list based on content type (matching BookAShootV3 logic)
+      let quoteItems: Array<{ item_id: number; quantity: number }> = [];
+      const breakdown: Array<{ role: string; cost: number }> = [];
+
+      // Filter out 'editing' as it doesn't have a pricing item yet
+      const crewTypes = data.contentType.filter(type => type !== 'editing');
+
+      crewTypes.forEach((type) => {
+        if (type === "videographer" || type === "photographer" || type === "cinematographer") {
+          const itemId = CREW_ROLE_ITEMS[type];
+          quoteItems.push({ item_id: itemId, quantity: 1 });
+        }
+      });
+
+      if (quoteItems.length === 0 || durationHours === 0) {
+        setQuoteTotal(null);
+        setCrewBreakdown([]);
+        return;
+      }
+
+      try {
+        const result = await calculateQuote({
+          items: quoteItems,
+          shootHours: durationHours,
+          eventType: data.shootType || "general",
+        }).unwrap();
+
+        console.log('V3Step4BookConfirm - API Result:', {
+          total: result.total,
+          lineItems: result.lineItems,
+          shootHours: result.shootHours,
+          durationHours
+        });
+
+        setQuoteTotal(result.total);
+
+        // Build crew breakdown from line items
+        if (result.lineItems && result.lineItems.length > 0) {
+          const breakdown = result.lineItems.map((item: any) => ({
+            role: item.item_name,
+            cost: parseFloat(item.line_total)
+          }));
+          console.log('Crew breakdown:', breakdown);
+          setCrewBreakdown(breakdown);
+        } else {
+          // Fallback: calculate manually if lineItems not available
+          const manualBreakdown = crewTypes.map((type) => {
+            if (type === "videographer" || type === "photographer" || type === "cinematographer") {
+              const info = CREW_ROLE_INFO[type];
+              return {
+                role: info.label,
+                cost: info.baseRate * durationHours
+              };
+            }
+            return null;
+          }).filter(Boolean) as Array<{ role: string; cost: number }>;
+          setCrewBreakdown(manualBreakdown);
+        }
+      } catch (error) {
+        console.error("Failed to calculate quote:", error);
+        // Fallback calculation
+        let fallbackTotal = 0;
+        const fallbackBreakdown = crewTypes.map((type) => {
+          if (type === "videographer" || type === "photographer" || type === "cinematographer") {
+            const info = CREW_ROLE_INFO[type];
+            const cost = info.baseRate * durationHours;
+            fallbackTotal += cost;
+            return { role: info.label, cost };
+          }
+          return null;
+        }).filter(Boolean) as Array<{ role: string; cost: number }>;
+
+        setQuoteTotal(fallbackTotal);
+        setCrewBreakdown(fallbackBreakdown);
+      }
+    };
+
+    fetchQuote();
+  }, [data.contentType, data.shootType, durationHours, calculateQuote]);
 
   return (
     <div className="flex flex-col gap-12 w-full animate-in fade-in duration-500">
@@ -76,12 +187,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="bg-[#101010] p-4 rounded-xl border border-white/5">
                           <div className="flex items-center gap-3 mb-2">
-                              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60">
-                                  <Image src="/images/projects/Corporate.png" alt="Type" width={16} height={16} className="opacity-60" />
+                              <div className="w-8 h-8 rounded-full bg-[#E8D1AB]/20 flex items-center justify-center">
+                                  <span className="text-[#E8D1AB] text-xs font-bold uppercase">
+                                    {data.shootType.slice(0, 2)}
+                                  </span>
                               </div>
                               <span className="text-white font-medium capitalize">{data.shootType}</span>
                           </div>
-                          <div className="text-xs text-white/40 pl-11">Conferences, summits, gatherings</div>
+                          <div className="text-xs text-white/40 pl-11">Professional shoot</div>
                       </div>
 
                        <div className="bg-[#101010] p-4 rounded-xl border border-white/5">
@@ -189,47 +302,75 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
           <div className="lg:w-[380px] shrink-0">
               <div className="bg-[#E8D1AB] rounded-[20px] p-6 text-black sticky top-24">
                   <h3 className="text-xl font-bold mb-6">Pricing Summary</h3>
-                  
-                  <div className="space-y-4 mb-6">
-                      <div className="flex justify-between items-start">
-                          <div>
-                              <div className="font-medium">Package Offer</div>
-                              <div className="text-xs opacity-70">Custom Quote</div>
-                          </div>
-                          <div className="font-bold">{formatCurrency(basePrice)}</div>
+
+                  {isCalculating || quoteTotal === null ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-black/60" />
+                      <span className="ml-3 text-black/60">Calculating quote...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 mb-6">
+                      {/* Duration Info */}
+                      <div className="bg-black/5 rounded-lg p-3 mb-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="opacity-70">Duration</span>
+                          <span className="font-medium">{durationHours} hours</span>
+                        </div>
                       </div>
-                      
-                      {/* Dynamic Items */}
+
+                      {/* Crew Breakdown */}
+                      <div className="space-y-3">
+                        <div className="text-sm font-medium opacity-70 uppercase tracking-wide">Crew Members</div>
+                        {crewBreakdown.map((crew, index) => (
+                          <div key={index} className="flex justify-between items-start">
+                            <div>
+                              <div className="font-medium">{crew.role}</div>
+                              <div className="text-xs opacity-70">{durationHours} hrs × rate</div>
+                            </div>
+                            <div className="font-bold">{formatCurrency(crew.cost)}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Selected Crew from Dream Team (if any) */}
                       {data.selectedCrewIds.length > 0 && (
-                          <div className="flex justify-between items-start text-sm opacity-80">
-                              <div>Additional Team ({data.selectedCrewIds.length})</div>
-                              <div>{formatCurrency(data.selectedCrewIds.length * 275)}</div>
+                          <div className="bg-black/5 rounded-lg p-3 mt-4">
+                            <div className="flex justify-between items-start text-sm">
+                              <div>
+                                <div className="font-medium">Dream Team Selected</div>
+                                <div className="text-xs opacity-70">{data.selectedCrewIds.length} member(s) chosen</div>
+                              </div>
+                              <div className="text-xs opacity-70">Assigned post-payment</div>
+                            </div>
                           </div>
                       )}
-                      
+
                       <div className="border-t border-black/10 my-4" />
-                      
+
                       <div className="flex justify-between items-center text-lg font-bold">
                           <div>Total Amount</div>
-                          <div>{formatCurrency(total + (data.selectedCrewIds.length * 275))}</div>
+                          <div>{formatCurrency(quoteTotal)}</div>
                       </div>
-                  </div>
+                    </div>
+                  )}
 
-                  <Button 
+                  <Button
                     onClick={handlePay}
-                    disabled={isSubmitting}
-                    className="w-full h-14 bg-black text-[#E8D1AB] hover:bg-black/90 text-lg rounded-xl font-bold"
+                    disabled={isSubmitting || isCalculating || quoteTotal === null}
+                    className="w-full h-14 bg-black text-[#E8D1AB] hover:bg-black/90 text-lg rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                       {isSubmitting ? (
                         <div className="flex items-center gap-2">
                             <Loader2 className="w-5 h-5 animate-spin" />
                             <span>Processing...</span>
                         </div>
+                      ) : isCalculating || quoteTotal === null ? (
+                        "Calculating..."
                       ) : (
-                        `Pay ${formatCurrency(total + (data.selectedCrewIds.length * 275))}`
+                        `Pay ${formatCurrency(quoteTotal)}`
                       )}
                   </Button>
-                  
+
                   <p className="text-center text-xs mt-4 opacity-60 flex items-center justify-center gap-1">
                       <CreditCard size={12} /> Secured with Beige Team
                   </p>

@@ -44,8 +44,10 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
       {/* Example Recommendation Card (Static for V3 MVP) */}
       <div className="bg-[#171717] rounded-[20px] overflow-hidden border border-white/10">
          <div className="p-4 flex gap-4 items-center">
-             <div className="w-[100px] h-[70px] bg-gray-800 rounded-lg relative overflow-hidden">
-                 <Image src="/images/projects/Corporate.png" alt="Shoot" fill className="object-cover" />
+             <div className="w-[100px] h-[70px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center">
+                 <span className="text-[#E8D1AB] text-2xl font-bold">
+                   {data.shootType?.slice(0, 2).toUpperCase() || 'SH'}
+                 </span>
              </div>
              <div>
                  <h4 className="text-white font-bold">Corporate Event (Video)</h4>

@@ -59,11 +59,19 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
   const handleExtraTeamChange = (id: string, delta: number) => {
-    setExtraTeam(prev => {
-        const current = prev[id] || 0;
-        const next = Math.max(0, current + delta);
-        return { ...prev, [id]: next };
-    });
+    const nextExtra = { ...extraTeam };
+    const current = nextExtra[id] || 0;
+    const next = Math.max(0, current + delta);
+    nextExtra[id] = next;
+    setExtraTeam(nextExtra);
+    
+    // Also save this as string description to data so it's not lost
+    // Ideally we should use a proper structure, but string array is what we have in types for now
+    const summary = Object.entries(nextExtra)
+        .filter(([_, count]) => count > 0)
+        .map(([roleId, count]) => `${TEAM_ROLES.find(r => r.id === roleId)?.label || roleId} x${count}`);
+    
+    updateData({ teamIncluded: summary });
   };
 
   const handleNext = () => {
@@ -128,6 +136,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
                     onClick={() => {
                         updateData({ addTeamMembers: false });
                         setExtraTeam({});
+                        updateData({ teamIncluded: [] });
                     }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         !data.addTeamMembers ? "bg-[#E8D1AB] text-black" : "bg-[#171717] text-white hover:bg-white/10"

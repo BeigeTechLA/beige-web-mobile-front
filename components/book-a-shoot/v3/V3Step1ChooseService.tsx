@@ -175,7 +175,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
             <ShootTypeCard
                 title="Corporate Event"
                 details="Conferences, summits, company offsites"
-                image="/images/projects/Corporate.png"
+                image="/images/projects/interior.png"
                 stats={[
                     { label: "People", value: "50-2K" },
                     { label: "Duration", value: "3-8 hrs" }
@@ -197,7 +197,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
             <ShootTypeCard
                 title="Private"
                 details="Parties, birthdays, family events"
-                image="/images/projects/Private.png"
+                image="/images/projects/smiles.png"
                  stats={[
                     { label: "People", value: "10-100" },
                     { label: "Duration", value: "2-5 hrs" }

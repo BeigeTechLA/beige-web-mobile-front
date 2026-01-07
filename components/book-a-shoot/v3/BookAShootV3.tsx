@@ -8,6 +8,7 @@ import { Footer } from "@/src/components/landing/Footer";
 import { StepProgressTracker } from "@/components/book-a-shoot/StepProgressTracker";
 import { ArrowLeft } from "lucide-react";
 import { useCreateGuestBookingMutation } from "@/lib/redux/features/booking/guestBookingApi";
+import { useSaveQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
 
 import {
   BookingDataV3,
@@ -32,7 +33,10 @@ export const BookAShootV3 = () => {
   const [internalStep, setInternalStep] = useState(1); 
   const [formData, setFormData] = useState<BookingDataV3>(initialDataV3);
   
-  const [createGuestBooking, { isLoading: isSubmitting }] = useCreateGuestBookingMutation();
+  const [createGuestBooking, { isLoading: isBookingLoading }] = useCreateGuestBookingMutation();
+  const [saveQuote, { isLoading: isQuoteLoading }] = useSaveQuoteMutation();
+
+  const isSubmitting = isBookingLoading || isQuoteLoading;
 
   const updateData = (newData: Partial<BookingDataV3>) => {
     setFormData((prev) => ({ ...prev, ...newData }));
@@ -86,6 +90,53 @@ export const BookAShootV3 = () => {
             return hours;
         };
 
+        // 1. Save Quote
+        let savedQuoteId: number | null = null;
+        
+        // Build items list based on content type
+        const CREW_ROLE_ITEMS = {
+            videographer: 11,
+            photographer: 10,
+            cinematographer: 12
+        };
+
+        let quoteItems: Array<{ item_id: number; quantity: number }> = [];
+
+        // Map selected content types to pricing items
+        if (formData.contentType.includes("videographer")) {
+            quoteItems.push({ item_id: CREW_ROLE_ITEMS.videographer, quantity: 1 });
+        }
+        if (formData.contentType.includes("photographer")) {
+            quoteItems.push({ item_id: CREW_ROLE_ITEMS.photographer, quantity: 1 });
+        }
+        if (formData.contentType.includes("cinematographer")) {
+            quoteItems.push({ item_id: CREW_ROLE_ITEMS.cinematographer, quantity: 1 });
+        }
+
+        // Add editing if selected (assuming generic editing item for now, ID 13 is a guess/placeholder, 
+        // strictly we should check database but let's stick to known IDs or skip if unknown)
+        // If "editing" is in contentType, we might want to charge for it. 
+        // For safety, let's only add what we know maps to the backend to ensure a valid quote.
+
+        if (quoteItems.length > 0) {
+            try {
+                const savedQuote = await saveQuote({
+                    items: quoteItems,
+                    shootHours: calculateDurationHours(),
+                    eventType: formData.shootType || "general",
+                    guestEmail: formData.email,
+                    notes: formData.specialInstructions || undefined,
+                }).unwrap();
+                
+                savedQuoteId = savedQuote.quote_id;
+                console.log("V3 Quote saved:", savedQuoteId);
+            } catch (quoteError) {
+                console.error("Failed to save quote in V3:", quoteError);
+                toast.error("Failed to generate pricing quote. Proceeding with booking...");
+            }
+        }
+
+        // 2. Create Booking
         const bookingData: any = {
             order_name: `${formData.shootType} Shoot - ${formData.fullName}`,
             guest_email: formData.email,
@@ -98,8 +149,9 @@ export const BookAShootV3 = () => {
             location: formData.location,
             budget_min: formData.budgetMin,
             budget_max: formData.budgetMax,
-            crew_size: String(formData.selectedCrewIds.length),
+            crew_size: String(formData.selectedCrewIds.length || quoteItems.length || 1),
             is_draft: false,
+            quote_id: savedQuoteId, // Pass the created quote ID
             
             // New V3 fields
             full_name: formData.fullName,
@@ -118,16 +170,15 @@ export const BookAShootV3 = () => {
         const result = await createGuestBooking(bookingData).unwrap();
         
         toast.success("Booking Created Successfully!", {
-            description: "We've received your booking request.",
+            description: "Redirecting to payment...",
         });
 
+        // 3. Redirect to Payment Page
         const searchParams = new URLSearchParams({
-            booking_id: String(result.booking_id),
-            content_types: formData.contentType.join(","),
-            location: formData.location || "",
+            shootId: String(result.booking_id), // Payment page expects shootId
         });
 
-        router.push(`/search-results?${searchParams.toString()}`);
+        router.push(`/search-results/payment?${searchParams.toString()}`);
 
     } catch (error: any) {
         console.error("Booking failed:", error);
