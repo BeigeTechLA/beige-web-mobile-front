@@ -23,6 +23,16 @@ export default function SocialLinksModal({ open, onClose, links, onChange }) {
     }
   }, [open]);
 
+  // This allows users to click an icon at the top to start adding immediately
+  const handlePlatformSelect = (platformId) => {
+    setSelectedPlatform(platformId);
+    if (screen === "list") {
+      setScreen("add");
+      setLinkUrl("");
+      setLinkName("");
+    }
+  };
+
   const startAdd = () => {
     setScreen("add");
     setSelectedPlatform(null);
@@ -83,7 +93,7 @@ export default function SocialLinksModal({ open, onClose, links, onChange }) {
             {SOCIAL_ICONS.map((s) => (
               <button
                 key={s.id}
-                onClick={() => setSelectedPlatform(s.id)}
+                onClick={() => handlePlatformSelect(s.id)}
                 className={`flex flex-col items-center gap-1 border rounded-xl p-1 lg:p-3 transition-colors
                   ${selectedPlatform === s.id ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-[#1A1A1A] border-white/10 text-white/60"}`}
               >
@@ -99,9 +109,9 @@ export default function SocialLinksModal({ open, onClose, links, onChange }) {
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
                 className="h-11 bg-[#1A1A1A] border-white/20 text-white"
+                autoFocus
               />
 
-              {/* Only show the name input if the platform is "custom" */}
               {selectedPlatform === "custom" && (
                 <Input
                   placeholder="Name the link (e.g. My Portfolio)"
@@ -131,32 +141,35 @@ export default function SocialLinksModal({ open, onClose, links, onChange }) {
 
           {screen === "list" && (
             <>
-              <p className="text-sm text-white/40 mb-3">{links.length}/7</p>
+              {links.length > 0 && <p className="text-sm text-white/40 mb-3">{links.length}/7</p>}
+              
               <div className="space-y-3 max-h-[260px] overflow-auto pr-2">
                 {links.map((item) => {
-                  const platform = SOCIAL_ICONS.find((i) => i.id === item.platform);
-                  return (
-                    <div key={item.id} className="flex items-center justify-between bg-[#1A1A1A] border border-white/10 p-3 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <GripHorizontal size={16} className="text-white/20" />
-                        {platform?.src ? <img src={platform.src} className="w-5 h-5" alt="" /> : platform?.icon ? <platform.icon className="w-5 h-5 text-[#E8D1AB]" /> : <Globe className="w-5 h-5 text-[#E8D1AB]" />}
-                        <span className="text-white text-sm">{item.name}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => startEdit(item)} className="p-2 rounded-lg bg-[#101010] border border-white/10 text-white/60 hover:text-white"><Pencil size={16} /></button>
-                        <button onClick={() => deleteLink(item.id)} className="p-2 rounded-lg bg-[#101010] border border-white/10 text-white/60 hover:text-red-500"><Trash2 size={16} /></button>
-                      </div>
-                    </div>
-                  );
+                    const platform = SOCIAL_ICONS.find((i) => i.id === item.platform);
+                    return (
+                        <div key={item.id} className="flex items-center justify-between bg-[#1A1A1A] border border-white/10 p-3 rounded-xl">
+                        <div className="flex items-center gap-3">
+                            <GripHorizontal size={16} className="text-white/20" />
+                            {platform?.src ? <img src={platform.src} className="w-5 h-5" alt="" /> : platform?.icon ? <platform.icon className="w-5 h-5 text-[#E8D1AB]" /> : <Globe className="w-5 h-5 text-[#E8D1AB]" />}
+                            <span className="text-white text-sm">{item.name}</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => startEdit(item)} className="p-2 rounded-lg bg-[#101010] border border-white/10 text-white/60 hover:text-white"><Pencil size={16} /></button>
+                            <button onClick={() => deleteLink(item.id)} className="p-2 rounded-lg bg-[#101010] border border-white/10 text-white/60 hover:text-red-500"><Trash2 size={16} /></button>
+                        </div>
+                        </div>
+                    );
                 })}
               </div>
+
               <button className="flex items-center gap-2 mt-4 text-[#E8D1AB] hover:underline text-sm" onClick={startAdd}>
                 <div className="w-8 h-8 rounded-full border border-[#E8D1AB]/30 flex items-center justify-center"><Plus size={16} /></div>
                 Add another link
               </button>
+              
               <div className="flex justify-end gap-3 mt-6 border-t border-white/10 pt-4">
                 <Button variant="outline" onClick={onClose} className="rounded-full px-6 border-white/20 text-white hover:bg-white/5">Close</Button>
-                <Button onClick={() => { onChange(links); onClose(); }} className="rounded-full px-6 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE]">Save</Button>
+                <Button onClick={() => { onChange(links); onClose(); }} className="rounded-full px-6 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE]">Save Changes</Button>
               </div>
             </>
           )}

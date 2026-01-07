@@ -31,6 +31,8 @@ export default function CpSignupPage() {
     certifications: [],
     featuredWork: [],
     links: [],
+    resume: null,
+    portfolio: [],
     crew_member_id: null, // Add crew_member_id to the state
   });
 

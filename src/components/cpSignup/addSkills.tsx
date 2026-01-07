@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from "react";
+import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { Button } from "@/components/ui/button";
 import { X, Plus, Check } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 type SkillOption = {
@@ -34,10 +35,8 @@ const AddSkills = ({
 
   const handleAddSkills = () => {
     if (!tempSelected.length) return;
-
     const newSkills = tempSelected.filter((id) => !value.includes(id));
     onChange([...value, ...newSkills]);
-
     setTempSelected([]);
     setOpen(false);
   };
@@ -53,9 +52,9 @@ const AddSkills = ({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Trigger Row */}
       <div className="flex gap-3 items-center">
-        <Popover open={open} onOpenChange={setOpen}>
+        {/* Added modal={false} to ensure it doesn't lock background scroll */}
+        <Popover open={open} onOpenChange={setOpen} modal={false}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -73,17 +72,19 @@ const AddSkills = ({
             </Button>
           </PopoverTrigger>
 
-          {/* Dropdown */}
-          <PopoverContent
-            className="w-[320px] p-0 bg-[#111111] border-[#333333] text-white shadow-md"
+          {/* 
+            FIX: We use PopoverPrimitive.Content DIRECTLY without PopoverPrimitive.Portal.
+            This keeps the dropdown inside the local DOM tree, making it scroll
+            naturally with the field.
+          */}
+          <PopoverPrimitive.Content
             align="start"
+            sideOffset={4}
+            className={cn(
+              "z-50 w-[320px] rounded-md border border-[#333333] bg-[#111111] p-1 text-white shadow-md outline-none",
+              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+            )}
           >
-            {/* 
-               The classes below hide the scrollbar:
-               1. [&::-webkit-scrollbar]:hidden (Chrome/Safari)
-               2. [scrollbar-width:none] (Firefox)
-               3. [-ms-overflow-style:none] (IE/Edge)
-            */}
             <div className="max-h-[300px] overflow-y-auto p-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
               {options.map((opt) => {
                 const isSelected = tempSelected.includes(opt.value);
@@ -92,22 +93,16 @@ const AddSkills = ({
                 return (
                   <div
                     key={opt.value}
-                    onClick={() =>
-                      !isAlreadyAdded && toggleTempSkill(opt.value)
-                    }
+                    onClick={() => !isAlreadyAdded && toggleTempSkill(opt.value)}
                     className={cn(
                       "relative flex items-start justify-between gap-3 px-3 py-2.5 rounded-sm cursor-pointer transition-colors",
                       "hover:bg-neutral-800",
                       isSelected && "bg-neutral-800",
-                      isAlreadyAdded &&
-                        "opacity-40 cursor-not-allowed grayscale"
+                      isAlreadyAdded && "opacity-40 cursor-not-allowed grayscale"
                     )}
                   >
-                    {/* Label + Description */}
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium text-white">
-                        {opt.label}
-                      </span>
+                      <span className="text-sm font-medium text-white">{opt.label}</span>
                       {opt.description && (
                         <span className="text-xs text-muted-foreground leading-snug">
                           {opt.description}
@@ -115,25 +110,19 @@ const AddSkills = ({
                       )}
                     </div>
 
-                    {/* Right indicators */}
                     <div className="flex items-center gap-2 pt-1">
                       {isAlreadyAdded && (
-                        <span className="text-[10px] font-bold text-[#BEA784]">
-                          ADDED
-                        </span>
+                        <span className="text-[10px] font-bold text-[#BEA784]">ADDED</span>
                       )}
-                      {isSelected && (
-                        <Check className="w-4 h-4 text-[#BEA784]" />
-                      )}
+                      {isSelected && <Check className="w-4 h-4 text-[#BEA784]" />}
                     </div>
                   </div>
                 );
               })}
             </div>
-          </PopoverContent>
+          </PopoverPrimitive.Content>
         </Popover>
 
-        {/* Add Button */}
         <Button
           type="button"
           onClick={handleAddSkills}
@@ -145,7 +134,6 @@ const AddSkills = ({
         </Button>
       </div>
 
-      {/* Selected Skills */}
       <div className="flex flex-wrap gap-2">
         {value.map((id) => (
           <div

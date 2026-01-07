@@ -95,7 +95,7 @@ export default function AddEquipments({ value = [], names = [], onChange }) {
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           <Command className="bg-transparent text-white">
-            <CommandList className="max-h-64 border-none">
+            <CommandList className="max-h-64 border-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
                 No equipment found.
               </CommandEmpty>

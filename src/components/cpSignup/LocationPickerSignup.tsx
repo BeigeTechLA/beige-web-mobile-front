@@ -102,6 +102,8 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  // Track if the dropdown should be allowed to open (only when typing)
+  const [shouldShowDropdown, setShouldShowDropdown] = useState(false);
 
   const [viewState, setViewState] = useState({
     latitude: 34.0522,
@@ -121,6 +123,11 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
   const handleMapClick = useCallback(
     (event: any) => {
       const { lngLat } = event;
+      
+      // User is clicking map, so we hide the dropdown
+      setShouldShowDropdown(false);
+      setSearchResults([]);
+
       const baseLocation: LocationData = {
         lat: lngLat.lat,
         lng: lngLat.lng,
@@ -137,10 +144,13 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
         .then(res => res.json())
         .then(data => {
           if (data.features?.length) {
+            const newAddr = data.features[0].place_name;
             setMarker({
               ...baseLocation,
-              address: data.features[0].place_name
+              address: newAddr
             });
+            // Update the input field text without opening dropdown
+            setSearchQuery(newAddr);
           }
         })
         .catch(() => {});
@@ -151,7 +161,8 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
   /* ---------------------------- SEARCH API ---------------------------- */
 
   const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim() || !isValidToken) return;
+    // Only fetch if we are actually allowed to show the dropdown
+    if (!searchQuery.trim() || !isValidToken || !shouldShowDropdown) return;
 
     setIsSearching(true);
 
@@ -168,12 +179,18 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
     }
 
     setIsSearching(false);
-  }, [searchQuery, isValidToken]);
+  }, [searchQuery, isValidToken, shouldShowDropdown]);
 
   /* -------------------- AUTO SEARCH (DEBOUNCED) -------------------- */
 
   useEffect(() => {
     if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    // If we've been told not to show dropdown (map click/selection), stop here
+    if (!shouldShowDropdown) {
       setSearchResults([]);
       return;
     }
@@ -188,7 +205,7 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
     }, 400);
 
     return () => clearTimeout(timeout);
-  }, [searchQuery, handleSearch, marker]); // Add marker to dependencies
+  }, [searchQuery, handleSearch, marker, shouldShowDropdown]);
 
   /* -------------------------- SELECT RESULT -------------------------- */
 
@@ -211,9 +228,9 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
       zoom: 14
     }));
 
-    // 1. Clear results immediately
+    // Explicitly close dropdown state
+    setShouldShowDropdown(false);
     setSearchResults([]);
-    // 2. Update query (this will trigger the useEffect)
     setSearchQuery(selectedAddress);
   };
 
@@ -276,13 +293,17 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
           <input
             autoFocus
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => {
+              setSearchQuery(e.target.value);
+              // When user types manually, we enable the dropdown
+              setShouldShowDropdown(true);
+            }}
             placeholder="Search location..."
             className="w-full h-11 pl-9 pr-3 rounded-lg bg-black text-white"
           />
         </div>
 
-        {searchResults.length > 0 && (
+        {shouldShowDropdown && searchResults.length > 0 && (
           <div className="mt-2 border rounded-lg max-h-48 overflow-y-auto">
             {searchResults.map(r => (
               <button
@@ -316,6 +337,9 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
 
+                // Close dropdown on geolocate
+                setShouldShowDropdown(false);
+
                 const baseLocation = {
                   lat,
                   lng,
@@ -336,10 +360,12 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
                   .then(r => r.json())
                   .then(d => {
                     if (d.features?.length) {
+                      const addr = d.features[0].place_name;
                       setMarker({
                         ...baseLocation,
-                        address: d.features[0].place_name
+                        address: addr
                       });
+                      setSearchQuery(addr);
                     }
                   });
               }}
