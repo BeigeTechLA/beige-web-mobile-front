@@ -8,48 +8,57 @@ import { compressImage, compressPDF } from "@/lib/utils";
 const MAX_CERTS = 10;
 
 const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files || []);
     if (inputRef.current) inputRef.current.value = "";
-    if (!file) return;
+    if (files.length === 0) return;
+
+    const totalAfterUpload = value.length + files.length;
+    let filesToProcess = files;
 
     if (value.length >= MAX_CERTS) {
-      alert(`You can upload maximum ${MAX_CERTS} certifications.`);
+      alert(`You have already reached the maximum of ${MAX_CERTS} certifications.`);
       return;
+    }
+
+    if (totalAfterUpload > MAX_CERTS) {
+      const allowedCount = MAX_CERTS - value.length;
+      alert(`You can only add ${allowedCount} more. Only the first ${allowedCount} files will be processed.`);
+      filesToProcess = files.slice(0, allowedCount);
     }
 
     try {
       setIsProcessing(true);
-      let processedFile = file;
 
-      if (file.type.startsWith('image/')) {
-        processedFile = await compressImage(file);
-      } else if (file.type === 'application/pdf') {
-        processedFile = await compressPDF(file);
-      }
+      const uploadPromises = filesToProcess.map(async (file) => {
+        let processedFile = file;
+        try {
+          if (file.type.startsWith('image/')) {
+            processedFile = await compressImage(file);
+          } else if (file.type === 'application/pdf') {
+            processedFile = await compressPDF(file);
+          }
+        } catch (error) {
+          console.error(`Compression failed for ${file.name}:`, error);
+        }
 
-      const newCert = {
-        id: crypto.randomUUID(),
-        name: processedFile.name,
-        size: (processedFile.size / 1024 / 1024).toFixed(1) + " MB",
-        file: processedFile,
-        url: URL.createObjectURL(processedFile),
-      };
+        return {
+          id: crypto.randomUUID(),
+          name: processedFile.name,
+          size: (processedFile.size / 1024 / 1024).toFixed(1) + " MB",
+          file: processedFile,
+          url: URL.createObjectURL(processedFile),
+        };
+      });
 
-      onChange([...value, newCert]);
+      const newCerts = await Promise.all(uploadPromises);
+      onChange([...value, ...newCerts]);
+
     } catch (error) {
-      console.error("Compression failed:", error);
-      const fallbackCert = {
-        id: crypto.randomUUID(),
-        name: file.name,
-        size: (file.size / 1024 / 1024).toFixed(1) + " MB",
-        file: file,
-        url: URL.createObjectURL(file),
-      };
-      onChange([...value, fallbackCert]);
+      console.error("Upload process failed:", error);
     } finally {
       setIsProcessing(false);
     }
@@ -90,6 +99,7 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
             <input
               ref={inputRef}
               type="file"
+              multiple
               accept="image/png,image/jpeg,application/pdf"
               className="hidden"
               onChange={handleUpload}
@@ -105,7 +115,6 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
             key={cert.id}
             className="border border-white/10 bg-white/5 rounded-xl p-3 sm:p-4 flex justify-between items-center text-sm gap-3"
           >
-            {/* Left side: Icon and Name */}
             <div className="flex items-center gap-3 min-w-0">
               <div className="shrink-0">
                 <LinkIcon size={18} className="text-[#E8D1AB]" />
@@ -118,7 +127,6 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
               </div>
             </div>
 
-            {/* Right side: Buttons */}
             <div className="flex gap-1 sm:gap-2 shrink-0">
               <button
                 type="button"

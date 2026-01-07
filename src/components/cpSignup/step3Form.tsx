@@ -34,7 +34,6 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
   }, [featuredWork, links, resume, portfolio, setData]);
 
   const handleSubmit = async () => {
-    // 1. Validation: Only Featured Work is required
     if (!featuredWork || featuredWork.length === 0) {
       toast.error("Required Field", { 
         description: "Please add at least one item to your Featured Work." 
@@ -52,12 +51,17 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
       formData.append("crew_member_id", String(data.crew_member_id));
 
       // Optional: Resume
-      const resumeFile = resume instanceof File ? resume : resume?.file;
-      if (resumeFile instanceof File) formData.append("resume", resumeFile);
+       const resumeFile = resume instanceof File ? resume : resume?.file;
+    if (resumeFile instanceof File) formData.append("resume", resumeFile);
 
-      // Optional: Portfolio
-      const portfolioFile = portfolio instanceof File ? portfolio : portfolio?.file;
-      if (portfolioFile instanceof File) formData.append("portfolio", portfolioFile);
+    if (Array.isArray(portfolio)) {
+      portfolio.forEach((p) => {
+        const file = p instanceof File ? p : p?.file;
+        if (file instanceof File) {
+          formData.append("portfolio", file); 
+        }
+      });
+    }
 
       // Optional: Certifications
       (data.certifications || []).forEach((item) => {
@@ -66,20 +70,22 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
       });
 
       // Required: Featured Work
-      (featuredWork || []).forEach((item) => {
-        const workFile = item.file;
-        if (workFile instanceof File) {
-          formData.append("recent_work", workFile);
+      featuredWork.forEach((item) => {
+        if (item.files && Array.isArray(item.files)) {
+          item.files.forEach((file) => {
+            if (file instanceof File) {
+              formData.append("recent_work", file);
+            }
+          });
         }
       });
 
-      const workMetadata = (featuredWork || []).map(item => ({
+      const workMetadata = featuredWork.map(item => ({
         title: item.title,
-        tags: item.tags
+        tags: item.tags || []
       }));
       formData.append("work_details", JSON.stringify(workMetadata));
 
-      // Optional: Social Links
       const socialLinksPayload = {};
       links.forEach((l) => {
         if (l.platform && l.url) socialLinksPayload[l.platform] = l.url;
@@ -109,7 +115,6 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
         <div className={sectionClasses}>
           <div>
             <h2 className="text-base font-semibold text-white">Social & Professional Links (Optional)</h2>
-            <p className="text-sm text-white/50">Add links to your IMDb, LinkedIn, or Instagram</p>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -132,10 +137,6 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
 
         {/* Featured Work (REQUIRED) */}
         <div className={sectionClasses}>
-          <div className="mb-2">
-            <h2 className="text-base font-semibold text-white">Featured Work *</h2>
-            <p className="text-sm text-white/50">Showcase your best projects (Required)</p>
-          </div>
           <FeaturedWork
             value={featuredWork}
             onChange={setFeaturedWork}

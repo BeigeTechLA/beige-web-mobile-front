@@ -202,7 +202,6 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
         {/* Location - Added Asterisk to Label implicitly via placeholder or UI component */}
         <div className="w-full">
-          <Label className="text-sm text-white/60 mb-2 block ml-1">Location *</Label>
           <LocationPickerSignup
             value={data.location}
             onChange={(v) => setData({ ...data, location: v })}

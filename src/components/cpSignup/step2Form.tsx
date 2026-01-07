@@ -206,7 +206,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
         {/* Equipment (Optional) */}
         <div className={sectionClasses}>
           <div>
-            <h2 className="text-base font-semibold text-white">Equipment (Optional)</h2>
+            <h2 className="text-base font-semibold text-white">What Equipment Do You Own? (Optional)</h2>
             <p className="text-sm text-white/50">List the gear you own</p>
           </div>
           <div className="w-full">

@@ -158,8 +158,7 @@ const skillOptions = [
 ];
 
 const ProfileCard = ({ data }) => {
-  // --- ROLES LOGIC START ---
-  // Normalize roles to an array whether it's 'role' (string) or 'roles' (array)
+  console.log(data)
   const rawRoles = data?.roles || (data?.role ? [data.role] : []);
   
   // Map IDs to labels and join them
@@ -217,22 +216,24 @@ const ProfileCard = ({ data }) => {
 
         {/* Stats / Details Grid */}
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {data?.hourlyRate && (
-              <div className="flex flex-col gap-[1px]">
+              <div className="flex flex-col gap-[1px] md:col-span-1">
                 <p className="text-base font-medium text-white">${data?.hourlyRate}</p>
                 <p className="text-xs text-gray-400">/Hour</p>
               </div>
             )}
             {data?.yoe && (
-              <div className="flex flex-col gap-[1px]">
+              <div className="flex flex-col gap-[1px] md:col-span-1">
                 <p className="text-base font-medium text-white">{data?.yoe}</p>
                 <p className="text-xs text-gray-400">Experience</p>
               </div>
             )}
             {data?.workingDistance && (
-              <div className="flex flex-col gap-[1px]">
-                <p className="text-base font-medium text-white">{data.workingDistance}</p>
+              <div className="flex flex-col gap-[1px] col-span-2 md:col-span-2">
+                <p className="text-base font-medium text-white whitespace-nowrap">
+                  {data.workingDistance}
+                </p>
                 <p className="text-xs text-gray-400">Range</p>
               </div>
             )}
