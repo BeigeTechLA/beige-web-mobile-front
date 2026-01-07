@@ -16,7 +16,7 @@ export const SlidingHeading = () => {
 
   return (
     <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-6 text-center">
-      <span>Partnered with the World&apos;s Top</span>{" "}
+      <span>Capturing the World&apos;s Top</span>{" "}
       <span className="relative block lg:inline-block h-[1.1em] overflow-hidden min-w-[4ch] md:min-w-[7ch] lg:min-w-[340px] mx-auto align-bottom">
         <AnimatePresence mode="wait">
           <motion.span

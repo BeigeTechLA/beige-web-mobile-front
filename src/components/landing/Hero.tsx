@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, Dispatch, SetStateAction } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Button } from "@/src/components/landing/ui/button";
@@ -9,66 +9,62 @@ import RotatingInput from "./RotatingInput";
 export const Hero = () => {
   const heroRef = useRef<HTMLElement | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [mobileVideoUrl, setMobileVideoUrl] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
   const router = useRouter();
-  const videoFileName = "Hero video.mp4";
+
+  const videoFileName = "Beige Banner - Web .mp4";
+  const mobileVideoFileName = "Beige Banner - Mobile.mp4";
 
   useEffect(() => {
-    const fetchSignedUrl = async () => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkScreenSize();
+
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  const activeVideoUrl = isMobile ? mobileVideoUrl : videoUrl;
+
+  useEffect(() => {
+    const fetchSignedUrl = async (fileName: string, setUrl: Dispatch<SetStateAction<string | null>>) => {
       try {
-        const res = await fetch(`/api/video/${videoFileName}`);
-        if (!res.ok) throw new Error("Failed to fetch video");
-        const data = await res.json();
-        setVideoUrl(data.url);
-      } catch (err) {
-        console.error(err);
+        const response = await fetch(`/api/video/${fileName}`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch signed URL.");
+        }
+
+        const data = await response.json();
+        setUrl(data.url);
+      } catch (error) {
+        console.error("Error fetching video URL:", error);
       }
     };
-    fetchSignedUrl();
-  }, [videoFileName]);
+
+    fetchSignedUrl(videoFileName, setVideoUrl);
+    fetchSignedUrl(mobileVideoFileName, setMobileVideoUrl);
+  }, [videoFileName, mobileVideoFileName]);
 
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
   });
 
-  const y = useTransform(scrollYProgress, [0, 1], [0, -200]);
-  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
-
   return (
     <>
       {/*  HERO  */}
       <section
         ref={heroRef}
-        className="relative h-[85vh] xl:h-screen 2xl:h-[90vh] 2xl:max-h-[950px] overflow-hidden flex flex-col items-center"
+        className="relative h-[900px] lg:h-[1320px] overflow-hidden flex flex-col items-center"
       >
-        {/*  BACKGROUND VIDEO  */}
-        {videoUrl && (
-          <motion.video
-            style={{ y, opacity }}
-            className="absolute inset-0 w-full h-full object-cover z-0"
-            src={videoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-          />
-        )}
 
         {/*  CONTENT  */}
         <div className="relative z-[3] w-full pt-28 lg:pt-40 lg:pb-44">
-          <div className="container mx-auto px-4 flex flex-col items-center text-center">
-            {/* Badge */}
-            {/* <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="mb-6 lg:mb-12"
-            >
-              <div className="rounded-full border border-white/10 bg-white/5 backdrop-blur px-4 py-1.5 text-xs lg:text-sm text-white/70">
-                ✦ Beige Launches in Miami Art Basil 2025 →
-              </div>
-            </motion.div> */}
-
+          <div className=" px-4 flex flex-col items-center text-center">
             {/* Headline */}
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
@@ -101,27 +97,36 @@ export const Hero = () => {
             >
               <Button
                 className="h-7 lg:h-15 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
-                 onClick={() => router.push('/book-a-shoot')}
+                onClick={() => router.push('/book-a-shoot')}
               >
                 Start Your Shoot
               </Button>
             </motion.div>
+
+            {/* New Hero Video */}
+            <div className="relative w-full h-[600px] lg:h-[800px] overflow-hidden">
+              <div className="pointer-events-none absolute top-0 left-0 w-full h-[80px] z-[2] bg-gradient-to-t from-transparent via-[#010101]/80 to-[#010101]" />
+              {activeVideoUrl && (
+                <video
+                  className="absolute inset-0 w-full h-full object-cover"
+                  src={activeVideoUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
+              )}
+              <div className="pointer-events-none absolute bottom-0 left-0 w-full h-[80px] z-[2] bg-gradient-to-t from-[#010101] via-[#010101]/80 to-transparent" />
+            </div>
           </div>
         </div>
 
-        {/*  BOTTOM FADE  */}
-        <div
-          className="pointer-events-none absolute bottom-0 left-0 w-full
-            h-[80px] lg:h-[120px] z-[4] bg-gradient-to-t from-[#010101] via-[#010101]/85 to-transparent
-          "
-        />
-
         {/*  SVG OVERLAY  */}
-        <img
+        {/* <img
           src="/svg/HeroBanner.svg"
           alt="Decorative Overlay"
           className="absolute inset-0 w-full h-full object-cover z-[2] pointer-events-none"
-        />
+        /> */}
       </section>
     </>
   );
