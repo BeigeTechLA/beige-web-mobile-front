@@ -241,7 +241,7 @@ export const BookAShootV3 = () => {
              <StepProgressTracker steps={V3_STEPS} currentStep={activeStep} />
           )}
           
-          <div className="w-full max-w-4xl lg:max-w-5xl min-h-[400px] mt-8">
+          <div className="w-full max-w-4xl lg:max-w-5xl xl:max-w-7xl min-h-[400px] mt-8">
             {renderStep()}
           </div>
         </div>

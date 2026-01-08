@@ -186,7 +186,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           style={{ backgroundColor: colors.inputBg, color: colors.labelText }}
           className="absolute -top-3 left-4 px-2 text-base"
         >
-          Location
+          Select Location
         </label>
         <div className="flex items-center gap-3 h-full px-4">
           <div

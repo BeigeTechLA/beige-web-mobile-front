@@ -1,3 +1,75 @@
+type Option = {
+  label: string;
+  value: string;
+};
+
+export const newshootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
+  {
+    key: "music", title: "Music Video", details: "Artists-led productions", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Highlight Reel", value: "6-10 hrs" },
+      { label: "Videographer", value: "6-10 hrs" },
+      { label: "Hours", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Highlight Reel", value: "6-10 hrs" },
+      { label: "Videographer", value: "6-10 hrs" },
+      { label: "Hours", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Highlight Reel", value: "6-10 hrs" },
+      { label: "Videographer", value: "6-10 hrs" },
+      { label: "Hours", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Highlight Reel", value: "6-10 hrs" },
+      { label: "Videographer", value: "6-10 hrs" },
+      { label: "Hours", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "podcast", title: "Podcasts & Shows", details: "Video podcasts, livestreams", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Highlight Reel", value: "6-10 hrs" },
+      { label: "Videographer", value: "6-10 hrs" },
+      { label: "Hours", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "short_film", title: "Short Films & Narrative", details: "Scripted, cinematic stories", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Highlight Reel", value: "6-10 hrs" },
+      { label: "Videographer", value: "6-10 hrs" },
+      { label: "Hours", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "corporate", title: "Corporate Events", details: "Conferences, summits, company offsites", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-2K" },
+      { label: "Highlight Reel", value: "6-10 hrs" },
+      { label: "Videographer", value: "6-10 hrs" },
+      { label: "Hours", value: "3-8 hrs" }
+    ]
+  },
+  {
+    key: "private", title: "Private Events", details: "Parties, celebrations", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "10-100" },
+      { label: "Highlight Reel", value: "6-10 hrs" },
+      { label: "Videographer", value: "6-10 hrs" },
+      { label: "Hours", value: "2-5 hrs" }
+    ]
+  },
+];
+
 export const shootTypes: { key: string; value: string }[] = [
   { key: "music", value: "Music Video" },
   { key: "wedding", value: "Wedding" },

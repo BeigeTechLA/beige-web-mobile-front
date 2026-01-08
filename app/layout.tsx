@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://book.beige.app"),
   title: {
-    default: "BeigeAI - On Demand Videographers and Creative Professionals",
+    default: "BeigeAI - Book a Video & Photo Shoot Instantly",
     template: "%s | BeigeAI",
   },
   description: "Connect with talented creators for your next project. BeigeAI connects you with professional videographers, photographers, and creative professionals on demand.",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   openGraph: {
-    title: "BeigeAI - On Demand Videographers and Creative Professionals",
+    title: "BeigeAI - Book a Video & Photo Shoot Instantly",
     description: "Connect with talented creators for your next project",
     url: "https://book.beige.app/",
     siteName: "BeigeAI",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "BeigeAI - On Demand Videographers and Creative Professionals",
+    title: "BeigeAI - Book a Video & Photo Shoot Instantly",
     description: "Connect with talented creators for your next project",
     images: ["/og-preview.png"],
     creator: "@BeigeAI",

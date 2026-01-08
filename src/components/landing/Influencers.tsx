@@ -112,15 +112,15 @@ export const Influencers = ({ autoplay = false }) => {
               <div className="flex flex-wrap justify-center items-center gap-6 mb-3">
                 {
                   activeItem?.instagramFollowers &&
-                  <SocialMetric icon={<Instagram size={20} />} label="IG" value={activeItem?.instagramFollowers} href={activeItem?.instagram} />
+                  <SocialMetric icon={<Instagram size={20} />} value={activeItem?.instagramFollowers} href={activeItem?.instagram} />
                 }
                 {
                   activeItem?.youtubeSubscribers &&
-                  <SocialMetric icon={<Youtube size={20} />} label="YT" value={activeItem?.youtubeSubscribers} href={activeItem?.youtube} />
+                  <SocialMetric icon={<Youtube size={20} />} value={activeItem?.youtubeSubscribers} href={activeItem?.youtube} />
                 }
                 {
                   activeItem?.tiktokFollowers &&
-                  <SocialMetric icon={<Music2 size={20} />} label="TK" value={activeItem?.tiktokFollowers} href={activeItem?.tiktok} />
+                  <SocialMetric icon={<Music2 size={20} />} value={activeItem?.tiktokFollowers} href={activeItem?.tiktok} />
                 }
               </div>
 
@@ -139,7 +139,7 @@ export const Influencers = ({ autoplay = false }) => {
 const SocialMetric = ({ icon, label, value, href }: any) => (
   <a href={href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group cursor-pointer">
     <span className="text-[#E8D1AB] group-hover:scale-120 transition-transform">{icon}</span>
-    <span className="text-white/40 text-[10px] tracking-widest uppercase font-bold">{label}</span>
+    {/* <span className="text-white/40 text-[10px] tracking-widest uppercase font-bold">{label}</span> */}
     <span className="text-white/80 text-sm lg:text-lg font-semibold">{value}</span>
   </a>
 );

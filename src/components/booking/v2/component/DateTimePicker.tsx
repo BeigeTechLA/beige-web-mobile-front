@@ -184,7 +184,7 @@ export const DateTimePicker: React.FC<Props> = ({
           }
           return false;
         }}
-        // format="MM/dd/yyyy HH:mm" // Change this line
+        format="dd MMM, yyyy | hh:mm a" // Change this line
         slotProps={{
           day: (ownerState) => ({
             sx: {
@@ -196,7 +196,7 @@ export const DateTimePicker: React.FC<Props> = ({
           }),
           textField: {
             fullWidth: true,
-            placeholder: "MM/DD/YYYY HH:MM am/pm",
+            placeholder: "DD MMM, YYYY | HH:MM AM/PM",
             error: Boolean(error),
             helperText: error,
             onClick: () => setOpen(true),
@@ -230,6 +230,9 @@ export const DateTimePicker: React.FC<Props> = ({
               },
               "& .MuiInputBase-input": { paddingTop: "20px", fontSize: "16px" },
               "& .MuiSvgIcon-root": { color: colors.iconColor },
+              '& .MuiInputAdornment-root': {
+                paddingRight: '16px',
+              },
             },
           },
           mobilePaper: {
