@@ -12,6 +12,8 @@ import { DateTimePicker } from "@/src/components/booking/v2/component/DateTimePi
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import MultiSelectDropdown from "@/components/book-a-shoot/MultiSelectDropdown";
 import { parseDate } from "@/src/components/landing/lib/utils";
+import DatePicker from "@/components/ui/Datepicker";
+import { set, format } from "date-fns";
 
 interface Props {
   data: BookingDataV3;
@@ -51,6 +53,91 @@ const datePickerColours = {
 
 export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
   const [editTypeOptions, setEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
+
+  const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
+
+  useEffect(() => {
+    const options = [];
+    for (let i = 0; i < 24; i++) {
+      for (let j = 0; j < 60; j += 30) {
+        const hour = i.toString().padStart(2, '0');
+        const minute = j.toString().padStart(2, '0');
+        const key = `${hour}:${minute}`;
+        
+        const date = new Date();
+        date.setHours(i);
+        date.setMinutes(j);
+        const value = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        
+        options.push({ key, value });
+      }
+    }
+    setTimeOptions(options);
+  }, []);
+
+  const handleDateChange = (date: Date | null) => {
+    if (!date) {
+        updateData({ startDate: "", endDate: "" });
+        return;
+    }
+    
+    // Preserve times if they exist, otherwise default start to 9am, end to 5pm? 
+    // Or just set date part.
+    
+    let newStart = data.startDate ? parseDate(data.startDate) : set(date, { hours: 9, minutes: 0 });
+    let newEnd = data.endDate ? parseDate(data.endDate) : set(date, { hours: 17, minutes: 0 });
+
+    if (!newStart) newStart = set(date, { hours: 9, minutes: 0 });
+    if (!newEnd) newEnd = set(date, { hours: 17, minutes: 0 });
+
+    // Update the date part of both
+    newStart = set(newStart, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
+    newEnd = set(newEnd, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
+
+    updateData({ 
+        startDate: newStart.toISOString(),
+        endDate: newEnd.toISOString()
+    });
+  };
+
+  const handleStartTimeChange = (timeKey: string) => {
+      if (!timeKey) return;
+      const [hours, minutes] = timeKey.split(':').map(Number);
+      
+      const currentDate = data.startDate ? parseDate(data.startDate) : new Date();
+      // If no date selected yet, maybe warn? or just use today?
+      // Assuming date is selected first or we default to today/tomorrow.
+      
+      if (!currentDate) return;
+
+      const newStart = set(currentDate, { hours, minutes });
+      updateData({ startDate: newStart.toISOString() });
+  };
+
+  const handleEndTimeChange = (timeKey: string) => {
+      if (!timeKey) return;
+      const [hours, minutes] = timeKey.split(':').map(Number);
+      
+      let currentDate = data.endDate ? parseDate(data.endDate) : (data.startDate ? parseDate(data.startDate) : new Date());
+      if (!currentDate) return;
+
+      const newEnd = set(currentDate, { hours, minutes });
+      updateData({ endDate: newEnd.toISOString() });
+  };
+
+  const getStartTimeKey = () => {
+      if (!data.startDate) return "";
+      const date = parseDate(data.startDate);
+      if (!date) return "";
+      return format(date, "HH:mm");
+  };
+
+  const getEndTimeKey = () => {
+      if (!data.endDate) return "";
+      const date = parseDate(data.endDate);
+      if (!date) return "";
+      return format(date, "HH:mm");
+  };
 
   // Update edit type options based on shoot type
   useEffect(() => {
@@ -92,6 +179,10 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
     }
     if (!data.endDate) {
       toast.error("Please select an end date and time");
+      return false;
+    }
+    if (new Date(data.endDate) <= new Date(data.startDate)) {
+      toast.error("End time must be after start time");
       return false;
     }
     if (data.editsNeeded && (data.videoEditTypes.length === 0 && data.photoEditTypes.length === 0)) {
@@ -250,34 +341,33 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
           <div className="pt-8 lg:pt-15 border-t border-white/10">
             <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Date & Time</h3>
             <div className="flex flex-col lg:flex-row gap-6">
-              <DateTimePicker
-                label="Start Date & Time"
-                value={parseDate(data.startDate)}
-                onChange={(date) => {
-                  if (!date || isNaN(date.getTime())) {
-                    updateData({ startDate: "" });
-                    return;
-                  }
-                  updateData({ startDate: date.toISOString() });
-                }}
-                validate={validateFutureDateTime}
-                colors={datePickerColours}
-              />
-              <DateTimePicker
-                label="End Date & Time"
-                disabled={data.startDate === ""}
-                value={parseDate(data.endDate)}
-                onChange={(date) => {
-                  if (!date || isNaN(date.getTime())) {
-                    updateData({ endDate: "" });
-                    return;
-                  }
-                  updateData({ endDate: date.toISOString() });
-                }}
-                minDateTime={new Date(data.startDate)}
-                validate={(date) => validateEndDateTime(date, data.startDate)}
-                colors={datePickerColours}
-              />
+              <div className="flex-1">
+                <DatePicker
+                    label="Shoot Date"
+                    value={data.startDate ? parseDate(data.startDate) : null}
+                    onChange={handleDateChange}
+                    minDate={new Date()}
+                    colors={datePickerColours}
+                />
+              </div>
+              <div className="flex-1">
+                 <DropdownSelect
+                    title="Start Time"
+                    options={timeOptions}
+                    value={getStartTimeKey()}
+                    onChange={handleStartTimeChange}
+                    bgColour="bg-[#101010]"
+                 />
+              </div>
+              <div className="flex-1">
+                 <DropdownSelect
+                    title="End Time"
+                    options={timeOptions}
+                    value={getEndTimeKey()}
+                    onChange={handleEndTimeChange}
+                    bgColour="bg-[#101010]"
+                 />
+              </div>
             </div>
           </div>
 
