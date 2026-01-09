@@ -104,7 +104,7 @@ export const Navbar = () => {
             ? "bg-[#050505]/80 backdrop-blur-[12px] border-[0.5px] border-[#E8D1AB]/30"
             : "bg-[#050505]/60 backdrop-blur-[8px] border-[0.5px] border-[#E8D1AB]/30"
           }
-          rounded-full
+          rounded-[20px]
         `}
       >
         <div className="h-13 md:h-[88px] flex items-center justify-between lg:px-6">

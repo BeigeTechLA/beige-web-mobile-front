@@ -260,7 +260,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             disabled={isSearching}
             style={{
               backgroundColor: colors.buttonPrimaryBg,
-              color: colors.buttonPrimaryText
+              color: colors.buttonSecondaryText
             }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.buttonPrimaryBgHover}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.buttonPrimaryBg}
@@ -272,23 +272,49 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
 
         {/* Search Results */}
         {searchResults.length > 0 && (
-          <div style={{ backgroundColor: colors.paperBg, borderColor: colors.divider }} className="mt-2 border rounded-lg shadow-sm max-h-40 overflow-y-auto">
+          <div
+            style={{ backgroundColor: colors.paperBg, borderColor: colors.divider }}
+            className="mt-2 border rounded-lg shadow-sm max-h-40 overflow-y-auto"
+          >
+            <style jsx>{`
+              .group .result-title {
+                color: var(--text-normal);
+              }
+
+              .group .result-subtitle {
+                color: var(--text-secondary);
+              }
+
+              .group:hover .result-title,
+              .group:hover .result-subtitle {
+                color: var(--text-hover);
+              }
+            `}</style>
             {searchResults.map((result) => (
               <button
                 key={result.id}
                 type="button"
                 onClick={() => selectSearchResult(result)}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.searchResultHover}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                style={{ borderBottomColor: colors.divider }}
-                className="w-full text-left px-3 py-2 border-b last:border-0 transition-colors"
+                style={{
+                  borderBottomColor: colors.divider,
+                  '--bg-hover': colors.searchResultHover,
+                  '--text-normal': colors.primaryText,
+                  '--text-secondary': colors.secondaryText,
+                  '--text-hover': colors.buttonPrimaryText,
+                } as React.CSSProperties}
+                className="group w-full text-left px-3 py-2 border-b last:border-0 transition-colors hover:bg-[var(--bg-hover)]"
               >
-                <p style={{ color: colors.primaryText }} className="text-sm font-medium truncate">{result.text}</p>
-                <p style={{ color: colors.secondaryText }} className="text-xs truncate">{result.place_name}</p>
+                <p className="result-title text-sm font-medium truncate transition-colors">
+                  {result.text}
+                </p>
+                <p className="result-subtitle text-xs truncate transition-colors">
+                  {result.place_name}
+                </p>
               </button>
             ))}
           </div>
         )}
+
       </div>
 
       {/* Map Container */}
@@ -361,7 +387,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             disabled={!marker}
             style={{
               backgroundColor: colors.accent,
-              color: colors.buttonSecondaryText
+              color: colors.buttonPrimaryText
             }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.accentHover}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.accent}

@@ -14,8 +14,8 @@ export const Hero = () => {
 
   const router = useRouter();
 
-  const videoFileName = "Beige Banner - Web .mp4";
-  const mobileVideoFileName = "Beige Banner - Mobile.mp4";
+  const videoFileName = "Beige - Slow Version.webm";
+  const mobileVideoFileName = "Beige Mobile - Slower Version.webm";
 
   useEffect(() => {
     const checkScreenSize = () => {

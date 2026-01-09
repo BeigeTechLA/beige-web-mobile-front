@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -30,161 +30,168 @@ const V3_STEPS = [
 export const BookAShootV3 = () => {
   const router = useRouter();
   const [activeStep, setActiveStep] = useState(1);
-  const [internalStep, setInternalStep] = useState(1); 
+  const [internalStep, setInternalStep] = useState(1);
   const [formData, setFormData] = useState<BookingDataV3>(initialDataV3);
-  
+
   const [createGuestBooking, { isLoading: isBookingLoading }] = useCreateGuestBookingMutation();
   const [saveQuote, { isLoading: isQuoteLoading }] = useSaveQuoteMutation();
 
   const isSubmitting = isBookingLoading || isQuoteLoading;
 
-  const updateData = (newData: Partial<BookingDataV3>) => {
-    setFormData((prev) => ({ ...prev, ...newData }));
-  };
+  // const updateData = (newData: Partial<BookingDataV3>) => {
+  //   setFormData((prev) => ({ ...prev, ...newData }));
+  // };
+
+  const updateData = useCallback(
+    (newData: Partial<BookingDataV3>) => {
+      setFormData(prev => ({ ...prev, ...newData }));
+    },
+    []
+  );
 
   const nextStep = () => {
     if (internalStep === 3) {
-       // Step 3 -> Loading -> Crew Selection
-       setInternalStep(4); // Loading
-       setTimeout(() => {
-           setInternalStep(5); // Crew Select
-           setActiveStep(2); 
-       }, 2500);
+      // Step 3 -> Loading -> Crew Selection
+      setInternalStep(4); // Loading
+      setTimeout(() => {
+        setInternalStep(5); // Crew Select
+        setActiveStep(2);
+      }, 2500);
     } else {
-        const next = internalStep + 1;
-        setInternalStep(next);
-        
-        if (next === 2) setActiveStep(2);
-        if (next === 6) setActiveStep(3);
+      const next = internalStep + 1;
+      setInternalStep(next);
+
+      if (next === 2) setActiveStep(2);
+      if (next === 6) setActiveStep(3);
     }
   };
 
   const prevStep = () => {
     if (internalStep === 1) {
-        router.back();
-        return;
+      router.back();
+      return;
     }
-    
+
     if (internalStep === 5) {
-        setInternalStep(3);
-        setActiveStep(2);
-        return;
+      setInternalStep(3);
+      setActiveStep(2);
+      return;
     }
 
     const prev = internalStep - 1;
     setInternalStep(prev);
-    
+
     if (prev === 1) setActiveStep(1);
     if (prev === 2) setActiveStep(2);
-    if (prev === 3) setActiveStep(2); 
+    if (prev === 3) setActiveStep(2);
   };
 
   const handleBookingSubmission = async () => {
     try {
-        const calculateDurationHours = () => {
-            if (!formData.startDate || !formData.endDate) return 3;
-            const start = new Date(formData.startDate);
-            const end = new Date(formData.endDate);
-            const diffMs = end.getTime() - start.getTime();
-            const hours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
-            return hours;
-        };
+      const calculateDurationHours = () => {
+        if (!formData.startDate || !formData.endDate) return 3;
+        const start = new Date(formData.startDate);
+        const end = new Date(formData.endDate);
+        const diffMs = end.getTime() - start.getTime();
+        const hours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+        return hours;
+      };
 
-        // 1. Save Quote
-        let savedQuoteId: number | null = null;
-        
-        // Build items list based on content type
-        const CREW_ROLE_ITEMS = {
-            videographer: 11,
-            photographer: 10,
-            cinematographer: 12
-        };
+      // 1. Save Quote
+      let savedQuoteId: number | null = null;
 
-        let quoteItems: Array<{ item_id: number; quantity: number }> = [];
+      // Build items list based on content type
+      const CREW_ROLE_ITEMS = {
+        videographer: 11,
+        photographer: 10,
+        cinematographer: 12
+      };
 
-        // Map selected content types to pricing items
-        if (formData.contentType.includes("videographer")) {
-            quoteItems.push({ item_id: CREW_ROLE_ITEMS.videographer, quantity: 1 });
+      let quoteItems: Array<{ item_id: number; quantity: number }> = [];
+
+      // Map selected content types to pricing items
+      if (formData.contentType.includes("videographer")) {
+        quoteItems.push({ item_id: CREW_ROLE_ITEMS.videographer, quantity: 1 });
+      }
+      if (formData.contentType.includes("photographer")) {
+        quoteItems.push({ item_id: CREW_ROLE_ITEMS.photographer, quantity: 1 });
+      }
+      if (formData.contentType.includes("cinematographer")) {
+        quoteItems.push({ item_id: CREW_ROLE_ITEMS.cinematographer, quantity: 1 });
+      }
+
+      // Add editing if selected (assuming generic editing item for now, ID 13 is a guess/placeholder, 
+      // strictly we should check database but let's stick to known IDs or skip if unknown)
+      // If "editing" is in contentType, we might want to charge for it. 
+      // For safety, let's only add what we know maps to the backend to ensure a valid quote.
+
+      if (quoteItems.length > 0) {
+        try {
+          const savedQuote = await saveQuote({
+            items: quoteItems,
+            shootHours: calculateDurationHours(),
+            eventType: formData.shootType || "general",
+            guestEmail: formData.email,
+            notes: formData.specialInstructions || undefined,
+          }).unwrap();
+
+          savedQuoteId = savedQuote.quote_id;
+          console.log("V3 Quote saved:", savedQuoteId);
+        } catch (quoteError) {
+          console.error("Failed to save quote in V3:", quoteError);
+          toast.error("Failed to generate pricing quote. Proceeding with booking...");
         }
-        if (formData.contentType.includes("photographer")) {
-            quoteItems.push({ item_id: CREW_ROLE_ITEMS.photographer, quantity: 1 });
-        }
-        if (formData.contentType.includes("cinematographer")) {
-            quoteItems.push({ item_id: CREW_ROLE_ITEMS.cinematographer, quantity: 1 });
-        }
+      }
 
-        // Add editing if selected (assuming generic editing item for now, ID 13 is a guess/placeholder, 
-        // strictly we should check database but let's stick to known IDs or skip if unknown)
-        // If "editing" is in contentType, we might want to charge for it. 
-        // For safety, let's only add what we know maps to the backend to ensure a valid quote.
+      // 2. Create Booking
+      const bookingData: any = {
+        order_name: `${formData.shootType} Shoot - ${formData.fullName}`,
+        guest_email: formData.email,
+        project_type: null,
+        content_type: formData.contentType.join(","),
+        shoot_type: formData.shootType,
+        start_date_time: formData.startDate,
+        end_time: formData.endDate,
+        duration_hours: calculateDurationHours(),
+        location: formData.location,
+        budget_min: formData.budgetMin,
+        budget_max: formData.budgetMax,
+        crew_size: String(formData.selectedCrewIds.length || quoteItems.length || 1),
+        is_draft: false,
+        quote_id: savedQuoteId, // Pass the created quote ID
 
-        if (quoteItems.length > 0) {
-            try {
-                const savedQuote = await saveQuote({
-                    items: quoteItems,
-                    shootHours: calculateDurationHours(),
-                    eventType: formData.shootType || "general",
-                    guestEmail: formData.email,
-                    notes: formData.specialInstructions || undefined,
-                }).unwrap();
-                
-                savedQuoteId = savedQuote.quote_id;
-                console.log("V3 Quote saved:", savedQuoteId);
-            } catch (quoteError) {
-                console.error("Failed to save quote in V3:", quoteError);
-                toast.error("Failed to generate pricing quote. Proceeding with booking...");
-            }
-        }
+        // New V3 fields
+        full_name: formData.fullName,
+        phone: formData.phone,
+        edits_needed: formData.editsNeeded,
+        video_edit_types: formData.videoEditTypes,
+        photo_edit_types: formData.photoEditTypes,
+        team_included: formData.teamIncluded,
+        add_team_members: formData.addTeamMembers,
+        special_instructions: formData.specialInstructions,
+        reference_links: formData.referenceLinks,
+        matching_method: formData.matchingMethod,
+        selected_crew_ids: formData.selectedCrewIds
+      };
 
-        // 2. Create Booking
-        const bookingData: any = {
-            order_name: `${formData.shootType} Shoot - ${formData.fullName}`,
-            guest_email: formData.email,
-            project_type: null,
-            content_type: formData.contentType.join(","),
-            shoot_type: formData.shootType,
-            start_date_time: formData.startDate,
-            end_time: formData.endDate,
-            duration_hours: calculateDurationHours(),
-            location: formData.location,
-            budget_min: formData.budgetMin,
-            budget_max: formData.budgetMax,
-            crew_size: String(formData.selectedCrewIds.length || quoteItems.length || 1),
-            is_draft: false,
-            quote_id: savedQuoteId, // Pass the created quote ID
-            
-            // New V3 fields
-            full_name: formData.fullName,
-            phone: formData.phone,
-            edits_needed: formData.editsNeeded,
-            video_edit_types: formData.videoEditTypes,
-            photo_edit_types: formData.photoEditTypes,
-            team_included: formData.teamIncluded,
-            add_team_members: formData.addTeamMembers,
-            special_instructions: formData.specialInstructions,
-            reference_links: formData.referenceLinks,
-            matching_method: formData.matchingMethod,
-            selected_crew_ids: formData.selectedCrewIds
-        };
+      const result = await createGuestBooking(bookingData).unwrap();
 
-        const result = await createGuestBooking(bookingData).unwrap();
-        
-        toast.success("Booking Created Successfully!", {
-            description: "Redirecting to payment...",
-        });
+      toast.success("Booking Created Successfully!", {
+        description: "Redirecting to payment...",
+      });
 
-        // 3. Redirect to Payment Page
-        const searchParams = new URLSearchParams({
-            shootId: String(result.booking_id), // Payment page expects shootId
-        });
+      // 3. Redirect to Payment Page
+      const searchParams = new URLSearchParams({
+        shootId: String(result.booking_id), // Payment page expects shootId
+      });
 
-        router.push(`/search-results/payment?${searchParams.toString()}`);
+      router.push(`/search-results/payment?${searchParams.toString()}`);
 
     } catch (error: any) {
-        console.error("Booking failed:", error);
-        toast.error("Booking Failed", {
-            description: error?.data?.message || "Something went wrong. Please try again.",
-        });
+      console.error("Booking failed:", error);
+      toast.error("Booking Failed", {
+        description: error?.data?.message || "Something went wrong. Please try again.",
+      });
     }
   };
 
@@ -222,25 +229,25 @@ export const BookAShootV3 = () => {
     <div className="bg-[#101010] min-h-screen text-white selection:bg-[#ECE1CE] selection:text-black">
       <Navbar />
       <main className="relative pt-24 lg:pt-44 pb-16 min-h-screen flex flex-col items-center">
-        
+
         {/* Back Button (hide on loading) */}
         {internalStep !== 4 && (
-            <div className="w-full container z-20 px-4 md:px-6">
+          <div className="w-full container z-20 px-4 md:px-6">
             <button
-                onClick={prevStep}
-                className="flex items-center text-sm lg:text-lg transition-colors text-white/70 hover:text-white"
+              onClick={prevStep}
+              className="flex items-center text-sm lg:text-lg transition-colors text-white/70 hover:text-white"
             >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
             </button>
-            </div>
+          </div>
         )}
 
         <div className="container relative z-10 mx-auto px-4 md:px-6 flex flex-col items-center">
           {internalStep !== 4 && (
-             <StepProgressTracker steps={V3_STEPS} currentStep={activeStep} />
+            <StepProgressTracker steps={V3_STEPS} currentStep={activeStep} />
           )}
-          
+
           <div className="w-full max-w-4xl lg:max-w-5xl xl:max-w-7xl min-h-[400px] mt-8">
             {renderStep()}
           </div>
