@@ -6,8 +6,37 @@ import { ContentTypeCheckbox } from "./components/ContentTypeCheckbox";
 import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
-import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info } from "lucide-react";
-import { newshootTypes, weddingEditTypes, musicEditTypes, commercialEditTypes, tvSeriesEditTypes, podcastEditTypes, shortFilmEditTypes, movieEditTypes, corporateEventEditTypes, privateEventEditTypes } from "@/app/data/shootData";
+import {
+  Video,
+  Camera,
+  Scissors,
+  MonitorPlay,
+  Check,
+  Radio,
+  Info,
+  Clock,
+} from "lucide-react";
+import {
+  newshootTypes,
+  weddingEditTypes,
+  musicEditTypes,
+  commercialEditTypes,
+  tvSeriesEditTypes,
+  podcastEditTypes,
+  shortFilmEditTypes,
+  movieEditTypes,
+  corporateEventEditTypes,
+  privateEventEditTypes,
+  socialContentEditTypes,
+  weddingPhotoEditTypes,
+  corporateEventPhotoEditTypes,
+  privateEventPhotoEditTypes,
+  musicPhotoEditTypes,
+  commercialPhotoEditTypes,
+  socialContentPhotoEditTypes,
+  brandProductPhotoEditTypes,
+  behindScenesPhotoEditTypes,
+} from "@/app/data/shootData";
 import { DateTimePicker } from "@/src/components/booking/v2/component/DateTimePicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import MultiSelectDropdown from "@/components/book-a-shoot/MultiSelectDropdown";
@@ -51,24 +80,39 @@ const datePickerColours = {
   desktopCalendarText: "#FFFFFF",
 };
 
-export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
-  const [editTypeOptions, setEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
+export const V3Step1ChooseService: React.FC<Props> = ({
+  data,
+  updateData,
+  onNext,
+  onBack,
+}) => {
+  const [editTypeOptions, setEditTypeOptions] = useState<
+    { key: string; value: string }[]
+  >([]);
 
-  const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
+  const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<
+    { key: string; value: string; note?: string }[]
+  >([]);
+
+  const [photoEditNote, setPhotoEditNote] = useState<string>("");
+
+  const [timeOptions, setTimeOptions] = useState<
+    { key: string; value: string }[]
+  >([]);
 
   useEffect(() => {
     const options = [];
     for (let i = 0; i < 24; i++) {
       for (let j = 0; j < 60; j += 30) {
-        const hour = i.toString().padStart(2, '0');
-        const minute = j.toString().padStart(2, '0');
+        const hour = i.toString().padStart(2, "0");
+        const minute = j.toString().padStart(2, "0");
         const key = `${hour}:${minute}`;
-        
+
         const date = new Date();
         date.setHours(i);
         date.setMinutes(j);
-        const value = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        
+        const value = format(date, "H:mm");
+
         options.push({ key, value });
       }
     }
@@ -77,85 +121,147 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
 
   const handleDateChange = (date: Date | null) => {
     if (!date) {
-        updateData({ startDate: "", endDate: "" });
-        return;
+      updateData({ startDate: "", endDate: "" });
+      return;
     }
-    
-    // Preserve times if they exist, otherwise default start to 9am, end to 5pm? 
+
+    // Preserve times if they exist, otherwise default start to 9am, end to 5pm?
     // Or just set date part.
-    
-    let newStart = data.startDate ? parseDate(data.startDate) : set(date, { hours: 9, minutes: 0 });
-    let newEnd = data.endDate ? parseDate(data.endDate) : set(date, { hours: 17, minutes: 0 });
+
+    let newStart = data.startDate
+      ? parseDate(data.startDate)
+      : set(date, { hours: 9, minutes: 0 });
+    let newEnd = data.endDate
+      ? parseDate(data.endDate)
+      : set(date, { hours: 17, minutes: 0 });
 
     if (!newStart) newStart = set(date, { hours: 9, minutes: 0 });
     if (!newEnd) newEnd = set(date, { hours: 17, minutes: 0 });
 
     // Update the date part of both
-    newStart = set(newStart, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
-    newEnd = set(newEnd, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
+    newStart = set(newStart, {
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      date: date.getDate(),
+    });
+    newEnd = set(newEnd, {
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      date: date.getDate(),
+    });
 
-    updateData({ 
-        startDate: newStart.toISOString(),
-        endDate: newEnd.toISOString()
+    updateData({
+      startDate: newStart.toISOString(),
+      endDate: newEnd.toISOString(),
     });
   };
 
   const handleStartTimeChange = (timeKey: string) => {
-      if (!timeKey) return;
-      const [hours, minutes] = timeKey.split(':').map(Number);
-      
-      const currentDate = data.startDate ? parseDate(data.startDate) : new Date();
-      // If no date selected yet, maybe warn? or just use today?
-      // Assuming date is selected first or we default to today/tomorrow.
-      
-      if (!currentDate) return;
+    if (!timeKey) return;
+    const [hours, minutes] = timeKey.split(":").map(Number);
 
-      const newStart = set(currentDate, { hours, minutes });
-      updateData({ startDate: newStart.toISOString() });
+    const currentDate = data.startDate ? parseDate(data.startDate) : new Date();
+    // If no date selected yet, maybe warn? or just use today?
+    // Assuming date is selected first or we default to today/tomorrow.
+
+    if (!currentDate) return;
+
+    const newStart = set(currentDate, { hours, minutes });
+    updateData({ startDate: newStart.toISOString() });
   };
 
   const handleEndTimeChange = (timeKey: string) => {
-      if (!timeKey) return;
-      const [hours, minutes] = timeKey.split(':').map(Number);
-      
-      let currentDate = data.endDate ? parseDate(data.endDate) : (data.startDate ? parseDate(data.startDate) : new Date());
-      if (!currentDate) return;
+    if (!timeKey) return;
+    const [hours, minutes] = timeKey.split(":").map(Number);
 
-      const newEnd = set(currentDate, { hours, minutes });
-      updateData({ endDate: newEnd.toISOString() });
+    let currentDate = data.endDate
+      ? parseDate(data.endDate)
+      : data.startDate
+      ? parseDate(data.startDate)
+      : new Date();
+    if (!currentDate) return;
+
+    const newEnd = set(currentDate, { hours, minutes });
+    updateData({ endDate: newEnd.toISOString() });
   };
 
   const getStartTimeKey = () => {
-      if (!data.startDate) return "";
-      const date = parseDate(data.startDate);
-      if (!date) return "";
-      return format(date, "HH:mm");
+    if (!data.startDate) return "";
+    const date = parseDate(data.startDate);
+    if (!date) return "";
+    return format(date, "HH:mm");
   };
 
   const getEndTimeKey = () => {
-      if (!data.endDate) return "";
-      const date = parseDate(data.endDate);
-      if (!date) return "";
-      return format(date, "HH:mm");
+    if (!data.endDate) return "";
+    const date = parseDate(data.endDate);
+    if (!date) return "";
+    return format(date, "HH:mm");
   };
 
   // Update edit type options based on shoot type
   useEffect(() => {
     switch (data.shootType) {
-      case "wedding": setEditTypeOptions(weddingEditTypes); break;
-      case "music": setEditTypeOptions(musicEditTypes); break;
-      case "commercial": setEditTypeOptions(commercialEditTypes); break;
-      case "tv": setEditTypeOptions(tvSeriesEditTypes); break;
-      case "podcast": setEditTypeOptions(podcastEditTypes); break;
-      case "short_film": setEditTypeOptions(shortFilmEditTypes); break;
-      case "movie": setEditTypeOptions(movieEditTypes); break;
-      case "corporate": setEditTypeOptions(corporateEventEditTypes); break;
-      case "private": setEditTypeOptions(privateEventEditTypes); break;
-      default: setEditTypeOptions([]);
+      case "wedding":
+        setEditTypeOptions(weddingEditTypes);
+        setPhotoEditTypeOptions(weddingPhotoEditTypes);
+        setPhotoEditNote("50 edited photos per hour for weddings");
+        break;
+      case "music":
+        setEditTypeOptions(musicEditTypes);
+        setPhotoEditTypeOptions(musicPhotoEditTypes);
+        setPhotoEditNote("25 edited photos per hour");
+        break;
+      case "commercial":
+        setEditTypeOptions(commercialEditTypes);
+        setPhotoEditTypeOptions(commercialPhotoEditTypes);
+        setPhotoEditNote("25 edited photos per hour");
+        break;
+      case "tv":
+        setEditTypeOptions(tvSeriesEditTypes);
+        setPhotoEditTypeOptions([]);
+        setPhotoEditNote("");
+        break;
+      case "podcast":
+        setEditTypeOptions(podcastEditTypes);
+        setPhotoEditTypeOptions([]);
+        setPhotoEditNote("");
+        break;
+      case "short_film":
+        setEditTypeOptions(shortFilmEditTypes);
+        setPhotoEditTypeOptions([]);
+        setPhotoEditNote("");
+        break;
+      case "movie":
+        setEditTypeOptions(movieEditTypes);
+        setPhotoEditTypeOptions([]);
+        setPhotoEditNote("");
+        break;
+      case "corporate":
+        setEditTypeOptions(corporateEventEditTypes);
+        setPhotoEditTypeOptions(corporateEventPhotoEditTypes);
+        setPhotoEditNote("25 edited photos per hour");
+        break;
+      case "private":
+        setEditTypeOptions(privateEventEditTypes);
+        setPhotoEditTypeOptions(privateEventPhotoEditTypes);
+        setPhotoEditNote("25 edited photos per hour");
+        break;
+      case "social_content":
+        setEditTypeOptions(socialContentEditTypes);
+        setPhotoEditTypeOptions(socialContentPhotoEditTypes);
+        setPhotoEditNote("25 edited photos per hour");
+        break;
+      default:
+        setEditTypeOptions([]);
+        setPhotoEditTypeOptions([]);
+        setPhotoEditNote("");
     }
   }, [data.shootType]);
 
-  const toggleContentType = (type: "videographer" | "photographer" | "cinematographer" | "editing") => {
+  const toggleContentType = (
+    type: "videographer" | "photographer" | "cinematographer" | "editing"
+  ) => {
     const current = [...data.contentType];
     if (current.includes(type)) {
       updateData({ contentType: current.filter((t) => t !== type) });
@@ -185,11 +291,27 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
       toast.error("End time must be after start time");
       return false;
     }
-    if (data.editsNeeded && (data.videoEditTypes.length === 0 && data.photoEditTypes.length === 0)) {
-      // If edits are needed, at least one edit type should be selected (simplified check)
-      // Actually, let's just warn if they selected edits needed but no edit type
-      toast.error("Please select an edit type since you requested editing");
-      return false;
+    if (data.editsNeeded) {
+      const needsVideoEdit = data.contentType.includes("videographer") ||
+                             data.contentType.includes("cinematographer");
+      const needsPhotoEdit = data.contentType.includes("photographer");
+
+      if (needsVideoEdit && data.videoEditTypes.length === 0) {
+        toast.error("Please select at least one video edit type");
+        return false;
+      }
+
+      if (needsPhotoEdit && data.photoEditTypes.length === 0) {
+        toast.error("Please select at least one photo edit type");
+        return false;
+      }
+
+      if (!needsVideoEdit && !needsPhotoEdit &&
+          data.videoEditTypes.length === 0 &&
+          data.photoEditTypes.length === 0) {
+        toast.error("Please select an edit type since you requested editing");
+        return false;
+      }
     }
     return true;
   };
@@ -209,16 +331,18 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
   const validateEndDateTime = (date: Date | null, startDateISO: string) => {
     if (!date) return "End date & time is required";
     const startDate = parseDate(startDateISO);
-    if (startDate && date < startDate) return "End date cannot be earlier than start date";
+    if (startDate && date < startDate)
+      return "End date cannot be earlier than start date";
     return null;
   };
 
   return (
     <div className="flex flex-col gap-15 w-full animate-in fade-in duration-500">
-
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">Create Your Project</h2>
+        <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">
+          Create Your Project
+        </h2>
         {/* <div className="flex justify-center gap-2 mb-8"> */}
         {/* Simple dot indicators handled by parent usually, but preserving layout */}
         {/* </div> */}
@@ -231,9 +355,19 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
           <ContentTypeCheckbox
             label="Select All"
             icon={<Check size={20} />}
-            checked={data.contentType.length === 3 && !data.contentType.includes('editing')}
+            checked={
+              data.contentType.length === 3 &&
+              !data.contentType.includes("editing")
+            }
             onChange={(checked) => {
-              if (checked) updateData({ contentType: ["videographer", "photographer", "cinematographer"] });
+              if (checked)
+                updateData({
+                  contentType: [
+                    "videographer",
+                    "photographer",
+                    "cinematographer",
+                  ],
+                });
               else updateData({ contentType: [] });
             }}
           />
@@ -268,16 +402,20 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
         </div>
       </div>
 
-      {
-        data.contentType.length > 0 &&
+      {data.contentType.length > 0 && (
         <>
           {/* Shoot Type */}
           <div className="pt-8 lg:pt-15 border-t border-white/10">
-            <h3 className="text-xl font-medium text-white/90 mb-6">Video and Photo Shoot Type</h3>
+            <h3 className="text-xl font-medium text-white/90 mb-6">
+              Video and Photo Shoot Type
+            </h3>
 
             <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide">
               {newshootTypes.map((type) => (
-                <div key={type.key} className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start">
+                <div
+                  key={type.key}
+                  className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start"
+                >
                   <ShootTypeCard
                     title={type.title} // Assuming your shootTypes array has label
                     details={type.details} // and details
@@ -339,55 +477,65 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
 
           {/* Date & Time */}
           <div className="pt-8 lg:pt-15 border-t border-white/10">
-            <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Date & Time</h3>
+            <h3 className="text-xl font-medium text-white/90 mb-6">
+              Shoot Date & Time
+            </h3>
             <div className="flex flex-col lg:flex-row gap-6">
               <div className="flex-1">
                 <DatePicker
-                    label="Shoot Date"
-                    value={data.startDate ? parseDate(data.startDate) : null}
-                    onChange={handleDateChange}
-                    minDate={new Date()}
-                    colors={datePickerColours}
+                  label="Select Date"
+                  value={data.startDate ? parseDate(data.startDate) : null}
+                  onChange={handleDateChange}
+                  minDate={new Date()}
+                  colors={datePickerColours}
+                  format="MM/dd/yyyy"
+                  sx={{
+                    height: { xs: "56px", lg: "82px" },
+                    borderRadius: "16px",
+                  }}
                 />
               </div>
               <div className="flex-1">
-                 <DropdownSelect
-                    title="Start Time"
-                    options={timeOptions}
-                    value={getStartTimeKey()}
-                    onChange={handleStartTimeChange}
-                    bgColour="bg-[#101010]"
-                 />
+                <DropdownSelect
+                  title="Start Time"
+                  options={timeOptions}
+                  value={getStartTimeKey()}
+                  onChange={handleStartTimeChange}
+                  bgColour="bg-[#101010]"
+                />
               </div>
               <div className="flex-1">
-                 <DropdownSelect
-                    title="End Time"
-                    options={timeOptions}
-                    value={getEndTimeKey()}
-                    onChange={handleEndTimeChange}
-                    bgColour="bg-[#101010]"
-                 />
+                <DropdownSelect
+                  title="End Time"
+                  options={timeOptions}
+                  value={getEndTimeKey()}
+                  onChange={handleEndTimeChange}
+                  bgColour="bg-[#101010]"
+                />
               </div>
             </div>
           </div>
 
           {/* Edits Needed */}
           <div className="pt-8 lg:pt-15 border-t border-white/10">
-            <h3 className="text-lg lg:text-[28px] font-medium text-white/90 mb-6">Edits Needed?</h3>
+            <h3 className="text-lg lg:text-[28px] font-medium text-white/90 mb-6">
+              Edits Needed?
+            </h3>
 
             <div className="flex gap-4">
               <button
                 onClick={() => updateData({ editsNeeded: true })}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.editsNeeded
-                  ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
-                  : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                  }`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${
+                  data.editsNeeded
+                    ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
+                    : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+                }`}
               >
-                <span className="font-medium text-sm lg:text-lg pr-2">
-                  Yes
-                </span>
+                <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
                 <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"}`}
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${
+                    data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                  }`}
                 >
                   {data.editsNeeded && (
                     <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
@@ -396,16 +544,17 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
               </button>
               <button
                 onClick={() => updateData({ editsNeeded: false })}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.editsNeeded
-                  ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
-                  : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                  }`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${
+                  !data.editsNeeded
+                    ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
+                    : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+                }`}
               >
-                <span className="font-medium text-sm lg:text-lg pr-2">
-                  No
-                </span>
+                <span className="font-medium text-sm lg:text-lg pr-2">No</span>
                 <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"}`}
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${
+                    !data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                  }`}
                 >
                   {!data.editsNeeded && (
                     <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
@@ -420,45 +569,59 @@ export const V3Step1ChooseService: React.FC<Props> = ({ data, updateData, onNext
                   <Info size={24} className="text-white" />
                   Editing includes
                 </h4>
-                {/* This text should be dependant on shoot type seelected */}
                 <p className="text-white/60 text-sm mb-11">
-                  Professional editing includes color grading, sound mixing, and basic revisions. 
+                  Professional editing includes color grading, sound mixing, and
+                  basic revisions.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    {/* <label className="text-sm text-white/80 mb-2 block">Video Edit Type</label> */}
-                    <MultiSelectDropdown
-                      title="Video Edit Type"
-                      options={editTypeOptions}
-                      value={data.videoEditTypes}
-                      onChange={(values) => updateData({ videoEditTypes: values })}
-                      bgColour={"bg-[#101010]"}
-                    />
-                  </div>
-                  <div>
-                    {/* <label className="text-sm text-white/80 mb-2 block">Photo Edit Type</label> */}
-                    <MultiSelectDropdown
-                      title="Photo Edit Type"
-                      options={[
-                        { key: "basic_retouch", value: "Basic Retouching" },
-                        { key: "high_end_retouch", value: "High-End Retouching" },
-                        { key: "color_correction", value: "Color Correction Only" }
-                      ]}
-                      value={data.photoEditTypes}
-                      onChange={(values) => updateData({ photoEditTypes: values })}
-                      bgColour={"bg-[#101010]"}
-                    />
-                  </div>
+                  {/* Video Edit Type - Show if videographer or cinematographer selected */}
+                  {(data.contentType.includes("videographer") ||
+                    data.contentType.includes("cinematographer")) &&
+                   editTypeOptions.length > 0 && (
+                    <div>
+                      <MultiSelectDropdown
+                        title="Video Edit Type"
+                        options={editTypeOptions}
+                        value={data.videoEditTypes}
+                        onChange={(values) =>
+                          updateData({ videoEditTypes: values })
+                        }
+                        bgColour={"bg-[#101010]"}
+                      />
+                    </div>
+                  )}
+
+                  {/* Photo Edit Type - Show if photographer selected */}
+                  {data.contentType.includes("photographer") &&
+                   photoEditTypeOptions.length > 0 && (
+                    <div>
+                      <MultiSelectDropdown
+                        title="Photo Edit Type"
+                        options={photoEditTypeOptions}
+                        value={data.photoEditTypes}
+                        onChange={(values) =>
+                          updateData({ photoEditTypes: values })
+                        }
+                        bgColour={"bg-[#101010]"}
+                      />
+                      {photoEditNote && (
+                        <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                          <Info size={16} className="mt-0.5 flex-shrink-0" />
+                          <span>{photoEditNote}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
           </div>
         </>
-      }
+      )}
 
       {/* Navigation */}
-      <div className="flex gap-3 lg:gap-6 items-center pt-8 pt-15 border-t border-white/10">
+      <div className="flex gap-3 lg:gap-6 items-center pt-8 lg:pt-15 border-t border-white/10">
         <Button
           onClick={onBack}
           className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] "

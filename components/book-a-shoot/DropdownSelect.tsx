@@ -14,6 +14,7 @@ type DropdownSelectProps = {
   value: string | null;
   bgColour: string;
   onChange: (key: string) => void;
+  icon?: React.ReactNode;
 };
 
 export default function DropdownSelect({
@@ -22,21 +23,23 @@ export default function DropdownSelect({
   value,
   bgColour,
   onChange,
+  icon,
 }: DropdownSelectProps) {
   const [open, setOpen] = useState(false);
 
   const selectedOption = options.find((o) => o.key === value);
 
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative w-full">
+      {/* Label (External) */}
+      <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-white/40">
+        {title}
+      </div>
+
       <div
         className={`h-14 lg:h-[82px] relative ${bgColour} rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40`}
         onClick={() => setOpen((p) => !p)}
       >
-        <span className={`absolute -top-3 left-4 ${bgColour} px-3 text-sm lg:text-base text-white/60 rounded`}>
-          {title}
-        </span>
-
         {/* Selected value pill */}
         {selectedOption ? (
           <div className="flex items-center gap-2 bg-[#2A2A2A] px-3 py-1.5 rounded-md text-white text-sm lg:text-base">
@@ -54,7 +57,9 @@ export default function DropdownSelect({
           <span className="text-white/40 text-sm lg:text-base">Select {title}</span>
         )}
 
-        {open ? (
+        {icon ? (
+          <div className="text-white">{icon}</div>
+        ) : open ? (
           <ChevronUp className="text-white" />
         ) : (
           <ChevronDown className="text-white" />
@@ -63,7 +68,7 @@ export default function DropdownSelect({
 
       {/* Dropdown */}
       {open && (
-        <div className={`absolute top-16 lg:top-[90px] left-0  w-full mt-3 z-30 ${bgColour} rounded-lg border border-white/10`}>
+        <div className={`absolute top-[calc(100%+8px)] left-0 w-full z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto`}>
           {options.map((option) => {
             const isSelected = option.key === value;
 

@@ -55,6 +55,8 @@ interface Props {
   minDate?: Date;
   colors?: Partial<DatePickerColors>;
   disabled?: boolean;
+  format?: string;
+  sx?: any;
 }
 
 export const DatePicker: React.FC<Props> = ({
@@ -64,6 +66,8 @@ export const DatePicker: React.FC<Props> = ({
   minDate,
   colors: customColors,
   disabled = false,
+  format = "MM/dd/yyyy",
+  sx,
 }) => {
   const colors = { ...defaultColors, ...customColors };
   const [open, setOpen] = useState(false);
@@ -126,6 +130,7 @@ export const DatePicker: React.FC<Props> = ({
         <MuiDatePicker
           value={value}
           onChange={onChange}
+          format={format}
           open={open}
           onOpen={() => setOpen(true)}
           onClose={() => setOpen(false)}
@@ -134,13 +139,14 @@ export const DatePicker: React.FC<Props> = ({
           slotProps={{
             textField: {
               fullWidth: true,
-              placeholder: "MM/DD/YYYY",
+              placeholder: format.toUpperCase(),
               onClick: () => setOpen(true),
               sx: {
                 "& .MuiOutlinedInput-root": {
-                  height: "48px",
+                  height: "100%",
+                  ...sx,
                   backgroundColor: colors.inputBackground,
-                  borderRadius: "8px",
+                  borderRadius: "16px",
                   "& fieldset": { borderColor: colors.inputBorder, borderWidth: "1px" },
                   "&:hover fieldset": { borderColor: colors.inputBorderHover },
                   "&.Mui-focused fieldset": { borderColor: colors.inputBorderFocus, borderWidth: "1.5px" },

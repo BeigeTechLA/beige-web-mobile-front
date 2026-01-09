@@ -82,167 +82,117 @@ export const shootTypes: { key: string; value: string }[] = [
   { key: "private", value: "Private Events" },
 ];
 
-export const weddingEditTypes: { key: string; value: string }[] = [
-  { key: "highligh_video", value: "Highlight Video (4-7 minutes)" },
-  { key: "mini_feature_video", value: "Feature Video (10-20 minutes)" },
-  { key: "full_feature_video", value: "Full Feature Video (30-40 minutes)" },
-  { key: "reel", value: "Reel (10-60 seconds)" },
-  { key: "extra_photos", value: "Extra Edited Photos (25 photos)" },
-  { key: "subtitles", value: "Subtitles" },
-  { key: "translation", value: "Translation (per language) - Subtitles" },
-];
-
-export const musicEditTypes: { key: string; value: string }[] = [
-  { key: "music_video_basic", value: "Music Video - Basic" },
-  { key: "music_video_complex", value: "Music Video - Complex" },
-  { key: "reel", value: "Reel (30-60 seconds)" },
-  { key: "subtitles", value: "Subtitles" },
-  {
-    key: "translation_subtitles",
-    value: "Translation (Per language - Subtitles)",
-  },
-  {
-    key: "special_effects_basic",
-    value: "Special Effects - Basic (Included)",
-  },
-  {
-    key: "special_effects_complex",
-    value: "Special Effects - Complex",
-  },
-];
-
-export const commercialEditTypes: { key: string; value: string }[] = [
-  { key: "commercial_basic", value: "Commercial - Basic" },
-  { key: "commercial_complex", value: "Commercial - Complex" },
-  { key: "reel", value: "Reel (30-60 seconds)" },
-  { key: "voiceover_under_2_min", value: "Voiceover (Under 2 minutes)" },
-  {
-    key: "voiceover_over_2_min",
-    value: "Voiceover (Over 2 minutes, up to 15 minutes)",
-  },
-  { key: "subtitles", value: "Subtitles" },
-  {
-    key: "translation_subtitles",
-    value: "Translation (Per language - Subtitles)",
-  },
-];
-
-export const tvSeriesEditTypes: { key: string; value: string }[] = [
-  {
-    key: "tv_series_up_to_30_min", value: "TV Series (Per episode - 30 minutes or less)",
-  },
-  {
-    key: "tv_series_additional_10_min",
-    value: "TV Series (Per episode - Each additional 10 minutes after first 30 minutes)",
-  },
-  {
-    key: "highlight_video",
-    value: "Highlight Video (4-7 minutes)",
-  },
-  { key: "reel", value: "Reel (30-60 seconds)" },
-  { key: "subtitles", value: "Subtitles" },
-  {
-    key: "translation_subtitles",
-    value: "Translation (Per language - Subtitles)",
-  },
-];
-
-export const podcastEditTypes: { key: string; value: string }[] = [
-  { key: "podcast_full_episode", value: "Podcast - Full Episode" },
-  { key: "podcast_short_reel", value: "Podcast - Short Reel" },
-  { key: "voiceover_under_2_min", value: "Voiceover (Under 2 minutes)" },
-  { key: "subtitles", value: "Subtitles" },
-  {
-    key: "translation_subtitles",
-    value: "Translation (Per language - Subtitles)",
-  },
-];
-
-export const shortFilmEditTypes: { key: string; value: string }[] = [
-  {
-    key: "short_film_up_to_5_min",
-    value: "Short Film (5 minutes or less)",
-  },
-  {
-    key: "short_film_5_to_10_min",
-    value: "Short Film (More than 5 minutes, up to 10 minutes)",
-  },
-  { key: "subtitles", value: "Subtitles" },
-  {
-    key: "translation_subtitles",
-    value: "Translation (Per language - Subtitles)",
-  },
-  {
-    key: "special_effects_basic",
-    value: "Special Effects - Basic (Included)",
-  },
-  {
-    key: "special_effects_complex",
-    value: "Special Effects - Complex",
-  },
-];
-
-export const movieEditTypes: { key: string; value: string }[] = [
-  {
-    key: "movie_up_to_30_min",
-    value: "Movie (30 minutes or less)",
-  },
-  {
-    key: "movie_additional_10_min",
-    value: "Movie (Each additional 10 minutes after first 30 minutes)",
-  },
-  {
-    key: "trailer_reel",
-    value: "Trailer / Reel (30-60 seconds)",
-  },
-  { key: "subtitles", value: "Subtitles" },
-  {
-    key: "translation_subtitles",
-    value: "Translation (Per language - Subtitles)",
-  },
-  {
-    key: "special_effects_basic",
-    value: "Special Effects - Basic (Included)",
-  },
-  {
-    key: "special_effects_complex",
-    value: "Special Effects - Complex",
-  },
-];
+// ============================================
+// VIDEO EDIT TYPES
+// ============================================
 
 export const corporateEventEditTypes: { key: string; value: string }[] = [
-  {
-    key: "highlight_video",
-    value: "Highlight Video (4-7 minutes)",
-  },
-  {
-    key: "feature_video",
-    value: "Feature Video (10-20 minutes)",
-  },
-  {
-    key: "full_feature_video",
-    value: "Full Feature Video (20-40 minutes)",
-  },
-  { key: "reel", value: "Reel (30-60 seconds)" },
-  { key: "voiceover_under_2_min", value: "Voiceover (Under 2 minutes)" },
-  { key: "subtitles", value: "Subtitles" },
+  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
+  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
+  { key: "mini_highlight_1_2", value: "Mini Highlight Video (1-2 mins)" },
+  { key: "highlight_4_7", value: "Highlight Video (4-7 min)" },
+  { key: "feature_30_40", value: "Feature Video (30-40 min)" },
+];
+
+export const weddingEditTypes: { key: string; value: string }[] = [
+  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
+  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
+  { key: "mini_highlight_1_2", value: "Mini Highlight Video (1-2 mins)" },
+  { key: "highlight_4_7", value: "Highlight Video (4-7 min)" },
+  { key: "feature_30_40", value: "Feature Video (30-40 min)" },
 ];
 
 export const privateEventEditTypes: { key: string; value: string }[] = [
-  {
-    key: "highlight_video",
-    value: "Highlight Video (4-7 minutes)",
-  },
-  {
-    key: "feature_video",
-    value: "Feature Video (10-20 minutes)",
-  },
-  {
-    key: "full_feature_video",
-    value: "Full Feature Video (20-40 minutes)",
-  },
-  { key: "reel", value: "Reel (30-60 seconds)" },
-  { key: "subtitles", value: "Subtitles" },
+  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
+  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
+  { key: "mini_highlight_1_2", value: "Mini Highlight Video (1-2 mins)" },
+  { key: "highlight_4_7", value: "Highlight Video (4-7 min)" },
+  { key: "feature_30_40", value: "Feature Video (30-40 min)" },
+];
+
+export const commercialEditTypes: { key: string; value: string }[] = [
+  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
+  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
+  { key: "commercial_2_4", value: "Commercial (2 min-4 min)" },
+  { key: "commercial_4_10", value: "Commercial (4 min-10 min)" },
+];
+
+export const socialContentEditTypes: { key: string; value: string }[] = [
+  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
+  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
+  { key: "social_reel_2_4", value: "Social Media Reel (2 min-4 min)" },
+];
+
+export const podcastEditTypes: { key: string; value: string }[] = [
+  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
+  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
+  { key: "full_podcast_15_30", value: "Full Length Podcast (15 min-30 min)" },
+  { key: "full_podcast_30_60", value: "Longer Full Length Podcast (30 min-60 min)" },
+];
+
+export const musicEditTypes: { key: string; value: string }[] = [
+  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
+  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
+  { key: "music_video_2_3", value: "Edited Music Video (2-3 min)" },
+  { key: "music_video_vfx_2_3", value: "Edited Music Video with VFX (2-3 min)" },
+];
+
+export const shortFilmEditTypes: { key: string; value: string }[] = [
+  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
+  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
+  { key: "short_film_2_5", value: "Edited Short Film (2 Min-5 Min)" },
+  { key: "short_film_5_10", value: "Edited Short Film (5 Min-10 Min)" },
+];
+
+// Legacy movie and TV types (keeping for backward compatibility)
+export const tvSeriesEditTypes: { key: string; value: string }[] = [
+  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
+  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
+];
+
+export const movieEditTypes: { key: string; value: string }[] = [
+  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
+  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
+];
+
+// ============================================
+// PHOTO EDIT TYPES
+// ============================================
+
+export const corporateEventPhotoEditTypes: { key: string; value: string; note?: string }[] = [
+  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+];
+
+export const weddingPhotoEditTypes: { key: string; value: string; note?: string }[] = [
+  { key: "edited_photos", value: "Edited Photos", note: "50 edited photos per hour for weddings" },
+];
+
+export const privateEventPhotoEditTypes: { key: string; value: string; note?: string }[] = [
+  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+];
+
+export const brandProductPhotoEditTypes: { key: string; value: string; note?: string }[] = [
+  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+];
+
+export const socialContentPhotoEditTypes: { key: string; value: string; note?: string }[] = [
+  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+];
+
+export const peopleTeamsPhotoEditTypes: { key: string; value: string; note?: string }[] = [
+  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+];
+
+export const behindScenesPhotoEditTypes: { key: string; value: string; note?: string }[] = [
+  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+];
+
+export const musicPhotoEditTypes: { key: string; value: string; note?: string }[] = [
+  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+];
+
+export const commercialPhotoEditTypes: { key: string; value: string; note?: string }[] = [
+  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
 ];
 
 export type Addon = {

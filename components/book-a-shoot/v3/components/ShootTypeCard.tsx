@@ -45,7 +45,7 @@ export const ShootTypeCard: React.FC<ShootTypeCardProps> = ({
 
       {/* Content */}
       <div className="flex-1 flex flex-col gap-3 lg:gap-6 justify-between z-10 relative py-4">
-        <div className="flex justify-between items-end">
+        <div className="flex justify-between items-start">
           <div>
             <h3 className={`text-lg font-bold mb-2 ${selected ? "text-[#101010]" : "text-[#A9A9A9]"}`}>
               {title}
