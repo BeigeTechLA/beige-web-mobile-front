@@ -80,10 +80,6 @@ export const ShootTypeCard: React.FC<ShootTypeCardProps> = ({
             ))}
           </div>
         )}
-
-        <div className={`font-medium underline underline-offset-2 border-t pt-5 ${selected ? "text-black border-black/50" : "text-[#E8D1AB] border-white/40"}`}>
-          View All Details
-        </div>
       </div>
 
       {/* Image Side */}

@@ -1,10 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
 import Image from "next/image";
 import { Check, Dot, Info, Sparkles } from "lucide-react";
+import {
+  newshootTypes,
+  videoShootTypes,
+  photoShootTypes,
+  hybridShootTypes,
+} from "@/app/data/shootData";
 
 interface Props {
   data: BookingDataV3;
@@ -14,6 +20,28 @@ interface Props {
 }
 
 export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
+
+  const shootTypeDetails = useMemo(() => {
+    const allTypes = [...newshootTypes, ...videoShootTypes, ...photoShootTypes, ...hybridShootTypes];
+    return allTypes.find((t) => t.key === data.shootType);
+  }, [data.shootType]);
+
+  const peopleStat = shootTypeDetails?.stats?.find(s => s.label === "People")?.value || "N/A";
+  const durationStat = shootTypeDetails?.stats?.find(s => s.label === "Duration")?.value || "N/A";
+  
+  // Calculate recommended crew based on project complexity (simplified logic for now)
+  const recommendedCrewSize = useMemo(() => {
+     if (data.contentType.length > 1) return "03-05 People";
+     if (data.shootType === 'wedding' || data.shootType === 'corporate') return "02-04 People";
+     return "01-03 People";
+  }, [data.contentType, data.shootType]);
+
+  const typicalOutput = useMemo(() => {
+      // Logic could be more complex based on edit types
+      if (data.videoEditTypes.length > 0) return `${data.videoEditTypes.length} edited videos`;
+      if (data.photoEditTypes.length > 0) return `${data.photoEditTypes.length} edit types`;
+      return "Raw footage/photos";
+  }, [data.videoEditTypes, data.photoEditTypes]);
 
   const handleSelectOption = (method: 'ai_matchmaker' | 'manual') => {
     updateData({ matchingMethod: method });
@@ -43,21 +71,21 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
             </div>
           </div>
 
-          {/* Example Recommendation Card (Static for V3 MVP) */}
+          {/* Example Recommendation Card (Dynamic) */}
           <div className="bg-[#171717] rounded-[12px] overflow-hidden border border-white/10 mx-5 mb-5">
             <div className="p-4 flex gap-4 items-center">
-              <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
+              <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative shrink-0">
                 <Image
-                  src={"/images/projects/interior.png"}
-                  alt={"Sample shoot"}
+                  src={shootTypeDetails?.image || "/images/projects/interior.png"}
+                  alt={shootTypeDetails?.title || "Shoot Type"}
                   fill
                   className="object-cover rounded-lg"
                 />
               </div>
               <div className="w-full">
                 <div className="flex justify-between mb-5 ">
-                  <h4 className="text-white text-lg font-bold">Corporate Event (Video)</h4>
-                  <p className="text-[#E8D1AB] font-medium">02-04 People</p>
+                  <h4 className="text-white text-lg font-bold">{shootTypeDetails?.title || "Project"} ({data.contentType.includes('videographer') ? 'Video' : 'Photo'})</h4>
+                  <p className="text-[#E8D1AB] font-medium">{recommendedCrewSize}</p>
                 </div>
                 <hr className="border-white/10 mb-5 lg:mb-9" />
                 <div className="flex flex-col gap-3  mt-1">
@@ -65,7 +93,7 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
 									<span>•</span>
 									<span>$275.00/hr</span> */}
                   <span className="text-xs text-white/60">Typical Output</span>
-                  <span className="text-sm text-white font-medium">1 highlight reel</span>
+                  <span className="text-sm text-white font-medium">{typicalOutput}</span>
                 </div>
               </div>
             </div>
