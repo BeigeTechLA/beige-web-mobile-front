@@ -405,14 +405,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
             </div>
             <div className="bg-[#171717] text-white">
               <div className="p-6 border-b border-b-white/10">
-                {/* Type of Servioces and Base price */}
-                <div className="flex justify-between mb-3.5">
+                {/* Type of Servioces and Base price - Removed as per user request */}
+                {/* <div className="flex justify-between mb-3.5">
                   <p className="text-[#A9A9A9] text-sm flex items-center gap-1">
                     Video Services <Info size={18} className="text-white" />
                   </p>
-                  {/* Base value here: please set */}
                   <div className="font-bold">{"$6012.6"}</div>
-                </div>
+                </div> */}
 
                 {/* Package Offer section */}
                 <div className="rounded-2xl border transition-all relative overflow-hidden bg-[#FEF5E5] text-[#171717]">

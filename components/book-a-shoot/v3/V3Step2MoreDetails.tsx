@@ -85,6 +85,11 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     onNext();
   };
 
+  const availableRolesToAdd = TEAM_ROLES.filter(role => {
+    if (data.contentType.includes(role.id)) return true;
+    return false;
+  });
+
   return (
     <div className="flex flex-col gap-12 w-full animate-in fade-in duration-500">
 
@@ -165,24 +170,28 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         {data.addTeamMembers && (
           <div className="bg-[#171717] rounded-[20px] p-6 border border-white/5 animate-in slide-in-from-top-4">
             <div className="flex flex-col gap-4">
-              {TEAM_ROLES.map((role) => (
-                <div key={role.id} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60">
-                      {role.icon}
+              {availableRolesToAdd.length > 0 ? (
+                availableRolesToAdd.map((role) => (
+                  <div key={role.id} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60">
+                        {role.icon}
+                      </div>
+                      <div>
+                        <div className="text-lg font-medium text-white">{role.label}</div>
+                        <div className="text-sm text-[#E8D1AB]">${role.price.toFixed(2)}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-lg font-medium text-white">{role.label}</div>
-                      <div className="text-sm text-[#E8D1AB]">${role.price.toFixed(2)}</div>
-                    </div>
+                    <QuantityControl
+                      value={extraTeam[role.id] || 0}
+                      onIncrease={() => handleExtraTeamChange(role.id, 1)}
+                      onDecrease={() => handleExtraTeamChange(role.id, -1)}
+                    />
                   </div>
-                  <QuantityControl
-                    value={extraTeam[role.id] || 0}
-                    onIncrease={() => handleExtraTeamChange(role.id, 1)}
-                    onDecrease={() => handleExtraTeamChange(role.id, -1)}
-                  />
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-white/40 italic">No eligible roles to add based on your selection.</p>
+              )}
             </div>
           </div>
         )}

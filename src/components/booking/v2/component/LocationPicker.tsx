@@ -88,15 +88,24 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (searchQuery.length >= 3) {
-        handleSearch();
-      }
-    }, 500);
+  const isValidToken = MAPBOX_TOKEN && !MAPBOX_TOKEN.includes("replace_with_your_token") && MAPBOX_TOKEN.length > 20;
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, handleSearch]);
+  const handleSearch = useCallback(async () => {
+    if (!searchQuery.trim() || !isValidToken) return;
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${MAPBOX_TOKEN}&limit=5`
+      );
+      const data = await response.json();
+      setSearchResults(data.features || []);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    }
+    setIsSearching(false);
+  }, [searchQuery, isValidToken]);
 
   const [viewState, setViewState] = useState({
     latitude: 34.0522,
@@ -105,8 +114,6 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   });
 
   const [marker, setMarker] = useState<LocationData | null>(null);
-
-  const isValidToken = MAPBOX_TOKEN && !MAPBOX_TOKEN.includes("replace_with_your_token") && MAPBOX_TOKEN.length > 20;
 
   const handleMapClick = useCallback((event: any) => {
     const { lngLat } = event;
@@ -130,23 +137,6 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         .catch(() => { });
     }
   }, [isValidToken]);
-
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim() || !isValidToken) return;
-
-    setIsSearching(true);
-    try {
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${MAPBOX_TOKEN}&limit=5`
-      );
-      const data = await response.json();
-      setSearchResults(data.features || []);
-    } catch (error) {
-      console.error('Search error:', error);
-      setSearchResults([]);
-    }
-    setIsSearching(false);
-  }, [searchQuery, isValidToken]);
 
   const selectSearchResult = useCallback((result: any) => {
     const [lng, lat] = result.center;
