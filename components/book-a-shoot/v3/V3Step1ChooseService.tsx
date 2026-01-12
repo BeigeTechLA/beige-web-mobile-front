@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import {
   newshootTypes,
+  videoShootTypes,
+  photoShootTypes,
+  hybridShootTypes,
   weddingEditTypes,
   musicEditTypes,
   commercialEditTypes,
@@ -35,6 +38,7 @@ import {
   commercialPhotoEditTypes,
   socialContentPhotoEditTypes,
   brandProductPhotoEditTypes,
+  peopleTeamsPhotoEditTypes,
   behindScenesPhotoEditTypes,
 } from "@/app/data/shootData";
 import { DateTimePicker } from "@/src/components/booking/v2/component/DateTimePicker";
@@ -96,10 +100,29 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
 
+  const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
+
   const [timeOptions, setTimeOptions] = useState<
     { key: string; value: string }[]
   >([]);
 
+  // Determine available shoot types based on content type selection
+  useEffect(() => {
+    const isVideo = data.contentType.includes("videographer");
+    const isPhoto = data.contentType.includes("photographer");
+
+    if (isVideo && isPhoto) {
+      setAvailableShootTypes(hybridShootTypes);
+    } else if (isPhoto) {
+      setAvailableShootTypes(photoShootTypes);
+    } else if (isVideo) {
+      setAvailableShootTypes(videoShootTypes);
+    } else {
+      setAvailableShootTypes([]);
+    }
+  }, [data.contentType]);
+
+  // Generate time options
   useEffect(() => {
     const options = [];
     for (let i = 0; i < 24; i++) {
@@ -201,6 +224,12 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   // Update edit type options based on shoot type
   useEffect(() => {
+    // Reset options
+    setEditTypeOptions([]);
+    setPhotoEditTypeOptions([]);
+    setPhotoEditNote("");
+
+    // Common Video Options mapping
     switch (data.shootType) {
       case "wedding":
         setEditTypeOptions(weddingEditTypes);
@@ -219,23 +248,15 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         break;
       case "tv":
         setEditTypeOptions(tvSeriesEditTypes);
-        setPhotoEditTypeOptions([]);
-        setPhotoEditNote("");
         break;
       case "podcast":
         setEditTypeOptions(podcastEditTypes);
-        setPhotoEditTypeOptions([]);
-        setPhotoEditNote("");
         break;
       case "short_film":
         setEditTypeOptions(shortFilmEditTypes);
-        setPhotoEditTypeOptions([]);
-        setPhotoEditNote("");
         break;
       case "movie":
         setEditTypeOptions(movieEditTypes);
-        setPhotoEditTypeOptions([]);
-        setPhotoEditNote("");
         break;
       case "corporate":
         setEditTypeOptions(corporateEventEditTypes);
@@ -250,6 +271,18 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       case "social_content":
         setEditTypeOptions(socialContentEditTypes);
         setPhotoEditTypeOptions(socialContentPhotoEditTypes);
+        setPhotoEditNote("25 edited photos per hour");
+        break;
+      case "brand_product":
+        setPhotoEditTypeOptions(brandProductPhotoEditTypes);
+        setPhotoEditNote("25 edited photos per hour");
+        break;
+      case "people_teams":
+        setPhotoEditTypeOptions(peopleTeamsPhotoEditTypes);
+        setPhotoEditNote("25 edited photos per hour");
+        break;
+      case "behind_scenes":
+        setPhotoEditTypeOptions(behindScenesPhotoEditTypes);
         setPhotoEditNote("25 edited photos per hour");
         break;
       default:
@@ -292,8 +325,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       return false;
     }
     if (data.editsNeeded) {
-      const needsVideoEdit = data.contentType.includes("videographer") ||
-                             data.contentType.includes("cinematographer");
+      const needsVideoEdit =
+        data.contentType.includes("videographer") ||
+        data.contentType.includes("cinematographer");
       const needsPhotoEdit = data.contentType.includes("photographer");
 
       if (needsVideoEdit && data.videoEditTypes.length === 0) {
@@ -306,9 +340,12 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         return false;
       }
 
-      if (!needsVideoEdit && !needsPhotoEdit &&
-          data.videoEditTypes.length === 0 &&
-          data.photoEditTypes.length === 0) {
+      if (
+        !needsVideoEdit &&
+        !needsPhotoEdit &&
+        data.videoEditTypes.length === 0 &&
+        data.photoEditTypes.length === 0
+      ) {
         toast.error("Please select an edit type since you requested editing");
         return false;
       }
@@ -384,19 +421,19 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             onChange={() => toggleContentType("photographer")}
           />
           <ContentTypeCheckbox
-            label="Editing only"
-            subLabel="Coming Soon"
+            label="Editing (COMING SOON)"
+            subLabel=""
             icon={<Scissors size={20} />}
-            checked={data.contentType.includes("editing")}
-            onChange={() => toggleContentType("editing")}
+            checked={false}
+            onChange={() => {}}
             disabled={true}
           />
           <ContentTypeCheckbox
-            label="Livestreaming"
-            subLabel="Coming Soon"
+            label="Livestream (COMING SOON)"
+            subLabel=""
             icon={<Radio size={20} />}
-            checked={data.contentType.includes("editing")}
-            onChange={() => toggleContentType("editing")}
+            checked={false}
+            onChange={() => {}}
             disabled={true}
           />
         </div>
@@ -411,7 +448,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             </h3>
 
             <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide">
-              {newshootTypes.map((type) => (
+              {availableShootTypes.map((type) => (
                 <div
                   key={type.key}
                   className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start"
@@ -578,41 +615,41 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   {/* Video Edit Type - Show if videographer or cinematographer selected */}
                   {(data.contentType.includes("videographer") ||
                     data.contentType.includes("cinematographer")) &&
-                   editTypeOptions.length > 0 && (
-                    <div>
-                      <MultiSelectDropdown
-                        title="Video Edit Type"
-                        options={editTypeOptions}
-                        value={data.videoEditTypes}
-                        onChange={(values) =>
-                          updateData({ videoEditTypes: values })
-                        }
-                        bgColour={"bg-[#101010]"}
-                      />
-                    </div>
-                  )}
+                    editTypeOptions.length > 0 && (
+                      <div>
+                        <MultiSelectDropdown
+                          title="Video Edit Type"
+                          options={editTypeOptions}
+                          value={data.videoEditTypes}
+                          onChange={(values) =>
+                            updateData({ videoEditTypes: values })
+                          }
+                          bgColour={"bg-[#101010]"}
+                        />
+                      </div>
+                    )}
 
                   {/* Photo Edit Type - Show if photographer selected */}
                   {data.contentType.includes("photographer") &&
-                   photoEditTypeOptions.length > 0 && (
-                    <div>
-                      <MultiSelectDropdown
-                        title="Photo Edit Type"
-                        options={photoEditTypeOptions}
-                        value={data.photoEditTypes}
-                        onChange={(values) =>
-                          updateData({ photoEditTypes: values })
-                        }
-                        bgColour={"bg-[#101010]"}
-                      />
-                      {photoEditNote && (
-                        <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
-                          <Info size={16} className="mt-0.5 flex-shrink-0" />
-                          <span>{photoEditNote}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    photoEditTypeOptions.length > 0 && (
+                      <div>
+                        <MultiSelectDropdown
+                          title="Photo Edit Type"
+                          options={photoEditTypeOptions}
+                          value={data.photoEditTypes}
+                          onChange={(values) =>
+                            updateData({ photoEditTypes: values })
+                          }
+                          bgColour={"bg-[#101010]"}
+                        />
+                        {photoEditNote && (
+                          <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                            <Info size={16} className="mt-0.5 flex-shrink-0" />
+                            <span>{photoEditNote}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                 </div>
               </div>
             )}

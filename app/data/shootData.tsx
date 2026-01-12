@@ -3,6 +3,157 @@ type Option = {
   value: string;
 };
 
+// ============================================
+// SHOOT TYPES CATEGORIZED
+// ============================================
+
+export const videoShootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
+  {
+    key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-2K" },
+      { label: "Duration", value: "3-8 hrs" }
+    ]
+  },
+  {
+    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "private", title: "Private Event", details: "Parties, celebrations", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "10-100" },
+      { label: "Duration", value: "2-5 hrs" }
+    ]
+  },
+  {
+    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "podcast", title: "Podcasts & Shows", details: "Video podcasts, livestreams", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "music", title: "Music Videos", details: "Artists-led productions", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "short_film", title: "Short Films & Narrative", details: "Scripted, cinematic stories", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+];
+
+export const photoShootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
+  {
+    key: "corporate", title: "Corporate Events", details: "Conferences, summits, company offsites", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-2K" },
+      { label: "Duration", value: "3-8 hrs" }
+    ]
+  },
+  {
+    key: "wedding", title: "Weddings", details: "Ceremony and reception", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "private", title: "Private Events", details: "Parties, celebrations", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "10-100" },
+      { label: "Duration", value: "2-5 hrs" }
+    ]
+  },
+  {
+    key: "brand_product", title: "Brand & Product", details: "Product photography, campaigns", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "N/A" },
+      { label: "Duration", value: "3-8 hrs" }
+    ]
+  },
+  {
+    key: "social_content", title: "Social Content", details: "Instagram, LinkedIn, etc.", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "people_teams", title: "People & Teams", details: "Headshots, team photos", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "10-100" },
+      { label: "Duration", value: "2-5 hrs" }
+    ]
+  },
+  {
+    key: "behind_scenes", title: "Behind-the-Scenes", details: "Candid shots, process", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "10-100" },
+      { label: "Duration", value: "2-5 hrs" }
+    ]
+  },
+];
+
+export const hybridShootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
+  {
+    key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-2K" },
+      { label: "Duration", value: "3-8 hrs" }
+    ]
+  },
+  {
+    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "private", title: "Private Event", details: "Parties, celebrations", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "10-100" },
+      { label: "Duration", value: "2-5 hrs" }
+    ]
+  },
+  {
+    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "music", title: "Music Videos", details: "Artists-led productions", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "brand_product", title: "Brand & Product", details: "Product photography, campaigns", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "N/A" },
+      { label: "Duration", value: "3-8 hrs" }
+    ]
+  },
+  {
+    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "50-300" },
+      { label: "Duration", value: "6-10 hrs" }
+    ]
+  },
+  {
+    key: "behind_scenes", title: "Behind-the-Scenes", details: "Candid shots, process", image: "/images/projects/interior.png", stats: [
+      { label: "People", value: "10-100" },
+      { label: "Duration", value: "2-5 hrs" }
+    ]
+  },
+];
+
 export const newshootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
   {
     key: "music", title: "Music Video", details: "Artists-led productions", image: "/images/projects/interior.png", stats: [
