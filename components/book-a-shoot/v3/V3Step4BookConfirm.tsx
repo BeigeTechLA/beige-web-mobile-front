@@ -216,7 +216,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                       <Clock size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-lg font-medium capitalize">{format(new Date(data.startDate), 'h:mm a')} - {format(new Date(data.startDate), 'h:mm a')}</span>
+                      <span className="text-white text-lg font-medium capitalize">{format(new Date(data.startDate), 'h:mm a')} - {format(new Date(data.endDate), 'h:mm a')}</span>
                       <span className="text-sm text-[#A9A9A9]">Time</span>
                     </div>
                   </div>
