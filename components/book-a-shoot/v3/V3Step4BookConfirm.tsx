@@ -5,14 +5,27 @@ import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import Image from "next/image";
-import { CreditCard, Calendar, MapPin, Clock, Loader2, Map, Icon, Info, ShieldCheck, FileImage, RefreshCw, Package, Phone } from "lucide-react";
+import {
+  CreditCard,
+  Calendar,
+  MapPin,
+  Clock,
+  Loader2,
+  Map,
+  Icon,
+  Info,
+  ShieldCheck,
+  FileImage,
+  RefreshCw,
+  Package,
+  Phone,
+} from "lucide-react";
 import { useCalculateQuoteFromCreatorsMutation } from "@/lib/redux/features/pricing/pricingApi";
 import { newshootTypes } from "@/app/data/shootData";
 
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
-
 
 interface Props {
   data: BookingDataV3;
@@ -31,23 +44,35 @@ interface ShootTypeProps {
 }
 
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   }).format(amount);
 };
 
-export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, onBack, onConfirm, isSubmitting }) => {
-  const [calculateQuoteFromCreators, { isLoading: isCalculating }] = useCalculateQuoteFromCreatorsMutation();
+export const V3Step4BookConfirm: React.FC<Props> = ({
+  data,
+  updateData,
+  onNext,
+  onBack,
+  onConfirm,
+  isSubmitting,
+}) => {
+  const [calculateQuoteFromCreators, { isLoading: isCalculating }] =
+    useCalculateQuoteFromCreatorsMutation();
   const [quoteTotal, setQuoteTotal] = useState<number | null>(null);
-  const [crewBreakdown, setCrewBreakdown] = useState<Array<{ role: string; cost: number }>>([]);
+  const [crewBreakdown, setCrewBreakdown] = useState<
+    Array<{ role: string; cost: number }>
+  >([]);
   const [durationHours, setDurationHours] = useState<number>(0);
 
-  const shootInfo: ShootTypeProps = newshootTypes.find((type) => type.key === data.shootType) || {
+  const shootInfo: ShootTypeProps = newshootTypes.find(
+    (type) => type.key === data.shootType
+  ) || {
     title: "Project",
     details: data.shootType || "Shoot type",
-    image: "/images/projects/interior.png"
-  }
+    image: "/images/projects/interior.png",
+  };
 
   const handlePay = () => {
     if (!data.fullName || !data.email) {
@@ -76,19 +101,23 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
   useEffect(() => {
     const fetchQuote = async () => {
       // Check if we have selected crew members and duration
-      if (!data.selectedCrewIds || data.selectedCrewIds.length === 0 || durationHours === 0) {
+      if (
+        !data.selectedCrewIds ||
+        data.selectedCrewIds.length === 0 ||
+        durationHours === 0
+      ) {
         setQuoteTotal(null);
         setCrewBreakdown([]);
         return;
       }
 
       try {
-        console.log('V3Step4BookConfirm - Sending to API:', {
+        console.log("V3Step4BookConfirm - Sending to API:", {
           creator_ids: data.selectedCrewIds,
           selectedCrewCount: data.selectedCrewIds?.length || 0,
           shoot_hours: durationHours,
           event_type: data.shootType,
-          crewCount: data.crewCount
+          crewCount: data.crewCount,
         });
 
         // Use the correct endpoint that handles multiple creators
@@ -98,13 +127,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
           event_type: data.shootType || "general",
         }).unwrap();
 
-        console.log('V3Step4BookConfirm - API Result:', {
+        console.log("V3Step4BookConfirm - API Result:", {
           total: result.total,
           creators: result.creators,
           lineItems: result.lineItems,
           shootHours: result.shootHours,
           durationHours,
-          crewCountFromData: data.crewCount
+          crewCountFromData: data.crewCount,
         });
 
         setQuoteTotal(result.total);
@@ -118,44 +147,51 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
             const quantity = parseInt(item.quantity || 1);
             const costPerPerson = itemTotal / quantity;
 
-            console.log('Processing lineItem:', {
+            console.log("Processing lineItem:", {
               item_name: item.item_name,
               quantity: quantity,
               line_total: itemTotal,
               costPerPerson: costPerPerson,
-              selectedCrewCount: data.selectedCrewIds?.length
+              selectedCrewCount: data.selectedCrewIds?.length,
             });
 
             // Create individual entries for each crew member in this role
             for (let i = 0; i < quantity; i++) {
               breakdown.push({
                 role: item.item_name,
-                cost: costPerPerson
+                cost: costPerPerson,
               });
             }
           });
 
-          console.log('Crew breakdown from lineItems:', breakdown);
-          console.log('Raw lineItems:', result.lineItems);
-          console.log('Backend returned', result.creators?.length, 'creators but lineItems has quantity sum of', breakdown.length);
+          console.log("Crew breakdown from lineItems:", breakdown);
+          console.log("Raw lineItems:", result.lineItems);
+          console.log(
+            "Backend returned",
+            result.creators?.length,
+            "creators but lineItems has quantity sum of",
+            breakdown.length
+          );
           setCrewBreakdown(breakdown);
         } else if (result.creators && result.creators.length > 0) {
           // Fallback: divide total by number of creators
           const costPerPerson = result.total / result.creators.length;
           const breakdown = result.creators.map((creator: any) => ({
-            role: creator.role_name || creator.user_name || 'Crew Member',
-            cost: costPerPerson
+            role: creator.role_name || creator.user_name || "Crew Member",
+            cost: costPerPerson,
           }));
-          console.log('Crew breakdown from creators (fallback):', breakdown);
+          console.log("Crew breakdown from creators (fallback):", breakdown);
           setCrewBreakdown(breakdown);
         } else {
           // Last resort: divide total by selected crew count
           const crewCount = data.selectedCrewIds?.length || 1;
           const costPerCrew = result.total / crewCount;
-          setCrewBreakdown([{
-            role: crewCount > 1 ? `${crewCount} Crew Members` : 'Crew Member',
-            cost: costPerCrew
-          }]);
+          setCrewBreakdown([
+            {
+              role: crewCount > 1 ? `${crewCount} Crew Members` : "Crew Member",
+              cost: costPerCrew,
+            },
+          ]);
         }
       } catch (error) {
         console.error("Failed to calculate quote:", error);
@@ -167,15 +203,23 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
     };
 
     fetchQuote();
-  }, [data.selectedCrewIds, data.shootType, durationHours, calculateQuoteFromCreators]);
+  }, [
+    data.selectedCrewIds,
+    data.shootType,
+    durationHours,
+    calculateQuoteFromCreators,
+  ]);
 
   return (
     <div className="flex flex-col gap-12 w-full animate-in fade-in duration-500">
-
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">Review & Confirm</h2>
-        <p className="text-white/60">Review your project details and complete payment</p>
+        <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
+          Review & Confirm
+        </h2>
+        <p className="text-white/60">
+          Review your project details and complete payment
+        </p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 pt-8 lg:pt-15 border-t border-white/10 bg-[#101010">
@@ -183,7 +227,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
         <div className="flex-1 flex flex-col gap-8">
           <div className="cursor-pointer rounded-2xl border transition-all relative overflow-hidden border-white/20">
             <div className="bg-[#171717] p-7">
-              <h4 className="text-lg font-medium text-white">Project Summary</h4>
+              <h4 className="text-lg font-medium text-white">
+                Project Summary
+              </h4>
             </div>
 
             {/* Project Summary */}
@@ -196,8 +242,12 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-[#999] capitalize tracking-wide mb-1">Content Type</div>
-                  <h3 className="text-base text-white capitalize">{data.contentType.join(" & ")}</h3>
+                  <div className="text-sm text-[#999] capitalize tracking-wide mb-1">
+                    Content Type
+                  </div>
+                  <h3 className="text-base text-white capitalize">
+                    {data.contentType.join(" & ")}
+                  </h3>
                 </div>
                 {/* <div className="ml-auto">
                   <Button variant="outline" size="sm" onClick={onBack} className="text-xs h-8 border-white/20 text-white/60 hover:text-white">
@@ -219,13 +269,19 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                   <div className="flex flex-col lg:flex-row gap-2 lg:gap-0 justify-between lg:items-center flex-1">
                     <div className="w-full">
                       <div className="">
-                        <h4 className="text-[#E8D1AB] text-lg font-bold capitalize">{shootInfo.title}</h4>
-                        <span className="text-sm text-[#A9A9A9]">{shootInfo.details}</span>
+                        <h4 className="text-[#E8D1AB] text-lg font-bold capitalize">
+                          {shootInfo.title}
+                        </h4>
+                        <span className="text-sm text-[#A9A9A9]">
+                          {shootInfo.details}
+                        </span>
                       </div>
                     </div>
 
                     <div className="rounded-full bg-[#211F1C] border border-[#616161] min-w-[170px] py-2">
-                      <p className="text-xs lg:text-sm text-center font-medium capitalize text-white/50">#Video shoot type</p>
+                      <p className="text-xs lg:text-sm text-center font-medium capitalize text-white/50">
+                        #Video shoot type
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -238,7 +294,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                       <Calendar size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-lg font-medium capitalize">{format(new Date(data.startDate), 'EEEE, dd MMM yyyy')}</span>
+                      <span className="text-white text-lg font-medium capitalize">
+                        {format(new Date(data.startDate), "EEEE, dd MMM yyyy")}
+                      </span>
                       <span className="text-sm text-[#A9A9A9]">Date</span>
                     </div>
                   </div>
@@ -250,7 +308,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                       <Clock size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-lg font-medium capitalize">{format(new Date(data.startDate), 'h:mm a')} - {format(new Date(data.endDate), 'h:mm a')}</span>
+                      <span className="text-white text-lg font-medium capitalize">
+                        {format(new Date(data.startDate), "h:mm a")} -{" "}
+                        {format(new Date(data.endDate), "h:mm a")}
+                      </span>
                       <span className="text-sm text-[#A9A9A9]">Time</span>
                     </div>
                   </div>
@@ -278,7 +339,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                     <Map size={32} className="text-[#9D9595]" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-white text-lg font-medium line-clamp-2">{data.location || 'Location not set'}</span>
+                    <span className="text-white text-lg font-medium line-clamp-2">
+                      {data.location || "Location not set"}
+                    </span>
                     <span className="text-sm text-[#A9A9A9]">Location</span>
                   </div>
                 </div>
@@ -287,16 +350,22 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
               {/* Editing Services */}
               <div className="rounded-[16px] border border-white/5 bg-[#171717]">
                 <div className="p-4 lg:p-[30px] border-b border-b-white/5">
-                  <h4 className="text-white text-base lg:text-xl font-medium capitalize tracking-wide">Editing Services</h4>
+                  <h4 className="text-white text-base lg:text-xl font-medium capitalize tracking-wide">
+                    Editing Services
+                  </h4>
                 </div>
                 <div className="p-4 lg:p-[30px] space-y-4">
                   <div className="flex flex-col gap-2 text-sm">
                     <span className="text-white">Video Edit</span>
-                    <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">{data.videoEditTypes.join(", ") || "None"}</span>
+                    <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
+                      {data.videoEditTypes.join(", ") || "None"}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-2 text-sm">
                     <span className="text-white">Photo Edit</span>
-                    <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">{data.photoEditTypes.join(", ") || "None"}</span>
+                    <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
+                      {data.photoEditTypes.join(", ") || "None"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -306,7 +375,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
           {/* Contact Info */}
           <div className="cursor-pointer rounded-2xl border transition-all relative overflow-hidden border-white/20">
             <div className="bg-[#171717] p-7">
-              <h4 className="text-lg font-medium text-white">Contact Information</h4>
+              <h4 className="text-lg font-medium text-white">
+                Contact Information
+              </h4>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-8 p-4 lg:gap-8">
               <div className="relative space-y-2 col-span-full">
@@ -380,7 +451,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                   <div className="w-2.5 h-2.5 rounded-full bg-black" />
                 </div>
               </div>
-              <div className="p-4 rounded-2xl bg-[#171717] text-white/60 flex items-center justify-between cursor-pointer hover:bg-white/5">
+              {/* <div className="p-4 rounded-2xl bg-[#171717] text-white/60 flex items-center justify-between cursor-pointer hover:bg-white/5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 lg:h-[62px] lg:w-[62px] bg-white/5 rounded-lg bg-[#101010] flex items-center justify-center">
                     <span className="font-bold text-xs">Stripe</span>
@@ -388,13 +459,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                   <span className="font-medium">Pay via Stripe</span>
                 </div>
                 <div className="w-5 h-5 lg:w-8 lg:h-8 rounded-full border-2 border-white/20" />
-              </div>
+              </div> */}
               <div className="flex flex-col lg:flex-row gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center">
-                <input
-                  type="checkbox"
-                />
+                <input type="checkbox" />
                 <p className="text-sm text-[#999]">
-                  I agree to the <span className="text-[#E8D5B5]">Terms & Conditions</span>, <span className="text-[#E8D5B5]">Cancellation Policy</span>, and <span className="text-[#E8D5B5]">Privacy Policy</span>
+                  I agree to the{" "}
+                  <span className="text-[#E8D5B5]">Terms & Conditions</span>,{" "}
+                  <span className="text-[#E8D5B5]">Cancellation Policy</span>,
+                  and <span className="text-[#E8D5B5]">Privacy Policy</span>
                 </p>
               </div>
             </div>
@@ -455,7 +527,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                 {isCalculating || quoteTotal === null ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-black/60" />
-                    <span className="ml-3 text-black/60">Calculating quote...</span>
+                    <span className="ml-3 text-black/60">
+                      Calculating quote...
+                    </span>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -463,29 +537,50 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                     <div className="bg-[#101010] rounded-lg p-4 border border-white/5 space-y-3">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/60">Project Duration</span>
-                        <span className="font-medium text-white">{durationHours} {durationHours === 1 ? 'hour' : 'hours'}</span>
+                        <span className="font-medium text-white">
+                          {durationHours}{" "}
+                          {durationHours === 1 ? "hour" : "hours"}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-white/60">Crew Members Selected</span>
-                        <span className="font-medium text-white">{data.selectedCrewIds?.length || 0} {(data.selectedCrewIds?.length || 0) === 1 ? 'member' : 'members'}</span>
+                        <span className="text-white/60">
+                          Crew Members Selected
+                        </span>
+                        <span className="font-medium text-white">
+                          {data.selectedCrewIds?.length || 0}{" "}
+                          {(data.selectedCrewIds?.length || 0) === 1
+                            ? "member"
+                            : "members"}
+                        </span>
                       </div>
-                      {crewBreakdown.length !== (data.selectedCrewIds?.length || 0) && (
+                      {crewBreakdown.length !==
+                        (data.selectedCrewIds?.length || 0) && (
                         <div className="text-xs text-yellow-500/80 flex items-center gap-1">
-                          ⚠️ Pricing breakdown showing {crewBreakdown.length} crew - check console logs
+                          ⚠️ Pricing breakdown showing {crewBreakdown.length}{" "}
+                          crew - check console logs
                         </div>
                       )}
                     </div>
 
                     {/* Detailed Crew Breakdown */}
                     <div className="space-y-3">
-                      <div className="text-xs font-medium text-white/40 uppercase tracking-wide">Pricing Breakdown</div>
+                      <div className="text-xs font-medium text-white/40 uppercase tracking-wide">
+                        Pricing Breakdown
+                      </div>
                       {crewBreakdown.map((crew, index) => {
                         const hourlyRate = crew.cost / durationHours;
                         return (
-                          <div key={index} className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                          <div
+                            key={index}
+                            className="bg-[#101010] rounded-lg p-4 border border-white/5"
+                          >
                             <div className="flex justify-between items-start mb-2">
-                              <div className="text-white font-medium">{crew.role}</div>
-                              <div className="font-bold text-white">{formatCurrency(crew.cost)}</div>
+                              <div className="text-white font-medium">
+                                {crew.role}
+                              </div>
+                              <div className="font-bold text-white">
+                                {formatCurrency(crew.cost)}
+                              </div>
                             </div>
                             <div className="text-xs text-white/50 space-y-1">
                               <div className="flex justify-between">
@@ -494,11 +589,17 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                               </div>
                               <div className="flex justify-between">
                                 <span>Duration:</span>
-                                <span>{durationHours} {durationHours === 1 ? 'hour' : 'hours'}</span>
+                                <span>
+                                  {durationHours}{" "}
+                                  {durationHours === 1 ? "hour" : "hours"}
+                                </span>
                               </div>
                               <div className="flex justify-between pt-1 border-t border-white/10">
                                 <span>Calculation:</span>
-                                <span>{formatCurrency(hourlyRate)} × {durationHours}h = {formatCurrency(crew.cost)}</span>
+                                <span>
+                                  {formatCurrency(hourlyRate)} × {durationHours}
+                                  h = {formatCurrency(crew.cost)}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -509,8 +610,12 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                     <div className="border-t border-white/10 pt-4" />
 
                     <div className="flex justify-between items-center text-lg font-bold">
-                      <div className="text-sm font-medium text-[#E8D1AB]">Total Amount</div>
-                      <div className="text-[#E8D1AB]">{formatCurrency(quoteTotal)}</div>
+                      <div className="text-sm font-medium text-[#E8D1AB]">
+                        Total Amount
+                      </div>
+                      <div className="text-[#E8D1AB]">
+                        {formatCurrency(quoteTotal)}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -519,7 +624,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
               <div className="p-6 border-b border-b-white/10">
                 <Button
                   onClick={handlePay}
-                  disabled={isSubmitting || isCalculating || quoteTotal === null}
+                  disabled={
+                    isSubmitting || isCalculating || quoteTotal === null
+                  }
                   className="w-full h-14 text-base lg:text-xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
@@ -552,7 +659,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
           Back
         </Button>
       </div>
-
     </div>
   );
 };
