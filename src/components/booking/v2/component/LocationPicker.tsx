@@ -107,6 +107,16 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     setIsSearching(false);
   }, [searchQuery, isValidToken]);
 
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.length >= 3) {
+        handleSearch();
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, handleSearch]);
+
   const [viewState, setViewState] = useState({
     latitude: 34.0522,
     longitude: -118.2437,

@@ -156,7 +156,7 @@ export const hybridShootTypes: { key: string; title: string; details: string; im
 
 export const newshootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
   {
-    key: "music", title: "Music Video", details: "Artists-led productions", image: "/images/projects/interior.png", stats: [
+    key: "music", title: "Music Video", details: "Artists-led productions", image: "/images/categories/music.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -164,7 +164,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "/images/projects/interior.png", stats: [
+    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "/images/categories/wedding.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -172,7 +172,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "/images/projects/interior.png", stats: [
+    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "/images/categories/commercial.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -180,7 +180,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "/images/projects/interior.png", stats: [
+    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "/images/categories/social_content.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -188,7 +188,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "podcast", title: "Podcasts & Shows", details: "Video podcasts, livestreams", image: "/images/projects/interior.png", stats: [
+    key: "podcast", title: "Podcasts & Shows", details: "Video podcasts, livestreams", image: "/images/categories/podcast.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -196,7 +196,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "short_film", title: "Short Films & Narrative", details: "Scripted, cinematic stories", image: "/images/projects/interior.png", stats: [
+    key: "short_film", title: "Short Films & Narrative", details: "Scripted, cinematic stories", image: "/images/categories/short_film.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -204,7 +204,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "corporate", title: "Corporate Events", details: "Conferences, summits, company offsites", image: "/images/projects/interior.png", stats: [
+    key: "corporate", title: "Corporate Events", details: "Conferences, summits, company offsites", image: "/images/categories/corporate.jpg", stats: [
       { label: "People", value: "50-2K" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -212,7 +212,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "private", title: "Private Events", details: "Parties, celebrations", image: "/images/projects/interior.png", stats: [
+    key: "private", title: "Private Events", details: "Parties, celebrations", image: "/images/categories/private.jpg", stats: [
       { label: "People", value: "10-100" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },

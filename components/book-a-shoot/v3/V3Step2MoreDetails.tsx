@@ -72,8 +72,26 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       .filter(([_, count]) => count > 0)
       .map(([roleId, count]) => `${TEAM_ROLES.find(r => r.id === roleId)?.label || roleId} x${count}`);
 
-    updateData({ teamIncluded: summary });
+    // Calculate total crew count (base + extra)
+    const baseCount = includedRoles.length;
+    const extraCount = Object.values(nextExtra).reduce((a, b) => a + b, 0);
+
+    updateData({ 
+      teamIncluded: summary,
+      crewCount: baseCount + extraCount 
+    });
   };
+
+  // Ensure crewCount is accurate on mount/updates even if no extra team added
+  React.useEffect(() => {
+    const baseCount = includedRoles.length;
+    const extraCount = Object.values(extraTeam).reduce((a, b) => a + b, 0);
+    const total = baseCount + extraCount;
+    
+    if (data.crewCount !== total) {
+      updateData({ crewCount: total });
+    }
+  }, [includedRoles.length, extraTeam, data.crewCount, updateData]);
 
   const handleNext = () => {
     if (!data.location) {
