@@ -444,7 +444,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           {/* Shoot Type */}
           <div className="pt-8 lg:pt-15 border-t border-white/10">
             <h3 className="text-xl font-medium text-white/90 mb-6">
-              Video and Photo Shoot Type
+              {(data.contentType.includes("videographer") ||
+                data.contentType.includes("cinematographer")) &&
+              data.contentType.includes("photographer")
+                ? "Video and Photo Shoot Type"
+                : data.contentType.includes("videographer") ||
+                  data.contentType.includes("cinematographer")
+                ? "Video Shoot Type"
+                : "Photo Shoot Type"}
             </h3>
 
             <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide">
