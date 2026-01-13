@@ -107,6 +107,12 @@ export const DatePicker: React.FC<Props> = ({
         "&:hover": { backgroundColor: colors.hoverAccent },
       },
       "&.MuiPickersDay-today": { borderColor: colors.accent },
+      // Style for disabled days (past dates)
+      "&.Mui-disabled": {
+        color: "rgba(255, 255, 255, 0.2) !important",
+        textDecoration: "line-through",
+        opacity: 0.4,
+      },
     },
   };
 
