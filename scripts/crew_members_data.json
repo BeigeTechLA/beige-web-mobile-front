@@ -1,0 +1,916 @@
+[
+  {
+    "first_name": "Jiovani",
+    "last_name": "Medina",
+    "email": "jiovani@nomattermedia.com",
+    "phone": "8017421384",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "city": "Salt Lake City",
+    "state": "Utah",
+    "hourly_rate": 133,
+    "equipment": [
+      "4K Video Camera",
+      "On-camera lighting",
+      "On-camera microphone",
+      "Gimbal",
+      "Flash"
+    ],
+    "company": "No Matter Media, LLC",
+    "profile_photo": "https://drive.google.com/file/d/1zyoXNgEZktjo9s-4-uiUo4pyflwIW9EL/view?usp=drive_link"
+  },
+  {
+    "first_name": "Victor",
+    "last_name": "Chavana",
+    "email": "victorchavana@yahoo.com",
+    "phone": null,
+    "skills": [
+      "videography"
+    ],
+    "city": "Remote",
+    "state": "US",
+    "hourly_rate": 100,
+    "equipment": [],
+    "company": null,
+    "profile_photo": "https://drive.google.com/file/d/1IxlwsIUIqDPlDn-FOVMvYhRRavSi-LEW/view?usp=drive_link"
+  },
+  {
+    "first_name": "John",
+    "last_name": "Heyward",
+    "email": "skyislandphoto@gmail.com",
+    "phone": "4436299011",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "city": "DMV",
+    "state": "Maryland",
+    "hourly_rate": 100,
+    "equipment": [
+      "Canon 1D",
+      "Canon 7d",
+      "Canon 5d MKII",
+      "Canon Rebel T2i",
+      "Canon 1ds mark 2",
+      "Canon Powershot Pro 1",
+      "Nikon D700",
+      "Nikon D2x",
+      "Panasonic DVX100b Video Camera"
+    ],
+    "portfolio_url": "https://skyislandphotography.com/?page_id=141",
+    "profile_photo": "https://drive.google.com/file/d/17GI-hzBvQ-1tUw2hTBFqErkjztmL9Aio/view?usp=drive_link"
+  },
+  {
+    "first_name": "Mikey",
+    "last_name": "Donaldson Jr.",
+    "email": "creative.team@bloomingseedmedia.com",
+    "phone": "2407231400",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "city": "Nashville",
+    "state": "Tennessee",
+    "hourly_rate": 100,
+    "equipment": [],
+    "profile_photo": "https://drive.google.com/file/d/1LcEgKsCyPxHAoYjaucEgXIYF4KjEhfs9/view?usp=drive_link"
+  },
+  {
+    "first_name": "Wayne",
+    "last_name": "Johnson",
+    "email": "wdoug95608@aol.com",
+    "phone": "9162171509",
+    "skills": [
+      "videography",
+      "photography",
+      "drone"
+    ],
+    "city": "San Jose",
+    "state": "California",
+    "hourly_rate": 97,
+    "equipment": [
+      "Sony A7III Camera",
+      "Various Lenses",
+      "Sony A7IVr Camera",
+      "Speedlite Flash",
+      "Sony HD Video cameras",
+      "Mavic Drone",
+      "Tripods",
+      "Ronin RC2 Stabiliser",
+      "Wireless Lapel mics",
+      "DJI Mic3",
+      "H4n Recorder",
+      "Shotgun mics"
+    ],
+    "portfolio_url": "https://waynedouglasproductions.com/",
+    "profile_photo": "https://drive.google.com/file/d/11Bx-L2iea9TMDFrJuZDXES8DQfQAmEMy/view?usp=drive_link"
+  },
+  {
+    "first_name": "Vincent",
+    "last_name": "Garza",
+    "email": "swolenerdproductions@gmail.com",
+    "phone": "8173698235",
+    "skills": [
+      "videography"
+    ],
+    "city": "Fort Worth",
+    "state": "Texas",
+    "hourly_rate": 180,
+    "equipment": [
+      "8 cameras"
+    ],
+    "portfolio_url": "https://www.youtube.com/watch?v=2zgn2es6tSU",
+    "profile_photo": "https://drive.google.com/file/d/11fFECJ-PpcKdQh7c4Q1CISQtYalHjHGA/view?usp=drive_link"
+  },
+  {
+    "first_name": "Robert",
+    "last_name": "Bragg",
+    "email": "robert.bragg6@revure.placeholder",
+    "phone": "8059063062",
+    "skills": [
+      "videography",
+      "drone"
+    ],
+    "city": "Paso Robles",
+    "state": "California",
+    "hourly_rate": 75,
+    "equipment": [
+      "BLACKMAGIC 6K CINEMA CAMERA",
+      "PANASONIC 4K CAMERA WITH SERVO LENSES",
+      "Multiple Prime and Zoom Lenses",
+      "DJI PHANTON 4 PRO 4K DRONE",
+      "Professional Lighting Setup",
+      "Wireless Audio Systems",
+      "Full Production Package"
+    ],
+    "portfolio_url": "BRAGGMEDIAWORKS.COM",
+    "profile_photo": "https://drive.google.com/file/d/12zGDpP1Odbqk42hhHls1iuaSnTH4BSGN/view?usp=drive_link"
+  },
+  {
+    "first_name": "Joshua",
+    "last_name": "Amos Cupp",
+    "email": "josh@cuppsphotography.com",
+    "phone": "7084464453",
+    "skills": [
+      "photography"
+    ],
+    "city": "Remote",
+    "state": "Illinois",
+    "hourly_rate": 100,
+    "equipment": [
+      "Professional 4K Cameras",
+      "Audio",
+      "Lighting"
+    ],
+    "portfolio_url": "https://www.instagram.com/cupps_photography/",
+    "profile_photo": "https://drive.google.com/file/d/15XVOF0sBCpEBg3DPE9oFArWh025L16gp/view?usp=drive_link"
+  },
+  {
+    "first_name": "Jacob",
+    "last_name": "Perkins",
+    "email": "jacob.perkins@hensbreadproductions.com",
+    "phone": "5128932709",
+    "skills": [
+      "videography"
+    ],
+    "city": "Austin",
+    "state": "Texas",
+    "hourly_rate": 22,
+    "equipment": [],
+    "profile_photo": "https://drive.google.com/file/d/16CgOO9W_5cDMKNsLNRT72TqJ2GyIE-Fc/view?usp=drive_link"
+  },
+  {
+    "first_name": "Corey",
+    "last_name": "Bishop",
+    "email": "hipsob@gmail.com",
+    "phone": "8185229273",
+    "skills": [
+      "videography"
+    ],
+    "city": "Los Angeles",
+    "state": "California",
+    "hourly_rate": 90,
+    "equipment": [
+      "Sony PXW-FS7's",
+      "prime lenses",
+      "Sony A7s2",
+      "Lights",
+      "Drone",
+      "Gimbals",
+      "Lavs",
+      "Tripod",
+      "Sliders",
+      "Sound",
+      "Other related Production gear"
+    ],
+    "portfolio_url": "http://www.bishopentgroup.com/",
+    "profile_photo": "https://drive.google.com/file/d/170XBc1h4SobFhcL3kmdbhd6uHBa0t51r/view?usp=drive_link"
+  },
+  {
+    "first_name": "Tylah",
+    "last_name": "Blaize",
+    "email": "tyblaize1@gmail.com",
+    "phone": "2546691966",
+    "skills": [
+      "videography"
+    ],
+    "city": "Little River Academy",
+    "state": "Texas",
+    "hourly_rate": 75,
+    "equipment": [
+      "4K Video Camera",
+      "Lighting",
+      "Audio",
+      "Stabilizer"
+    ],
+    "profile_photo": "https://drive.google.com/file/d/1aFbDJ5kfZyCxTr_wPijlBZ-CcJEWAy47/view?usp=drive_link"
+  },
+  {
+    "first_name": "Jordan",
+    "last_name": "Berns",
+    "email": "jordanbernsbusiness@gmail.com",
+    "phone": "4088244063",
+    "skills": [
+      "videography"
+    ],
+    "specialties": "Interviews, corporate stories and documentaries",
+    "city": "Seattle",
+    "state": "Washington",
+    "hourly_rate": 100,
+    "equipment": [
+      "Canon c300 mkII",
+      "Canon C100 mkii",
+      "DZOFilm lenses",
+      "Sigma 18-35mm lens",
+      "Professional audio setup with Sennheiser wireless systems",
+      "LED lighting panels",
+      "Gimbal stabilization"
+    ],
+    "portfolio_url": "www.jsbvideo.com",
+    "profile_photo": "https://drive.google.com/file/d/1Ag1oFFKHxoZ6ezFqv5_RUBSmT-NG4xD2/view?usp=drive_link"
+  },
+  {
+    "first_name": "Nikhil",
+    "last_name": "Kolachalama",
+    "email": "nkolachalama@gmail.com",
+    "phone": "6095782683",
+    "skills": [
+      "videography"
+    ],
+    "city": "Lakewood",
+    "state": "New Jersey",
+    "hourly_rate": 83,
+    "equipment": [
+      "4K Video Camera",
+      "Cinema Lighting",
+      "Audio (Wireless Lavaliers)",
+      "28-75mm zoom"
+    ],
+    "profile_photo": "https://drive.google.com/file/d/1c7LUeHqN1R7BbFZuJjOlhcsQsjjHKCRl/view?usp=drive_link"
+  },
+  {
+    "first_name": "Daniel",
+    "last_name": "Calderon",
+    "email": "decvisuals.96@gmail.com",
+    "phone": "9292617661",
+    "skills": [
+      "videography"
+    ],
+    "specialties": "Drone | Wedding",
+    "city": "Dallas",
+    "state": "Texas",
+    "hourly_rate": 131,
+    "equipment": [
+      "4K Video",
+      "Lighting",
+      "Audio",
+      "Zoom Recorder",
+      "Boom Mic"
+    ],
+    "profile_photo": "https://drive.google.com/file/d/1cISt6F5Pbr-GWXO4Lb_tQ66iccaLzV5e/view?usp=drive_link"
+  },
+  {
+    "first_name": "Yasmine",
+    "last_name": "Img",
+    "email": "yasminemphoto@gmail.com",
+    "phone": "3109088923",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "specialties": "Fashion and weddings",
+    "city": "Los Angeles",
+    "state": "California",
+    "hourly_rate": 100,
+    "equipment": [
+      "canon 5D mark 4",
+      "canon 5D mark 2",
+      "50mm lens",
+      "24-70mm lens",
+      "3 flashes",
+      "1 ofc light",
+      "1 white umbrella",
+      "1 tripod"
+    ],
+    "portfolio_url": "https://www.yasminemerciar.com/",
+    "profile_photo": "https://drive.google.com/file/d/1EabxGURWQP22GlYRi7pHzjwXBorJi2x9/view?usp=drive_link"
+  },
+  {
+    "first_name": "Alyssa",
+    "last_name": "Williams",
+    "email": "amcw.creative@gmail.com",
+    "phone": "8136951879",
+    "skills": [
+      "videography"
+    ],
+    "specialties": "AV Tech",
+    "city": "Miami",
+    "state": "Florida",
+    "hourly_rate": 100,
+    "equipment": [],
+    "portfolio_url": "rolls.bublup.com/yamsville/",
+    "profile_photo": "https://drive.google.com/file/d/1H1dUvRHcEm80m7GlTe8qQJz8RaGheQ_Z/view?usp=drive_link"
+  },
+  {
+    "first_name": "Marcelo",
+    "last_name": "Echeverria",
+    "email": "puravidamediaco@gmail.com",
+    "phone": "2137916274",
+    "skills": [
+      "videography"
+    ],
+    "city": "Los Angeles",
+    "state": "California",
+    "hourly_rate": 200,
+    "equipment": [
+      "4K Video Camera",
+      "Lighting",
+      "Audio",
+      "Stabilizer"
+    ],
+    "profile_photo": "https://drive.google.com/file/d/1HkZ9QrcYgEQOlgHsh8adBe1GkxtQBhes/view?usp=drive_link"
+  },
+  {
+    "first_name": "Kyaw",
+    "last_name": "Aye",
+    "email": "shalamorningstudio@gmail.com",
+    "phone": "9193701230",
+    "skills": [
+      "videography"
+    ],
+    "city": "Durham",
+    "state": "North Carolina",
+    "hourly_rate": 64,
+    "equipment": [
+      "4K Video Camera",
+      "Lighting",
+      "Audio (lavalier or shotgun mic)",
+      "Stabilizer"
+    ],
+    "profile_photo": "https://drive.google.com/file/d/1hlVYiIWymsPHtqMx0dM4nxo7wPAkNkKG/view?usp=drive_link"
+  },
+  {
+    "first_name": "Hannah",
+    "last_name": "McWhorter",
+    "email": "hello@hannahwhomedia.com",
+    "phone": "3134346149",
+    "skills": [
+      "videography"
+    ],
+    "city": "Warren",
+    "state": "Michigan",
+    "hourly_rate": 100,
+    "equipment": [],
+    "profile_photo": "https://drive.google.com/file/d/1hxHh-xTtXAAXDQDdQa4Cki5AhZuIoD-Q/view?usp=drive_link"
+  },
+  {
+    "first_name": "Gary",
+    "last_name": "Ahmed",
+    "email": "garyahmedfilm@gmail.com",
+    "phone": "2039108599",
+    "skills": [
+      "videography"
+    ],
+    "city": "Los Angeles",
+    "state": "California",
+    "hourly_rate": 125,
+    "equipment": [
+      "BMPCC 4K",
+      "BMPCC 6K PRO",
+      "Canon 5D m4",
+      "Multiple Cinema Lenses",
+      "Professional Lighting Package",
+      "Gimbals",
+      "Audio Equipment",
+      "Full Production Suite"
+    ],
+    "portfolio_url": "www.garyahmed.com",
+    "profile_photo": "https://drive.google.com/file/d/1I4BuMMxBdnyhfrIen3slNGX_GQz5MeOk/view?usp=drive_link"
+  },
+  {
+    "first_name": "Kenze",
+    "last_name": "Lee Rogers",
+    "email": "kandkproductions2011@gmail.com",
+    "phone": null,
+    "skills": [
+      "videography"
+    ],
+    "city": "Remote",
+    "state": "US",
+    "hourly_rate": 210,
+    "equipment": [],
+    "profile_photo": "https://drive.google.com/file/d/1J7fhk4zsFcy8h-XJdUWDdbzPR9129Bw2/?usp=drive_link"
+  },
+  {
+    "first_name": "Joshua",
+    "last_name": "Gerber",
+    "email": "reigncinematography@gmail.com",
+    "phone": "3166312470",
+    "skills": [
+      "videography",
+      "drone"
+    ],
+    "city": "Wichita",
+    "state": "Kansas",
+    "hourly_rate": 100,
+    "equipment": [
+      "Canon R5C",
+      "Canon R6 x2",
+      "Multiple lenses (24-70mm",
+      "24-105mm",
+      "70-200mm)",
+      "DJI RS2 Pro Gimbal",
+      "DJI Air 2S drone",
+      "Professional audio with F3 Zoom recorder",
+      "Aputure lighting package"
+    ],
+    "profile_photo": "https://drive.google.com/file/d/1jIBb7OZaqtIsVSrWEP77ijbBrMwFb5H-/view?usp=drive_link"
+  },
+  {
+    "first_name": "Eddie",
+    "last_name": "Hurskin",
+    "email": "theblackumbrellastudio@gmail.com",
+    "phone": "2562899673",
+    "skills": [
+      "videography"
+    ],
+    "city": "Montgomery",
+    "state": "Alabama",
+    "hourly_rate": 125,
+    "equipment": [],
+    "profile_photo": "https://drive.google.com/file/d/1JJedbQ1qf8M-t6llgNA1IdEIjFIiSUI5/view?usp=drive_link"
+  },
+  {
+    "first_name": "AutumnK",
+    "last_name": "Whisnant",
+    "email": "akwmediallc@gmail.com",
+    "phone": "3212661749",
+    "skills": [
+      "videography"
+    ],
+    "city": "Kansas City",
+    "state": "Missouri",
+    "hourly_rate": 75,
+    "equipment": [
+      "Canon R6 Mark II",
+      "EOS R"
+    ],
+    "portfolio_url": "www.akwmedia.net",
+    "profile_photo": "https://drive.google.com/file/d/1jRqVr-l52X0wKmYikO25_yGj8qSs4TyG/view?usp=drive_link"
+  },
+  {
+    "first_name": "Mazahir",
+    "last_name": "Bhagat",
+    "email": "mazahirbhagat97@gmail.com",
+    "phone": "3467193727",
+    "skills": [
+      "videography"
+    ],
+    "city": "Inez",
+    "state": "Texas",
+    "hourly_rate": 150,
+    "equipment": [],
+    "profile_photo": "https://drive.google.com/file/d/1KNC-mX7ECGj9B3ayDyY4MV0Ds5Zykdvd/view?usp=drive_link"
+  },
+  {
+    "first_name": "Joshua",
+    "last_name": "Reid",
+    "email": "joshua.reid25@revure.placeholder",
+    "phone": "5634249811",
+    "skills": [
+      "videography"
+    ],
+    "city": "Las Vegas",
+    "state": "Nevada",
+    "hourly_rate": 100,
+    "equipment": [
+      "Sony Fx3",
+      "Sony a7iii",
+      "Small rig cage",
+      "DJI RS3 Pro gimbal",
+      "wireless rode mics",
+      "portable light cubes"
+    ],
+    "portfolio_url": "https://joshfilmedit.my.com/",
+    "profile_photo": "https://drive.google.com/file/d/1latX9TMgpEfIXBCT-Yn8ldhV5xfdF22w/view?usp=drive_link"
+  },
+  {
+    "first_name": "Christopher",
+    "last_name": "Ramirez",
+    "email": "crazycoolstudio@gmail.com",
+    "phone": "2104212916",
+    "skills": [
+      "videography"
+    ],
+    "city": "San Antonio",
+    "state": "Texas",
+    "hourly_rate": 100,
+    "equipment": [
+      "4K Video Camera",
+      "Cinematic Lighting",
+      "Audio (Wireless Lavalier)",
+      "Stabilizer"
+    ],
+    "profile_photo": "https://drive.google.com/file/d/1LhaTZIxhtjK5az45Wn6N3D8Grjaa9S5O/view?usp=drive_link"
+  },
+  {
+    "first_name": "Stefano",
+    "last_name": "Morales Franke",
+    "email": "smorles90@yahoo.com",
+    "phone": "7866204279",
+    "skills": [
+      "videography"
+    ],
+    "city": "Deltona, Fort Lauderdale",
+    "state": "Florida",
+    "hourly_rate": 67,
+    "equipment": [
+      "Professional 4K Camera",
+      "Audio",
+      "Cinematic Lighting",
+      "Stabilizer",
+      "2 wireless lav mic",
+      "Zoom audio recorder"
+    ],
+    "profile_photo": "https://drive.google.com/file/d/1LnMMMxVFgq7ICyqJXrKEMCLAHTroO7dX/view?usp=drive_link"
+  },
+  {
+    "first_name": "Elliott",
+    "last_name": "McCracken",
+    "email": "info@flashy-photography.com",
+    "phone": "6617429345",
+    "skills": [
+      "audio"
+    ],
+    "city": "Remote",
+    "state": "US",
+    "hourly_rate": 131,
+    "equipment": [
+      "Sony ZV-E10",
+      "DJI Osmo Pocket 3",
+      "DJI Avata 2 (FPV)",
+      "DJI Mic Mini (2x mics + lavs)",
+      "Portable Battery Bank"
+    ],
+    "portfolio_url": "https://www.instagram.com/flashyPhotography661/",
+    "profile_photo": "https://drive.google.com/file/d/1m_ZtzRM0esr6SUAUifUDkwd1pgujH_rs/view?usp=drive_link"
+  },
+  {
+    "first_name": "Jesse",
+    "last_name": "Sieden",
+    "email": "jessesieden@gmail.com",
+    "phone": "2062456191",
+    "skills": [
+      "videography"
+    ],
+    "city": "Seattle",
+    "state": "Washington",
+    "hourly_rate": 50,
+    "equipment": [
+      "4K Video Camera",
+      "Lighting",
+      "Audio",
+      "Stabilizer"
+    ],
+    "profile_photo": "https://drive.google.com/file/d/1m1HhXvlQPHE2ye9wKbfHO2IoRjn8XGh3/view?usp=drive_link"
+  },
+  {
+    "first_name": "Nigel",
+    "last_name": "Gayle",
+    "email": "lightsoutdevelopment@outlook.com",
+    "phone": "8139449828",
+    "skills": [
+      "videography"
+    ],
+    "city": "Tampa",
+    "state": "Florida",
+    "hourly_rate": 100,
+    "equipment": [],
+    "profile_photo": "https://drive.google.com/file/d/1OLo4CHvEx8KxXbUUaTbp1ZXbZtB1nNVR/view?usp=drive_link"
+  },
+  {
+    "first_name": "Innokentii",
+    "last_name": "Plavko",
+    "email": "kotupsfilm@gmail.com",
+    "phone": "2797867739",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "city": "Chico",
+    "state": "California",
+    "hourly_rate": 125,
+    "equipment": [],
+    "portfolio_url": "https://kotupsfilm.com",
+    "profile_photo": "https://drive.google.com/file/d/1oQlrMc6IItDii34lhOGdFLxNZTHjyVYJ/view?usp=drive_link"
+  },
+  {
+    "first_name": "Tan",
+    "last_name": "Loc Huynh",
+    "email": "huynhimages@gmail.com",
+    "phone": "9292548081",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "city": "Philadelphia",
+    "state": "Pennsylvania",
+    "hourly_rate": 67.5,
+    "equipment": [
+      "Canon r6",
+      "Sony fx3",
+      "flash",
+      "continuous light"
+    ],
+    "portfolio_url": "www.448studio.com",
+    "profile_photo": "https://drive.google.com/file/d/1OQZWkSozXK0jXq23hSS-wlwAulZpPQ3B/view?usp=drive_link"
+  },
+  {
+    "first_name": "Jeremiah",
+    "last_name": "Silva",
+    "email": "jeremiahhuchel@gmail.com",
+    "phone": "6466232155",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "city": "Newark, Edgewater",
+    "state": "New Jersey",
+    "hourly_rate": 80,
+    "equipment": [
+      "4K Video Cameras",
+      "Lighting",
+      "Audio",
+      "Tripods"
+    ],
+    "portfolio_url": "https://bighutchstudio.com/",
+    "profile_photo": "https://drive.google.com/file/d/1PnYQXcB-G4b7HO-wL9_5au5eMl-CQNgj/view?usp=drive_link"
+  },
+  {
+    "first_name": "Tyler",
+    "last_name": "McGhee",
+    "email": "tyler@piqtu.com",
+    "phone": "4802214737",
+    "skills": [
+      "videography"
+    ],
+    "city": "Albuquerque, Phoenix, Chandler",
+    "state": "Arizona",
+    "hourly_rate": 140,
+    "equipment": [
+      "Canon C200",
+      "Canon C100 Mk II",
+      "Canon 6D Mk II",
+      "DJI Mavic Air2s",
+      "Professional Cinema Lenses",
+      "Gimbal",
+      "Lighting",
+      "Professional Audio"
+    ],
+    "portfolio_url": "www.piqtu.com",
+    "profile_photo": "https://drive.google.com/file/d/1qCXQhKhAQU2s4ZrfZ43VzFzpoLlW7EGO/view?usp=drive_link"
+  },
+  {
+    "first_name": "Allie",
+    "last_name": "Nelson",
+    "email": "alliehgp@gmail.com",
+    "phone": "9515220321",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "city": "Austin",
+    "state": "Texas",
+    "hourly_rate": 75,
+    "equipment": [],
+    "portfolio_url": "https://www.hicksgirlProductions.com/",
+    "profile_photo": "https://drive.google.com/file/d/1QM6mLD916zbR8N-E3nLV8vHOOgpbe85V/view?usp=sharing"
+  },
+  {
+    "first_name": "Taylor",
+    "last_name": "Bradberry",
+    "email": "taylorbradberryfilms@gmail.com",
+    "phone": "9712634805",
+    "skills": [
+      "videography"
+    ],
+    "city": "Portland",
+    "state": "Oregon",
+    "hourly_rate": 84,
+    "equipment": [],
+    "profile_photo": "https://drive.google.com/file/d/1qS4H6EReyOyl_dBSbyX-8n1vxv09Auq_/view?usp=sharing"
+  },
+  {
+    "first_name": "Ryan",
+    "last_name": "Cabana",
+    "email": "rcabana21@yahoo.com",
+    "phone": "8609182453",
+    "skills": [
+      "videography"
+    ],
+    "city": "Boston",
+    "state": "Massachusetts",
+    "hourly_rate": 100,
+    "equipment": [
+      "GH5",
+      "GH4",
+      "Ronin-S",
+      "Godox VL150",
+      "Tascam DR-40",
+      "Tascam DR-10L",
+      "DJI Phantom 3"
+    ],
+    "portfolio_url": "ryancabana.com",
+    "profile_photo": "https://drive.google.com/file/d/1RaNYArEmn2Vs3phbxgOGbCoiMUNLErgM/view?usp=drive_link"
+  },
+  {
+    "first_name": "McKenzie",
+    "last_name": "Murieen",
+    "email": "mckenzieleephoto@gmail.com",
+    "phone": "5305981906",
+    "skills": [
+      "videography"
+    ],
+    "city": "Remote",
+    "state": "Nevada",
+    "hourly_rate": 100,
+    "equipment": [
+      "Canon mirrorless"
+    ],
+    "portfolio_url": "https://www.instagram.com/mckenzie.leephotography",
+    "profile_photo": "https://drive.google.com/file/d/1rN4Q39CIQue2MJuFuIydWqxOFBV5MRzB/view?usp=drive_link"
+  },
+  {
+    "first_name": "Kyle",
+    "last_name": "Sawyer",
+    "email": "kandkproductions2011@gmail.com",
+    "phone": "5179938358",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "city": "Shelbyville",
+    "state": "Michigan",
+    "hourly_rate": 67,
+    "equipment": [
+      "Sony A7IV",
+      "Sony A7III",
+      "Sony A7RII",
+      "Sony A7RIV",
+      "Multiple Sony lenses (16-35mm",
+      "24mm",
+      "35mm",
+      "24-70mm",
+      "85mm",
+      "70-200mm)",
+      "DJI Mavic Air 2S",
+      "Zhiyun Weebill S Gimbal",
+      "Professional audio"
+    ],
+    "portfolio_url": "https://kandkproductionsco.pixieset.com/sawyerfilms/",
+    "profile_photo": "https://drive.google.com/file/d/1RwcByy_XpZhPCEiOE1Tr573yELPEaljJ/view?usp=drive_link"
+  },
+  {
+    "first_name": "Weston",
+    "last_name": "Flemmons",
+    "email": "wesflemmons@gmail.com",
+    "phone": "9017864494",
+    "skills": [
+      "videography"
+    ],
+    "specialties": "Corporate|Commercials, Corporate|Events, Documentary, Events, Sports, Interviews|Testimonials, Live Stream",
+    "city": "New York City",
+    "state": "New York",
+    "hourly_rate": 65,
+    "equipment": [
+      "Fuji Film XH1 Camera",
+      "Fujinon XF Zoom 16-55mm F/2.8",
+      "GVM 3-Point Light Kit",
+      "Professional Audio",
+      "DJI Ronin-SC Pro",
+      "DJI Mavic Mini 3 Pro"
+    ],
+    "portfolio_url": "https://wesflemmons.com",
+    "profile_photo": "https://drive.google.com/file/d/1scZZJocUdWKvAo5xPGLQLxd2z4Tf9By6/view?usp=drive_link"
+  },
+  {
+    "first_name": "Timothy",
+    "last_name": "Neal",
+    "email": "tim_neal@me.com",
+    "phone": "9188577783",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "specialties": "Corporate|Events, Events (Birthday Party, Baby Shower, Launch Party, etc), Weddings",
+    "city": "Seattle",
+    "state": "Washington",
+    "hourly_rate": 75,
+    "equipment": [
+      "EOS R5",
+      "Canon R5",
+      "Wide Angle Lens",
+      "Zoom Lens",
+      "Godox flash",
+      "H4N recorder",
+      "Tascam lavalier",
+      "Tripods",
+      "Monopods"
+    ],
+    "portfolio_url": "http://instagram.com/timnealPhoto/",
+    "profile_photo": "https://drive.google.com/file/d/1VFIz0wpUX_kOc_Stt84gN2sthtXzu6zM/view?usp=drive_link"
+  },
+  {
+    "first_name": "Joseph",
+    "last_name": "Anderson",
+    "email": "josephedwardanderson@gmail.com",
+    "phone": "5034815582",
+    "skills": [
+      "videography"
+    ],
+    "specialties": "Music videos, live performances, weddings and events",
+    "city": "Portland",
+    "state": "Oregon",
+    "hourly_rate": 40,
+    "equipment": [
+      "Panasonic GH5",
+      "various lenses",
+      "gimbal",
+      "basic lighting gear",
+      "lavalier mic"
+    ],
+    "portfolio_url": "https://vimeo.com/user79957480",
+    "profile_photo": "https://drive.google.com/file/d/1VKkPtC3zpvC9VYDYq6idbbTGjzDA-tvj/view?usp=drive_link"
+  },
+  {
+    "first_name": "Colby",
+    "last_name": "Robins",
+    "email": "chasingrobinsmedia@gmail.com",
+    "phone": "8016499170",
+    "skills": [
+      "videography",
+      "photography"
+    ],
+    "city": "Salt Lake City",
+    "state": "Utah",
+    "hourly_rate": 70,
+    "equipment": [
+      "Canon R6 Mark II",
+      "on camera LED panel",
+      "2 Bluetooth mics",
+      "RODE shotgun mic"
+    ],
+    "portfolio_url": "www.chasingrobinsmedia.com",
+    "profile_photo": "https://drive.google.com/file/d/1wik4pkO_YS7s2D-QtAFS__bcXqEAS-UT/view?usp=drive_link"
+  },
+  {
+    "first_name": "Vedant",
+    "last_name": "Chavan",
+    "email": "dopvedant@gmail.com",
+    "phone": "8189342350",
+    "skills": [
+      "videography"
+    ],
+    "city": "San Francisco",
+    "state": "California",
+    "hourly_rate": 100,
+    "equipment": [],
+    "profile_photo": "https://drive.google.com/file/d/1XRBPQQ9ZlsOWrpc4Ns-jo6Tu8RvXe2e4/view?usp=drive_link"
+  },
+  {
+    "first_name": "Marlon",
+    "last_name": "Medina & Crew",
+    "email": "marlon@goldenmedinallc.com",
+    "phone": null,
+    "skills": [
+      "videography"
+    ],
+    "city": "St. George",
+    "state": "Utah",
+    "hourly_rate": 600,
+    "equipment": [],
+    "profile_photo": "https://drive.google.com/file/d/1yzxK4tDAZzGAkjmEpgpXgCpkgdUKUNWP/view?usp=drive_link"
+  }
+]

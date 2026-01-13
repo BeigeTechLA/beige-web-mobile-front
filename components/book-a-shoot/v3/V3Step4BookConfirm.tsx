@@ -83,6 +83,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
       }
 
       try {
+        console.log('V3Step4BookConfirm - Sending to API:', {
+          creator_ids: data.selectedCrewIds,
+          selectedCrewCount: data.selectedCrewIds?.length || 0,
+          shoot_hours: durationHours,
+          event_type: data.shootType,
+          crewCount: data.crewCount
+        });
+
         // Use the correct endpoint that handles multiple creators
         const result = await calculateQuoteFromCreators({
           creator_ids: data.selectedCrewIds,
@@ -95,32 +103,58 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
           creators: result.creators,
           lineItems: result.lineItems,
           shootHours: result.shootHours,
-          durationHours
+          durationHours,
+          crewCountFromData: data.crewCount
         });
 
         setQuoteTotal(result.total);
 
-        // Build crew breakdown from creators data
-        if (result.creators && result.creators.length > 0) {
-          const breakdown = result.creators.map((creator: any) => ({
-            role: creator.role_name || creator.user_name,
-            cost: parseFloat(creator.line_total || creator.cost || 0)
-          }));
-          console.log('Crew breakdown from creators:', breakdown);
-          setCrewBreakdown(breakdown);
-        } else if (result.lineItems && result.lineItems.length > 0) {
-          // Fallback to lineItems if creators not available
-          const breakdown = result.lineItems.map((item: any) => ({
-            role: item.item_name,
-            cost: parseFloat(item.line_total)
-          }));
+        // Build crew breakdown from lineItems (has actual costs per role)
+        if (result.lineItems && result.lineItems.length > 0) {
+          const breakdown: Array<{ role: string; cost: number }> = [];
+
+          result.lineItems.forEach((item: any) => {
+            const itemTotal = parseFloat(item.line_total || 0);
+            const quantity = parseInt(item.quantity || 1);
+            const costPerPerson = itemTotal / quantity;
+
+            console.log('Processing lineItem:', {
+              item_name: item.item_name,
+              quantity: quantity,
+              line_total: itemTotal,
+              costPerPerson: costPerPerson,
+              selectedCrewCount: data.selectedCrewIds?.length
+            });
+
+            // Create individual entries for each crew member in this role
+            for (let i = 0; i < quantity; i++) {
+              breakdown.push({
+                role: item.item_name,
+                cost: costPerPerson
+              });
+            }
+          });
+
           console.log('Crew breakdown from lineItems:', breakdown);
+          console.log('Raw lineItems:', result.lineItems);
+          console.log('Backend returned', result.creators?.length, 'creators but lineItems has quantity sum of', breakdown.length);
+          setCrewBreakdown(breakdown);
+        } else if (result.creators && result.creators.length > 0) {
+          // Fallback: divide total by number of creators
+          const costPerPerson = result.total / result.creators.length;
+          const breakdown = result.creators.map((creator: any) => ({
+            role: creator.role_name || creator.user_name || 'Crew Member',
+            cost: costPerPerson
+          }));
+          console.log('Crew breakdown from creators (fallback):', breakdown);
           setCrewBreakdown(breakdown);
         } else {
-          // No breakdown available, just show selected count
+          // Last resort: divide total by selected crew count
+          const crewCount = data.selectedCrewIds?.length || 1;
+          const costPerCrew = result.total / crewCount;
           setCrewBreakdown([{
-            role: `${data.selectedCrewIds.length} Crew Members`,
-            cost: result.total
+            role: crewCount > 1 ? `${crewCount} Crew Members` : 'Crew Member',
+            cost: costPerCrew
           }]);
         }
       } catch (error) {
@@ -425,45 +459,54 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Duration Info:Not required as per design */}
-                    {/* <div className="bg-black/5 rounded-lg p-3 mb-4">
+                    {/* Duration & Crew Info */}
+                    <div className="bg-[#101010] rounded-lg p-4 border border-white/5 space-y-3">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="opacity-70">Duration</span>
-                        <span className="font-medium text-white">{durationHours} hours</span>
+                        <span className="text-white/60">Project Duration</span>
+                        <span className="font-medium text-white">{durationHours} {durationHours === 1 ? 'hour' : 'hours'}</span>
                       </div>
-                    </div> */}
-
-                    {/* Crew Breakdown */}
-                    <div className="">
-                      {/* <div className="text-sm font-medium opacity-70 uppercase tracking-wide">Crew Members</div> */}
-                      {crewBreakdown.map((crew, index) => (
-                        <div key={index} className="flex justify-between items-start">
-                          <div className="text-[#A9A9A9]">
-                            {/* crew count needs to be shown along with role */}
-                            <div className="text-sm font-medium">{crew.role} x 1</div>
-                            {/* <div className="text-xs opacity-70">{durationHours} hrs × rate</div> */}
-                          </div>
-                          {/* <div className="font-bold">{formatCurrency(crew.cost)}</div> */}
-                          {/* crew's base price to be displayed */}
-                          <div className="font-bold">{formatCurrency(275)}</div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/60">Crew Members Selected</span>
+                        <span className="font-medium text-white">{data.selectedCrewIds?.length || 0} {(data.selectedCrewIds?.length || 0) === 1 ? 'member' : 'members'}</span>
+                      </div>
+                      {crewBreakdown.length !== (data.selectedCrewIds?.length || 0) && (
+                        <div className="text-xs text-yellow-500/80 flex items-center gap-1">
+                          ⚠️ Pricing breakdown showing {crewBreakdown.length} crew - check console logs
                         </div>
-                      ))}
+                      )}
                     </div>
 
-                    {/* Selected Crew from Dream Team (if any) */}
-                    {/* {data.selectedCrewIds.length > 0 && (
-                      <div className="bg-black/5 rounded-lg mt-4">
-                        <div className="flex justify-between items-start text-sm">
-                          <div>
-                            <div className="font-medium">Dream Team Selected</div>
-                            <div className="text-xs opacity-70">{data.selectedCrewIds.length} member(s) chosen</div>
+                    {/* Detailed Crew Breakdown */}
+                    <div className="space-y-3">
+                      <div className="text-xs font-medium text-white/40 uppercase tracking-wide">Pricing Breakdown</div>
+                      {crewBreakdown.map((crew, index) => {
+                        const hourlyRate = crew.cost / durationHours;
+                        return (
+                          <div key={index} className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="text-white font-medium">{crew.role}</div>
+                              <div className="font-bold text-white">{formatCurrency(crew.cost)}</div>
+                            </div>
+                            <div className="text-xs text-white/50 space-y-1">
+                              <div className="flex justify-between">
+                                <span>Hourly Rate:</span>
+                                <span>{formatCurrency(hourlyRate)}/hr</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Duration:</span>
+                                <span>{durationHours} {durationHours === 1 ? 'hour' : 'hours'}</span>
+                              </div>
+                              <div className="flex justify-between pt-1 border-t border-white/10">
+                                <span>Calculation:</span>
+                                <span>{formatCurrency(hourlyRate)} × {durationHours}h = {formatCurrency(crew.cost)}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-xs opacity-70">Assigned post-payment</div>
-                        </div>
-                      </div>
-                    )} */}
+                        );
+                      })}
+                    </div>
 
-                    {/* <div className="border-t border-black/10 my-4" /> */}
+                    <div className="border-t border-white/10 pt-4" />
 
                     <div className="flex justify-between items-center text-lg font-bold">
                       <div className="text-sm font-medium text-[#E8D1AB]">Total Amount</div>
