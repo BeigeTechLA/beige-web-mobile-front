@@ -80,8 +80,15 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       toast.error("Please select a location");
       return;
     }
-    // Save extra team to data if needed, or process it here
-    // For now we just proceed
+
+    // Calculate total crew count: base crew + extra crew
+    const baseCrewCount = includedRoles.length;
+    const extraCrewCount = Object.values(extraTeam).reduce((sum, count) => sum + count, 0);
+    const totalCrewCount = baseCrewCount + extraCrewCount;
+
+    // Save crew count to data
+    updateData({ crewCount: totalCrewCount });
+
     onNext();
   };
 

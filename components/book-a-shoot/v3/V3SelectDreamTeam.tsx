@@ -55,11 +55,21 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
   // };
 
   const toggleSelection = (id: number) => {
-    setSelectedIds(prev =>
-      prev.includes(id)
-        ? prev.filter(p => p !== id)
-        : [...prev, id]
-    );
+    setSelectedIds(prev => {
+      // If already selected, allow deselection
+      if (prev.includes(id)) {
+        return prev.filter(p => p !== id);
+      }
+
+      // If trying to add but already at limit, prevent addition
+      const crewLimit = data.crewCount || 0;
+      if (crewLimit > 0 && prev.length >= crewLimit) {
+        return prev; // Don't add, already at limit
+      }
+
+      // Add the selection
+      return [...prev, id];
+    });
   };
 
   useEffect(() => {
@@ -118,7 +128,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
       <div className="text-center">
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">Select Your Dream Team</h2>
         {/* <p className="text-white/60">Select from {creators.length} available professionals</p> */}
-        <p className="text-white/60">Based on your project, we've handpicked the best professionals. Select crew members to build your team. {creators.length}</p>
+        <p className="text-white/60">Based on your project, we've handpicked the best professionals. Select crew members to build your team.</p>
+        {data.crewCount > 0 && (
+          <p className={`mt-2 text-lg font-medium ${selectedIds.length === data.crewCount ? 'text-[#E8D1AB]' : 'text-white/80'}`}>
+            {selectedIds.length} of {data.crewCount} crew members selected
+          </p>
+        )}
       </div>
 
       {/* Carousel */}
@@ -140,7 +155,8 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
         </Button>
         <Button
           onClick={onNext}
-          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium  text-sm lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+          disabled={data.crewCount > 0 && selectedIds.length !== data.crewCount}
+          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium  text-sm lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Continue with {selectedIds.length} Members
         </Button>

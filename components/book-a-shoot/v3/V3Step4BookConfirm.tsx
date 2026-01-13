@@ -6,7 +6,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import Image from "next/image";
 import { CreditCard, Calendar, MapPin, Clock, Loader2, Map, Icon, Info, ShieldCheck, FileImage, RefreshCw, Package, Phone } from "lucide-react";
-import { useCalculateQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
+import { useCalculateQuoteFromCreatorsMutation } from "@/lib/redux/features/pricing/pricingApi";
 import { newshootTypes } from "@/app/data/shootData";
 
 import { Input } from "@/components/ui/input"
@@ -37,27 +37,17 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-// Crew role to pricing item ID mapping (from backend pricing_items table)
-const CREW_ROLE_ITEMS = {
-  videographer: 11,
-  photographer: 10,
-  cinematographer: 12
-};
-
-// Crew role display names and base rates (for display purposes)
-const CREW_ROLE_INFO = {
-  videographer: { label: "Videographer", baseRate: 275 },
-  photographer: { label: "Photographer", baseRate: 275 },
-  cinematographer: { label: "Cinematographer", baseRate: 410 }
-};
-
 export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, onBack, onConfirm, isSubmitting }) => {
-  const [calculateQuote, { isLoading: isCalculating }] = useCalculateQuoteMutation();
+  const [calculateQuoteFromCreators, { isLoading: isCalculating }] = useCalculateQuoteFromCreatorsMutation();
   const [quoteTotal, setQuoteTotal] = useState<number | null>(null);
   const [crewBreakdown, setCrewBreakdown] = useState<Array<{ role: string; cost: number }>>([]);
   const [durationHours, setDurationHours] = useState<number>(0);
 
-  const shootInfo: ShootTypeProps = newshootTypes.find((type) => type.key === data.shootType)
+  const shootInfo: ShootTypeProps = newshootTypes.find((type) => type.key === data.shootType) || {
+    title: "Project",
+    details: data.shootType || "Shoot type",
+    image: "/images/projects/interior.png"
+  }
 
   const handlePay = () => {
     if (!data.fullName || !data.email) {
@@ -85,35 +75,24 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
   // Calculate quote when component mounts or data changes
   useEffect(() => {
     const fetchQuote = async () => {
-      // Build items list based on content type (matching BookAShootV3 logic)
-      let quoteItems: Array<{ item_id: number; quantity: number }> = [];
-      const breakdown: Array<{ role: string; cost: number }> = [];
-
-      // Filter out 'editing' as it doesn't have a pricing item yet
-      const crewTypes = data.contentType.filter(type => type !== 'editing');
-
-      crewTypes.forEach((type) => {
-        if (type === "videographer" || type === "photographer" || type === "cinematographer") {
-          const itemId = CREW_ROLE_ITEMS[type];
-          quoteItems.push({ item_id: itemId, quantity: 1 });
-        }
-      });
-
-      if (quoteItems.length === 0 || durationHours === 0) {
+      // Check if we have selected crew members and duration
+      if (!data.selectedCrewIds || data.selectedCrewIds.length === 0 || durationHours === 0) {
         setQuoteTotal(null);
         setCrewBreakdown([]);
         return;
       }
 
       try {
-        const result = await calculateQuote({
-          items: quoteItems,
-          shootHours: durationHours,
-          eventType: data.shootType || "general",
+        // Use the correct endpoint that handles multiple creators
+        const result = await calculateQuoteFromCreators({
+          creator_ids: data.selectedCrewIds,
+          shoot_hours: durationHours,
+          event_type: data.shootType || "general",
         }).unwrap();
 
         console.log('V3Step4BookConfirm - API Result:', {
           total: result.total,
+          creators: result.creators,
           lineItems: result.lineItems,
           shootHours: result.shootHours,
           durationHours
@@ -121,49 +100,40 @@ export const V3Step4BookConfirm: React.FC<Props> = ({ data, updateData, onNext, 
 
         setQuoteTotal(result.total);
 
-        // Build crew breakdown from line items
-        if (result.lineItems && result.lineItems.length > 0) {
+        // Build crew breakdown from creators data
+        if (result.creators && result.creators.length > 0) {
+          const breakdown = result.creators.map((creator: any) => ({
+            role: creator.role_name || creator.user_name,
+            cost: parseFloat(creator.line_total || creator.cost || 0)
+          }));
+          console.log('Crew breakdown from creators:', breakdown);
+          setCrewBreakdown(breakdown);
+        } else if (result.lineItems && result.lineItems.length > 0) {
+          // Fallback to lineItems if creators not available
           const breakdown = result.lineItems.map((item: any) => ({
             role: item.item_name,
             cost: parseFloat(item.line_total)
           }));
-          console.log('Crew breakdown:', breakdown);
+          console.log('Crew breakdown from lineItems:', breakdown);
           setCrewBreakdown(breakdown);
         } else {
-          // Fallback: calculate manually if lineItems not available
-          const manualBreakdown = crewTypes.map((type) => {
-            if (type === "videographer" || type === "photographer" || type === "cinematographer") {
-              const info = CREW_ROLE_INFO[type];
-              return {
-                role: info.label,
-                cost: info.baseRate * durationHours
-              };
-            }
-            return null;
-          }).filter(Boolean) as Array<{ role: string; cost: number }>;
-          setCrewBreakdown(manualBreakdown);
+          // No breakdown available, just show selected count
+          setCrewBreakdown([{
+            role: `${data.selectedCrewIds.length} Crew Members`,
+            cost: result.total
+          }]);
         }
       } catch (error) {
         console.error("Failed to calculate quote:", error);
-        // Fallback calculation
-        let fallbackTotal = 0;
-        const fallbackBreakdown = crewTypes.map((type) => {
-          if (type === "videographer" || type === "photographer" || type === "cinematographer") {
-            const info = CREW_ROLE_INFO[type];
-            const cost = info.baseRate * durationHours;
-            fallbackTotal += cost;
-            return { role: info.label, cost };
-          }
-          return null;
-        }).filter(Boolean) as Array<{ role: string; cost: number }>;
-
-        setQuoteTotal(fallbackTotal);
-        setCrewBreakdown(fallbackBreakdown);
+        // Fallback: show placeholder
+        setQuoteTotal(null);
+        setCrewBreakdown([]);
+        toast.error("Failed to calculate pricing. Please try again.");
       }
     };
 
     fetchQuote();
-  }, [data.contentType, data.shootType, durationHours, calculateQuote]);
+  }, [data.selectedCrewIds, data.shootType, durationHours, calculateQuoteFromCreators]);
 
   return (
     <div className="flex flex-col gap-12 w-full animate-in fade-in duration-500">

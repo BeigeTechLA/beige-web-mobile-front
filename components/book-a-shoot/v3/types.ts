@@ -15,6 +15,7 @@ export type BookingDataV3 = {
   // Step 2 Details
   teamIncluded: string[]; // e.g. ["Videographer x1"]
   addTeamMembers: boolean;
+  crewCount: number; // Total number of crew members (base + extra)
   location: string;
   locationDetails: any; // Mapbox object
   specialInstructions: string;
@@ -45,6 +46,7 @@ export const initialDataV3: BookingDataV3 = {
   photoEditTypes: [],
   teamIncluded: [],
   addTeamMembers: false,
+  crewCount: 0,
   location: "",
   locationDetails: null,
   specialInstructions: "",
