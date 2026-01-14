@@ -126,3 +126,16 @@ select:-webkit-autofill {
 creator-swiper {
   clip-path: inset(0 0 0 0);
 }
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-150%);
+  }
+  100% {
+    transform: translateX(150%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2.8s ease-in-out infinite;
+}

@@ -84,6 +84,9 @@ const datePickerColours = {
   desktopCalendarText: "#FFFFFF",
 };
 
+const INITIAL_COUNT = 6;
+const LOAD_MORE_COUNT = 3;
+
 export const V3Step1ChooseService: React.FC<Props> = ({
   data,
   updateData,
@@ -105,6 +108,19 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const [timeOptions, setTimeOptions] = useState<
     { key: string; value: string }[]
   >([]);
+
+  const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
+  const isAllVisible = visibleCount >= availableShootTypes.length;
+
+  const handleViewToggle = () => {
+    if (visibleCount >= availableShootTypes.length) {
+      setVisibleCount(INITIAL_COUNT);
+    } else {
+      setVisibleCount((prev) =>
+        Math.min(prev + LOAD_MORE_COUNT, availableShootTypes.length)
+      );
+    }
+  };
 
   // Determine available shoot types based on content type selection
   useEffect(() => {
@@ -200,8 +216,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     let currentDate = data.endDate
       ? parseDate(data.endDate)
       : data.startDate
-      ? parseDate(data.startDate)
-      : new Date();
+        ? parseDate(data.startDate)
+        : new Date();
     if (!currentDate) return;
 
     const newEnd = set(currentDate, { hours, minutes });
@@ -301,6 +317,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     } else {
       updateData({ contentType: [...current, type] });
     }
+    setVisibleCount(INITIAL_COUNT)
   };
 
   const validate = () => {
@@ -425,7 +442,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             subLabel=""
             icon={<Scissors size={20} />}
             checked={false}
-            onChange={() => {}}
+            onChange={() => { }}
             disabled={true}
           />
           <ContentTypeCheckbox
@@ -433,7 +450,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             subLabel=""
             icon={<Radio size={20} />}
             checked={false}
-            onChange={() => {}}
+            onChange={() => { }}
             disabled={true}
           />
         </div>
@@ -446,16 +463,18 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             <h3 className="text-xl font-medium text-white/90 mb-6">
               {(data.contentType.includes("videographer") ||
                 data.contentType.includes("cinematographer")) &&
-              data.contentType.includes("photographer")
+                data.contentType.includes("photographer")
                 ? "Video and Photo Shoot Type"
                 : data.contentType.includes("videographer") ||
                   data.contentType.includes("cinematographer")
-                ? "Video Shoot Type"
-                : "Photo Shoot Type"}
+                  ? "Video Shoot Type"
+                  : "Photo Shoot Type"}
             </h3>
 
-            <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide">
-              {availableShootTypes.map((type) => (
+            {/* <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"> */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-6">
+              {/* {availableShootTypes.map((type) => ( */}
+              {availableShootTypes.slice(0, visibleCount).map((type) => (
                 <div
                   key={type.key}
                   className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start"
@@ -470,6 +489,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   />
                 </div>
               ))}
+            </div>
+            <div className="flex justify-end">
+              <Button
+                onClick={handleViewToggle}
+                className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 rounded-lg  text-sm md:text-lg font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)]"
+              >
+                <span className="">{isAllVisible ? "View Less" : "View More"}</span>
+              </Button>
             </div>
             {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <ShootTypeCard
@@ -569,17 +596,15 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             <div className="flex gap-4">
               <button
                 onClick={() => updateData({ editsNeeded: true })}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${
-                  data.editsNeeded
-                    ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
-                    : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                }`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.editsNeeded
+                  ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
+                  : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+                  }`}
               >
                 <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
                 <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${
-                    data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
-                  }`}
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                    }`}
                 >
                   {data.editsNeeded && (
                     <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
@@ -588,17 +613,15 @@ export const V3Step1ChooseService: React.FC<Props> = ({
               </button>
               <button
                 onClick={() => updateData({ editsNeeded: false })}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${
-                  !data.editsNeeded
-                    ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
-                    : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                }`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.editsNeeded
+                  ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
+                  : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+                  }`}
               >
                 <span className="font-medium text-sm lg:text-lg pr-2">No</span>
                 <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${
-                    !data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
-                  }`}
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                    }`}
                 >
                   {!data.editsNeeded && (
                     <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />

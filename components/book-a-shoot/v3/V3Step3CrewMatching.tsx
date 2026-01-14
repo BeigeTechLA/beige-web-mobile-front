@@ -103,7 +103,7 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
 
       {/* Matching Method Selection */}
       <div className="pt-8 lg:pt-15 border-t border-white/10">
-        <h3 className="text-xl font-medium text-white/90 mb-6">How would you like to proceed?</h3>
+        {/* <h3 className="text-xl font-medium text-white/90 mb-6">How would you like to proceed?</h3> */}
 
         <div className="flex flex-col gap-6">
           {/* AI Matchmaker */}

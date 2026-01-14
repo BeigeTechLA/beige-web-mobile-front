@@ -55,7 +55,7 @@ export function LoginForm() {
         router.push('/creator/dashboard/request')
       } else {
         // Fallback in case user_type_id is missing or different
-        router.push('/dashboard') 
+        router.push('/admin/dashboard')
       }
 
     } catch (error: any) {

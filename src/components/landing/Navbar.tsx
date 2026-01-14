@@ -22,7 +22,7 @@ export const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [localUser, setLocalUser] = useState<any>(null);
-  
+
   const router = useRouter();
   const pathname = usePathname();
   const { logout } = useAuth();
@@ -109,7 +109,7 @@ export const Navbar = () => {
       >
         <div className="h-13 md:h-[88px] flex items-center justify-between lg:px-6">
           {/* Logo */}
-          <a href="https://book.beige.app" target="_blank" rel="noopener noreferrer" className="flex items-center">
+          <a href="https://book.beige.app" target="_blank" rel="noopener noreferrer" className="relative flex items-center">
             <Image
               src="/images/logos/beige_logo_vb.png"
               alt="BEIGE"
@@ -118,6 +118,10 @@ export const Navbar = () => {
               className="w-[120px] h-[24px] md:w-[158px] md:h-[32px] object-contain"
               priority
             />
+            <span className="absolute right-5 -bottom-4 text-[10px] font-medium tracking-wide py-[1.5px] px-2 rounded-full text-[#2E2E2E] border border-white/40 bg-gradient-to-br from-[#f8f8f8] via-[#d9d9d9] to-[#f2f2f2] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-sm overflow-hidden">
+              Beta
+              <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+            </span>
           </a>
 
           {/* Left: Links */}
@@ -141,7 +145,6 @@ export const Navbar = () => {
             </div>
           </div>
 
-
           {/* Right Buttons / Profile */}
           <div className="hidden lg:flex items-center gap-4">
             {showCartIcon && <CartIcon />}
@@ -160,7 +163,7 @@ export const Navbar = () => {
                 >
                   Become a Investor
                 </Button> */}
-                 {/* <Button
+                {/* <Button
                   onClick={handleInvestor}
                   className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-[10px] text-lg font-medium"
                 >
@@ -169,7 +172,7 @@ export const Navbar = () => {
               </>
             ) : (
               <div className="relative group">
-                <button 
+                <button
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                   className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-xl hover:bg-white/10 transition-all"
                 >
@@ -188,20 +191,20 @@ export const Navbar = () => {
                 {/* Dropdown Menu */}
                 <AnimatePresence>
                   {showProfileDropdown && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
                       className="absolute right-0 mt-2 w-56 bg-[#121212] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-[60]"
                     >
-                      <button 
+                      <button
                         onClick={goToDashboard}
                         className="w-full flex items-center gap-3 px-4 py-4 text-white hover:bg-white/5 transition-colors border-b border-white/5"
                       >
                         <LayoutDashboard size={18} className="text-[#E8D1AB]" />
                         <span className="font-medium">Go To Dashboard</span>
                       </button>
-                      <button 
+                      <button
                         onClick={handleLogout}
                         className="w-full flex items-center gap-3 px-4 py-4 text-red-400 hover:bg-red-400/5 transition-colors"
                       >
@@ -263,7 +266,7 @@ export const Navbar = () => {
                     {link.label}
                   </button>
                 ))}
-                
+
                 <Separator />
 
                 {/* Mobile Auth/Profile Actions */}
@@ -282,7 +285,7 @@ export const Navbar = () => {
                 ) : (
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
-                       <div className="w-12 h-12 rounded-full bg-[#E8D1AB] flex items-center justify-center text-black">
+                      <div className="w-12 h-12 rounded-full bg-[#E8D1AB] flex items-center justify-center text-black">
                         <User size={24} />
                       </div>
                       <div>
@@ -290,14 +293,14 @@ export const Navbar = () => {
                         <p className="text-white/50 text-sm">{localUser.email}</p>
                       </div>
                     </div>
-                    <button 
-                      onClick={goToDashboard} 
+                    <button
+                      onClick={goToDashboard}
                       className="flex items-center justify-center gap-2 bg-white text-black py-4 rounded-[10px] font-medium mt-2"
                     >
                       <LayoutDashboard size={20} /> Go To Dashboard
                     </button>
-                    <button 
-                      onClick={handleLogout} 
+                    <button
+                      onClick={handleLogout}
                       className="flex items-center justify-center gap-2 text-red-400 py-4 border border-red-400/20 rounded-[10px] font-medium"
                     >
                       <LogOut size={20} /> Log out

@@ -56,11 +56,11 @@ export const ShootTypeCard: React.FC<ShootTypeCardProps> = ({
           </div>
           <>
             {selected ? (
-              <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center bg-black">
+              <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center bg-black shrink-0">
                 <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
               </div>
             ) : (
-              <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full border border-white/50" />
+              <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full border border-white/50 shrink-0"/>
             )}
           </>
         </div>

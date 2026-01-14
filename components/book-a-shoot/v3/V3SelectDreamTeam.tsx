@@ -158,7 +158,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
           disabled={data.crewCount > 0 && selectedIds.length !== data.crewCount}
           className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium  text-sm lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Continue with {selectedIds.length} Members
+          Continue with {selectedIds.length} Creatives
         </Button>
 
       </div>
