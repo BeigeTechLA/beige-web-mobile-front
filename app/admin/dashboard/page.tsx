@@ -1,3 +1,4 @@
+import { OverallShootsTable } from "@/components/admin/OverallShootsTable";
 import OverviewChart from "@/components/admin/OverviewChart";
 import ShootByCategory from "@/components/admin/ShootByCategory";
 import ShootStatusChart from "@/components/admin/ShootStatusChart";
@@ -28,6 +29,7 @@ export default function AdminDashboardPage() {
           <ShootByCategory />
         </div>
       </div>
+      <OverallShootsTable />
     </>
   )
 }
