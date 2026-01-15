@@ -27,7 +27,7 @@ export default function OverviewChart() {
   const [activeMetric, setActiveMetric] = useState('total');
 
   return (
-    <div className="bg-[#171717] border border-zinc-800 rounded-2xl p-5 w-full text-white mt-9">
+    <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-5 w-full text-white mt-9">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-2">
@@ -35,7 +35,7 @@ export default function OverviewChart() {
           <p className="">Overview</p>
         </div>
         {/* Placeholder as of now */}
-        <button className="flex items-center gap-2 p-2.5 bg-zinc-900 border border-zinc-800 rounded-full text-xs text-zinc-400">
+        <button className="flex items-center gap-2 p-2.5 bg-zinc-900 border border-[#3D3D3D] rounded-full text-xs text-zinc-400">
           Month <ChevronDown size={14} />
         </button>
       </div>

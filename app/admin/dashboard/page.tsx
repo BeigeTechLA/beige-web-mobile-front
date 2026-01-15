@@ -1,4 +1,6 @@
 import OverviewChart from "@/components/admin/OverviewChart";
+import ShootByCategory from "@/components/admin/ShootByCategory";
+import ShootStatusChart from "@/components/admin/ShootStatusChart";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 
@@ -17,6 +19,15 @@ export default function AdminDashboardPage() {
       </div>
 
       <OverviewChart />
+
+      <div className="flex gap-4 mt-5">
+        <div className="w-3/4">
+          <ShootStatusChart />
+        </div>
+        <div className="w-1/4">
+          <ShootByCategory />
+        </div>
+      </div>
     </>
   )
 }
