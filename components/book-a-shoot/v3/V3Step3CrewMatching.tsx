@@ -159,7 +159,7 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
                 Our intelligent matching system considers multiple factors to build your ideal crew:
               </p>
             </div>
-            <div className="flex flex-wrap gap-5 p-7">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-7">
               <div className="flex items-center gap-1 text-sm text-white/80">
                 <Dot size={30} className="text-[#E8D1AB]" />
                 <span>Shoot Type & Complexity: Different shoots require different team sizes</span>

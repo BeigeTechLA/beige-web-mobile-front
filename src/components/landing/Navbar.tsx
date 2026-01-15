@@ -118,7 +118,7 @@ export const Navbar = () => {
               className="w-[120px] h-[24px] md:w-[158px] md:h-[32px] object-contain"
               priority
             />
-            <span className="absolute right-5 -bottom-4 text-[10px] font-medium tracking-wide py-[1.5px] px-2 rounded-full text-[#2E2E2E] border border-white/40 bg-gradient-to-br from-[#f8f8f8] via-[#d9d9d9] to-[#f2f2f2] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-sm overflow-hidden">
+            <span className="absolute right-4 md:right-5 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-[#2E2E2E] border border-white/40 bg-gradient-to-br from-[#f8f8f8] via-[#d9d9d9] to-[#f2f2f2] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-sm overflow-hidden">
               Beta
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
             </span>

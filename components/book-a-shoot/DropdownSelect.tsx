@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Dot, X } from "lucide-react";
 
 type Option = {
@@ -26,11 +26,28 @@ export default function DropdownSelect({
   icon,
 }: DropdownSelectProps) {
   const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find((o) => o.key === value);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    // Attach listener
+    document.addEventListener("mousedown", handleClickOutside);
+
+    // Cleanup on unmount
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
-    <div className="relative w-full">
+    <div className="relative w-full" ref={dropdownRef}>
       {/* Label (External) */}
       <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-white/40">
         {title}

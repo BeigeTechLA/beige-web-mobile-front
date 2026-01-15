@@ -40,11 +40,11 @@ export const ContentTypeCheckbox: React.FC<ContentTypeCheckboxProps> = ({
           </div>
         )}
         <div className="flex flex-col">
-          <span className={`text-base lg:text-lg font-medium ${checked ? "text-black" : "text-white"}`}>
+          <span className={`text-base lg:text-lg font-medium ${disabled? "text-[#A9A9A9]" : (checked ? "text-black" : "text-white")}`}>
             {label}
           </span>
           {subLabel && (
-            <span className={`text-sm ${checked ? "text-black/60" : "text-white/40"}`}>
+            <span className={`text-sm ${disabled? "text-[#A9A9A9]" : (checked ? "text-black/60" : "text-white/40")}`}>
               {subLabel}
             </span>
           )}

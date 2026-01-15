@@ -232,7 +232,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
         {/* Profile Picture Section */}
         <div className="rounded-[12px] border border-white/20 bg-[#101010] p-6 mt-4">
           <h2 className="text-base font-semibold text-white">Profile Picture *</h2>
-          <p className="text-sm text-white/40 mb-5">Required: Add photo to build connection and trust</p>
+          {/* <p className="text-sm text-white/40 mb-5">Required: Add photo to build connection and trust</p> */}
 
           <div className="flex items-center gap-5">
             <div className={`h-20 w-20 rounded-full ${data.profileImage ? 'border-[#E8D1AB]' : 'border-red-500/50'} bg-[#1A1A1A] flex items-center justify-center overflow-hidden flex-shrink-0`}>

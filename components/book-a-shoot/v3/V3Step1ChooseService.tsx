@@ -15,6 +15,7 @@ import {
   Radio,
   Info,
   Clock,
+  SquaresUnite,
 } from "lucide-react";
 import {
   newshootTypes,
@@ -150,7 +151,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         const date = new Date();
         date.setHours(i);
         date.setMinutes(j);
-        const value = format(date, "H:mm");
+        const value = format(date, "h:mm aa");
 
         options.push({ key, value });
       }
@@ -166,7 +167,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
     // Preserve times if they exist, otherwise default start to 9am, end to 5pm?
     // Or just set date part.
-
     let newStart = data.startDate
       ? parseDate(data.startDate)
       : set(date, { hours: 9, minutes: 0 });
@@ -196,7 +196,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   };
 
   const handleStartTimeChange = (timeKey: string) => {
-    if (!timeKey) return;
+    // if (!timeKey) return;
+    if (!timeKey) {
+      updateData({ startDate: "" });
+      return;
+    }
     const [hours, minutes] = timeKey.split(":").map(Number);
 
     const currentDate = data.startDate ? parseDate(data.startDate) : new Date();
@@ -210,7 +214,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   };
 
   const handleEndTimeChange = (timeKey: string) => {
-    if (!timeKey) return;
+    if (!timeKey) {
+      updateData({ endDate: "" });
+      return;
+    }
+    // if (!timeKey) return;
     const [hours, minutes] = timeKey.split(":").map(Number);
 
     let currentDate = data.endDate
@@ -309,15 +317,45 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   }, [data.shootType]);
 
   const toggleContentType = (
-    type: "videographer" | "photographer" | "cinematographer" | "editing"
+    type: "videographer" | "photographer" | "editing"
   ) => {
     const current = [...data.contentType];
-    if (current.includes(type)) {
-      updateData({ contentType: current.filter((t) => t !== type) });
+    const isCurrentlySelected = current.includes(type);
+
+    // Calculate the new content type array
+    const nextContentType = isCurrentlySelected
+      ? current.filter((t) => t !== type)
+      : [...current, type];
+
+    if (nextContentType.length === 0) {
+      // Reset data object to initial state if no content types are selected
+      updateData({
+        contentType: [],
+        shootType: "",
+        startDate: "",
+        endDate: "",
+        editsNeeded: false,
+        videoEditTypes: [],
+        photoEditTypes: [],
+      });
     } else {
-      updateData({ contentType: [...current, type] });
+      if (!nextContentType.includes("videographer")) {
+        updateData({
+          contentType: nextContentType,
+          videoEditTypes: [],
+        });
+      } else if (!nextContentType.includes("photographer")) {
+        updateData({
+          contentType: nextContentType,
+          photoEditTypes: [],
+        });
+      } else {
+        updateData({ contentType: nextContentType });
+      }
     }
-    setVisibleCount(INITIAL_COUNT)
+
+    // Reset the view more toggle
+    setVisibleCount(INITIAL_COUNT);
   };
 
   const validate = () => {
@@ -342,9 +380,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       return false;
     }
     if (data.editsNeeded) {
-      const needsVideoEdit =
-        data.contentType.includes("videographer") ||
-        data.contentType.includes("cinematographer");
+      const needsVideoEdit = data.contentType.includes("videographer")
+      // || data.contentType.includes("cinematographer");  Commented cinematographer as it is not being mentioned anywhere in UI
       const needsPhotoEdit = data.contentType.includes("photographer");
 
       if (needsVideoEdit && data.videoEditTypes.length === 0) {
@@ -376,20 +413,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
   };
 
-  const validateFutureDateTime = (date: Date | null) => {
-    if (!date) return "Date & time is required";
-    if (date < new Date()) return "Must be in the future";
-    return null;
-  };
-
-  const validateEndDateTime = (date: Date | null, startDateISO: string) => {
-    if (!date) return "End date & time is required";
-    const startDate = parseDate(startDateISO);
-    if (startDate && date < startDate)
-      return "End date cannot be earlier than start date";
-    return null;
-  };
-
   return (
     <div className="flex flex-col gap-15 w-full animate-in fade-in duration-500">
       {/* Header */}
@@ -408,9 +431,10 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <ContentTypeCheckbox
             label="Select All"
-            icon={<Check size={20} />}
+            icon={<SquaresUnite size={20} />}
             checked={
-              data.contentType.length === 3 &&
+              // data.contentType.length === 3 &&
+              data.contentType.length === 2 && //As cinematography is not to be included in the length count at present
               !data.contentType.includes("editing")
             }
             onChange={(checked) => {
@@ -419,7 +443,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   contentType: [
                     "videographer",
                     "photographer",
-                    "cinematographer",
+                    // "cinematographer", This is not being mentioned in UI. Hence commented out
                   ],
                 });
               else updateData({ contentType: [] });
@@ -438,16 +462,16 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             onChange={() => toggleContentType("photographer")}
           />
           <ContentTypeCheckbox
-            label="Editing (COMING SOON)"
-            subLabel=""
+            label="Editing"
+            subLabel="Coming Soon"
             icon={<Scissors size={20} />}
             checked={false}
             onChange={() => { }}
             disabled={true}
           />
           <ContentTypeCheckbox
-            label="Livestream (COMING SOON)"
-            subLabel=""
+            label="Livestream"
+            subLabel="Coming Soon"
             icon={<Radio size={20} />}
             checked={false}
             onChange={() => { }}
@@ -461,8 +485,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           {/* Shoot Type */}
           <div className="pt-8 lg:pt-15 border-t border-white/10">
             <h3 className="text-xl font-medium text-white/90 mb-6">
-              {(data.contentType.includes("videographer") ||
-                data.contentType.includes("cinematographer")) &&
+              {data.contentType.includes("videographer") &&
+                //  ||data.contentType.includes("cinematographer")) && : Commented cinematographer as it is not being mentioned anywhere in UI
                 data.contentType.includes("photographer")
                 ? "Video and Photo Shoot Type"
                 : data.contentType.includes("videographer") ||
@@ -498,52 +522,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                 <span className="">{isAllVisible ? "View Less" : "View More"}</span>
               </Button>
             </div>
-            {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <ShootTypeCard
-                title="Corporate Event"
-                details="Conferences, summits, company offsites"
-                image="/images/projects/interior.png"
-                stats={[
-                  { label: "People", value: "50-2K" },
-                  { label: "Duration", value: "3-8 hrs" }
-                ]}
-                selected={data.shootType === "corporate"}
-                onClick={() => updateData({ shootType: "corporate" })}
-              />
-              <ShootTypeCard
-                title="Wedding"
-                details="Ceremony, reception, highlight films"
-                image="/images/projects/Wedding.png"
-                stats={[
-                  { label: "People", value: "50-300" },
-                  { label: "Duration", value: "6-10 hrs" }
-                ]}
-                selected={data.shootType === "wedding"}
-                onClick={() => updateData({ shootType: "wedding" })}
-              />
-              <ShootTypeCard
-                title="Private"
-                details="Parties, birthdays, family events"
-                image="/images/projects/smiles.png"
-                stats={[
-                  { label: "People", value: "10-100" },
-                  { label: "Duration", value: "2-5 hrs" }
-                ]}
-                selected={data.shootType === "private"}
-                onClick={() => updateData({ shootType: "private" })}
-              />
-            </div> */}
-
-            {/* Dropdown for other types if needed, or expand cards */}
-            {/* <div className="mt-4">
-              <DropdownSelect
-                title="Other Shoot Types"
-                options={shootTypes.filter(t => !['corporate', 'wedding', 'private'].includes(t.key))}
-                value={['corporate', 'wedding', 'private'].includes(data.shootType) ? "" : data.shootType}
-                onChange={(value) => updateData({ shootType: value })}
-                bgColour={"bg-[#101010]"}
-              />
-            </div> */}
           </div>
 
           {/* Date & Time */}
@@ -596,6 +574,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             <div className="flex gap-4">
               <button
                 onClick={() => updateData({ editsNeeded: true })}
+                disabled={data.shootType === ""}
                 className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.editsNeeded
                   ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
                   : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
@@ -613,6 +592,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
               </button>
               <button
                 onClick={() => updateData({ editsNeeded: false })}
+                disabled={data.shootType === ""}
                 className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.editsNeeded
                   ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
                   : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
@@ -642,9 +622,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Video Edit Type - Show if videographer or cinematographer selected */}
-                  {(data.contentType.includes("videographer") ||
-                    data.contentType.includes("cinematographer")) &&
+                  {/* Video Edit Type - Show if videographer or cinematographer selected: Commented cinematographer as it is not being mentioned anywhere in UI */}
+                  {data.contentType.includes("videographer") &&
+                    //|| data.contentType.includes("cinematographer")) &&
                     editTypeOptions.length > 0 && (
                       <div>
                         <MultiSelectDropdown

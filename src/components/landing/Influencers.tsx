@@ -11,52 +11,87 @@ import { SlidingHeading } from "./SlidingHeading";
 
 export const Influencers = ({ autoplay = false }) => {
   const progress = useMotionValue(0);
-  const smoothProgress = useSpring(progress, { damping: 25, stiffness: 120 });
+  const smoothProgress = useSpring(progress, { damping: 30, stiffness: 200 });
   const [activeIdx, setActiveIdx] = useState(0);
 
   const isDragging = useRef(false);
+  const pointerStartX = useRef(0);
+  const progressAtStart = useRef(0);
+  const lastEventTime = useRef(0);
+  const lastEventX = useRef(0);
 
   // 1. DIRECTIONAL CURSOR LOGIC
-  const handlePointerDown = () => { isDragging.current = true; };
-  const handlePointerUp = () => { isDragging.current = false; };
+  const handlePointerDown = useCallback((e: PointerEvent) => {
+    isDragging.current = true;
+    pointerStartX.current = e.clientX;
+    progressAtStart.current = progress.get();
+    lastEventTime.current = Date.now();
+    lastEventX.current = e.clientX;
+  }, [progress]);
 
   const handlePointerMove = useCallback((e: PointerEvent) => {
     if (!isDragging.current) return;
 
-    // Sensitivity factor: lower is slower/more controlled
-    // movementX > 0 means cursor moved RIGHT, so we add to progress
-    const sensitivity = 0.005;
-    progress.set(progress.get() + e.movementX * sensitivity);
+    //Stop mobile browser "back/forward" navigation
+    if (Math.abs(e.clientX - pointerStartX.current) > 5) {
+      if (e.cancelable) e.preventDefault();
+    }
+
+    const deltaX = e.clientX - pointerStartX.current;
+    // Lower sensitivity means less physical dragging distance required to move the card
+    const sensitivity = window.innerWidth < 768 ? 150 : 300;
+
+    progress.set(progressAtStart.current + (deltaX / sensitivity));
+
+    lastEventX.current = e.clientX;
+    lastEventTime.current = Date.now();
+  }, [progress]);
+
+  const handlePointerUp = useCallback((e: PointerEvent) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+
+    const currentProgress = progress.get();
+    const timeDelta = Date.now() - lastEventTime.current;
+    const velocity = (e.clientX - lastEventX.current) / (timeDelta || 1);
+    const progressDiff = currentProgress - progressAtStart.current;
+
+    // Logic: If moved more than 15% or flicked fast, go to next/prev
+    const threshold = 0.15;
+    const velocityThreshold = 0.4;
+
+    if (Math.abs(progressDiff) > threshold || Math.abs(velocity) > velocityThreshold) {
+      const direction = progressDiff > 0 ? 1 : -1;
+      progress.set(Math.round(progressAtStart.current) + direction);
+    } else {
+      progress.set(Math.round(progressAtStart.current));
+    }
   }, [progress]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // Arrow keys still work for accessibility
-    if (e.key === "ArrowRight") progress.set(progress.get() + 0.5);
-    if (e.key === "ArrowLeft") progress.set(progress.get() - 0.5);
+    if (e.key === "ArrowRight") progress.set(progress.get() + 1);
+    if (e.key === "ArrowLeft") progress.set(progress.get() - 1);
   }, [progress]);
 
   useEffect(() => {
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("pointerdown", handlePointerDown as any);
+    window.addEventListener("pointermove", handlePointerMove as any, { passive: false });
+    window.addEventListener("pointerup", handlePointerUp as any);
+    window.addEventListener("keydown", handleKeyDown as any);
 
     return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("pointerdown", handlePointerDown as any);
+      window.removeEventListener("pointermove", handlePointerMove as any);
+      window.removeEventListener("pointerup", handlePointerUp as any);
+      window.removeEventListener("keydown", handleKeyDown as any);
     };
-  }, [handlePointerMove, handleKeyDown]);
+  }, [handlePointerDown, handlePointerMove, handlePointerUp, handleKeyDown]);
 
   useAnimationFrame((time, delta) => {
-    // Only autoplay if the user isn't currently interacting
     if (autoplay && !isDragging.current) {
       progress.set(progress.get() + delta * 0.0001);
     }
-
     const total = INFLUENCERS.length;
-    // Normalized modulo logic for seamless center tracking
     const current = Math.round(-progress.get()) % total;
     const normalized = current < 0 ? current + total : current;
     if (normalized !== activeIdx) setActiveIdx(normalized);
@@ -65,8 +100,10 @@ export const Influencers = ({ autoplay = false }) => {
   const activeItem = INFLUENCERS[activeIdx];
 
   return (
-    <section className="py-10 lg:py-32 bg-[#010101] overflow-hidden select-none flex flex-col items-center justify-center cursor-grab active:cursor-grabbing">
-      {/* <div className="w-full max-w-[1400px] mx-auto px-4"> */}
+    <section
+      className="py-10 lg:py-32 bg-[#010101] overflow-hidden select-none flex flex-col items-center justify-center cursor-grab active:cursor-grabbing touch-none"
+      style={{ touchAction: 'none' }}
+    >
       <Container>
         {/* HEADER */}
         <div className="text-center mb-6 lg:mb-20">
@@ -139,7 +176,6 @@ export const Influencers = ({ autoplay = false }) => {
 const SocialMetric = ({ icon, label, value, href }: any) => (
   <a href={href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group cursor-pointer">
     <span className="text-[#E8D1AB] group-hover:scale-120 transition-transform">{icon}</span>
-    {/* <span className="text-white/40 text-[10px] tracking-widest uppercase font-bold">{label}</span> */}
     <span className="text-white/80 text-sm lg:text-lg font-semibold">{value}</span>
   </a>
 );
