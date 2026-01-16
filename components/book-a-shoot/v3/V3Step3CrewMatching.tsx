@@ -110,7 +110,8 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
           <div
             onClick={() => handleSelectOption('ai_matchmaker')}
             className={`cursor-pointer rounded-[20px] border transition-all relative overflow-hidden ${data.matchingMethod === 'ai_matchmaker'
-              ? "bg-[#101010] border-[#E8D1AB]"
+              // ? "bg-[#101010] border-[#E8D1AB]"
+              ? "bg-[#101010] border-white/20"
               : "bg-[#171717] border-transparent hover:border-white/20"
               }`}
           >
@@ -151,7 +152,7 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
           </div>
 
           <div
-            className={`cursor-pointer rounded-[20px] border transition-all relative overflow-hidden border-transparent border-white/20`}
+            className={`cursor-pointer rounded-[20px] transition-all relative overflow-hidden border border-white/20`}
           >
             <div className="bg-[#171717] p-7">
               <h4 className="text-lg font-medium text-white mb-2">How AI Matching Works</h4>
