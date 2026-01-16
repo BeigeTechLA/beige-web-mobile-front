@@ -111,7 +111,7 @@ export default function ShootByCategory() {
         </div>
 
         {/* Legend List */}
-        <div className="space-y-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="space-y-4 h-full overflow-y-auto pr-2 custom-scrollbar">
           {currentData.map((item, index) => (
             <div key={index} className="flex items-center justify-between group">
               <div className="flex items-center gap-3">
