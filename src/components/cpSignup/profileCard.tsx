@@ -23,7 +23,7 @@ const roleOptions = [
 ];
 
 const skillOptions = [
- {
+  {
     value: "18",
     label: "Corporate Events",
     description: "Conferences, summits, company offsites",
@@ -158,9 +158,8 @@ const skillOptions = [
 ];
 
 const ProfileCard = ({ data }) => {
-  console.log(data)
   const rawRoles = data?.roles || (data?.role ? [data.role] : []);
-  
+
   // Map IDs to labels and join them
   const roleNames = rawRoles
     .map(roleId => roleOptions.find(opt => opt.value === String(roleId))?.label)
@@ -170,6 +169,10 @@ const ProfileCard = ({ data }) => {
 
   const skills = data?.skills?.map(skillId => skillOptions.find(option => option.value === skillId)?.label).join(", ");
   const profileImage = data?.profilePreview || "/images/loginsignup/Group.png";
+
+  const cleanBio = (value: string) => {
+    return value.replace(/[ ]{3,}/g, "  ").replace(/\n{3,}/g, "\n\n")
+  }
 
   return (
     <div className="relative h-full flex flex-col">
@@ -262,7 +265,7 @@ const ProfileCard = ({ data }) => {
 
           {data?.bio && (
             <div className="flex flex-col gap-[1px]">
-              <p className="text-base font-medium text-white leading-relaxed">{data.bio}</p>
+              <p className="text-base font-medium text-white leading-relaxed whitespace-pre-wrap">{cleanBio(data.bio)}</p>
               <p className="text-xs text-gray-400">Bio</p>
             </div>
           )}

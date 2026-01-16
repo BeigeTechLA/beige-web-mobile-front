@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea"; 
+import { Textarea } from "@/components/ui/textarea";
 import AddEquipments from "./addEquipment";
 import AddSkills from "./addSkills";
 import {
@@ -82,7 +82,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
     try {
       const payload = {
         crew_member_id: data.crew_member_id,
-        primary_role: data.roles, 
+        primary_role: data.roles,
         years_of_experience: Number(data.yoe),
         hourly_rate: Number(data.hourlyRate),
         bio: data.bio || "", // Optional
@@ -94,16 +94,30 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
       toast.success("Step 2 Completed");
       nextStep();
     } catch (err: any) {
-      toast.error("Failed to save", { 
-        description: err?.data?.message || "Something went wrong." 
+      toast.error("Failed to save", {
+        description: err?.data?.message || "Something went wrong."
       });
     }
   };
 
+  const handleBioChange = (e) => {
+    setData({ ...data, bio: e.target.value })
+  }
+
+  const cleanBio = () => {
+    let value = data.bio
+
+    value = value.replace(/ {3,}/g, "  ")
+    value = value.replace(/\n{3,}/g, "\n\n")
+    value = value.trim()
+
+    setData({ ...data, bio: value })
+  }
+
   return (
     <div className="space-y-8 bg-[#101010] text-white pt-4 lg:p-2 relative z-10">
       <form className="space-y-6 lg:space-y-9 lg:mt-14" onSubmit={(e) => e.preventDefault()}>
-        
+
         {/* Roles (Required) */}
         <div className={sectionClasses}>
           <div>
@@ -118,11 +132,10 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
                   key={opt.value}
                   type="button"
                   onClick={() => toggleRole(opt.value)}
-                  className={`px-4 py-2 lg:px-6 lg:py-3 rounded-full border text-sm lg:text-base transition-all flex items-center gap-2 ${
-                    isSelected 
-                      ? "bg-[#E8D1AB] border-[#E8D1AB] text-black font-semibold shadow-[0_0_15px_rgba(232,209,171,0.3)]" 
+                  className={`px-4 py-2 lg:px-6 lg:py-3 rounded-full border text-sm lg:text-base transition-all flex items-center gap-2 ${isSelected
+                      ? "bg-[#E8D1AB] border-[#E8D1AB] text-black font-semibold shadow-[0_0_15px_rgba(232,209,171,0.3)]"
                       : "bg-transparent border-white/20 text-white hover:border-white/50"
-                  }`}
+                    }`}
                 >
                   {isSelected && <Check className="w-4 h-4" />}
                   {opt.label}
@@ -183,7 +196,11 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
           <Textarea
             placeholder="Brief description of expertise..."
             value={data.bio}
-            onChange={(e) => setData({ ...data, bio: e.target.value })}
+            maxLength={400}
+            onChange={handleBioChange}
+            onBlur={cleanBio}
+            autoCorrect="off"
+            autoCapitalize="none"
             className={`${inputClasses} !bg-[#101010] !border-white/30 !text-white placeholder:!text-white/40 !pt-6 min-h-[140px] resize-none focus:!border-[#E8D1AB]`}
           />
         </div>
@@ -213,11 +230,11 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
             <AddEquipments
               value={data.equipments || []}
               names={data.equipmentNames || []}
-              onChange={(ids, names) => 
-                setData({ 
-                  ...data, 
-                  equipments: ids, 
-                  equipmentNames: names 
+              onChange={(ids, names) =>
+                setData({
+                  ...data,
+                  equipments: ids,
+                  equipmentNames: names
                 })
               }
             />
