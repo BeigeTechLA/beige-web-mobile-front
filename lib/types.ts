@@ -283,3 +283,137 @@ export interface PricingPackage {
   hourly_rate?: number;
   features?: string[];
 }
+
+// Project Types - CMS Approval States
+export type ProjectState =
+  | 'RAW_UPLOADED'
+  | 'RAW_TECH_QC_PENDING'
+  | 'RAW_TECH_QC_REJECTED'
+  | 'RAW_TECH_QC_APPROVED'
+  | 'COVERAGE_REVIEW_PENDING'
+  | 'COVERAGE_REJECTED'
+  | 'EDIT_APPROVAL_PENDING'
+  | 'EDIT_IN_PROGRESS'
+  | 'INTERNAL_EDIT_REVIEW_PENDING'
+  | 'CLIENT_PREVIEW_READY'
+  | 'CLIENT_FEEDBACK_RECEIVED'
+  | 'FEEDBACK_INTERNAL_REVIEW'
+  | 'REVISION_IN_PROGRESS'
+  | 'REVISION_QC_PENDING'
+  | 'FINAL_EXPORT_PENDING'
+  | 'READY_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'PROJECT_CLOSED';
+
+export interface Project {
+  project_id: number;
+  booking_id: number;
+  project_code: string;
+  project_name: string;
+  current_state: ProjectState;
+  client_user_id: number;
+  assigned_creator_id?: number;
+  assigned_editor_id?: number;
+  created_at: string;
+  updated_at: string;
+  state_changed_at: string;
+}
+
+export type FileCategory =
+  | 'RAW_FOOTAGE'
+  | 'RAW_AUDIO'
+  | 'EDIT_DRAFT'
+  | 'EDIT_FINAL'
+  | 'CLIENT_DELIVERABLE';
+
+export interface ProjectFile {
+  file_id: number;
+  project_id: number;
+  file_category: FileCategory;
+  file_name: string;
+  file_path: string;
+  file_size_bytes: number;
+  upload_status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  upload_progress: number;
+  validation_status: 'PENDING' | 'PASSED' | 'FAILED';
+  created_at: string;
+}
+
+export interface ProjectStateHistory {
+  history_id: number;
+  project_id: number;
+  from_state: ProjectState | null;
+  to_state: ProjectState;
+  transitioned_by: number;
+  transition_reason?: string;
+  created_at: string;
+}
+
+export interface ProjectFeedback {
+  feedback_id: number;
+  project_id: number;
+  feedback_type: 'CLIENT' | 'INTERNAL_QC';
+  feedback_text: string;
+  video_timestamps?: string;
+  created_by: number;
+  created_at: string;
+}
+
+// Project API Request/Response Types
+export interface CreateProjectData {
+  booking_id: number;
+  project_name: string;
+  client_user_id: number;
+  assigned_creator_id?: number;
+}
+
+export interface TransitionStateData {
+  to_state: ProjectState;
+  transition_reason?: string;
+}
+
+export interface InitiateUploadData {
+  file_name: string;
+  file_size: number;
+  file_type: string;
+  file_category: FileCategory;
+}
+
+export interface UploadSession {
+  upload_session_id: string;
+  file_id: number;
+  chunk_size: number;
+  total_chunks: number;
+}
+
+export interface ChunkUploadResult {
+  chunk_index: number;
+  uploaded: boolean;
+  message: string;
+}
+
+export interface CompleteUploadData {
+  upload_session_id: string;
+}
+
+export interface SubmitFeedbackData {
+  feedback_type: 'CLIENT' | 'INTERNAL_QC';
+  feedback_text: string;
+  video_timestamps?: string;
+}
+
+export interface GetProjectsByUserParams {
+  user_id?: number;
+  role: 'client' | 'creator' | 'editor' | 'admin';
+  status?: ProjectState;
+  state?: ProjectState;
+  dateRange?: 'all' | 'today' | 'week' | 'month';
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface DownloadUrlResponse {
+  download_url: string;
+  expires_at: string;
+}

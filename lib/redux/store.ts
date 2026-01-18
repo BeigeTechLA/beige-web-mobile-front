@@ -20,6 +20,7 @@ import { guestBookingApi } from "./features/booking/guestBookingApi";
 import { waitlistApi } from "./features/waitlist/waitlistApi";
 import { investorApi } from "./features/investors/investorApi";
 import { pricingApi } from "./features/pricing/pricingApi";
+import { projectsApi } from "./features/projects/projectsApi";
 
 // Persist config for booking slice only
 const bookingPersistConfig = {
@@ -47,6 +48,7 @@ const rootReducer = combineReducers({
   [waitlistApi.reducerPath]: waitlistApi.reducer,
   [investorApi.reducerPath]: investorApi.reducer,
   [pricingApi.reducerPath]: pricingApi.reducer,
+  [projectsApi.reducerPath]: projectsApi.reducer,
 });
 
 export const store = configureStore({
@@ -64,7 +66,8 @@ export const store = configureStore({
       guestBookingApi.middleware,
       waitlistApi.middleware,
       investorApi.middleware,
-      pricingApi.middleware
+      pricingApi.middleware,
+      projectsApi.middleware
     ),
 });
 

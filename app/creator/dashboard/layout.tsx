@@ -10,7 +10,8 @@ import {
   LogOut,
   Wallet,
   Settings,
-  Calendar
+  Calendar,
+  FolderKanban
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -135,6 +136,20 @@ function Sidebar({
         >
           <Camera size={20} />
           <span>Request & Shoots</span>
+        </Link>
+
+        <Link
+          href="/creator/dashboard/projects"
+          onClick={onClose}
+          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
+            ${isActive("/creator/dashboard/projects")
+              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+              : "text-white/60 hover:text-white hover:bg-white/5"
+            }
+          `}
+        >
+          <FolderKanban size={20} />
+          <span>Projects</span>
         </Link>
 
         <Link
