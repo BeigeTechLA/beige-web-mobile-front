@@ -103,82 +103,63 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
         </div>
 
         {/* Matching Method Selection */}
-        {/* <div className="pt-6 lg:pt-15 border-t border-white/10"> */}
         <div className="">
-
-          {/* <h3 className="text-xl font-medium text-white/90 mb-6">How would you like to proceed?</h3> */}
-
           <div className="flex flex-col gap-6">
             {/* AI Matchmaker */}
-            <div
-              onClick={() => handleSelectOption('ai_matchmaker')}
-              className={`cursor-pointer rounded-[20px] border transition-all relative overflow-hidden ${data.matchingMethod === 'ai_matchmaker'
-                // ? "bg-[#101010] border-[#E8D1AB]"
-                ? "bg-[#101010] border-white/20"
-                : "bg-[#171717] border-transparent hover:border-white/20"
-                }`}
-            >
-              <div className="p-4 lg:p-8">
-                {/* {data.matchingMethod === 'ai_matchmaker' && (
-								<div className="absolute top-4 right-4 w-6 h-6 bg-[#E8D1AB] rounded-full flex items-center justify-center text-black">
-									<Check size={14} strokeWidth={3} />
-								</div>
-							)} */}
-
+            <div className="">
+              <div className="">
                 <div className="flex gap-4 items-center mb-6">
                   <div className="w-15 h-15 rounded-full bg-gradient-to-br from-[#E8D1AB] to-[#C8B18B] flex items-center justify-center">
-                    {/* <span className="text-2xl text-black">✨</span> */}
-                    <Sparkles size={31} className="text-black font-light" />
+                    <Sparkles size={30} className="text-black font-light" />
                   </div>
-                  <h4 className="text-base lg:text-[22px] font-bold text-[#E8D1AB] mb-2">AI Matchmaker</h4>
+                  <h4 className="text-base lg:text-[22px] font-bold text-[#E8D1AB] mb-2"><span className="text-white">About </span>AI Matchmaker</h4>
                 </div>
-                <hr className="border-white/10 mb-5" />
-                <p className="text-white text-base lg:text-lg max-w-xl leading-relaxed">
+                <p className="text-white text-base lg:text-lg leading-relaxed">
                   Our AI analyzes your project requirements and budget to find the perfect creative partners instantly.
                 </p>
               </div>
 
-              <div className="flex gap-2 lg:gap-5 bg-[#171717] p-4 lg:p-5">
-                <div className="flex items-center gap-2 text-sm text-white/80">
-                  <Check size={15} className="text-[#E8D1AB]" />
+              <div className="flex flex-col lg:flex-row gap-2 lg:gap-5 py-4 lg:py-5">
+                <div className="flex items-center gap-2 text-base lg:text-lg text-[#A9A9A9]">
+                  <Check size={27} className="text-[#E8D1AB]" />
                   <span>Optimal team composition</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-white/80">
-                  <Check size={15} className="text-[#E8D1AB]" />
+                <div className="flex items-center gap-2 text-base lg:text-lg text-[#A9A9A9]">
+                  <Check size={27} className="text-[#E8D1AB]" />
                   <span>Matched based on your budget</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-white/80">
-                  <Check size={15} className="text-[#E8D1AB]" />
+                <div className="flex items-center gap-2 text-base lg:text-lg text-[#A9A9A9]">
+                  <Check size={27} className="text-[#E8D1AB]" />
                   <span>Industry best practices</span>
                 </div>
               </div>
             </div>
 
             <div
-              className={`cursor-pointer rounded-[20px] transition-all relative overflow-hidden border border-white/20`}
+              className={`cursor-pointer transition-all relative overflow-hidden pt-6 lg:pt-15 border-t border-white/10`}
             >
-              <div className="bg-[#171717] p-4 lg:p-7">
-                <h4 className="text-lg font-medium text-white mb-2">How AI Matching Works</h4>
-                <p className="text-white/60 text-sm leading-relaxed">
+              <div className="mb-4 lg:mb-10">
+                <h4 className="text-lg lg:text-2xl font-medium text-[#E8D1AB] mb-2">How AI Matching Works</h4>
+                <p className="text-[#A9A9A9] lg:text-lg leading-relaxed">
                   Our intelligent matching system considers multiple factors to build your ideal crew:
                 </p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 lg:p-7">
-                <div className="flex items-center gap-1 text-sm text-white/80">
+              <div className="flex flex-col gap-5">
+                <div className="flex items-center gap-1 text-base lg:text-lg text-white">
                   <Dot size={30} className="text-[#E8D1AB]" />
-                  <span>Shoot Type & Complexity: Different shoots require different team sizes</span>
+                  <p><span className="text-[#E8D1AB]">Shoot Type & Complexity:</span> Different shoots require different team sizes</p>
                 </div>
-                <div className="flex items-center gap-1 text-sm text-white/80">
+                <div className="flex items-center gap-1 text-base lg:text-lg text-white">
                   <Dot size={30} className="text-[#E8D1AB]" />
-                  <span>Budget Range: We match crews that fit your budget tier</span>
+                  <p><span className="text-[#E8D1AB]">Budget Range:</span> We match crews that fit your budget tier</p>
                 </div>
-                <div className="flex items-center gap-1 text-sm text-white/80">
+                <div className="flex items-center gap-1 text-base lg:text-lg text-white">
                   <Dot size={30} className="text-[#E8D1AB]" />
-                  <span>Deliverables: The number and type of edits you need</span>
+                  <p><span className="text-[#E8D1AB]">Deliverables: </span>The number and type of edits you need</p>
                 </div>
-                <div className="flex items-center gap-1 text-sm text-white/80">
+                <div className="flex items-center gap-1 text-base lg:text-lg text-white">
                   <Dot size={30} className="text-[#E8D1AB]" />
-                  <span>Industry Standards: Based on thousands of successful projects</span>
+                  <p><span className="text-[#E8D1AB]">Industry Standards:</span> Based on thousands of successful projects</p>
                 </div>
               </div>
             </div>
@@ -208,8 +189,6 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
           </div>
         </div>
       </div>
-
-
 
       {/* Navigation */}
       <div className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
