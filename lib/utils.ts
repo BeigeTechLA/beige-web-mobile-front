@@ -152,3 +152,12 @@ export async function compressPDF(file: File): Promise<File> {
     return file;
   }
 }
+
+export const isValidUrl = (urlString: string) => {
+  try {
+    new URL(urlString);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}

@@ -9,6 +9,7 @@ import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
 import { Video, Camera, Scissors, Mic, User, Film, MonitorPlay } from "lucide-react";
 import { Check } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { isValidUrl } from "@/lib/utils";
 
 interface Props {
   data: BookingDataV3;
@@ -99,6 +100,11 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       return;
     }
 
+    if (data.referenceLinks !== "" && !isValidUrl(data.referenceLinks)) {
+      toast.error("Please enter a valid reference link");
+      return;
+    }
+
     // Calculate total crew count: base crew + extra crew
     const baseCrewCount = includedRoles.length;
     const extraCrewCount = Object.values(extraTeam).reduce((sum, count) => sum + count, 0);
@@ -116,7 +122,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   });
 
   return (
-    <div className="flex flex-col gap-12 w-full animate-in fade-in duration-500">
+    <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
 
       {/* Header */}
       <div className="text-center">
@@ -125,8 +131,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       </div>
 
       {/* Team Included */}
-      <div className="pt-8 lg:pt-15 border-t border-white/10">
-        <h3 className="text-xl font-medium text-white/90 mb-4">Team Included in Package</h3>
+      <div className="pt-6 lg:pt-15 border-t border-white/10">
+        <h3 className="text-base lg:text-xl font-medium text-white/90 mb-4">Team Included in Package</h3>
         <div className="">
           {includedRoles.length > 0 ? (
             <div className="flex flex-col gap-4">
@@ -152,8 +158,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
       {/* Add More Team Members */}
       <div>
-        <div className="flex flex-col gap-3 lg:gap-6 mb-6">
-          <h3 className="text-xl font-medium text-white">Would you like to add more Team Members?</h3>
+        <div className="flex flex-col gap-3 lg:gap-6">
+          <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
           <div className="flex gap-2 lg:gap-6">
             <button
               onClick={() => updateData({ addTeamMembers: true })}
@@ -193,7 +199,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         </div>
 
         {data.addTeamMembers && (
-          <div className="bg-[#171717] rounded-[20px] p-6 border border-white/5 animate-in slide-in-from-top-4">
+          <div className="bg-[#171717] rounded-[20px] p-3 lg:p-6 border border-white/5 animate-in slide-in-from-top-4 mt-4 md:mt-6">
             <div className="flex flex-col gap-4">
               {availableRolesToAdd.length > 0 ? (
                 availableRolesToAdd.map((role) => (
@@ -223,7 +229,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       </div>
 
       {/* Location */}
-      <div className="pt-8 lg:pt-15 border-t border-white/10">
+      <div className="pt-6 lg:pt-15 border-t border-white/10">
         {/* <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3> */}
         <LocationPicker
           value={data.location}
@@ -234,7 +240,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       </div>
 
       {/* Details Form */}
-      <div className="pt-8 lg:pt-15 border-t border-white/10 flex flex-col gap-10 mt-4">
+      <div className="pt-6 lg:pt-15 border-t border-white/10 flex flex-col gap-4 lg:gap-10">
         <div className="relative">
           <label
             htmlFor="specialInstructions"
@@ -270,7 +276,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       </div>
 
       {/* Navigation */}
-      <div className="flex gap-3 lg:gap-6 items-center pt-8 pt-15 border-t border-white/10">
+      <div className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
         <Button
           onClick={onBack}
           className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] "
@@ -280,7 +286,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         <Button
           onClick={handleNext}
           // disabled={!data.shootType || !data.editType}
-          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium  text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
         >
           Continue
         </Button>

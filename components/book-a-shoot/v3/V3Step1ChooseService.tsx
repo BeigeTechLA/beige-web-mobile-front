@@ -414,7 +414,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   };
 
   return (
-    <div className="flex flex-col gap-15 w-full animate-in fade-in duration-500">
+    <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
       {/* Header */}
       <div className="text-center">
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">
@@ -426,8 +426,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       </div>
 
       {/* Content Type */}
-      <div className="pt-8 lg:pt-15 border-t border-white/10">
-        <h3 className="text-xl font-medium text-white/90 mb-6">Content Type</h3>
+      <div className="pt-6 lg:pt-15 border-t border-white/10">
+        <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <ContentTypeCheckbox
             label="Select All"
@@ -483,8 +483,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       {data.contentType.length > 0 && (
         <>
           {/* Shoot Type */}
-          <div className="pt-8 lg:pt-15 border-t border-white/10">
-            <h3 className="text-xl font-medium text-white/90 mb-6">
+          <div className="pt-6 lg:pt-15 border-t border-white/10">
+            <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
               {data.contentType.includes("videographer") &&
                 //  ||data.contentType.includes("cinematographer")) && : Commented cinematographer as it is not being mentioned anywhere in UI
                 data.contentType.includes("photographer")
@@ -525,8 +525,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           </div>
 
           {/* Date & Time */}
-          <div className="pt-8 lg:pt-15 border-t border-white/10">
-            <h3 className="text-xl font-medium text-white/90 mb-6">
+          <div className="pt-6 lg:pt-15 border-t border-white/10">
+            <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
               Shoot Date & Time
             </h3>
             <div className="flex flex-col lg:flex-row gap-6">
@@ -566,8 +566,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           </div>
 
           {/* Edits Needed */}
-          <div className="pt-8 lg:pt-15 border-t border-white/10">
-            <h3 className="text-lg lg:text-[28px] font-medium text-white/90 mb-6">
+          <div className="pt-6 lg:pt-15 border-t border-white/10">
+            <h3 className="text-lg lg:text-[28px] font-medium text-white/90 mb-3 lg:mb-6">
               Edits Needed?
             </h3>
 
@@ -668,7 +668,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       )}
 
       {/* Navigation */}
-      <div className="flex gap-3 lg:gap-6 items-center pt-8 lg:pt-15 border-t border-white/10">
+      <div className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
         <Button
           onClick={onBack}
           className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] "
