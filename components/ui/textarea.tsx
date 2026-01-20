@@ -24,14 +24,14 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         "border-[#D8C29A] bg-white text-black placeholder:text-[#B7AA93]",
 
         // DARK MODE COLORS
-        "dark:border-[#5c4b2e] dark:bg-[#1b1a17] dark:text-white dark:placeholder:text-[#a99876]",
+        "dark:border-white/10 dark:bg-black dark:text-white dark:placeholder:text-white/20",
 
         // -------- HOVER --------
         "hover:border-[#C9A86A] hover:shadow-[0_0_0_4px_rgba(232,216,184,0.35)]",
         "dark:hover:border-[#d4b375] dark:hover:shadow-[0_0_0_4px_rgba(232,216,184,0.15)]",
 
         // -------- FOCUS --------
-        "focus:border-[#C9A86A] focus:bg-white focus:shadow-[0_0_0_6px_rgba(232,216,184,0.65)] focus:outline-none focus:ring-0",
+"focus:border-[#E8D1AB] focus:outline-none focus:ring-0",
         "dark:focus:border-[#d4b375] dark:focus:bg-[#262421] dark:focus:shadow-[0_0_0_6px_rgba(232,216,184,0.4)]",
 
         // -------- DISABLED --------
