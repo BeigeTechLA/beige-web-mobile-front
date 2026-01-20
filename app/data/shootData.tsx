@@ -78,7 +78,7 @@ export const photoShootTypes: { key: string; title: string; details: string; ima
     ]
   },
   {
-    key: "brand_product", title: "Brand & Product", details: "Product photography, campaigns", image: "/images/categories/commercial.jpg", stats: [
+    key: "brand_product", title: "Brand & Product", details: "Product photography, campaigns", image: "/images/categories/Brands&Products.jpg", stats: [
       { label: "People", value: "N/A" },
       { label: "Duration", value: "3-8 hrs" }
     ]
