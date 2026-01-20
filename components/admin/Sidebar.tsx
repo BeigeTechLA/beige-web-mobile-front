@@ -1,16 +1,15 @@
 "use client";
-
 import { Grid2x2X, Camera, LogOut, CopyPlus, FolderOpen, CalendarClock, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const menuItems = [
-  { name: 'Dashboard', icon: Grid2x2X, href: '/admin/dashboard' },
-  { name: 'Shoots', icon: Camera, href: '/admin/shoots' },
-  { name: 'Add ons', icon: CopyPlus, href: '#' },
-  { name: 'File Manager', icon: FolderOpen, href: '#' },
-  { name: 'Availability', icon: CalendarClock, href: '#' },
-  { name: 'Messages', icon: MessageCircle, href: '#' },
+]const menuItems = [
+  { name: 'Dashboard', icon: Grid2x2X, link: '/admin/dashboard' },
+  { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
+  { name: 'Add ons', icon: CopyPlus, link: '#' },
+  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
+  { name: 'Availability', icon: CalendarClock, link: '#' },
+  { name: 'Messages', icon: MessageCircle, link: '#' },
 ];
 
 export default function Sidebar() {
@@ -22,19 +21,21 @@ export default function Sidebar() {
         {/* Navigation Items */}
         <nav className="space-y-3.5">
           {menuItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/admin/dashboard' && pathname?.startsWith(item.href));
+            const isActive =
+              pathname === item.link ||
+              (item.link !== '/admin/dashboard' && pathname?.startsWith(item.link));
             return (
               <Link
                 key={item.name}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-[#E5D5B8] text-black' : 'text-zinc-500 hover:text-white'
-                  }`}
+                href={item.link}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  isActive ? 'bg-[#E5D5B8] text-black' : 'text-zinc-500 hover:text-white'
+                }`}
               >
                 <item.icon size={20} />
                 <span className="font-medium">{item.name}</span>
               </Link>
             );
-          })}
         </nav>
       </div>
 

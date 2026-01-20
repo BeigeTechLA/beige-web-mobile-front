@@ -119,10 +119,10 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 lg:space-y-9">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="relative space-y-2">
-            <Label htmlFor="firstName" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">First Name</Label>
+            <Label htmlFor="firstName" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">First Name*</Label>
             <Input
               id="firstName"
-              placeholder="First Name*"
+              placeholder="First Name"
               type="text"
               disabled={isSubmitting}
               {...form.register("firstName")}
@@ -136,10 +136,10 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
           </div>
 
           <div className="relative space-y-2">
-            <Label htmlFor="lastName" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">First Name</Label>
+            <Label htmlFor="lastName" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">Last Name*</Label>
             <Input
-              id="firstName"
-              placeholder="Last Name*"
+              id="lastName"
+              placeholder="Last Name"
               type="text"
               disabled={isSubmitting}
               {...form.register("lastName")}
@@ -154,9 +154,9 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
         </div>
 
         <div className="relative space-y-2">
-          <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">Email</Label>
+          <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">Email ID*</Label>
           <Input
-            placeholder="Email ID*"
+            placeholder="Email ID"
               type="text"
             disabled={isSubmitting}
             {...form.register("email")}
@@ -171,10 +171,10 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="relative space-y-2">
-            <Label htmlFor="phoneNumber" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">Phone Number</Label>
+            <Label htmlFor="phoneNumber" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">Phone Number*</Label>
             <Input
               id="phoneNumber"
-              placeholder="Phone Number*"
+              placeholder="Phone Number"
               type="tel"
               disabled={isSubmitting}
               {...form.register("phoneNumber")}
@@ -188,10 +188,10 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
           </div>
 
           <div className="relative space-y-2">
-            <Label htmlFor="country" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">Country</Label>
+            <Label htmlFor="country" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">Country*</Label>
             <Input
               id="country"
-              placeholder="Country*"
+              placeholder="Country"
               type="tel"
               disabled={isSubmitting}
               {...form.register("country")}

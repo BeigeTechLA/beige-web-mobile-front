@@ -86,7 +86,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
       !data.workingDistance || 
       !data.profileImage
     ) {
-      toast.error("Please fill in all fields, including your profile picture.");
+      toast.error("Please fill all required fields.");
       return;
     }
 

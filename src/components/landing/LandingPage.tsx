@@ -17,12 +17,16 @@ import { Waitlist } from "@/src/components/landing/Waitlist";
 import { Footer } from "@/src/components/landing/Footer";
 import { Separator } from "@/src/components/landing/Separator";
 import { EarlySignup } from "./EarlySignup";
+import { WelcomeSection } from "./WelcomeSection";
 
 export default function LandingPageV2() {
   return (
     <main className="bg-[#010101] min-h-screen text-white font-sans selection:bg-[#ECE1CE] selection:text-black">
       <Navbar />
       <Hero />
+      <Separator />
+
+      <WelcomeSection />
       <Separator />
 
       <About />

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   DatePicker as MuiDatePicker,
   LocalizationProvider,
@@ -29,12 +29,12 @@ export interface DatePickerColors {
 }
 
 const defaultColors: DatePickerColors = {
-  inputBackground: "#000000", // Changed from #1A1A1A to match Select
+  inputBackground: "#000000",
   inputText: "#FFFFFF",
   inputBorder: "rgba(255, 255, 255, 0.1)",
   inputBorderHover: "rgba(255, 255, 255, 0.2)",
   inputBorderFocus: "#E8D1AB",
-  labelText: "rgba(255, 255, 255, 0.4)", // Updated to match dashboard style
+  labelText: "rgba(255, 255, 255, 0.4)",
   iconColor: "#FFFFFF",
   inputDisabled: "rgba(255, 255, 255, 0.3)",
   accent: "#E8D1AB",
@@ -79,6 +79,14 @@ export const DatePicker: React.FC<Props> = ({
       "&::-webkit-scrollbar": { display: "none" }, // Chrome/Safari
     },
 
+    // --- NEW: Fix Mobile Toolbar Selected Date Text Color ---
+    "& .MuiDatePickerToolbar-title": {
+      color: "#FFFFFF !important", // Main Date Text
+    },
+    "& .MuiDatePickerToolbar-typography": {
+      color: "rgba(255, 255, 255, 0.5) !important", // "SELECT DATE" label
+    },
+
     // Month/Year Header Text and Arrow
     "& .MuiPickersCalendarHeader-label": { color: colors.calendarHeaderText },
     "& .MuiPickersCalendarHeader-switchViewIcon": { color: `${colors.navigationIconColor} !important` },
@@ -114,6 +122,12 @@ export const DatePicker: React.FC<Props> = ({
         opacity: 0.4,
       },
     },
+
+    // Mobile Action Buttons (OK/Cancel)
+    "& .MuiDialogActions-root button": {
+      color: colors.accent,
+      fontWeight: "bold",
+    }
   };
 
   return (
@@ -175,6 +189,15 @@ export const DatePicker: React.FC<Props> = ({
                   ...interiorStyles,
                 },
               },
+            },
+            // Style for Mobile dialog
+            mobilePaper: {
+              sx: {
+                backgroundColor: colors.paperBackground,
+                backgroundImage: "none",
+                border: "1px solid rgba(255,255,255,0.1)",
+                ...interiorStyles,
+              }
             },
           }}
         />

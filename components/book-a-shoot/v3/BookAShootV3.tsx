@@ -228,7 +228,7 @@ export const BookAShootV3 = () => {
   return (
     <div className="bg-[#101010] min-h-screen text-white selection:bg-[#ECE1CE] selection:text-black">
       <Navbar />
-      <main className="relative pt-24 lg:pt-44 pb-16 min-h-screen flex flex-col items-center">
+      <main className="relative pt-24 lg:pt-44 pb-8 lg:pb-16 min-h-screen flex flex-col items-center">
 
         {/* Back Button (hide on loading) */}
         {internalStep !== 4 && (
@@ -248,7 +248,7 @@ export const BookAShootV3 = () => {
             <StepProgressTracker steps={V3_STEPS} currentStep={activeStep} />
           )}
 
-          <div className="w-full max-w-4xl lg:max-w-5xl xl:max-w-7xl min-h-[400px] mt-8">
+          <div className="w-full max-w-4xl lg:max-w-5xl xl:max-w-7xl min-h-[400px] mt-5 lg:mt-8">
             {renderStep()}
           </div>
         </div>

@@ -65,6 +65,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     Array<{ role: string; cost: number }>
   >([]);
   const [durationHours, setDurationHours] = useState<number>(0);
+  const [acceptTerms, setAcceptTerms] = useState(true);
 
   const shootInfo: ShootTypeProps = newshootTypes.find(
     (type) => type.key === data.shootType
@@ -211,7 +212,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   ]);
 
   return (
-    <div className="flex flex-col gap-12 w-full animate-in fade-in duration-500">
+    <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
       {/* Header */}
       <div className="text-center">
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
@@ -222,19 +223,19 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8 pt-8 lg:pt-15 border-t border-white/10 bg-[#101010">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 pt-6 lg:pt-15 border-t border-white/10 bg-[#101010">
         {/* Left Column: Summary & Contact */}
-        <div className="flex-1 flex flex-col gap-8">
+        <div className="flex-1 flex flex-col gap-4 lg:gap-8">
           <div className="cursor-pointer rounded-2xl border transition-all relative overflow-hidden border-white/20">
-            <div className="bg-[#171717] p-7">
-              <h4 className="text-lg font-medium text-white">
+            <div className="bg-[#171717] p-4 lg:p-7">
+              <h4 className="text-base lg:text-lg font-medium text-white">
                 Project Summary
               </h4>
             </div>
 
             {/* Project Summary */}
-            <div className="p-6 flex flex-col gap-3 lg:gap-6 ">
-              <div className="flex items-center gap-4 pb-8 border-b border-b-white/10">
+            <div className="p-4 lg:p-6 flex flex-col gap-3 lg:gap-6 ">
+              <div className="flex items-center gap-4 pb-4 lg:pb-8 border-b border-b-white/10">
                 <div className="w-10 h-10 bg-[#E8D5B533] rounded-[10px] overflow-hidden relative">
                   {/* Placeholder for project image based on type */}
                   <div className="absolute inset-0 bg-[#E8D1AB]/10 flex items-center justify-center text-[#E8D1AB]">
@@ -269,7 +270,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   <div className="flex flex-col lg:flex-row gap-2 lg:gap-0 justify-between lg:items-center flex-1">
                     <div className="w-full">
                       <div className="">
-                        <h4 className="text-[#E8D1AB] text-lg font-bold capitalize">
+                        <h4 className="text-[#E8D1AB] text-base lg:text-lg font-bold capitalize">
                           {shootInfo.title}
                         </h4>
                         <span className="text-sm text-[#A9A9A9]">
@@ -294,7 +295,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       <Calendar size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-lg font-medium capitalize">
+                      <span className="text-white text-base lg:text-lg font-medium capitalize">
                         {format(new Date(data.startDate), "EEEE, dd MMM yyyy")}
                       </span>
                       <span className="text-sm text-[#A9A9A9]">Date</span>
@@ -308,7 +309,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       <Clock size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-lg font-medium capitalize">
+                      <span className="text-white text-base lg:text-lg font-medium capitalize">
                         {format(new Date(data.startDate), "h:mm a")} -{" "}
                         {format(new Date(data.endDate), "h:mm a")}
                       </span>
@@ -339,7 +340,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     <Map size={32} className="text-[#9D9595]" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-white text-lg font-medium line-clamp-2">
+                    <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
                       {data.location || "Location not set"}
                     </span>
                     <span className="text-sm text-[#A9A9A9]">Location</span>
@@ -374,8 +375,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
           {/* Contact Info */}
           <div className="cursor-pointer rounded-2xl border transition-all relative overflow-hidden border-white/20">
-            <div className="bg-[#171717] p-7">
-              <h4 className="text-lg font-medium text-white">
+            <div className="bg-[#171717] p-4 lg:p-7">
+              <h4 className="text-base lg:text-lg font-medium text-white">
                 Contact Information
               </h4>
             </div>
@@ -436,10 +437,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
           {/* Payment Method */}
           <div className="cursor-pointer rounded-2xl border transition-all relative overflow-hidden border-white/20">
-            <div className="bg-[#171717] p-7">
-              <h4 className="text-lg font-medium text-white">Payment Method</h4>
+            <div className="bg-[#171717] p-4 lg:p-7">
+              <h4 className="text-base lg:text-lg font-medium text-white">Payment Method</h4>
             </div>
-            <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-7">
+            <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-4 lg:p-7">
               <div className="bg-[#E8D1AB] p-4 rounded-2xl text-black flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 lg:h-[62px] lg:w-[62px] rounded-lg bg-[#101010] flex items-center justify-center">
@@ -460,8 +461,12 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 </div>
                 <div className="w-5 h-5 lg:w-8 lg:h-8 rounded-full border-2 border-white/20" />
               </div> */}
-              <div className="flex flex-col lg:flex-row gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center">
-                <input type="checkbox" />
+              <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center">
+                <input
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e)=>setAcceptTerms(e.target.checked)}
+                />
                 <p className="text-sm text-[#999]">
                   I agree to the{" "}
                   <span className="text-[#E8D5B5]">Terms & Conditions</span>,{" "}
@@ -476,11 +481,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         {/* Right Column: Pricing Summary (Sticky) */}
         <div className="lg:w-[380px] shrink-0 ">
           <div className="border border-white/10 rounded-2xl ">
-            <div className="bg-[#101010] p-7 rounded-t-2xl">
-              <h3 className="text-xl font-bold">Pricing Summary</h3>
+            <div className="bg-[#101010] p-4 lg:p-7 rounded-t-2xl">
+              <h3 className="text-base lg:text-xl font-bold">Pricing Summary</h3>
             </div>
             <div className="bg-[#171717] text-white">
-              <div className="p-6 border-b border-b-white/10">
+              <div className="p-4 lg:p-6 border-b border-b-white/10">
                 {/* Type of Servioces and Base price - Removed as per user request */}
                 {/* <div className="flex justify-between mb-3.5">
                   <p className="text-[#A9A9A9] text-sm flex items-center gap-1">
@@ -523,11 +528,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 </div>
               </div>
 
-              <div className="p-6 border-b border-b-white/10">
+              <div className="p-4 lg:p-6 border-b border-b-white/10">
                 {isCalculating || quoteTotal === null ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-black/60" />
-                    <span className="ml-3 text-black/60">
+                  <div className="flex items-center justify-center py-4 lg:py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-white/80" />
+                    <span className="ml-3 text-white/80">
                       Calculating quote...
                     </span>
                   </div>
@@ -555,11 +560,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       </div>
                       {crewBreakdown.length !==
                         (data.selectedCrewIds?.length || 0) && (
-                        <div className="text-xs text-yellow-500/80 flex items-center gap-1">
-                          ⚠️ Pricing breakdown showing {crewBreakdown.length}{" "}
-                          crew - check console logs
-                        </div>
-                      )}
+                          <div className="text-xs text-yellow-500/80 flex items-center gap-1">
+                            ⚠️ Pricing breakdown showing {crewBreakdown.length}{" "}
+                            crew - check console logs
+                          </div>
+                        )}
                     </div>
 
                     {/* Detailed Crew Breakdown */}
@@ -609,7 +614,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
                     <div className="border-t border-white/10 pt-4" />
 
-                    <div className="flex justify-between items-center text-lg font-bold">
+                    <div className="flex justify-between items-center text-base lg:text-lg font-bold">
                       <div className="text-sm font-medium text-[#E8D1AB]">
                         Total Amount
                       </div>
@@ -621,7 +626,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 )}
               </div>
 
-              <div className="p-6 border-b border-b-white/10">
+              <div className="p-4 lg:p-6 border-b border-b-white/10">
                 <Button
                   onClick={handlePay}
                   disabled={
