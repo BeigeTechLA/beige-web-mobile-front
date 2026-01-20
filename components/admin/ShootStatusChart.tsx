@@ -35,7 +35,7 @@ const TOTAL_SHOOTS = "4,289";
 
 export const ShootStatusChart = () => {
   return (
-    <div className="w-full bg-[#171717] rounded-2xl text-white border border-[#3D3D3D]">
+    <div className="w-full bg-[#171717] rounded-2xl text-white border border-[#3D3D3D] md:h-[392px]">
       {/* Header */}
       <div className="bg-[#101010] rounded-2xl flex justify-between items-center mb-4 border-b border-b-[#3D3D3D] p-5 ">
        <div className="flex items-center gap-2">

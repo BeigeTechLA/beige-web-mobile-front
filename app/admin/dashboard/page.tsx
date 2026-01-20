@@ -1,7 +1,10 @@
 import { OverallShootsTable } from "@/components/admin/OverallShootsTable";
 import OverviewChart from "@/components/admin/OverviewChart";
+import RecentActivity from "@/components/admin/RecentActivity";
 import ShootByCategory from "@/components/admin/ShootByCategory";
 import ShootStatusChart from "@/components/admin/ShootStatusChart";
+import StackedDashboard from "@/components/admin/StatsModule";
+import { TopCreatives } from "@/components/admin/TopCreatives";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 
@@ -22,14 +25,23 @@ export default function AdminDashboardPage() {
       <OverviewChart />
 
       <div className="flex gap-4 mt-5">
-        <div className="w-3/4">
-          <ShootStatusChart />
+        <div className="w-3/4 flex flex-col gap-4">
+          <StackedDashboard />
+          <TopCreatives />
         </div>
         <div className="w-1/4">
           <ShootByCategory />
         </div>
       </div>
       <OverallShootsTable />
+      <div className="flex gap-4 mt-5">
+        <div className="w-3/4">
+          <ShootStatusChart />
+        </div>
+        <div className="w-1/4">
+        <RecentActivity />
+        </div>
+      </div>
     </>
   )
 }
