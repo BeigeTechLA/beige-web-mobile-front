@@ -28,19 +28,19 @@ todos:
     status: completed
   - id: sales-dashboard-ui
     content: Build sales dashboard pages - layout, sidebar, overview dashboard, leads list, and lead detail pages
-    status: pending
+    status: completed
   - id: sales-components
     content: Create reusable sales components - status badges, leads table, generate discount modal, generate payment link modal
-    status: in_progress
+    status: completed
   - id: booking-tracking-integration
     content: Integrate lead tracking into existing booking flows - track start, payment page reached, and contact sales button
-    status: pending
+    status: completed
   - id: payment-page-discount
     content: Enhance payment page with discount code input, validation, auto-application from URL params, and pricing recalculation
-    status: pending
+    status: completed
   - id: payment-link-landing
     content: Create payment link landing page that validates token, loads booking details, and redirects to payment with discount pre-applied
-    status: pending
+    status: in_progress
   - id: types-utilities
     content: Define TypeScript types for sales entities and create utility functions for discount calculations
     status: completed

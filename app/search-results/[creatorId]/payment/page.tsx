@@ -20,6 +20,9 @@ import type { Creator, Review, Equipment, BookingFormData } from "@/types/paymen
 import { useGetGuestBookingByIdQuery } from "@/lib/redux/features/booking/guestBookingApi";
 import { formatLocationForDisplay } from "@/lib/utils/locationHelpers";
 import { toast } from "sonner";
+import { useTrackPaymentPageReachedMutation, useCreateSalesAssistedLeadMutation, useValidateDiscountCodeMutation, useApplyDiscountCodeMutation } from "@/lib/redux/features/sales/salesApi";
+import { calculateDiscount, formatDiscountCode, getDiscountDescription } from "@/lib/utils/discountHelpers";
+import { Tag, X as CloseIcon } from "lucide-react";
 
 // Initialize Stripe - Replace with your publishable key
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
@@ -35,6 +38,18 @@ function PaymentContent() {
     shootId || '',
     { skip: !shootId }
   );
+
+  // Sales lead tracking
+  const [trackPaymentPageReached] = useTrackPaymentPageReachedMutation();
+  const [createSalesAssistedLead] = useCreateSalesAssistedLeadMutation();
+  const [validateDiscountCode] = useValidateDiscountCodeMutation();
+  const [applyDiscountCode] = useApplyDiscountCodeMutation();
+
+  // Discount code state
+  const [discountCodeInput, setDiscountCodeInput] = useState<string>('');
+  const [appliedDiscountCode, setAppliedDiscountCode] = useState<any>(null);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [isValidatingDiscount, setIsValidatingDiscount] = useState<boolean>(false);
 
   // State
   const [step, setStep] = useState<"loading" | "payment" | "success">("loading");
@@ -101,6 +116,27 @@ function PaymentContent() {
     }
   }, [guestBooking]);
 
+  // Track when payment page is reached
+  useEffect(() => {
+    if (shootId && guestBooking && step === "payment") {
+      trackPaymentPageReached({
+        booking_id: parseInt(shootId),
+        guest_email: guestBooking.guest_email || undefined,
+      }).catch(err => {
+        console.error('Failed to track payment page reached:', err);
+      });
+    }
+  }, [shootId, guestBooking, step, trackPaymentPageReached]);
+
+  // Auto-apply discount code from URL params
+  useEffect(() => {
+    const discountParam = searchParams.get('discount');
+    if (discountParam && !appliedDiscountCode && shootId) {
+      setDiscountCodeInput(discountParam);
+      handleApplyDiscount(discountParam);
+    }
+  }, [searchParams, shootId]);
+
   // Auto-create payment intent when guest booking is loaded
   useEffect(() => {
     const createPaymentIntent = async () => {
@@ -156,9 +192,11 @@ function PaymentContent() {
   // Calculate pricing - no equipment selection for now
   const equipmentCost = 0;
 
-  const totalAmount = creator
+  const baseAmount = creator
     ? (creator.price || creator.hourly_rate || 0) * (bookingData.hours || 1)
     : 0;
+  
+  const totalAmount = baseAmount - discountAmount;
 
   // Handle payment success
   const handlePaymentSuccess = async (paymentIntentId: string) => {
@@ -191,6 +229,83 @@ function PaymentContent() {
   // Handle payment error
   const handlePaymentError = (error: string) => {
     toast.error(error);
+  };
+
+  // Handle "Talk To Someone" (Contact Sales)
+  const handleContactSales = async () => {
+    if (!shootId || !guestBooking) {
+      toast.error('Please complete booking details first');
+      return;
+    }
+
+    try {
+      const response = await createSalesAssistedLead({
+        booking_id: parseInt(shootId),
+        client_name: guestBooking.client_name || undefined,
+        guest_email: guestBooking.guest_email || undefined,
+      }).unwrap();
+
+      if (response.success) {
+        toast.success('Sales team has been notified! We\'ll reach out to you shortly.');
+      }
+    } catch (error: any) {
+      console.error('Error creating sales-assisted lead:', error);
+      toast.error(error?.data?.message || 'Failed to contact sales. Please try again.');
+    }
+  };
+
+  // Handle discount code application
+  const handleApplyDiscount = async (codeToApply?: string) => {
+    const code = codeToApply || discountCodeInput;
+    if (!code || !shootId) {
+      return;
+    }
+
+    setIsValidatingDiscount(true);
+    try {
+      // First validate the code
+      const validateResponse = await validateDiscountCode({
+        code: formatDiscountCode(code),
+        booking_id: parseInt(shootId),
+      }).unwrap();
+
+      if (!validateResponse.success || !validateResponse.data) {
+        toast.error(validateResponse.message || 'Invalid discount code');
+        setIsValidatingDiscount(false);
+        return;
+      }
+
+      // Then apply it to get updated pricing
+      const applyResponse = await applyDiscountCode({
+        code: formatDiscountCode(code),
+        booking_id: parseInt(shootId),
+      }).unwrap();
+
+      if (applyResponse.success && applyResponse.data) {
+        setAppliedDiscountCode(validateResponse.data);
+        const baseAmount = creator ? (creator.price || creator.hourly_rate || 0) * (bookingData.hours || 1) : 0;
+        const discount = calculateDiscount(
+          baseAmount,
+          validateResponse.data.discount_type,
+          validateResponse.data.discount_value
+        );
+        setDiscountAmount(discount);
+        toast.success(`Discount code applied: ${getDiscountDescription(validateResponse.data)}`);
+      }
+    } catch (error: any) {
+      console.error('Error applying discount code:', error);
+      toast.error(error?.data?.message || 'Failed to apply discount code');
+    } finally {
+      setIsValidatingDiscount(false);
+    }
+  };
+
+  // Handle discount code removal
+  const handleRemoveDiscount = () => {
+    setAppliedDiscountCode(null);
+    setDiscountAmount(0);
+    setDiscountCodeInput('');
+    toast.success('Discount code removed');
   };
 
   // Loading state
@@ -337,12 +452,66 @@ function PaymentContent() {
                       </div>
                     )}
 
+                    {/* Discount Code Section */}
+                    <div className="px-5 py-4 border-t border-black/10">
+                      {!appliedDiscountCode ? (
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium text-black/80">Have a discount code?</label>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/40" />
+                              <input
+                                type="text"
+                                value={discountCodeInput}
+                                onChange={(e) => setDiscountCodeInput(e.target.value.toUpperCase())}
+                                onKeyDown={(e) => e.key === 'Enter' && handleApplyDiscount()}
+                                placeholder="Enter code"
+                                className="w-full pl-10 pr-4 py-2 bg-white border border-black/20 rounded-lg text-black placeholder:text-black/40 focus:border-black/40 outline-none transition-colors"
+                                disabled={isValidatingDiscount}
+                              />
+                            </div>
+                            <button
+                              onClick={() => handleApplyDiscount()}
+                              disabled={!discountCodeInput || isValidatingDiscount}
+                              className="px-6 py-2 bg-black text-white rounded-lg font-medium hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            >
+                              {isValidatingDiscount ? 'Applying...' : 'Apply'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Tag className="w-4 h-4 text-green-600" />
+                              <div>
+                                <p className="text-sm font-medium text-green-900">
+                                  {appliedDiscountCode.code}
+                                </p>
+                                <p className="text-xs text-green-700">
+                                  {getDiscountDescription(appliedDiscountCode)}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleRemoveDiscount}
+                              className="p-1 hover:bg-green-100 rounded transition-colors"
+                              title="Remove discount"
+                            >
+                              <CloseIcon className="w-4 h-4 text-green-600" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Pricing Breakdown */}
                     {creator && (
                       <PricingBreakdown
                         hourlyRate={creator.price || creator.hourly_rate || 0}
                         hours={bookingData.hours || 1}
                         equipmentCost={equipmentCost}
+                        discountAmount={discountAmount}
                       />
                     )}
 
@@ -366,7 +535,7 @@ function PaymentContent() {
                   {/* Support Buttons */}
                   <div className="grid grid-cols-2 gap-4 mt-5">
                     <button
-                      onClick={() => console.log("Talk to someone clicked")}
+                      onClick={handleContactSales}
                       className="h-12 lg:h-[67px] border border-white/10 rounded-xl flex items-center justify-center gap-2 hover:bg-white/5 transition-colors text-sm lg:text-lg font-medium bg-[#222222]"
                     >
                       <MessageCircleMore className="w-4 h-4 lg:w-6 lg:h-6 fill-white text-black" />

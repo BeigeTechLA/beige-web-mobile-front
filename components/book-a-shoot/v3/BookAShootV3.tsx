@@ -9,6 +9,7 @@ import { StepProgressTracker } from "@/components/book-a-shoot/StepProgressTrack
 import { ArrowLeft } from "lucide-react";
 import { useCreateGuestBookingMutation } from "@/lib/redux/features/booking/guestBookingApi";
 import { useSaveQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
+import { useTrackBookingStartMutation } from "@/lib/redux/features/sales/salesApi";
 
 import {
   BookingDataV3,
@@ -35,6 +36,7 @@ export const BookAShootV3 = () => {
 
   const [createGuestBooking, { isLoading: isBookingLoading }] = useCreateGuestBookingMutation();
   const [saveQuote, { isLoading: isQuoteLoading }] = useSaveQuoteMutation();
+  const [trackBookingStart] = useTrackBookingStartMutation();
 
   const isSubmitting = isBookingLoading || isQuoteLoading;
 
@@ -50,6 +52,15 @@ export const BookAShootV3 = () => {
   );
 
   const nextStep = () => {
+    // Track booking start when moving from step 1 to step 2
+    if (internalStep === 1) {
+      trackBookingStart({
+        guest_email: undefined, // Will be captured later in the flow
+      }).catch(err => {
+        console.error('Failed to track booking start:', err);
+      });
+    }
+
     if (internalStep === 3) {
       // Step 3 -> Loading -> Crew Selection
       setInternalStep(4); // Loading

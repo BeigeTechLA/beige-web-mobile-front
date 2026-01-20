@@ -7,12 +7,13 @@ interface PricingBreakdownProps {
   hourlyRate: number;
   hours: number;
   equipmentCost: number;
+  discountAmount?: number;
 }
 
-export function PricingBreakdown({ hourlyRate, hours, equipmentCost }: PricingBreakdownProps) {
+export function PricingBreakdown({ hourlyRate, hours, equipmentCost, discountAmount = 0 }: PricingBreakdownProps) {
   const cpCost = hourlyRate * hours;
   const subtotal = cpCost + equipmentCost;
-  const discount = 0; // Can be dynamic based on promotions
+  const discount = discountAmount;
   const total = subtotal - discount;
 
   return (
