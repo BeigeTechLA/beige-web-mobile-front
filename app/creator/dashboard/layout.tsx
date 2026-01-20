@@ -10,7 +10,8 @@ import {
   LogOut,
   Wallet,
   Settings,
-  Calendar
+  Calendar,
+  User
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -163,6 +164,21 @@ function Sidebar({
           <Calendar size={20} />
           <span>Availability</span>
         </Link>
+
+         <Link
+          href="/creator/dashboard/profile"
+          onClick={onClose}
+          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
+            ${isActive("/creator/dashboard/profile")
+              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+              : "text-white/60 hover:text-white hover:bg-white/5"
+            }
+          `}
+        >
+          <User size={20} />
+          <span>Profile</span>
+        </Link>
+
 
 
         {/* New Payouts Button */}
