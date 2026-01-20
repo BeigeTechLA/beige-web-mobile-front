@@ -25,13 +25,13 @@ todos:
     status: completed
   - id: frontend-redux
     content: Create Redux RTK Query API for sales features (salesApi.ts) and integrate with store
-    status: in_progress
+    status: completed
   - id: sales-dashboard-ui
     content: Build sales dashboard pages - layout, sidebar, overview dashboard, leads list, and lead detail pages
     status: pending
   - id: sales-components
     content: Create reusable sales components - status badges, leads table, generate discount modal, generate payment link modal
-    status: pending
+    status: in_progress
   - id: booking-tracking-integration
     content: Integrate lead tracking into existing booking flows - track start, payment page reached, and contact sales button
     status: pending
@@ -43,7 +43,7 @@ todos:
     status: pending
   - id: types-utilities
     content: Define TypeScript types for sales entities and create utility functions for discount calculations
-    status: pending
+    status: completed
   - id: testing
     content: Test complete flows - lead creation, discount generation and application, payment link redemption, and sales dashboard functionality
     status: pending
