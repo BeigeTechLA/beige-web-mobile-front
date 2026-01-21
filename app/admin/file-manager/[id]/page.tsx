@@ -1,119 +1,74 @@
 "use client"
 
 import React, { useState } from "react";
-import UploadModal from "@/components/admin/UploadFilesModal";
-import { Folder, FolderOpen, Grid3X3, History, Link, LinkIcon, List, MoreVertical, Search, Share2, Trash2, Unlink } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, FolderOpen, Grid3X3, History, Link, LinkIcon, List, MoreVertical, Search, Share2, Trash2, Unlink } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
-import { BlackDropdownSelect } from "@/components/auth/BlackDropdown";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 
-interface FolderEntry {
-  id: string;
-  title: string;
-  fileCount: number;
-  category: string;
-  isLinked: boolean;
-  lastOpened: string;
-  userInitials: string;
+const mainFolder = {
+  id: "1",
+  title: "Corporate_Lana_#123456",
+  description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+  fileCount: 2,
+  category: "Corporate Event",
+  isLinked: true,
+  lastOpened: "2 hours ago",
+  userInitials: "DP",
+  subfolders: [
+    {
+      id: "1",
+      title: "Pre_Production",
+      fileCount: 2,
+      lastOpened: "2 hours ago",
+      userInitials: "DP",
+      type: "pre-production"
+    },
+    {
+      id: "2",
+      title: "Post_Production",
+      fileCount: 14,
+      lastOpened: "5 hours ago",
+      userInitials: "KA",
+      type: "post-production"
+    }
+  ]
 }
 
-const folderData = [
-  {
-    id: "1",
-    title: "Corporate_Lana_#123456",
-    fileCount: 2,
-    category: "Corporate Event",
-    isLinked: true,
-    lastOpened: "2 hours ago",
-    userInitials: "DP",
-  },
-  {
-    id: "2",
-    title: "Project_Beige_Final",
-    fileCount: 14,
-    category: "Brands & Products",
-    isLinked: true,
-    lastOpened: "5 hours ago",
-    userInitials: "KA",
-  },
-  {
-    id: "3",
-    title: "Wedding_Vows_Recap",
-    fileCount: 45,
-    category: "Private Events",
-    isLinked: false,
-    lastOpened: "1 day ago",
-    userInitials: "CE",
-  },
-  {
-    id: "4",
-    title: "Commercial_folder_V1",
-    fileCount: 8,
-    category: "Commercial & Advertising",
-    isLinked: true,
-    lastOpened: "3 days ago",
-    userInitials: "DP",
-  },
-  {
-    id: "5",
-    title: "Behind_The_Scenes_2026",
-    fileCount: 120,
-    category: "Behind-the-Scenes",
-    isLinked: false,
-    lastOpened: "1 week ago",
-    userInitials: "JW",
-  },
-  {
-    id: "6",
-    title: "Influencer_Collab_NY",
-    fileCount: 3,
-    category: "Social Content",
-    isLinked: false,
-    lastOpened: "Just now",
-    userInitials: "SK",
-  },
-];
-
+// statuses may change
 const STATUSES = [
   "Linked",
   "Unlinked",
 ]
+interface FolderEntry {
+  id: string;
+  title: string;
+  fileCount: number;
+  lastOpened: string;
+  userInitials: string;
+}
 
-export default function AdminFolderManagerPage() {
+export default function AdminFolderDetailsPage() {
+  const router = useRouter();
+
   const [selectedTab, setSelectedTab] = useState("All Files")
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [filteredFolders, setFilteredFolders] = useState<FolderEntry[]>(folderData);
+  const [filteredFolders, setFilteredFolders] = useState<FolderEntry[]>(mainFolder.subfolders);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [status, setStatus] = React.useState("")
-
-  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [activeFolderTitle, setActiveFolderTitle] = useState<string | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
 
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 
-  const tabs = [
-    { name: "All Files", icon: Folder },
-    { name: "Linked to folders", icon: Link },
-    { name: "Recent", icon: History },
-    { name: "Shared", icon: Share2 },
-    { name: "Trash", icon: Trash2 },
-  ]
-
-  const onChange = ((val: string) => {
-    setSelectedTab(val);
-  })
-
   const handleSearch = (value: string) => {
     setSearchTerm(value);
-
-    // Filter by Title or Category
-    const filtered = folderData.filter((folder) =>
-      folder.title.toLowerCase().includes(value.toLowerCase()) ||
-      folder.category.toLowerCase().includes(value.toLowerCase())
+    const filtered = mainFolder.subfolders.filter((folder) =>
+      folder.title.toLowerCase().includes(value.toLowerCase())
     );
 
     setFilteredFolders(filtered);
@@ -138,36 +93,36 @@ export default function AdminFolderManagerPage() {
     setMenuAnchor(null);
   };
 
+
   return (
     <>
-      <div className="flex justify-between items-center mb-3 lg:mb-6">
-        <div className="text-white">
-          <h1 className="text-2xl leading-[32px] font-semibold mb-1">File Manager</h1>
-          <p className="text-sm text-white/70">Here's what's happening with your folders and requests today.</p>
+      <Button onClick={() => router.back()} className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0">
+        <ArrowLeft size={24} />
+        <span className="text-sm font-medium">Back</span>
+      </Button>
+      <div className="flex items-center gap-5 ">
+        <div className="h-21 w-21 rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] text-[30px] font-medium">
+          {mainFolder.userInitials}
         </div>
-
-        {/* Sort By Date component to be added */}
+        <div className="text-white max-w-3xl">
+          <div className="flex items-center gap-2 ">
+            <h1 className="text-2xl leading-[32px] font-semibold mb-1">{mainFolder.title}</h1>
+            {mainFolder.isLinked ? (
+              <span className="px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+                <LinkIcon size={14} />
+                Linked
+              </span>
+            ) : (
+              <span className="px-2.5 py-1 rounded-full bg-[#FFF1F2] text-[#F43F5E] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+                <Unlink size={14} />
+                Unlinked
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-[#D0D0D0]"><span className="text-[#AAA7A7]">Description: </span>{mainFolder.description}</p>
+        </div>
       </div>
 
-      <div className="flex justify-between items-center">
-        <div className="flex flex-wrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit">
-          {tabs.map((tab, index) => (
-            <Button
-              key={`tab_${index}`}
-              onClick={() => onChange(tab.name)}
-              className={`flex gap-2 px-2 py-1 text-sm font-medium transition-all rounded-lg ${selectedTab === tab.name ? "bg-white text-black " : "hover:bg-white/10"}
-          `}
-            >
-              <tab.icon size={20} />
-              {tab.name}
-            </Button>
-          ))}
-        </div>
-
-        <p className="text-[#8F8F8F]">
-          Storage Used: <span className="text-[#E8D1AB]">{"24.5GB"}</span> / 100GB
-        </p>
-      </div>
 
       <div
         className="h-[1px] w-full my-4 lg:my-9"
@@ -219,7 +174,6 @@ export default function AdminFolderManagerPage() {
                 <List size={20} />
               </Button>
             </div>
-
           </div>
         </div>
 
@@ -231,8 +185,6 @@ export default function AdminFolderManagerPage() {
                   key={folder.id}
                   title={folder.title}
                   fileCount={folder.fileCount}
-                  category={folder.category}
-                  isLinked={folder.isLinked}
                   lastOpened={folder.lastOpened}
                   userInitials={folder.userInitials}
                   onOpenLinkModal={() => handleOpenLinkModal(folder.title)}
@@ -245,9 +197,7 @@ export default function AdminFolderManagerPage() {
                 <thead>
                   <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
                     <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
-                    <th className="py-5 px-6 font-medium">Category</th>
                     <th className="py-5 px-6 font-medium">Files</th>
-                    <th className="py-5 px-6 font-medium">Status</th>
                     <th className="py-5 px-6 font-medium">Last Updated</th>
                     <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
                   </tr>
@@ -262,28 +212,8 @@ export default function AdminFolderManagerPage() {
                         <span className="text-sm font-semibold">{folder.title}</span>
                       </td>
 
-                      <td className="py-5 px-6 text-white text-[15px]">
-                        <span className="px-4 py-1.5 rounded-xl bg-[#171717] text-white text-xs font-medium ">
-                          {folder.category}
-                        </span>
-                      </td>
-
                       <td className="py-5 px-6 ">
                         <p className="text-white">{folder.fileCount.toString().padStart(2, '0')} </p>
-                      </td>
-
-                      <td className="py-5 px-6 ">
-                        {folder.isLinked ? (
-                          <span className="px-2 py-1.5 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
-                            <LinkIcon size={16} />
-                            Linked
-                          </span>
-                        ) : (
-                          <span className="px-2 py-1.5 rounded-full bg-[#FFF1F2] text-[#F43F5E] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
-                            <Unlink size={16} />
-                            Unlinked
-                          </span>
-                        )}
                       </td>
 
                       <td className="py-5 px-6">
@@ -306,6 +236,7 @@ export default function AdminFolderManagerPage() {
           )
         }
       </div>
+
       {/* GLOBAL MENU OVERLAY */}
       {menuAnchor && (
         <FileActionMenu
