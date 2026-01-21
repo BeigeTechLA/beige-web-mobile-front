@@ -466,3 +466,85 @@ export const AddAvailability = async (payload) => {
 //   }
 // };
 
+
+export const GetMyProfile = async (payload) => {
+  try {
+    const response = await api.post("creator/get-profile-detail", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+    console.log('Profile Response:', response);
+  } catch (error) {
+    console.error('Get Profile Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Profile',
+    };
+  }
+};
+
+export const EditMyProfile = async (payload) => {
+  try {
+    const response = await api.post("creator/edit-profile", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+    console.log('Profile Response:', response);
+  } catch (error) {
+    console.error('Get Profile Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Profile',
+    };
+  }
+};
+
+export const UploadProfileFile = async (fileType, files, crewMemberId, metadata = {}) => {
+  try {
+    const formData = new FormData();
+    
+    // 1. Append all files to the 'files[]' field
+    if (Array.isArray(files)) {
+      files.forEach((file) => {
+        formData.append("files[]", file);
+      });
+    } else {
+      formData.append("files[]", files);
+    }
+
+    formData.append("crew_member_id", crewMemberId);
+    
+    // 2. Append metadata
+    if (metadata.title) formData.append("title", metadata.title);
+    if (metadata.tag) formData.append("tag", metadata.tag); 
+
+    const response = await api.post(`creator/profile/files/${fileType}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response;
+  } catch (error) {
+    console.error(`Upload ${fileType} Error:`, error);
+    return { error: true, message: "Upload failed" };
+  }
+};
+
+export const DeleteProfileFile = async (crewFilesId, payload) => {
+  try {
+    // Note: We use api.delete and pass the ID in the URL string
+    const response = await api.delete(`creator/profile-file/${crewFilesId}`, { data: payload });
+    return response;
+  } catch (error) {
+    console.error('Delete File Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to delete file',
+    };
+  }
+};
