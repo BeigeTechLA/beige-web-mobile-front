@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { Folder, MoreVertical, Link as LinkIcon, FolderOpen, Unlink } from 'lucide-react';
-import { Button } from '../ui/button';
+import { Button } from '@/components/ui/button';
 import FileActionMenu from './FileActionMenu';
 
 interface FolderCardProps {
   title: string;
   fileCount: number;
-  category: string;
+  category?: string;
   isLinked?: boolean;
   lastOpened: string;
   userInitials: string;
@@ -17,7 +17,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   title,
   fileCount,
   category,
-  isLinked = true,
+  isLinked,
   lastOpened,
   userInitials,
   onOpenLinkModal
@@ -50,9 +50,9 @@ export const FolderCard: React.FC<FolderCardProps> = ({
 
       {/* Top Section */}
       <div className=" p-3 lg:p-5">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex gap-3">
-            <div className="mt-1">
+        <div className="flex items-start justify-between">
+          <div className="flex gap-3 items-start">
+            <div className="">
               {/* Custom Folder Icon Color */}
               <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
             </div>
@@ -62,33 +62,34 @@ export const FolderCard: React.FC<FolderCardProps> = ({
             </div>
           </div>
           <Button
-            className="text-white/40 hover:text-white transition-colors"
+            className="text-white hover:text-white/90 transition-colors p-0 h-6"
             onClick={handleOpenMenu}
           >
-            <MoreVertical size={20} />
+            <MoreVertical size={24} />
           </Button>
         </div>
 
         {/* Badges */}
-        <div className="flex flex-wrap gap-2 mt-4">
-          <span className="px-4 py-1.5 rounded-full bg-black/40 text-white text-xs font-medium border border-white/5">
-            {category}
-          </span>
-          {isLinked ? (
-            <span className="px-2 py-1.5 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
-              <LinkIcon size={16} />
-              Linked
+        {
+          (category || isLinked) &&
+          <div className="flex flex-wrap gap-2 mt-4">
+            <span className="px-4 py-1.5 rounded-full bg-black/40 text-white text-xs font-medium border border-white/5">
+              {category}
             </span>
-          ) : (
-            <span className="px-2 py-1.5 rounded-full bg-[#FFF1F2] text-[#F43F5E] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
-              <Unlink size={16} />
-              Unlinked
-            </span>
-          )}
-        </div>
-
+            {isLinked ? (
+              <span className="px-2 py-1.5 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+                <LinkIcon size={16} />
+                Linked
+              </span>
+            ) : (
+              <span className="px-2 py-1.5 rounded-full bg-[#FFF1F2] text-[#F43F5E] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+                <Unlink size={16} />
+                Unlinked
+              </span>
+            )}
+          </div>
+        }
       </div>
-
 
       {/* Bottom Section */}
       <div className="flex items-center border-t border-t-white/50 p-3 lg:p-5 gap-3">
@@ -101,6 +102,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
       {/* Menu Overlay */}
       {menuAnchor && (
         <FileActionMenu
+          folderName={title}
           isOpen={true}
           onClose={() => setMenuAnchor(null)}
           onOpenLinkModal={onOpenLinkModal}

@@ -1,17 +1,8 @@
 "use client";
 import { Grid2x2X, Camera, LogOut, CopyPlus, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
 
-type MenuItem = {
-  name: string;
-  icon: any;
-  link?: string;
-  children?: { name: string; link: string }[];
-};
-
-const menuItems: MenuItem[] = [
+const menuItems = [
   { name: 'Dashboard', icon: Grid2x2X, link: '/admin/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
@@ -29,8 +20,16 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-export default function Sidebar() {
-  const pathname = usePathname();
+import { useState } from "react";
+
+type MenuItem = {
+  name: string;
+  icon: any;
+  link?: string;
+  children?: { name: string; link: string }[];
+};
+
+export default function Sidebar({ pathname }: { pathname: string }) {
   const [expanded, setExpanded] = useState<string[]>(['Users']);
 
   const toggleExpand = (name: string) => {
