@@ -3,7 +3,7 @@ import { Grid2x2X, Camera, LogOut, CopyPlus, FolderOpen, CalendarClock, MessageC
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-]const menuItems = [
+const menuItems = [
   { name: 'Dashboard', icon: Grid2x2X, link: '/admin/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
   { name: 'Add ons', icon: CopyPlus, link: '#' },
