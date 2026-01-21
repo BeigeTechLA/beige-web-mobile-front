@@ -32,6 +32,11 @@ export default function Topbar({ pathname }: { pathname: string }) {
                 >
                   {path.split("-").join(" ")}
                 </span>
+                {isLast && path === "messages" && (
+                  <span className="ml-2 px-2 py-0.5 bg-[#202020] text-zinc-500 text-[10px] rounded-full border border-zinc-800">
+                    04 Chats
+                  </span>
+                )}
                 {
                   !isLast &&
                   <span className="mx-2">/</span>
@@ -44,9 +49,16 @@ export default function Topbar({ pathname }: { pathname: string }) {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-4">
+        {
+          pathname.includes("messages") &&
+          <Button className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity">
+            Create Messages
+          </Button>
+        }
         {/* Dashboard elements */}
         {
           pathname.includes("dashboard") &&
+
           <>
             {/* Theme Toggle */}
             <div className="flex items-center bg-zinc-900 rounded-full p-1 border border-zinc-800">
@@ -79,14 +91,14 @@ export default function Topbar({ pathname }: { pathname: string }) {
           <>
             <Button
               className="bg-[#202020] text-white px-5 py-3.5 rounded-lg font-semibold text-sm hover:bg-[#202020]/70 transition-opacity border border-white/20 flex gap-2"
-              // onClick={() => openModal("UPLOAD")}
+            // onClick={() => openModal("UPLOAD")}
             >
               <Upload size={24} />
               Upload Files
             </Button>
             <Button
               className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
-              // onClick={() => openModal("CREATE_FOLDER")}
+            // onClick={() => openModal("CREATE_FOLDER")}
             >
               Create Folder
             </Button>
