@@ -14,16 +14,17 @@ import {
 } from "@/components/ui/select";
 
 const roleOptions = [
-  { value: "1", label: "Director" },
-  { value: "2", label: "Camera Operator" },
-  { value: "3", label: "Audio Engineer" },
-  { value: "4", label: "Lighting Technician" },
-  { value: "5", label: "Video Editor" },
-  { value: "6", label: "Stream Engineer" },
-  { value: "7", label: "Production Manager" },
-  { value: "8", label: "Graphics Designer" },
+  // { value: "1", label: "Director" },
+  // { value: "2", label: "Camera Operator" },
+  // { value: "3", label: "Audio Engineer" },
+  // { value: "4", label: "Lighting Technician" },
+  // { value: "5", label: "Video Editor" },
+  // { value: "6", label: "Stream Engineer" },
+  // { value: "7", label: "Production Manager" },
+  // { value: "8", label: "Graphics Designer" },
   { value: "9", label: "Videographer" },
   { value: "10", label: "Photographers" },
+  { value: "11", label: "Editor" },
 ];
 
 interface ProfessionalInfoFormProps {
