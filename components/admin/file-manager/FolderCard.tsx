@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Folder, MoreVertical, Link as LinkIcon, FolderOpen, Unlink } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation'; // Added imports
+import { FolderOpen, MoreVertical, Link as LinkIcon, Unlink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FileActionMenu from './FileActionMenu';
 
@@ -22,10 +23,20 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   userInitials,
   onOpenLinkModal
 }) => {
+  const router = useRouter();
+  const pathname = usePathname();
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  const handleOpenFolder = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+
+    const folderSlug = title.toString().trim().toLowerCase().split(" ").join("-");
+    router.push(`${pathname}/${folderSlug}`);
+  };
+
   const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation(); // Stop click from triggering handleOpenFolder
     const rect = e.currentTarget.getBoundingClientRect();
     const container = cardRef.current?.parentElement;
 
@@ -41,19 +52,20 @@ export const FolderCard: React.FC<FolderCardProps> = ({
         y: isInLastRow ? rect.top - 130 : rect.top - 20
       });
     } else {
-      // Fallback
       setMenuAnchor({ x: rect.right - 10, y: rect.top - 20 });
     }
   };
   return (
-    <div className="w-full max-w-[350px] bg-[#18181b] rounded-[24px] border border-white/5 shadow-xl" ref={cardRef}>
-
+    <div
+      ref={cardRef}
+      onClick={handleOpenFolder}
+      className="w-full max-w-[350px] bg-[#18181b] rounded-[24px] border border-white/5 shadow-xl cursor-pointer hover:border-white/20 hover:bg-[#1c1c20] transition-all group"
+    >
       {/* Top Section */}
-      <div className=" p-3 lg:p-5">
+      <div className="p-3 lg:p-5">
         <div className="flex items-start justify-between">
           <div className="flex gap-3 items-start">
-            <div className="">
-              {/* Custom Folder Icon Color */}
+            <div>
               <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
             </div>
             <div>
@@ -70,8 +82,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
         </div>
 
         {/* Badges */}
-        {
-          (category || isLinked) &&
+        {(category || isLinked) && (
           <div className="flex flex-wrap gap-2 mt-4">
             <span className="px-4 py-1.5 rounded-full bg-black/40 text-white text-xs font-medium border border-white/5">
               {category}
@@ -88,7 +99,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
               </span>
             )}
           </div>
-        }
+        )}
       </div>
 
       {/* Bottom Section */}
@@ -106,7 +117,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
           isOpen={true}
           onClose={() => setMenuAnchor(null)}
           onOpenLinkModal={onOpenLinkModal}
-          anchor={menuAnchor} // Pass coordinates
+          anchor={menuAnchor}
         />
       )}
     </div>

@@ -1,14 +1,13 @@
 "use client"
 
 import React, { useState } from "react";
-import UploadModal from "@/components/admin/UploadFilesModal";
 import { Folder, FolderOpen, Grid3X3, History, Link, LinkIcon, List, MoreVertical, Search, Share2, Trash2, Unlink } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
-import { BlackDropdownSelect } from "@/components/auth/BlackDropdown";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
+import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 
 interface FolderEntry {
   id: string;
