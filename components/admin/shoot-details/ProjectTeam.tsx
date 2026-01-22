@@ -31,7 +31,7 @@ export default function ProjectTeam() {
     }
 
     return (
-        <div className="bg-[#111111] rounded-2xl border border-[#222222] h-full flex flex-col items-center justify-center relative overflow-hidden py-6">
+        <div className="bg-[#111111] rounded-2xl border border-[#222222] h-full flex flex-col items-center justify-center relative overflow-hidden py-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
 
             {/* Header */}
             <h3 className="text-white text-lg font-medium mb-4 absolute top-6 z-10">
@@ -50,11 +50,10 @@ export default function ProjectTeam() {
                 <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30">
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="w-20 h-20 bg-[#E5D5B8] rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-transform shadow-lg shadow-[#E5D5B8]/10"
-                    >
+                        className="w-20 h-20 bg-[#E5D5B8] rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-transform shadow-lg shadow-[#E5D5B8]/10">
                         <Plus size={40} className="text-black" />
                     </button>
-                    <h4 className="text-[#E5D5B8] text-xl font-medium">Add Post Production Team</h4>
+                    <h4 className="text-[#E5D5B8] text-base font-medium leading-none">Add Post Production Team</h4>
                 </div>
             )}
 
@@ -68,57 +67,50 @@ export default function ProjectTeam() {
                         <Plus size={24} />
                     </button>
 
-                    {/* Slider Section */}
-                    <div className="w-full mt-10 px-0 relative z-10">
+                    {/* Slider Section - Horizontal Coverflow */}
+                    <div className="w-full h-[220px] mt-24 relative z-10">
                         <Swiper
                             effect={"coverflow"}
                             grabCursor={true}
                             centeredSlides={true}
-                            slidesPerView={1.7}
-                            initialSlide={0}
-                            loop={true}
+                            slidesPerView={"auto"}
                             coverflowEffect={{
                                 rotate: 0,
                                 stretch: 0,
-                                depth: 200,
-                                modifier: 1,
-                                scale: 0.8,
+                                depth: 100,
+                                modifier: 2.5,
                                 slideShadows: false,
                             }}
                             modules={[EffectCoverflow]}
-                            onSlideChange={(swiper) => setActiveIndex(swiper.realIndex)}
-                            className="w-full !overflow-visible project-team-swiper"
+                            className="w-full h-full project-team-swiper"
+                            onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
+                            initialSlide={0}
                         >
                             {TEAM_MEMBERS.map((member, index) => (
-                                <SwiperSlide key={member.id} className="relative aspect-[4/3]">
-                                    <div
-                                        className={`w-full h-full rounded-2xl overflow-hidden relative shadow-lg transition-all duration-300 ${member.bgColor}`}
-                                    >
-                                        <Image
-                                            src={member.image}
-                                            alt={member.name}
-                                            fill
-                                            className="object-cover object-top"
-                                        />
-                                    </div>
+                                <SwiperSlide 
+                                    key={member.id} 
+                                    className={`!w-[280px] !h-[180px] rounded-2xl overflow-hidden shadow-lg transition-all duration-300 ${member.bgColor} ${activeIndex === index ? 'opacity-100' : 'opacity-40'}`}
+                                >
+                                    <Image
+                                        src={member.image}
+                                        alt={member.name}
+                                        fill
+                                        className="object-cover object-top"
+                                    />
                                 </SwiperSlide>
                             ))}
                         </Swiper>
                     </div>
 
                     {/* Text Info */}
-                    <div className="mt-6 text-center z-10 relative">
-                        <h4 className="text-white text-lg font-bold transition-all duration-300">
+                    <div className="mt-auto mb-4 text-center z-10 relative">
+                        <h4 className="text-white text-[22px] font-semibold leading-none tracking-normal transition-all duration-300">
                             {TEAM_MEMBERS[activeIndex]?.name}
                         </h4>
-                        <p className="text-[#888888] text-sm mt-1 transition-all duration-300">
+                        <p className="text-[#888888] text-base font-medium leading-none mt-2 transition-all duration-300">
                             {TEAM_MEMBERS[activeIndex]?.role}
                         </p>
                     </div>
-
-                    {/* Side Masks */}
-                    <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[#111111] to-transparent z-20 pointer-events-none" />
-                    <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#111111] to-transparent z-20 pointer-events-none" />
                 </>
             )}
         </div>

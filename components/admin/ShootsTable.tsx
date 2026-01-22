@@ -33,15 +33,15 @@ const SHOOT_DATA: ShootRecord[] = [
 
 const StatusBadge = ({ status }: { status: ShootStatus }) => {
     const styles = {
-        Initiated: "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-        "Pre Production": "bg-[#FDF4FF] text-[#C065F0] border-[#C065F0]/20",
-        "Post Production": "bg-[#EAEAEA] text-[#666666] border-[#666666]/20",
-        Revision: "bg-[#E6F0FF] text-[#3B82F6] border-[#3B82F6]/20",
-        Completed: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
+        Initiated: "bg-[#FFF9E5] text-[#B18A00]",
+        "Pre Production": "bg-[#FDF4FF] text-[#C065F0]",
+        "Post Production": "bg-[#EAEAEA] text-[#666666]",
+        Revision: "bg-[#E6F0FF] text-[#3B82F6]",
+        Completed: "bg-[#F0FFF4] text-[#22C55E]",
     };
 
     return (
-        <span className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${styles[status]}`}>
+        <span className={`px-6 py-2.5 rounded-full text-base font-medium leading-none ${styles[status]}`}>
             {status}
         </span>
     );
@@ -57,12 +57,12 @@ export const ShootsTable = () => {
     };
 
     return (
-        <div className="w-full bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden">
+        <div className="w-full bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
             {/* Table Grid */}
             <div className="w-full overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="text-[#AAAAAA] text-sm font-normal border-b border-[#333333] cursor-pointer">
+                        <tr className="text-[#AAAAAA] text-base font-medium border-b border-[#333333] cursor-pointer leading-none tracking-normal">
                             <th className="py-5 px-6 font-medium">Shoot ID</th>
                             <th className="py-5 px-6 font-medium">Customer Name</th>
                             <th className="py-5 px-6 font-medium">Category</th>
@@ -79,7 +79,7 @@ export const ShootsTable = () => {
                                 className="border-b border-[#222222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
                             >
                                 {/* ID */}
-                                <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{shoot.id}</td>
+                                <td className="py-5 px-6 text-[#E0E0E0] text-base font-medium leading-none tracking-normal">{shoot.id}</td>
 
                                 {/* Customer Info */}
                                 <td className="py-5 px-6">
@@ -88,17 +88,17 @@ export const ShootsTable = () => {
                                             {shoot.initials}
                                         </div>
                                         <div>
-                                            <p className="text-[#E0E0E0] font-medium text-[15px]">{shoot.customerName}</p>
-                                            <p className="text-[#666666] text-xs mt-0.5">{shoot.date}</p>
+                                            <p className="text-[#E0E0E0] font-medium text-base leading-none tracking-normal">{shoot.customerName}</p>
+                                            <p className="text-[#666666] text-xs mt-1.5">{shoot.date}</p>
                                         </div>
                                     </div>
                                 </td>
 
                                 {/* Category */}
-                                <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{shoot.category}</td>
+                                <td className="py-5 px-6 text-[#E0E0E0] text-base font-medium leading-none tracking-normal">{shoot.category}</td>
 
                                 {/* Price */}
-                                <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{shoot.price}</td>
+                                <td className="py-5 px-6 text-[#E0E0E0] text-base font-medium leading-none tracking-normal">{shoot.price}</td>
 
                                 {/* Status */}
                                 <td className="py-5 px-6">
