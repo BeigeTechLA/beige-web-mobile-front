@@ -124,6 +124,19 @@ function Sidebar({
 
       {/* Navigation */}
       <div className="flex-1 py-6 px-3 space-y-1">
+          <Link
+          href="/creator/dashboard"
+          onClick={onClose}
+          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
+            ${isActive("/creator/dashboard")
+              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+              : "text-white/60 hover:text-white hover:bg-white/5"
+            }
+          `}
+        >
+          <LayoutDashboard size={20} />
+          <span>Dashboard</span>
+        </Link>
         <Link
           href="/creator/dashboard/request"
           onClick={onClose}
@@ -139,10 +152,10 @@ function Sidebar({
         </Link>
 
         <Link
-          href="/creator/dashboard"
+          href="/creator/dashboard/affiliate"
           onClick={onClose}
           className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
-            ${isActive("/creator/dashboard")
+            ${isActive("/creator/dashboard/affiliate")
               ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
               : "text-white/60 hover:text-white hover:bg-white/5"
             }
