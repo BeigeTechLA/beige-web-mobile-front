@@ -1,18 +1,26 @@
 "use client";
-import {
-  Grid2x2X,
-  Camera,
-  LogOut,
-  CopyPlus,
-  FolderOpen,
-  CalendarClock,
-  MessageCircle,
-  Users,
-  ChevronDown,
-} from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { Grid2x2X, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign } from 'lucide-react';
+import Link from 'next/link';
+
+const menuItems = [
+  { name: 'Dashboard', icon: Grid2x2X, link: '/admin/dashboard' },
+  { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
+  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
+  { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
+  { name: 'Availability', icon: CalendarClock, link: '#' },
+  { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
+  {
+    name: 'Users',
+    icon: Users,
+    children: [
+      { name: 'All Users', link: '#' },
+      { name: 'Clients', link: '#' },
+      { name: 'Creative Partners', link: '/admin/users/creative-partners' },
+    ]
+  },
+];
+
+import { useState } from "react";
 
 type MenuItem = {
   name: string;
@@ -81,11 +89,8 @@ export default function Sidebar() {
                 {hasChildren ? (
                   <button
                     onClick={() => toggleExpand(item.name)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
-                      active
-                        ? "bg-[#E5D5B8] text-black"
-                        : "text-zinc-500 hover:text-white"
-                    }`}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-sm ${active ? 'bg-[#E5D5B8] text-black' : 'text-zinc-500 hover:text-white'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <item.icon size={20} />
@@ -98,11 +103,11 @@ export default function Sidebar() {
                   </button>
                 ) : (
                   <Link
-                    href={item.link || "#"}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    href={item.link || '#'}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm ${
                       active
-                        ? "bg-[#E5D5B8] text-black"
-                        : "text-zinc-500 hover:text-white"
+                        ? 'bg-[#E5D5B8] text-black'
+                        : 'text-zinc-500 hover:text-white'
                     }`}
                   >
                     <item.icon size={20} />
