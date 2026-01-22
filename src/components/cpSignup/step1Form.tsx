@@ -205,7 +205,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           <LocationPickerSignup
             value={data.location}
             onChange={(v) => setData({ ...data, location: v })}
-            placeholder="Search Your Location *"
+            placeholder="Search Your Location"
           />
         </div>
 

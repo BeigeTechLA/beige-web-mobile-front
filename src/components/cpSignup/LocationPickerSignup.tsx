@@ -261,9 +261,9 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
       >
         <label
           style={{ color: colors.labelText, backgroundColor: colors.inputBg }}
-          className="absolute -top-3 left-4 px-2 text-sm"
+          className="absolute -top-3 left-4 px-2 text-sm lg:text-base"
         >
-          Location
+          Location *
         </label>
 
         <div className="flex items-center gap-3 h-full px-4">
