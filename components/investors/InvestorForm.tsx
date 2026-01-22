@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -20,6 +20,7 @@ import {
 import { useSubmitInvestorInterestMutation } from "@/lib/redux/features/investors/investorApi";
 import { MultiSelectDropdown } from "./MultiSelectDropdown";
 import { BlackDropdownSelect } from "../auth/BlackDropdown";
+import { DynamicCountrySelect } from "./CountryDropdown";
 
 const investorSchema = z.object({
   firstName: z.string().min(2, "First Name is required"),
@@ -63,26 +64,32 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
   const [submitInvestorInterest, { isLoading: isSubmitting }] =
     useSubmitInvestorInterestMutation();
 
-  const [selectedRounds, setSelectedRounds] = React.useState<string[]>([]);
-  const [selectedTimings, setSelectedTimings] = React.useState<string[]>([]);
-  const [selectedBudget, setSelectedBudget] = React.useState<string[]>([]);
+  const [selectedRounds, setSelectedRounds] = useState<string[]>([]);
+  const [selectedTimings, setSelectedTimings] = useState<string[]>([]);
+  const [selectedBudget, setSelectedBudget] = useState<string[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState("");
 
   const form = useForm<InvestorFormValues>({
     resolver: zodResolver(investorSchema),
   });
 
   // Sync MultiSelectDropdown values with react-hook-form
-  React.useEffect(() => {
+  useEffect(() => {
     form.setValue("investmentRounds", selectedRounds.join(","), { shouldValidate: selectedRounds.length > 0 });
   }, [selectedRounds, form]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     form.setValue("investmentTiming", selectedTimings.join(","), { shouldValidate: selectedTimings.length > 0 });
   }, [selectedTimings, form]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     form.setValue("investmentAmount", selectedBudget.join(","), { shouldValidate: selectedBudget.length > 0 });
   }, [selectedBudget, form]);
+
+
+  useEffect(() => {
+    form.setValue("country", selectedCountry, { shouldValidate: selectedCountry.length > 0 });
+  }, [selectedCountry, form]);
 
   const onSubmit = async (data: InvestorFormValues) => {
     try {
@@ -157,7 +164,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
           <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">Email ID*</Label>
           <Input
             placeholder="Email ID"
-              type="text"
+            type="text"
             disabled={isSubmitting}
             {...form.register("email")}
             className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#171717] text-sm lg:text-lg"
@@ -178,7 +185,7 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
               type="tel"
               disabled={isSubmitting}
               {...form.register("phoneNumber")}
-              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#171717] text-sm lg:text-lg"
+              className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#171717] text-sm lg:text-lg"
             />
             {form.formState.errors.phoneNumber && (
               <p className="text-xs text-red-500">
@@ -187,22 +194,10 @@ export function InvestorForm({ onSuccess }: InvestorFormProps) {
             )}
           </div>
 
-          <div className="relative space-y-2">
-            <Label htmlFor="country" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#171717] text-sm lg:text-base text-white/60">Country*</Label>
-            <Input
-              id="country"
-              placeholder="Country"
-              type="tel"
-              disabled={isSubmitting}
-              {...form.register("country")}
-              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#171717] text-sm lg:text-lg"
-            />
-            {form.formState.errors.country && (
-              <p className="text-xs text-red-500">
-                {form.formState.errors.country.message}
-              </p>
-            )}
-          </div>
+          <DynamicCountrySelect
+            value={selectedCountry}
+            onChange={setSelectedCountry}
+          />
         </div>
 
         <div>
