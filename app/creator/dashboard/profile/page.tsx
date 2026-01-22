@@ -17,7 +17,8 @@ import {
   Phone,
   Navigation,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react";
 
 import FeaturedWorkModal from "@/src/components/cpSignup/FeaturedWorkModal";
@@ -131,6 +132,8 @@ export default function ProfilePage() {
 
   // Modal & Edit States
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false);
   // const [socialLinks, setSocialLinks] = useState([]);
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
@@ -367,6 +370,7 @@ const handleUploadResume = async (e: React.ChangeEvent<HTMLInputElement>) => {
   if (!crewMemberId) return;
 
   try {
+    setIsPageLoading(true);
     // Calling API with "resume" file_type
     const response = await UploadProfileFile(
       "resume", 
@@ -383,6 +387,8 @@ const handleUploadResume = async (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   } catch (err) {
     console.error("Failed to upload resume:", err);
+  } finally {
+    setIsPageLoading(false); // 🔥 HIDE LOADER
   }
 };
 
@@ -432,35 +438,42 @@ const handleAddProject = async (data: any) => {
   if (!crewMemberId) return;
 
   try {
-    // REMOVED THE LOOP - Send all files in one request
+    setIsPageLoading(true); // ✅ START LOADER
+
     const response = await UploadProfileFile(
-      "recent_work", 
-      data.files, // Pass the whole array
-      crewMemberId, 
+      "recent_work",
+      data.files,
+      crewMemberId,
       {
         title: data.title,
-        tag: data.tags.join(',') // Sending as comma separated string
+        tag: data.tags.join(","),
       }
     );
 
     if (response.data && response.data.error === false) {
-      console.log("Project uploaded successfully");
-      
-      // Refresh profile to show new work
-      const updatedProfile = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
+      const updatedProfile = await GetMyProfile({
+        crew_member_id: parseInt(crewMemberId),
+      });
+
       if (updatedProfile.data) {
         setProfile(updatedProfile.data.data);
       }
-      setIsFeaturedModalOpen(false); // Close modal on success
+
+      setIsFeaturedModalOpen(false);
     } else {
       console.error("Upload error:", response.data.message);
     }
   } catch (err) {
     console.error("Failed to upload project:", err);
+  } finally {
+    setIsPageLoading(false); // ✅ STOP LOADER
   }
 };
 
-const handleUploadCertificates = async (e: React.ChangeEvent<HTMLInputElement>) => {
+
+const handleUploadCertificates = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
   const selectedFiles = e.target.files;
   if (!selectedFiles || selectedFiles.length === 0) return;
 
@@ -471,46 +484,61 @@ const handleUploadCertificates = async (e: React.ChangeEvent<HTMLInputElement>) 
   if (!crewMemberId) return;
 
   try {
-    const filesArray = Array.from(selectedFiles);
-    const response = await UploadProfileFile("certifications", filesArray, crewMemberId);
+    setIsPageLoading(true); // 🔥 SHOW LOADER
 
-    if (response.data && response.data.error === false) {
-      const updatedProfile = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
-      if (updatedProfile.data) {
+    const filesArray = Array.from(selectedFiles);
+
+    const response = await UploadProfileFile(
+      "certifications",
+      filesArray,
+      crewMemberId
+    );
+
+    if (response?.data && response.data.error === false) {
+      const updatedProfile = await GetMyProfile({
+        crew_member_id: Number(crewMemberId),
+      });
+
+      if (updatedProfile?.data) {
         setProfile(updatedProfile.data.data);
       }
     }
   } catch (err) {
     console.error("Failed to upload certificates:", err);
+  } finally {
+    setIsPageLoading(false); // 🔥 HIDE LOADER
   }
 };
+
 
 const handleExecuteDelete = async () => {
   const crewMemberId = getCrewId();
   if (!crewMemberId || deleteModal.idsToDelete.length === 0) return;
 
   try {
-    // Call API for each file ID (handles single or multiple)
+    setIsPageLoading(true); // ✅ START LOADER
+
     await Promise.all(
       deleteModal.idsToDelete.map((id) =>
         DeleteProfileFile(id, { crew_member_id: parseInt(crewMemberId) })
       )
     );
 
-    // Close Modals (Delete and Lightbox if open)
     setDeleteModal((prev) => ({ ...prev, isOpen: false }));
     setLightboxData((prev) => ({ ...prev, isOpen: false }));
     setPreviewCert(null);
 
-    // Refresh Profile
     const response = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
     if (response.data && response.data.error === false) {
       setProfile(response.data.data);
     }
   } catch (err) {
     console.error("Delete failed:", err);
+  } finally {
+    setIsPageLoading(false); // ✅ STOP LOADER
   }
 };
+
 
 const certifications = profile.crew_member_files?.filter(
   (f: any) => f.file_type === "certifications"
@@ -1178,6 +1206,16 @@ const certifications = profile.crew_member_files?.filter(
         title={deleteModal.title}
         description={deleteModal.description}
       />
+      {isPageLoading && (
+  <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center">
+    <div className="flex flex-col items-center gap-4">
+      <Loader2 className="h-10 w-10 animate-spin text-[#E8D1AB]" />
+      <p className="text-sm tracking-wide text-white/80">
+      </p>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }
