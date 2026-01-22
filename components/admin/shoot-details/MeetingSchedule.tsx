@@ -51,7 +51,7 @@ export default function MeetingSchedule() {
                 </div>
 
                 <div className="w-full">
-                    <div className="grid grid-cols-4 text-[#888888] text-sm pb-4 px-2 border-b border-[#222222]">
+                    <div className="grid grid-cols-4 text-[#888888] text-base font-medium leading-none pb-4 px-2 border-b border-[#222222]">
                         <span>Date & Time</span>
                         <span>Members</span>
                         <span>Status</span>
@@ -60,7 +60,7 @@ export default function MeetingSchedule() {
                     <div className="flex flex-col">
                         {meetings.map((meeting) => (
                             <div key={meeting.id} className="grid grid-cols-4 items-center py-4 px-2 border-b border-[#222222] last:border-0 hover:bg-white/[0.02] transition-colors">
-                                <span className="text-[#E0E0E0] text-sm font-light">{meeting.date}</span>
+                                <span className="text-[#E0E0E0] text-base font-medium leading-none">{meeting.date}</span>
                                 <div className="flex -space-x-2">
                                     {[...Array(Math.min(meeting.members, 3))].map((_, i) => (
                                         <div key={i} className="w-8 h-8 rounded-full bg-zinc-700 border-2 border-[#111111] relative overflow-hidden">
