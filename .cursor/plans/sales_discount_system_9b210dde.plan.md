@@ -47,6 +47,7 @@ todos:
   - id: testing
     content: Test complete flows - lead creation, discount generation and application, payment link redemption, and sales dashboard functionality
     status: completed
+isProject: false
 ---
 
 # Sales-Driven Discount & Payment Links Implementation Plan
@@ -205,30 +206,29 @@ Update [`/Users/amrik/Documents/revure/revure-v2-backend/src/models/init-models.
 
 1.  **Lead Capture Controller** - [`/Users/amrik/Documents/revure/revure-v2-backend/src/controllers/sales-leads.controller.js`](src/controllers/sales-leads.controller.js)
 
-                                                - `trackBookingStart` - Track when client starts booking
-                                                - `trackPaymentPageReached` - Track when client reaches payment page
-                                                - `createSalesAssistedLead` - Create lead when "Contact Sales" clicked
-                                                - `getLeads` - Get all leads with filters (status, type, assigned rep)
-                                                - `getLeadById` - Get detailed lead information
-                                                - `assignLead` - Assign/reassign lead to sales rep
-                                                - `updateLeadStatus` - Update lead status
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - `trackBookingStart` - Track when client starts booking
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - `trackPaymentPageReached` - Track when client reaches payment page
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - `createSalesAssistedLead` - Create lead when "Contact Sales" clicked
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - `getLeads` - Get all leads with filters (status, type, assigned rep)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - `getLeadById` - Get detailed lead information
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - `assignLead` - Assign/reassign lead to sales rep
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - `updateLeadStatus` - Update lead status
 
 2.  **Update Booking Controllers** - Modify existing:
 
-                                                - [`/Users/amrik/Documents/revure/revure-v2-backend/src/controllers/bookings.controller.js`](src/controllers/bookings.controller.js)
-                                                - [`/Users/amrik/Documents/revure/revure-v2-backend/src/controllers/guest-bookings.controller.js`](src/controllers/guest-bookings.controller.js)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - [`/Users/amrik/Documents/revure/revure-v2-backend/src/controllers/bookings.controller.js`](src/controllers/bookings.controller.js)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - [`/Users/amrik/Documents/revure/revure-v2-backend/src/controllers/guest-bookings.controller.js`](src/controllers/guest-bookings.controller.js)
 
 Add lead tracking calls:
 
-                                                - In `createBooking` and `createGuestBooking`: Call `trackBookingStart`
-                                                - On payment intent creation: Call `trackPaymentPageReached`
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - In `createBooking` and `createGuestBooking`: Call `trackBookingStart`
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - On payment intent creation: Call `trackPaymentPageReached`
 
 ### Phase 3: Discount Code System
 
 **Files to create:**
 
 1.  **Discount Controller** - [`/Users/amrik/Documents/revure/revure-v2-backend/src/controllers/discounts.controller.js`](src/controllers/discounts.controller.js)
-
     ```javascript
     // Key functions:
     -generateDiscountCode(req, res) - // Sales rep generates code
@@ -240,7 +240,6 @@ Add lead tracking calls:
     ```
 
 2.  **Discount Service** - [`/Users/amrik/Documents/revure/revure-v2-backend/src/services/discount.service.js`](src/services/discount.service.js)
-
     ```javascript
     // Utility functions:
     -generateUniqueCode() - // Generate unique 8-char code (e.g., REVURE10)
@@ -253,16 +252,15 @@ Add lead tracking calls:
 
 3.  **Update Pricing Controller** - Modify [`/Users/amrik/Documents/revure/revure-v2-backend/src/controllers/pricing.controller.js`](src/controllers/pricing.controller.js)
 
-                                                - Add discount code parameter to quote generation
-                                                - Recalculate pricing with discount applied
-                                                - Store discount_code_id in quotes table
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Add discount code parameter to quote generation
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Recalculate pricing with discount applied
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Store discount_code_id in quotes table
 
 ### Phase 4: Payment Link System
 
 **Files to create:**
 
 1.  **Payment Links Controller** - [`/Users/amrik/Documents/revure/revure-v2-backend/src/controllers/payment-links.controller.js`](src/controllers/payment-links.controller.js)
-
     ```javascript
     // Key functions:
     -generatePaymentLink(req, res) - // Sales rep generates link
@@ -272,7 +270,6 @@ Add lead tracking calls:
     ```
 
 2.  **Payment Links Service** - [`/Users/amrik/Documents/revure/revure-v2-backend/src/services/payment-links.service.js`](src/services/payment-links.service.js)
-
     ```javascript
     // Utility functions:
     -generateLinkToken() - // Generate unique token
@@ -283,16 +280,15 @@ Add lead tracking calls:
 
 3.  **Update Payment Controller** - Modify [`/Users/amrik/Documents/revure/revure-v2-backend/src/controllers/payments.controller.js`](src/controllers/payments.controller.js)
 
-                                                - Add payment link validation before creating payment intent
-                                                - Update lead status to "payment_link_sent" when link is used
-                                                - Update to "booked" on successful payment
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Add payment link validation before creating payment intent
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Update lead status to "payment_link_sent" when link is used
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Update to "booked" on successful payment
 
 ### Phase 5: Sales Dashboard API
 
 **Files to create:**
 
 1. **Sales Dashboard Controller** - [`/Users/amrik/Documents/revure/revure-v2-backend/src/controllers/sales-dashboard.controller.js`](src/controllers/sales-dashboard.controller.js)
-
    ```javascript
    // Key functions:
    -getDashboardStats(req, res) - // Overview stats
@@ -303,7 +299,6 @@ Add lead tracking calls:
    ```
 
 2. **Sales Routes** - [`/Users/amrik/Documents/revure/revure-v2-backend/src/routes/sales.routes.js`](src/routes/sales.routes.js)
-
    ```javascript
    // Route structure:
    POST /v1/sales/leads/track-start // Track booking start
@@ -313,26 +308,26 @@ Add lead tracking calls:
    GET /v1/sales/leads/:id // Get lead details
    PUT /v1/sales/leads/:id/assign // Assign lead
    PUT /v1/sales/leads/:id/status // Update status
-
+   
    POST /v1/sales/discount-codes // Generate discount code
    GET /v1/sales/discount-codes/:code/validate // Validate code
    POST /v1/sales/discount-codes/:code/apply // Apply to booking
    GET /v1/sales/discount-codes/:id // Get code details
    DELETE /v1/sales/discount-codes/:id // Deactivate code
-
+   
    POST /v1/sales/payment-links // Generate payment link
    GET /v1/sales/payment-links/:token // Get link details
-
+   
    GET /v1/sales/dashboard/stats // Dashboard statistics
    GET /v1/sales/dashboard/leads // Dashboard leads list
    ```
+
 
 ### Phase 6: Authentication & Authorization
 
 **Files to update:**
 
 1. **Auth Middleware** - Update [`/Users/amrik/Documents/revure/revure-v2-backend/src/middleware/auth.middleware.js`](src/middleware/auth.middleware.js)
-
    ```javascript
    // Add new middleware:
    -requireSalesRep() - // Verify user is sales rep
@@ -344,6 +339,7 @@ Add lead tracking calls:
    router.use("/sales", requireSalesRepOrAdmin, require("./sales.routes"));
    ```
 
+
 ## Frontend Implementation
 
 ### Phase 1: Redux API Setup
@@ -351,7 +347,6 @@ Add lead tracking calls:
 **Files to create:**
 
 1.  **Sales API** - [`/Users/amrik/Documents/revure/revure-v2-landing/lib/redux/features/sales/salesApi.ts`](lib/redux/features/sales/salesApi.ts)
-
     ```typescript
     // RTK Query endpoints:
     -getLeads -
@@ -366,7 +361,7 @@ Add lead tracking calls:
 
 2.  **Update Store** - Modify [`/Users/amrik/Documents/revure/revure-v2-landing/lib/redux/store.ts`](lib/redux/store.ts)
 
-                                                - Add salesApi reducer
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Add salesApi reducer
 
 ### Phase 2: Sales Dashboard UI
 
@@ -374,11 +369,10 @@ Add lead tracking calls:
 
 1.  **Sales Layout** - [`/Users/amrik/Documents/revure/revure-v2-landing/app/sales/layout.tsx`](app/sales/layout.tsx)
 
-                                                - Similar structure to admin layout
-                                                - Sales-specific sidebar navigation
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Similar structure to admin layout
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Sales-specific sidebar navigation
 
 2.  **Sales Sidebar** - [`/Users/amrik/Documents/revure/revure-v2-landing/components/sales/Sidebar.tsx`](components/sales/Sidebar.tsx)
-
     ```tsx
     // Menu items:
     - Dashboard (overview stats)
@@ -390,26 +384,26 @@ Add lead tracking calls:
 
 3.  **Sales Dashboard Page** - [`/Users/amrik/Documents/revure/revure-v2-landing/app/sales/dashboard/page.tsx`](app/sales/dashboard/page.tsx)
 
-                                                - Overview statistics cards
-                                                - Recent leads table
-                                                - Performance metrics charts
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Overview statistics cards
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Recent leads table
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Performance metrics charts
 
 4.  **Leads List Page** - [`/Users/amrik/Documents/revure/revure-v2-landing/app/sales/leads/page.tsx`](app/sales/leads/page.tsx)
 
-                                                - Filterable table (status, type, assigned rep)
-                                                - Search by client name/email
-                                                - Actions: View Details, Assign, Generate Link
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Filterable table (status, type, assigned rep)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Search by client name/email
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Actions: View Details, Assign, Generate Link
 
 5.  **Lead Detail Page** - [`/Users/amrik/Documents/revure/revure-v2-landing/app/sales/leads/[id]/page.tsx`](app/sales/leads/[id]/page.tsx)
 
-                                                - Client information section
-                                                - Booking details section
-                                                - Timeline/activity log
-                                                - Actions panel with:
-                                                                                - Generate Discount Code button
-                                                                                - Generate Payment Link button
-                                                                                - Update Status dropdown
-                                                                                - Assign to Rep dropdown
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Client information section
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Booking details section
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Timeline/activity log
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Actions panel with:
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Generate Discount Code button
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Generate Payment Link button
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Update Status dropdown
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Assign to Rep dropdown
 
 ### Phase 3: Sales Components
 
@@ -417,16 +411,15 @@ Add lead tracking calls:
 
 1.  **Lead Status Badge** - [`/Users/amrik/Documents/revure/revure-v2-landing/components/sales/LeadStatusBadge.tsx`](components/sales/LeadStatusBadge.tsx)
 
-                                                - Color-coded status badges
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Color-coded status badges
 
 2.  **Leads Table** - [`/Users/amrik/Documents/revure/revure-v2-landing/components/sales/LeadsTable.tsx`](components/sales/LeadsTable.tsx)
 
-                                                - Columns: Client Name, Email, Lead Type, Status, Last Activity, Assigned Rep, Actions
-                                                - Sortable columns
-                                                - Pagination
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Columns: Client Name, Email, Lead Type, Status, Last Activity, Assigned Rep, Actions
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Sortable columns
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Pagination
 
 3.  **Generate Discount Modal** - [`/Users/amrik/Documents/revure/revure-v2-landing/components/sales/GenerateDiscountModal.tsx`](components/sales/GenerateDiscountModal.tsx)
-
     ```tsx
     // Form fields:
     - Discount Type (percentage/fixed)
@@ -441,7 +434,6 @@ Add lead tracking calls:
     ```
 
 4.  **Generate Payment Link Modal** - [`/Users/amrik/Documents/revure/revure-v2-landing/components/sales/GeneratePaymentLinkModal.tsx`](components/sales/GeneratePaymentLinkModal.tsx)
-
     ```tsx
     // Options:
     - Link existing discount code (dropdown)
@@ -456,15 +448,14 @@ Add lead tracking calls:
 
 5.  **Assign Lead Modal** - [`/Users/amrik/Documents/revure/revure-v2-landing/components/sales/AssignLeadModal.tsx`](components/sales/AssignLeadModal.tsx)
 
-                                                - Sales rep dropdown
-                                                - Assign/Reassign button
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Sales rep dropdown
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - Assign/Reassign button
 
 ### Phase 4: Booking Flow Tracking
 
 **Files to update:**
 
 1. **Booking Modal/Flow** - Update [`/Users/amrik/Documents/revure/revure-v2-landing/app/book-a-shoot/page.tsx`](app/book-a-shoot/page.tsx) and search results booking
-
    ```typescript
    // Add tracking calls:
    - On mount/first interaction: Call trackBookingStart API
@@ -483,12 +474,12 @@ Add lead tracking calls:
    };
    ```
 
+
 ### Phase 5: Payment Page Discount Application
 
 **Files to update:**
 
 1. **Payment Page Enhancement** - Update [`/Users/amrik/Documents/revure/revure-v2-landing/app/search-results/payment/page.tsx`](app/search-results/payment/page.tsx)
-
    ```typescript
    // Add functionality:
    - Check URL for discount code parameter (?discount=CODE)
@@ -509,12 +500,12 @@ Add lead tracking calls:
    - Redirect to payment page with pre-filled data
    ```
 
+
 ### Phase 6: Types & Utilities
 
 **Files to create:**
 
 1. **Types** - [`/Users/amrik/Documents/revure/revure-v2-landing/types/sales.ts`](types/sales.ts)
-
    ```typescript
    export interface SalesLead {
      lead_id: number;
@@ -528,7 +519,7 @@ Add lead tracking calls:
      last_activity_at: string;
      created_at: string;
    }
-
+   
    export type LeadStatus =
      | "in_progress_self_serve"
      | "in_progress_sales_assisted"
@@ -536,7 +527,7 @@ Add lead tracking calls:
      | "discount_applied"
      | "booked"
      | "abandoned";
-
+   
    export interface DiscountCode {
      discount_code_id: number;
      code: string;
@@ -548,7 +539,7 @@ Add lead tracking calls:
      expires_at?: string;
      is_active: boolean;
    }
-
+   
    export interface PaymentLink {
      payment_link_id: number;
      link_token: string;
@@ -567,6 +558,7 @@ Add lead tracking calls:
      isDiscountCodeValid(code) -
      getDiscountDescription(discountCode);
    ```
+
 
 ## Lead Status Flow
 
