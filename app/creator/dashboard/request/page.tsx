@@ -334,7 +334,6 @@ export default function RequestsShootsPage() {
       </div>
 
 
-
       {/* Main Content Area */}
       <div>
         {filteredProjects.length > 0 ? (
