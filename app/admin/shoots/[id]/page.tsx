@@ -20,7 +20,7 @@ export default function ShootDetailsPage({ params }: { params: { id: string } })
 
             {/* Main Content (Left) */}
             <div className="flex-1 p-6 lg:p-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-                <ShootHeader />
+                <ShootHeader activeTab={activeTab} />
 
                 <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
