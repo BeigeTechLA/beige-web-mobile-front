@@ -1,25 +1,7 @@
 "use client";
-import { Grid2x2X, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign } from 'lucide-react';
+import { Grid2x2X, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, CopyPlus } from 'lucide-react';
 import Link from 'next/link';
-
-const menuItems = [
-  { name: 'Dashboard', icon: Grid2x2X, link: '/admin/dashboard' },
-  { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
-  { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
-  { name: 'Availability', icon: CalendarClock, link: '#' },
-  { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
-  {
-    name: 'Users',
-    icon: Users,
-    children: [
-      { name: 'All Users', link: '#' },
-      { name: 'Clients', link: '#' },
-      { name: 'Creative Partners', link: '/admin/users/creative-partners' },
-    ]
-  },
-];
-
+import { usePathname } from 'next/navigation';
 import { useState } from "react";
 
 type MenuItem = {
