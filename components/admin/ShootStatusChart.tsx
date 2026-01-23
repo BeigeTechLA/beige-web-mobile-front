@@ -38,7 +38,7 @@ export const ShootStatusChart = () => {
     <div className="w-full bg-[#171717] rounded-2xl text-white border border-[#3D3D3D] md:h-[392px]">
       {/* Header */}
       <div className="bg-[#101010] rounded-2xl flex justify-between items-center mb-4 border-b border-b-[#3D3D3D] p-5 ">
-       <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h3 className="">Shoot Status</h3>
         </div>

@@ -15,16 +15,79 @@ const data = [
   { name: 'Jul', total: 35, active: 20, completed: 15, clients: 35, cps: 45 },
 ];
 
-const metrics = [
-  { id: 'total', label: 'Total Shoot', value: '691', icon: Video, color: 'bg-[#E5D5B8]' },
-  { id: 'active', label: 'Active Shoot', value: '663', icon: Camera, color: 'bg-zinc-800' },
-  { id: 'completed', label: 'Completed Shoot', value: '16', icon: Film, color: 'bg-zinc-800' },
-  { id: 'clients', label: 'Total Client', value: '181', icon: UsersRound, color: 'bg-zinc-800' },
-  { id: 'cps', label: 'Total CPs', value: '228', icon: Users, color: 'bg-zinc-800' },
+const initialMetrics = [
+  { id: 'total', label: 'Total Shoot', value: '0', growth: 0, icon: Video, color: 'bg-[#E5D5B8]' },
+  { id: 'active', label: 'Active Shoot', value: '0', growth: 0, icon: Camera, color: 'bg-zinc-800' },
+  { id: 'completed', label: 'Completed Shoot', value: '0', growth: 0, icon: Film, color: 'bg-zinc-800' },
+  { id: 'clients', label: 'Total Client', value: '0', growth: 0, icon: UsersRound, color: 'bg-zinc-800' },
+  { id: 'cps', label: 'Total CPs', value: '0', growth: 0, icon: Users, color: 'bg-zinc-800' },
 ];
+
+import { adminApi } from '@/lib/api';
 
 export default function OverviewChart() {
   const [activeMetric, setActiveMetric] = useState('total');
+  const [metrics, setMetrics] = useState<any[]>(initialMetrics);
+  const [isLoading, setIsLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const response = await adminApi.getDashboardSummary();
+        if (response && response.data) {
+          const data = response.data;
+          setMetrics([
+            {
+              id: 'total',
+              label: 'Total Shoot',
+              value: data.total_shoots?.count?.toString() || '0',
+              growth: data.total_shoots?.growth || 0,
+              icon: Video,
+              color: 'bg-[#E5D5B8]'
+            },
+            {
+              id: 'active',
+              label: 'Active Shoot',
+              value: data.active_shoots?.count?.toString() || '0',
+              growth: data.active_shoots?.growth || 0,
+              icon: Camera,
+              color: 'bg-zinc-800'
+            },
+            {
+              id: 'completed',
+              label: 'Completed Shoot',
+              value: data.completed_shoots?.count?.toString() || '0',
+              growth: data.completed_shoots?.growth || 0,
+              icon: Film,
+              color: 'bg-zinc-800'
+            },
+            {
+              id: 'clients',
+              label: 'Total Client',
+              value: '0', // Not in current response, keeping placeholder
+              growth: 0,
+              icon: UsersRound,
+              color: 'bg-zinc-800'
+            },
+            {
+              id: 'cps',
+              label: 'Total CPs',
+              value: data.total_CPs?.count?.toString() || '0',
+              growth: data.total_CPs?.growth || 0,
+              icon: Users,
+              color: 'bg-zinc-800'
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard summary:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSummary();
+  }, []);
 
   return (
     <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-5 w-full text-white mt-9">
@@ -42,7 +105,7 @@ export default function OverviewChart() {
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-10 bg-[#101010] rounded-2xl p-4">
-        {metrics.map((m) => {
+        {metrics.map((m: any) => {
           const isActive = activeMetric === m.id;
           return (
             <div
@@ -59,9 +122,17 @@ export default function OverviewChart() {
                   <m.icon size={20} />
                 </div>
               </div>
-              <div className="text-[26px] font-bold mb-3">{m.value}</div>
+              <div className="text-[26px] font-bold mb-3">
+                {isLoading ? (
+                  <div className="h-8 w-16 bg-white/10 animate-pulse rounded" />
+                ) : (
+                  m.value
+                )}
+              </div>
               <div className={`text-xs flex gap-1 items-center ${isActive ? 'text-[#171717]' : 'text-white/70'}`}>
-                <span className={`font-bold text-sm ${isActive ? 'text-[#047726]' : 'text-[#0DAE3D]'}`}>+3%</span> from last month
+                <span className={`font-bold text-sm ${isActive ? 'text-[#047726]' : 'text-[#0DAE3D]'}`}>
+                  {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
+                </span> from last month
               </div>
             </div>
           );
@@ -104,7 +175,7 @@ export default function OverviewChart() {
               strokeWidth={2}
               fillOpacity={1}
               fill="url(#chartGradient)"
-              activeDot={{ r: 6, fill: '#121212', stroke:'#E5D5B8' , strokeWidth: 2 }}
+              activeDot={{ r: 6, fill: '#121212', stroke: '#E5D5B8', strokeWidth: 2 }}
             />
           </AreaChart>
         </ResponsiveContainer>

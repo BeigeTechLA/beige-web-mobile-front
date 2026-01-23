@@ -1,4 +1,6 @@
 import axios from 'axios';
+import Cookies from 'js-cookie';
+
 import type { Creator, Review, Equipment, PaymentIntentResponse, BookingResponse, BookingFormData } from '@/types/payment';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
@@ -8,7 +10,23 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
+
+// Add request interceptor to include JWT token
+api.interceptors.request.use(
+  (config) => {
+    const token = Cookies.get('revure_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 
 // Role mapping
 const ROLE_MAP: Record<number, string> = {
@@ -393,7 +411,7 @@ export const updateReferralCode = async (payload: {
   }
 };
 
-export const getCrewAvailability = async (payload) => {
+export const getCrewAvailability = async (payload: any) => {
   try {
     const response = await api.post("creator/availability", payload, {
       headers: {
@@ -411,7 +429,7 @@ export const getCrewAvailability = async (payload) => {
   }
 };
 
-export const getProjectDetails = async (payload) => {
+export const getProjectDetails = async (payload: any) => {
   try {
     const response = await api.post("creator/project-details", payload, {
       headers: {
@@ -430,7 +448,7 @@ export const getProjectDetails = async (payload) => {
 };
 
 
-export const AddAvailability = async (payload) => {
+export const AddAvailability = async (payload: any) => {
   try {
     const response = await api.post("creator/add-availability", payload, {
       headers: {
@@ -467,7 +485,7 @@ export const AddAvailability = async (payload) => {
 // };
 
 
-export const GetMyProfile = async (payload) => {
+export const GetMyProfile = async (payload: any) => {
   try {
     const response = await api.post("creator/get-profile-detail", payload, {
       headers: {
@@ -486,7 +504,7 @@ export const GetMyProfile = async (payload) => {
   }
 };
 
-export const EditMyProfile = async (payload) => {
+export const EditMyProfile = async (payload: any) => {
   try {
     const response = await api.post("creator/edit-profile", payload, {
       headers: {
@@ -505,10 +523,10 @@ export const EditMyProfile = async (payload) => {
   }
 };
 
-export const UploadProfileFile = async (fileType, files, crewMemberId, metadata = {}) => {
+export const UploadProfileFile = async (fileType: string, files: File | File[], crewMemberId: string | number, metadata: any = {}) => {
   try {
     const formData = new FormData();
-    
+
     // 1. Append all files to the 'files[]' field
     if (Array.isArray(files)) {
       files.forEach((file) => {
@@ -518,11 +536,11 @@ export const UploadProfileFile = async (fileType, files, crewMemberId, metadata 
       formData.append("files[]", files);
     }
 
-    formData.append("crew_member_id", crewMemberId);
-    
+    formData.append("crew_member_id", crewMemberId.toString());
+
     // 2. Append metadata
     if (metadata.title) formData.append("title", metadata.title);
-    if (metadata.tag) formData.append("tag", metadata.tag); 
+    if (metadata.tag) formData.append("tag", metadata.tag);
 
     const response = await api.post(`creator/profile/files/${fileType}`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -534,7 +552,7 @@ export const UploadProfileFile = async (fileType, files, crewMemberId, metadata 
   }
 };
 
-export const DeleteProfileFile = async (crewFilesId, payload) => {
+export const DeleteProfileFile = async (crewFilesId: string | number, payload: any) => {
   try {
     // Note: We use api.delete and pass the ID in the URL string
     const response = await api.delete(`creator/profile-file/${crewFilesId}`, { data: payload });
@@ -547,4 +565,59 @@ export const DeleteProfileFile = async (crewFilesId, payload) => {
       error: 'Failed to delete file',
     };
   }
+};
+
+export const adminApi = {
+  getDashboardSummary: async () => {
+    try {
+      const response = await api.get('admin/get-dashboard-summary');
+      return response.data;
+    } catch (error) {
+      console.error('Get Dashboard Summary Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch dashboard summary',
+      };
+    }
+  },
+  getTotalRevenue: async () => {
+    try {
+      const response = await api.get('admin/dashboard/revenue/total');
+      return response.data;
+    } catch (error) {
+      console.error('Get Total Revenue Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch total revenue',
+      };
+    }
+  },
+  getMonthlyRevenue: async () => {
+    try {
+      const response = await api.get('admin/dashboard/revenue/monthly');
+      return response.data;
+    } catch (error) {
+      console.error('Get Monthly Revenue Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch monthly revenue',
+      };
+    }
+  },
+  getWeeklyRevenue: async () => {
+    try {
+      const response = await api.get('admin/dashboard/revenue/weekly');
+      return response.data;
+    } catch (error) {
+      console.error('Get Weekly Revenue Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch weekly revenue',
+      };
+    }
+  },
 };
