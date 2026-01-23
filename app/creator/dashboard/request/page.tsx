@@ -12,10 +12,13 @@ import {
   Ban,
   AlertTriangle,
   CheckCircle2,
-  LayoutGrid, 
-  List,       
+  LayoutGrid,
+  List,
   MoreVertical,
-  ChevronRight
+  ChevronRight,
+  Pencil,
+  Trash2,
+  Info
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -25,7 +28,7 @@ import {
   DialogContent,
   DialogTitle,
   DialogHeader,
-} from "@/components/ui/dialog"; 
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,7 +41,8 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { getStatusCount, getPendingProjects, GetUpcomingShoots, acceptOrDeclineProject } from "@/lib/api";
-import ProjectDetailsModal from "@/Crew/ProfileDetailsModal";
+// import ProjectDetailsModal from "@/Crew/ProfileDetailsModal";
+import ProjectDetailsContainer from "@/Crew/ProjectDetailsContainer";
 import { getProject } from "@/lib/api";
 
 import { toast } from "sonner";
@@ -152,7 +156,7 @@ export default function RequestsShootsPage() {
     try {
       const parsed = typeof locationInput === 'string' ? JSON.parse(locationInput) : locationInput;
       if (parsed && parsed.address) addressStr = parsed.address;
-    } catch (e) {}
+    } catch (e) { }
 
     const parts = addressStr.split(',').map(p => p.trim());
     if (parts.length >= 3) {
@@ -226,92 +230,110 @@ export default function RequestsShootsPage() {
     );
   }
 
+  if (projectDetailsOpen && projectDetailsData) {
+  return (
+    <ProjectDetailsContainer
+      apiResponse={projectDetailsData}
+      onBack={() => {
+        setProjectDetailsOpen(false);
+        setProjectDetailsData(null);
+      }}
+    />
+  );
+}
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12 text-white">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between gap-4">
+      <div className="space-y-8">
+        {/* 1. Simple Header: Title & Description */}
         <div>
           <h1 className="text-3xl font-bold">Requests & Shoots</h1>
           <p className="text-white/60">Manage your production schedule and requests</p>
         </div>
-        <div className="flex items-center gap-3">
-          
-          {/* View Toggle - Theme Match */}
-          <div className="flex bg-[#1A1A1A] p-1 rounded-xl border border-white/5">
-            <button
-              onClick={() => setView("grid")}
-              className={`p-2 rounded-lg transition-all ${
-                view === "grid" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
-              }`}
-            >
-              <LayoutGrid size={20} />
-            </button>
-            <button
-              onClick={() => setView("list")}
-              className={`p-2 rounded-lg transition-all ${
-                view === "list" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
-              }`}
-            >
-              <List size={20} />
-            </button>
-          </div>
 
-          <div className="relative">
+        {/* 2. Stats Cards Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="Pending Requests"
+            value={dashboardStats?.pendingRequests || 0}
+            icon={<Clock />}
+            iconColor="text-yellow-500"
+            valueColor="text-yellow-500"
+            hoverBorder="hover:border-yellow-500/30"
+          />
+          <StatCard
+            label="Confirmed Shoots"
+            value={dashboardStats?.confirmedRequests || 0}
+            icon={<Camera />}
+            iconColor="text-[#E8D1AB]"
+            hoverBorder="hover:border-[#E8D1AB]/30"
+          />
+          <StatCard
+            label="Completed"
+            value={dashboardStats?.completedShoots || 0}
+            icon={<CheckCircle2 />}
+            iconColor="text-green-400"
+            valueColor="text-green-400"
+            hoverBorder="hover:border-green-400/30"
+          />
+          <StatCard
+            label="Declined"
+            value={dashboardStats?.declinedRequests || 0}
+            icon={<Ban />}
+            iconColor="text-red-400"
+            valueColor="text-red-400"
+            hoverBorder="hover:border-red-400/30"
+          />
+        </div>
+
+        {/* 3. Filter Bar: Search, Select, and View Toggle */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          {/* Search Box - Now Left Aligned */}
+          <div className="relative w-full md:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
             <Input
               placeholder="Search projects..."
-              className="pl-10 bg-[#1A1A1A] border-white/5 w-[200px]"
+              className="pl-10 bg-[#1A1A1A] border-white/5 w-full md:w-[250px]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="bg-[#1A1A1A] border-white/5 w-[140px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-            </SelectContent>
-          </Select>
+
+          {/* Filter Group - Grouped to stay on the Right */}
+          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="bg-[#1A1A1A] border-white/5 w-full md:w-[140px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="flex bg-[#1A1A1A] p-1 rounded-xl border border-white/5 w-fit">
+              <button
+                onClick={() => setView("grid")}
+                className={`p-2 rounded-lg transition-all ${view === "grid" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
+                  }`}
+              >
+                <LayoutGrid size={20} />
+              </button>
+              <button
+                onClick={() => setView("list")}
+                className={`p-2 rounded-lg transition-all ${view === "list" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
+                  }`}
+              >
+                <List size={20} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Pending Requests"
-          value={dashboardStats?.pendingRequests || 0}
-          icon={<Clock />}
-          iconColor="text-yellow-500"
-          valueColor="text-yellow-500"
-          hoverBorder="hover:border-yellow-500/30"
-        />
-        <StatCard
-          label="Confirmed Shoots"
-          value={dashboardStats?.confirmedRequests || 0}
-          icon={<Camera />}
-          iconColor="text-[#E8D1AB]"
-          hoverBorder="hover:border-[#E8D1AB]/30"
-        />
-        <StatCard
-          label="Completed"
-          value={dashboardStats?.completedShoots || 0}
-          icon={<CheckCircle2 />}
-          iconColor="text-green-400"
-          valueColor="text-green-400"
-          hoverBorder="hover:border-green-400/30"
-        />
-        <StatCard
-          label="Declined"
-          value={dashboardStats?.declinedRequests || 0}
-          icon={<Ban />}
-          iconColor="text-red-400"
-          valueColor="text-red-400"
-          hoverBorder="hover:border-red-400/30"
-        />
-      </div>
+
 
       {/* Main Content Area */}
       <div>
@@ -327,8 +349,8 @@ export default function RequestsShootsPage() {
                   <div className="flex justify-between items-start mb-4">
                     <span
                       className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${item.status === "Confirmed"
-                          ? "bg-green-400/10 text-green-400"
-                          : "bg-blue-400/10 text-blue-400"
+                        ? "bg-green-400/10 text-green-400"
+                        : "bg-blue-400/10 text-blue-400"
                         }`}
                     >
                       {item.status}
@@ -383,98 +405,137 @@ export default function RequestsShootsPage() {
               ))}
             </div>
           ) : (
-            /* --- DYNAMIC LIST VIEW (Matches Theme of Second Image) --- */
+            /* --- DYNAMIC LIST VIEW (Matches Screenshot Style) --- */
             <div className="bg-[#111] border border-white/5 rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-white/5 text-white/40 text-[10px] uppercase tracking-[0.15em]">
-                      <th className="px-6 py-4 font-bold">Project ID</th>
-                      <th className="px-6 py-4 font-bold">Project Details</th>
-                      <th className="px-6 py-4 font-bold">Location</th>
-                      <th className="px-6 py-4 font-bold">Status</th>
-                      <th className="px-6 py-4 font-bold text-right">Actions</th>
+                    <tr className="bg-white/[0.03] text-white/40 text-[11px] uppercase tracking-wider">
+                      <th className="px-6 py-4 font-semibold">Shoot ID</th>
+                      <th className="px-6 py-4 font-semibold">Name</th>
+                      <th className="px-6 py-4 font-semibold">Location</th>
+                      <th className="px-6 py-4 font-semibold">Email</th>
+                          <th className="px-6 py-4 font-semibold">Category</th>
+                      <th className="px-6 py-4 font-semibold">Status</th>
+                      <th className="px-6 py-4 font-semibold text-right pr-12">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {filteredProjects.map((item) => (
-                      <tr 
-                        key={item.project_id} 
-                        className="hover:bg-white/[0.02] transition-colors group"
-                      >
-                        {/* ID Column */}
-                        <td className="px-6 py-5 text-sm text-white/30 font-mono">
-                          #{item.project_id?.toString().slice(-6) || "N/A"}
-                        </td>
+                    {filteredProjects.map((item) => {
+                      // Status Logic Mapping
+                      let statusBg = "bg-[#FEF9C3]"; // Light Yellow
+                      let statusText = "text-[#854D0E]"; // Dark Yellow/Brown
+                      let label = "Pending";
 
-                        {/* Project Info Column */}
-                        <td className="px-6 py-5">
-                          <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-full bg-white text-black flex items-center justify-center font-bold text-[10px]">
-                              {(item.project_name || "PR").split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="text-sm font-bold text-white leading-none mb-1">
-                                {item.project_name || item.title || "Untitled Project"}
+                      if (item.status === "Confirmed") {
+                        statusBg = "bg-[#DCFCE7]"; // Light Green
+                        statusText = "text-[#166534]"; // Dark Green
+                        label = "Approved";
+                      } else if (item.status === "Rejected" || item.status === "Declined") {
+                        statusBg = "bg-[#FEE2E2]"; // Light Red
+                        statusText = "text-[#991B1B]"; // Dark Red
+                        label = "Rejected";
+                      }
+
+                      return (
+                        <tr
+                          key={item.project_id}
+                          className="hover:bg-white/[0.01] transition-colors group"
+                        >
+                          {/* Shoot ID Column */}
+                          <td className="px-6 py-5 text-sm text-white/60">
+                            #{item.project_id?.toString().slice(-6) || "123456"}
+                          </td>
+
+                          {/* Name/Project Details Column */}
+                          <td className="px-6 py-5">
+                            <div className="flex items-center gap-4">
+                              <div className="h-10 w-10 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/10 overflow-hidden flex items-center justify-center text-[#E8D1AB] font-bold text-xs">
+                                {(item.project_name || "PR").split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
                               </div>
-                              <div className="text-[11px] text-white/40">
-                                {item.event_date || item.shoot_date || "Date TBD"}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Location Column */}
-                        <td className="px-6 py-5">
-                          <div className="text-sm text-white/80 max-w-[200px] truncate">
-                            {formatLocation(item.event_location || item.location)}
-                          </div>
-                        </td>
-
-                        {/* Status Column - Theme Colors Mapping */}
-                        <td className="px-6 py-5">
-                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            item.status === "Confirmed" 
-                              ? "bg-[#FDF6E3] text-[#B8860B]" // Beige theme (Initiated)
-                              : "bg-[#F5E6FF] text-[#8A2BE2]" // Purple theme (Pre Production)
-                          }`}>
-                            {item.status === "Confirmed" ? "Confirmed" : "Pending Request"}
-                          </span>
-                        </td>
-
-                        {/* Actions Column */}
-                        <td className="px-6 py-5 text-right">
-                          <div className="flex items-center justify-end gap-3">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleOpenProjectDetails(item.project_id)}
-                              className="text-[11px] text-white/40 hover:text-[#E8D1AB] hover:bg-transparent"
-                            >
-                              View
-                            </Button>
-                            
-                            {item.status === "Pending" && (
-                                <div className="flex items-center gap-1">
-                                    <button 
-                                        onClick={() => setAcceptShootEvent(item)}
-                                        className="p-1.5 rounded-md hover:bg-green-500/10 text-green-500/60 hover:text-green-500 transition-colors"
-                                    >
-                                        <Check size={16} />
-                                    </button>
-                                    <button 
-                                        onClick={() => setDeclineShootEvent(item)}
-                                        className="p-1.5 rounded-md hover:bg-red-500/10 text-red-500/60 hover:text-red-500 transition-colors"
-                                    >
-                                        <X size={16} />
-                                    </button>
+                              <div>
+                                <div className="text-sm font-bold text-white leading-tight">
+                                  {item.project_name || "Untitled"}
                                 </div>
-                            )}
-                            <ChevronRight size={16} className="text-white/10 group-hover:text-white/40 transition-colors" />
-                          </div>
+                                <div className="text-[11px] text-white/40 mt-0.5">
+                                  Production Shoot
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Location Column */}
+                          <td className="px-6 py-5 text-sm text-white/60">
+                            <div className="max-w-[180px] truncate">
+                              {formatLocation(item.event_location || item.location)}
+                            </div>
+                          </td>
+
+                          {/* Email Column */}
+                          <td className="px-6 py-5 text-sm text-white/60">
+                            <div className="max-w-[200px] truncate">
+                              {item.guest_email || "N/A"}
+                            </div>
+                          </td>
+
+                           <td className="px-6 py-5 text-sm text-white/60">
+                          Videographer
                         </td>
-                      </tr>
-                    ))}
+
+                          {/* Status Pill Column (Matched to Screenshot) */}
+                          <td className="px-6 py-5">
+                            <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[12px] font-bold min-w-[100px] ${statusBg} ${statusText}`}>
+                              {label}
+                            </span>
+                          </td>
+
+                          {/* Action Column (Matched to Screenshot) */}
+                          <td className="px-6 py-5">
+                            <div className="flex items-center justify-end gap-6">
+                              {item.status === "Pending" ? (
+                                <div className="flex items-center gap-4">
+                                  {/* Pill Shape Approve Button */}
+                                  <button
+                                    onClick={() => setAcceptShootEvent(item)}
+                                    className="px-4 py-1 rounded-full bg-[#DCFCE7] text-[#166534] text-[12px] font-bold hover:bg-green-200 transition-colors"
+                                  >
+                                    Approve
+                                  </button>
+                                  {/* Red Underlined Decline Link */}
+                                  <button
+                                    onClick={() => setDeclineShootEvent(item)}
+                                    className="text-[#F87171] text-[12px] font-medium underline underline-offset-4 hover:text-red-400"
+                                  >
+                                    Decline
+                                  </button>
+                                </div>
+                              ) : item.status === "Confirmed" ? (
+                                <div className="flex items-center gap-3 text-white/40">
+                                  <button className="hover:text-white transition-colors">
+                                    <Pencil size={18} />
+                                  </button>
+                                  <button className="hover:text-red-400 transition-colors">
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="text-white/20">
+                                  <Info size={18} />
+                                </div>
+                              )}
+
+                              {/* Detail Chevron */}
+                              <button
+                                onClick={() => handleOpenProjectDetails(item.project_id)}
+                                className="text-white/40 hover:text-white transition-colors"
+                              >
+                                <ChevronRight size={20} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -487,13 +548,7 @@ export default function RequestsShootsPage() {
         )}
       </div>
 
-      {/* Modals - Unchanged */}
-      <ProjectDetailsModal
-        open={projectDetailsOpen}
-        onOpenChange={setProjectDetailsOpen}
-        project={projectDetailsData}
-      />
-
+      {/* Modals */}
       <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
         <DialogContent className="bg-[#111] border-white/10 text-white max-w-sm">
           <DialogHeader className="text-center">

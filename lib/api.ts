@@ -621,3 +621,57 @@ export const adminApi = {
     }
   },
 };
+
+export const GetCreatorDashboardCount = async (payload) => {
+  try {
+    const response = await api.post("creator/dashboard-count", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Get Dashboard Count Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Dashboard Count',
+    };
+  }
+};
+
+export const GetCreatorDashboardDetails = async (payload) => {
+  try {
+    const response = await api.post("creator/dashboard-details", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Get Dashboard Details Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Dashboard Details',
+    };
+  }
+};
+
+export const GetCreatorStats = async (payload) => {
+  try {
+    const response = await api.post("creator/get-crew-stats", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Get Crew Stats Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Crew Stats',
+    };
+  }
+};
