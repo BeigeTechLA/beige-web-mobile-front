@@ -210,7 +210,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
                       </div>
                       <div>
                         <div className="text-lg font-medium text-white">{role.label}</div>
-                        <div className="text-sm text-[#E8D1AB]">${role.price.toFixed(2)}</div>
+                        {/* <div className="text-sm text-[#E8D1AB]">${role.price.toFixed(2)}</div> */}
                       </div>
                     </div>
                     <QuantityControl
