@@ -548,3 +548,61 @@ export const DeleteProfileFile = async (crewFilesId, payload) => {
     };
   }
 };
+
+export const GetCreatorDashboardCount = async ( payload) => {
+   try {
+    const response = await api.post("creator/dashboard-count", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+    console.log('Dashboard Count Response:', response);
+  } catch (error) {
+    console.error('Get Dashboard Count Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Dashboard Count',
+    };
+  }
+};
+
+
+export const GetCreatorDashboardDetails = async ( payload) => {
+   try {
+    const response = await api.post("creator/dashboard-details", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+    console.log('Dashboard Count Response:', response);
+  } catch (error) {
+    console.error('Get Dashboard Count Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Dashboard Count',
+    };
+  }
+};
+
+export const GetCreatorStats = async ( payload) => {
+   try {
+    const response = await api.post("creator/get-crew-stats", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+    console.log('Dashboard Count Response:', response);
+  } catch (error) {
+    console.error('Get Dashboard Count Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Dashboard Count',
+    };
+  }
+};
