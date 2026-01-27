@@ -14,6 +14,30 @@ interface ShootStatusBreakdown {
   count: number;
   color: string;
 }
+const data = [
+  {
+    name: "Successful Shoots",
+    value: 987,
+    fill: "#A78BFA",
+  },
+  {
+    name: "Pending Shoots",
+    value: 1674,
+    fill: "#60A5FA",
+  },
+  {
+    name: "Rejected Shoots",
+    value: 1073,
+    fill: "#FBBF24",
+  },
+  {
+    name: "In-Progress Shoots", // Second rejected/completed entry from your UI
+    value: 921,
+    fill: "#34D399",
+  },
+];
+
+const TOTAL_SHOOTS = "4,289";
 
 export const ShootStatusChart = () => {
   const [range, setRange] = React.useState<'all' | 'monthly'>('all');

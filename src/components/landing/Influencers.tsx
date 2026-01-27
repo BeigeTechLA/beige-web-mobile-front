@@ -10,6 +10,8 @@ import { INFLUENCERS } from "@/app/data/influencerData";
 import { SlidingHeading } from "./SlidingHeading";
 
 export const Influencers = ({ autoplay = false }) => {
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+
   const progress = useMotionValue(0);
   const smoothProgress = useSpring(progress, { damping: 30, stiffness: 200 });
   const [activeIdx, setActiveIdx] = useState(0);
@@ -74,18 +76,24 @@ export const Influencers = ({ autoplay = false }) => {
   }, [progress]);
 
   useEffect(() => {
-    window.addEventListener("pointerdown", handlePointerDown as any);
-    window.addEventListener("pointermove", handlePointerMove as any, { passive: false });
-    window.addEventListener("pointerup", handlePointerUp as any);
+    const el = viewportRef.current;
+    if (!el) return;
+
+    el.addEventListener("pointerdown", handlePointerDown as any);
+    el.addEventListener("pointermove", handlePointerMove as any, { passive: false });
+    el.addEventListener("pointerup", handlePointerUp as any);
+
     window.addEventListener("keydown", handleKeyDown as any);
 
     return () => {
-      window.removeEventListener("pointerdown", handlePointerDown as any);
-      window.removeEventListener("pointermove", handlePointerMove as any);
-      window.removeEventListener("pointerup", handlePointerUp as any);
+      el.removeEventListener("pointerdown", handlePointerDown as any);
+      el.removeEventListener("pointermove", handlePointerMove as any);
+      el.removeEventListener("pointerup", handlePointerUp as any);
+
       window.removeEventListener("keydown", handleKeyDown as any);
     };
   }, [handlePointerDown, handlePointerMove, handlePointerUp, handleKeyDown]);
+
 
   useAnimationFrame((time, delta) => {
     if (autoplay && !isDragging.current) {
@@ -101,8 +109,7 @@ export const Influencers = ({ autoplay = false }) => {
 
   return (
     <section
-      className="py-10 lg:py-32 bg-[#010101] overflow-hidden select-none flex flex-col items-center justify-center cursor-grab active:cursor-grabbing touch-none"
-      style={{ touchAction: 'none' }}
+      className="py-10 lg:py-32 bg-[#010101] overflow-hidden select-none flex flex-col items-center justify-center"
     >
       <Container>
         {/* HEADER */}
@@ -117,7 +124,11 @@ export const Influencers = ({ autoplay = false }) => {
         </div>
 
         {/* 3D Viewport */}
-        <div className="relative h-[450px] w-full flex items-center justify-center [perspective:2000px]">
+        <div
+          ref={viewportRef}
+          className="relative h-[450px] w-full flex items-center justify-center [perspective:2000px] cursor-grab active:cursor-grabbing"
+          style={{ touchAction: "pan-y" }}
+        >
           <div className="relative w-full h-full flex items-center justify-center [transform-style:preserve-3d]">
             {INFLUENCERS.map((item, i) => (
               <Card
