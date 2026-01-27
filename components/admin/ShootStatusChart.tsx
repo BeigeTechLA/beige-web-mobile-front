@@ -25,7 +25,7 @@ const data = [
     fill: "#FBBF24",
   },
   {
-    name: "Rejected Shoots", // Second rejected/completed entry from your UI
+    name: "In-Progress Shoots", // Second rejected/completed entry from your UI
     value: 921,
     fill: "#34D399",
   },
