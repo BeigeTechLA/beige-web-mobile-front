@@ -116,7 +116,6 @@ export default function AvailabilityPage() {
   const [hoveredProject, setHoveredProject] = useState(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
 
-  // Fetch availability data from API
   useEffect(() => {
     const userStr = localStorage.getItem("revure_user");
     const user = userStr ? JSON.parse(userStr) : null;
