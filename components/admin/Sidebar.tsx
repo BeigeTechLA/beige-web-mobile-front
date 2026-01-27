@@ -1,4 +1,6 @@
 "use client";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Grid2x2X, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign } from 'lucide-react';
 import Link from 'next/link';
 
@@ -20,8 +22,6 @@ const menuItems = [
   },
 ];
 
-import { useState } from "react";
-
 type MenuItem = {
   name: string;
   icon: any;
@@ -29,23 +29,29 @@ type MenuItem = {
   children?: { name: string; link: string }[];
 };
 
-export default function Sidebar({ pathname }: { pathname: string }) {
-  const [expanded, setExpanded] = useState<string[]>(['Users']);
+export default function Sidebar() {
+  const pathname = usePathname();
+  const [expanded, setExpanded] = useState<string[]>(["Users"]);
 
   const toggleExpand = (name: string) => {
-    setExpanded(prev =>
-      prev.includes(name) ? prev.filter(item => item !== name) : [...prev, name]
+    setExpanded((prev) =>
+      prev.includes(name)
+        ? prev.filter((item) => item !== name)
+        : [...prev, name],
     );
   };
 
   const isActiveLink = (link?: string) => {
-    if (!link || link === '#') return false;
-    return pathname === link || (link !== '/admin/dashboard' && pathname?.startsWith(link));
+    if (!link || link === "#") return false;
+    return (
+      pathname === link ||
+      (link !== "/admin/dashboard" && pathname?.startsWith(link))
+    );
   };
 
   const isParentActive = (item: MenuItem) => {
     if (item.children) {
-      return item.children.some(child => isActiveLink(child.link));
+      return item.children.some((child) => isActiveLink(child.link));
     }
     return isActiveLink(item.link);
   };
@@ -72,7 +78,10 @@ export default function Sidebar({ pathname }: { pathname: string }) {
                       <item.icon size={20} />
                       <span className="font-medium">{item.name}</span>
                     </div>
-                    <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    <ChevronDown
+                      size={16}
+                      className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                    />
                   </button>
                 ) : (
                   <Link
@@ -94,8 +103,11 @@ export default function Sidebar({ pathname }: { pathname: string }) {
                         <Link
                           key={child.name}
                           href={child.link}
-                          className={`block px-4 py-2 text-sm rounded-lg transition-colors ${isChildActive ? 'text-white font-medium' : 'text-zinc-500 hover:text-gray-300'
-                            }`}
+                          className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
+                            isChildActive
+                              ? "text-white font-medium"
+                              : "text-zinc-500 hover:text-gray-300"
+                          }`}
                         >
                           {child.name}
                         </Link>

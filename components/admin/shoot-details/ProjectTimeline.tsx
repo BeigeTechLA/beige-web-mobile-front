@@ -1,14 +1,14 @@
 import React from "react";
-import { Check, ClipboardList, Clock, Briefcase, MessageSquare, CheckCircle, Package } from "lucide-react";
+import { User, Folder, Calendar, FolderOpen, FileEdit, CheckCircle, FileCheck } from "lucide-react";
 
 const steps = [
-    { id: 1, label: "Initiated", icon: Check, status: "completed", line: true },
-    { id: 2, label: "Pre_Production", icon: ClipboardList, status: "current", line: true },
-    { id: 3, label: "Shoot Day", icon: Clock, status: "pending", line: true },
-    { id: 4, label: "Post_Production", icon: Briefcase, status: "pending", line: true },
-    { id: 5, label: "Revision", icon: MessageSquare, status: "pending", line: true },
+    { id: 1, label: "Initiated", icon: User, status: "completed", line: true },
+    { id: 2, label: "Pre_Production", icon: Folder, status: "current", line: true },
+    { id: 3, label: "Shoot Day", icon: Calendar, status: "pending", line: true },
+    { id: 4, label: "Post_Production", icon: FolderOpen, status: "pending", line: true },
+    { id: 5, label: "Revision", icon: FileEdit, status: "pending", line: true },
     { id: 6, label: "Completed", icon: CheckCircle, status: "pending", line: true },
-    { id: 7, label: "Assets Delivered", icon: Package, status: "pending", line: false },
+    { id: 7, label: "Assets Delivered", icon: FileCheck, status: "pending", line: false },
 ];
 
 export default function ProjectTimeline() {
@@ -34,7 +34,7 @@ export default function ProjectTimeline() {
 
                         {/* Label Column */}
                         <div className="pt-2">
-                            <p className={`text-sm font-medium ${step.status === 'completed' || step.status === 'current'
+                            <p className={`text-base font-medium leading-none ${step.status === 'completed' || step.status === 'current'
                                     ? 'text-white'
                                     : 'text-[#666666]'
                                 }`}>

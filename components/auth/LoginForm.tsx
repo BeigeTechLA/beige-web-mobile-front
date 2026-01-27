@@ -52,7 +52,7 @@ export function LoginForm() {
       if (userTypeId === 1) {
         router.push('/affiliate/dashboard')
       } else if (userTypeId === 2) {
-        router.push('/creator/dashboard/request')
+        router.push('/creator/dashboard')
       } else {
         // Fallback in case user_type_id is missing or different
         router.push('/admin/dashboard')
