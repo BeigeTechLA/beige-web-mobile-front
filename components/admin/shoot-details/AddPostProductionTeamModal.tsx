@@ -1,23 +1,90 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, ChevronDown } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { adminApi } from "@/lib/api";
 
 interface AddPostProductionTeamModalProps {
     isOpen: boolean;
+    projectId: string;
     onClose: () => void;
+    onSuccess: () => void;
+}
+
+interface PostProductionMember {
+    id: number;
+    name: string;
+    role: string;
+    email?: string;
 }
 
 const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
     isOpen,
+    projectId,
     onClose,
+    onSuccess,
 }) => {
-    const [selectedTeam, setSelectedTeam] = useState("");
+    const [selectedMember, setSelectedMember] = useState<PostProductionMember | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [members, setMembers] = useState<PostProductionMember[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-    // Mock data
-    const teams = ["Editing Team A", "VFX Team B", "Colorist Team C"];
+    useEffect(() => {
+        if (isOpen) {
+            const fetchMembers = async () => {
+                try {
+                    setLoading(true);
+                    const response = await adminApi.getPostProductionMembers();
+                    // Some APIs return data directly, some under a 'data' field
+                    const membersList = response.data || response;
+                    if (Array.isArray(membersList)) {
+                        setMembers(membersList.map((m: any) => ({
+                            id: m.post_production_member_id,
+                            name: `${m.first_name} ${m.last_name}`.trim() || m.full_name || "Unknown",
+                            role: m.role || "Post Production",
+                            email: m.email
+                        })));
+                    } else if (membersList && Array.isArray(membersList.data)) {
+                        setMembers(membersList.data.map((m: any) => ({
+                            id: m.post_production_member_id,
+                            name: `${m.first_name} ${m.last_name}`.trim() || m.full_name || "Unknown",
+                            role: m.role || "Post Production",
+                            email: m.email
+                        })));
+                    }
+                } catch (error) {
+                    console.error("Error fetching post production members:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchMembers();
+        }
+    }, [isOpen]);
+
+    const handleAdd = async () => {
+        if (!selectedMember) return;
+
+        try {
+            setSubmitting(true);
+            const response = await adminApi.assignPostProductionMember({
+                post_production_member_id: selectedMember.id,
+                project_id: Number(projectId)
+            });
+
+            if (response.success || !response.error) {
+                onSuccess();
+            } else {
+                console.error("Failed to assign member:", response.error || "Unknown error");
+            }
+        } catch (error) {
+            console.error("Error assigning member:", error);
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -41,47 +108,61 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
                         {/* Custom Select Input */}
                         <button
                             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            className="w-full h-14 px-4 bg-transparent border border-zinc-700 rounded-xl flex items-center justify-between group hover:border-zinc-500 transition-colors"
+                            disabled={loading || submitting}
+                            className="w-full h-14 px-4 bg-transparent border border-zinc-700 rounded-xl flex items-center justify-between group hover:border-zinc-500 transition-colors disabled:opacity-50"
                         >
-                            <span className={`text-sm ${selectedTeam ? 'text-white' : 'text-zinc-500'}`}>
-                                {selectedTeam || "Select Post Production Team"}
+                            <span className={`text-sm ${selectedMember ? 'text-white' : 'text-zinc-500'}`}>
+                                {loading ? "Loading members..." : (selectedMember?.name || "Select Post Production Member")}
                             </span>
                             <ChevronDown size={20} className={`text-zinc-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
-                        {/* Floating Label (Visual only to match design if needed, but placeholder is clear) */}
+                        {/* Floating Label */}
                         <span className="absolute -top-2.5 left-4 bg-black px-1 text-xs text-zinc-500">
-                            Select Post Production Team
+                            Select Post Production Member
                         </span>
 
                         {/* Dropdown Options */}
-                        {isDropdownOpen && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-[#111] border border-zinc-800 rounded-xl overflow-hidden z-20 shadow-xl">
-                                {teams.map(team => (
-                                    <div
-                                        key={team}
-                                        onClick={() => {
-                                            setSelectedTeam(team);
-                                            setIsDropdownOpen(false);
-                                        }}
-                                        className="px-4 py-3 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer text-sm"
-                                    >
-                                        {team}
-                                    </div>
-                                ))}
+                        {isDropdownOpen && !loading && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-[#111] border border-zinc-800 rounded-xl overflow-y-auto max-h-60 z-20 shadow-xl">
+                                {members.length > 0 ? (
+                                    members.map(member => (
+                                        <div
+                                            key={member.id}
+                                            onClick={() => {
+                                                setSelectedMember(member);
+                                                setIsDropdownOpen(false);
+                                            }}
+                                            className="px-4 py-3 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer text-sm"
+                                        >
+                                            <div className="flex items-center justify-between w-full">
+                                                <span>{member.name}</span>
+                                                <span className="text-xs text-zinc-500">{member.role}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="px-4 py-3 text-zinc-500 text-sm">No members available</div>
+                                )}
                             </div>
                         )}
                     </div>
 
                     <Button
-                        className="w-fit px-8 h-12 bg-[#E5D5B8] text-black hover:bg-[#d4c4a7] rounded-lg font-medium text-base"
-                        onClick={onClose}
+                        className="w-fit px-8 h-12 bg-[#E5D5B8] text-black hover:bg-[#d4c4a7] rounded-lg font-medium text-base disabled:opacity-50"
+                        onClick={handleAdd}
+                        disabled={!selectedMember || submitting}
                     >
-                        Add
+                        {submitting ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="animate-spin" size={18} />
+                                <span>Adding...</span>
+                            </div>
+                        ) : "Add"}
                     </Button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

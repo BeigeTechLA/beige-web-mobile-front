@@ -37,11 +37,11 @@ import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/u
 import Map, { Marker } from "react-map-gl/mapbox";
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-import { 
-  GetCreatorDashboardCount, 
-  getCrewAvailability, 
-  GetCreatorDashboardDetails, 
-  GetCreatorStats 
+import {
+  GetCreatorDashboardCount,
+  getCrewAvailability,
+  GetCreatorDashboardDetails,
+  GetCreatorStats
 } from "@/lib/api";
 
 // ----------------------------
@@ -58,7 +58,7 @@ const formatDisplayLocation = (location?: string) => {
   try {
     const parsed = typeof location === 'string' ? JSON.parse(location) : location;
     if (parsed && parsed.address) addressStr = parsed.address;
-  } catch (e) {}
+  } catch (e) { }
 
   if (addressStr.includes(",")) {
     const parts = addressStr.split(",").map((p) => p.trim());
@@ -269,7 +269,7 @@ export default function CreatorDashboardPage() {
 
         const responseStats = await GetCreatorStats({ crew_member_id: crewMemberId });
         if (responseStats && !responseStats.error) {
-            setCreatorStats(responseStats.data.data);
+          setCreatorStats(responseStats.data.data);
         }
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
@@ -299,14 +299,14 @@ export default function CreatorDashboardPage() {
           const newMarkers: any[] = [];
           const getMarkers = async (list: any[], markerType: 'active' | 'pending') => {
             for (const item of list) {
-                const loc = item.project?.event_location || item.display_location;
-                if (loc && loc !== "Location TBD") {
-                  const coords = await geocodeAddress(loc);
-                  if (coords) {
-                    newMarkers.push({ ...coords, type: markerType, originalData: item });
-                  }
+              const loc = item.project?.event_location || item.display_location;
+              if (loc && loc !== "Location TBD") {
+                const coords = await geocodeAddress(loc);
+                if (coords) {
+                  newMarkers.push({ ...coords, type: markerType, originalData: item });
                 }
               }
+            }
           }
 
           await getMarkers(fetchedAllShoots, 'active');
@@ -373,7 +373,7 @@ export default function CreatorDashboardPage() {
       const projectName = (marker.originalData?.project?.project_name || marker.originalData?.project_name || "").toLowerCase();
       const location = (marker.originalData?.project?.event_location || marker.originalData?.display_location || "").toLowerCase();
       const matchesSearch = projectName.includes(mapSearch.toLowerCase()) || location.includes(mapSearch.toLowerCase());
-      
+
       return matchesStatus && matchesSearch;
     });
   }, [mapMarkers, mapSearch, mapStatusFilter]);
@@ -404,7 +404,7 @@ export default function CreatorDashboardPage() {
   // ----------------------
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12 text-white bg-[#111] p-4 md:p-8">
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div>
@@ -412,45 +412,45 @@ export default function CreatorDashboardPage() {
           <p className="text-white/60">Performance overview and shoot schedule</p>
         </div>
         <div className="flex items-center gap-3">
-            
+
         </div>
       </div>
 
       {/* Stats Cards (Luxury Style) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-            label="Completed Shoots" 
-            value={dashboardStats.completedShoots} 
-            icon={<Camera />} 
-            iconColor="text-[#E8D1AB]" 
-            hoverBorder="hover:border-[#E8D1AB]/30" 
+        <StatCard
+          label="Completed Shoots"
+          value={dashboardStats.completedShoots}
+          icon={<Camera />}
+          iconColor="text-[#E8D1AB]"
+          hoverBorder="hover:border-[#E8D1AB]/30"
         />
-        <StatCard 
-            label="Upcoming Shoots" 
-            value={dashboardStats.upcomingShoots} 
-            icon={<CalendarIcon />} 
-            iconColor="text-blue-400" 
-            hoverBorder="hover:border-blue-400/30" 
+        <StatCard
+          label="Upcoming Shoots"
+          value={dashboardStats.upcomingShoots}
+          icon={<CalendarIcon />}
+          iconColor="text-blue-400"
+          hoverBorder="hover:border-blue-400/30"
         />
-        <StatCard 
-            label="Pending Requests" 
-            value={dashboardStats.pendingRequests} 
-            icon={<Clock />} 
-            iconColor="text-yellow-500" 
-            hoverBorder="hover:border-yellow-500/30" 
+        <StatCard
+          label="Pending Requests"
+          value={dashboardStats.pendingRequests}
+          icon={<Clock />}
+          iconColor="text-yellow-500"
+          hoverBorder="hover:border-yellow-500/30"
         />
-        <StatCard 
-            label="Equipment Req." 
-            value={dashboardStats.equipmentRequests} 
-            icon={<Box />} 
-            iconColor="text-white/40" 
-            hoverBorder="hover:border-white/20" 
+        <StatCard
+          label="Equipment Req."
+          value={dashboardStats.equipmentRequests}
+          icon={<Box />}
+          iconColor="text-white/40"
+          hoverBorder="hover:border-white/20"
         />
       </div>
 
       {/* Main Content Grid: Map & Calendar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Map Section */}
         <div className="lg:col-span-2 bg-[#111] border border-white/5 rounded-xl overflow-hidden relative min-h-[500px]">
           {/* Map Controls */}
@@ -488,9 +488,8 @@ export default function CreatorDashboardPage() {
               <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
                 <div
                   onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
-                  className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${
-                    marker.type === 'active' ? 'bg-[#E8D1AB] border-black text-black' : 'bg-yellow-500 border-black text-black'
-                  }`}
+                  className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active' ? 'bg-[#E8D1AB] border-black text-black' : 'bg-yellow-500 border-black text-black'
+                    }`}
                 >
                   {marker.type === 'active' ? <Camera size={14} /> : <Clock size={14} />}
                 </div>
@@ -514,12 +513,12 @@ export default function CreatorDashboardPage() {
         <div className="bg-[#111] border border-white/5 rounded-xl p-6 flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-white flex items-center gap-2">
-                <CalendarIcon size={18} className="text-[#E8D1AB]" />
-                Availability
+              <CalendarIcon size={18} className="text-[#E8D1AB]" />
+              Availability
             </h3>
             <div className="flex gap-1">
-                <button onClick={handlePreviousMonth} className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"><ChevronLeft size={18}/></button>
-                <button onClick={handleNextMonth} className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"><ChevronRight size={18}/></button>
+              <button onClick={handlePreviousMonth} className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"><ChevronLeft size={18} /></button>
+              <button onClick={handleNextMonth} className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"><ChevronRight size={18} /></button>
             </div>
           </div>
 
@@ -528,78 +527,78 @@ export default function CreatorDashboardPage() {
           </div>
 
           <div className="grid grid-cols-7 gap-1 mb-2">
-            {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
-                <div key={d} className="text-center text-[10px] font-bold text-white/20 uppercase">{d.slice(0,1)}</div>
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+              <div key={d} className="text-center text-[10px] font-bold text-white/20 uppercase">{d.slice(0, 1)}</div>
             ))}
           </div>
 
           <div className="grid grid-cols-7 gap-1.5">
             {(() => {
-                const year = date.getFullYear();
-                const month = date.getMonth();
-                const firstDay = new Date(year, month, 1).getDay();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const today = new Date(); today.setHours(0,0,0,0);
-                
-                const days = [];
-                for(let i=0; i<firstDay; i++) days.push(<div key={`e-${i}`} />);
-                
-                for(let d=1; d<=daysInMonth; d++) {
-                    const curDate = new Date(year, month, d);
-                    const isToday = curDate.getTime() === today.getTime();
-                    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                    const dayData = (availability as any)?.[dateStr];
+              const year = date.getFullYear();
+              const month = date.getMonth();
+              const firstDay = new Date(year, month, 1).getDay();
+              const daysInMonth = new Date(year, month + 1, 0).getDate();
+              const today = new Date(); today.setHours(0, 0, 0, 0);
 
-                    let style = "border-white/5 text-white/60 hover:border-white/20";
-                    if (dayData && dayData.available === false && !dayData.projectAssigned) style = "border-red-500/30 bg-red-500/5 text-red-400";
-                    if (dayData?.projectAssigned === true) style = "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]";
-                    if (isToday) style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold";
+              const days = [];
+              for (let i = 0; i < firstDay; i++) days.push(<div key={`e-${i}`} />);
 
-                    days.push(
-                        <button 
-                            key={d} 
-                            onClick={() => {
-                                if(dayData?.projectDetails) {
-                                    setProjectDetailsData({project: dayData.projectDetails});
-                                    setProjectDetailsOpen(true);
-                                } else {
-                                    toast(`Date selected: ${dateStr}`);
-                                }
-                            }}
-                            className={`aspect-square flex flex-col items-center justify-center text-xs rounded-lg border transition-all ${style}`}
-                        >
-                            {d}
-                            {dayData?.projectAssigned === true && !isToday && (
-                                <span className="w-1 h-1 bg-[#E8D1AB] rounded-full mt-0.5" />
-                            )}
-                        </button>
-                    );
-                }
-                return days;
+              for (let d = 1; d <= daysInMonth; d++) {
+                const curDate = new Date(year, month, d);
+                const isToday = curDate.getTime() === today.getTime();
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const dayData = (availability as any)?.[dateStr];
+
+                let style = "border-white/5 text-white/60 hover:border-white/20";
+                if (dayData && dayData.available === false && !dayData.projectAssigned) style = "border-red-500/30 bg-red-500/5 text-red-400";
+                if (dayData?.projectAssigned === true) style = "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]";
+                if (isToday) style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold";
+
+                days.push(
+                  <button
+                    key={d}
+                    onClick={() => {
+                      if (dayData?.projectDetails) {
+                        setProjectDetailsData({ project: dayData.projectDetails });
+                        setProjectDetailsOpen(true);
+                      } else {
+                        toast(`Date selected: ${dateStr}`);
+                      }
+                    }}
+                    className={`aspect-square flex flex-col items-center justify-center text-xs rounded-lg border transition-all ${style}`}
+                  >
+                    {d}
+                    {dayData?.projectAssigned === true && !isToday && (
+                      <span className="w-1 h-1 bg-[#E8D1AB] rounded-full mt-0.5" />
+                    )}
+                  </button>
+                );
+              }
+              return days;
             })()}
           </div>
 
           <div className="mt-8 pt-6 border-t border-white/5 space-y-3">
-             <div className="flex items-center justify-between text-[11px] text-white/40">
-                <div className="flex items-center gap-3">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/50" />
-                    <span>Shoot Assigned</span>
-                </div>
-                <span className="font-mono">Active</span>
-             </div>
-             <div className="flex items-center justify-between text-[11px] text-white/40">
-                <div className="flex items-center gap-3">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/10 border border-red-500/40" />
-                    <span>Unavailable</span>
-                </div>
-                <span className="font-mono">Blocked</span>
-             </div>
-             <Button
-      className="w-full mt-6 bg-white/10 text-white border border-white/10 hover:bg-white/15"
-      onClick={() => router.push("/creator/dashboard/availability")}
-    >
-      Go to Availability
-    </Button>
+            <div className="flex items-center justify-between text-[11px] text-white/40">
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/50" />
+                <span>Shoot Assigned</span>
+              </div>
+              <span className="font-mono">Active</span>
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-white/40">
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500/10 border border-red-500/40" />
+                <span>Unavailable</span>
+              </div>
+              <span className="font-mono">Blocked</span>
+            </div>
+            <Button
+              className="w-full mt-6 bg-white/10 text-white border border-white/10 hover:bg-white/15"
+              onClick={() => router.push("/creator/dashboard/availability")}
+            >
+              Go to Availability
+            </Button>
           </div>
         </div>
       </div>
@@ -616,14 +615,14 @@ export default function CreatorDashboardPage() {
           subtitle="Distribution of media types"
           rightFilter={
             <div className="flex bg-[#0B0F14] p-1 rounded-lg border border-white/5">
-                <button 
-                    onClick={() => setCategoryTypeFilter(categoryTypeFilter === "photography" ? "all" : "photography")}
-                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "photography" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"}`}
-                >Photo</button>
-                <button 
-                    onClick={() => setCategoryTypeFilter(categoryTypeFilter === "videography" ? "all" : "videography")}
-                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "videography" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"}`}
-                >Video</button>
+              <button
+                onClick={() => setCategoryTypeFilter(categoryTypeFilter === "photography" ? "all" : "photography")}
+                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "photography" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"}`}
+              >Photo</button>
+              <button
+                onClick={() => setCategoryTypeFilter(categoryTypeFilter === "videography" ? "all" : "videography")}
+                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "videography" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"}`}
+              >Video</button>
             </div>
           }
           slices={shootCategorySlices}
@@ -635,19 +634,19 @@ export default function CreatorDashboardPage() {
       {/* Accept Shoot Modal */}
       <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
         <DialogContent className="bg-[#111] border-white/10 text-white max-w-sm text-center">
-            <div className="py-6">
-                <div className="w-16 h-16 bg-[#E8D1AB]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 size={32} className="text-[#E8D1AB]" />
-                </div>
-                <h2 className="text-xl font-bold mb-2">Accept Request?</h2>
-                <p className="text-white/40 text-sm mb-8 px-4">
-                    Confirming will add <span className="text-white font-medium">{acceptShootEvent?.project_name}</span> to your production schedule.
-                </p>
-                <div className="flex gap-3">
-                    <Button variant="ghost" className="flex-1 hover:bg-white/5" onClick={() => setAcceptShootEvent(null)}>Cancel</Button>
-                    <Button className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-bold" onClick={() => handleAcceptProject(acceptShootEvent.project_id, 1)}>Confirm</Button>
-                </div>
+          <div className="py-6">
+            <div className="w-16 h-16 bg-[#E8D1AB]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={32} className="text-[#E8D1AB]" />
             </div>
+            <h2 className="text-xl font-bold mb-2">Accept Request?</h2>
+            <p className="text-white/40 text-sm mb-8 px-4">
+              Confirming will add <span className="text-white font-medium">{acceptShootEvent?.project_name}</span> to your production schedule.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="ghost" className="flex-1 hover:bg-white/5" onClick={() => setAcceptShootEvent(null)}>Cancel</Button>
+              <Button className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-bold" onClick={() => handleAcceptProject(acceptShootEvent.project_id, 1)}>Confirm</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -661,19 +660,19 @@ export default function CreatorDashboardPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-             <div className="space-y-3">
-                <Label className="text-white/40 text-xs uppercase tracking-widest">Reason for declining</Label>
-                {["Schedule conflict", "Equipment unavailable", "Location too far", "Other"].map((reason) => (
-                  <div key={reason} className="flex items-center space-x-3 bg-[#0B0F14] p-3 rounded-lg border border-white/5 cursor-pointer hover:border-white/10 transition-all">
-                    <input type="radio" name="decline-reason" id={reason} className="accent-[#E8D1AB]" />
-                    <Label htmlFor={reason} className="text-white/70 font-normal cursor-pointer flex-1">{reason}</Label>
-                  </div>
-                ))}
-             </div>
-             <div className="flex gap-3 pt-4">
-                <Button variant="ghost" className="flex-1" onClick={() => setDeclineEquipmentItem(null)}>Cancel</Button>
-                <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold" onClick={() => {toast.error("Request declined"); setDeclineEquipmentItem(null);}}>Decline Request</Button>
-             </div>
+            <div className="space-y-3">
+              <Label className="text-white/40 text-xs uppercase tracking-widest">Reason for declining</Label>
+              {["Schedule conflict", "Equipment unavailable", "Location too far", "Other"].map((reason) => (
+                <div key={reason} className="flex items-center space-x-3 bg-[#0B0F14] p-3 rounded-lg border border-white/5 cursor-pointer hover:border-white/10 transition-all">
+                  <input type="radio" name="decline-reason" id={reason} className="accent-[#E8D1AB]" />
+                  <Label htmlFor={reason} className="text-white/70 font-normal cursor-pointer flex-1">{reason}</Label>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3 pt-4">
+              <Button variant="ghost" className="flex-1" onClick={() => setDeclineEquipmentItem(null)}>Cancel</Button>
+              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold" onClick={() => { toast.error("Request declined"); setDeclineEquipmentItem(null); }}>Decline Request</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -686,38 +685,38 @@ export default function CreatorDashboardPage() {
           </div>
           <div className="p-8 space-y-6">
             <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-1">
-                    <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Project Name</Label>
-                    <p className="font-bold text-lg leading-tight">{projectDetailsData?.project?.project_name || projectDetailsData?.project_name || "Untitled"}</p>
-                </div>
-                <div className="text-right space-y-1">
-                    <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Scheduled Date</Label>
-                    <p className="text-[#E8D1AB] font-mono">{projectDetailsData?.project?.event_date || projectDetailsData?.event_date || "TBD"}</p>
-                </div>
+              <div className="space-y-1">
+                <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Project Name</Label>
+                <p className="font-bold text-lg leading-tight">{projectDetailsData?.project?.project_name || projectDetailsData?.project_name || "Untitled"}</p>
+              </div>
+              <div className="text-right space-y-1">
+                <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Scheduled Date</Label>
+                <p className="text-[#E8D1AB] font-mono">{projectDetailsData?.project?.event_date || projectDetailsData?.event_date || "TBD"}</p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-8 border-t border-white/5 pt-6">
-                <div className="space-y-1">
-                    <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Time Window</Label>
-                    <p className="text-white/80">
-                        {projectDetailsData?.project?.start_time && projectDetailsData?.project?.end_time 
-                            ? `${projectDetailsData.project.start_time} - ${projectDetailsData.project.end_time}`
-                            : "TBD"}
-                    </p>
+              <div className="space-y-1">
+                <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Time Window</Label>
+                <p className="text-white/80">
+                  {projectDetailsData?.project?.start_time && projectDetailsData?.project?.end_time
+                    ? `${projectDetailsData.project.start_time} - ${projectDetailsData.project.end_time}`
+                    : "TBD"}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Location</Label>
+                <div className="flex items-center gap-2 text-white/80">
+                  <MapPin size={14} className="text-[#E8D1AB]" />
+                  <span className="truncate">{formatDisplayLocation(projectDetailsData?.project?.event_location || projectDetailsData?.display_location)}</span>
                 </div>
-                <div className="space-y-1">
-                    <Label className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Location</Label>
-                    <div className="flex items-center gap-2 text-white/80">
-                        <MapPin size={14} className="text-[#E8D1AB]" />
-                        <span className="truncate">{formatDisplayLocation(projectDetailsData?.project?.event_location || projectDetailsData?.display_location)}</span>
-                    </div>
-                </div>
+              </div>
             </div>
 
             <div className="flex justify-end pt-6">
-                <Button onClick={() => setProjectDetailsOpen(false)} className="bg-transparent border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-8 transition-all">
-                    Close Details
-                </Button>
+              <Button onClick={() => setProjectDetailsOpen(false)} className="bg-transparent border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-8 transition-all">
+                Close Details
+              </Button>
             </div>
           </div>
         </DialogContent>
