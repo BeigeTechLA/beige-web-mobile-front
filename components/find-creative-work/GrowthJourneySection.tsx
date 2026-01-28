@@ -35,19 +35,32 @@ const GRAPH_DATA = [
 export const GrowthJourneySection = () => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [contentHeights, setContentHeights] = useState<number[]>(new Array(GRAPH_DATA.length).fill(0));
+  const [isMobile, setIsMobile] = useState(false);
   const textRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Measure dynamic height of hover text
   useEffect(() => {
-    const heights = textRefs.current.map((ref) => (ref ? ref.scrollHeight - 20 : 0));
+    // Check for mobile to disable/enable animations
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    // Give the DOM a moment to paint so scrollHeight is accurate
+    const timer = setTimeout(() => {
+    const heights = textRefs.current.map((ref) => (ref ? ref.scrollHeight : 0));
     setContentHeights(heights);
+    }, 100);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(timer);
+    };
   }, []);
 
   return (
-    <section className="py-10 md:py-32 bg-[#010101] relative overflow-hidden">
+    <section className="py-10 md:py-32 bg-[#010101] relative overflow-hidden text-white">
       <Container>
         <div className="flex flex-col lg:flex-row justify-center mb-8 md:mb-18">
-          <h2 className="text-lg md:text-[56px] font-medium text-gradient-white tracking-tight">
+          <h2 className="text-lg md:text-[56px] font-medium text-gradient-white tracking-tight text-center lg:text-left">
             Our Journey of Growth
           </h2>
         </div>
@@ -100,7 +113,7 @@ export const GrowthJourneySection = () => {
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-8 items-center relative z-10">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-stretch relative z-10">
             {GRAPH_DATA.map((data, i) => {
               const isHovered = hoveredIndex === i;
 
@@ -109,10 +122,10 @@ export const GrowthJourneySection = () => {
                   key={i}
                   onMouseEnter={() => setHoveredIndex(i)}
                   onMouseLeave={() => setHoveredIndex(null)}
-                  className="bg-[#171717] flex-1 flex flex-col p-5 lg:px-[30px] lg:py-10 rounded-[10px] lg:rounded-[20px] border border-white/20 h-[450px] overflow-hidden justify-between cursor-default"
+                  className="bg-[#171717] flex-1 flex flex-col p-6 lg:px-[30px] lg:py-10 rounded-[10px] lg:rounded-[20px] border border-white/20 h-auto lg:h-[450px] lg:overflow-hidden justify-between cursor-default"
                 >
-                  <div className="flex justify-between items-center w-full shrink-0">
-                    <div className="bg-[#E8D1AB] text-black rounded-full p-2 lg:p-5">
+                  <div className="flex justify-between items-center w-full shrink-0 mb-6 lg:mb-0">
+                    <div className="bg-[#E8D1AB] text-black rounded-full p-3 lg:p-5">
                       {data.icon}
                     </div>
                     <span className="text-base lg:text-2xl">{data.id}</span>
@@ -120,19 +133,20 @@ export const GrowthJourneySection = () => {
 
                   <div className="relative w-full">
                     <motion.div
-                      animate={{
-                        y: isHovered ? -contentHeights[i] : 0
-                      }}
+                      animate={!isMobile ? {
+                        y: isHovered ? -contentHeights[i] - 16 : 0
+                      } : {}}
                       transition={{ type: "spring", stiffness: 120, damping: 20 }}
                       className="relative flex flex-col"
                     >
-                      <p className="text-base lg:text-2xl font-medium leading-snug">
+                      <p className="text-base lg:text-2xl font-medium leading-snug mb-3 lg:mb-0">
                         {data.text}
                       </p>
 
                       <div
                         ref={(el) => { textRefs.current[i] = el; }}
-                        className={`absolute top-full left-0 pt-4 w-full transition-opacity duration-300 ${isHovered ? "opacity-100" : "opacity-0"
+                        className={`relative lg:absolute top-auto lg:top-full left-0 pt-2 lg:pt-5 w-full transition-opacity duration-300 ${
+                          (isHovered || isMobile) ? "opacity-100 visible" : "lg:opacity-0 lg:invisible"
                           }`}
                       >
                         <p className="text-sm lg:text-base leading-relaxed text-[#BABABA]">

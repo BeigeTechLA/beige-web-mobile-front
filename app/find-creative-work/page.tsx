@@ -12,7 +12,7 @@ import { Potential } from "@/components/find-creative-work/PotentialSection";
 
 export default function FindCreativeWorkPage() {
   return (
-    <main className="bg-[#010101] min-h-screen text-white font-sans selection:bg-[#ECE1CE] selection:text-black">
+    <main className="bg-[#010101] min-h-screen text-white font-sans selection:bg-[#ECE1CE] selection:text-black px-5 pt-15 lg:p-0">
       <Navbar />
 
       <WelcomeSection />

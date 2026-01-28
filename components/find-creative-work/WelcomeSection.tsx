@@ -1,15 +1,46 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-
-import { motion, useScroll, useTransform } from "framer-motion";
+import React, { useRef, useEffect } from "react";
+import { motion, useScroll, useTransform, useSpring, useInView } from "framer-motion";
 import { Button } from "@/src/components/landing/ui/button";
 import { Container } from "@/components/ui/container";
 
-
 export const WelcomeSection = () => {
-  const router = useRouter();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Track if video is in focus
+  const isInView = useInView(containerRef, { amount: 0.6 });
+
+  // Handle Video Play/Pause based on focus
+  useEffect(() => {
+    if (videoRef.current) {
+      if (isInView) {
+        videoRef.current.play();
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [isInView]);
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start end", "end start"],
+  });
+
+  // Smooth out the scroll progress
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
+
+  // Transform logic: Starts tilted (20deg), scales up (0.8 -> 1), and straightens to (0deg)
+  const rotateX = useTransform(smoothProgress, [0, 0.4], [20, 0]);
+  const scale = useTransform(smoothProgress, [0, 0.4], [0.8, 1]);
+  const translateZ = useTransform(smoothProgress, [0, 0.4], [-100, 0]);
+
+  const videoUrl = "/videos/Camera_Operator_Filmmaker.mp4";
 
   return (
     <section className="py-10 lg:pt-50 lg:pb-32 bg-[#010101] overflow-hidden select-none">
@@ -24,7 +55,6 @@ export const WelcomeSection = () => {
             Welcome to the Beige<br />Creative Partners Ambassador Program
           </motion.h1>
 
-          {/* Sub-headline */}
           <motion.h4
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -40,20 +70,44 @@ export const WelcomeSection = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex gap-6 mx-auto items-center justify-center"
           >
-            <Button
-              className="h-7 lg:h-15 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
-              // onClick={() => router.push('/book-a-shoot')}
-            >
+            <Button className="h-7 lg:h-15 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl">
               Join Us
             </Button>
-             <Button
-                className="bg-transparent border border-white/20 hover:bg-white/5 text-white h-7 lg:h-15 px-5 lg:px-9 text-sm lg:text-xl rounded-full flex items-center gap-3 w-fit transition-all group"
-              >
-                How It Works
-              </Button>
+            <Button className="bg-transparent border border-white/20 hover:bg-white/5 text-white h-7 lg:h-15 px-5 lg:px-9 text-sm lg:text-xl rounded-full flex items-center gap-3 w-fit transition-all group">
+              How It Works
+            </Button>
           </motion.div>
+        </div>
 
-          {/* Video component to be added here */}
+        {/* Animation Perspective Wrapper */}
+        <div
+          ref={containerRef}
+          className="w-full relative"
+          style={{ perspective: "1200px" }}
+        >
+          <motion.div
+            style={{
+              rotateX,
+              scale,
+              z: translateZ,
+              transformStyle: "preserve-3d",
+            }}
+            className="w-full h-[320px] lg:h-[700px] overflow-hidden relative rounded-[10px] lg:rounded-[24px] border border-white/20 bg-black shadow-2xl"
+          >
+            {/* Screen Reflective Overlay */}
+            <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-tr from-white/5 to-transparent opacity-30" />
+
+            {videoUrl && (
+              <video
+                ref={videoRef}
+                className="absolute inset-0 w-full h-full object-cover"
+                src={videoUrl}
+                loop
+                // muted
+                playsInline
+              />
+            )}
+          </motion.div>
         </div>
       </Container>
     </section>
