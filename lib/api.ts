@@ -257,10 +257,49 @@ export const affiliateApi = {
     token: string,
     data: { payout_method?: string; payout_details?: Record<string, unknown> }
   ): Promise<{ payout_method: string; payout_details: Record<string, unknown> }> => {
-    const response = await api.put('/affiliates/payout-details', data, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const response = await api.put(
+      "/affiliates/payout-details",
+      data,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
     return response.data.data;
+  },
+
+  // Get client dashboard summary (affiliate dashboard)
+  getDashboardSummary: async (token: string) => {
+    try {
+      const response = await api.get('client/get-dashboard-summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Affiliate Dashboard Summary Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch dashboard summary',
+      };
+    }
+  },
+
+  // Get shoots count by category (affiliate dashboard)
+  getShootsCountByCategory: async (token: string, tab?: string) => {
+    try {
+      const response = await api.get('client/get-shoots-count-by-category', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: tab && tab !== 'All' ? { type: tab.toLowerCase() } : {},
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Shoots Count By Category Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch shoots count by category',
+      };
+    }
   },
 };
 
