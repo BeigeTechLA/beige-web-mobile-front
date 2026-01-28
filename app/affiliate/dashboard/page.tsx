@@ -24,7 +24,20 @@ import {
   MapPin,
   Info,
   ChevronRight,
+  Folder,
+  MessageSquare,
 } from "lucide-react";
+import { AffiliateOverallShootsTable } from "@/components/affiliate/AffiliateOverallShootsTable";
+import AffiliateOverviewChart from "@/components/affiliate/AffiliateOverviewChart";
+import AffiliateRecentActivity from "@/components/affiliate/AffiliateRecentActivity";
+import AffiliateShootByCategory from "@/components/affiliate/AffiliateShootByCategory";
+import { AffiliateShootStatusChart } from "@/components/affiliate/AffiliateShootStatusChart";
+import AffiliateStatsModule from "@/components/affiliate/AffiliateStatsModule";
+import { AffiliateTopCreatives } from "@/components/affiliate/AffiliateTopCreatives";
+import AffiliateFileManager from "@/components/affiliate/AffiliateFileManager";
+import AffiliateMessages from "@/components/affiliate/AffiliateMessages";
+import { AffiliateShoots } from "@/components/affiliate/AffiliateShoots";
+import AffiliateShootDetails from "@/components/affiliate/AffiliateShootDetails";
 import { Button } from "@/components/ui/button";
 import {
   affiliateApi,
@@ -38,16 +51,16 @@ import Link from "next/link";
 import { useGetBookingsMutation } from "@/lib/redux/features/booking/bookingApi";
 
 // Define a type for the active tab
-type TabType = "overview" | "bookings";
+type TabType = "dashboard" | "overview" | "bookings" | "file-manager" | "messages" | "shoots";
 
 export default function AffiliateDashboardPage() {
   const router = useRouter();
   const { logout, user } = useAuth();
-  
+
   // Tabs State
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<AffiliateDashboardStats | null>(null);
   const [referrals, setReferrals] = useState<ReferralHistoryItem[]>([]);
@@ -61,6 +74,8 @@ export default function AffiliateDashboardPage() {
   // RTK Query Mutation for Bookings
   const [getBookings, { data: bookingsResponse, isLoading: isBookingsLoading }] = useGetBookingsMutation();
 
+  const [dashboardSummary, setDashboardSummary] = useState<any>(null);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       const token = Cookies.get("revure_token");
@@ -72,12 +87,14 @@ export default function AffiliateDashboardPage() {
 
       try {
         setIsLoading(true);
-        const [statsData, referralHistory] = await Promise.all([
+        const [statsData, referralHistory, summaryData] = await Promise.all([
           affiliateApi.getDashboardStats(token),
           affiliateApi.getReferralHistory(token),
+          affiliateApi.getDashboardSummary(token),
         ]);
         setStats(statsData);
         setReferrals(referralHistory.referrals || []);
+        setDashboardSummary(summaryData.data);
         setNewCode(statsData.affiliate.referral_code);
       } catch (error: any) {
         console.error("Error fetching affiliate dashboard:", error);
@@ -95,6 +112,10 @@ export default function AffiliateDashboardPage() {
     setActiveTab(tab);
     setIsSidebarOpen(false); // Close mobile sidebar on click
 
+    if (tab === "shoots") {
+      setSelectedBooking(null); // Reset detail view when clicking sidebar
+    }
+
     if (tab === "bookings") {
       const storedUser = localStorage.getItem("revure_user");
       const parsedUser = storedUser ? JSON.parse(storedUser) : null;
@@ -102,7 +123,7 @@ export default function AffiliateDashboardPage() {
 
       if (userId) {
         try {
-          await getBookings(Number(userId)).unwrap(); 
+          await getBookings(Number(userId)).unwrap();
         } catch (err) {
           toast.error("Failed to load your bookings");
         }
@@ -175,8 +196,9 @@ export default function AffiliateDashboardPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+  const formatCurrency = (amount: any) => {
+    if (amount === undefined || amount === null || isNaN(Number(amount))) return "$0.00";
+    return `$${Number(amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -219,8 +241,8 @@ export default function AffiliateDashboardPage() {
             BEIGE
           </span>
         </Link>
-        <button 
-          onClick={() => setIsSidebarOpen(false)} 
+        <button
+          onClick={() => setIsSidebarOpen(false)}
           className="lg:hidden p-2 text-white/60 hover:text-white"
         >
           <X size={24} />
@@ -228,16 +250,59 @@ export default function AffiliateDashboardPage() {
       </div>
 
       <div className="flex-1 py-6 px-3 space-y-1">
-        <button 
-          onClick={() => handleTabChange("overview")}
-          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === "overview" ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "text-white/60 hover:text-white hover:bg-white/5"
-          }`}
+        <button
+          onClick={() => handleTabChange("dashboard")}
+          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${activeTab === "dashboard" ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "text-white/60 hover:text-white hover:bg-white/5"
+            }`}
         >
           <LayoutDashboard size={20} />
-          <span>Overview</span>
+          <span>Dashboard</span>
         </button>
-        
+
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "overview"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }`}
+        >
+          <Users size={20} />
+          <span className="font-medium">Affiliate Overview</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("file-manager")}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "file-manager"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }`}
+        >
+          <Folder size={20} />
+          <span className="font-medium">File Manager</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("messages")}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "messages"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }`}
+        >
+          <MessageSquare size={20} />
+          <span className="font-medium">Messages</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange("shoots")}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "shoots"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }`}
+        >
+          <Camera size={20} />
+          <span className="font-medium">Shoots</span>
+        </button>
+
         <Link
           href="/book-a-shoot"
           className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors"
@@ -247,7 +312,7 @@ export default function AffiliateDashboardPage() {
         </Link>
 
         {/* MY BOOKINGS TAB */}
-        <button 
+        {/* <button 
           onClick={() => handleTabChange("bookings")}
           className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${
             activeTab === "bookings" ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "text-white/60 hover:text-white hover:bg-white/5"
@@ -264,7 +329,7 @@ export default function AffiliateDashboardPage() {
         <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50">
           <Settings size={20} />
           <span>Settings (Soon)</span>
-        </button>
+        </button> */}
       </div>
 
       <div className="p-4 border-t border-white/10">
@@ -323,7 +388,7 @@ export default function AffiliateDashboardPage() {
         {/* MOBILE TOP NAV */}
         <header className="lg:hidden h-16 border-b border-white/10 flex items-center justify-between px-4 bg-[#0A0A0A] sticky top-0 z-50">
           <span className="text-xl font-bold tracking-widest text-[#E8D1AB]">BEIGE</span>
-          <button 
+          <button
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 text-white/80 hover:text-white"
           >
@@ -333,8 +398,54 @@ export default function AffiliateDashboardPage() {
 
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
           <div className="max-w-6xl mx-auto space-y-8 pb-12">
-            
-            {activeTab === "overview" ? (
+
+            {activeTab === "dashboard" ? (
+              <>
+                <div className="flex justify-between items-center">
+                  <div className="text-white">
+                    <h1 className="text-2xl leading-[32px] font-semibold mb-1">Welcome back, {user?.name || "Partner"} !</h1>
+                    <p className="text-sm text-white/70">Monitor revenue, shoots, clients, and performance metrics in one centralized dashboard.</p>
+                  </div>
+                  <Button className="h-[54px] text-[#C4C4C4] px-5 py-4 border rounded-full border-[#807E7E]">
+                    <span>Sort by Date</span><Calendar size={24} />
+                  </Button>
+                </div>
+
+                <AffiliateOverviewChart />
+
+                <div className="flex gap-4 mt-5">
+                  <div className="w-3/4 flex flex-col gap-4">
+                    <AffiliateStatsModule />
+                    <AffiliateTopCreatives />
+                  </div>
+                  <div className="w-1/4">
+                    <AffiliateShootByCategory />
+                  </div>
+                </div>
+                <AffiliateOverallShootsTable />
+                <div className="flex gap-4 mt-5">
+                  <div className="w-3/4">
+                    <AffiliateShootStatusChart />
+                  </div>
+                  <div className="w-1/4">
+                    <AffiliateRecentActivity />
+                  </div>
+                </div>
+              </>
+            ) : activeTab === "shoots" ? (
+              selectedBooking ? (
+                <AffiliateShootDetails
+                  shootId={selectedBooking}
+                  onBack={() => setSelectedBooking(null)}
+                />
+              ) : (
+                <AffiliateShoots onShootClick={(id) => setSelectedBooking(id)} />
+              )
+            ) : activeTab === "file-manager" ? (
+              <AffiliateFileManager />
+            ) : activeTab === "messages" ? (
+              <AffiliateMessages />
+            ) : activeTab === "overview" ? (
               <>
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -349,7 +460,7 @@ export default function AffiliateDashboardPage() {
                       <span className="text-xs text-[#E8D1AB] uppercase tracking-wider font-semibold block mb-0.5">
                         Your Code
                       </span>
-                      
+
                       {isEditingCode ? (
                         <div className="flex items-center gap-2">
                           <input
@@ -363,14 +474,14 @@ export default function AffiliateDashboardPage() {
                             className="bg-transparent border-b border-[#E8D1AB] outline-none text-xl font-mono font-bold text-white tracking-widest w-24 uppercase"
                             disabled={isUpdating}
                           />
-                          <button 
+                          <button
                             onClick={handleUpdateReferralCode}
                             disabled={isUpdating}
                             className="text-green-400 hover:text-green-300"
                           >
                             {isUpdating ? <div className="animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" /> : <Check size={20} />}
                           </button>
-                          <button 
+                          <button
                             onClick={() => { setIsEditingCode(false); setNewCode(stats?.affiliate.referral_code || ""); }}
                             className="text-red-400 hover:text-red-300"
                           >
@@ -426,6 +537,28 @@ export default function AffiliateDashboardPage() {
                     <div className="absolute top-0 right-0 p-4 opacity-10"><TrendingUp size={48} className="text-purple-500" /></div>
                     <p className="text-white/40 text-sm font-medium mb-2">Conversion Rate</p>
                     <p className="text-2xl font-bold text-white">{stats?.stats.conversion_rate || "0"}%</p>
+                  </div>
+
+                  {/* Shoot Metrics */}
+                  <div className="bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group hover:border-green-500/30 transition-colors">
+                    <div className="absolute top-0 right-0 p-4 opacity-10"><Camera size={48} className="text-green-500" /></div>
+                    <p className="text-white/40 text-sm font-medium mb-2">Total Shoots</p>
+                    <p className="text-2xl font-bold text-white">{dashboardSummary?.total_shoots?.count || 0}</p>
+                    <p className="text-xs text-green-400 mt-1">+{dashboardSummary?.total_shoots?.growth || 0}% growth</p>
+                  </div>
+
+                  <div className="bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group hover:border-orange-500/30 transition-colors">
+                    <div className="absolute top-0 right-0 p-4 opacity-10"><Clock size={48} className="text-orange-500" /></div>
+                    <p className="text-white/40 text-sm font-medium mb-2">Active Shoots</p>
+                    <p className="text-2xl font-bold text-white">{dashboardSummary?.active_shoots?.count || 0}</p>
+                    <p className="text-xs text-orange-400 mt-1">+{dashboardSummary?.active_shoots?.growth || 0}% growth</p>
+                  </div>
+
+                  <div className="bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
+                    <div className="absolute top-0 right-0 p-4 opacity-10"><CheckCircle size={48} className="text-emerald-500" /></div>
+                    <p className="text-white/40 text-sm font-medium mb-2">Completed Shoots</p>
+                    <p className="text-2xl font-bold text-white">{dashboardSummary?.completed_shoots?.count || 0}</p>
+                    <p className="text-xs text-emerald-400 mt-1">+{dashboardSummary?.completed_shoots?.growth || 0}% growth</p>
                   </div>
                 </div>
 
@@ -520,7 +653,7 @@ export default function AffiliateDashboardPage() {
                       <tbody className="divide-y divide-white/5">
                         {isBookingsLoading ? (
                           <tr><td colSpan={5} className="px-6 py-12 text-center"><div className="animate-spin h-6 w-6 border-2 border-[#E8D1AB] border-t-transparent rounded-full mx-auto" /></td></tr>
-                        ) : bookingsResponse?.bookings.map((booking: any) => {
+                        ) : (bookingsResponse as any)?.booking?.map((booking: any) => {
                           const status = getBookingStatus(booking);
                           return (
                             <tr key={booking.booking_id} className="hover:bg-white/5 transition-colors group">
@@ -535,8 +668,8 @@ export default function AffiliateDashboardPage() {
                               <td className="px-6 py-4 text-white/60 max-w-[200px] truncate">{booking.event_location?.address}</td>
                               <td className="px-6 py-4"><span className={`text-[10px] px-2 py-0.5 rounded-full capitalize font-semibold ${status.class}`}>{status.label}</span></td>
                               <td className="px-6 py-4 text-right">
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => setSelectedBooking(booking)}
                                   className="text-[#E8D1AB] hover:text-[#E8D1AB] hover:bg-[#E8D1AB]/10 text-xs font-semibold gap-1"
@@ -556,7 +689,7 @@ export default function AffiliateDashboardPage() {
           </div>
         </main>
         <AnimatePresence>
-          {selectedBooking && (
+          {activeTab === "bookings" && selectedBooking && typeof selectedBooking === "object" && (
             <>
               {/* Backdrop */}
               <motion.div
@@ -576,7 +709,7 @@ export default function AffiliateDashboardPage() {
               >
                 <div className="p-6 border-b border-white/10 flex items-center justify-between bg-[#161616]">
                   <h2 className="text-xl font-bold text-white">Project Details</h2>
-                  <button onClick={() => setSelectedBooking(null)} className="p-2 text-white/40 hover:text-white transition-colors"><X size={24}/></button>
+                  <button onClick={() => setSelectedBooking(null)} className="p-2 text-white/40 hover:text-white transition-colors"><X size={24} /></button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-8">
@@ -586,7 +719,7 @@ export default function AffiliateDashboardPage() {
                       <p className="text-xs text-[#E8D1AB] font-bold uppercase tracking-widest">Project Name</p>
                       <h3 className="text-2xl font-bold text-white">{selectedBooking.project_name}</h3>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4 pt-2">
                       <div className="bg-white/5 p-3 rounded-lg border border-white/5">
                         <p className="text-[10px] text-white/40 uppercase font-bold mb-1">Event Date</p>
@@ -602,7 +735,7 @@ export default function AffiliateDashboardPage() {
                   {/* Info Section */}
                   <section className="space-y-4">
                     <div className="flex gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0"><Info size={20}/></div>
+                      <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0"><Info size={20} /></div>
                       <div>
                         <p className="text-xs text-white/40 font-bold uppercase">Type & Start Time</p>
                         <p className="text-sm text-white/80 capitalize">{selectedBooking.event_type} • {selectedBooking.start_time}</p>
@@ -610,7 +743,7 @@ export default function AffiliateDashboardPage() {
                     </div>
 
                     <div className="flex gap-3">
-                      <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 shrink-0"><MapPin size={20}/></div>
+                      <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 shrink-0"><MapPin size={20} /></div>
                       <div>
                         <p className="text-xs text-white/40 font-bold uppercase">Location</p>
                         <p className="text-sm text-white/80 leading-relaxed">{selectedBooking.event_location?.address}</p>
@@ -623,7 +756,7 @@ export default function AffiliateDashboardPage() {
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-bold uppercase text-white tracking-widest">Assigned Crew ({selectedBooking.assigned_crew_count})</h4>
                     </div>
-                    
+
                     <div className="space-y-3">
                       {selectedBooking.assigned_crews?.length > 0 ? (
                         selectedBooking.assigned_crews.map((crew: any) => (
@@ -672,7 +805,7 @@ export default function AffiliateDashboardPage() {
               </motion.div>
             </>
           )}
-          </AnimatePresence>
+        </AnimatePresence>
       </div>
     </div>
   );
