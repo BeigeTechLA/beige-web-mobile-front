@@ -16,76 +16,90 @@ const CREW_MEMBERS = [
   {
     name: "Alex Vance",
     id: "alex-vance",
-    image: "/images/crew/CREW(1).png"
+    image: "/images/crew/CREW(1).png",
+    city: "Los Angeles"
   },
   {
     name: "Isabella Chen",
     id: "isabella-chen",
-    image: "/images/crew/CREW(2).png"
+    image: "/images/crew/CREW(2).png",
+    city: "Pasadena"
   },
   {
     name: "Marcus Holloway",
     id: "marcus-holloway",
-    image: "/images/crew/CREW(3).png"
+    image: "/images/crew/CREW(3).png",
+    city: "Los Angeles"
   },
   {
     name: "Sophia Rossi",
     id: "sophia-rossi",
-    image: "/images/crew/CREW(4).png"
+    image: "/images/crew/CREW(4).png",
+    city: "New York City"
   },
   {
     name: "Julian Kade",
     id: "julian-kade",
-    image: "/images/crew/CREW(5).png"
+    image: "/images/crew/CREW(5).png",
+    city: "Fresno"
   },
   {
     name: "Elena Moretti",
     id: "elena-moretti",
-    image: "/images/crew/CREW(7).png"
+    image: "/images/crew/CREW(7).png",
+    city: "San Jose"
   },
   {
     name: "Xavier Knight",
     id: "xavier-knight",
-    image: "/images/crew/CREW(8).png"
+    image: "/images/crew/CREW(8).png",
+    city: "Los Angeles"
   },
   {
     name: "Amara Okafor",
     id: "amara-okafor",
-    image: "/images/crew/CREW(9).png"
+    image: "/images/crew/CREW(9).png",
+    city: "Oakland"
   },
   {
     name: "Liam Sterling",
     id: "liam-sterling",
-    image: "/images/crew/CREW(10).png"
+    image: "/images/crew/CREW(10).png",
+    city: "Bakersfield"
   },
   {
     name: "Chloe Naka",
     id: "chloe-naka",
-    image: "/images/crew/CREW70.png"
+    image: "/images/crew/CREW70.png",
+    city: "San Jose"
   },
   {
     name: "Nat Drake",
     id: "nat-drake",
-    image: "/images/crew/CREW71.png"
+    image: "/images/crew/CREW71.png",
+    city: "San Francisco"
   },
   {
     name: "Maya Sullivan",
     id: "maya-sullivan",
-    image: "/images/crew/CREW72.png"
+    image: "/images/crew/CREW72.png",
+    city: "San Francisco"
   },
   {
     name: "Roman Volkov",
     id: "roman-volkov",
-    image: "/images/crew/CREW74.png"
+    image: "/images/crew/CREW74.png",
+    city: "Oakland"
   },
   {
     name: "Sienna Brooks",
     id: "sienna-brooks",
-    image: "/images/crew/CREW(6).png"
+    image: "/images/crew/CREW(6).png",
+    city: "Pasadena"
   }
 ];
 
-export const TopCreatives = () => {
+export const TopCreatives = ({ title, subtext = "" }: { title?: string, subtext?: string }) => {
   const [activeIndex, setActiveIndex] = useState(0);
 
   return (
@@ -94,11 +108,16 @@ export const TopCreatives = () => {
         {/* HEADER */}
         <div className="text-center mb-12 lg:mb-20">
           <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-4 tracking-tight">
-            Top Creative Partners
+            {title || "Top Creative Partners"}
           </h2>
-          <p className="text-white/50 text-xs lg:text-base max-w-[600px] mx-auto px-8 md:px-0">
-            Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s,
-          </p>
+
+          {
+            subtext && (
+              <p className="text-white/50 text-xs lg:text-base max-w-[600px] mx-auto px-8 md:px-0">
+                {subtext}
+              </p>
+            )
+          }
         </div>
 
         {/* Swiper Container */}
@@ -168,20 +187,26 @@ export const TopCreatives = () => {
                           className="object-cover object-top"
                         />
 
-                        <div className="absolute top-0 right-5 bg-black lg:w-[53px] lg:h-[90px] w-12 h-20 flex items-center justify-center">
+                        {/* <div className="absolute top-0 right-5 bg-black lg:w-[53px] lg:h-[90px] w-12 h-20 flex items-center justify-center">
                           <Image
                             src="/images/logos/BeigeB.svg"
                             alt="Beige Logo"
                             fill
                           />
-                        </div>
+                        </div> */}
                       </div>
 
                       {/* Info */}
                       <div className="mt-5 flex justify-between items-center px-6">
-                        <h3 className="text-lg lg:text-2xl 2xl:text-3xl text-white tracking-tight">
-                          {member.name}
-                        </h3>
+                        <div>
+                          <h3 className="text-lg lg:text-2xl 2xl:text-3xl text-white tracking-tight">
+                            {member.name}
+                          </h3>
+                          <p className="text-sm lg:text-xl text-white tracking-tight">
+                            {member.city}
+                          </p>
+                        </div>
+
                         <ArrowUpRight size={24} />
                       </div>
                     </div>

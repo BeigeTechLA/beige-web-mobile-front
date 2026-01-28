@@ -13,19 +13,19 @@ const PYRAMID_DATA = [
     id: "01",
     text: "Earn More, Even When You're Not the Creative Partners",
     icon: <CircleDollarSign size={70} strokeWidth={0.5} />,
-    hoverText: "Unlimited Referral Commissions",
+    hoverText: "Refer clients to Beige and earn referral bonuses, even if you’re not the one completing the shoot. If you’re the Creative Partner on a referred shoot, you earn double the reward!",
   },
   {
     id: "02",
     text: "Access Exclusive Benefits",
     icon: <SquarePen size={70} strokeWidth={0.5} />,
-    hoverText: "Early Access to Premium Assets",
+    hoverText: "Let Beige manage the logistics, client communications, insurance, and payments so you can focus on delivering exceptional work and advancing your creative journey.",
   },
   {
     id: "03",
     text: "Focus on Your Craft, We Handle the Rest",
     icon: <Rocket size={70} strokeWidth={0.5} />,
-    hoverText: "End-to-end Project Management",
+    hoverText: "Progress through our tiered program to unlock higher rates, bonuses, priority bookings, and access to Beige-hosted events. Connect with other top creators in our network and become part of a global creative movement.",
   },
 ];
 
@@ -160,7 +160,7 @@ export const AmbassadorProgramSection = () => {
                     className="absolute inset-0 flex items-center justify-center px-12"
                   >
                     {isHovered && (
-                      <p className="text-2xl lg:text-3xl font-bold leading-tight">
+                      <p className="text-base lg:text-lg font-medium leading-tight">
                         {item.hoverText}
                       </p>
                     )}

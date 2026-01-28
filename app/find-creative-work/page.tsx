@@ -5,6 +5,10 @@ import { Navbar } from "@/src/components/landing/Navbar";
 import { Separator } from "@/src/components/landing/Separator";
 import { WelcomeSection } from "@/components/find-creative-work/WelcomeSection";
 import { AmbassadorProgramSection } from "@/components/find-creative-work/AmbassadorProgramSection";
+import { WhySection } from "@/components/find-creative-work/WhySection";
+import { TopCreatives } from "@/src/components/landing/TopCreatives";
+import { GrowthJourneySection } from "@/components/find-creative-work/GrowthJourneySection";
+import { Potential } from "@/components/find-creative-work/PotentialSection";
 
 export default function FindCreativeWorkPage() {
   return (
@@ -14,8 +18,19 @@ export default function FindCreativeWorkPage() {
       <WelcomeSection />
       <Separator />
 
+      <Potential />
+      <Separator />
+
       <AmbassadorProgramSection />
       <Separator />
+
+      <WhySection />
+      <Separator />
+
+      <GrowthJourneySection />
+      <Separator />
+
+      <TopCreatives title="Meet Our Top Creative Partners" />
 
       <Footer />
     </main>
