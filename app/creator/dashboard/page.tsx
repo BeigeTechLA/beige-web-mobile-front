@@ -72,6 +72,15 @@ const formatDisplayLocation = (location?: string) => {
   return addressStr;
 };
 
+const CHART_COLORS = {
+  purple: "#A179F8",
+  blue: "#49B6F5",
+  orange: "#F5B849",
+  green: "#26BF94",
+  darkBg: "#111",
+  muted: "rgba(255,255,255,0.05)"
+};
+
 /**
  * Maps icon types to Lucide components
  */
@@ -132,36 +141,43 @@ function DonutChartCard({
   const total = slices.reduce((a, b) => a + b.value, 0) || 0;
 
   return (
-    <div className="bg-[#111] border border-white/5 rounded-xl p-6 transition-all hover:border-white/10">
+    <div className="bg-[#0B0B0B] border border-white/5 rounded-2xl p-6 transition-all hover:border-white/10">
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h3 className="font-bold text-lg text-white">{title}</h3>
-          {subtitle && <p className="text-xs text-white/40 mt-1">{subtitle}</p>}
+        <div className="flex items-center gap-2">
+            {/* The vertical accent line from your screenshot */}
+            <div className="w-1 h-5 bg-[#E8D1AB] rounded-full" /> 
+            <h3 className="font-medium text-lg text-white/90">{title}</h3>
         </div>
         {rightFilter}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-        <div className="flex items-center justify-center">
-          <div className="relative w-40 h-40 rounded-full" style={{ background: gradient }}>
-            <div className="absolute inset-[32px] rounded-full bg-[#111]" />
-            <div className="absolute inset-0 rounded-full border border-white/5 pointer-events-none" />
+        <div className="flex items-center justify-center relative">
+          <div className="relative w-44 h-44 rounded-full" style={{ background: gradient }}>
+            <div className="absolute inset-[35px] rounded-full bg-[#0B0B0B]" />
+            {/* Inner Center Text like your screenshot */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-white">{total.toLocaleString()}</span>
+            </div>
           </div>
         </div>
 
         <div className="space-y-4">
           {slices.map((s) => {
-            const percentage = total > 0 ? Math.round((s.value / total) * 100) : 0;
             return (
               <div key={s.label} className="flex items-center justify-between group">
-                <div className="flex items-center gap-3">
-                  <span className={`w-2.5 h-2.5 rounded-full ${s.bulletClass} shadow-[0_0_10px_rgba(232,209,171,0.1)]`} />
-                  <div>
-                    <p className="text-xs font-bold text-white/80 group-hover:text-white transition-colors">{s.label}</p>
-                    <p className="text-[10px] text-white/40 uppercase tracking-tighter">{s.value} Shoots</p>
+                <div className="flex items-center gap-4">
+                  {/* Circle with number inside - matching screenshot legend */}
+                  <div 
+                    className="w-10 h-7 rounded-full border flex items-center justify-center text-[10px] font-bold"
+                    style={{ borderColor: s.colorHex, color: 'white', backgroundColor: `${s.colorHex}15` }}
+                  >
+                    {s.value}
                   </div>
+                  <p className="text-xs font-medium text-white/50 group-hover:text-white transition-colors">
+                    {s.label}
+                  </p>
                 </div>
-                <span className="text-xs font-mono font-bold text-[#E8D1AB]">{percentage}%</span>
               </div>
             );
           })}
@@ -456,25 +472,69 @@ function VerificationStatusOverlay({ status }: { status: number }) {
 
   // Donut Chart Slices (Updated to Gold Theme)
   const shootStatusSlices: DonutSlice[] = [
-    { label: "Completed Shoots", value: creatorStats.completedShoots, colorHex: "#E8D1AB", bulletClass: "bg-[#E8D1AB]" },
-    { label: "Pending Shoots", value: creatorStats.pendingShoots, colorHex: "#A69277", bulletClass: "bg-[#A69277]" },
-    { label: "Rejected Shoots", value: creatorStats.rejectedShoots, colorHex: "rgba(255,255,255,0.1)", bulletClass: "bg-white/10" },
-    { label: "Shoot Requests", value: creatorStats.shootRequests, colorHex: "#70634D", bulletClass: "bg-[#70634D]" },
+    { 
+        label: "Successful Shoots", 
+        value: creatorStats.completedShoots, 
+        colorHex: CHART_COLORS.purple, 
+        bulletClass: "bg-[#A879FF]" 
+    },
+    { 
+        label: "Pending Shoots", 
+        value: creatorStats.pendingShoots, 
+        colorHex: CHART_COLORS.blue, 
+        bulletClass: "bg-[#36C1FF]" 
+    },
+    { 
+        label: "Rejected Shoots", 
+        value: creatorStats.rejectedShoots, 
+        colorHex: CHART_COLORS.orange, 
+        bulletClass: "bg-[#FFC13F]" 
+    },
+    { 
+        label: "Shoot Requests", 
+        value: creatorStats.shootRequests, 
+        colorHex: CHART_COLORS.green, 
+        bulletClass: "bg-[#2ED499]" 
+    },
   ];
 
-  const shootCategorySlices: DonutSlice[] = useMemo(() => {
-    const slices = [
-      { label: "Photography Shoots", value: creatorStats.photographyShoots, colorHex: "#E8D1AB", bulletClass: "bg-[#E8D1AB]" },
-      { label: "Videography Shoots", value: Math.max(0, creatorStats.completedShoots - creatorStats.photographyShoots), colorHex: "#C9B79F", bulletClass: "bg-[#C9B79F]" },
-      { label: "Rejected Shoots", value: creatorStats.rejectedShoots, colorHex: "rgba(255,255,255,0.05)", bulletClass: "bg-white/5" },
-      { label: "Shoot Requests", value: creatorStats.shootRequests, colorHex: "#454545", bulletClass: "bg-white/20" },
-    ];
 
-    if (categoryTypeFilter === "photography") return slices.filter(s => s.label.includes("Photography") || s.label.includes("Rejected") || s.label.includes("Requests"));
-    if (categoryTypeFilter === "videography") return slices.filter(s => s.label.includes("Videography") || s.label.includes("Rejected") || s.label.includes("Requests"));
-    return slices;
-  }, [creatorStats, categoryTypeFilter]);
+  const shootCategorySlices: DonutSlice[] = useMemo(() => {
+  const slices = [
+    { 
+      label: "Photography Shoots", 
+      value: creatorStats.photographyShoots, 
+      colorHex: CHART_COLORS.purple,
+      bulletClass: "bg-[#A879FF]" 
+    },
+    { 
+      label: "Videography Shoots", 
+      value: Math.max(0, creatorStats.completedShoots - creatorStats.photographyShoots), 
+      colorHex: CHART_COLORS.blue,
+      bulletClass: "bg-[#36C1FF]" 
+    },
+    { 
+      label: "Rejected Shoots", 
+      value: creatorStats.rejectedShoots, 
+      colorHex: CHART_COLORS.orange,
+      bulletClass: "bg-[#FFC13F]" 
+    },
+    { 
+      label: "Shoot Requests", 
+      value: creatorStats.shootRequests, 
+      colorHex: CHART_COLORS.green,
+      bulletClass: "bg-[#2ED499]" 
+    },
+  ];
+
+  if (categoryTypeFilter === "photography") 
+    return slices.filter(s => s.label.includes("Photography") || s.label.includes("Rejected") || s.label.includes("Requests"));
+  if (categoryTypeFilter === "videography") 
+    return slices.filter(s => s.label.includes("Videography") || s.label.includes("Rejected") || s.label.includes("Requests"));
   
+  return slices;
+}, [creatorStats, categoryTypeFilter]);
+
     if (verificationStatus === null) return null;
 
 
@@ -631,12 +691,22 @@ function VerificationStatusOverlay({ status }: { status: number }) {
                 const isToday = curDate.getTime() === today.getTime();
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const dayData = (availability as any)?.[dateStr];
-
                 let style = "border-white/5 text-white/60 hover:border-white/20";
-                if (dayData && dayData.available === false && !dayData.projectAssigned) style = "border-red-500/30 bg-red-500/5 text-red-400";
-                if (dayData?.projectAssigned === true) style = "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]";
-                if (isToday) style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold";
 
+                if (dayData && dayData.available === true && !dayData.projectAssigned) {
+                  style = "border-[#E8D1AB]/30 bg-[#E8D1AB]/5 text-[#E8D1AB]";
+                }
+
+                if (dayData && dayData.available === false && !dayData.projectAssigned) {
+                  style = "border-red-600/40 bg-black text-[#E8D1AB]";
+                }
+
+                if (dayData?.projectAssigned === true) {
+                  style = "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]";
+                }
+                if (isToday) {
+                  style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold";
+                }
                 days.push(
                   <button
                     key={d}
