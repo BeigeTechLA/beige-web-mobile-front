@@ -214,6 +214,8 @@ export default function CreatorDashboardPage() {
   const [availability, setAvailability] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [verificationStatus, setVerificationStatus] = useState<number | null>(null);
+
 
   const [viewState, setViewState] = useState({
     latitude: 39.8283,
@@ -330,6 +332,29 @@ export default function CreatorDashboardPage() {
     fetchDashboardDetails();
   }, [user]);
 
+  // useEffect(() => {
+  //   const userStr = localStorage.getItem("revure_user");
+  //   const localUser = userStr ? JSON.parse(userStr) : null;
+  //   // Map the status: 0=Pending, 1=Verified, 2=Rejected
+  //   const status = user?.is_crew_verified ?? localUser?.is_crew_verified ?? 0;
+  //   setVerificationStatus(Number(status));
+  // }, [user]);
+
+  useEffect(() => {
+  const userStr = localStorage.getItem("revure_user");
+  const localUser = userStr ? JSON.parse(userStr) : null;
+
+  // Use (user as any) to bypass the TypeScript check
+  const status = (user as any)?.is_crew_verified ?? localUser?.is_crew_verified ?? 0;
+  
+  setVerificationStatus(Number(status));
+  console.log("Verification Status:", status);
+  console.log("User Object:", user);
+  console.log("verification status::::", verificationStatus);
+}, [user]);
+
+  // if (verificationStatus === null) return null;
+
   // Geocoding Logic
   const geocodeAddress = async (address: string) => {
     try {
@@ -366,6 +391,57 @@ export default function CreatorDashboardPage() {
     });
   }, [currentMonth, currentYear]);
 
+
+  // Helper Component for Pending/Rejected States
+function VerificationStatusOverlay({ status }: { status: number }) {
+  const isPending = status === 0;
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
+      <div className="mb-8 relative">
+        <div className="w-24 h-24 rounded-full bg-[#E8D1AB]/5 border border-[#E8D1AB]/20 flex items-center justify-center animate-pulse">
+          {isPending ? (
+            <Clock size={40} className="text-[#E8D1AB]" />
+          ) : (
+            <AlertTriangle size={40} className="text-red-500" />
+          )}
+        </div>
+      </div>
+
+      <h2 className="text-3xl font-bold text-white mb-4">
+        {isPending ? "Application Under Review" : "Application Status"}
+      </h2>
+      
+      <p className="text-white/60 max-w-md leading-relaxed mb-8">
+        {isPending 
+          ? "Welcome to the Beige collective. Our curation team is currently reviewing your portfolio and credentials. We maintain a high standard for our creators to ensure premium quality for our clients."
+          : "Thank you for your interest in joining Beige. At this time, our team has decided not to move forward with your application. We appreciate your talent and wish you the best in your creative journey."
+        }
+      </p>
+
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-sm w-full">
+        <h4 className="text-[10px] uppercase tracking-[0.2em] text-[#E8D1AB] mb-2">Next Steps</h4>
+        <p className="text-sm text-white/80">
+          {isPending 
+            ? "Reviews typically take 2-3 business days. You'll receive an email once your dashboard is fully activated."
+            : "If you feel this was an error or your portfolio has significantly changed, feel free to contact our support team."
+          }
+        </p>
+      </div>
+      
+      {isPending && (
+         <Button 
+          variant="outline" 
+          className="mt-8 border-white/10 hover:bg-white/5 text-white/40"
+          onClick={() => window.location.reload()}
+         >
+           Refresh Status
+         </Button>
+      )}
+    </div>
+  );
+}
+
   // Map Filter Logic
   const filteredMarkers = useMemo(() => {
     return mapMarkers.filter((marker) => {
@@ -398,6 +474,13 @@ export default function CreatorDashboardPage() {
     if (categoryTypeFilter === "videography") return slices.filter(s => s.label.includes("Videography") || s.label.includes("Rejected") || s.label.includes("Requests"));
     return slices;
   }, [creatorStats, categoryTypeFilter]);
+  
+    if (verificationStatus === null) return null;
+
+
+   if (verificationStatus !== 1) {
+    return <VerificationStatusOverlay status={verificationStatus} />;
+  }
 
   // ----------------------
   // RENDER
