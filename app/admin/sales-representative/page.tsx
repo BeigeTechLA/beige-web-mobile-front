@@ -7,11 +7,14 @@ import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { ChevronRight, MoreVertical } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
+import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
+import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 
 // placeholder data 
 const sortByData = ["Recent Leads (5)", "Recent Leads (15)", "Test Filter"]
 
 interface LeadData {
+  lead_id: number;
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
@@ -20,65 +23,36 @@ interface LeadData {
   date: Date;
 }
 
-// placeholder data 
-const LEADS_DATA: LeadData[] = [
-  {
-    clientName: "Alex Thompson",
-    email: "alex.t@gmail.com",
-    leadType: "Self-Serve",
-    bookingStatus: "Booked",
-    lastActivity: "2 hours ago.",
-    date: new Date("2026-01-22T10:30:00")
-  },
-  {
-    clientName: "Sarah Jenkins",
-    email: "s.jenkins@outlook.com",
-    leadType: "Self-Serve",
-    bookingStatus: "Booked",
-    lastActivity: "1 day ago",
-    date: new Date("2026-01-22T10:30:00")
-  },
-  {
-    clientName: "Michael Chen",
-    email: "mchen_tech@yahoo.com",
-    leadType: "Sales Assisted",
-    bookingStatus: "In-Progress",
-    lastActivity: "4 hours ago.",
-    date: new Date("2026-01-12T15:20:00")
-  },
-  {
-    clientName: "Emily Rodriguez",
-    email: "emily.rod@company.org",
-    leadType: "Sales Assisted",
-    bookingStatus: "Cancelled",
-    lastActivity: "12 hours ago.",
-    date: new Date("2026-01-02T05:30:00")
-  },
-  {
-    clientName: "David Park",
-    email: "dpark_creative@me.com",
-    leadType: "Self-Serve",
-    bookingStatus: "Booked",
-    lastActivity: "2 days ago",
-    date: new Date("2026-01-21T10:40:00")
-  },
-  {
-    clientName: "Jessica Wu",
-    email: "jessica.wu@design.com",
-    leadType: "Self-Serve",
-    bookingStatus: "Booked",
-    lastActivity: "23 hours ago.",
-    date: new Date("2026-01-12T16:30:00")
-  },
-  {
-    clientName: "Kevin Adams",
-    email: "kadams_photo@live.com",
-    leadType: "Sales Assisted",
-    bookingStatus: "In-Progress",
-    lastActivity: "1 day ago",
-    date: new Date("2026-01-14T14:30:00")
+// Helper function to map lead status to UI format
+const mapLeadStatusToUI = (status: LeadStatus): "Booked" | "Cancelled" | "In-Progress" => {
+  if (status === 'booked') return 'Booked';
+  if (status === 'abandoned') return 'Cancelled';
+  return 'In-Progress';
+};
+
+// Helper function to format relative time
+const formatRelativeTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInHours = diffInMs / (1000 * 60 * 60);
+
+  if (diffInHours < 1) {
+    const minutes = Math.floor(diffInMs / (1000 * 60));
+    return `${minutes} minutes ago`;
   }
-];
+  if (diffInHours < 24) {
+    return `${Math.floor(diffInHours)} hours ago`;
+  }
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays === 1) {
+    return '1 day ago';
+  }
+  if (diffInDays < 7) {
+    return `${diffInDays} days ago`;
+  }
+  return date.toLocaleDateString();
+};
 
 const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
   const styles = {
@@ -99,6 +73,25 @@ export default function AdminSaleRepManagerPage() {
   const [sortBy, setSortBy] = React.useState("")
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+
+  // Fetch real leads from API
+  const { data, isLoading, isFetching } = useGetLeadsQuery({
+    page: 1,
+    limit: 50,
+    status: sortBy || undefined,
+  });
+
+  // Map backend data to UI format
+  const leadsData: LeadData[] = (data?.leads || []).map((lead: SalesLead) => ({
+    lead_id: lead.lead_id,
+    clientName: lead.client_name || lead.guest_email || 'Unknown Client',
+    email: lead.guest_email || 'No email',
+    leadType: lead.lead_type === 'self_serve' ? 'Self-Serve' : 'Sales Assisted',
+    bookingStatus: mapLeadStatusToUI(lead.lead_status),
+    lastActivity: formatRelativeTime(lead.last_activity_at),
+    date: new Date(lead.created_at),
+  }));
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -111,8 +104,9 @@ export default function AdminSaleRepManagerPage() {
   };
 
 
-  const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>, client: string) => {
+  const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>, client: string, leadId: number) => {
     setSelectedClient(client);
+    setSelectedLeadId(leadId);
     const rect = e.currentTarget.getBoundingClientRect();
 
     const isNearRightEdge = window.innerWidth - rect.right < 250;
@@ -160,21 +154,30 @@ export default function AdminSaleRepManagerPage() {
       />
 
       <div className="w-full overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
-        <table className="w-full text-left border-separate border-spacing-0">
-          <thead>
-            <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
-              <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">Client Name</th>
-              <th className="py-5 px-6 font-medium border-b border-[#333333]">Email ID</th>
-              <th className="py-5 px-6 font-medium border-b border-[#333333]">Lead Type</th>
-              <th className="py-5 px-6 font-medium border-b border-[#333333]">Booking Status</th>
-              <th className="py-5 px-6 font-medium border-b border-[#333333]">Last Activity</th>
-              <th className="py-5 px-6 font-medium text-right rounded-r-2xl border-r border-b border-b-[#333333] border-r-[#333333]">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {LEADS_DATA.map((lead, idx) => (
+        {isLoading || isFetching ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB]"></div>
+          </div>
+        ) : leadsData.length === 0 ? (
+          <div className="flex items-center justify-center py-20 text-white/60">
+            <p>No leads found</p>
+          </div>
+        ) : (
+          <table className="w-full text-left border-separate border-spacing-0">
+            <thead>
+              <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
+                <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">Client Name</th>
+                <th className="py-5 px-6 font-medium border-b border-[#333333]">Email ID</th>
+                <th className="py-5 px-6 font-medium border-b border-[#333333]">Lead Type</th>
+                <th className="py-5 px-6 font-medium border-b border-[#333333]">Booking Status</th>
+                <th className="py-5 px-6 font-medium border-b border-[#333333]">Last Activity</th>
+                <th className="py-5 px-6 font-medium text-right rounded-r-2xl border-r border-b border-b-[#333333] border-r-[#333333]">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leadsData.map((lead) => (
               <tr
-                key={idx}
+                key={lead.lead_id}
                 className=" hover:bg-white/[0.02] transition-colors cursor-pointer"
               >
                 {/* Client Name & Date */}
@@ -212,20 +215,22 @@ export default function AdminSaleRepManagerPage() {
                 <td className="py-5 px-6 text-right">
                   <Button
                     className="text-white hover:text-white/80 transition-colors"
-                    onClick={(e) => handleOpenMenu(e, lead.clientName)}
+                    onClick={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
                   >
                     <MoreVertical size={20} />
                   </Button>
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {menuAnchor && (
+      {menuAnchor && selectedLeadId && (
         <ActionMenu
           client={selectedClient}
+          leadId={selectedLeadId}
           isOpen={true}
           onClose={() => setMenuAnchor(null)}
           anchor={menuAnchor}
