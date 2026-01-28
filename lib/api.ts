@@ -1,4 +1,6 @@
 import axios from 'axios';
+import Cookies from 'js-cookie';
+
 import type { Creator, Review, Equipment, PaymentIntentResponse, BookingResponse, BookingFormData } from '@/types/payment';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
@@ -8,7 +10,23 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
+
+// Add request interceptor to include JWT token
+api.interceptors.request.use(
+  (config) => {
+    const token = Cookies.get('revure_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 
 // Role mapping
 const ROLE_MAP: Record<number, string> = {
@@ -239,10 +257,49 @@ export const affiliateApi = {
     token: string,
     data: { payout_method?: string; payout_details?: Record<string, unknown> }
   ): Promise<{ payout_method: string; payout_details: Record<string, unknown> }> => {
-    const response = await api.put('/affiliates/payout-details', data, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const response = await api.put(
+      "/affiliates/payout-details",
+      data,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
     return response.data.data;
+  },
+
+  // Get client dashboard summary (affiliate dashboard)
+  getDashboardSummary: async (token: string) => {
+    try {
+      const response = await api.get('client/get-dashboard-summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Affiliate Dashboard Summary Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch dashboard summary',
+      };
+    }
+  },
+
+  // Get shoots count by category (affiliate dashboard)
+  getShootsCountByCategory: async (token: string, tab?: string) => {
+    try {
+      const response = await api.get('client/get-shoots-count-by-category', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: tab && tab !== 'All' ? { type: tab.toLowerCase() } : {},
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Shoots Count By Category Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch shoots count by category',
+      };
+    }
   },
 };
 
@@ -267,7 +324,7 @@ export const getEquipmentSuggestions = async (queryParams = {}) => {
   }
 };
 
-export const getStatusCount = async (payload: { crew_member_id: number }) => {
+export const getStatusCount = async (payload: { crew_member_id: number, creator_id: number }) => {
   try {
     const response = await api.post(
       "creator/status-count",
@@ -393,7 +450,7 @@ export const updateReferralCode = async (payload: {
   }
 };
 
-export const getCrewAvailability = async (payload) => {
+export const getCrewAvailability = async (payload: any) => {
   try {
     const response = await api.post("creator/availability", payload, {
       headers: {
@@ -411,7 +468,7 @@ export const getCrewAvailability = async (payload) => {
   }
 };
 
-export const getProjectDetails = async (payload) => {
+export const getProjectDetails = async (payload: any) => {
   try {
     const response = await api.post("creator/project-details", payload, {
       headers: {
@@ -430,7 +487,7 @@ export const getProjectDetails = async (payload) => {
 };
 
 
-export const AddAvailability = async (payload) => {
+export const AddAvailability = async (payload: any) => {
   try {
     const response = await api.post("creator/add-availability", payload, {
       headers: {
@@ -466,3 +523,402 @@ export const AddAvailability = async (payload) => {
 //   }
 // };
 
+
+export const GetMyProfile = async (payload: any) => {
+  try {
+    const response = await api.post("creator/get-profile-detail", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+    console.log('Profile Response:', response);
+  } catch (error) {
+    console.error('Get Profile Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Profile',
+    };
+  }
+};
+
+export const EditMyProfile = async (payload: any) => {
+  try {
+    const response = await api.post("creator/edit-profile", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+    console.log('Profile Response:', response);
+  } catch (error) {
+    console.error('Get Profile Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Profile',
+    };
+  }
+};
+
+export const UploadProfileFile = async (fileType: string, files: File | File[], crewMemberId: string | number, metadata: any = {}) => {
+  try {
+    const formData = new FormData();
+
+    // 1. Append all files to the 'files[]' field
+    if (Array.isArray(files)) {
+      files.forEach((file) => {
+        formData.append("files[]", file);
+      });
+    } else {
+      formData.append("files[]", files);
+    }
+
+    formData.append("crew_member_id", crewMemberId.toString());
+
+    // 2. Append metadata
+    if (metadata.title) formData.append("title", metadata.title);
+    if (metadata.tag) formData.append("tag", metadata.tag);
+
+    const response = await api.post(`creator/profile/files/${fileType}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response;
+  } catch (error) {
+    console.error(`Upload ${fileType} Error:`, error);
+    return { error: true, message: "Upload failed" };
+  }
+};
+
+export const DeleteProfileFile = async (crewFilesId: string | number, payload: any) => {
+  try {
+    // Note: We use api.delete and pass the ID in the URL string
+    const response = await api.delete(`creator/profile-file/${crewFilesId}`, { data: payload });
+    return response;
+  } catch (error) {
+    console.error('Delete File Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to delete file',
+    };
+  }
+};
+
+export const adminApi = {
+  getDashboardSummary: async () => {
+    try {
+      const response = await api.get('admin/get-dashboard-summary');
+      return response.data;
+    } catch (error) {
+      console.error('Get Dashboard Summary Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch dashboard summary',
+      };
+    }
+  },
+  getTotalRevenue: async () => {
+    try {
+      const response = await api.get('admin/dashboard/revenue/total');
+      return response.data;
+    } catch (error) {
+      console.error('Get Total Revenue Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch total revenue',
+      };
+    }
+  },
+  getMonthlyRevenue: async () => {
+    try {
+      const response = await api.get('admin/dashboard/revenue/monthly');
+      return response.data;
+    } catch (error) {
+      console.error('Get Monthly Revenue Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch monthly revenue',
+      };
+    }
+  },
+  getWeeklyRevenue: async () => {
+    try {
+      const response = await api.get('admin/dashboard/revenue/weekly');
+      return response.data;
+    } catch (error) {
+      console.error('Get Weekly Revenue Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch weekly revenue',
+      };
+    }
+  },
+  getProjects: async () => {
+    try {
+      const response = await api.get('admin/get-projects', {
+        headers: {
+          'Content-Type': 'application/json', // Ensure standard headers are sent, or remove if causing issues. Some servers need strict no-body.
+        }
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Projects Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch projects',
+      };
+    }
+  },
+
+  getProjectDetails: async (id: string) => {
+    try {
+      const response = await api.get(`admin/get-project/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Project Details Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch project details',
+      };
+    }
+  },
+
+  getCrewMemberDetail: async (id: string) => {
+    try {
+      const response = await api.get(`admin/crew-member/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Crew Member Detail Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch crew member details',
+      };
+    }
+  },
+  getSkills: async () => {
+    try {
+      const response = await api.get('admin/skills');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Skills Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch skills',
+      };
+    }
+  },
+  getShootStatus: async (range: 'all' | 'monthly' = 'all') => {
+    try {
+      const response = await api.get('admin/dashboard/shoot-status', {
+        params: { range },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Status Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch shoot status',
+      };
+    }
+  },
+  getTopCreativePartners: async (range: 'all' | 'monthly' = 'all') => {
+    try {
+      const response = await api.get('admin/dashboard/top-creative-partners', {
+        params: { range },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Top Creative Partners Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch top creative partners',
+      };
+    }
+  },
+  getCrewMembers: async (page: number = 1, limit: number = 50) => {
+    try {
+      const response = await api.post('admin/get-crew-members', {
+        page,
+        limit,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Crew Members Error:', error.response?.data || error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || error.message || 'Failed to fetch crew members',
+      };
+    }
+  },
+  verifyCrewMember: async (payload: { crew_member_id: number; status: number }) => {
+    try {
+      const response = await api.post('admin/verify-crew-member', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Verify Crew Member Error:', error.response?.data || error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || error.message || 'Failed to verify crew member',
+      };
+    }
+  },
+  getAdminDashboardDetail: async (payload: { crew_member_id: string | number }) => {
+    try {
+      const response = await api.post('admin/dashboard-detail', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Admin Dashboard Detail Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch dashboard detail',
+      };
+    }
+  },
+
+  getRecentActivity: async (limit: number = 10) => {
+    try {
+      const response = await api.get('admin/recent-activity', {
+        params: { limit },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Recent Activity Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch recent activity',
+      };
+    }
+  },
+
+  getShootCategoryCount: async (tab?: string) => {
+    try {
+      const response = await api.get('admin/shoot-category-count', {
+        params: tab ? { tab } : {},
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Category Count Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch shoot category count',
+      };
+    }
+  },
+
+  getPostProductionMembers: async () => {
+    try {
+      const response = await api.get('admin/get-post-production-members');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Post Production Members Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch post production members',
+      };
+    }
+  },
+
+  assignPostProductionMember: async (payload: { post_production_member_id: number; project_id: number }) => {
+    try {
+      const response = await api.post('admin/assign-post-production-member', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Assign Post Production Member Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to assign post production member',
+      };
+    }
+  },
+};
+
+export const GetCreatorDashboardCount = async (payload: any) => {
+  try {
+    const response = await api.post("creator/dashboard-count", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Get Dashboard Count Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Dashboard Count',
+    };
+  }
+};
+
+export const GetCreatorDashboardDetails = async (payload: any) => {
+  try {
+    const response = await api.post("creator/dashboard-details", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Get Dashboard Details Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Dashboard Details',
+    };
+  }
+};
+
+export const GetCreatorStats = async (payload: any) => {
+  try {
+    const response = await api.post("creator/get-crew-stats", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Get Crew Stats Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: 'Failed to fetch Crew Stats',
+    };
+  }
+};
+
+export const getAvailabilityDetails = async (payload: { year: string, month: string, crew_member_id: string | number }) => {
+  try {
+    const response = await api.post("creator/availability", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Get Availability Details Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error.response?.data?.message || 'Failed to fetch availability details',
+    };
+  }
+};

@@ -18,6 +18,7 @@ import { Footer } from "@/src/components/landing/Footer";
 import { Separator } from "@/src/components/landing/Separator";
 import { EarlySignup } from "./EarlySignup";
 import { WelcomeSection } from "./WelcomeSection";
+import { TopCreatives } from "./TopCreatives";
 
 export default function LandingPageV2() {
   return (
@@ -42,6 +43,9 @@ export default function LandingPageV2() {
       <Separator />
 
       <Process />
+      <Separator />
+
+      <TopCreatives subtext={"Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s"} />
       <Separator />
 
       <Projects />

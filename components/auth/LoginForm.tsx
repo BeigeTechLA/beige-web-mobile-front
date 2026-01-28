@@ -50,13 +50,16 @@ export function LoginForm() {
 
       // Logic for conditional redirection
       if (userTypeId === 1) {
-        router.push('/affiliate/dashboard')
-      } else if (userTypeId === 2) {
-        router.push('/creator/dashboard/request')
-      } else {
-        // Fallback in case user_type_id is missing or different
-        router.push('/admin/dashboard')
-      }
+  router.push('/admin/dashboard')
+} else if (userTypeId === 2) {
+  router.push('/creator/dashboard')
+} else if (userTypeId === 3) {
+  router.push('/affiliate/dashboard')
+} else {
+  // Fallback in case user_type_id is missing or different
+  router.push('/admin/dashboard')
+}
+
 
     } catch (error: any) {
       const errorMessage = error?.data?.message || error?.message || "Login failed. Please check your credentials."

@@ -7,7 +7,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ChevronDown } from "lucide-react";
+import { adminApi } from "@/lib/api";
 
+interface ShootStatusBreakdown {
+  label: string;
+  count: number;
+  color: string;
+}
 const data = [
   {
     name: "Successful Shoots",
@@ -25,7 +31,7 @@ const data = [
     fill: "#FBBF24",
   },
   {
-    name: "Rejected Shoots", // Second rejected/completed entry from your UI
+    name: "In-Progress Shoots", // Second rejected/completed entry from your UI
     value: 921,
     fill: "#34D399",
   },
@@ -34,17 +40,74 @@ const data = [
 const TOTAL_SHOOTS = "4,289";
 
 export const ShootStatusChart = () => {
+  const [range, setRange] = React.useState<'all' | 'monthly'>('all');
+  const [chartData, setChartData] = React.useState<any[]>([]);
+  const [totalShoots, setTotalShoots] = React.useState<string>("0");
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await adminApi.getShootStatus(range);
+        if (response && response.data) {
+          const data = response.data;
+
+          // Set total shoots from the API response
+          setTotalShoots(data.total?.toLocaleString() || "0");
+
+          // Map the breakdown array to chart data format
+          // API returns: { total: 491, breakdown: [{ label, count, color }] }
+          if (Array.isArray(data.breakdown)) {
+            const mappedData = data.breakdown
+              .filter((item: ShootStatusBreakdown) => item.count > 0) // Only show non-zero counts
+              .map((item: ShootStatusBreakdown) => ({
+                name: item.label,
+                value: item.count,
+                fill: item.color
+              }));
+
+            setChartData(mappedData);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch shoot status:", error);
+      }
+    };
+    fetchData();
+  }, [range]);
+
+  const toggleRange = () => {
+    setRange(prev => prev === 'all' ? 'monthly' : 'all');
+    setIsOpen(false);
+  };
+
   return (
     <div className="w-full bg-[#171717] rounded-2xl text-white border border-[#3D3D3D] md:h-[392px]">
       {/* Header */}
       <div className="bg-[#101010] rounded-2xl flex justify-between items-center mb-4 border-b border-b-[#3D3D3D] p-5 ">
-       <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h3 className="">Shoot Status</h3>
         </div>
-        <button className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-3 py-1.5 rounded-full text-xs text-white/70 hover:bg-white/5 transition-colors">
-          Month <ChevronDown size={14} />
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-3 py-1.5 rounded-full text-xs text-white/70 hover:bg-white/5 transition-colors capitalize"
+          >
+            {range === 'monthly' ? 'Month' : 'All Time'} <ChevronDown size={14} />
+          </button>
+
+          {isOpen && (
+            <div className="absolute right-0 top-full mt-2 w-32 bg-[#1A1A1A] border border-white/10 rounded-xl overflow-hidden z-10 shadow-xl">
+              <button
+                onClick={() => toggleRange()}
+                className="w-full text-left px-4 py-2 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+              >
+                {range === 'all' ? 'Month' : 'All Time'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="p-10 flex flex-col lg:flex-row items-center justify-between gap-2">
@@ -57,7 +120,7 @@ export const ShootStatusChart = () => {
               innerRadius="60%"
               outerRadius="130%"
               barSize={40}
-              data={data}
+              data={chartData}
               startAngle={0}
               endAngle={180}
             >
@@ -71,7 +134,7 @@ export const ShootStatusChart = () => {
 
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="text-[#E8D1AB] text-[26px] font-bold tracking-tight translate-y-[130%]">
-              {TOTAL_SHOOTS}
+              {totalShoots}
             </span>
           </div>
           <div
@@ -87,7 +150,7 @@ export const ShootStatusChart = () => {
 
         {/* Legend Panel */}
         <div className="flex flex-col gap-4 min-w-[240px]">
-          {data.map((item, index) => (
+          {chartData.map((item, index) => (
             <div key={index} className="flex items-center justify-start gap-6 group">
               <div
                 className="w-16 py-1.5 rounded-full border text-white text-xs font-bold text-center transition-all"

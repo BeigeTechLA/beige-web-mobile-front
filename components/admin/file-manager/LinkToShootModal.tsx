@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { X, Search, Calendar, MapPin, Lightbulb } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../../ui/button";
 
 interface Shoot {
   id: string;

@@ -7,6 +7,8 @@ interface StatusDropdownProps {
   label: string;
   value: string;
   options: string[];
+  roundedFull?: boolean;
+  styles?: string;
   onChange: (value: string) => void;
 }
 
@@ -14,6 +16,8 @@ export const BasicDropdown = ({
   label,
   value,
   options,
+  roundedFull=false,
+  styles,
   onChange,
 }: StatusDropdownProps) => {
   const [open, setOpen] = useState<boolean>(false);
@@ -40,11 +44,11 @@ export const BasicDropdown = ({
       {/* Trigger: Compact & Rounded */}
       <button
         onClick={() => setOpen((prev) => !prev)}
-        className={`h-10 px-6 flex items-center gap-3 rounded-lg bg-[#18181b] border transition-all duration-200
+        className={`h-10 px-6 flex items-center gap-3 ${roundedFull ? "rounded-full":"rounded-lg"} bg-[#18181b] border transition-all duration-200 ${styles ? styles:"text-white text-sm"} 
           ${open ? "border-[#E8D1AB]" : "border-white/10 hover:border-white/20"}
         `}
       >
-        <span className="text-white text-sm">
+        <span className="">
           {value || "Status"}
         </span>
         <ChevronDown
