@@ -183,7 +183,7 @@ export default function SignupSuccess({ data }) {
       toast.success(result.message || "Login successful!");
       const userTypeId = result?.user?.user_type_id;
       if (userTypeId === 1) router.push('/affiliate/dashboard');
-      else if (userTypeId === 2) router.push('/creator/dashboard/request');
+      else if (userTypeId === 2) router.push('/creator/dashboard');
       else router.push('/dashboard');
     } catch (error) {
       toast.error("Auto-login failed.");

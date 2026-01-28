@@ -110,7 +110,9 @@ export default function RequestsShootsPage() {
     setIsLoading(true);
 
     try {
-      const statsPayload = { creator_id: crew_member_id };
+      const statsPayload = { creator_id: crew_member_id,
+        crew_member_id: crew_member_id
+       };
       const statsResponse = await getStatusCount(statsPayload);
       if (statsResponse && statsResponse.error === false) {
         setDashboardStats(statsResponse.data);

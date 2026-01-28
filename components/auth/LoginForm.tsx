@@ -50,7 +50,7 @@ export function LoginForm() {
 
       // Logic for conditional redirection
       if (userTypeId === 1) {
-        router.push('/affiliate/dashboard')
+        router.push('/admin/dashboard')
       } else if (userTypeId === 2) {
         router.push('/creator/dashboard')
       } else {

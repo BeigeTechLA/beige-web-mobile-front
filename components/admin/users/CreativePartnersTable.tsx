@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronRight, Pencil, Trash2, Search, Filter, ArrowUpRight, Check, X, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { adminApi } from "@/lib/api";
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
@@ -15,6 +16,7 @@ interface CreativePartner {
     status: UserStatus;
     joinDate: string;
     initials: string;
+    imageUrl?: string | null;
 }
 
 const INITIAL_DATA: CreativePartner[] = [
@@ -44,8 +46,107 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
 };
 
 export const CreativePartnersTable = () => {
-    const [users, setUsers] = useState<CreativePartner[]>(INITIAL_DATA);
+    const [users, setUsers] = useState<CreativePartner[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [limit] = useState(50);
+    const [totalRecords, setTotalRecords] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const [skillsMap, setSkillsMap] = useState<Record<string, string>>({});
     const router = useRouter();
+
+    // Fetch skills on mount
+    useEffect(() => {
+        const fetchSkills = async () => {
+            try {
+                const response = await adminApi.getSkills();
+                if (response && response.data) {
+                    // Create a map of id to name
+                    const skillMap: Record<string, string> = {};
+                    response.data.forEach((skill: any) => {
+                        skillMap[skill.id?.toString()] = skill.name;
+                    });
+                    setSkillsMap(skillMap);
+                }
+            } catch (error) {
+                console.error("Failed to fetch skills:", error);
+            }
+        };
+        fetchSkills();
+    }, []);
+
+    useEffect(() => {
+        const fetchCreativePartners = async () => {
+            setLoading(true);
+            try {
+                const response = await adminApi.getCrewMembers(currentPage, limit);
+                if (response && response.data) {
+                    // Set pagination data
+                    if (response.pagination) {
+                        setTotalRecords(response.pagination.total_records || 0);
+                        setTotalPages(response.pagination.total_pages || 0);
+                    }
+
+                    const data = Array.isArray(response.data) ? response.data : (response.data.items || []);
+
+                    // Map API response to component data structure
+                    const mappedUsers = data.map((member: any) => {
+                        // Combine first_name and last_name
+                        const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || "Unknown";
+
+                        // Role mapping: Use role.role_name if available, otherwise fallback to skills
+                        let displayRole = "N/A";
+                        if (member.role?.role_name) {
+                            displayRole = member.role.role_name;
+                        } else if (member.skills) {
+                            try {
+                                const skillsArray = typeof member.skills === 'string' ? JSON.parse(member.skills) : member.skills;
+                                if (Array.isArray(skillsArray) && skillsArray.length > 0) {
+                                    const skillNames = skillsArray
+                                        .map((skillId: any) => skillsMap[skillId.toString()])
+                                        .filter(Boolean);
+                                    displayRole = skillNames.length > 0 ? skillNames.join(', ') : "N/A";
+                                }
+                            } catch (e) {
+                                displayRole = "N/A";
+                            }
+                        }
+
+                        // Get profile photo from crew_member_files
+                        const profilePhoto = member.crew_member_files?.find(
+                            (file: any) => file.file_type === 'profile_photo'
+                        );
+                        const imageUrl = profilePhoto
+                            ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}`
+                            : null;
+
+                        // Normalize status
+                        const apiStatus = member.status?.toLowerCase() || "";
+                        let displayStatus: UserStatus = "Pending";
+                        if (apiStatus === "approved") displayStatus = "Approved";
+                        else if (apiStatus === "rejected") displayStatus = "Rejected";
+
+                        return {
+                            id: `#${member.crew_member_id}`,
+                            name: fullName,
+                            email: member.email || "No Email",
+                            role: displayRole,
+                            status: displayStatus,
+                            joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
+                            initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
+                            imageUrl,
+                        };
+                    });
+                    setUsers(mappedUsers);
+                }
+            } catch (error) {
+                console.error("Failed to fetch creative partners:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCreativePartners();
+    }, [currentPage, limit]);
 
     const handleRowClick = (id: string, e: React.MouseEvent) => {
         // Prevent navigation if clicking on action buttons
@@ -89,16 +190,44 @@ export const CreativePartnersTable = () => {
         ));
     };
 
-    const handleApprove = (id: string, e: React.MouseEvent) => {
+    const handleApprove = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        setUsers(users.map(u => u.id === id ? { ...u, status: "Approved" } : u));
-        showSuccessToast();
+        const cleanId = id.replace('#', '');
+        try {
+            const response = await adminApi.verifyCrewMember({
+                crew_member_id: parseInt(cleanId),
+                status: 1
+            });
+            if (response && !response.error) {
+                setUsers(users.map(u => u.id === id ? { ...u, status: "Approved" } : u));
+                showSuccessToast();
+            } else {
+                toast.error(response.error || "Failed to approve partner");
+            }
+        } catch (error) {
+            console.error("Approve Error:", error);
+            toast.error("An unexpected error occurred");
+        }
     };
 
-    const handleDecline = (id: string, e: React.MouseEvent) => {
+    const handleDecline = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        setUsers(users.map(u => u.id === id ? { ...u, status: 'Rejected' } : u));
-        showDeclineToast();
+        const cleanId = id.replace('#', '');
+        try {
+            const response = await adminApi.verifyCrewMember({
+                crew_member_id: parseInt(cleanId),
+                status: 2
+            });
+            if (response && !response.error) {
+                setUsers(users.map(u => u.id === id ? { ...u, status: 'Rejected' } : u));
+                showDeclineToast();
+            } else {
+                toast.error(response.error || "Failed to decline partner");
+            }
+        } catch (error) {
+            console.error("Decline Error:", error);
+            toast.error("An unexpected error occurred");
+        }
     };
 
     return (
@@ -162,83 +291,178 @@ export const CreativePartnersTable = () => {
                                 <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {users.map((user, idx) => (
-                                <tr
-                                    key={idx}
-                                    onClick={(e) => handleRowClick(user.id, e)}
-                                    className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
-                                >
-                                    <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
-                                    <td className="py-5 px-6">
-                                        <div className="flex items-center gap-3">
-                                            {/* Avatar: If no image, show initials */}
-                                            <div className="w-10 h-10 rounded-xl bg-[#F5F5F5] overflow-hidden flex items-center justify-center text-black font-semibold text-sm relative">
-                                                {user.name.split(' ').map(n => n[0]).join('')}
-                                            </div>
-                                            <div>
-                                                <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                                                <p className="text-[#666666] text-xs mt-0.5">{user.joinDate}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.email}</td>
-                                    <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.role}</td>
-                                    <td className="py-5 px-6">
-                                        <StatusBadge status={user.status} />
-                                    </td>
-                                    <td className="py-5 px-6 text-right">
-                                        <div className="flex items-center justify-end gap-3">
-                                            {user.status === 'Approved' && (
-                                                <>
-                                                    <button className="text-[#E0E0E0] hover:text-white transition-colors">
-                                                        <Pencil size={18} />
-                                                    </button>
-                                                    <button className="text-[#E0E0E0] hover:text-red-500 transition-colors">
-                                                        <Trash2 size={18} />
-                                                    </button>
-                                                    <button className="text-[#666] hover:text-white transition-colors">
-                                                        <ChevronRight size={20} />
-                                                    </button>
-                                                </>
-                                            )}
-                                            {user.status === 'Pending' && (
-                                                <>
-                                                    <button
-                                                        onClick={(e) => handleApprove(user.id, e)}
-                                                        className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors"
-                                                    >
-                                                        Approve
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleDecline(user.id, e)}
-                                                        className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2"
-                                                    >
-                                                        Decline
-                                                    </button>
-                                                    <button className="text-[#666] hover:text-white transition-colors ml-1">
-                                                        <ChevronRight size={20} />
-                                                    </button>
-                                                </>
-                                            )}
-                                            {user.status === 'Rejected' && (
-                                                <>
-                                                    <button className="text-[#E0E0E0] hover:text-white transition-colors">
-                                                        <AlertCircle size={20} />
-                                                    </button>
-                                                    <button className="text-[#666] hover:text-white transition-colors">
-                                                        <ChevronRight size={20} />
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
+                        {loading && (
+                            <tbody>
+                                <tr>
+                                    <td colSpan={6} className="py-10 text-center text-[#888]">
+                                        Loading creative partners...
                                     </td>
                                 </tr>
-                            ))}
-                        </tbody>
+                            </tbody>
+                        )}
+                        {!loading && users.length === 0 && (
+                            <tbody>
+                                <tr>
+                                    <td colSpan={6} className="py-10 text-center text-[#888]">
+                                        No creative partners found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        )}
+                        {!loading && users.length > 0 && (
+                            <tbody>
+                                {users.map((user, idx) => (
+                                    <tr
+                                        key={idx}
+                                        onClick={(e) => handleRowClick(user.id, e)}
+                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
+                                    >
+                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
+                                        <td className="py-5 px-6">
+                                            <div className="flex items-center gap-3">
+                                                {/* Avatar: Show image if available, otherwise show initials */}
+                                                <div className="w-10 h-10 rounded-xl bg-[#F5F5F5] overflow-hidden flex items-center justify-center text-black font-semibold text-sm relative">
+                                                    {user.imageUrl ? (
+                                                        <img
+                                                            src={user.imageUrl}
+                                                            alt={user.name}
+                                                            className="w-full h-full object-cover"
+                                                            onError={(e) => {
+                                                                // Fallback to initials if image fails to load
+                                                                const target = e.target as HTMLImageElement;
+                                                                target.style.display = 'none';
+                                                                if (target.parentElement) {
+                                                                    target.parentElement.textContent = user.initials;
+                                                                }
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        user.initials
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
+                                                    <p className="text-[#666666] text-xs mt-0.5">{user.joinDate}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.email}</td>
+                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.role}</td>
+                                        <td className="py-5 px-6">
+                                            <StatusBadge status={user.status} />
+                                        </td>
+                                        <td className="py-5 px-6 text-right">
+                                            <div className="flex items-center justify-end gap-3">
+                                                {user.status === 'Approved' && (
+                                                    <>
+                                                        <button className="text-[#E0E0E0] hover:text-white transition-colors">
+                                                            <Pencil size={18} />
+                                                        </button>
+                                                        <button className="text-[#E0E0E0] hover:text-red-500 transition-colors">
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                        <button className="text-[#666] hover:text-white transition-colors">
+                                                            <ChevronRight size={20} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {user.status === 'Pending' && (
+                                                    <>
+                                                        <button
+                                                            onClick={(e) => handleApprove(user.id, e)}
+                                                            className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleDecline(user.id, e)}
+                                                            className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2"
+                                                        >
+                                                            Decline
+                                                        </button>
+                                                        <button className="text-[#666] hover:text-white transition-colors ml-1">
+                                                            <ChevronRight size={20} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {user.status === 'Rejected' && (
+                                                    <>
+                                                        <button className="text-[#E0E0E0] hover:text-white transition-colors">
+                                                            <AlertCircle size={20} />
+                                                        </button>
+                                                        <button className="text-[#666] hover:text-white transition-colors">
+                                                            <ChevronRight size={20} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        )}
                     </table>
                 </div>
             </div>
+
+            {/* Pagination */}
+            {/* Pagination */}
+            {!loading && totalPages > 1 && (
+                <div className="flex justify-between items-center p-6 border-t border-[#333333]">
+                    <div className="text-sm text-[#666666]">
+                        Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalRecords)} of {totalRecords} results
+                    </div>
+                    <div className="flex gap-2 items-center">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1A1A1A] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                            Previous
+                        </button>
+                        <div className="flex gap-1">
+                            {(() => {
+                                const range = [];
+                                const delta = 1;
+                                const left = currentPage - delta;
+                                const right = currentPage + delta + 1;
+
+                                for (let i = 1; i <= totalPages; i++) {
+                                    if (i === 1 || i === totalPages || (i >= left && i < right)) {
+                                        range.push(i);
+                                    } else if (i === left - 1 || i === right) {
+                                        range.push('...');
+                                    }
+                                }
+
+                                return range.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
+                                    page === '...' ? (
+                                        <span key={`dots-${index}`} className="px-2 py-1 text-white/30 text-xs">...</span>
+                                    ) : (
+                                        <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page as number)}
+                                            className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page
+                                                ? "bg-[#E5D5B8] text-black"
+                                                : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
+                                                }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    )
+                                ));
+                            })()}
+                        </div>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1A1A1A] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
