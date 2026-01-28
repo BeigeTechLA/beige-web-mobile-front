@@ -93,7 +93,7 @@ export const TopCreatives = () => {
       <Container>
         {/* HEADER */}
         <div className="text-center mb-12 lg:mb-20">
-          <h2 className="text-4xl md:text-[56px] leading-[1.1] font-medium text-white mb-2.5 md:mb-8 tracking-tight">
+          <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-4 tracking-tight">
             Top Creative Partners
           </h2>
           <p className="text-white/50 text-xs lg:text-base max-w-[600px] mx-auto px-8 md:px-0">

@@ -39,11 +39,11 @@ export const DynamicCountrySelect = ({
 
   // Find the label for the current selected code
   const selectedLabel = useMemo(() => {
-    return countryOptions.find((c) => c.code === value)?.name || "Country";
+    return countryOptions.find((c) => c.name === value)?.name || "Country";
   }, [value, countryOptions]);
 
-  const handleSelect = (code: string) => {
-    onChange(code);
+  const handleSelect = (name: string) => {
+    onChange(name);
     setIsOpen(false);
   };
 
@@ -67,9 +67,7 @@ export const DynamicCountrySelect = ({
         </span>
         <ChevronDown
           size={20}
-          className={`text-white/40 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-[#E8D1AB]" : ""
-          }`}
+          className={`text-white/40 transition-transform duration-200 ${isOpen ? "rotate-180 text-[#E8D1AB]" : ""}`}
         />
       </button>
 
