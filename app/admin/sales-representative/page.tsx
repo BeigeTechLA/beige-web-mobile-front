@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import React, { useState } from "react";
 import { format } from "date-fns";
@@ -10,8 +10,8 @@ import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 
-// placeholder data 
-const sortByData = ["Recent Leads (5)", "Recent Leads (15)", "Test Filter"]
+// placeholder data
+const sortByData = ["Recent Leads (5)", "Recent Leads (15)", "Test Filter"];
 
 interface LeadData {
   lead_id: number;
@@ -24,10 +24,12 @@ interface LeadData {
 }
 
 // Helper function to map lead status to UI format
-const mapLeadStatusToUI = (status: LeadStatus): "Booked" | "Cancelled" | "In-Progress" => {
-  if (status === 'booked') return 'Booked';
-  if (status === 'abandoned') return 'Cancelled';
-  return 'In-Progress';
+const mapLeadStatusToUI = (
+  status: LeadStatus,
+): "Booked" | "Cancelled" | "In-Progress" => {
+  if (status === "booked") return "Booked";
+  if (status === "abandoned") return "Cancelled";
+  return "In-Progress";
 };
 
 // Helper function to format relative time
@@ -46,7 +48,7 @@ const formatRelativeTime = (dateString: string): string => {
   }
   const diffInDays = Math.floor(diffInHours / 24);
   if (diffInDays === 1) {
-    return '1 day ago';
+    return "1 day ago";
   }
   if (diffInDays < 7) {
     return `${diffInDays} days ago`;
@@ -56,13 +58,15 @@ const formatRelativeTime = (dateString: string): string => {
 
 const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
   const styles = {
-    "Booked": "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]",
-    "Cancelled": "bg-[#fbd9d3] text-red-500 border-[#fbd9d3]",
-    "In-Progress": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]"
+    Booked: "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]",
+    Cancelled: "bg-[#fbd9d3] text-red-500 border-[#fbd9d3]",
+    "In-Progress": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]",
   };
 
   return (
-    <span className={`px-7 py-3 rounded-full text-base font-medium border ${styles[status]}`}>
+    <span
+      className={`px-7 py-3 rounded-full text-base font-medium border ${styles[status]}`}
+    >
       {status}
     </span>
   );
@@ -70,8 +74,10 @@ const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
 
 export default function AdminSaleRepManagerPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [sortBy, setSortBy] = React.useState("")
-  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [sortBy, setSortBy] = React.useState("");
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
 
@@ -85,9 +91,9 @@ export default function AdminSaleRepManagerPage() {
   // Map backend data to UI format
   const leadsData: LeadData[] = (data?.leads || []).map((lead: SalesLead) => ({
     lead_id: lead.lead_id,
-    clientName: lead.client_name || lead.guest_email || 'Unknown Client',
-    email: lead.guest_email || 'No email',
-    leadType: lead.lead_type === 'self_serve' ? 'Self-Serve' : 'Sales Assisted',
+    clientName: lead.client_name || lead.guest_email || "Unknown Client",
+    email: lead.guest_email || "No email",
+    leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
     bookingStatus: mapLeadStatusToUI(lead.lead_status),
     lastActivity: formatRelativeTime(lead.last_activity_at),
     date: new Date(lead.created_at),
@@ -97,14 +103,16 @@ export default function AdminSaleRepManagerPage() {
     setSelectedDate(date);
     if (date) {
       console.log(date);
-
     } else {
       console.log("unfiltered");
     }
   };
 
-
-  const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>, client: string, leadId: number) => {
+  const handleOpenMenu = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    client: string,
+    leadId: number,
+  ) => {
     setSelectedClient(client);
     setSelectedLeadId(leadId);
     const rect = e.currentTarget.getBoundingClientRect();
@@ -114,17 +122,21 @@ export default function AdminSaleRepManagerPage() {
 
     setMenuAnchor({
       x: isNearRightEdge ? rect.left - 210 : rect.right - 10,
-      y: isNearBottomEdge ? rect.top - 230 : rect.top - 20
+      y: isNearBottomEdge ? rect.top - 230 : rect.top - 20,
     });
   };
-
 
   return (
     <>
       <div className="flex justify-between items-center mb-3 lg:mb-6">
         <div className="text-white">
-          <h1 className="text-2xl leading-[32px] font-semibold mb-1">Sales Representative Management</h1>
-          <p className="text-sm text-white/70">View activity, manage assignments, and monitor performance across your sales team.</p>
+          <h1 className="text-2xl leading-[32px] font-semibold mb-1">
+            Sales Representative Management
+          </h1>
+          <p className="text-sm text-white/70">
+            View activity, manage assignments, and monitor performance across
+            your sales team.
+          </p>
         </div>
 
         {/* Sort By Date component to be added */}
@@ -148,8 +160,8 @@ export default function AdminSaleRepManagerPage() {
         className="h-[1px] w-full my-4 lg:my-9"
         style={{
           backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-          backgroundSize: '30px 1px', // 30px is the total dash + gap width
-          backgroundRepeat: 'repeat-x'
+          backgroundSize: "30px 1px", // 30px is the total dash + gap width
+          backgroundRepeat: "repeat-x",
         }}
       />
 
@@ -166,61 +178,86 @@ export default function AdminSaleRepManagerPage() {
           <table className="w-full text-left border-separate border-spacing-0">
             <thead>
               <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
-                <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">Client Name</th>
-                <th className="py-5 px-6 font-medium border-b border-[#333333]">Email ID</th>
-                <th className="py-5 px-6 font-medium border-b border-[#333333]">Lead Type</th>
-                <th className="py-5 px-6 font-medium border-b border-[#333333]">Booking Status</th>
-                <th className="py-5 px-6 font-medium border-b border-[#333333]">Last Activity</th>
-                <th className="py-5 px-6 font-medium text-right rounded-r-2xl border-r border-b border-b-[#333333] border-r-[#333333]">Action</th>
+                <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">
+                  Client Name
+                </th>
+                <th className="py-5 px-6 font-medium border-b border-[#333333]">
+                  Email ID
+                </th>
+                <th className="py-5 px-6 font-medium border-b border-[#333333]">
+                  Lead Type
+                </th>
+                <th className="py-5 px-6 font-medium border-b border-[#333333]">
+                  Booking Status
+                </th>
+                <th className="py-5 px-6 font-medium border-b border-[#333333]">
+                  Last Activity
+                </th>
+                <th className="py-5 px-6 font-medium text-right rounded-r-2xl border-r border-b border-b-[#333333] border-r-[#333333]">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
               {leadsData.map((lead) => (
-              <tr
-                key={lead.lead_id}
-                className=" hover:bg-white/[0.02] transition-colors cursor-pointer"
-              >
-                {/* Client Name & Date */}
-                <td className="py-5 px-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-[50px] h-[50px] rounded-lg bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-xl">
-                      {lead.clientName.split(" ").map(n => n[0]).join("")}
+                <tr
+                  key={lead.lead_id}
+                  className=" hover:bg-white/[0.02] transition-colors cursor-pointer"
+                >
+                  {/* Client Name & Date */}
+                  <td className="py-5 px-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-[50px] h-[50px] rounded-lg bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-xl">
+                        {lead.clientName
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </div>
+                      <div>
+                        <p className="text-white font-medium text-base">
+                          {lead.clientName}
+                        </p>
+                        <p className="text-white/40 text-sm mt-1.5">
+                          {format(lead.date, "MMM dd, yyyy")}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-medium text-base">{lead.clientName}</p>
-                      <p className="text-white/40 text-sm mt-1.5">{format(lead.date, "MMM dd, yyyy")}</p>
-                    </div>
-                  </div>
-                </td>
+                  </td>
 
-                {/* Email */}
-                <td className="py-5 px-6 text-white text-base">{lead.email}</td>
+                  {/* Email */}
+                  <td className="py-5 px-6 text-white text-base">
+                    {lead.email}
+                  </td>
 
-                {/* Lead Type */}
-                <td className="py-5 px-6">
-                  <span className="text-white text-base">{lead.leadType}</span>
-                </td>
+                  {/* Lead Type */}
+                  <td className="py-5 px-6">
+                    <span className="text-white text-base">
+                      {lead.leadType}
+                    </span>
+                  </td>
 
-                {/* Booking Status */}
-                <td className="py-5 px-6">
-                  <StatusBadge status={lead.bookingStatus} />
-                </td>
+                  {/* Booking Status */}
+                  <td className="py-5 px-6">
+                    <StatusBadge status={lead.bookingStatus} />
+                  </td>
 
-                {/* Last Activity */}
-                <td className="py-5 px-6 text-white text-base">
-                  {lead.lastActivity}
-                </td>
+                  {/* Last Activity */}
+                  <td className="py-5 px-6 text-white text-base">
+                    {lead.lastActivity}
+                  </td>
 
-                {/* Action */}
-                <td className="py-5 px-6 text-right">
-                  <Button
-                    className="text-white hover:text-white/80 transition-colors"
-                    onClick={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
-                  >
-                    <MoreVertical size={20} />
-                  </Button>
-                </td>
-              </tr>
+                  {/* Action */}
+                  <td className="py-5 px-6 text-right">
+                    <Button
+                      className="text-white hover:text-white/80 transition-colors"
+                      onClick={(e) =>
+                        handleOpenMenu(e, lead.clientName, lead.lead_id)
+                      }
+                    >
+                      <MoreVertical size={20} />
+                    </Button>
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -236,7 +273,6 @@ export default function AdminSaleRepManagerPage() {
           anchor={menuAnchor}
         />
       )}
-
     </>
-  )
+  );
 }

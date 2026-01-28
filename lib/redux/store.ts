@@ -33,7 +33,7 @@ const bookingPersistConfig = {
 // Create persisted booking reducer
 const persistedBookingReducer = persistReducer(
   bookingPersistConfig,
-  bookingReducer
+  bookingReducer,
 );
 
 // Combine all reducers
@@ -67,7 +67,7 @@ export const store = configureStore({
       waitlistApi.middleware,
       investorApi.middleware,
       pricingApi.middleware,
-      salesApi.middleware
+      salesApi.middleware,
     ),
 });
 
