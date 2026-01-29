@@ -22,6 +22,9 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
   const [registerStep2, { isLoading }] = useRegisterCreatorStep2Mutation();
 
   const inputClasses = "h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white placeholder:text-white/40 outline-none focus:border-[#E8D1AB] focus-visible:ring-0 focus-visible:ring-offset-0 bg-[#101010] text-sm lg:text-base";
+  
+  const noSpinners = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+  
   const labelClasses = "absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none";
   const sectionClasses = "rounded-[12px] border border-white/30 bg-[#101010] p-6 space-y-4";
 
@@ -55,13 +58,11 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
   };
 
   const handleSubmit = async () => {
-    // 1. Check Technical ID
     if (!data.crew_member_id) {
       toast.error("Session Error", { description: "Crew ID missing. Please go back to step 1." });
       return;
     }
 
-    // 2. REQUIRED FIELD VALIDATION
     if (!data.roles || data.roles.length === 0) {
       toast.error("Required Field", { description: "Please select at least one Role." });
       return;
@@ -78,6 +79,10 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
       toast.error("Required Field", { description: "Please select at least one Skill." });
       return;
     }
+    if (!data.equipments || data.equipments.length === 0) {
+      toast.error("Required Field", { description: "Please select at least one Equipment." });
+      return;
+    }
 
     try {
       const payload = {
@@ -85,9 +90,9 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
         primary_role: data.roles,
         years_of_experience: Number(data.yoe),
         hourly_rate: Number(data.hourlyRate),
-        bio: data.bio || "", // Optional
+        bio: data.bio || "", 
         skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
-        equipment_ownership: data.equipments || [], // Optional
+        equipment_ownership: data.equipments || [], 
       };
 
       await registerStep2(payload).unwrap();
@@ -106,11 +111,9 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
 
   const cleanBio = () => {
     let value = data.bio
-
     value = value.replace(/ {3,}/g, "  ")
     value = value.replace(/\n{3,}/g, "\n\n")
     value = value.trim()
-
     setData({ ...data, bio: value })
   }
 
@@ -162,13 +165,14 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
                   setData({ ...data, yoe: value });
                 }
               }}
-              className={inputClasses}
+              // Added noSpinners here
+              className={`${inputClasses} ${noSpinners}`}
             />
           </div>
 
           {/* Rate (Required) */}
           <div className="relative">
-            <Label className={labelClasses}>Desired Rates ($) *</Label>
+            <Label className={labelClasses}>Hourly Desired Rates ($) *</Label>
             <div className="relative">
               <CircleDollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-[#E8D1AB] w-5 h-5 lg:w-6 lg:h-6" />
               <Input
@@ -184,7 +188,8 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
                     setData({ ...data, hourlyRate: value });
                   }
                 }}
-                className={`${inputClasses} pl-12 lg:pl-14`}
+                // Added noSpinners here
+                className={`${inputClasses} pl-12 lg:pl-14 ${noSpinners}`}
               />
             </div>
           </div>
@@ -223,7 +228,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
         {/* Equipment (Optional) */}
         <div className={sectionClasses}>
           <div>
-            <h2 className="text-base font-semibold text-white">What Equipment Do You Own? (Optional)</h2>
+            <h2 className="text-base font-semibold text-white">What Equipment Do You Own? *</h2>
             <p className="text-sm text-white/50">List the gear you own</p>
           </div>
           <div className="w-full">

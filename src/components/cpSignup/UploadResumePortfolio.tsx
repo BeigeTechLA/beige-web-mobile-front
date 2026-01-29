@@ -1,8 +1,13 @@
 'use client';
 
 import React, { useState, ChangeEvent } from "react";
-import { Upload, Eye, Trash2, Link as LinkIcon, Plus } from "lucide-react";
+import { Upload, Eye, Trash2, Link as LinkIcon, Plus, Loader2 } from "lucide-react";
 import { compressImage, compressPDF } from "@/lib/utils";
+import { toast } from "sonner";
+
+// Constants for limits
+const RESUME_MAX_MB = 10;
+const PORTFOLIO_MAX_MB = 5;
 
 const UploadResumePortfolio = ({
   resume,
@@ -15,37 +20,62 @@ const UploadResumePortfolio = ({
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleUpload = async (e: ChangeEvent<HTMLInputElement>, type: "resume" | "portfolio") => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // 1. Specific Size Validation
+    const limitMB = type === "resume" ? RESUME_MAX_MB : PORTFOLIO_MAX_MB;
+    const limitBytes = limitMB * 1024 * 1024;
+
+    const oversizedFiles = files.filter(file => file.size > limitBytes);
+    
+    if (oversizedFiles.length > 0) {
+      toast.error(
+        type === "resume" 
+          ? `Resume too large. Maximum size is ${RESUME_MAX_MB}MB.` 
+          : `One or more portfolio files exceed the ${PORTFOLIO_MAX_MB}MB limit.`
+      );
+      e.target.value = "";
+      return;
+    }
 
     try {
       setIsProcessing(true);
       
-      const newFiles = await Promise.all(Array.from(files).map(async (file) => {
+      const uploadPromises = files.map(async (file) => {
         let processedFile = file;
-        if (file.type.startsWith('image/')) {
-          processedFile = await compressImage(file);
-        } else if (file.type === 'application/pdf') {
-          processedFile = await compressPDF(file);
+        try {
+          if (file.type.startsWith('image/')) {
+            processedFile = await compressImage(file);
+          } else if (file.type === 'application/pdf') {
+            processedFile = await compressPDF(file);
+          }
+        } catch (error) {
+          console.error(`Compression failed for ${file.name}:`, error);
         }
 
         return {
-          id: Math.random().toString(36).substr(2, 9),
+          id: crypto.randomUUID(),
           name: processedFile.name,
           size: (processedFile.size / 1024 / 1024).toFixed(1) + " MB",
           file: processedFile,
           url: URL.createObjectURL(processedFile),
         };
-      }));
+      });
+
+      const processedFiles = await Promise.all(uploadPromises);
 
       if (type === "resume") {
-        setResume(newFiles[0]); // Resume stays single
+        setResume(processedFiles[0]);
+        toast.success("Resume uploaded successfully");
       } else {
-        setPortfolio((prev) => [...(prev || []), ...newFiles]); // Portfolio becomes multiple
+        setPortfolio((prev) => [...(prev || []), ...processedFiles]);
+        toast.success(`${processedFiles.length} portfolio file(s) added`);
       }
 
     } catch (error) {
-      console.error("Upload process error:", error);
+      toast.error("An error occurred during upload.");
+      console.error(error);
     } finally {
       setIsProcessing(false);
       e.target.value = "";
@@ -58,13 +88,14 @@ const UploadResumePortfolio = ({
       if (itemToRemove?.url) URL.revokeObjectURL(itemToRemove.url);
       return prev.filter((p) => p.id !== id);
     });
+    toast.info("Portfolio item removed");
   };
 
   const openFileInNewTab = (url: string) => {
     window.open(url, "_blank");
   };
 
-  const fileRowClasses = "flex justify-between items-center p-4 border border-white/10 rounded-xl bg-white/5 transition-all hover:border-white/30 mb-2";
+  const fileRowClasses = "flex justify-between items-center p-4 border border-white/10 rounded-xl bg-white/5 transition-all hover:border-white/30 mb-2 animate-in fade-in slide-in-from-bottom-1";
   const labelClasses = "text-sm font-semibold text-white mb-1";
 
   return (
@@ -72,14 +103,25 @@ const UploadResumePortfolio = ({
       <h2 className="text-base font-semibold text-white mb-6">Upload Documents</h2>
 
       <div className="space-y-8">
-        {/* RESUME SECTION (Single) */}
+        {/* RESUME SECTION */}
         <div>
-          <p className={labelClasses}>Resume / CV (Optional)</p>
+          <div className="flex justify-between items-end mb-2">
+            <p className={labelClasses}>Resume / CV (Optional)</p>
+            <span className="text-[10px] text-white/40 mb-1">Max {RESUME_MAX_MB}MB</span>
+          </div>
           {!resume ? (
-            <label className={`flex items-center justify-center gap-3 border border-dashed border-white/20 rounded-xl p-8 cursor-pointer ${buttonBgColour} transition group`}>
-              <Upload size={18} className="text-[#E8D1AB]" />
-              <span className="text-white/80 text-sm group-hover:text-white">Upload Resume</span>
-              <input type="file" accept=".pdf,image/*" className="hidden" onChange={(e) => handleUpload(e, "resume")} />
+            <label className={`flex items-center justify-center gap-3 border border-dashed border-white/20 rounded-xl p-8 cursor-pointer ${buttonBgColour} transition group ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              {isProcessing ? <Loader2 className="animate-spin text-[#E8D1AB]" size={18} /> : <Upload size={18} className="text-[#E8D1AB]" />}
+              <span className="text-white/80 text-sm group-hover:text-white">
+                {isProcessing ? "Processing..." : "Upload Resume"}
+              </span>
+              <input 
+                type="file" 
+                accept=".pdf,image/*" 
+                className="hidden" 
+                disabled={isProcessing}
+                onChange={(e) => handleUpload(e, "resume")} 
+              />
             </label>
           ) : (
             <div className={fileRowClasses}>
@@ -98,9 +140,12 @@ const UploadResumePortfolio = ({
           )}
         </div>
 
-        {/* PORTFOLIO SECTION (Multiple) */}
+        {/* PORTFOLIO SECTION */}
         <div>
-          <p className={labelClasses}>Portfolio / Case Studies (Multiple)</p>
+          <div className="flex justify-between items-end mb-2">
+            <p className={labelClasses}>Portfolio / Case Studies (Multiple)</p>
+            <span className="text-[10px] text-white/40 mb-1">Max {PORTFOLIO_MAX_MB}MB per file</span>
+          </div>
           
           <div className="space-y-2 mb-4">
             {portfolio?.map((item) => (
@@ -120,14 +165,17 @@ const UploadResumePortfolio = ({
             ))}
           </div>
 
-          <label className={`flex items-center justify-center gap-3 border border-dashed border-white/20 rounded-xl p-6 cursor-pointer ${buttonBgColour} transition group`}>
-            <Plus size={18} className="text-[#E8D1AB]" />
-            <span className="text-white/80 text-sm group-hover:text-white">Add {portfolio?.length > 0 ? "another" : "portfolio"} file</span>
+          <label className={`flex items-center justify-center gap-3 border border-dashed border-white/20 rounded-xl p-6 cursor-pointer ${buttonBgColour} transition group ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}>
+             {isProcessing ? <Loader2 className="animate-spin text-[#E8D1AB]" size={18} /> : <Plus size={18} className="text-[#E8D1AB]" />}
+            <span className="text-white/80 text-sm group-hover:text-white">
+               {isProcessing ? "Processing..." : portfolio?.length > 0 ? "Add another portfolio file" : "Upload portfolio"}
+            </span>
             <input 
               type="file" 
               multiple 
               accept=".pdf,image/*" 
               className="hidden" 
+              disabled={isProcessing}
               onChange={(e) => handleUpload(e, "portfolio")} 
             />
           </label>
