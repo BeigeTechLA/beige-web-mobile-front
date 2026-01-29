@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Plus, X, Image as ImageIcon } from "lucide-react";
 import FeaturedWorkModal from "./FeaturedWorkModal";
+import { toast } from "sonner";
 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
@@ -25,13 +26,23 @@ type FeaturedWorkProps = {
   onChange?: (items: FeaturedWorkItem[]) => void;
 };
 
+const MAX_PROJECTS = 5;
+
 const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
-  const [items, setItems] = useState(Array.isArray(value) ? value : []);
+  const [items, setItems] = useState<FeaturedWorkItem[]>(Array.isArray(value) ? value : []);
   const [openModal, setOpenModal] = useState(false);
 
   useEffect(() => {
     setItems(Array.isArray(value) ? value : []);
   }, [value]);
+
+  const handleOpenModal = () => {
+    if (items.length >= MAX_PROJECTS) {
+      toast.error(`You have reached the limit of ${MAX_PROJECTS} projects.`);
+      return;
+    }
+    setOpenModal(true);
+  };
 
   const handleAdd = (item: FeaturedWorkItem) => {
     const next = [...items, item];
@@ -53,7 +64,7 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
           display: flex;
           justify-content: center;
           gap: 6px;
-          z-index: 50 !important; /* Higher than gradient and content */
+          z-index: 50 !important;
         }
 
         .featured-swiper .swiper-pagination-bullet {
@@ -74,14 +85,14 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="text-base font-semibold text-white">Showcase Your Work *</h4>
-          <p className="text-sm text-white/50">Upload examples of your best work.</p>
+          <p className="text-sm text-white/50">Upload examples of your best work (Max {MAX_PROJECTS}).</p>
         </div>
 
         {items.length > 0 && (
           <button
             type="button"
             className="inline-flex items-center gap-2 text-sm text-[#E8D1AB] hover:text-[#DCD1BE] transition-colors"
-            onClick={() => setOpenModal(true)}
+            onClick={handleOpenModal}
           >
             <div className="p-1.5 rounded-full border border-[#E8D1AB]/30 group-hover:bg-[#E8D1AB]/10">
               <Plus className="w-4 h-4" />
@@ -94,7 +105,7 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
       {/* Empty state */}
       {items.length === 0 ? (
         <div
-          onClick={() => setOpenModal(true)}
+          onClick={handleOpenModal}
           className="h-32 border border-dashed border-white/20 rounded-[12px] flex flex-col items-center justify-center bg-white/5 hover:bg-white/10 hover:border-white/40 cursor-pointer transition-all group"
         >
           <div className="p-3 rounded-full bg-[#1A1A1A] border border-white/10 mb-2 group-hover:scale-110 transition-transform">
@@ -150,9 +161,6 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
                   >
                     <X size={16} />
                   </button>
-
-                  {/* Gradient Overlay for text readability */}
-                  {/* <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10 pointer-events-none" /> */}
                 </div>
 
                 {/* Content section */}
