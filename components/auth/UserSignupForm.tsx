@@ -54,7 +54,7 @@ export function UserSignupForm() {
         email: data.email,
         password: data.password,
         phone_number: data.phone,
-        userType: 1, // 1 = client
+        userType: 3, // 1 = client
       })
 
       toast.success("Account created! Please verify your email.")

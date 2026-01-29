@@ -94,6 +94,13 @@ function Sidebar({
 }) {
   const { logout, user } = useAuth();
 
+  // Logic for verification status
+  const userStr = typeof window !== 'undefined' ? localStorage.getItem("revure_user") : null;
+  const localUser = userStr ? JSON.parse(userStr) : null;
+  // Fixed TS error using (user as any)
+  const status = (user as any)?.is_crew_verified ?? localUser?.is_crew_verified ?? 0;
+  const isVerified = Number(status) === 1;
+
   const handleLogout = () => {
     logout();
     localStorage.clear();
@@ -101,6 +108,36 @@ function Sidebar({
   };
 
   const isActive = (path: string) => pathname === path;
+
+  const NavLink = ({ href, icon: Icon, label }: { href: string; icon: any; label: string }) => {
+    const active = isActive(href);
+    const locked = !isVerified && href !== "/creator/dashboard";
+
+    if (locked) {
+      return (
+        <div className="flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium text-white/20 cursor-not-allowed opacity-50">
+          <Icon size={20} />
+          <span>{label}</span>
+        </div>
+      );
+    }
+
+    return (
+      <Link
+        href={href}
+        onClick={onClose}
+        className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
+          ${active
+            ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+            : "text-white/60 hover:text-white hover:bg-white/5"
+          }
+        `}
+      >
+        <Icon size={20} />
+        <span>{label}</span>
+      </Link>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#111] border-r border-white/10 w-64">
@@ -124,75 +161,11 @@ function Sidebar({
 
       {/* Navigation */}
       <div className="flex-1 py-6 px-3 space-y-1">
-          <Link
-          href="/creator/dashboard"
-          onClick={onClose}
-          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
-            ${isActive("/creator/dashboard")
-              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-              : "text-white/60 hover:text-white hover:bg-white/5"
-            }
-          `}
-        >
-          <LayoutDashboard size={20} />
-          <span>Dashboard</span>
-        </Link>
-        <Link
-          href="/creator/dashboard/request"
-          onClick={onClose}
-          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
-            ${isActive("/creator/dashboard/request")
-              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-              : "text-white/60 hover:text-white hover:bg-white/5"
-            }
-          `}
-        >
-          <Camera size={20} />
-          <span>Request & Shoots</span>
-        </Link>
-
-        <Link
-          href="/creator/dashboard/affiliate"
-          onClick={onClose}
-          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
-            ${isActive("/creator/dashboard/affiliate")
-              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-              : "text-white/60 hover:text-white hover:bg-white/5"
-            }
-          `}
-        >
-          <LayoutDashboard size={20} />
-          <span>Affiliate</span>
-        </Link>
-        <Link
-          href="/creator/dashboard/availability"
-          onClick={onClose}
-          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
-            ${isActive("/creator/dashboard/availability")
-              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-              : "text-white/60 hover:text-white hover:bg-white/5"
-            }
-          `}
-        >
-          <Calendar size={20} />
-          <span>Availability</span>
-        </Link>
-
-         <Link
-          href="/creator/dashboard/profile"
-          onClick={onClose}
-          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
-            ${isActive("/creator/dashboard/profile")
-              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-              : "text-white/60 hover:text-white hover:bg-white/5"
-            }
-          `}
-        >
-          <User size={20} />
-          <span>Profile</span>
-        </Link>
-
-
+        <NavLink href="/creator/dashboard" icon={LayoutDashboard} label="Dashboard" />
+        <NavLink href="/creator/dashboard/request" icon={Camera} label="Request & Shoots" />
+        <NavLink href="/creator/dashboard/affiliate" icon={LayoutDashboard} label="Affiliate" />
+        <NavLink href="/creator/dashboard/availability" icon={Calendar} label="Availability" />
+        <NavLink href="/creator/dashboard/profile" icon={User} label="Profile" />
 
         {/* New Payouts Button */}
         <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50">
