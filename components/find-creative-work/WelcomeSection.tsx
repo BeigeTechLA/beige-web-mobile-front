@@ -14,14 +14,24 @@ export const WelcomeSection = () => {
 
   // Handle Video Play/Pause based on focus
   useEffect(() => {
-    if (videoRef.current) {
-      if (isInView) {
-        videoRef.current.play();
-      } else {
-        videoRef.current.pause();
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isInView) {
+      // Browsers require a promise check for .play()
+      const playPromise = video.play();
+
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          // Auto-play was prevented
+          console.log("Autoplay prevented, waiting for interaction:", error);
+        });
       }
+    } else {
+      video.pause();
     }
   }, [isInView]);
+
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -103,7 +113,7 @@ export const WelcomeSection = () => {
                 className="absolute inset-0 w-full h-full object-cover"
                 src={videoUrl}
                 loop
-                // muted
+                muted
                 playsInline
               />
             )}

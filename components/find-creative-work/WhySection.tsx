@@ -17,7 +17,7 @@ export const WhySection = () => {
   return (
     <section className="py-10 md:py-32 bg-[#010101] relative overflow-hidden">
       <Container>
-        <div className="flex flex-col lg:flex-row justify-between mb-7 md:mb-10 gap-2.5 lg:gap-10">
+        <div className="flex flex-col lg:flex-row justify-between mb-4 md:mb-10 gap-2.5 lg:gap-10">
           <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
             Earn More! Book More!<br />
             Grow More!
@@ -29,7 +29,7 @@ export const WhySection = () => {
         </div>
 
         <div className="mb-5 lg:mb-12 relative w-full aspect-[16/7] overflow-hidden rounded-[10px] lg:rounded-[20px]">
-          <Image 
+          <Image
             src="/images/categories/behind_scenes.jpg" //Temp image
             alt="Beige Creative Partners"
             fill
@@ -38,28 +38,28 @@ export const WhySection = () => {
           />
         </div>
 
-        <div className="p-7 lg:p-15 bg-gradient-to-b from-[#E5CFA0] to-[#C9A668] rounded-[10px] lg:rounded-[20px] flex flex-col lg:flex-row gap-10 xl:gap-25 items-center">
+        <div className="p-5 lg:p-15 bg-gradient-to-b from-[#E5CFA0] to-[#C9A668] rounded-[10px] lg:rounded-[20px] flex flex-col lg:flex-row gap-5 xl:gap-25 items-center">
           <p className="text-lg lg:text-[56px] leading-[1.1] font-medium text-black tracking-tight shrink-0">
             Why Join<br /> Beige?
           </p>
-          
-          <div className="flex flex-1 w-full justify-between items-center">
+
+          <div className="flex flex-col lg:flex-row flex-1 w-full justify-between lg:items-center gap-2">
             {REASONS.map((reason, i) => (
               <React.Fragment key={i}>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.6 }}
-                  className="flex-1 flex flex-col gap-4 lg:gap-7 items-start"
-              >
-                  <div className="text-black">
-                  <BadgeCheck size={54} strokeWidth={1} />
-                    <p className="text-xs lg:text-[23px] font-medium leading-snug mt-4 lg:mt-7">
-                    {reason.text}
-                  </p>
-                </div>
-              </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1, duration: 0.6 }}
+                  className="flex-1 flex lg:flex-col gap-4 lg:gap-7 items-center lg:items-start text-black"
+                >
+                  {/* <div className="text-black"> */}
+                    <BadgeCheck className="w-8 h-8 lg:w-[54px] lg:h-[54px] shrink-0" strokeWidth={1} />
+                    <p className="text-xs lg:text-[23px] font-medium leading-snug">
+                      {reason.text}
+                    </p>
+                  {/* </div> */}
+                </motion.div>
 
                 {/* Separator only between items */}
                 {i !== REASONS.length - 1 && (

@@ -9,25 +9,25 @@ const GRAPH_DATA = [
   {
     id: "01",
     text: "Entry Level Milestone​",
-    icon: <UserRound size={40} strokeWidth={1} />,
+    icon: <UserRound className="size-6 lg:size-10" strokeWidth={1} />,
     hoverText: "Let Beige manage the logistics, client communications, insurance, and payments so you can focus on delivering exceptional work and advancing your creative journey.",
   },
   {
     id: "02",
     text: "Fully Onboarded Milestone",
-    icon: <Video size={40} strokeWidth={1} />,
+    icon: <Video className="size-6 lg:size-10" strokeWidth={1} />,
     hoverText: "Complete your first project and unlock new training materials and support channels.",
   },
   {
     id: "03",
     text: "Gold Standard Milestone",
-    icon: <CircleCheck size={40} strokeWidth={1} />,
+    icon: <CircleCheck className="size-6 lg:size-10" strokeWidth={1} />,
     hoverText: "Demonstrate consistent quality and get priority access to premium projects.",
   },
   {
     id: "04",
     text: "Platinum Standard Milestone",
-    icon: <CircleDollarSign size={40} strokeWidth={1} />,
+    icon: <CircleDollarSign className="size-6 lg:size-10" strokeWidth={1} />,
     hoverText: "Become a top partner, enjoy the best rates, and help mentor new creators.",
   },
 ];
@@ -124,7 +124,7 @@ export const GrowthJourneySection = () => {
                   onMouseLeave={() => setHoveredIndex(null)}
                   className="bg-[#171717] flex-1 flex flex-col p-6 lg:px-[30px] lg:py-10 rounded-[10px] lg:rounded-[20px] border border-white/20 h-auto lg:h-[450px] lg:overflow-hidden justify-between cursor-default"
                 >
-                  <div className="flex justify-between items-center w-full shrink-0 mb-6 lg:mb-0">
+                  <div className="flex justify-between items-center w-full shrink-0 mb-4 lg:mb-0">
                     <div className="bg-[#E8D1AB] text-black rounded-full p-3 lg:p-5">
                       {data.icon}
                     </div>
@@ -139,13 +139,13 @@ export const GrowthJourneySection = () => {
                       transition={{ type: "spring", stiffness: 120, damping: 20 }}
                       className="relative flex flex-col"
                     >
-                      <p className="text-base lg:text-2xl font-medium leading-snug mb-3 lg:mb-0">
+                      <p className="text-base lg:text-2xl font-medium leading-snug mb-1 lg:mb-0">
                         {data.text}
                       </p>
 
                       <div
                         ref={(el) => { textRefs.current[i] = el; }}
-                        className={`relative lg:absolute top-auto lg:top-full left-0 pt-2 lg:pt-5 w-full transition-opacity duration-300 ${
+                        className={`relative lg:absolute top-auto lg:top-full left-0 lg:pt-5 w-full transition-opacity duration-300 ${
                           (isHovered || isMobile) ? "opacity-100 visible" : "lg:opacity-0 lg:invisible"
                           }`}
                       >
