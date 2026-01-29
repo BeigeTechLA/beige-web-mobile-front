@@ -16,7 +16,7 @@ const BRANDS_SET2 = [
 ];
 
 const BRANDS_SET3 = [
-  { id: 1, name: "OrangeTheory", logo: "/logos/orangeTheory.svg" },
+  { id: 1, name: "Toyota", logo: "/logos/Toyota_Logo.svg" },
   { id: 2, name: "DHL", logo: "/logos/DHLLogo.svg" },  
   { id: 3, name: "Karat", logo: "/logos/Karat.svg" },
 ];

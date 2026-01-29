@@ -127,10 +127,10 @@ const portfolioConfig = {
 };
 
 const navLinks = [
-  { label: "Home", href: "/", isButton: true },
+  { label: "Home", href: "/" },
   { label: "About", href: "#about" },
   { label: "Find Creative Work", href: "/find-creative-work" },
-  { label: "Portfolio", href: "#portfolio", hasDropdown: true },
+  { label: "UseCases", href: "#usecases", hasDropdown: true },
   { label: "Press", href: "#press" },
 ];
 
@@ -154,6 +154,11 @@ export const Navbar = () => {
   const portfolioRef = useRef<HTMLDivElement>(null);
 
   const showCartIcon = pathname?.startsWith("/search-results");
+
+  const isActive = (href: string) => {
+    if (href.startsWith("#")) return false; // Hash links usually handled by scroll spies, but we'll keep them neutral
+    return pathname === href;
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem("revure_user");
@@ -179,7 +184,7 @@ export const Navbar = () => {
   }, []);
 
   const handleNavClick = (href: string) => {
-    if (href === "#portfolio") {
+    if (href === "#usecases") {
       setShowPortfolioMenu(!showPortfolioMenu);
       return;
     }
@@ -205,7 +210,7 @@ export const Navbar = () => {
       ? `/${encodeURIComponent(subSector.toLowerCase().replace(/\s+/g, '-'))}`
       : "";
 
-    const targetPath = `/portfolio/${category}/${formattedSector}${formattedSub}`;
+    const targetPath = `/usecases/${category}/${formattedSector}${formattedSub}`;
 
     router.push(targetPath);
     setShowPortfolioMenu(false);
@@ -251,16 +256,24 @@ export const Navbar = () => {
           {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-12">
             <div className="flex items-center gap-2 relative" ref={portfolioRef}>
-              {navLinks.map((link) => (
-                <button
-                  key={link.label}
-                  onClick={() => handleNavClick(link.href)}
-                  className={`text-lg font-medium transition-all px-4 py-2 rounded-lg flex items-center gap-2 ${link.isButton ? "bg-white text-black hover:bg-white/90" : "text-white/70 hover:text-[#ECE1CE]"}`}
-                >
-                  {link.label}
-                  {link.hasDropdown && <ChevronDown size={16} className={`transition-transform duration-300 ${showPortfolioMenu ? 'rotate-180' : ''}`} />}
-                </button>
-              ))}
+              {navLinks.map((link) => {
+                const isRouteActive = isActive(link.href);
+                // UseCases is "active" if the dropdown is open
+                const isPortfolioActive =
+                  link.hasDropdown && (showPortfolioMenu || pathname.startsWith("/usecases"));
+
+                const active = isRouteActive || isPortfolioActive;
+                return (
+                  <button
+                    key={link.label}
+                    onClick={() => handleNavClick(link.href)}
+                    className={`text-lg font-medium transition-all px-4 py-2 rounded-lg flex items-center gap-2 ${(active) ? "bg-white text-black hover:bg-white/90" : "text-white/70 hover:text-[#ECE1CE]"}`}
+                  >
+                    {link.label}
+                    {link.hasDropdown && <ChevronDown size={16} className={`transition-transform duration-300 ${showPortfolioMenu ? 'rotate-180' : ''}`} />}
+                  </button>
+                )
+              })}
 
               <AnimatePresence>
                 {showPortfolioMenu && (
@@ -400,44 +413,51 @@ export const Navbar = () => {
               <Separator />
 
               <div className="flex flex-col gap-6 p-5 overflow-y-auto">
-                {navLinks.map((link) => (
-                  <div key={link.label} className="flex flex-col">
-                    <button
-                      onClick={() => link.hasDropdown ? setMobilePortfolioOpen(!mobilePortfolioOpen) : handleNavClick(link.href)}
-                      className={`text-xl font-medium text-left flex justify-between items-center ${link.isButton ? "text-[#ECE1CE]" : "text-[#B8ACAC]"}`}
-                    >
-                      {link.label}
-                      {link.hasDropdown && <ChevronDown size={20} className={`transition-transform ${mobilePortfolioOpen ? 'rotate-180' : ''}`} />}
-                    </button>
+                {navLinks.map((link) => {
+                  const isRouteActive = isActive(link.href);
+                  // UseCases is "active" if the dropdown is open
+                  const isPortfolioActive =
+                    link.hasDropdown && (showPortfolioMenu || pathname.startsWith("/usecases"));
 
-                    {/* Mobile Nested Portfolio Menu */}
-                    {/* Mobile Nested Portfolio Menu */}
-                    {link.hasDropdown && mobilePortfolioOpen && (
-                      <div className="flex flex-col gap-4 mt-4 ml-4 border-l border-white/10 pl-4">
-                        {(Object.keys(portfolioConfig) as Array<keyof typeof portfolioConfig>).map((cat) => (
-                          <div key={cat} className="flex flex-col gap-2">
-                            <button
-                              onClick={() => setMobileActiveCategory(mobileActiveCategory === cat ? null : cat)}
-                              className="text-white text-lg font-semibold flex items-center justify-between py-2"
-                            >
-                              <span className="flex items-center gap-2">
-                                {portfolioConfig[cat].icon} {portfolioConfig[cat].label}
-                              </span>
-                              <ChevronDown size={16} className={mobileActiveCategory === cat ? "rotate-180" : ""} />
-                            </button>
+                  const active = isRouteActive || isPortfolioActive;
 
-                            {mobileActiveCategory === cat && (
-                              <div className="flex flex-col gap-4 ml-4 mb-4">
-                                {portfolioConfig[cat].sectors.map((sector) => (
-                                  <div key={sector.id} className="flex flex-col gap-2">
-                                    {/* Made the Sector Label clickable if there are no subsectors */}
-                                    <div className="flex justify-between items-center pr-4">
-                                      <button
-                                        onClick={() => handlePortfolioSelect(cat, sector.id)}
-                                        className="text-white/40 text-sm font-bold uppercase tracking-widest">
-                                        {sector.label}
-                                      </button>
-                                      {/* {sector.subSectors.length === 0 && (
+                  return (
+                    <div key={link.label} className="flex flex-col">
+                      <button
+                        onClick={() => link.hasDropdown ? setMobilePortfolioOpen(!mobilePortfolioOpen) : handleNavClick(link.href)}
+                        className={`text-xl font-medium text-left flex justify-between items-center ${(active) ? "text-[#ECE1CE]" : "text-[#B8ACAC]"}`}
+                      >
+                        {link.label}
+                        {link.hasDropdown && <ChevronDown size={20} className={`transition-transform ${mobilePortfolioOpen ? 'rotate-180' : ''}`} />}
+                      </button>
+
+                      {/* Mobile Nested UseCases Menu */}
+                      {link.hasDropdown && mobilePortfolioOpen && (
+                        <div className="flex flex-col gap-4 mt-4 ml-4 border-l border-white/10 pl-4">
+                          {(Object.keys(portfolioConfig) as Array<keyof typeof portfolioConfig>).map((cat) => (
+                            <div key={cat} className="flex flex-col gap-2">
+                              <button
+                                onClick={() => setMobileActiveCategory(mobileActiveCategory === cat ? null : cat)}
+                                className="text-white text-lg font-semibold flex items-center justify-between py-2"
+                              >
+                                <span className="flex items-center gap-2">
+                                  {portfolioConfig[cat].icon} {portfolioConfig[cat].label}
+                                </span>
+                                <ChevronDown size={16} className={mobileActiveCategory === cat ? "rotate-180" : ""} />
+                              </button>
+
+                              {mobileActiveCategory === cat && (
+                                <div className="flex flex-col gap-4 ml-4 mb-4">
+                                  {portfolioConfig[cat].sectors.map((sector) => (
+                                    <div key={sector.id} className="flex flex-col gap-2">
+                                      {/* Made the Sector Label clickable if there are no subsectors */}
+                                      <div className="flex justify-between items-center pr-4">
+                                        <button
+                                          onClick={() => handlePortfolioSelect(cat, sector.id)}
+                                          className="text-white/40 text-sm font-bold uppercase tracking-widest">
+                                          {sector.label}
+                                        </button>
+                                        {/* {sector.subSectors.length === 0 && (
                                         <button
                                           onClick={() => handlePortfolioSelect(cat, sector.id)}
                                           className="text-[#E8D1AB] text-xs font-medium"
@@ -445,40 +465,41 @@ export const Navbar = () => {
                                           View All
                                         </button>
                                       )} */}
-                                    </div>
+                                      </div>
 
-                                    <div className="flex flex-wrap gap-2">
-                                      {/* If there are subsectors, show them as pills (old design) */}
-                                      {sector.subSectors.length > 0 ? (
-                                        sector.subSectors.map((sub) => (
+                                      <div className="flex flex-wrap gap-2">
+                                        {/* If there are subsectors, show them as pills (old design) */}
+                                        {sector.subSectors.length > 0 ? (
+                                          sector.subSectors.map((sub) => (
+                                            <button
+                                              key={sub}
+                                              onClick={() => handlePortfolioSelect(cat, sector.id, sub)}
+                                              className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-white/70 text-sm active:bg-white/20"
+                                            >
+                                              {sub}
+                                            </button>
+                                          ))
+                                        ) : (
+                                          /* If no subsectors, provide a subtle pill to ensure the user can still click the sector */
                                           <button
-                                            key={sub}
-                                            onClick={() => handlePortfolioSelect(cat, sector.id, sub)}
-                                            className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-white/70 text-sm active:bg-white/20"
+                                            onClick={() => handlePortfolioSelect(cat, sector.id)}
+                                            className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-white/70 text-sm"
                                           >
-                                            {sub}
+                                            Explore {sector.label}
                                           </button>
-                                        ))
-                                      ) : (
-                                        /* If no subsectors, provide a subtle pill to ensure the user can still click the sector */
-                                        <button
-                                          onClick={() => handlePortfolioSelect(cat, sector.id)}
-                                          className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-white/70 text-sm"
-                                        >
-                                          Explore {sector.label}
-                                        </button>
-                                      )}
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
 
                 <Separator />
 

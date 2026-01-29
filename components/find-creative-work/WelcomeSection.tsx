@@ -6,32 +6,23 @@ import { Button } from "@/src/components/landing/ui/button";
 import { Container } from "@/components/ui/container";
 
 export const WelcomeSection = () => {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Track if video is in focus
   const isInView = useInView(containerRef, { amount: 0.6 });
 
-  // Handle Video Play/Pause based on focus
+  // Handle Vimeo Play/Pause via the postMessage API
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentWindow) return;
 
-    if (isInView) {
-      // Browsers require a promise check for .play()
-      const playPromise = video.play();
+    const message = JSON.stringify({
+      method: isInView ? "play" : "pause",
+    });
 
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          // Auto-play was prevented
-          console.log("Autoplay prevented, waiting for interaction:", error);
-        });
-      }
-    } else {
-      video.pause();
-    }
+    iframe.contentWindow.postMessage(message, "*");
   }, [isInView]);
-
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -50,7 +41,7 @@ export const WelcomeSection = () => {
   const scale = useTransform(smoothProgress, [0, 0.4], [0.8, 1]);
   const translateZ = useTransform(smoothProgress, [0, 0.4], [-100, 0]);
 
-  const videoUrl = "/videos/Camera_Operator_Filmmaker.mp4";
+  const vimeoUrl = `https://player.vimeo.com/video/1060256619?api=1&autoplay=1&muted=1&loop=1&controls=1&title=0&byline=0&portrait=0&badge=0&autopause=0&playsinline=1&transparent=0&vimeo_logo=0`;
 
   return (
     <section className="py-10 lg:pt-50 lg:pb-32 bg-[#010101] overflow-hidden select-none">
@@ -105,18 +96,15 @@ export const WelcomeSection = () => {
             className="w-full h-[320px] lg:h-[700px] overflow-hidden relative rounded-[10px] lg:rounded-[24px] border border-white/20 bg-black shadow-2xl"
           >
             {/* Screen Reflective Overlay */}
-            <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-tr from-white/5 to-transparent opacity-30" />
+            <div className="absolute inset-0 z-0 pointer-events-none bg-gradient-to-tr from-white/5 to-transparent opacity-30" />
 
-            {videoUrl && (
-              <video
-                ref={videoRef}
-                className="absolute inset-0 w-full h-full object-cover"
-                src={videoUrl}
-                loop
-                muted
-                playsInline
-              />
-            )}
+            {/* Vimeo Iframe Implementation */}
+            <iframe
+              ref={iframeRef}
+              src={vimeoUrl}
+              className="absolute inset-0 w-full h-full z-10"
+              allow="autoplay; fullscreen"
+            />
           </motion.div>
         </div>
       </Container>

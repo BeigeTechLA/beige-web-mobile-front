@@ -10,12 +10,10 @@ interface PageProps {
 
 export default function PhotoPortfolioPage({ params }: PageProps) {
   const { slug = [] } = params;
-console.log(params);
-console.log(slug);
 
   // Destructure for clarity
-  const category = slug[0]; // e.g., "corporate" or "lifestyle"
-  const subCategory = slug[1]; // e.g., "automotive" or undefined
+  const category = slug[0]; 
+  const subCategory = slug[1];
 
   return (
     <main className="min-h-screen text-white font-sans">

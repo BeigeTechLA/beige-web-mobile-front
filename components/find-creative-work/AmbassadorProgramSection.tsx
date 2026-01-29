@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { CircleDollarSign, Rocket, SquarePen } from "lucide-react";
+import Image from "next/image";
 
 const CIRCLE_SIZE = 380;
 const PYRAMID_VERTICAL_OFFSET = Math.round((Math.sqrt(3) / 2) * CIRCLE_SIZE);
@@ -42,10 +43,7 @@ export const AmbassadorProgramSection = () => {
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     window.addEventListener("resize", checkMobile);
-
-    return () => {
-      window.removeEventListener("resize", checkMobile);
-    };
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   useEffect(() => {
@@ -73,7 +71,7 @@ export const AmbassadorProgramSection = () => {
   });
 
   const startY = 80;
-  const endY = ARROW_HEIGHT + CIRCLE_SIZE / 2 + 180;
+  const endY = ARROW_HEIGHT + CIRCLE_SIZE / 2 + 95;
 
   const xPath = useTransform(smoothProgress, [0, 0.12, 0.25], ["0px", "280px", "0px"]);
   const yPath = useTransform(smoothProgress, [0, 0.25], [startY, endY]);
@@ -91,8 +89,34 @@ export const AmbassadorProgramSection = () => {
       ref={containerRef}
       className={`relative bg-[#010101] py-10 lg:py-32 ${isMobile ? "h-auto" : "h-[250vh]"}`}
     >
-      <div className={`${isMobile ? "relative" : "sticky top-0 min-h-screen"} flex flex-col items-center justify-start pt-10 w-full`}>
+      {/* SIDE GRAPHICS (DESKTOP ONLY) */}
+      {!isMobile && (
+        <>
+          {/* Left Side Static Graphic */}
+          <div className="absolute left-0 top-[20%] w-[450px] h-[700px] pointer-events-none opacity-40 z-0">
+            <Image
+              src="/images/misc/LeftBgImage.svg"
+              alt="Background left decoration"
+              fill
+              className="object-contain object-left"
+              priority
+            />
+          </div>
 
+          {/* Right Side Static Graphic */}
+          <div className="absolute -right-10 top-[35%] w-[350px] h-[500px] pointer-events-none opacity-40 z-0">
+            <Image
+              src="/images/misc/RightBgImag.svg"
+              alt="Background right decoration"
+              fill
+              className="object-contain object-right"
+              priority
+            />
+          </div>
+        </>
+      )}
+
+      <div className={`${isMobile ? "relative" : "sticky top-0 min-h-screen"} flex flex-col items-center justify-start pt-10 w-full`}>
         {/* HEADER */}
         <div className="relative z-20 text-center flex flex-col items-center mb-10 lg:mb-0 w-full">
           <h1 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
@@ -124,7 +148,7 @@ export const AmbassadorProgramSection = () => {
         <motion.div
           ref={circlesRef}
           style={{ opacity: 1 }}
-          className={`relative mx-auto ${isMobile
+          className={`relative z-10 mx-auto ${isMobile
             ? "flex flex-col items-center gap-8 mt-10 pb-20 px-4"
             : "w-[900px] h-[820px] mt-6"
             }`}
