@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { X, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { adminApi } from "@/lib/api";
+import { affiliateApi, adminApi } from "@/lib/api";
+import Cookies from "js-cookie";
 
 interface AffiliateAddPostProductionTeamModalProps {
     isOpen: boolean;
@@ -34,9 +35,12 @@ const AffiliateAddPostProductionTeamModal: React.FC<AffiliateAddPostProductionTe
     useEffect(() => {
         if (isOpen) {
             const fetchMembers = async () => {
+                const token = Cookies.get("revure_token");
+                if (!token) return;
+
                 try {
                     setLoading(true);
-                    const response = await adminApi.getPostProductionMembers();
+                    const response = await affiliateApi.getPostProductionMembers(token);
                     const membersList = response.data || response;
                     if (Array.isArray(membersList)) {
                         setMembers(membersList.map((m: any) => ({
@@ -66,9 +70,12 @@ const AffiliateAddPostProductionTeamModal: React.FC<AffiliateAddPostProductionTe
     const handleAdd = async () => {
         if (!selectedMember) return;
 
+        const token = Cookies.get("revure_token");
+        if (!token) return;
+
         try {
             setSubmitting(true);
-            const response = await adminApi.assignPostProductionMember({
+            const response = await affiliateApi.assignPostProductionMember(token, {
                 post_production_member_id: selectedMember.id,
                 project_id: Number(projectId)
             });
@@ -125,9 +132,9 @@ const AffiliateAddPostProductionTeamModal: React.FC<AffiliateAddPostProductionTe
                         {isDropdownOpen && !loading && (
                             <div className="absolute top-full left-0 right-0 mt-2 bg-[#111] border border-zinc-800 rounded-xl overflow-y-auto max-h-60 z-20 shadow-xl">
                                 {members.length > 0 ? (
-                                    members.map(member => (
+                                    members.map((member, index) => (
                                         <div
-                                            key={member.id}
+                                            key={`${member.id}-${index}`}
                                             onClick={() => {
                                                 setSelectedMember(member);
                                                 setIsDropdownOpen(false);

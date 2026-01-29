@@ -12,7 +12,8 @@ import { EffectCoverflow } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 
-import { adminApi } from "@/lib/api";
+import { affiliateApi, adminApi } from "@/lib/api";
+import Cookies from "js-cookie";
 
 export const AffiliateTopCreatives = () => {
     const [activeIndex, setActiveIndex] = useState(1); // Default to center
@@ -22,8 +23,11 @@ export const AffiliateTopCreatives = () => {
 
     React.useEffect(() => {
         const fetchData = async () => {
+            const token = Cookies.get("revure_token");
+            if (!token) return;
+
             try {
-                const response = await adminApi.getTopCreativePartners(range);
+                const response = await affiliateApi.getTopCreativePartners(token, range);
                 if (response && response.data) {
                     const data = Array.isArray(response.data) ? response.data : [];
 

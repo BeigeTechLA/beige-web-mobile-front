@@ -2,7 +2,7 @@
 
 import React from "react";
 import { AffiliateShootsTable } from "./AffiliateShootsTable";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface AffiliateShootsProps {
@@ -11,16 +11,21 @@ interface AffiliateShootsProps {
 
 export const AffiliateShoots: React.FC<AffiliateShootsProps> = ({ onShootClick }) => {
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center bg-[#111111] p-6 rounded-2xl border border-[#222222]">
-                <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-6 bg-[#E5D5B8] rounded-full" />
-                    <h2 className="text-2xl font-bold text-white leading-none">Overall Shoots</h2>
+        <div className="space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+            {/* Header */}
+            <div className="flex justify-between items-end">
+                <div>
+                    <h1 className="text-[32px] font-semibold text-white mb-2 leading-none">Shoots Management</h1>
+                    <p className="text-[#888888] text-sm lg:text-base leading-none">Track and manage your photography and videography project</p>
                 </div>
-                <Button variant="outline" className="bg-[#1A1A1A] border border-white/10 text-white hover:bg-[#2C2C2C] rounded-lg h-10 px-4 gap-2">
-                    <SlidersHorizontal className="w-4 h-4" /> Filters
-                </Button>
+                <button className="flex items-center gap-3 bg-transparent border border-[#333333] text-[#E0E0E0] px-6 py-3 rounded-full hover:bg-[#222222] transition-colors group">
+                    <span className="text-base font-medium leading-none">Sort by Date</span>
+                    <Calendar size={18} className="text-[#888888] group-hover:text-white transition-colors" />
+                </button>
             </div>
+
+            {/* Divider */}
+            <div className="w-full h-px bg-dashed border-t border-dashed border-[#333333] opacity-50" />
 
             <AffiliateShootsTable onShootClick={onShootClick} />
         </div>

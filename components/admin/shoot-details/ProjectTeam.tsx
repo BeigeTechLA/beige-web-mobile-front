@@ -139,7 +139,7 @@ export default function ProjectTeam({ projectId }: { projectId: string }) {
                         >
                             {teamMembers.map((member, index) => (
                                 <SwiperSlide
-                                    key={member.id}
+                                    key={`${member.id}-${index}`}
                                     className={`!w-[280px] !h-[180px] rounded-2xl overflow-hidden shadow-lg transition-all duration-300 ${member.bgColor} ${activeIndex === index ? 'opacity-100' : 'opacity-40'}`}
                                 >
                                     <Image
