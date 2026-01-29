@@ -42,7 +42,7 @@ export function LoginForm() {
     try {
       // The 'result' variable will now contain the JSON object you provided
       const result = await login({ email: data.email, password: data.password })
-      
+
       toast.success(result.message || "Login successful!")
 
       // Extract user_type_id from the response
@@ -50,17 +50,15 @@ export function LoginForm() {
 
       // Logic for conditional redirection
       if (userTypeId === 1) {
-  router.push('/admin/dashboard')
-} else if (userTypeId === 2) {
-  router.push('/creator/dashboard')
-} else if (userTypeId === 3) {
-  router.push('/affiliate/dashboard')
-} else {
-  // Fallback in case user_type_id is missing or different
-  router.push('/admin/dashboard')
-}
-
-
+        router.push('/admin/dashboard')
+      } else if (userTypeId === 2) {
+        router.push('/creator/dashboard')
+      } else if (userTypeId === 3) {
+        router.push('/affiliate/dashboard')
+      } else {
+        // Fallback in case user_type_id is missing or different
+        router.push('/admin/dashboard')
+      }
     } catch (error: any) {
       const errorMessage = error?.data?.message || error?.message || "Login failed. Please check your credentials."
       toast.error(errorMessage)
@@ -69,11 +67,11 @@ export function LoginForm() {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-lg lg:text-[28px] font-semibold tracking-tight text-white">
-          Sign in to your account
+      <div className="space-y-2 text-center lg:mt-15">
+        <h1 className="text-xl lg:text-4xl font-semibold tracking-tight text-[#E8D1AB]">
+          Welcome Back
         </h1>
-        <p className="lg:text-lg text-white/60">Welcome back! 👋</p>
+        <p className="lg:text-lg text-white/60">Log in to continue to your dashboard.</p>
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 lg:space-y-9">

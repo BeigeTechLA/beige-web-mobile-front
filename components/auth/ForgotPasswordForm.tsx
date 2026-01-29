@@ -88,12 +88,12 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 lg:mt-30">
       <div className="space-y-2">
-        <Link href="/login" className="inline-flex items-center text-[#E8D1AB] hover:text-white text-sm mb-4">
+        {/* <Link href="/login" className="inline-flex items-center text-[#E8D1AB] hover:text-white text-sm mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Login
-        </Link>
+        </Link> */}
         <h1 className="text-lg lg:text-[28px] font-semibold tracking-tight text-white">
           Forgot Your Password?
         </h1>
