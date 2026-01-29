@@ -7,8 +7,10 @@ import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
 import { StepProgressTracker } from "@/components/book-a-shoot/StepProgressTracker";
 import { ArrowLeft } from "lucide-react";
-import { useCreateGuestBookingMutation } from "@/lib/redux/features/booking/guestBookingApi";
+import { useCreateGuestBookingMutation, useUpdateGuestBookingMutation } from "@/lib/redux/features/booking/guestBookingApi";
 import { useSaveQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
+import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 import {
   BookingDataV3,
@@ -29,14 +31,20 @@ const V3_STEPS = [
 
 export const BookAShootV3 = () => {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
   const [activeStep, setActiveStep] = useState(1);
   const [internalStep, setInternalStep] = useState(1);
   const [formData, setFormData] = useState<BookingDataV3>(initialDataV3);
+  const [leadTracked, setLeadTracked] = useState(false);
+  const [draftBookingId, setDraftBookingId] = useState<number | null>(null);
+  const [leadId, setLeadId] = useState<number | null>(null);
 
   const [createGuestBooking, { isLoading: isBookingLoading }] = useCreateGuestBookingMutation();
+  const [updateGuestBooking, { isLoading: isUpdatingBooking }] = useUpdateGuestBookingMutation();
   const [saveQuote, { isLoading: isQuoteLoading }] = useSaveQuoteMutation();
+  const [trackEarlyInterest] = useTrackEarlyInterestMutation();
 
-  const isSubmitting = isBookingLoading || isQuoteLoading;
+  const isSubmitting = isBookingLoading || isQuoteLoading || isUpdatingBooking;
 
   // const updateData = (newData: Partial<BookingDataV3>) => {
   //   setFormData((prev) => ({ ...prev, ...newData }));
@@ -49,7 +57,52 @@ export const BookAShootV3 = () => {
     []
   );
 
-  const nextStep = () => {
+  // Track early interest when logged-in user lands on the page
+  useEffect(() => {
+    const trackLoggedInUser = async () => {
+      if (isAuthenticated && user?.email && !leadTracked) {
+        try {
+          const result = await trackEarlyInterest({
+            guest_email: user.email,
+            user_id: user.id,
+            client_name: user.name,
+          }).unwrap();
+          
+          setDraftBookingId(result.data.booking_id);
+          setLeadId(result.data.lead_id);
+          setLeadTracked(true);
+          console.log('Lead tracked for logged-in user:', result.data);
+        } catch (error) {
+          console.error('Failed to track lead for logged-in user:', error);
+          // Non-blocking error, continue with booking flow
+        }
+      }
+    };
+
+    trackLoggedInUser();
+  }, [isAuthenticated, user?.email, user?.id, user?.name, leadTracked, trackEarlyInterest]);
+
+  const nextStep = async () => {
+    // Track lead when moving from step 1 to 2 (if not already tracked)
+    if (internalStep === 1 && !leadTracked && formData.email) {
+      try {
+        const result = await trackEarlyInterest({
+          guest_email: formData.email,
+          user_id: user?.id,
+          content_type: formData.contentType.join(','),
+          shoot_type: formData.shootType,
+        }).unwrap();
+        
+        setDraftBookingId(result.data.booking_id);
+        setLeadId(result.data.lead_id);
+        setLeadTracked(true);
+        console.log('Lead tracked after step 1:', result.data);
+      } catch (error) {
+        console.error('Failed to track lead:', error);
+        // Non-blocking error, continue with booking flow
+      }
+    }
+
     if (internalStep === 3) {
       // Step 3 -> Loading -> Crew Selection
       setInternalStep(4); // Loading
@@ -143,7 +196,7 @@ export const BookAShootV3 = () => {
         }
       }
 
-      // 2. Create Booking
+      // 2. Create or Update Booking
       const bookingData: any = {
         order_name: `${formData.shootType} Shoot - ${formData.fullName}`,
         guest_email: formData.email,
@@ -174,7 +227,19 @@ export const BookAShootV3 = () => {
         selected_crew_ids: formData.selectedCrewIds
       };
 
-      const result = await createGuestBooking(bookingData).unwrap();
+      let result;
+      if (draftBookingId) {
+        // Update existing draft booking
+        result = await updateGuestBooking({
+          id: draftBookingId,
+          data: bookingData
+        }).unwrap();
+        console.log('Updated draft booking:', draftBookingId);
+      } else {
+        // Create new booking (fallback if lead tracking failed)
+        result = await createGuestBooking(bookingData).unwrap();
+        console.log('Created new booking');
+      }
 
       toast.success("Booking Created Successfully!", {
         description: "Redirecting to payment...",

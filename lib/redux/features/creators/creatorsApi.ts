@@ -45,6 +45,14 @@ export const creatorsApi = createApi({
       }),
       transformResponse: (response: ApiResponse<PaginatedResponse<Review>>) => response.data!,
     }),
+    getRandomCreators: builder.query<Creator[], { limit?: number }>({
+      query: ({ limit = 10 }) => ({
+        url: 'creators/random',
+        params: { limit },
+      }),
+      transformResponse: (response: ApiResponse<Creator[]>) => response.data!,
+      providesTags: ['Creator'],
+    }),
   }),
 });
 
@@ -53,4 +61,5 @@ export const {
   useGetCreatorProfileQuery,
   useGetCreatorPortfolioQuery,
   useGetCreatorReviewsQuery,
+  useGetRandomCreatorsQuery,
 } = creatorsApi;

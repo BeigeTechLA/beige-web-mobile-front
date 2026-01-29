@@ -48,6 +48,18 @@ export const salesApi = createApi({
     // Lead Tracking Endpoints (Public)
     // =====================================================
 
+    trackEarlyInterest: builder.mutation<
+      ApiResponse<{ lead_id: number; booking_id: number; is_new: boolean }>,
+      { guest_email: string; user_id?: number; content_type?: string; shoot_type?: string; client_name?: string }
+    >({
+      query: (data) => ({
+        url: 'sales/leads/track-early-interest',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Lead'],
+    }),
+
     trackBookingStart: builder.mutation<ApiResponse<{ lead_id: number; is_new: boolean }>, TrackBookingStartRequest>({
       query: (data) => ({
         url: 'sales/leads/track-start',
@@ -268,6 +280,7 @@ export const salesApi = createApi({
 
 export const {
   // Lead tracking
+  useTrackEarlyInterestMutation,
   useTrackBookingStartMutation,
   useTrackPaymentPageReachedMutation,
   useCreateSalesAssistedLeadMutation,

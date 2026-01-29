@@ -76,7 +76,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   };
 
   const handlePay = () => {
-    if (!data.fullName || !data.email) {
+    if (!data.fullName || !data.phone) {
       toast.error("Please fill in your contact information");
       return;
     }
@@ -381,7 +381,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
               </h4>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-8 p-4 lg:gap-8">
-              <div className="relative space-y-2 col-span-full">
+              <div className="relative space-y-2">
                 <Label
                   htmlFor="fullName"
                   className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
@@ -394,23 +394,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     type={"text"}
                     value={data.fullName}
                     onChange={(e) => updateData({ fullName: e.target.value })}
-                    className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
-                  />
-                </div>
-              </div>
-              <div className="relative space-y-2">
-                <Label
-                  htmlFor="email"
-                  className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
-                >
-                  Email Address*
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="email"
-                    type={"email"}
-                    value={data.email}
-                    onChange={(e) => updateData({ email: e.target.value })}
                     className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
                   />
                 </div>

@@ -11,6 +11,7 @@ import { Separator } from "@/src/components/landing/Separator";
 import NewCreatorsSection from "./components/NewCreatorsSection";
 import SimilarCreatorsSection from "./components/SimilarCreatorsSection";
 import HeroSection from "./components/HeroSection";
+import RandomPartnersSection from "./components/RandomPartnersSection";
 import { useSearchCreatorsQuery } from "@/lib/redux/features/creators/creatorsApi";
 import { selectCrewSize } from "@/lib/redux/features/booking/bookingSlice";
 import type { Creator } from "@/lib/types";
@@ -165,12 +166,18 @@ function SearchResultsContent() {
   // Empty state
   if (matchedCreators.length === 0) {
     return (
-      <div className="pt-32 pb-20 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center max-w-md">
-          <p className="text-white text-lg mb-4">No creators found matching your criteria.</p>
-          <p className="text-gray-400">Try adjusting your budget, location, or content type filters.</p>
+      <>
+        <div className="pt-32 pb-12 flex items-center justify-center">
+          <div className="text-center max-w-md">
+            <p className="text-white text-lg mb-4">No creators found matching your criteria.</p>
+            <p className="text-gray-400">Try adjusting your budget, location, or content type filters.</p>
+          </div>
         </div>
-      </div>
+        
+        {/* Random Partners Section */}
+        <Separator />
+        <RandomPartnersSection shootId={shootId} />
+      </>
     );
   }
 

@@ -73,6 +73,14 @@ export const guestBookingApi = createApi({
       }),
       transformResponse: (response: ApiResponse<GuestBookingResponse>) => response.data!,
     }),
+    updateGuestBooking: builder.mutation<GuestBookingResponse, { id: number; data: Partial<GuestBookingData> }>({
+      query: ({ id, data }) => ({
+        url: `guest-bookings/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<GuestBookingResponse>) => response.data!,
+    }),
     getGuestBookingById: builder.query<GuestBookingResponse, string>({
       query: (id) => `guest-bookings/${id}`,
       transformResponse: (response: ApiResponse<GuestBookingResponse>) => response.data!,
@@ -82,5 +90,6 @@ export const guestBookingApi = createApi({
 
 export const {
   useCreateGuestBookingMutation,
+  useUpdateGuestBookingMutation,
   useGetGuestBookingByIdQuery
 } = guestBookingApi;
