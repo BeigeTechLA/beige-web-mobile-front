@@ -7,7 +7,8 @@ import {
     ResponsiveContainer,
 } from "recharts";
 import { ChevronDown } from "lucide-react";
-import { adminApi } from "@/lib/api";
+import Cookies from "js-cookie";
+import { affiliateApi } from "@/lib/api";
 
 interface ShootStatusBreakdown {
     label: string;
@@ -47,34 +48,33 @@ export const AffiliateShootStatusChart = () => {
 
     React.useEffect(() => {
         const fetchData = async () => {
+            const token = Cookies.get("revure_token");
+            if (!token) return;
+
             try {
-                const response = await adminApi.getShootStatus(range);
-                if (response && response.data) {
-                    const data = response.data;
+                const response = await affiliateApi.getMyShoots(token);
+                if (response && !response.error && response.data) {
+                    const { stats } = response.data;
 
-                    // Set total shoots from the API response
-                    setTotalShoots(data.total?.toLocaleString() || "0");
+                    // Map the stats object to chart data format
+                    const mappedData = [
+                        { name: "Active", value: stats.total_active || 0, fill: "#3B82F6" },
+                        { name: "Completed", value: stats.total_completed || 0, fill: "#22C55E" },
+                        { name: "Cancelled", value: stats.total_cancelled || 0, fill: "#EF4444" },
+                        { name: "Upcoming", value: stats.total_upcoming || 0, fill: "#8B5CF6" },
+                        { name: "Draft", value: stats.total_draft || 0, fill: "#F59E0B" }
+                    ];
 
-                    // Map the breakdown array to chart data format
-                    // API returns: { total: 491, breakdown: [{ label, count, color }] }
-                    if (Array.isArray(data.breakdown)) {
-                        const mappedData = data.breakdown
-                            .filter((item: ShootStatusBreakdown) => item.count > 0) // Only show non-zero counts
-                            .map((item: ShootStatusBreakdown) => ({
-                                name: item.label,
-                                value: item.count,
-                                fill: item.color
-                            }));
-
-                        setChartData(mappedData);
-                    }
+                    const total = Object.values(stats).reduce((acc: number, val: any) => acc + (val || 0), 0);
+                    setTotalShoots(total.toString());
+                    setChartData(mappedData.filter(item => item.value > 0));
                 }
             } catch (error) {
                 console.error("Failed to fetch shoot status:", error);
             }
         };
         fetchData();
-    }, [range]);
+    }, []);
 
     const toggleRange = () => {
         setRange(prev => prev === 'all' ? 'monthly' : 'all');
@@ -88,25 +88,6 @@ export const AffiliateShootStatusChart = () => {
                 <div className="flex items-center gap-2">
                     <div className="w-[3px] h-6 bg-[#E5D5B8]" />
                     <h3 className="">Shoot Status</h3>
-                </div>
-                <div className="relative">
-                    <button
-                        onClick={() => setIsOpen(!isOpen)}
-                        className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-3 py-1.5 rounded-full text-xs text-white/70 hover:bg-white/5 transition-colors capitalize"
-                    >
-                        {range === 'monthly' ? 'Month' : 'All Time'} <ChevronDown size={14} />
-                    </button>
-
-                    {isOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-32 bg-[#1A1A1A] border border-white/10 rounded-xl overflow-hidden z-10 shadow-xl">
-                            <button
-                                onClick={() => toggleRange()}
-                                className="w-full text-left px-4 py-2 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
-                            >
-                                {range === 'all' ? 'Month' : 'All Time'}
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
 

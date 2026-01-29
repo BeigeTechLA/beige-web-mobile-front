@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronRight, ChevronDown, Loader2 } from "lucide-react";
-import { adminApi } from "@/lib/api";
+import Cookies from "js-cookie";
+import { affiliateApi, adminApi } from "@/lib/api";
 
 type ShootStatus = "Pending" | "Pre Production" | "Completed" | "Rejected";
 
@@ -89,9 +90,12 @@ export const AffiliateOverallShootsTable = () => {
 
     useEffect(() => {
         const fetchData = async () => {
+            const token = Cookies.get("revure_token");
+            if (!token) return;
+
             try {
                 const [projectsResponse, skillsResponse] = await Promise.all([
-                    adminApi.getProjects(),
+                    affiliateApi.getMyShoots(token),
                     adminApi.getSkills()
                 ]);
 
@@ -147,7 +151,7 @@ export const AffiliateOverallShootsTable = () => {
     };
 
     return (
-        <div className="w-full bg-[#171717] rounded-2xl border border-white/5 overflow-hidden mt-8 min-h-[400px] flex flex-col">
+        <div className="w-full bg-[#171717] rounded-2xl border border-white/5 overflow-hidden min-h-[400px] h-full flex flex-col">
             {/* Table Header Controls */}
             <div className="bg-[#101010] flex justify-between items-center p-5 border-b border-b-[#3D3D3D]">
                 <div className="flex items-center gap-2">

@@ -32,8 +32,8 @@ import AffiliateOverviewChart from "@/components/affiliate/AffiliateOverviewChar
 import AffiliateRecentActivity from "@/components/affiliate/AffiliateRecentActivity";
 import AffiliateShootByCategory from "@/components/affiliate/AffiliateShootByCategory";
 import { AffiliateShootStatusChart } from "@/components/affiliate/AffiliateShootStatusChart";
-import AffiliateStatsModule from "@/components/affiliate/AffiliateStatsModule";
-import { AffiliateTopCreatives } from "@/components/affiliate/AffiliateTopCreatives";
+// import AffiliateStatsModule from "@/components/affiliate/AffiliateStatsModule";
+// import { AffiliateTopCreatives } from "@/components/affiliate/AffiliateTopCreatives";
 import AffiliateFileManager from "@/components/affiliate/AffiliateFileManager";
 import AffiliateMessages from "@/components/affiliate/AffiliateMessages";
 import { AffiliateShoots } from "@/components/affiliate/AffiliateShoots";
@@ -415,14 +415,12 @@ export default function AffiliateDashboardPage() {
 
                 <div className="flex gap-4 mt-5">
                   <div className="w-3/4 flex flex-col gap-4">
-                    <AffiliateStatsModule />
-                    <AffiliateTopCreatives />
+                    <AffiliateOverallShootsTable />
                   </div>
                   <div className="w-1/4">
                     <AffiliateShootByCategory />
                   </div>
                 </div>
-                <AffiliateOverallShootsTable />
                 <div className="flex gap-4 mt-5">
                   <div className="w-3/4">
                     <AffiliateShootStatusChart />
@@ -539,27 +537,6 @@ export default function AffiliateDashboardPage() {
                     <p className="text-2xl font-bold text-white">{stats?.stats.conversion_rate || "0"}%</p>
                   </div>
 
-                  {/* Shoot Metrics */}
-                  <div className="bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group hover:border-green-500/30 transition-colors">
-                    <div className="absolute top-0 right-0 p-4 opacity-10"><Camera size={48} className="text-green-500" /></div>
-                    <p className="text-white/40 text-sm font-medium mb-2">Total Shoots</p>
-                    <p className="text-2xl font-bold text-white">{dashboardSummary?.total_shoots?.count || 0}</p>
-                    <p className="text-xs text-green-400 mt-1">+{dashboardSummary?.total_shoots?.growth || 0}% growth</p>
-                  </div>
-
-                  <div className="bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group hover:border-orange-500/30 transition-colors">
-                    <div className="absolute top-0 right-0 p-4 opacity-10"><Clock size={48} className="text-orange-500" /></div>
-                    <p className="text-white/40 text-sm font-medium mb-2">Active Shoots</p>
-                    <p className="text-2xl font-bold text-white">{dashboardSummary?.active_shoots?.count || 0}</p>
-                    <p className="text-xs text-orange-400 mt-1">+{dashboardSummary?.active_shoots?.growth || 0}% growth</p>
-                  </div>
-
-                  <div className="bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
-                    <div className="absolute top-0 right-0 p-4 opacity-10"><CheckCircle size={48} className="text-emerald-500" /></div>
-                    <p className="text-white/40 text-sm font-medium mb-2">Completed Shoots</p>
-                    <p className="text-2xl font-bold text-white">{dashboardSummary?.completed_shoots?.count || 0}</p>
-                    <p className="text-xs text-emerald-400 mt-1">+{dashboardSummary?.completed_shoots?.growth || 0}% growth</p>
-                  </div>
                 </div>
 
                 {/* Referrals Table Section */}

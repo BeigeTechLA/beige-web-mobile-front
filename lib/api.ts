@@ -301,6 +301,115 @@ export const affiliateApi = {
       };
     }
   },
+  // Get shoot status (affiliate dashboard)
+  getShootStatus: async (token: string, range: 'all' | 'monthly' = 'all') => {
+    try {
+      const response = await api.get('client/get-shoot-status', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { range },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Shoot Status Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch shoot status',
+      };
+    }
+  },
+  // Get my shoots (affiliate dashboard)
+  getMyShoots: async (token: string) => {
+    try {
+      const response = await api.get('client/get-my-shoots', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get My Shoots Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch shoots',
+      };
+    }
+  },
+  // Get project details (affiliate dashboard)
+  getProjectDetails: async (token: string, id: string | number) => {
+    try {
+      const response = await api.get(`client/get-project/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error) {
+    }
+  },
+  // Get recent activity (affiliate dashboard)
+  getRecentActivity: async (token: string, limit: number = 10) => {
+    try {
+      const response = await api.get('client/get-recent-activity', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { limit },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Recent Activity Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch recent activity',
+      };
+    }
+  },
+  // Get top creative partners (affiliate dashboard)
+  getTopCreativePartners: async (token: string, range: 'all' | 'monthly' = 'all') => {
+    try {
+      const response = await api.get('client/get-top-creative-partners', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { range },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Top Creative Partners Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch top creative partners',
+      };
+    }
+  },
+  // Get post production members (affiliate dashboard)
+  getPostProductionMembers: async (token: string) => {
+    try {
+      const response = await api.get('admin/get-post-production-members', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Post Production Members Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch post production members',
+      };
+    }
+  },
+  // Assign post production member (affiliate dashboard)
+  assignPostProductionMember: async (token: string, payload: { post_production_member_id: number; project_id: number }) => {
+    try {
+      const response = await api.post('client/assign-post-production-member', payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Assign Post Production Member Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to assign post production member',
+      };
+    }
+  },
 };
 
 
@@ -656,6 +765,71 @@ export const adminApi = {
         success: false,
         data: null,
         error: 'Failed to fetch weekly revenue',
+      };
+    }
+  },
+  getPayoutTotal: async () => {
+    try {
+      const response = await api.get('admin/dashboard/payout/total');
+      return response.data;
+    } catch (error) {
+      console.error('Get Payout Total Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch payout total',
+      };
+    }
+  },
+  getPayoutWeeklyGraph: async () => {
+    try {
+      const response = await api.get('admin/dashboard/payout/weekly-graph');
+      return response.data;
+    } catch (error) {
+      console.error('Get Payout Weekly Graph Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch payout weekly graph',
+      };
+    }
+  },
+  getPayoutPending: async () => {
+    try {
+      const response = await api.get('admin/dashboard/payout/pending');
+      return response.data;
+    } catch (error) {
+      console.error('Get Payout Pending Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch payout pending',
+      };
+    }
+  },
+  getCPCount: async () => {
+    try {
+      const response = await api.get('admin/dashboard/cp/count');
+      return response.data;
+    } catch (error) {
+      console.error('Get CP Count Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch CP count',
+      };
+    }
+  },
+  getCategoryWiseCPCount: async () => {
+    try {
+      const response = await api.get('admin/dashboard/category-wise-cp/count');
+      return response.data;
+    } catch (error) {
+      console.error('Get Category Wise CP Count Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch category wise CP count',
       };
     }
   },

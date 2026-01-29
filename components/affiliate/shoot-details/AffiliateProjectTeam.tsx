@@ -5,8 +5,8 @@ import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
 import { Plus, User, Loader2 } from "lucide-react";
-import AffiliateAddPostProductionTeamModal from "./AffiliateAddPostProductionTeamModal";
-import { adminApi } from "@/lib/api";
+import { affiliateApi, adminApi } from "@/lib/api";
+import Cookies from "js-cookie";
 
 import "swiper/css";
 import "swiper/css/effect-coverflow";
@@ -23,14 +23,16 @@ const BG_COLORS = ["bg-[#FFFAC2]", "bg-[#F3E8FF]", "bg-[#E0F2FE]", "bg-[#FCE7F3]
 
 export default function AffiliateProjectTeam({ projectId }: { projectId: string }) {
     const [activeIndex, setActiveIndex] = useState(0);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
     const fetchTeamMembers = async () => {
+        const token = Cookies.get("revure_token");
+        if (!token) return;
+
         try {
             setLoading(true);
-            const response = await adminApi.getProjectDetails(projectId);
+            const response = await affiliateApi.getProjectDetails(token, projectId);
 
             const projectData = response.data || response;
             const members = projectData.assignedPostProductionMembers || [];
@@ -61,10 +63,6 @@ export default function AffiliateProjectTeam({ projectId }: { projectId: string 
         }
     }, [projectId]);
 
-    const handleMemberAdded = () => {
-        fetchTeamMembers();
-        setIsModalOpen(false);
-    }
 
     if (loading) {
         return (
@@ -87,33 +85,19 @@ export default function AffiliateProjectTeam({ projectId }: { projectId: string 
             <div className="w-full h-px bg-[#222222] absolute top-16 left-0" />
             <div className="w-full h-px bg-dashed border-t border-dashed border-[#333333] absolute top-20 left-0" />
 
-            <AffiliateAddPostProductionTeamModal
-                isOpen={isModalOpen}
-                projectId={projectId}
-                onClose={() => setIsModalOpen(false)}
-                onSuccess={handleMemberAdded}
-            />
 
             {!hasTeam && (
                 <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30">
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="w-20 h-20 bg-[#E5D5B8] rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-transform shadow-lg shadow-[#E5D5B8]/10">
-                        <Plus size={40} className="text-black" />
-                    </button>
-                    <h4 className="text-[#E5D5B8] text-base font-medium leading-none">Add Post Production Team</h4>
+                    <div className="w-20 h-20 bg-[#1A1A1A] rounded-full flex items-center justify-center mb-6">
+                        <User size={40} className="text-[#333]" />
+                    </div>
+                    <h4 className="text-[#666] text-base font-medium leading-none">No Team Assigned</h4>
                 </div>
             )}
 
             {hasTeam && (
                 <>
                     {/* Add Button in Top Right for List View */}
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="absolute top-6 right-6 z-30 text-[#E5D5B8] hover:text-white transition-colors"
-                    >
-                        <Plus size={24} />
-                    </button>
 
                     {/* Slider Section - Horizontal Coverflow */}
                     <div className="w-full h-[220px] mt-24 relative z-10">

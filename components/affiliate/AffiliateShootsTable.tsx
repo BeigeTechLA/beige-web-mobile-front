@@ -3,7 +3,8 @@
 import React from "react";
 import Image from "next/image";
 import { ChevronRight, Loader2 } from "lucide-react";
-import { adminApi } from "@/lib/api";
+import Cookies from "js-cookie";
+import { affiliateApi, adminApi } from "@/lib/api";
 import { useEffect, useState } from "react";
 
 type ShootStatus = "Initiated" | "Pre Production" | "Post Production" | "Revision" | "Completed";
@@ -89,9 +90,12 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
 
     useEffect(() => {
         const fetchData = async () => {
+            const token = Cookies.get("revure_token");
+            if (!token) return;
+
             try {
                 const [projectsResponse, skillsResponse] = await Promise.all([
-                    adminApi.getProjects(),
+                    affiliateApi.getMyShoots(token),
                     adminApi.getSkills()
                 ]);
 

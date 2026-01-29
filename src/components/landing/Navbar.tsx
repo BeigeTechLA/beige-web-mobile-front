@@ -228,8 +228,9 @@ export const Navbar = () => {
   const goToDashboard = () => {
     setMobileOpen(false);
     setShowProfileDropdown(false);
-    if (localUser?.user_type_id === 1) router.push("/affiliate/dashboard");
+    if (localUser?.user_type_id === 1) router.push("/admin/dashboard");
     else if (localUser?.user_type_id === 2) router.push("/creator/dashboard/request");
+    else if (localUser?.user_type_id === 3) router.push("/affiliate/dashboard");
   };
 
   return (
@@ -375,6 +376,34 @@ export const Navbar = () => {
                   </div>
                   <ChevronDown size={16} className={`text-white/50 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
                 </button>
+
+                <AnimatePresence>
+                  {showProfileDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute top-14 right-0 w-48 bg-[#000000] border border-[#424242] rounded-xl overflow-hidden shadow-2xl z-50"
+                    >
+                      <div className="p-2 flex flex-col gap-1">
+                        <button
+                          onClick={goToDashboard}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors text-sm font-medium"
+                        >
+                          <LayoutDashboard size={18} />
+                          Dashboard
+                        </button>
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors text-sm font-medium"
+                        >
+                          <LogOut size={18} />
+                          Log Out
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
           </div>

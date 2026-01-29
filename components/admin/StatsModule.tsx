@@ -45,6 +45,10 @@ const StatsLayout = ({
   growthLabel = "Last 30 Days",
   hasInfoCard = false,
   isLoading = false,
+  chartConfig = [
+    { key: "base_revenue", color: "#55BF61", stackId: "a", radius: [0, 0, 6, 6] },
+    { key: "margin_revenue", color: "#FF8484", stackId: "a", radius: [6, 6, 0, 0] }
+  ]
 }: any) => (
   <div className="bg-[#101010] flex gap-6 h-full max-h-[300px] items-center">
     {/* Left */}
@@ -73,26 +77,20 @@ const StatsLayout = ({
       </div>
 
       <ResponsiveContainer width="100%" height="85%">
-        <BarChart data={chartData.length > 0 ? chartData : [
-          { name: "No Data", base_revenue: 0, margin_revenue: 0 }
-        ]} >
+        <BarChart data={chartData.length > 0 ? chartData : []} >
           <XAxis dataKey="name" axisLine={true} tickLine={false} />
           <YAxis axisLine={false} tickLine={false} />
           {/* <Tooltip cursor={{ fill: "transparent" }} /> */}
-          <Bar
-            dataKey="base_revenue"
-            stackId="a"
-            fill="#55BF61"
-            barSize={30}
-            radius={[0, 0, 6, 6]}
-          />
-          <Bar
-            dataKey="margin_revenue"
-            stackId="a"
-            fill="#FF8484"
-            radius={[6, 6, 0, 0]}
-            barSize={30}
-          />
+          {chartConfig.map((config: any, index: number) => (
+            <Bar
+              key={config.key}
+              dataKey={config.key}
+              stackId={config.stackId}
+              fill={config.color}
+              barSize={30}
+              radius={config.radius}
+            />
+          ))}
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -134,23 +132,42 @@ export default function StackedDashboard() {
   const [revenueData, setRevenueData] = useState<any>(null);
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [weeklyData, setWeeklyData] = useState<any>(null);
+
+  // New states
+  const [payoutTotal, setPayoutTotal] = useState<any>(null);
+  const [payoutWeekly, setPayoutWeekly] = useState<any>([]);
+  const [payoutPending, setPayoutPending] = useState<any>(null);
+  const [cpCount, setCpCount] = useState<any>(null);
+  const [cpCategoryCount, setCpCategoryCount] = useState<any>([]);
+
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        const [totalRes, monthlyRes, weeklyRes] = await Promise.all([
+        const [
+          totalRes,
+          monthlyRes,
+          weeklyRes,
+          payoutTotalRes,
+          payoutWeeklyRes,
+          payoutPendingRes,
+          cpCountRes,
+          cpCategoryCountRes
+        ] = await Promise.all([
           adminApi.getTotalRevenue(),
           adminApi.getMonthlyRevenue(),
           adminApi.getWeeklyRevenue(),
+          adminApi.getPayoutTotal(),
+          adminApi.getPayoutWeeklyGraph(),
+          adminApi.getPayoutPending(),
+          adminApi.getCPCount(),
+          adminApi.getCategoryWiseCPCount()
         ]);
 
         if (totalRes && totalRes.data) setRevenueData(totalRes.data);
 
         if (monthlyRes && monthlyRes.data) {
-          // Map API response to chart format
-          // Expecting data to be an array or object with months
-          // Example: { Jan: { base: 100, margin: 50 }, ... } or [{ name: 'Jan', base: 100, margin: 50 }]
           const formattedMonthly = Array.isArray(monthlyRes.data)
             ? monthlyRes.data.map((item: any) => ({
               name: item.month || item.name,
@@ -166,6 +183,35 @@ export default function StackedDashboard() {
         }
 
         if (weeklyRes && weeklyRes.data) setWeeklyData(weeklyRes.data);
+
+        // Process Payout Data
+        if (payoutTotalRes && payoutTotalRes.data) setPayoutTotal(payoutTotalRes.data);
+
+        if (payoutWeeklyRes && payoutWeeklyRes.data) {
+          const formattedPayout = Array.isArray(payoutWeeklyRes.data)
+            ? payoutWeeklyRes.data.map((item: any) => ({
+              name: item.day,
+              amount: parseFloat(item.amount)
+            }))
+            : [];
+          setPayoutWeekly(formattedPayout);
+        }
+
+        if (payoutPendingRes && payoutPendingRes.data) setPayoutPending(payoutPendingRes.data);
+
+        // Process CP Data
+        if (cpCountRes && cpCountRes.data) setCpCount(cpCountRes.data);
+
+        if (cpCategoryCountRes && cpCategoryCountRes.data) {
+          const formattedCPCats = Array.isArray(cpCategoryCountRes.data)
+            ? cpCategoryCountRes.data.map((item: any) => ({
+              name: item.role_name,
+              count: item.count
+            }))
+            : [];
+          setCpCategoryCount(formattedCPCats);
+        }
+
 
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -184,6 +230,13 @@ export default function StackedDashboard() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 1,
     }).format(val);
+  };
+
+  // Helper to determine top category
+  const getTopCategory = () => {
+    if (!cpCategoryCount || cpCategoryCount.length === 0) return "N/A";
+    const top = [...cpCategoryCount].sort((a, b) => b.count - a.count)[0];
+    return top?.name || "N/A";
   };
 
   return (
@@ -226,8 +279,14 @@ export default function StackedDashboard() {
                 subtitle="This Is Overall CPs Overview"
                 graphTitle="Category Wise CPs"
                 rightLabel="Top Category"
-                rightValue="Photo"
-                value="33" // Handled in overview chart but also here? Assuming user wants both dynamic.
+                rightValue={getTopCategory()}
+                value={cpCount?.total_cps || "0"}
+                chartData={cpCategoryCount}
+                chartConfig={[
+                  { key: "count", color: "#55BF61", stackId: "a", radius: [6, 6, 6, 6] }
+                ]}
+                hasInfoCard={true} // Changed to true to show top category
+                isLoading={isLoading}
               />
             </CardWrapper>
           </SwiperSlide>
@@ -239,9 +298,15 @@ export default function StackedDashboard() {
                 subtitle="This Is Overall Payout Overview"
                 graphTitle="Weekly Graph Payments"
                 rightLabel="Pending Payments"
-                rightValue="$184,200"
-                value="$521,400" // Placeholder
+                rightValue={formatCurrency(payoutPending?.pending_payout || 0)}
+                value={formatCurrency(payoutTotal?.total_payout || 0)}
+                chartData={payoutWeekly}
+                chartConfig={[
+                  { key: "amount", color: "#FF8484", stackId: "a", radius: [6, 6, 0, 0] }
+                  // Adjust key 'amount' based on actual API response for graph
+                ]}
                 hasInfoCard={true}
+                isLoading={isLoading}
               />
             </CardWrapper>
           </SwiperSlide>
