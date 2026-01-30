@@ -165,7 +165,7 @@ const navLinks = [
   { label: "Home", href: "/" },
   { label: "About", href: "#about" },
   { label: "Find Creative Work", href: "/find-creative-work" },
-  { label: "UseCases", href: "#usecases", hasDropdown: true },
+  { label: "Use Cases", href: "#usecases", hasDropdown: true },
   { label: "Press", href: "#press" },
 ];
 

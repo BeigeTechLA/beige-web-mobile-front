@@ -2,128 +2,159 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
 import { Loader2, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { useSearchCreatorsQuery } from "@/lib/redux/features/creators/creatorsApi";
+import { useCreateSalesAssistedLeadMutation } from "@/lib/redux/features/sales/salesApi";
+import { useAuth } from "@/lib/hooks/useAuth";
 import type { Creator } from "@/lib/types";
 import CreatorCarousel from "./components/CreatorsCarousel";
 import CreatorCard from "./components/CreatorCard";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 
 // Import Swiper styles
-import 'swiper/css';
-import 'swiper/css/effect-coverflow';
-import 'swiper/css/navigation';
+import "swiper/css";
+import "swiper/css/effect-coverflow";
+import "swiper/css/navigation";
 
 interface Props {
   data: BookingDataV3;
   updateData: (data: Partial<BookingDataV3>) => void;
   onNext: () => void;
   onBack: () => void;
+  bookingId?: number;
 }
 
 const additionalCreators = [
   {
-    "crew_member_id": 135,
-    "name": "Gary Ahmed",
-    "role_id": "1",
-    "role_name": "Videographer",
-    "hourly_rate": 125,
-    "rating": 4.5,
-    "total_reviews": 10,
-    "profile_image": "/images/crew/CREW(5).png",
-    "location": "Los Angeles, California",
-    "experience_years": 5,
-    "bio": "videography specialist with professional experience",
-    "skills": "videography",
-    "is_available": true
+    crew_member_id: 135,
+    name: "Gary Ahmed",
+    role_id: "1",
+    role_name: "Videographer",
+    hourly_rate: 125,
+    rating: 4.5,
+    total_reviews: 10,
+    profile_image: "/images/crew/CREW(5).png",
+    location: "Los Angeles, California",
+    experience_years: 5,
+    bio: "videography specialist with professional experience",
+    skills: "videography",
+    is_available: true,
   },
   {
-    "crew_member_id": 130,
-    "name": "Yasmine Img",
-    "role_id": "1",
-    "role_name": "Videographer",
-    "hourly_rate": 100,
-    "rating": 4.5,
-    "total_reviews": 23,
-    "profile_image": "/images/crew/CREW(4).png",
-    "location": "Los Angeles, California",
-    "experience_years": 5,
-    "bio": "Fashion and weddings",
-    "skills": "videography, photography",
-    "is_available": true
+    crew_member_id: 130,
+    name: "Yasmine Img",
+    role_id: "1",
+    role_name: "Videographer",
+    hourly_rate: 100,
+    rating: 4.5,
+    total_reviews: 23,
+    profile_image: "/images/crew/CREW(4).png",
+    location: "Los Angeles, California",
+    experience_years: 5,
+    bio: "Fashion and weddings",
+    skills: "videography, photography",
+    is_available: true,
   },
   {
-    "crew_member_id": 132,
-    "name": "Marcelo Echeverria",
-    "role_id": "1",
-    "role_name": "Videographer",
-    "hourly_rate": 200,
-    "rating": 4.5,
-    "total_reviews": 12,
-    "profile_image": "/images/crew/CREW(7).png",
-    "location": "Los Angeles, California",
-    "experience_years": 5,
-    "bio": "videography specialist with professional experience",
-    "skills": "videography",
-    "is_available": true
+    crew_member_id: 132,
+    name: "Marcelo Echeverria",
+    role_id: "1",
+    role_name: "Videographer",
+    hourly_rate: 200,
+    rating: 4.5,
+    total_reviews: 12,
+    profile_image: "/images/crew/CREW(7).png",
+    location: "Los Angeles, California",
+    experience_years: 5,
+    bio: "videography specialist with professional experience",
+    skills: "videography",
+    is_available: true,
   },
   {
-    "crew_member_id": 125,
-    "name": "Corey Bishop",
-    "role_id": "1",
-    "role_name": "Videographer",
-    "hourly_rate": 90,
-    "rating": 4.5,
-    "total_reviews": 10,
-    "profile_image": "/images/crew/CREW(6).png",
-    "location": "Los Angeles, California",
-    "experience_years": 5,
-    "bio": "videography specialist with professional experience",
-    "skills": "videography",
-    "is_available": true
+    crew_member_id: 125,
+    name: "Corey Bishop",
+    role_id: "1",
+    role_name: "Videographer",
+    hourly_rate: 90,
+    rating: 4.5,
+    total_reviews: 10,
+    profile_image: "/images/crew/CREW(6).png",
+    location: "Los Angeles, California",
+    experience_years: 5,
+    bio: "videography specialist with professional experience",
+    skills: "videography",
+    is_available: true,
   },
   {
-    "crew_member_id": 172,
-    "name": "Parth Panchal",
-    "role_id": "[\"9\"]",
-    "role_name": "Creative Professional",
-    "hourly_rate": 50,
-    "rating": 0,
-    "total_reviews": 0,
-    "profile_image": "/images/crew/CREW(10).png",
-    "location": "119 Rosemont Avenue, Los Angeles, California 90026, United States",
-    "experience_years": 5,
-    "bio": "acfade",
-    "skills": "[\"18\"]",
-    "is_available": true
-  }
-]
+    crew_member_id: 172,
+    name: "Parth Panchal",
+    role_id: '["9"]',
+    role_name: "Creative Professional",
+    hourly_rate: 50,
+    rating: 0,
+    total_reviews: 0,
+    profile_image: "/images/crew/CREW(10).png",
+    location:
+      "119 Rosemont Avenue, Los Angeles, California 90026, United States",
+    experience_years: 5,
+    bio: "acfade",
+    skills: '["18"]',
+    is_available: true,
+  },
+];
 
-export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
+export const V3SelectDreamTeam: React.FC<Props> = ({
+  data,
+  updateData,
+  onNext,
+  onBack,
+  bookingId,
+}) => {
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const swiperRef = useRef<SwiperType | null>(null);
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(0);
+  const [showSalesModal, setShowSalesModal] = useState(false);
 
   // Use local state for selection if not in data yet
-  const [selectedIds, setSelectedIds] = useState<number[]>(data.selectedCrewIds || []);
+  const [selectedIds, setSelectedIds] = useState<number[]>(
+    data.selectedCrewIds || [],
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Sales lead mutation
+  const [createSalesLead, { isLoading: isCreatingSalesLead }] =
+    useCreateSalesAssistedLeadMutation();
 
   // Build search params from booking data
   const searchParams = {
-    content_types: data.contentType.filter(t => t !== 'editing').join(','),
+    content_types: data.contentType.filter((t) => t !== "editing").join(","),
     location: data.location || undefined,
     limit: 12, // Get more creators for better selection
     page: 1,
   };
 
   // Fetch real creators from API
-  const { data: creatorsResponse, isLoading, error } = useSearchCreatorsQuery(
-    searchParams,
-    { skip: !data.location || data.contentType.length === 0 }
-  );
+  const {
+    data: creatorsResponse,
+    isLoading,
+    error,
+  } = useSearchCreatorsQuery(searchParams, {
+    skip: !data.location || data.contentType.length === 0,
+  });
 
   // Transform API creators to display format
   const creators: Creator[] = creatorsResponse?.data || [];
@@ -141,10 +172,10 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
   // };
 
   const toggleSelection = (id: number) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       // If already selected, allow deselection
       if (prev.includes(id)) {
-        return prev.filter(p => p !== id);
+        return prev.filter((p) => p !== id);
       }
 
       // If trying to add but already at limit, prevent addition
@@ -162,13 +193,43 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
     updateData({ selectedCrewIds: selectedIds });
   }, [selectedIds, updateData]);
 
+  // Handle Connect with Sales
+  const handleConnectWithSales = async () => {
+    try {
+      if (!bookingId) {
+        toast.error("Unable to connect with sales. Please try again.");
+        return;
+      }
+
+      await createSalesLead({
+        booking_id: bookingId,
+        guest_email: data.email,
+        client_name: data.fullName,
+      }).unwrap();
+
+      setShowSalesModal(true);
+    } catch (error) {
+      console.error("Failed to create sales lead:", error);
+      toast.error("Failed to connect with sales. Please try again.");
+    }
+  };
+
+  // Handle modal close and redirect
+  const handleModalClose = () => {
+    setShowSalesModal(false);
+    if (isAuthenticated) {
+      router.push("/affiliate/dashboard");
+    }
+  };
 
   // Loading state
   if (isLoading) {
     return (
       <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
         <div className="text-center">
-          <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">Finding Your Dream Team</h2>
+          <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
+            Finding Your Dream Team
+          </h2>
           <p className="text-white/60">Searching for the perfect match...</p>
         </div>
         <div className="flex items-center justify-center h-[450px]">
@@ -183,9 +244,13 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
     return (
       <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
         <div className="text-center">
-          <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">Our creators around your location are booked</h2>
+          <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
+            Our creators around your location are booked
+          </h2>
           <p className="text-white/60 mb-6">
-            {error ? "We encountered an issue loading creators. Please try again." : "Looks like no creators are available right now, but our sales expert can help you find a great match."}
+            {error
+              ? "We encountered an issue loading creators. Please try again."
+              : "Looks like no creators are available right now, but our sales expert can help you find a great match."}
           </p>
           {/* <div className="flex gap-4 justify-center">
             <Button
@@ -273,11 +338,40 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
 
         <div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-15 border-t border-white/10">
           <Button
-            className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+            onClick={onNext}
+            className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
           >
-            Connect with Sales Expert
+            Complete Your Shoot
+          </Button>
+          <Button
+            onClick={handleConnectWithSales}
+            disabled={isCreatingSalesLead}
+            className="h-14 lg:h-[72px] border border-white/20 hover:bg-white/10 text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
+          >
+            {isCreatingSalesLead ? "Connecting..." : "Connect with Sales"}
           </Button>
         </div>
+
+        {/* Sales Confirmation Modal */}
+        <Dialog open={showSalesModal} onOpenChange={setShowSalesModal}>
+          <DialogContent className="bg-white text-black">
+            <DialogHeader>
+              <DialogTitle>Thank You!</DialogTitle>
+              <DialogDescription className="text-black/70">
+                Our sales team will reach out to you shortly to help you find
+                the perfect creative team for your shoot.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end mt-4">
+              <Button
+                onClick={handleModalClose}
+                className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black"
+              >
+                Got it
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -286,11 +380,18 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">Select Your Dream Team</h2>
+        <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
+          Select Your Dream Team
+        </h2>
         {/* <p className="text-white/60">Select from {creators.length} available professionals</p> */}
-        <p className="text-white/60">Based on your project, we've handpicked the best professionals. Select crew members to build your team.</p>
+        <p className="text-white/60">
+          Based on your project, we've handpicked the best professionals. Select
+          crew members to build your team.
+        </p>
         {data.crewCount > 0 && (
-          <p className={`mt-2 text-lg font-medium ${selectedIds.length === data.crewCount ? 'text-[#E8D1AB]' : 'text-white/80'}`}>
+          <p
+            className={`mt-2 text-lg font-medium ${selectedIds.length === data.crewCount ? "text-[#E8D1AB]" : "text-white/80"}`}
+          >
             {selectedIds.length} of {data.crewCount} crew members selected
           </p>
         )}
@@ -321,7 +422,6 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
           Continue with {selectedIds.length} Creatives
         </Button>
       </div>
-
     </div>
   );
 };
