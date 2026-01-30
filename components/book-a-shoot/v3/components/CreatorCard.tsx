@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
-import { Star, ThumbsDown, ThumbsUp} from "lucide-react";
+import { Star, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
 // DummyImage List: To be removed later
@@ -18,7 +20,7 @@ const crewImages = [
   "/images/crew/CREW(10).png",
 ];
 
-const INFO_HEIGHT = 150;
+const INFO_HEIGHT =220;
 
 const cardVariants = {
   rest: { height: 364 },
@@ -101,6 +103,19 @@ const CreatorCard = ({
         </p>
       </div>
 
+      <div className="flex items-center gap-2">
+        <Link
+          href={`/creatives/${crew_member_id}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="outline"
+            className="border-white/30 hover:border-white/50 text-white hover:text-white hover:bg-white/10 px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
+          >
+            View Profile
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 
@@ -150,7 +165,7 @@ const CreatorCard = ({
         variants={infoVariants}
           animate={currentVariant}
         transition={{ duration: 0.45, ease: "easeInOut" }}
-        className="hidden md:flex absolute bottom-0 left-0 w-full h-[150px] bg-[#171717] border-t border-white/10 p-3 lg:px-7 lg:py-5 flex-col gap-4"
+        className="hidden md:flex absolute bottom-0 left-0 w-full h-[220px] bg-[#171717] border-t border-white/10 p-3 lg:px-7 lg:py-5 flex-col gap-4"
       >
         <InfoContent />
       </motion.div>
@@ -170,7 +185,7 @@ const CardWrapper = ({ children, animateVariant }: { children: React.ReactNode; 
           rounded-[20px]
           bg-[#171717]
           w-full
-          h-[364px]
+          h-[440px]
           overflow-hidden
         `}
       >

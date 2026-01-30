@@ -41,7 +41,7 @@ export const initialDataV3: BookingDataV3 = {
   shootType: "",
   startDate: "",
   endDate: "",
-  editsNeeded: false,
+  editsNeeded: true,
   videoEditTypes: [],
   photoEditTypes: [],
   teamIncluded: [],
