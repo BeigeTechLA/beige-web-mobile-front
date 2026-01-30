@@ -9,7 +9,7 @@ import { ChevronRight, MoreVertical } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useRouter } from "next/navigation";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
-import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
+import { SalesLead, LeadStatus } from "@/types/sales";
 
 // placeholder data
 const sortByData = ["Recent Leads (5)", "Recent Leads (15)", "Test Filter"];
@@ -57,6 +57,7 @@ const formatRelativeTime = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
+
 const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
   const styles = {
     Booked: "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]",
@@ -73,7 +74,7 @@ const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
   );
 };
 
-export default function AdminSaleRepManagerPage() {
+export default function SalesLeadsPage() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sortBy, setSortBy] = React.useState("");
@@ -115,7 +116,7 @@ export default function AdminSaleRepManagerPage() {
     client: string,
     leadId: number,
   ) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Prevent row click
     setSelectedClient(client);
     setSelectedLeadId(leadId);
     const rect = e.currentTarget.getBoundingClientRect();
@@ -130,7 +131,8 @@ export default function AdminSaleRepManagerPage() {
   };
 
   const handleRowClick = (leadId: number) => {
-    router.push(`/admin/sales-representative/${leadId}`);
+    // Navigate to lead detail page in sales portal
+    router.push(`/sales/leads/${leadId}`);
   };
 
   return (
@@ -138,7 +140,7 @@ export default function AdminSaleRepManagerPage() {
       <div className="flex justify-between items-center mb-3 lg:mb-6">
         <div className="text-white">
           <h1 className="text-2xl leading-[32px] font-semibold mb-1">
-            Sales Representative Management
+            Sales Leads Management
           </h1>
           <p className="text-sm text-white/70">
             View activity, manage assignments, and monitor performance across
@@ -167,7 +169,7 @@ export default function AdminSaleRepManagerPage() {
         className="h-[1px] w-full my-4 lg:my-9"
         style={{
           backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-          backgroundSize: "30px 1px", // 30px is the total dash + gap width
+          backgroundSize: "30px 1px",
           backgroundRepeat: "repeat-x",
         }}
       />

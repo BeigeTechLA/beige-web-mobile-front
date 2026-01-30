@@ -55,6 +55,8 @@ export function LoginForm() {
         router.push('/creator/dashboard')
       } else if (userTypeId === 3) {
         router.push('/affiliate/dashboard')
+      } else if (userTypeId === 4) {
+        router.push('/sales/dashboard')
       } else {
         // Fallback in case user_type_id is missing or different
         router.push('/admin/dashboard')

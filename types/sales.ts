@@ -29,7 +29,11 @@ export interface SalesLead {
     project_name: string;
     event_date?: string;
     event_type?: string;
-    budget?: number;
+    budget?: number | string;
+    description?: string;
+  };
+  user?: {
+    phone_number: string | null;
   };
   last_activity_at: string;
   contacted_sales_at?: string;
@@ -45,7 +49,7 @@ export interface SalesLeadDetails extends SalesLead {
     event_type?: string;
     event_location?: string;
     duration_hours?: number;
-    budget?: number;
+    budget?: number | string;
     description?: string;
   };
   discount_codes?: DiscountCode[];
@@ -57,15 +61,15 @@ export interface SalesLeadActivity {
   activity_id: number;
   lead_id: number;
   activity_type:
-    | 'created'
-    | 'status_changed'
-    | 'assigned'
-    | 'contacted_sales'
-    | 'payment_link_generated'
-    | 'discount_code_generated'
-    | 'payment_link_opened'
-    | 'discount_applied'
-    | 'payment_completed';
+  | 'created'
+  | 'status_changed'
+  | 'assigned'
+  | 'contacted_sales'
+  | 'payment_link_generated'
+  | 'discount_code_generated'
+  | 'payment_link_opened'
+  | 'discount_applied'
+  | 'payment_completed';
   activity_data?: any;
   performed_by_user_id?: number;
   performed_by?: {

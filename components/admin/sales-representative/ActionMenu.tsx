@@ -149,10 +149,9 @@ const MenuButton = ({
     onClick={onClick}
     disabled={disabled}
     className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[15px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-      ${
-        variant === "danger"
-          ? "text-[#F04438] hover:bg-[#F04438]/10"
-          : "text-white hover:bg-white/5"
+      ${variant === "danger"
+        ? "text-[#F04438] hover:bg-[#F04438]/10"
+        : "text-white hover:bg-white/5"
       }
     `}
   >

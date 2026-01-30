@@ -41,6 +41,13 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
       return;
     }
 
+    if (!links || links.length === 0) {
+      toast.error("Required Field", { 
+        description: "Please add at least one social link." 
+      });
+      return;
+    }
+
     try {
       if (!data.crew_member_id) {
         toast.error("Session Error", { description: "Crew ID missing." });
