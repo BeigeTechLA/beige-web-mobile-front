@@ -126,9 +126,9 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
                         {isDropdownOpen && !loading && (
                             <div className="absolute top-full left-0 right-0 mt-2 bg-[#111] border border-zinc-800 rounded-xl overflow-y-auto max-h-60 z-20 shadow-xl">
                                 {members.length > 0 ? (
-                                    members.map(member => (
+                                    members.map((member, index) => (
                                         <div
-                                            key={member.id}
+                                            key={`${member.id}-${index}`}
                                             onClick={() => {
                                                 setSelectedMember(member);
                                                 setIsDropdownOpen(false);

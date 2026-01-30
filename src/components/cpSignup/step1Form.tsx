@@ -45,7 +45,20 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    
     if (file) {
+      // --- FILE SIZE VALIDATION (5MB) ---
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error("File is too large. Maximum size allowed is 5MB.");
+        // Reset the input so the user can try again
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        return;
+      }
+      // ----------------------------------
+
       try {
         setIsCompressing(true);
         const compressedFile = await compressImage(file);
@@ -75,7 +88,6 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
   };
 
   const handleNext = async () => {
-    // UPDATED VALIDATION: Checking every single field
     if (
       !data.firstName || 
       !data.lastName || 
@@ -200,7 +212,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           </div>
         </div>
 
-        {/* Location - Added Asterisk to Label implicitly via placeholder or UI component */}
+        {/* Location */}
         <div className="w-full">
           <LocationPickerSignup
             value={data.location}
@@ -232,7 +244,8 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
         {/* Profile Picture Section */}
         <div className="rounded-[12px] border border-white/20 bg-[#101010] p-6 mt-4">
           <h2 className="text-base font-semibold text-white">Profile Picture *</h2>
-          {/* <p className="text-sm text-white/40 mb-5">Required: Add photo to build connection and trust</p> */}
+          {/* ADDED SUBTEXT FOR MAX 5MB */}
+          <p className="text-xs text-white/40 mb-5">Maximum file size allowed: 5MB</p>
 
           <div className="flex items-center gap-5">
             <div className={`h-20 w-20 rounded-full ${data.profileImage ? 'border-[#E8D1AB]' : 'border-red-500/50'} bg-[#1A1A1A] flex items-center justify-center overflow-hidden flex-shrink-0`}>

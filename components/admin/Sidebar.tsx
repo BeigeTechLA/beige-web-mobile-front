@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Grid2x2X, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from "@/lib/hooks/useAuth";
 
 const menuItems = [
   { name: 'Dashboard', icon: Grid2x2X, link: '/admin/dashboard' },
@@ -31,6 +32,8 @@ type MenuItem = {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
   const [expanded, setExpanded] = useState<string[]>(["Users"]);
 
   const toggleExpand = (name: string) => {
@@ -56,9 +59,15 @@ export default function Sidebar() {
     return isActiveLink(item.link);
   };
 
+  const handleLogout = () => {
+    logout();
+    localStorage.clear();
+    router.push("/");
+  };
+
   return (
-    <aside className="w-64 border-r border-zinc-800 flex flex-col justify-between py-9 px-5 bg-[#0A0A0A] h-screen overflow-y-auto">
-      <div>
+    <aside className="w-64 border-r border-zinc-800 flex flex-col justify-between py-9 px-5 bg-[#0A0A0A] h-full overflow-hidden">
+      <div className="flex-1 overflow-y-auto mb-6 pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
         {/* Navigation Items */}
         <nav className="space-y-2">
           {menuItems.map((item) => {
@@ -103,11 +112,10 @@ export default function Sidebar() {
                         <Link
                           key={child.name}
                           href={child.link}
-                          className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
-                            isChildActive
-                              ? "text-white font-medium"
-                              : "text-zinc-500 hover:text-gray-300"
-                          }`}
+                          className={`block px-4 py-2 text-sm rounded-lg transition-colors ${isChildActive
+                            ? "text-white font-medium"
+                            : "text-zinc-500 hover:text-gray-300"
+                            }`}
                         >
                           {child.name}
                         </Link>
@@ -121,11 +129,25 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Logout Button */}
-      <button className="flex items-center gap-3 bg-white text-black px-4 py-3 rounded-lg font-medium hover:bg-zinc-200 transition-colors mt-auto">
-        <LogOut size={20} />
-        <span>Logout</span>
-      </button>
+      {/* User Profile and Logout Button */}
+      <div className="pt-6 border-t border-white/10 flex-shrink-0 bg-[#0A0A0A]">
+        <div className="flex items-center gap-3 mb-6 px-2">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#E5D5B8] to-[#C4A470] flex items-center justify-center text-black font-bold text-lg shrink-0">
+            {user?.name?.[0] || "A"}
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <p className="text-sm font-semibold text-white truncate">{user?.name || "Admin"}</p>
+            <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
+          </div>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center w-full gap-2 px-3 py-2 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors text-sm font-medium"
+        >
+          <LogOut size={16} />
+          <span>Sign Out</span>
+        </button>
+      </div>
     </aside>
   );
 }

@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { ChevronDown, Loader2 } from "lucide-react";
-import { adminApi } from "@/lib/api";
+import { affiliateApi, adminApi } from "@/lib/api";
+import Cookies from "js-cookie";
 
 type Activity = {
     id: number;
@@ -26,16 +27,22 @@ export default function AffiliateRecentActivity() {
 
     useEffect(() => {
         const fetchActivities = async () => {
+            const token = Cookies.get("revure_token");
+            if (!token) return;
+
             try {
-                const response = await adminApi.getRecentActivity(10);
-                if (!response.error && response.data) {
-                    const data = Array.isArray(response.data) ? response.data : (response.data.items || []);
-                    const mappedActivities = data.map((item: any, index: number) => ({
-                        id: index,
+                const response = await affiliateApi.getRecentActivity(token, 10);
+                if (!response.error) {
+                    // Handle various data structures from API
+                    const apiData = response.data || response;
+                    const dataArray = Array.isArray(apiData) ? apiData : (apiData.items || apiData.data || []);
+
+                    const mappedActivities = dataArray.map((item: any, index: number) => ({
+                        id: item.id || `activity-${index}`,
                         color: COLORS[index % COLORS.length],
-                        title: item.title || "Activity Update",
-                        description: item.description || item.text || item.activity_text,
-                        time: item.timestamp || item.created_at ? formatTime(item.timestamp || item.created_at) : "Just now",
+                        title: item.title || item.action || "Activity Update",
+                        description: item.description || item.text || item.activity_text || "No description provided",
+                        time: item.timestamp || item.created_at || item.updated_at ? formatTime(item.timestamp || item.created_at || item.updated_at) : "Just now",
                     }));
                     setActivities(mappedActivities);
                 }

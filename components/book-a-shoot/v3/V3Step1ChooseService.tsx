@@ -6,6 +6,7 @@ import { ContentTypeCheckbox } from "./components/ContentTypeCheckbox";
 import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/hooks/useAuth";
 import {
   Video,
   Camera,
@@ -94,6 +95,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   onNext,
   onBack,
 }) => {
+  const { user, isAuthenticated } = useAuth();
+  
   const [editTypeOptions, setEditTypeOptions] = useState<
     { key: string; value: string }[]
   >([]);
@@ -112,6 +115,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const isAllVisible = visibleCount >= availableShootTypes.length;
+
+  // Auto-fill email if user is logged in
+  useEffect(() => {
+    if (isAuthenticated && user?.email && !data.email) {
+      updateData({ email: user.email });
+    }
+  }, [isAuthenticated, user?.email, data.email, updateData]);
 
   const handleViewToggle = () => {
     if (visibleCount >= availableShootTypes.length) {
@@ -359,6 +369,16 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   };
 
   const validate = () => {
+    if (!data.email) {
+      toast.error("Please enter your email address");
+      return false;
+    }
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+      toast.error("Please enter a valid email address");
+      return false;
+    }
     if (data.contentType.length === 0) {
       toast.error("Please select at least one content type");
       return false;
@@ -423,6 +443,25 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         {/* <div className="flex justify-center gap-2 mb-8"> */}
         {/* Simple dot indicators handled by parent usually, but preserving layout */}
         {/* </div> */}
+      </div>
+
+      {/* Email Field */}
+      <div className="pt-6 lg:pt-15 border-t border-white/10">
+        <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
+          Email Address <span className="text-[#E8D1AB]">*</span>
+        </h3>
+        <input
+          type="email"
+          value={data.email}
+          onChange={(e) => updateData({ email: e.target.value })}
+          placeholder="your@email.com"
+          className="w-full h-14 lg:h-[82px] bg-[#101010] border border-white/10 rounded-2xl px-4 lg:px-6 text-white placeholder:text-white/40 focus:outline-none focus:border-[#E8D1AB] transition-colors"
+        />
+        {isAuthenticated && (
+          <p className="mt-2 text-sm text-white/60">
+            Your email has been auto-filled. You can change it if needed.
+          </p>
+        )}
       </div>
 
       {/* Content Type */}

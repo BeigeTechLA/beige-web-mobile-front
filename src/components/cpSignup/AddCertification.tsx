@@ -2,10 +2,13 @@
 
 import React, { useState, useRef, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { Eye, Trash2, Upload, LinkIcon, Loader2 } from "lucide-react";
+import { Eye, Trash2, Upload, LinkIcon, Loader2, FileWarning } from "lucide-react";
 import { compressImage, compressPDF } from "@/lib/utils";
+import { toast } from "sonner"; // 1. Import toast
 
 const MAX_CERTS = 10;
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -16,17 +19,25 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
     if (inputRef.current) inputRef.current.value = "";
     if (files.length === 0) return;
 
-    const totalAfterUpload = value.length + files.length;
-    let filesToProcess = files;
-
-    if (value.length >= MAX_CERTS) {
-      alert(`You have already reached the maximum of ${MAX_CERTS} certifications.`);
+    // 2. Size Validation with Toast
+    const oversizedFiles = files.filter(file => file.size > MAX_FILE_SIZE_BYTES);
+    if (oversizedFiles.length > 0) {
+      toast.error(`File is too large. Only max ${MAX_FILE_SIZE_MB}MB allowed.`);
       return;
     }
 
+    // 3. Count Validation with Toast
+    if (value.length >= MAX_CERTS) {
+      toast.error(`Maximum of ${MAX_CERTS} certifications reached.`);
+      return;
+    }
+
+    let filesToProcess = files;
+    const totalAfterUpload = value.length + files.length;
+    
     if (totalAfterUpload > MAX_CERTS) {
       const allowedCount = MAX_CERTS - value.length;
-      alert(`You can only add ${allowedCount} more. Only the first ${allowedCount} files will be processed.`);
+      toast.warning(`Only adding the first ${allowedCount} files (Max ${MAX_CERTS}).`);
       filesToProcess = files.slice(0, allowedCount);
     }
 
@@ -56,9 +67,10 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
 
       const newCerts = await Promise.all(uploadPromises);
       onChange([...value, ...newCerts]);
+      toast.success(`${newCerts.length} file(s) uploaded successfully!`);
 
     } catch (error) {
-      console.error("Upload process failed:", error);
+      toast.error("Upload process failed. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -67,6 +79,7 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
   const removeCert = (id: string) => {
     const updated = value.filter((c) => c.id !== id);
     onChange(updated);
+    toast.info("Certification removed");
   };
 
   const viewCertificate = (cert: any) => {
@@ -81,7 +94,9 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
       <div className="flex justify-between items-center mb-4 gap-2">
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-white">Certifications</h2>
-          <p className="text-xs sm:text-sm text-white/50">Max {MAX_CERTS} files</p>
+          <p className="text-xs sm:text-sm text-white/50">
+            Max {MAX_CERTS} files • Max {MAX_FILE_SIZE_MB}MB each
+          </p>
         </div>
 
         <Button
@@ -110,10 +125,23 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
       </div>
 
       <div className="flex flex-col gap-3">
+        {/* Updated Placeholder message */}
+        {value.length === 0 && !isProcessing && (
+           <div className="border border-dashed border-white/20 rounded-xl p-8 flex flex-col items-center justify-center gap-2 text-center bg-white/[0.02]">
+              <div className="p-3 rounded-full bg-white/5">
+                <FileWarning size={20} className="text-white/30" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-white/60 font-medium">No certifications yet</p>
+                <p className="text-white/40 text-xs">Upload images or PDFs (Max 5MB each)</p>
+              </div>
+           </div>
+        )}
+        
         {value.map((cert) => (
           <div
             key={cert.id}
-            className="border border-white/10 bg-white/5 rounded-xl p-3 sm:p-4 flex justify-between items-center text-sm gap-3"
+            className="border border-white/10 bg-white/5 rounded-xl p-3 sm:p-4 flex justify-between items-center text-sm gap-3 animate-in fade-in slide-in-from-bottom-2"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="shrink-0">

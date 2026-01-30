@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from "react";
-import { Tag, X, Upload, Image as ImageIcon } from "lucide-react";
+import { Tag, X, Upload, Image as ImageIcon, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { compressImage } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface FeaturedWorkModalProps {
   open: boolean;
@@ -12,9 +12,12 @@ interface FeaturedWorkModalProps {
   onAdd: (item: any) => void;
 }
 
+const MAX_FILE_SIZE_MB = 5;
+const MAX_TOTAL_PROJECT_MB = 50;
+
 const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => {
   const [title, setTitle] = useState("");
-  const [tags, setTags] = useState([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [addTagsOpen, setAddTagsOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -23,7 +26,6 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Design Tokens
   const inputClasses = "h-14 w-full rounded-[12px] border border-white/20 bg-[#1A1A1A] px-4 text-white placeholder:text-white/40 outline-none focus:border-[#E8D1AB] focus:ring-0 transition-all";
   const modalBg = "bg-[#101010] border border-white/10 shadow-2xl rounded-[20px]";
 
@@ -32,6 +34,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
       setTitle("");
       setTags([]);
       setTagInput("");
+      imagePreviews.forEach(url => URL.revokeObjectURL(url));
       setImagePreviews([]);
       setRawFiles([]);
       setAddTagsOpen(false);
@@ -42,13 +45,26 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    try {
-      setIsCompressing(true); // Start Loader
+    const oversizedFiles = files.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      toast.error(`File is too large. Max ${MAX_FILE_SIZE_MB}MB per file allowed.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
 
+    const currentTotalSize = rawFiles.reduce((acc, f) => acc + f.size, 0);
+    const newFilesSize = files.reduce((acc, f) => acc + f.size, 0);
+    if ((currentTotalSize + newFilesSize) > MAX_TOTAL_PROJECT_MB * 1024 * 1024) {
+      toast.error(`Total project size cannot exceed ${MAX_TOTAL_PROJECT_MB}MB.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
+    try {
+      setIsCompressing(true);
       const compressedFiles = await Promise.all(
         files.map(async (file) => {
           if (file.type.startsWith('image/')) {
-            // Compression can take time for multiple large files
             return await compressImage(file);
           }
           return file;
@@ -56,30 +72,36 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
       );
 
       const previews = compressedFiles.map((file) => URL.createObjectURL(file));
-
       setRawFiles((prev) => [...prev, ...compressedFiles]);
       setImagePreviews((prev) => [...prev, ...previews]);
     } catch (error) {
-      console.error("Error during file processing:", error);
+      toast.error("An error occurred while processing files.");
     } finally {
-      setIsCompressing(false); // Stop Loader
+      setIsCompressing(false);
       if (fileRef.current) fileRef.current.value = "";
     }
   };
 
-  const removeTag = (t) => {
+  const removeTag = (t: string) => {
     setTags(tags.filter((x) => x !== t));
   };
 
   const handleAdd = () => {
-    if (!title.trim() || rawFiles.length === 0) return;
+    if (!title.trim()) {
+      toast.error("Please enter a project title.");
+      return;
+    }
+    if (rawFiles.length === 0) {
+      toast.error("Please upload at least one image or video.");
+      return;
+    }
 
     onAdd({
       id: Date.now(),
       title,
       tags,
-      previews: imagePreviews, // UI
-      files: rawFiles,         // API
+      previews: imagePreviews, 
+      files: rawFiles,        
     });
 
     onClose();
@@ -87,81 +109,52 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
 
   return (
     <>
-      {/* BACKDROP */}
-      <div
-        className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-40 transition-opacity duration-300 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-          }`}
-        onClick={onClose}
-      />
+      <div className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-40 transition-opacity duration-300 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`} onClick={onClose} />
 
-      {/* MAIN CENTERED MODAL */}
-      <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${open ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
-          }`}
-      >
+      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${open ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}>
         <div className={`${modalBg} w-full md:w-[600px] lg:w-[738px] max-h-[90vh] flex flex-col overflow-hidden relative`}>
 
-          {/* HEADER */}
           <div className="flex items-center justify-between px-8 pt-6 pb-2">
             <div>
               <h3 className="text-xl font-bold text-white">Add Featured Work</h3>
               <p className="text-sm text-white/40">Upload a project to showcase on your profile</p>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
-            >
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors">
               <X size={24} />
             </button>
           </div>
 
-          {/* CONTENT */}
           <div className="px-8 py-6 overflow-auto flex-1 space-y-6">
-
-            {/* TITLE INPUT */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-white/60 ml-1">Project Title</label>
-              <input
-                placeholder="e.g. Cinematic Commercial Reel 2024"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className={inputClasses}
-              />
+              <input placeholder="e.g. Cinematic Commercial Reel 2024" value={title} onChange={(e) => setTitle(e.target.value)} className={inputClasses} />
             </div>
 
-            {/* UPLOAD / PREVIEW AREA */}
             <div className="space-y-2 relative">
-              <label className="text-sm font-medium text-white/60 ml-1">Thumbnail / Media</label>
+              <div className="flex justify-between items-center ml-1">
+                <label className="text-sm font-medium text-white/60">Thumbnail / Media</label>
+                <span className="text-[10px] text-white/30 tracking-widest uppercase">Max {MAX_FILE_SIZE_MB}MB each • Total {MAX_TOTAL_PROJECT_MB}MB</span>
+              </div>
 
               {imagePreviews.length === 0 ? (
                 <div
-                  className={`border-2 border-dashed border-white/10 rounded-[12px] h-56 flex flex-col items-center justify-center bg-white/5 transition-all group ${isCompressing ? "opacity-50 cursor-wait" : "hover:bg-white/10 hover:border-[#E8D1AB]/40 cursor-pointer"
-                    }`}
+                  className={`border-2 border-dashed border-white/10 rounded-[12px] h-56 flex flex-col items-center justify-center bg-white/5 transition-all group ${isCompressing ? "opacity-50 cursor-wait" : "hover:bg-white/10 hover:border-[#E8D1AB]/40 cursor-pointer"}`}
                   onClick={() => !isCompressing && fileRef.current?.click()}
                 >
                   <div className="p-4 rounded-full bg-[#1A1A1A] border border-white/10 mb-4 group-hover:scale-110 transition-transform">
-                    {isCompressing ? (
-                      <Upload className="w-8 h-8 text-[#E8D1AB] animate-bounce" />
-                    ) : (
-                      <Upload className="w-8 h-8 text-[#E8D1AB]" />
-                    )}
+                    {isCompressing ? <Loader2 className="w-8 h-8 text-[#E8D1AB] animate-spin" /> : <Upload className="w-8 h-8 text-[#E8D1AB]" />}
                   </div>
                   <div className="text-center px-6">
-                    <div className="font-bold text-white text-lg">
-                      {isCompressing ? "Optimizing Files..." : "Upload Project Images or Videos"}
-                    </div>
-                    <div className="text-sm text-white/40 mt-1">
-                      {isCompressing ? "Please wait a moment" : "Drag and drop or click to browse files"}
-                    </div>
+                    <div className="font-bold text-white text-lg">{isCompressing ? "Optimizing Files..." : "Upload Project Media"}</div>
+                    <div className="text-sm text-white/40 mt-1">Drag and drop or click to browse</div>
                   </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 relative">
-                  {/* Show an overlay if adding more files and compressing */}
                   {isCompressing && (
                     <div className="absolute inset-0 z-20 bg-black/40 backdrop-blur-[2px] rounded-[12px] flex items-center justify-center">
                       <div className="flex flex-col items-center gap-2">
-                        <div className="w-8 h-8 border-4 border-[#E8D1AB] border-t-transparent rounded-full animate-spin" />
+                        <Loader2 className="w-8 h-8 text-[#E8D1AB] animate-spin" />
                         <span className="text-[#E8D1AB] font-medium text-sm">Processing...</span>
                       </div>
                     </div>
@@ -189,60 +182,29 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
                     disabled={isCompressing}
                     className="flex items-center justify-center border border-dashed border-white/20 rounded-[12px] aspect-square hover:bg-white/5 transition disabled:opacity-50"
                   >
-                    <Upload className="text-white/60" />
+                    <Plus className="text-white/60" />
                   </button>
                 </div>
               )}
 
-              {/* RESTORED INPUT FIELD - This was missing/commented out */}
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                onChange={handleFileChange}
-                className="hidden"
-                accept="image/*,video/*"
-              />
+              <input ref={fileRef} type="file" multiple onChange={handleFileChange} className="hidden" accept="image/*,video/*" />
             </div>
 
-            {/* TAGS PREVIEW IN MAIN MODAL */}
             <div className="flex flex-wrap gap-2">
               {tags.map((t) => (
-                <span
-                  key={t}
-                  className="px-4 py-1.5 bg-[#E8D1AB]/10 border border-[#E8D1AB]/30 rounded-full flex items-center gap-2 text-sm text-[#E8D1AB]"
-                >
+                <span key={t} className="px-4 py-1.5 bg-[#E8D1AB]/10 border border-[#E8D1AB]/30 rounded-full flex items-center gap-2 text-sm text-[#E8D1AB]">
                   #{t}
-                  <button onClick={() => removeTag(t)} className="hover:text-white">
-                    <X size={14} />
-                  </button>
+                  <button onClick={() => removeTag(t)} className="hover:text-white"><X size={14} /></button>
                 </span>
               ))}
-              <button
-                onClick={() => setAddTagsOpen(true)}
-                className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 text-white/60 hover:text-white hover:bg-white/5 transition-all text-sm"
-              >
-                <Tag className="w-4 h-4" /> {tags.length > 0 ? "Edit" : "Add"} Tags
+              <button onClick={() => setAddTagsOpen(true)} className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 text-white/60 hover:text-white hover:bg-white/5 transition-all text-sm">
+                <Tag className="w-4 h-4" /> Add Tags
               </button>
             </div>
           </div>
 
-          {/* FOOTER */}
           <div className="px-8 py-6 border-t border-white/10 flex justify-end gap-4 bg-[#161616]">
-            <Button
-              variant="ghost"
-              onClick={onClose}
-              className="rounded-[12px] h-12 px-8 text-white hover:bg-white/5"
-            >
-              Cancel
-            </Button>
-            {/* <Button
-              onClick={handleAdd}
-              disabled={!title || imagePreviews.length === 0}
-              className="rounded-[12px] h-12 px-10 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] font-bold"
-            >
-              Add Project
-            </Button> */}
+            <Button variant="ghost" onClick={onClose} className="rounded-[12px] h-12 px-8 text-white hover:bg-white/5">Cancel</Button>
             <Button
               onClick={handleAdd}
               disabled={!title || imagePreviews.length === 0 || isCompressing}
@@ -252,72 +214,36 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
             </Button>
           </div>
 
-          {/* INNER “ADD TAGS” MODAL */}
           {addTagsOpen && (
             <div className="absolute inset-0 z-[60] flex items-center justify-center p-6">
-              {/* INNER BACKDROP */}
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-md rounded-[20px]" />
-
-              {/* INNER CONTENT */}
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-md rounded-[20px]" onClick={() => setAddTagsOpen(false)} />
               <div className="relative bg-[#1A1A1A] w-full max-w-[400px] border border-white/20 rounded-[16px] p-6 shadow-2xl">
                 <h2 className="text-xl font-bold text-white mb-1">Add Tags</h2>
                 <p className="text-sm text-white/40 mb-4">Help people find your work</p>
-
-                <div className="relative">
-                  <input
-                    autoFocus
-                    placeholder="Type tag and press Enter..."
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const trimmed = tagInput.trim();
-                        if (trimmed && !tags.includes(trimmed)) {
-                          setTags([...tags, trimmed]);
-                        }
-                        setTagInput("");
-                      }
-                    }}
-                    className={inputClasses}
-                  />
-                </div>
-
-                {/* TAG PREVIEW IN INNER MODAL */}
+                <input
+                  autoFocus
+                  placeholder="Type tag and press Enter..."
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const trimmed = tagInput.trim();
+                      if (trimmed && !tags.includes(trimmed)) setTags([...tags, trimmed]);
+                      setTagInput("");
+                    }
+                  }}
+                  className={inputClasses}
+                />
                 <div className="flex flex-wrap gap-2 mt-4 max-h-32 overflow-auto py-2">
                   {tags.map((t) => (
-                    <div
-                      key={t}
-                      className="px-3 py-1 bg-white/5 border border-white/10 rounded-full flex items-center gap-2 text-xs text-white/80"
-                    >
-                      {t}
-                      <button onClick={() => setTags(tags.filter((tag) => tag !== t))}>
-                        <X size={12} className="hover:text-red-400" />
-                      </button>
+                    <div key={t} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full flex items-center gap-2 text-xs text-white/80">
+                      {t} <X size={12} className="cursor-pointer" onClick={() => removeTag(t)} />
                     </div>
                   ))}
                 </div>
-
                 <div className="flex justify-end gap-3 mt-6">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setAddTagsOpen(false)}
-                    className="text-white hover:bg-white/5 h-10"
-                  >
-                    Done
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      const trimmed = tagInput.trim();
-                      if (trimmed && !tags.includes(trimmed)) {
-                        setTags([...tags, trimmed]);
-                        setTagInput("");
-                      }
-                    }}
-                    className="bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-10 px-6"
-                  >
-                    Add
-                  </Button>
+                  <Button variant="ghost" onClick={() => setAddTagsOpen(false)} className="text-white hover:bg-white/5 h-10">Done</Button>
                 </div>
               </div>
             </div>

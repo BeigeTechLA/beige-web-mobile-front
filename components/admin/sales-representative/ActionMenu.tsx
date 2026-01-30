@@ -1,33 +1,71 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   FolderOpen,
   Link as LinkIcon,
   Trash2,
   BookCheck,
-  TicketPercent
+  TicketPercent,
 } from "lucide-react";
+import {
+  useGeneratePaymentLinkMutation,
+  useGetLeadByIdQuery,
+} from "@/lib/redux/features/sales/salesApi";
+import { toast } from "sonner";
+import { copyToClipboard } from "@/lib/utils/discountHelpers";
 
 interface ActionMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  anchor: { x: number; y: number }; // Add this
+  anchor: { x: number; y: number };
   client: string | number | null;
+  leadId: number;
 }
 
 const ActionMenu: React.FC<ActionMenuProps> = ({
-  isOpen, onClose, anchor, client
+  isOpen,
+  onClose,
+  anchor,
+  client,
+  leadId,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
+  const [generatePaymentLink, { isLoading: generatingLink }] =
+    useGeneratePaymentLinkMutation();
+  const { data: leadData } = useGetLeadByIdQuery(leadId, { skip: !leadId });
 
   if (!isOpen) return null;
 
   const handleOpenFolder = () => {
-    const folder = client?.toString().trim().toLowerCase().split(" ").join("-")
-    router.push(`${pathname}/${folder}`);
+    router.push(`${pathname}/${leadId}`);
+    onClose();
+  };
+
+  const handleGeneratePaymentLink = async () => {
+    const lead = leadData?.lead;
+    if (!lead || !lead.booking_id) {
+      toast.error("Booking ID not found for this lead");
+      return;
+    }
+
+    try {
+      const response = await generatePaymentLink({
+        lead_id: leadId,
+        booking_id: lead.booking_id,
+        expiry_hours: 72,
+      }).unwrap();
+
+      if (response.success && response.data) {
+        await copyToClipboard(response.data.url || "");
+        toast.success("Payment link copied to clipboard!");
+      }
+    } catch (error: any) {
+      console.error("Error generating payment link:", error);
+      toast.error(error?.data?.message || "Failed to generate payment link");
+    }
     onClose();
   };
 
@@ -37,12 +75,13 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
       <div className="fixed inset-0 z-40" onClick={onClose} />
 
       {/* Menu Container */}
-      <div className="fixed z-50 w-[220px] overflow-hidden rounded-[20px] border border-white/10 bg-[#0A0A0A] shadow-2xl"
+      <div
+        className="fixed z-50 w-[220px] overflow-hidden rounded-[20px] border border-white/10 bg-[#0A0A0A] shadow-2xl"
         style={{
           top: `${anchor.y}px`,
-          left: `${anchor.x}px`
-        }}>
-
+          left: `${anchor.x}px`,
+        }}
+      >
         {/* Section 1: Navigation & Edit */}
         <div className="flex flex-col p-1.5">
           <MenuButton
@@ -50,11 +89,16 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
             label="View Details"
             onClick={handleOpenFolder}
           />
-          <MenuButton icon={<TicketPercent size={18} />} label="Generate Discount" onClick={onClose} />
+          <MenuButton
+            icon={<TicketPercent size={18} />}
+            label="Generate Discount"
+            onClick={handleOpenFolder}
+          />
           <MenuButton
             icon={<LinkIcon size={18} />}
             label="Payment Link"
-            onClick={onClose}
+            onClick={handleGeneratePaymentLink}
+            disabled={generatingLink}
           />
         </div>
 
@@ -63,7 +107,11 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
 
         {/* Section 2: Sharing */}
         <div className="flex flex-col p-1.5">
-          <MenuButton icon={<BookCheck size={18} />} label="Manage Quote" onClick={onClose} />
+          <MenuButton
+            icon={<BookCheck size={18} />}
+            label="Manage Quote"
+            onClick={onClose}
+          />
         </div>
 
         {/* Divider */}
@@ -88,19 +136,23 @@ const MenuButton = ({
   icon,
   label,
   onClick,
-  variant = "default"
+  variant = "default",
+  disabled = false,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   variant?: "default" | "danger";
+  disabled?: boolean;
 }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[15px] font-medium transition-colors
-      ${variant === "danger"
-        ? "text-[#F04438] hover:bg-[#F04438]/10"
-        : "text-white hover:bg-white/5"
+    disabled={disabled}
+    className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[15px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+      ${
+        variant === "danger"
+          ? "text-[#F04438] hover:bg-[#F04438]/10"
+          : "text-white hover:bg-white/5"
       }
     `}
   >

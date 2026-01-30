@@ -12,8 +12,9 @@ import AffiliatePostProductionTab from "./shoot-details/AffiliatePostProductionT
 import AffiliateMeetingOverviewChart from "./shoot-details/AffiliateMeetingOverviewChart";
 import AffiliateMessagesTab from "./shoot-details/AffiliateMessagesTab";
 
-import { adminApi } from "@/lib/api";
+import { affiliateApi, adminApi } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import Cookies from "js-cookie";
 
 interface AffiliateShootDetailsProps {
     shootId: string;
@@ -27,9 +28,12 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
 
     useEffect(() => {
         const fetchProjectAndSkills = async () => {
+            const token = Cookies.get("revure_token");
+            if (!token) return;
+
             try {
                 const [projectResponse, skillsResponse] = await Promise.all([
-                    adminApi.getProjectDetails(shootId),
+                    affiliateApi.getProjectDetails(token, shootId),
                     adminApi.getSkills()
                 ]);
 

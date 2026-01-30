@@ -174,73 +174,22 @@ export default function AffiliateStatsModule() {
 
     return (
         <div className="dashboard-stack-container w-full bg-[#171717] rounded-2xl border border-[#3D3D3D] p-4">
-            {/* SIDE MASK */}
             <div className="relative overflow-hidden px-10">
-                <Swiper
-                    effect="cards"
-                    grabCursor
-                    modules={[EffectCards]}
-                    className="dashboard-stack-swiper"
-                    cardsEffect={{
-                        slideShadows: false,
-                        perSlideOffset: 8,
-                        perSlideRotate: 0,
-                    }}
-                >
-                    <SwiperSlide>
-                        <CardWrapper>
-                            <StatsLayout
-                                title="Total Revenue"
-                                subtitle="This Is Sales Revenue Overview"
-                                graphTitle="Month On Month Revenue Growth"
-                                rightLabel="Weekly Revenue"
-                                rightValue={formatCurrency(revenueStats.weekly_revenue)}
-                                value={formatCurrency(revenueStats.total_revenue)}
-                                growth={revenueStats.weekly_growth_percent || 0}
-                                growthLabel="Last 7 Days"
-                                chartData={revenueStats.monthly_breakdown || []}
-                                hasInfoCard={true}
-                                isLoading={isLoading}
-                            />
-                        </CardWrapper>
-                    </SwiperSlide>
-
-                    <SwiperSlide>
-                        <CardWrapper>
-                            <StatsLayout
-                                title="No Of CPs"
-                                subtitle="This Is Overall CPs Overview"
-                                graphTitle="Category Wise CPs"
-                                rightLabel="Top Category"
-                                rightValue={cpStats.top_category || "N/A"}
-                                value={cpStats.total_cps?.toString() || "0"}
-                                chartData={cpStats.category_breakdown || []}
-                                isLoading={isLoading}
-                                hasInfoCard={true}
-                                growth={cpStats.monthly_growth_percent || 0}
-                                growthLabel="Last 30 Days"
-                            />
-                        </CardWrapper>
-                    </SwiperSlide>
-
-                    <SwiperSlide>
-                        <CardWrapper>
-                            <StatsLayout
-                                title="Total Pay-Out"
-                                subtitle="This Is Overall Payout Overview"
-                                graphTitle="Weekly Graph Payments"
-                                rightLabel="Pending Payments"
-                                rightValue={formatCurrency(payoutStats.pending_payouts)}
-                                value={formatCurrency(payoutStats.total_payouts)}
-                                growth={payoutStats.weekly_growth_percent || 0}
-                                growthLabel="Last 7 Days"
-                                chartData={payoutStats.weekly_breakdown || []}
-                                hasInfoCard={true}
-                                isLoading={isLoading}
-                            />
-                        </CardWrapper>
-                    </SwiperSlide>
-                </Swiper>
+                <CardWrapper>
+                    <StatsLayout
+                        title="Total Revenue"
+                        subtitle="This Is Sales Revenue Overview"
+                        graphTitle="Month On Month Revenue Growth"
+                        rightLabel="Weekly Revenue"
+                        rightValue={formatCurrency(revenueStats.weekly_revenue)}
+                        value={formatCurrency(revenueStats.total_revenue)}
+                        growth={revenueStats.weekly_growth_percent || 0}
+                        growthLabel="Last 7 Days"
+                        chartData={revenueStats.monthly_breakdown || []}
+                        hasInfoCard={true}
+                        isLoading={isLoading}
+                    />
+                </CardWrapper>
             </div>
         </div>
     );
