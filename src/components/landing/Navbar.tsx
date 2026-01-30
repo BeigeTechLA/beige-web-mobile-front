@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, User, ChevronDown, LayoutDashboard, LogOut, Image as PhotoIcon, Film, Briefcase, PartyPopper, ChevronRight, BriefcaseMedical, Megaphone, Package, Building2, PersonStanding, Landmark, LandmarkIcon, CirclePlay, Podcast, MessageSquare } from "lucide-react";
+import { Menu, X, User, ChevronDown, LayoutDashboard, Image as PhotoIcon, Film, Briefcase, PartyPopper, ChevronRight, Megaphone, Package, CirclePlay, Podcast, Gem, Clapperboard, Handshake, Utensils, Binoculars, UsersRound } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
@@ -16,44 +16,50 @@ const portfolioConfig = {
     sectors: [
       {
         id: "corporate",
-        label: "Corporate",
+        label: "Corporate Events",
         icon: <Briefcase size={24} />,
-        subSectors: ["All", "Food & Restaurant", "Automotive"]
+        subSectors: []
       },
       {
         id: "private-events",
         label: "Private Events",
         icon: <PartyPopper size={24} />,
-        subSectors: ["Barmitvahs", "Family Events", "Birthday Parties", "Quinceaneras"]
-      },
-      {
-        id: "healthcare",
-        label: "Healthcare",
-        icon: <BriefcaseMedical size={24} />,
         subSectors: []
       },
       {
-        id: "non-profit",
-        label: "Non - Profit",
-        icon: <Megaphone size={24} />,
+        id: "food",
+        label: "Food",
+        icon: <Utensils size={24} />,
+        subSectors: []
+      },
+      {
+        id: "behind-the-scenes",
+        label: "Behind-the-Scenes",
+        icon: <Binoculars size={24} />,
+        subSectors: []
+      },
+      {
+        id: "people-teams",
+        label: "People & Teams",
+        icon: <UsersRound size={24} />,
         subSectors: []
       },
       {
         id: "products",
-        label: "Products",
+        label: "Brand & Products",
         icon: <Package size={24} />,
         subSectors: []
       },
       {
-        id: "real-estate",
-        label: "Real - Estate",
-        icon: <Building2 size={24} />,
+        id: "social-content",
+        label: "Social Content",
+        icon: <Handshake size={24} />,
         subSectors: []
       },
       {
-        id: "lifestyle",
-        label: "Lifestyle",
-        icon: <PersonStanding size={24} />,
+        id: "weddings",
+        label: "Weddings",
+        icon: <Gem size={24} />,
         subSectors: []
       },
     ]
@@ -64,21 +70,17 @@ const portfolioConfig = {
     sectors: [
       {
         id: "corporate",
-        label: "Corporate",
+        label: "Corporate Events",
         icon: <Briefcase size={24} />,
-        subSectors: ["All", "Food & Restuarants", "Construction", "Manufacturing", "Automotive", "Technology", "Keynote Speech"]
+        // subSectors: ["All", "Food & Restuarants", "Construction", "Manufacturing", "Automotive", "Technology", "Keynote Speech"]
+        subSectors: []
       },
       {
         id: "private-events",
         label: "Private Events",
         icon: <PartyPopper size={24} />,
-        subSectors: ["Barmitvahs", "Birthday Parties", "Quinceaneras"]
-      },
-      {
-        id: "government",
-        label: "Government",
-        icon: <LandmarkIcon size={24} />,
         subSectors: []
+        // subSectors: ["Barmitvahs", "Birthday Parties", "Quinceaneras"]
       },
       {
         id: "music-videos",
@@ -87,39 +89,33 @@ const portfolioConfig = {
         subSectors: []
       },
       {
-        id: "real-estate",
-        label: "Real - Estate",
-        icon: <Building2 size={24} />,
-        subSectors: []
-      },
-      {
-        id: "healthcare",
-        label: "Healthcare",
-        icon: <BriefcaseMedical size={24} />,
+        id: "social-content",
+        label: "Social Content",
+        icon: <Handshake size={24} />,
         subSectors: []
       },
       {
         id: "podcast",
-        label: "Podcast",
+        label: "Podcasts & Shows",
         icon: <Podcast size={24} />,
         subSectors: []
       },
       {
-        id: "interviews",
-        label: "Interviews",
-        icon: <MessageSquare size={24} />,
+        id: "short-films-narratives",
+        label: "Short Films & Narratives",
+        icon: <Clapperboard size={24} />,
         subSectors: []
       },
       {
-        id: "non-profit",
-        label: "Non - Profit",
+        id: "commercial-advertising",
+        label: "Commercial & Advertising",
         icon: <Megaphone size={24} />,
         subSectors: []
       },
       {
-        id: "products",
-        label: "Products",
-        icon: <Package size={24} />,
+        id: "weddings",
+        label: "Weddings",
+        icon: <Gem size={24} />,
         subSectors: []
       },
     ]
@@ -130,7 +126,7 @@ const navLinks = [
   { label: "Home", href: "/" },
   { label: "About", href: "#about" },
   { label: "Find Creative Work", href: "/find-creative-work" },
-  { label: "UseCases", href: "#usecases", hasDropdown: true },
+  { label: "Use Cases", href: "#usecases", hasDropdown: true },
   { label: "Press", href: "#press" },
 ];
 
