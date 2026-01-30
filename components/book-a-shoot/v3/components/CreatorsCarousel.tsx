@@ -1,14 +1,16 @@
 import React from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectCoverflow, Navigation } from 'swiper/modules';
 import { ArrowDownLeft, ArrowUpRight, Star, Check, Plus, X } from 'lucide-react';
-import Image from 'next/image';
 import type { Creator } from "@/lib/types";
 
 // Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/effect-coverflow';
 import 'swiper/css/navigation';
+import { Button } from '@/components/ui/button';
 
 // Fallback images for creators without profile photos
 const FALLBACK_IMAGES = [
@@ -56,7 +58,7 @@ const CreatorCarousel = ({
           effect="coverflow"
           centeredSlides
           grabCursor
-          initialSlide={Math.floor(creators.length/2)}
+          initialSlide={Math.floor(creators.length / 2)}
           slidesPerView={3}
           spaceBetween={30}
           loop={creators.length < 5}
@@ -152,9 +154,15 @@ const CreatorCarousel = ({
                         >
                           {isSelected ? <><X size={16} className="mr-1" /> Remove</> : <><Plus size={16} className="mr-1" /> Add</>}
                         </button>
-                        <button className="flex-1 border border-white/30 text-white py-2 lg:py-4 rounded-lg text-sm lg:text-base font-medium transition-all hover:bg-white/10">
-                          Profile
-                        </button>
+                        <Link
+                          href={`/creatives/${creatorId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-center flex-1 border border-white/30 text-white py-2 lg:py-4 rounded-lg text-sm lg:text-base font-medium transition-all hover:bg-white/10"
+                        >
+                          View Profile
+                        </Link>
                       </div>
                     </div>
                   </div>

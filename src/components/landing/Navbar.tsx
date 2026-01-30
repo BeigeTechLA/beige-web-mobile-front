@@ -72,7 +72,6 @@ const portfolioConfig = {
         id: "corporate",
         label: "Corporate Events",
         icon: <Briefcase size={24} />,
-        // subSectors: ["All", "Food & Restuarants", "Construction", "Manufacturing", "Automotive", "Technology", "Keynote Speech"]
         subSectors: []
       },
       {
@@ -304,61 +303,76 @@ export const Navbar = () => {
 
                     {/* RIGHT PANEL (Sectors & Sub-Sectors) */}
                     <div className="w-2/3 flex-1 flex flex-col">
-                      {/* TOP SECTION: Two-Column Grid for Primary Sectors */}
-                      <div className="grid grid-cols-2 gap-x-12 pt-8">
-                        {portfolioConfig[activeCategory].sectors.slice(0, 2).map((sector, index) => (
-                          <button
-                            key={sector.id}
-                            onMouseEnter={() => setActiveSector(sector.id)}
-                            className={`flex items-center justify-between transition-colors px-10 ${index == 1 ? "pl-0" : ""} ${activeSector === sector.id ? "text-white " : "text-white/40"}`}
-                          >
-                            <div className={`flex items-center gap-4 text-xl font-medium `}>
-                              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">{sector.icon}</div>
-                              {sector.label}
-                            </div>
-                            {sector.subSectors.length > 0 && <ChevronRight size={20} />}
-                          </button>
-                        ))}
-                      </div>
+                      {portfolioConfig[activeCategory]?.sectors?.length > 0 ? (
+                        <>
+                          {/* TOP SECTION: Two-Column Grid for Primary Sectors with subsectors */}
+                          {/* <div className="grid grid-cols-2 gap-x-12 pt-8">
+                            {portfolioConfig[activeCategory].sectors.slice(0, 2).map((sector, index) => (
+                              <button
+                                key={sector.id}
+                                onMouseEnter={() => setActiveSector(sector.id)}
+                                onClick={() => handlePortfolioSelect(activeCategory, sector.id)} // Added click handler here
+                                className={`flex items-center justify-between transition-colors px-10 ${index == 1 ? "pl-0" : ""} ${activeSector === sector.id ? "text-white " : "text-white/40"}`}
+                              >
+                                <div className={`flex items-center gap-4 text-xl font-medium `}>
+                                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">{sector.icon}</div>
+                                  {sector.label}
+                                </div>
+                                {sector.subSectors.length > 0 && <ChevronRight size={20} />}
+                              </button>
+                            ))}
+                          </div> */}
 
-                      {/* DYNAMIC MIDDLE ROW: Sub-sectors (Only if they exist for active sector) */}
-                      <AnimatePresence mode="wait">
-                        {portfolioConfig[activeCategory].sectors.find(s => s.id === activeSector)?.subSectors.length ? (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="bg-white/[0.04] border-y border-y-white/10 overflow-hidden mt-6"
-                          >
-                            <div className="flex flex-wrap gap-12 px-10 py-6">
-                              {portfolioConfig[activeCategory].sectors.find(s => s.id === activeSector)?.subSectors.map((sub) => (
-                                <button
-                                  key={sub}
-                                  onClick={() => handlePortfolioSelect(activeCategory, activeSector, sub)}
-                                  className="text-left text-[#B8ACAC] hover:text-white text-xl font-light transition-colors py-1"
-                                >
-                                  {sub}
-                                </button>
-                              ))}
-                            </div>
-                          </motion.div>
-                        ) : null}
-                      </AnimatePresence>
+                          {/* DYNAMIC MIDDLE ROW: Sub-sectors */}
+                          <AnimatePresence mode="wait">
+                            {portfolioConfig[activeCategory].sectors.find(s => s.id === activeSector)?.subSectors.length ? (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="bg-white/[0.04] border-y border-y-white/10 overflow-hidden mt-6"
+                              >
+                                <div className="flex flex-wrap gap-12 px-10 py-6">
+                                  {portfolioConfig[activeCategory].sectors.find(s => s.id === activeSector)?.subSectors.map((sub) => (
+                                    <button
+                                      key={sub}
+                                      onClick={() => handlePortfolioSelect(activeCategory, activeSector, sub)}
+                                      className="text-left text-[#B8ACAC] hover:text-white text-xl font-light transition-colors py-1"
+                                    >
+                                      {sub}
+                                    </button>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            ) : <div className="mt-6" />} {/* Maintain spacing if no sub-sectors */}
 
-                      {/* BOTTOM SECTION: Remaining Sectors in 2-Col Grid */}
-                      <div className="grid grid-cols-2 p-10 pt-6 gap-x-12 gap-y-6">
-                        {portfolioConfig[activeCategory].sectors.slice(2).map((sector) => (
-                          <button
-                            key={sector.id}
-                            onMouseEnter={() => setActiveSector(sector.id)}
-                            onClick={() => handlePortfolioSelect(activeCategory, activeSector)}
-                            className={`flex items-center gap-4 transition-all ${activeSector === sector.id ? "text-white" : "text-white/40 hover:text-white/60"}`}
-                          >
-                            <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">{sector.icon}</div>
-                            <span className="text-lg font-medium">{sector.label}</span>
-                          </button>
-                        ))}
-                      </div>
+                          </AnimatePresence>
+
+                          {/* BOTTOM SECTION: Remaining Sectors */}
+                          <div className="grid grid-cols-2 p-10 pt-6 gap-x-12 gap-y-6">
+                            {/* {portfolioConfig[activeCategory].sectors.slice(2).map((sector) => ( */}
+                            {portfolioConfig[activeCategory].sectors.map((sector) => (
+                              <button
+                                key={sector.id}
+                                onMouseEnter={() => setActiveSector(sector.id)}
+                                onClick={() => handlePortfolioSelect(activeCategory, sector.id)}
+                                className={`flex items-center gap-4 transition-all ${activeSector === sector.id ? "text-white" : "text-white/40 hover:text-white/60"}`}
+                              >
+                                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">{sector.icon}</div>
+                                <span className="text-lg font-medium">{sector.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        /* EMPTY STATE: If a category literally has no sectors array */
+                        <div className="flex-1 flex flex-col items-center justify-center text-white/20 gap-4">
+                          <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center">
+                            {portfolioConfig[activeCategory].icon}
+                          </div>
+                          <p className="text-xl font-medium">Coming Soon</p>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )}

@@ -2,15 +2,12 @@
 
 import React, { useState, Suspense, useRef } from "react";
 import { useSearchParams, useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { useSelector, useDispatch } from "react-redux";
-import { toast } from "sonner";
-import axios from "axios";
+import { useSelector } from "react-redux";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 
-import { ArrowLeft, Loader2, Plus, Check, X, ChevronRight } from "lucide-react";
+import { ArrowLeft, Loader2, Check, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -29,14 +26,6 @@ import {
 } from "@/lib/redux/features/creators/creatorsApi";
 import {
   selectSelectedCreatorIds,
-  selectSelectedCreators,
-  selectCanAddMoreCreators,
-  selectIsCrewComplete,
-  selectCrewSize,
-  selectSelectedCreatorsCount,
-  addCreator,
-  removeCreator,
-  SelectedCreator,
 } from "@/lib/redux/features/booking/bookingSlice";
 import "swiper/css";
 
@@ -57,21 +46,18 @@ const crewImages = [
 ];
 
 function CreatorProfileContent() {
-  const dispatch = useDispatch();
+  const swiperRef = useRef<SwiperType | null>(null);
   const router = useRouter();
+
   const [activeTab, setActiveTab] = useState("Portfolios");
-  const [isAssigning, setIsAssigning] = useState(false);
+  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(0);
+
   const searchParams = useSearchParams();
   const params = useParams();
   const shootId = searchParams.get("shootId") ?? searchParams.get("booking_id") ?? undefined;
 
   // Redux selectors for crew management
   const selectedCreatorIds = useSelector(selectSelectedCreatorIds);
-  const selectedCreators = useSelector(selectSelectedCreators);
-  const canAddMore = useSelector(selectCanAddMoreCreators);
-  const isCrewComplete = useSelector(selectIsCrewComplete);
-  const crewSize = useSelector(selectCrewSize);
-  const selectedCount = useSelector(selectSelectedCreatorsCount);
 
   // Extract and parse creatorId from URL params
   const creatorId = params.id as string;
@@ -103,8 +89,6 @@ function CreatorProfileContent() {
     limit: 4
   });
 
-  const swiperRef = useRef<SwiperType | null>(null);
-
   // Get fallback image
   const getFallbackImage = (id: string) => {
     return crewImages[parseInt(id) % 10];
@@ -112,57 +96,6 @@ function CreatorProfileContent() {
 
   const handleBack = () => {
     router.back();
-  };
-
-  const handleAddToCrew = () => {
-    if (!profile) return;
-
-    const profileImage = profile.profile_image || getFallbackImage(creatorId);
-
-    const creator: SelectedCreator = {
-      id: creatorId,
-      name: profile.name,
-      role: profile.role_name || "Content Creator",
-      image: profileImage,
-      hourlyRate: profile.hourly_rate || 0,
-    };
-
-    dispatch(addCreator(creator));
-  };
-
-  const handleRemoveFromCrew = () => {
-    dispatch(removeCreator(creatorId));
-  };
-
-  const handleProceedToPayment = async () => {
-    if (!shootId) {
-      toast.error("Booking ID not found");
-      return;
-    }
-
-    if (selectedCreators.length === 0) {
-      toast.error("No creators selected");
-      return;
-    }
-
-    setIsAssigning(true);
-
-    try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
-      const creatorIds = selectedCreators.map(c => parseInt(c.id));
-
-      await axios.post(
-        `${API_BASE_URL}guest-bookings/${shootId}/assign-creators`,
-        { creator_ids: creatorIds }
-      );
-
-      router.push(`/search-results/payment?shootId=${shootId}`);
-    } catch (error: any) {
-      console.error('Error assigning creators:', error);
-      toast.error(error.response?.data?.message || 'Failed to assign creators. Please try again.');
-    } finally {
-      setIsAssigning(false);
-    }
   };
 
   // Loading state
@@ -218,13 +151,13 @@ function CreatorProfileContent() {
       <div className="px-4 md:px-0">
         <section className="mx-auto mt-12 container">
           {/* Back Button */}
-          <Link
-            href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`}
+          <Button
+            onClick={handleBack}
             className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
-          </Link>
+          </Button>
 
           {/* CP Info Section */}
           <div className="flex flex-col lg:flex-row gap-12">
@@ -327,7 +260,7 @@ function CreatorProfileContent() {
                 </>
               )}
 
-             
+
             </div>
           </div>
         </section>
@@ -378,16 +311,35 @@ function CreatorProfileContent() {
               <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
                 <p className="text-xs md:text-base text-white">Recommendations</p>
               </div>
+              <div className="flex items-center justify-between mb-4 lg:mb-8 pb-4 w-full">
+                <h2 className="flex-1 text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight w-full">
+                  Recommended Creators for you
+                </h2>
 
-              <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
-                Recommended Creators for you
-              </h2>
+                {/* NAV ARROWS */}
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => swiperRef.current?.slidePrev()}
+                    className="w-10 h-10 lg:w-22 lg:h-22 rounded-full border border-white/20 flex items-center justify-center text-white hover:bg-white/10 transition"
+                  >
+                    <ArrowDownLeft className="w-4 lg:w-8 h-4 lg:h-8" />
+                  </button>
+
+                  <button
+                    onClick={() => swiperRef.current?.slideNext()}
+                    className="w-10 h-10 lg:w-22 lg:h-22 rounded-full border border-white/20 flex items-center justify-center text-white hover:bg-white/10 transition"
+                  >
+                    <ArrowUpRight className="w-4 lg:w-8 h-4 lg:h-8" />
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div>
               {/* CAROUSEL */}
               {recommendedCreators.length > 0 ? (
                 <Swiper
+                  onSwiper={(swiper) => (swiperRef.current = swiper)}
                   spaceBetween={24}
                   slidesPerView={1.1}
                   grabCursor
@@ -399,15 +351,19 @@ function CreatorProfileContent() {
                     768: { slidesPerView: 2 },
                     1280: { slidesPerView: 3 },
                   }}
-                  className="!overflow-visible"
+                  className="!overflow-visible h-[364px] lg:h-[585px] !p-[2px]"
                 >
-                  {recommendedCreators.map((creator) => (
+                  {recommendedCreators.map((creator, index) => (
                     <SwiperSlide key={creator.id} className="h-auto">
-                      {() => (
+                      {({ isActive }) => (
                         <CreatorCard
                           {...creator}
-                          shootId={shootId}
                           creatorId={creator.id}
+                          isActive={isActive}
+                          index={index}
+                          isExpanded={hoveredIndex === index}
+                          onHover={() => setHoveredIndex(index)}
+                          onLeave={() => setHoveredIndex(0)}
                         />
                       )}
                     </SwiperSlide>
