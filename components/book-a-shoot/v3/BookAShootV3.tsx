@@ -134,8 +134,16 @@ export const BookAShootV3 = () => {
       return;
     }
 
+    // From Dream Team selection, go back to Crew Matching
     if (internalStep === 5) {
       setInternalStep(3);
+      setActiveStep(2);
+      return;
+    }
+
+    // From Book & Confirm, go back to Dream Team selection
+    if (internalStep === 6) {
+      setInternalStep(5);
       setActiveStep(2);
       return;
     }
