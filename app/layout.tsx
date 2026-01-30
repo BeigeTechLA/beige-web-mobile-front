@@ -20,13 +20,22 @@ const instrumentSans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://book.beige.app"),
+  metadataBase: new URL("https://beige.app"),
   title: {
     default: "BeigeAI - Book a Video & Photo Shoot Instantly",
     template: "%s | BeigeAI",
   },
-  description: "Connect with talented creators for your next project. BeigeAI connects you with professional videographers, photographers, and creative professionals on demand.",
-  keywords: ["videographers", "photographers", "creative professionals", "on demand", "BeigeAI", "video production", "content creation"],
+  description:
+    "Connect with talented creators for your next project. BeigeAI connects you with professional videographers, photographers, and creative professionals on demand.",
+  keywords: [
+    "videographers",
+    "photographers",
+    "creative professionals",
+    "on demand",
+    "BeigeAI",
+    "video production",
+    "content creation",
+  ],
   authors: [{ name: "BeigeAI" }],
   creator: "BeigeAI",
   publisher: "BeigeAI",
@@ -46,7 +55,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "BeigeAI - Book a Video & Photo Shoot Instantly",
     description: "Connect with talented creators for your next project",
-    url: "https://book.beige.app/",
+    url: "https://beige.app/",
     siteName: "BeigeAI",
     images: [
       {

@@ -2,7 +2,15 @@
 
 import React from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Instagram, Linkedin, Youtube, Facebook, ArrowRight, PhoneCall, Mail } from "lucide-react";
+import {
+  Instagram,
+  Linkedin,
+  Youtube,
+  Facebook,
+  ArrowRight,
+  PhoneCall,
+  Mail,
+} from "lucide-react";
 import { Container } from "@/src/components/landing/ui/container";
 import { Button } from "@/src/components/landing/ui/button";
 import Image from "next/image";
@@ -30,7 +38,7 @@ export const Footer = () => {
   };
 
   const handleStartProject = () => {
-    console.log('Footer: Start Your Project clicked');
+    console.log("Footer: Start Your Project clicked");
   };
 
   const handleInvestor = () => {
@@ -45,7 +53,7 @@ export const Footer = () => {
           {/* Logo & CTA Column */}
           <div className="lg:col-span-1 flex flex-col gap-8">
             <a
-              href="https://book.beige.app"
+              href="https://beige.app"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block"
@@ -62,14 +70,17 @@ export const Footer = () => {
             </a>
 
             {/* <div className="mt-8"> */}
-              <Button
-                onClick={handleStartProject}
-                className="bg-transparent border border-white/20 hover:bg-white/5 text-white h-[56px] px-6 rounded-full flex items-center gap-3 w-fit transition-all group"
-              >
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                Start Your Project with Beige
-                <ArrowRight size={16} className="text-white/50 group-hover:translate-x-1 transition-transform" />
-              </Button>
+            <Button
+              onClick={handleStartProject}
+              className="bg-transparent border border-white/20 hover:bg-white/5 text-white h-[56px] px-6 rounded-full flex items-center gap-3 w-fit transition-all group"
+            >
+              <div className="w-2 h-2 rounded-full bg-green-500" />
+              Start Your Project with Beige
+              <ArrowRight
+                size={16}
+                className="text-white/50 group-hover:translate-x-1 transition-transform"
+              />
+            </Button>
             {/* </div> */}
 
             <Button
@@ -83,11 +94,13 @@ export const Footer = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-0">
             {/* Links Column 1 */}
             <div>
-              <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">Main Links</h4>
+              <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">
+                Main Links
+              </h4>
               <ul className="space-y-4">
                 <li>
                   <button
-                    onClick={() => handleLinkClick('Home', '/')}
+                    onClick={() => handleLinkClick("Home", "/")}
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
                   >
                     Home
@@ -95,7 +108,7 @@ export const Footer = () => {
                 </li>
                 <li>
                   <button
-                    onClick={() => handleLinkClick('About', '#about')}
+                    onClick={() => handleLinkClick("About", "#about")}
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
                   >
                     About
@@ -103,7 +116,7 @@ export const Footer = () => {
                 </li>
                 <li>
                   <button
-                    onClick={() => handleLinkClick('Blogs', '#blogs')}
+                    onClick={() => handleLinkClick("Blogs", "#blogs")}
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
                   >
                     Blogs
@@ -111,7 +124,9 @@ export const Footer = () => {
                 </li>
                 <li>
                   <button
-                    onClick={() => handleLinkClick('Find Creative Work', '#find-work')}
+                    onClick={() =>
+                      handleLinkClick("Find Creative Work", "#find-work")
+                    }
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
                   >
                     Find Creative Work
@@ -122,11 +137,15 @@ export const Footer = () => {
 
             {/* Links Column 2 */}
             <div>
-              <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">Legal</h4>
+              <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">
+                Legal
+              </h4>
               <ul className="space-y-4">
                 <li>
                   <button
-                    onClick={() => handleLinkClick('Terms of Service', '/terms')}
+                    onClick={() =>
+                      handleLinkClick("Terms of Service", "/terms")
+                    }
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
                   >
                     Terms of Service
@@ -134,7 +153,9 @@ export const Footer = () => {
                 </li>
                 <li>
                   <button
-                    onClick={() => handleLinkClick('Privacy Policy', '/privacy')}
+                    onClick={() =>
+                      handleLinkClick("Privacy Policy", "/privacy")
+                    }
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
                   >
                     Privacy Policy
@@ -145,23 +166,26 @@ export const Footer = () => {
 
             {/* Contact Column */}
             <div>
-              <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">Contact Us</h4>
+              <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">
+                Contact Us
+              </h4>
               <ul className="space-y-4">
                 <li className="text-white text-sm lg:text-lg font-medium flex items-center gap-2">
-                  <PhoneCall className="w-4 h-4 lg:w-6 lg:h-6 text-white fill-white" /> 323-826-7230
+                  <PhoneCall className="w-4 h-4 lg:w-6 lg:h-6 text-white fill-white" />{" "}
+                  323-826-7230
                 </li>
                 <li>
                   <a
                     href="mailto:info@beigecorporation.io"
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium flex items-center gap-2"
                   >
-                    <Mail className="w-4 h-4 lg:w-6 lg:h-6 text-white" /> info@beigecorporation.io
+                    <Mail className="w-4 h-4 lg:w-6 lg:h-6 text-white" />{" "}
+                    info@beigecorporation.io
                   </a>
                 </li>
               </ul>
             </div>
           </div>
-
         </div>
       </Container>
 
@@ -175,18 +199,19 @@ export const Footer = () => {
 
             {/* Social Icons */}
             <div className="flex lg:border-l border-white/50">
-              {[Facebook, Linkedin, Youtube, Instagram].map(
-                (Icon, index) => (
-                  <div
-                    key={index}
-                    className="w-16 h-16 flex items-center justify-center lg:border-r border-white/50  "
+              {[Facebook, Linkedin, Youtube, Instagram].map((Icon, index) => (
+                <div
+                  key={index}
+                  className="w-16 h-16 flex items-center justify-center lg:border-r border-white/50  "
+                >
+                  <Link
+                    href="/about"
+                    className="rounded-full p-2 bg-white hover:bg-white/80 transition-colors"
                   >
-                    <Link href="/about" className="rounded-full p-2 bg-white hover:bg-white/80 transition-colors">
-                      <Icon className="w-6 h-6 fill-black" />
-                    </Link>
-                  </div>
-                )
-              )}
+                    <Icon className="w-6 h-6 fill-black" />
+                  </Link>
+                </div>
+              ))}
             </div>
           </div>
         </Container>
