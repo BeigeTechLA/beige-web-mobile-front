@@ -150,6 +150,11 @@ export const pricingApi = createApi({
       {
         creator_ids: number[];
         shoot_hours: number;
+        role_counts?: {
+          videographer?: number;
+          photographer?: number;
+          cinematographer?: number;
+        };
         event_type?: string;
         add_on_items?: SelectedItem[];
         skip_discount?: boolean;

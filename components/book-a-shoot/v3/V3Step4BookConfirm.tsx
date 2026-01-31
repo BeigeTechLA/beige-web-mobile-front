@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-no-comment-textnodes */
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -19,6 +20,8 @@ import {
   RefreshCw,
   Package,
   Phone,
+  CheckCircle2,
+  X,
 } from "lucide-react";
 import { useCalculateQuoteFromCreatorsMutation } from "@/lib/redux/features/pricing/pricingApi";
 import { newshootTypes } from "@/app/data/shootData";
@@ -26,6 +29,7 @@ import { newshootTypes } from "@/app/data/shootData";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface Props {
   data: BookingDataV3;
@@ -66,6 +70,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   >([]);
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(true);
+  const [showSalesPopup, setShowSalesPopup] = useState(false);
+
 
   const shootInfo: ShootTypeProps = newshootTypes.find(
     (type) => type.key === data.shootType,
@@ -102,11 +108,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   useEffect(() => {
     const fetchQuote = async () => {
       // Check if we have selected crew members and duration
-      if (
-        !data.selectedCrewIds ||
-        data.selectedCrewIds.length === 0 ||
-        durationHours === 0
-      ) {
+      if (durationHours === 0) {
         setQuoteTotal(null);
         setCrewBreakdown([]);
         return;
@@ -125,6 +127,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         const result = await calculateQuoteFromCreators({
           creator_ids: data.selectedCrewIds,
           shoot_hours: durationHours,
+          role_counts: data.roleCounts,
           event_type: data.shootType || "general",
           skip_discount: true, // Remove hour-based discounts for V3
           skip_margin: true, // Remove beige margin for V3
@@ -635,7 +638,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   )}
                 </Button>
 
-                <p className="text-center text-base font-medium mt-5 opacity-60 flex items-center justify-center gap-1">
+                <p
+                  onClick={() => setShowSalesPopup(true)}
+                  className="cursor-pointer text-center text-base font-medium mt-5 opacity-60 hover:opacity-100 transition flex items-center justify-center gap-1"
+                >
                   <Phone size={24} /> Connect with Beige Team
                 </p>
               </div>
@@ -653,6 +659,56 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           Back
         </Button>
       </div>
+      <AnimatePresence>
+  {showSalesPopup && (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => setShowSalesPopup(false)}
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+      />
+
+      {/* Modal */}
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="relative bg-[#1A1A1A] border border-white/10 p-8 lg:p-12 rounded-[24px] max-w-lg w-full text-center shadow-2xl"
+      >
+        <button
+          onClick={() => setShowSalesPopup(false)}
+          className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+        >
+          <X size={24} />
+        </button>
+
+        <div className="bg-[#E8D1AB]/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <CheckCircle2 className="text-[#E8D1AB] w-10 h-10" />
+        </div>
+
+        <h3 className="text-2xl lg:text-3xl font-bold text-white mb-4">
+          Request Received
+        </h3>
+
+        <p className="text-white/60 text-lg leading-relaxed">
+          Our Beige team will shortly reach out to you to finalize your creative
+          requirements.
+        </p>
+
+        <Button
+          onClick={() => setShowSalesPopup(false)}
+          className="mt-8 w-full bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold h-14 rounded-xl"
+        >
+          Got it
+        </Button>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
+
     </div>
   );
 };

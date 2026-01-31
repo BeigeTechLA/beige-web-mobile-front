@@ -49,6 +49,7 @@ import MultiSelectDropdown from "@/components/book-a-shoot/MultiSelectDropdown";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import DatePicker from "@/components/ui/Datepicker";
 import { set, format } from "date-fns";
+import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 
 interface Props {
   data: BookingDataV3;
@@ -115,6 +116,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const isAllVisible = visibleCount >= availableShootTypes.length;
+
+  const [trackEarlyInterest] = useTrackEarlyInterestMutation();
 
   // Auto-fill email if user is logged in
   useEffect(() => {
@@ -427,11 +430,28 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     return true;
   };
 
-  const handleNext = () => {
-    if (validate()) {
-      onNext();
-    }
-  };
+const handleNext = async () => {
+  if (!validate()) return;
+
+  try {
+    const res = await trackEarlyInterest({
+      guest_email: data.email,
+      user_id: user?.id,
+      content_type: data.contentType.join(","),
+      shoot_type: data.shootType,
+      client_name: user?.name,
+    }).unwrap();
+
+    updateData({
+      bookingId: res.data.booking_id,
+    });
+
+    onNext();
+  } catch (err) {
+    toast.error("Failed to start booking. Please try again.");
+  }
+};
+
 
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">

@@ -1,4 +1,5 @@
 export type BookingDataV3 = {
+   bookingId?: number; 
   // Service & Content
   contentType: ("videographer" | "photographer" | "cinematographer" | "editing")[];
   shootType: string;
@@ -25,6 +26,11 @@ export type BookingDataV3 = {
   matchingMethod: 'ai_matchmaker' | 'manual';
   selectedCrewIds: number[];
   
+    roleCounts: {
+    videographer?: number;
+    photographer?: number;
+    cinematographer?: number;
+  };
   // Contact & Payment
   fullName: string;
   email: string;
