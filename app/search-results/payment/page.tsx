@@ -850,11 +850,24 @@ function MultiCreatorPaymentContent() {
                         </span>
                       </div>
                       {/* Show discount if applied */}
-                      {quote.discount_amount && quote.discount_amount > 0 && (
+                      {quote.discountAmount && quote.discountAmount > 0 && (
                         <div className="flex justify-between mb-3 text-green-600">
-                          <span>Discount Applied</span>
                           <span>
-                            -${parseFloat(quote.discount_amount).toFixed(2)}
+                            Discount Applied ({quote.discountPercent}%)
+                          </span>
+                          <span>
+                            -${parseFloat(quote.discountAmount).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      {/* Show margin if applied */}
+                      {quote.marginAmount && quote.marginAmount > 0 && (
+                        <div className="flex justify-between mb-3">
+                          <span className="text-[#626467]">
+                            Service Fee ({quote.marginPercent}%)
+                          </span>
+                          <span className="font-medium">
+                            ${parseFloat(quote.marginAmount).toFixed(2)}
                           </span>
                         </div>
                       )}
@@ -868,10 +881,7 @@ function MultiCreatorPaymentContent() {
                         <span className="text-[#212122]">Amount Due</span>
                       </div>
                       <span className="text-xl font-bold">
-                        $
-                        {quote.price_after_discount && quote.discount_amount > 0
-                          ? parseFloat(quote.price_after_discount).toFixed(2)
-                          : quote.subtotal?.toFixed(2) || "0.00"}
+                        ${quote.total?.toFixed(2) || "0.00"}
                       </span>
                     </div>
                   </div>
