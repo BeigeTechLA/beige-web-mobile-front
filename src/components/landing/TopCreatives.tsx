@@ -1,104 +1,20 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
+import Image from 'next/image';
+import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Container } from "../../../components/ui/container";
+
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation } from 'swiper/modules';
-import Image from 'next/image';
 
 // Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/navigation';
 
-import { Container } from "../../../components/ui/container";
-import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
-import Link from "next/link";
-
-const CREW_MEMBERS = [
-  {
-    name: "Alex Vance",
-    id: "198",
-    image: "/images/crew/CREW(1).png",
-    location: "Los Angeles"
-  },
-  {
-    name: "Isabella Chen",
-    id: "200",
-    image: "/images/crew/CREW(2).png",
-    location: "Pasadena"
-  },
-  {
-    name: "Marcus Holloway",
-    id: "199",
-    image: "/images/crew/CREW(3).png",
-    location: "Los Angeles"
-  },
-  {
-    name: "Sophia Rossi",
-    id: "201",
-    image: "/images/crew/CREW(4).png",
-    location: "New York location"
-  },
-  {
-    name: "Julian Kade",
-    id: "202",
-    image: "/images/crew/CREW(5).png",
-    location: "Fresno"
-  },
-  {
-    name: "Elena Moretti",
-    id: "203",
-    image: "/images/crew/CREW(7).png",
-    location: "San Jose"
-  },
-  {
-    name: "Xavier Knight",
-    id: "204",
-    image: "/images/crew/CREW(8).png",
-    location: "Los Angeles"
-  },
-  {
-    name: "Amara Okafor",
-    id: "205",
-    image: "/images/crew/CREW(9).png",
-    location: "Oakland"
-  },
-  {
-    name: "Liam Sterling",
-    id: "162",
-    image: "/images/crew/CREW(10).png",
-    location: "Bakersfield"
-  },
-  {
-    name: "Chloe Naka",
-    id: "208",
-    image: "/images/crew/CREW70.png",
-    location: "San Jose"
-  },
-  {
-    name: "Nat Drake",
-    id: "207",
-    image: "/images/crew/CREW71.png",
-    location: "San Francisco"
-  },
-  {
-    name: "Maya Sullivan",
-    id: "206",
-    image: "/images/crew/CREW72.png",
-    location: "San Francisco"
-  },
-  {
-    name: "Roman Volkov",
-    id: "195",
-    image: "/images/crew/CREW74.png",
-    location: "Oakland"
-  },
-  {
-    name: "Sienna Brooks",
-    id: "194",
-    image: "/images/crew/CREW(6).png",
-    location: "Pasadena"
-  }
-];
+// Use CP_DATA from your data file
+import { CP_DATA } from "@/app/data/topCPData";
 
 export const TopCreatives = ({ title, subtext = "" }: { title?: string, subtext?: string }) => {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -149,8 +65,8 @@ export const TopCreatives = ({ title, subtext = "" }: { title?: string, subtext?
             }}
             className="!overflow-visible"
           >
-
-            {CREW_MEMBERS.map((member, index) => (
+            {/* Swapping CREW_MEMBERS for CP_DATA */}
+            {CP_DATA.map((member, index) => (
               <SwiperSlide key={index} className="pb-8 flex justify-center"
                 style={{ width: "372px" }}>
                 {({ isActive }) => {
@@ -174,43 +90,41 @@ export const TopCreatives = ({ title, subtext = "" }: { title?: string, subtext?
                       style={{
                         transform: `translateY(${yOffset}px) scale(${scale})`,
                         zIndex: 10 - diff,
-
                       }}
                     >
-
                       {/* Card */}
                       <div className="relative aspect-[380/475] overflow-hidden rounded-xl lg:rounded-[20px] w-full h-full">
-                        <Image
-                          src={member.image}
-                          alt={member.name}
-                          fill
-                          sizes="(max-width: 768px) 100vw, 20vw"
-                          className="object-cover object-top"
-                        />
-
-                        {/* <div className="absolute top-0 right-5 bg-black lg:w-[53px] lg:h-[90px] w-12 h-20 flex items-center justify-center">
+                        {/* {member.profilePicture ? ( */}
                           <Image
-                            src="/images/logos/BeigeB.svg"
-                            alt="Beige Logo"
+                            src={member.profilePicture || "/images/avater.png"}
+                            alt={member.name}
                             fill
+                            sizes="(max-width: 768px) 100vw, 20vw"
+                            className="object-cover object-top"
+                            // Adding unoptimized because these are likely external Drive/S3 links
+                            unoptimized
                           />
-                        </div> */}
+                        {/* ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white/20">
+                            No Image
+                          </div>
+                        )} */}
                       </div>
 
                       {/* Info */}
                       <div className="mt-5 flex justify-between items-center px-6">
-                        <div>
-                          <h3 className="text-lg lg:text-2xl 2xl:text-3xl text-white tracking-tight">
+                        <div className="max-w-[80%]">
+                          <h3 className="text-lg lg:text-2xl 2xl:text-3xl text-white tracking-tight truncate">
                             {member.name}
                           </h3>
                           <p className="text-sm lg:text-xl text-white tracking-tight">
-                            {member.location}
+                            {member.city}
                           </p>
                         </div>
 
-                        <Link href={`/creatives/${member.id}`}>
+                        {/* <Link href={`/creatives/${member.id}`}>
                           <ArrowUpRight size={24} />
-                        </Link>
+                        </Link> */}
                       </div>
                     </div>
                   );
