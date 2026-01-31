@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
-import { Loader2, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Loader2, ArrowDownLeft, ArrowUpRight, CheckCircle2, X } from "lucide-react";
 import { useSearchCreatorsQuery } from "@/lib/redux/features/creators/creatorsApi";
 import { useCreateSalesAssistedLeadMutation } from "@/lib/redux/features/sales/salesApi";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
@@ -130,10 +131,8 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   const [showSalesModal, setShowSalesModal] = useState(false);
 
   // Use local state for selection if not in data yet
-  const [selectedIds, setSelectedIds] = useState<number[]>(
-    data.selectedCrewIds || [],
-  );
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<number[]>(data.selectedCrewIds || []);
+  const [showSalesPopup, setShowSalesPopup] = useState(false);
 
   // Sales lead mutation
   const [createSalesLead, { isLoading: isCreatingSalesLead }] =
@@ -143,7 +142,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   const searchParams = {
     content_types: data.contentType.filter((t) => t !== "editing").join(","),
     location: data.location || undefined,
-    limit: 12, // Get more creators for better selection
+    limit: 12,
     page: 1,
   };
 
@@ -159,32 +158,19 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   // Transform API creators to display format
   const creators: Creator[] = creatorsResponse?.data || [];
 
-  // const toggleSelection = (id: number) => {
-  //   setSelectedIds(prev => {
-  //     const newIds = prev.includes(id)
-  //       ? prev.filter(p => p !== id)
-  //       : [...prev, id];
-
-  //     // Sync with parent data
-  //     updateData({ selectedCrewIds: newIds });
-  //     return newIds;
-  //   });
-  // };
-
   const toggleSelection = (id: number) => {
     setSelectedIds((prev) => {
       // If already selected, allow deselection
       if (prev.includes(id)) {
         return prev.filter((p) => p !== id);
       }
-
       // If trying to add but already at limit, prevent addition
       const crewLimit = data.crewCount || 0;
-      if (crewLimit > 0 && prev.length >= crewLimit) {
-        return prev; // Don't add, already at limit
-      }
-
-      // Add the selection
+      if (crewLimit > 0 && prev.length >= crewLimit) return prev;
+      return [...prev, id];
+    });
+      const crewLimit = data.crewCount || 0;
+      if (crewLimit > 0 && prev.length >= crewLimit) return prev;
       return [...prev, id];
     });
   };
@@ -196,18 +182,18 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   // Handle Connect with Sales
   const handleConnectWithSales = async () => {
     try {
-      if (!bookingId) {
+      if (!data.bookingId) {
         toast.error("Unable to connect with sales. Please try again.");
         return;
       }
 
       await createSalesLead({
-        booking_id: bookingId,
+        booking_id: data.bookingId,
         guest_email: data.email,
         client_name: data.fullName,
       }).unwrap();
 
-      setShowSalesModal(true);
+      setShowSalesPopup(true);
     } catch (error) {
       console.error("Failed to create sales lead:", error);
       toast.error("Failed to connect with sales. Please try again.");
@@ -216,13 +202,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
   // Handle modal close and redirect
   const handleModalClose = () => {
-    setShowSalesModal(false);
+    setShowSalesPopup(false);
     if (isAuthenticated) {
       router.push("/affiliate/dashboard");
     }
   };
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
@@ -252,21 +237,6 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
               ? "We encountered an issue loading creators. Please try again."
               : "Looks like no creators are available right now, but our sales expert can help you find a great match."}
           </p>
-          {/* <div className="flex gap-4 justify-center">
-            <Button
-              variant="outline"
-              onClick={onBack}
-              className="text-white border-white/20 hover:bg-white/10"
-            >
-              Go Back
-            </Button>
-            <Button
-              onClick={onNext}
-              className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a]"
-            >
-              Continue Anyway
-            </Button>
-          </div> */}
         </div>
 
         <div className="mx-auto">
@@ -275,9 +245,64 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
             alt="No Creators found"
             width={164}
             height={184}
-            className=""
           />
         </div>
+
+        <div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-10">
+          <Button
+            variant="outline"
+            className="h-14 lg:h-[72px] border-white/20 hover:bg-white/10 text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+          >
+            Complete Your Shoot
+          </Button>
+          <Button
+            onClick={() => setShowSalesPopup(true)}
+            className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+          >
+            Connect with Sales
+          </Button>
+        </div>
+
+        {/* REUSABLE POPUP COMPONENT */}
+        <AnimatePresence>
+          {showSalesPopup && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowSalesPopup(false)}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="relative bg-[#1A1A1A] border border-white/10 p-8 lg:p-12 rounded-[24px] max-w-lg w-full text-center shadow-2xl"
+              >
+                <button
+                  onClick={() => setShowSalesPopup(false)}
+                  className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
+                <div className="bg-[#E8D1AB]/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 className="text-[#E8D1AB] w-10 h-10" />
+                </div>
+                <h3 className="text-2xl lg:text-3xl font-bold text-white mb-4">Request Received</h3>
+                <p className="text-white/60 text-lg leading-relaxed">
+                  Our Sales team will shortly reach out to you to finalize your creative requirements.
+                </p>
+                <Button
+                  onClick={() => setShowSalesPopup(false)}
+                  className="mt-8 w-full bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold h-14 rounded-xl"
+                >
+                  Got it
+                </Button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         <section className="pt-6 lg:pt-15 border-t border-white/10 overflow-hidden">
           <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
@@ -316,7 +341,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
                 768: { slidesPerView: 2 },
                 1280: { slidesPerView: 3 },
               }}
-              className="!overflow-visible h-[364px] lg:h-[520px] !p-[2px]"
+              className="!overflow-visible h-[364px] lg:h-[585px] !p-[2px]"
             >
               {additionalCreators.map((creator, index) => (
                 <SwiperSlide key={creator.crew_member_id}>
@@ -335,43 +360,42 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
             </Swiper>
           </div>
         </section>
+<div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-15 border-t border-white/10">
+  <Button
+    onClick={onNext}
+    className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
+  >
+    Complete Your Shoot
+  </Button>
+  <Button
+    onClick={handleConnectWithSales}
+    disabled={isCreatingSalesLead}
+    className="h-14 lg:h-[72px] border border-white/20 hover:bg-white/10 text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
+  >
+    {isCreatingSalesLead ? "Connecting..." : "Connect with Sales"}
+  </Button>
+</div>
 
-        <div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-15 border-t border-white/10">
-          <Button
-            onClick={onNext}
-            className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
-          >
-            Complete Your Shoot
-          </Button>
-          <Button
-            onClick={handleConnectWithSales}
-            disabled={isCreatingSalesLead}
-            className="h-14 lg:h-[72px] border border-white/20 hover:bg-white/10 text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
-          >
-            {isCreatingSalesLead ? "Connecting..." : "Connect with Sales"}
-          </Button>
-        </div>
-
-        {/* Sales Confirmation Modal */}
-        <Dialog open={showSalesModal} onOpenChange={setShowSalesModal}>
-          <DialogContent className="bg-white text-black">
-            <DialogHeader>
-              <DialogTitle>Thank You!</DialogTitle>
-              <DialogDescription className="text-black/70">
-                Our sales team will reach out to you shortly to help you find
-                the perfect creative team for your shoot.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex justify-end mt-4">
-              <Button
-                onClick={handleModalClose}
-                className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black"
-              >
-                Got it
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+{/* Sales Confirmation Modal */}
+<Dialog open={showSalesModal} onOpenChange={setShowSalesModal}>
+  <DialogContent className="bg-white text-black">
+    <DialogHeader>
+      <DialogTitle>Thank You!</DialogTitle>
+      <DialogDescription className="text-black/70">
+        Our sales team will reach out to you shortly to help you find
+        the perfect creative team for your shoot.
+      </DialogDescription>
+    </DialogHeader>
+    <div className="flex justify-end mt-4">
+      <Button
+        onClick={handleModalClose}
+        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black"
+      >
+        Got it
+      </Button>
+    </div>
+  </DialogContent>
+</Dialog>
       </div>
     );
   }
@@ -383,7 +407,6 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
           Select Your Dream Team
         </h2>
-        {/* <p className="text-white/60">Select from {creators.length} available professionals</p> */}
         <p className="text-white/60">
           Based on your project, we've handpicked the best professionals. Select
           crew members to build your team.

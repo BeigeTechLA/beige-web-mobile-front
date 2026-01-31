@@ -27,6 +27,12 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "beigexmemehouse.s3.amazonaws.com",
       },
+      {
+        protocol: 'https',
+        hostname: 'beigexmemehouse.s3.eu-north-1.amazonaws.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };

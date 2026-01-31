@@ -11,91 +11,92 @@ import 'swiper/css/navigation';
 
 import { Container } from "../../../components/ui/container";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 
 const CREW_MEMBERS = [
   {
     name: "Alex Vance",
-    id: "alex-vance",
+    id: "198",
     image: "/images/crew/CREW(1).png",
-    city: "Los Angeles"
+    location: "Los Angeles"
   },
   {
     name: "Isabella Chen",
-    id: "isabella-chen",
+    id: "200",
     image: "/images/crew/CREW(2).png",
-    city: "Pasadena"
+    location: "Pasadena"
   },
   {
     name: "Marcus Holloway",
-    id: "marcus-holloway",
+    id: "199",
     image: "/images/crew/CREW(3).png",
-    city: "Los Angeles"
+    location: "Los Angeles"
   },
   {
     name: "Sophia Rossi",
-    id: "sophia-rossi",
+    id: "201",
     image: "/images/crew/CREW(4).png",
-    city: "New York City"
+    location: "New York location"
   },
   {
     name: "Julian Kade",
-    id: "julian-kade",
+    id: "202",
     image: "/images/crew/CREW(5).png",
-    city: "Fresno"
+    location: "Fresno"
   },
   {
     name: "Elena Moretti",
-    id: "elena-moretti",
+    id: "203",
     image: "/images/crew/CREW(7).png",
-    city: "San Jose"
+    location: "San Jose"
   },
   {
     name: "Xavier Knight",
-    id: "xavier-knight",
+    id: "204",
     image: "/images/crew/CREW(8).png",
-    city: "Los Angeles"
+    location: "Los Angeles"
   },
   {
     name: "Amara Okafor",
-    id: "amara-okafor",
+    id: "205",
     image: "/images/crew/CREW(9).png",
-    city: "Oakland"
+    location: "Oakland"
   },
   {
     name: "Liam Sterling",
-    id: "liam-sterling",
+    id: "162",
     image: "/images/crew/CREW(10).png",
-    city: "Bakersfield"
+    location: "Bakersfield"
   },
   {
     name: "Chloe Naka",
-    id: "chloe-naka",
+    id: "208",
     image: "/images/crew/CREW70.png",
-    city: "San Jose"
+    location: "San Jose"
   },
   {
     name: "Nat Drake",
-    id: "nat-drake",
+    id: "207",
     image: "/images/crew/CREW71.png",
-    city: "San Francisco"
+    location: "San Francisco"
   },
   {
     name: "Maya Sullivan",
-    id: "maya-sullivan",
+    id: "206",
     image: "/images/crew/CREW72.png",
-    city: "San Francisco"
+    location: "San Francisco"
   },
   {
     name: "Roman Volkov",
-    id: "roman-volkov",
+    id: "195",
     image: "/images/crew/CREW74.png",
-    city: "Oakland"
+    location: "Oakland"
   },
   {
     name: "Sienna Brooks",
-    id: "sienna-brooks",
+    id: "194",
     image: "/images/crew/CREW(6).png",
-    city: "Pasadena"
+    location: "Pasadena"
   }
 ];
 
@@ -203,11 +204,13 @@ export const TopCreatives = ({ title, subtext = "" }: { title?: string, subtext?
                             {member.name}
                           </h3>
                           <p className="text-sm lg:text-xl text-white tracking-tight">
-                            {member.city}
+                            {member.location}
                           </p>
                         </div>
 
-                        <ArrowUpRight size={24} />
+                        <Link href={`/creatives/${member.id}`}>
+                          <ArrowUpRight size={24} />
+                        </Link>
                       </div>
                     </div>
                   );

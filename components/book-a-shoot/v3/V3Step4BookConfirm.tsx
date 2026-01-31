@@ -522,7 +522,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   <div className="flex items-center justify-center py-4 lg:py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-white/80" />
                     <span className="ml-3 text-white/80">
-                      Calculating quote...
+                      Preparing Your Package
                     </span>
                   </div>
                 ) : (

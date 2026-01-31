@@ -40,12 +40,12 @@ const infoVariants = {
 
 interface CreatorCardProps {
   name: string;
-  role_name: string;
+  role: string;
   rating: number;
-  total_reviews: number;
-  profile_image: string;
+  reviews: number;
+  image: string;
   hourlyRate?: number;
-  crew_member_id: number;
+  creatorId: string;
   isActive?: boolean;
   index: number;
   isExpanded: boolean; // Controlled by parent
@@ -55,27 +55,27 @@ interface CreatorCardProps {
 
 const CreatorCard = ({
   name,
-  role_name,
+  role,
   rating,
-  total_reviews,
-  profile_image,
+  reviews,
+  image,
   hourlyRate = 0,
-  crew_member_id,
+  creatorId,
   isActive = false,
   index,
   isExpanded,
   onHover,
   onLeave,
 }: CreatorCardProps) => {
+
   const isInvalidImage =
-    !profile_image ||
-    profile_image.trim().length === 0 ||
-    profile_image === "/images/influencer/default.png";
+    !image ||
+    image.trim().length === 0 ||
+    image === "/images/influencer/default.png";
 
   const fallbackImage = isInvalidImage
-    ? crewImages[Number(crew_member_id) % 10]
-    : profile_image;
-
+    ? crewImages[parseInt(creatorId) % 10]
+    : image;
   const currentVariant = isExpanded ? "hover" : "rest";
 
   const InfoContent = () => (
@@ -96,7 +96,7 @@ const CreatorCard = ({
           <h3 className="text-white text-base lg:text-xl font-medium">
             {name}
           </h3>
-          <p className="text-white/60 text-xs lg:text-base">{role_name}</p>
+          <p className="text-white/60 text-xs lg:text-base">{role}</p>
         </div>
         <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50]">
           Available
@@ -105,7 +105,7 @@ const CreatorCard = ({
 
       <div className="flex items-center gap-2">
         <Link
-          href={`/creatives/${crew_member_id}`}
+          href={`/creatives/${creatorId}`}
           onClick={(e) => e.stopPropagation()}
         >
           <Button
@@ -148,7 +148,7 @@ const CreatorCard = ({
               <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-white/10 relative">
                 <Star className="w-3 h-3 lg:w-[18px] lg:h-[18px] text-[#E8D1AB] fill-[#E4CC17]" />
                 <span className="text-white text-sm lg:text-lg font-medium">
-                  {rating} ({total_reviews})
+                  {rating} ({reviews})
                 </span>
               </div>
             </div>

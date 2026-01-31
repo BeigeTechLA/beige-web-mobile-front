@@ -344,7 +344,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         shootType: "",
         startDate: "",
         endDate: "",
-        editsNeeded: false,
+        editsNeeded: true,
         videoEditTypes: [],
         photoEditTypes: [],
       });
@@ -501,7 +501,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             onChange={() => toggleContentType("photographer")}
           />
           <ContentTypeCheckbox
-            label="Editing"
+            label="AI Editing"
             subLabel="Coming Soon"
             icon={<Scissors size={20} />}
             checked={false}
@@ -546,7 +546,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     title={type.title} // Assuming your shootTypes array has label
                     details={type.details} // and details
                     image={type.image}
-                    stats={type.stats}
+                    // stats={type.stats}
                     selected={data.shootType === type.key}
                     onClick={() => updateData({ shootType: type.key })}
                   />
