@@ -70,11 +70,17 @@ function StripePaymentFormMulti({
   amount,
   onSuccess,
   onError,
+  shootId,
+  booking,
+  quote,
 }: {
   clientSecret: string;
   amount: number;
   onSuccess: (paymentIntentId: string) => void;
   onError: (error: string) => void;
+  shootId: string | null;
+  booking: any;
+  quote: any;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -88,6 +94,13 @@ function StripePaymentFormMulti({
   );
   const [referralAffiliateName, setReferralAffiliateName] = useState("");
   const [isValidatingReferral, setIsValidatingReferral] = useState(false);
+
+  // Discount code state
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountValid, setDiscountValid] = useState<boolean | null>(null);
+  const [discountData, setDiscountData] = useState<any>(null);
+  const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
+  const [appliedDiscount, setAppliedDiscount] = useState<any>(null);
 
   // Debounced referral code validation
   const validateReferralCode = React.useCallback(
@@ -114,10 +127,88 @@ function StripePaymentFormMulti({
     [],
   );
 
+  // Debounced discount code validation
+  const validateDiscountCode = React.useCallback(
+    debounce(async (code: string) => {
+      if (!code || code.length < 4) {
+        setDiscountValid(null);
+        setDiscountData(null);
+        return;
+      }
+
+      setIsValidatingDiscount(true);
+      try {
+        const API_BASE_URL =
+          (
+            process.env.NEXT_PUBLIC_API_ENDPOINT ||
+            "https://revure-api.beige.app/v1/"
+          ).replace(/\/$/, "") + "/";
+
+        // Pass booking_id in query param for validation
+        const response = await axios.get(
+          `${API_BASE_URL}sales/discount-codes/${code}/validate?booking_id=${shootId}`,
+        );
+
+        if (response.data.valid) {
+          setDiscountValid(true);
+          setDiscountData(response.data.data);
+        } else {
+          setDiscountValid(false);
+          setDiscountData(null);
+        }
+      } catch (error: any) {
+        console.error("Error validating discount code:", error);
+        setDiscountValid(false);
+        setDiscountData(null);
+      } finally {
+        setIsValidatingDiscount(false);
+      }
+    }, 500),
+    [shootId],
+  );
+
   const handleReferralCodeChange = (value: string) => {
     const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setReferralCode(upperCode);
     validateReferralCode(upperCode);
+  };
+
+  const handleDiscountCodeChange = (value: string) => {
+    const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    setDiscountCode(upperCode);
+    validateDiscountCode(upperCode);
+  };
+
+  const applyDiscountCode = async () => {
+    if (!discountCode || !discountValid || !quote?.quote_id) return;
+
+    try {
+      const API_BASE_URL =
+        (
+          process.env.NEXT_PUBLIC_API_ENDPOINT ||
+          "https://revure-api.beige.app/v1/"
+        ).replace(/\/$/, "") + "/";
+
+      const response = await axios.post(
+        `${API_BASE_URL}sales/discount-codes/${discountCode}/apply`,
+        {
+          quote_id: quote.quote_id,
+          booking_id: shootId,
+          guest_email: booking.guest_email,
+        },
+      );
+
+      if (response.data.success) {
+        setAppliedDiscount(response.data.data);
+        toast.success("Discount applied successfully!");
+
+        // Optionally refresh page to show updated pricing
+        window.location.reload();
+      }
+    } catch (error: any) {
+      console.error("Error applying discount:", error);
+      toast.error(error.response?.data?.message || "Failed to apply discount");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -256,6 +347,69 @@ function StripePaymentFormMulti({
             <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
               <X className="w-4 h-4" />
               Invalid referral code
+            </p>
+          )}
+        </div>
+
+        {/* Discount Code */}
+        <div className="relative w-full">
+          <label className="absolute -top-3 left-4 bg-[#272626] px-2 text-sm lg:text-base text-white/60 z-10 flex items-center gap-1">
+            <Tag className="w-3 h-3" />
+            Discount Code (Optional)
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={discountCode}
+              onChange={(e) => handleDiscountCodeChange(e.target.value)}
+              className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-24 text-white outline-none bg-[#272626] uppercase tracking-wider ${
+                discountValid === true
+                  ? "border-green-500 focus:border-green-400"
+                  : discountValid === false
+                    ? "border-red-500 focus:border-red-400"
+                    : "border-white/30 focus:border-white/50"
+              }`}
+              placeholder="Enter discount code"
+              maxLength={20}
+              disabled={!!appliedDiscount}
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              {isValidatingDiscount ? (
+                <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
+              ) : discountValid === true && !appliedDiscount ? (
+                <button
+                  type="button"
+                  onClick={applyDiscountCode}
+                  className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
+                >
+                  Apply
+                </button>
+              ) : discountValid === true && appliedDiscount ? (
+                <Check className="w-5 h-5 text-green-500" />
+              ) : discountValid === false ? (
+                <X className="w-5 h-5 text-red-500" />
+              ) : null}
+            </div>
+          </div>
+          {discountValid === true && discountData && !appliedDiscount && (
+            <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
+              <Check className="w-4 h-4" />
+              {discountData.discount_type === "percentage"
+                ? `${discountData.discount_value}% off`
+                : `$${discountData.discount_value} off`}
+            </p>
+          )}
+          {appliedDiscount && (
+            <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
+              <Check className="w-4 h-4" />
+              Discount applied: Save $
+              {appliedDiscount.discount_amount.toFixed(2)}
+            </p>
+          )}
+          {discountValid === false && discountCode.length >= 4 && (
+            <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
+              <X className="w-4 h-4" />
+              Invalid or expired discount code
             </p>
           )}
         </div>
@@ -574,6 +728,9 @@ function MultiCreatorPaymentContent() {
                   amount={quote.subtotal}
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
+                  shootId={shootId}
+                  booking={booking}
+                  quote={quote}
                 />
               </Elements>
             )}
@@ -692,7 +849,15 @@ function MultiCreatorPaymentContent() {
                           ${quote.subtotal?.toFixed(2) || "0.00"}
                         </span>
                       </div>
-                      {/* Discounts removed - showing raw pricing */}
+                      {/* Show discount if applied */}
+                      {quote.discount_amount && quote.discount_amount > 0 && (
+                        <div className="flex justify-between mb-3 text-green-600">
+                          <span>Discount Applied</span>
+                          <span>
+                            -${parseFloat(quote.discount_amount).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Service fees removed - showing raw pricing */}
@@ -703,7 +868,10 @@ function MultiCreatorPaymentContent() {
                         <span className="text-[#212122]">Amount Due</span>
                       </div>
                       <span className="text-xl font-bold">
-                        ${quote.subtotal?.toFixed(2) || "0.00"}
+                        $
+                        {quote.price_after_discount && quote.discount_amount > 0
+                          ? parseFloat(quote.price_after_discount).toFixed(2)
+                          : quote.subtotal?.toFixed(2) || "0.00"}
                       </span>
                     </div>
                   </div>
