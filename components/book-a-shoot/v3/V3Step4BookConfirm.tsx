@@ -577,10 +577,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                               </div>
                             </div>
                             <div className="text-xs text-white/50 space-y-1">
-                              <div className="flex justify-between">
+                              {/* <div className="flex justify-between">
                                 <span>Hourly Rate:</span>
                                 <span>{formatCurrency(hourlyRate)}/hr</span>
-                              </div>
+                              </div> */}
                               <div className="flex justify-between">
                                 <span>Duration:</span>
                                 <span>
@@ -588,13 +588,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                                   {durationHours === 1 ? "hour" : "hours"}
                                 </span>
                               </div>
-                              <div className="flex justify-between pt-1 border-t border-white/10">
+                              {/* <div className="flex justify-between pt-1 border-t border-white/10">
                                 <span>Calculation:</span>
                                 <span>
                                   {formatCurrency(hourlyRate)} × {durationHours}
                                   h = {formatCurrency(crew.cost)}
                                 </span>
-                              </div>
+                              </div> */}
                             </div>
                           </div>
                         );
