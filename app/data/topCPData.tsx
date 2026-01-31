@@ -1,6 +1,6 @@
 export const CP_DATA = [
   {
-    name: "Gary Ahmed",
+    name: "Gary A.",
     city: "Los Angeles",
     email: "garyahmedfilm@gmail.com",
     phone: "(203) 910-8599",
@@ -20,7 +20,7 @@ export const CP_DATA = [
   //   gears: ""
   // },
   {
-    name: "Nathan Grant",
+    name: "Nathan G.",
     city: "New York",
     email: "nate@alphascapestudios.com",
     phone: "(718) 697-9783",
@@ -40,7 +40,7 @@ export const CP_DATA = [
     gears: ""
   },
   {
-    name: "Cornelius Matteo",
+    name: "Cornelius M.",
     city: "Portland",
     email: "cornelius@cmatteophotography.com",
     phone: "(917) 693-6475",
@@ -50,7 +50,7 @@ export const CP_DATA = [
     gears: "Sony a7 IV (Main 4K, S-Log3), iPhone 16 Pro Max (ProRes 4K on gimbal), 2x Rode Wireless Pro."
   },
   {
-    name: "Jesse Sieden",
+    name: "Jesse S.",
     city: "Seattle",
     email: "jessesieden@gmail.com",
     phone: "(206) 245-6191",
@@ -60,7 +60,7 @@ export const CP_DATA = [
     gears: "Sony A74, Tamron 28-75mm, Ronin Mini 4."
   },
   {
-    name: "Alec Heuser",
+    name: "Alec H.",
     city: "Houston",
     email: "Aheuserbusiness@gmail.com",
     phone: "(832) 953-5771",
@@ -70,7 +70,7 @@ export const CP_DATA = [
     gears: ""
   },
   {
-    name: "Daniel Calderon",
+    name: "Daniel C.",
     city: "Dallas",
     email: "Decvisuals.96@gmail.com",
     phone: "(929) 261-7661",
@@ -80,7 +80,7 @@ export const CP_DATA = [
     gears: "Sony A7IV, Sony A7III, Sony 24-70mm 2.8, Sony 70-200mm 2.8, Sony 14-24mm f2.8, LED lighting, Tripods, 2x Tascam Lav audio recorders."
   },
   {
-    name: "Christopher Ramirez",
+    name: "Christopher R.",
     city: "Austin",
     email: "Crazycoolstudio@gmail.com",
     phone: "(210) 421-2916",
@@ -90,7 +90,7 @@ export const CP_DATA = [
     gears: "FX30 Camera, A6500 Camera, Lenses: 35mm 1.8, 50mm 1.8, 10-18mm, 55-210mm; Crane gimbal, 2x Manfrotto tripods, 2x Tascam DR-10L lavalier recorders, Tascam DR-10X, DJI Mini Drone, LED lighting kit."
   },
   {
-    name: "Daniel Attah",
+    name: "Daniel A.",
     city: "Atlanta",
     email: "danieldkattah@gmail.com",
     phone: "(470) 770-9631",
@@ -100,7 +100,7 @@ export const CP_DATA = [
     gears: "Canon R5C, Blackmagic 6K, Canon R8, 24-70 2.8, 70-200 2.8 telephoto, 10-20mm 2.8, Wireless Lav mics, Gimbal, Zoom recorder, Lighting kit."
   },
   {
-    name: "Benson Farris",
+    name: "Benson F.",
     city: "Phoenix",
     email: "Farrisreelsllc@gmail.com",
     phone: "(480) 688-2526",
@@ -110,7 +110,7 @@ export const CP_DATA = [
     gears: "2x Sony A7SIII, Lenses: 17-28mm, 24-70mm, 70-200mm; Blackmagic PCC 4K, Rokinon Prime lenses, DJI RS3 Gimbal, Sound Devices F8n audio recorder, Sennheiser microphones & boom, 3x Sennheiser GH4 Lav packs."
   },
   {
-    name: "Corey Bishop",
+    name: "Corey B.",
     city: "Los Angeles",
     email: "hipsob@gmail.com",
     phone: "(818) 522-9273",
@@ -120,7 +120,7 @@ export const CP_DATA = [
     gears: ""
   },
   {
-    name: "Mikey Donaldson",
+    name: "Mikey D.",
     city: "Nashville",
     email: "creative.team@bloomingseedmedia.com",
     phone: "",
