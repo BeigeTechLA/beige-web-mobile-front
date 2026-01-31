@@ -550,13 +550,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                             : "members"}
                         </span>
                       </div>
-                      {crewBreakdown.length !==
+                      {/* {crewBreakdown.length !==
                         (data.selectedCrewIds?.length || 0) && (
                         <div className="text-xs text-yellow-500/80 flex items-center gap-1">
                           ⚠️ Pricing breakdown showing {crewBreakdown.length}{" "}
                           crew - check console logs
                         </div>
-                      )}
+                      )} */}
                     </div>
 
                     {/* Detailed Crew Breakdown */}

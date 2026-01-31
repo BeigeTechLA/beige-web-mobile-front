@@ -203,7 +203,7 @@ function StripePaymentFormMulti({
         toast.success("Discount applied successfully!");
 
         // Optionally refresh page to show updated pricing
-        window.location.reload();
+        // window.location.reload();
       }
     } catch (error: any) {
       console.error("Error applying discount:", error);
