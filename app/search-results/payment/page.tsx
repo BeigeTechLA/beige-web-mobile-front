@@ -522,12 +522,12 @@ function MultiCreatorPaymentContent() {
             "https://revure-api.beige.app/v1/"
           ).replace(/\/$/, "") + "/";
 
-        // Use subtotal instead of total to avoid discounts and margins
+        // Use total which includes any discounts and margins
         const response = await axios.post(
           `${API_BASE_URL}payments/create-intent-multi`,
           {
             booking_id: shootId,
-            amount: quote.subtotal, // Changed from quote.total to quote.subtotal
+            amount: quote.total,
             guest_email: booking.guest_email,
           },
         );
@@ -725,7 +725,7 @@ function MultiCreatorPaymentContent() {
               <Elements stripe={stripePromise}>
                 <StripePaymentFormMulti
                   clientSecret={clientSecret}
-                  amount={quote.subtotal}
+                  amount={quote.total}
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
                   shootId={shootId}
