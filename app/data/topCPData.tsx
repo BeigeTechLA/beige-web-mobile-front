@@ -9,16 +9,16 @@ export const CP_DATA = [
     profilePicture: "https://lh3.googleusercontent.com/u/0/d/1I4BuMMxBdnyhfrIen3slNGX_GQz5MeOk",
     gears: "Blackmagic Pocket Cinema Camera 6K (full Tilta cage), Blackmagic Pocket Cinema Camera 4K (full Tilta cage), Canon 5D M-IV, Metabones Speedbooster XL, Rokinon Cine DS Lenses (16mm, 35mm, 50mm, 85mm), Canon L-series (24-70mm 2.8, 70-200mm 2.8), Tiffen ND filters, Movo F2X Follow Focus, DP300 Matte Box, Samsung T5 SSDs, Atomos Shinobi 5” monitor, Benro BV10 Tripod, Zyihun Crane 3 gimbal, 51” motorized slider, Glide Gear Dolly, Godox/Aperture/Dracast Lighting kit."
   },
-  {
-    name: "Fernando Fierros Flores",
-    city: "San Francisco",
-    email: "fcubefilms@gmail.com",
-    phone: "(408) 816-5815",
-    portfolio: "https://www.youtube.com/@jeremiahcastro6334/featured",
-    profilePicture: "https://lh3.googleusercontent.com/u/0/d/1P1ZWFgGI2PGKZ0GYQRwLQeBpR3GZBYV9",
-    profilePictureFolderLink: "https://drive.google.com/drive/folders/1ZFvIZrndJGDl9sqEyFuGf2ZVt8xTawcD?usp=drive_link",
-    gears: ""
-  },
+  // {
+  //   name: "Fernando Fierros Flores",
+  //   city: "San Francisco",
+  //   email: "fcubefilms@gmail.com",
+  //   phone: "(408) 816-5815",
+  //   portfolio: "https://www.youtube.com/@jeremiahcastro6334/featured",
+  //   profilePicture: "https://lh3.googleusercontent.com/u/0/d/1P1ZWFgGI2PGKZ0GYQRwLQeBpR3GZBYV9",
+  //   profilePictureFolderLink: "https://drive.google.com/drive/folders/1ZFvIZrndJGDl9sqEyFuGf2ZVt8xTawcD?usp=drive_link",
+  //   gears: ""
+  // },
   {
     name: "Nathan Grant",
     city: "New York",
@@ -129,14 +129,14 @@ export const CP_DATA = [
     profilePictureFolderLink: "https://drive.google.com/drive/folders/1vy182uGbeWa7Qo_4pji8RBbHYhrtYlxV?usp=drive_link",
     gears: ""
   },
-  {
-    name: "Richard",
-    city: "Chicago",
-    email: "",
-    phone: "",
-    portfolio: "",
-    profilePicture: "",
-    profilePictureFolderLink: "",
-    gears: ""
-  }
+  // {
+  //   name: "Richard",
+  //   city: "Chicago",
+  //   email: "",
+  //   phone: "",
+  //   portfolio: "",
+  //   profilePicture: "",
+  //   profilePictureFolderLink: "",
+  //   gears: ""
+  // }
 ];

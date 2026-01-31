@@ -80,7 +80,7 @@ export const DisplayGrid = ({ type, category }: PortfolioHeroProps) => {
             {isVideo ? (
               /* --- VIDEO RENDERER --- */
               <iframe
-                src={`https://player.vimeo.com/video/${(item as any).video}?badge=0&autopause=0&muted=0&loop=1&controls=1&title=0&byline=0&portrait=0&badge=0&autopause=0&playsinline=1&transparent=0&vimeo_logo=0`}
+                src={`https://player.vimeo.com/video/${(item as any).video}?badge=0&autopause=0&muted=0&loop=1&controls=1&title=1&byline=0&portrait=0&badge=0&autopause=0&playsinline=1&transparent=0&vimeo_logo=0`}
                 className="absolute inset-0 w-full h-full"
                 allow="autoplay; fullscreen; picture-in-picture"
                 title={(item as any).title}
