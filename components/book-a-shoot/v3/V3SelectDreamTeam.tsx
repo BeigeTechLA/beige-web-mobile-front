@@ -169,7 +169,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({ data, updateData, onNext, o
 
         <div className="mx-auto">
           <Image
-            src={"/images/misc/NoCreators.svg"}
+            src={"/images/misc/FindingCreators.svg"}
             alt="No Creators found"
             width={164}
             height={184}
