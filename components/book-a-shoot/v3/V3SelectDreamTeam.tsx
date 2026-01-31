@@ -246,8 +246,8 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
         <div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-10">
           <Button
-            variant="outline"
-            className="h-14 lg:h-[72px] border-white/20 hover:bg-white/10 text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+            onClick={onNext}
+            className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
           >
             Complete Your Shoot
           </Button>
@@ -356,7 +356,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
             </Swiper>
           </div>
         </section>
-<div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-15 border-t border-white/10">
+{/* <div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-15 border-t border-white/10">
   <Button
     onClick={onNext}
     className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
@@ -370,7 +370,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   >
     {isCreatingSalesLead ? "Connecting..." : "Connect with Sales"}
   </Button>
-</div>
+</div> */}
 
 {/* Sales Confirmation Modal */}
 <Dialog open={showSalesModal} onOpenChange={setShowSalesModal}>
