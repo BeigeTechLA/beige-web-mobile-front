@@ -9,9 +9,9 @@ export const roleOptions = [
   // { value: "6", label: "Stream Engineer" },
   // { value: "7", label: "Production Manager" },
   // { value: "8", label: "Graphics Designer" },
-  { value: "9", label: "Videographer" },
-  { value: "10", label: "Photographers" },
-  { value: "11", label: "Editor" },
+  { value: "1", label: "Videographer" },
+  { value: "2", label: "Photographers" },
+  { value: "3", label: "Editor" },
 ];
 
 // export const skillOptions = [

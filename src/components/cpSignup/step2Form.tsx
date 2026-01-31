@@ -50,9 +50,9 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
   const getSkillOptionsByRole = () => {
     const roles = data.roles || [];
     const listsToMerge = [];
-    if (roles.includes("9")) listsToMerge.push(videographerSkills);
-    if (roles.includes("10")) listsToMerge.push(photographerSkills);
-    if (roles.includes("11")) listsToMerge.push(editorSkills);
+    if (roles.includes("1")) listsToMerge.push(videographerSkills);
+    if (roles.includes("2")) listsToMerge.push(photographerSkills);
+    if (roles.includes("3")) listsToMerge.push(editorSkills);
     if (listsToMerge.length === 0) return [];
     return mergeUniqueSkills(...listsToMerge);
   };

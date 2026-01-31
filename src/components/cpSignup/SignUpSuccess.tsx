@@ -19,9 +19,9 @@ import 'swiper/css/pagination';
 import styles from './FeaturedWork.module.css'
 
 const roleOptions = [
-  { value: "9", label: "Videographer" },
-  { value: "10", label: "Photographers" },
-  { value: "11", label: "Editor" },
+  { value: "1", label: "Videographer" },
+  { value: "2", label: "Photographers" },
+  { value: "3", label: "Editor" },
 ];
 
 const skillOptions = [
