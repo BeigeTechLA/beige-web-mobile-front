@@ -645,6 +645,22 @@ function MultiCreatorPaymentContent() {
 
   // Success View
   if (step === "success") {
+    // Determine Google Form URL based on event type
+    const getFormUrl = () => {
+      const weddingFormUrl =
+        "https://docs.google.com/forms/d/e/1FAIpQLSdg9VNPGWzS0-48TtYCfejktfl2j3Hl4sAD4HSkUoQIMP9WQA/viewform";
+      const generalFormUrl =
+        "https://docs.google.com/forms/d/e/1FAIpQLSeYWPQXfFBqzt4FHVy6ccrS4WVbjFLHJQeIu56rj_zEinGGfQ/viewform";
+
+      return booking?.event_type?.toLowerCase().includes("wedding")
+        ? weddingFormUrl
+        : generalFormUrl;
+    };
+
+    const handleOpenForm = () => {
+      window.open(getFormUrl(), "_blank");
+    };
+
     return (
       <div className="pt-20 lg:pt-32 pb-20">
         <div className="container mx-auto px-4 md:px-0">
@@ -669,13 +685,26 @@ function MultiCreatorPaymentContent() {
             <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">
               Payment Success
             </h2>
-            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-4 lg:mb-9">
+            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">
               ${quote.total.toFixed(2)}
             </p>
 
+            {/* Google Forms CTA */}
+            <div className="w-full max-w-2xl mb-6">
+              <button
+                onClick={handleOpenForm}
+                className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center"
+              >
+                Complete All The Details For Your Shoot
+              </button>
+              <p className="text-xs lg:text-sm text-white/60 mt-3 text-center">
+                Help us prepare better by providing detailed shoot information
+              </p>
+            </div>
+
             <Link
               href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`}
-              className="h-12 lg:h-24 px-6 py-5 lg:px-20 lg:py-10 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-lg lg:text-2xl font-medium rounded-xl inline-flex items-center justify-center"
+              className="h-12 lg:h-24 px-6 py-5 lg:px-20 lg:py-10 bg-white/10 hover:bg-white/20 text-white text-lg lg:text-2xl font-medium rounded-xl inline-flex items-center justify-center border border-white/20"
             >
               View Booking Summary
             </Link>
