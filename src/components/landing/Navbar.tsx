@@ -74,7 +74,6 @@ const portfolioConfig = {
         subSectors: [],
       },
       {
-      {
         id: "real-estate",
         label: "Real - Estate",
         icon: <Building2 size={24} />,
@@ -147,6 +146,8 @@ const portfolioConfig = {
         label: "Healthcare",
         icon: <BriefcaseMedical size={24} />,
         subSectors: [],
+      },
+      {
         id: "social-content",
         label: "Social Content",
         icon: <Handshake size={24} />,
@@ -163,9 +164,11 @@ const portfolioConfig = {
         label: "Interviews",
         icon: <MessageSquare size={24} />,
         subSectors: [],
+      },
+      {
         id: "short-films-narratives",
         label: "Short Films & Narratives",
-        icon: <Clapperboard size={24} />,
+        icon: <Film size={24} />,
         subSectors: []
       },
       {

@@ -169,10 +169,6 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       if (crewLimit > 0 && prev.length >= crewLimit) return prev;
       return [...prev, id];
     });
-      const crewLimit = data.crewCount || 0;
-      if (crewLimit > 0 && prev.length >= crewLimit) return prev;
-      return [...prev, id];
-    });
   };
 
   useEffect(() => {
