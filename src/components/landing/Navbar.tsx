@@ -1,31 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Menu,
-  X,
-  User,
-  ChevronDown,
-  LayoutDashboard,
-  LogOut,
-  Image as PhotoIcon,
-  Film,
-  Briefcase,
-  PartyPopper,
-  ChevronRight,
-  BriefcaseMedical,
-  Megaphone,
-  Package,
-  Building2,
-  PersonStanding,
-  Landmark,
-  LandmarkIcon,
-  CirclePlay,
-  Podcast,
-  MessageSquare,
-  Gem,
-  Handshake,
-} from "lucide-react";
+import { Menu, X, User, ChevronDown, LayoutDashboard, Image as PhotoIcon, Film, Briefcase, PartyPopper, ChevronRight, Megaphone, Package, CirclePlay, Podcast, Gem, Clapperboard, Handshake, Utensils, Binoculars, UsersRound, LogOut } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
@@ -42,62 +18,51 @@ const portfolioConfig = {
         id: "corporate",
         label: "Corporate Events",
         icon: <Briefcase size={24} />,
-        subSectors: ["All", "Food & Restaurant", "Automotive"],
+        subSectors: []
       },
       {
         id: "private-events",
         label: "Private Events",
         icon: <PartyPopper size={24} />,
-        subSectors: [
-          "Barmitvahs",
-          "Family Events",
-          "Birthday Parties",
-          "Quinceaneras",
-        ],
+        subSectors: []
       },
       {
-        id: "healthcare",
-        label: "Healthcare",
-        icon: <BriefcaseMedical size={24} />,
-        subSectors: [],
+        id: "food",
+        label: "Food",
+        icon: <Utensils size={24} />,
+        subSectors: []
       },
       {
-        id: "non-profit",
-        label: "Non - Profit",
-        icon: <Megaphone size={24} />,
-        subSectors: [],
+        id: "behind-the-scenes",
+        label: "Behind-the-Scenes",
+        icon: <Binoculars size={24} />,
+        subSectors: []
+      },
+      {
+        id: "people-teams",
+        label: "People & Teams",
+        icon: <UsersRound size={24} />,
+        subSectors: []
       },
       {
         id: "products",
         label: "Brand & Products",
         icon: <Package size={24} />,
-        subSectors: [],
-      },
-      {
-        id: "real-estate",
-        label: "Real - Estate",
-        icon: <Building2 size={24} />,
-        subSectors: [],
-      },
-      {
-        id: "lifestyle",
-        label: "Lifestyle",
-        icon: <PersonStanding size={24} />,
-        subSectors: [],
+        subSectors: []
       },
       {
         id: "social-content",
         label: "Social Content",
         icon: <Handshake size={24} />,
-        subSectors: [],
+        subSectors: []
       },
       {
         id: "weddings",
         label: "Weddings",
         icon: <Gem size={24} />,
-        subSectors: [],
+        subSectors: []
       },
-    ],
+    ]
   },
   videos: {
     label: "Video",
@@ -107,45 +72,20 @@ const portfolioConfig = {
         id: "corporate",
         label: "Corporate Events",
         icon: <Briefcase size={24} />,
-        subSectors: [
-          "All",
-          "Food & Restuarants",
-          "Construction",
-          "Manufacturing",
-          "Automotive",
-          "Technology",
-          "Keynote Speech",
-        ],
+        subSectors: []
       },
       {
         id: "private-events",
         label: "Private Events",
         icon: <PartyPopper size={24} />,
-        subSectors: ["Barmitvahs", "Birthday Parties", "Quinceaneras"],
-      },
-      {
-        id: "government",
-        label: "Government",
-        icon: <LandmarkIcon size={24} />,
-        subSectors: [],
+        subSectors: []
+        // subSectors: ["Barmitvahs", "Birthday Parties", "Quinceaneras"]
       },
       {
         id: "music-videos",
         label: "Music Videos",
         icon: <CirclePlay size={24} />,
-        subSectors: [],
-      },
-      {
-        id: "real-estate",
-        label: "Real - Estate",
-        icon: <Building2 size={24} />,
-        subSectors: [],
-      },
-      {
-        id: "healthcare",
-        label: "Healthcare",
-        icon: <BriefcaseMedical size={24} />,
-        subSectors: [],
+        subSectors: []
       },
       {
         id: "social-content",
@@ -157,31 +97,19 @@ const portfolioConfig = {
         id: "podcast",
         label: "Podcasts & Shows",
         icon: <Podcast size={24} />,
-        subSectors: [],
-      },
-      {
-        id: "interviews",
-        label: "Interviews",
-        icon: <MessageSquare size={24} />,
-        subSectors: [],
+        subSectors: []
       },
       {
         id: "short-films-narratives",
         label: "Short Films & Narratives",
-        icon: <Film size={24} />,
+        icon: <Clapperboard size={24} />,
         subSectors: []
       },
       {
         id: "commercial-advertising",
         label: "Commercial & Advertising",
         icon: <Megaphone size={24} />,
-        subSectors: [],
-      },
-      {
-        id: "products",
-        label: "Products",
-        icon: <Package size={24} />,
-        subSectors: [],
+        subSectors: []
       },
       {
         id: "weddings",
@@ -189,8 +117,8 @@ const portfolioConfig = {
         icon: <Gem size={24} />,
         subSectors: []
       },
-    ],
-  },
+    ]
+  }
 };
 
 const navLinks = [
@@ -198,7 +126,7 @@ const navLinks = [
   { label: "About", href: "#about" },
   { label: "Find Creative Work", href: "/find-creative-work" },
   { label: "Use Cases", href: "#usecases", hasDropdown: true },
-  { label: "Press", href: "#press" },
+  // { label: "Press", href: "#press" },
 ];
 
 export const Navbar = () => {
@@ -209,13 +137,9 @@ export const Navbar = () => {
 
   // Mobile Specific States
   const [mobilePortfolioOpen, setMobilePortfolioOpen] = useState(false);
-  const [mobileActiveCategory, setMobileActiveCategory] = useState<
-    string | null
-  >(null);
+  const [mobileActiveCategory, setMobileActiveCategory] = useState<string | null>(null);
 
-  const [activeCategory, setActiveCategory] = useState<"photos" | "videos">(
-    "photos",
-  );
+  const [activeCategory, setActiveCategory] = useState<"photos" | "videos">("photos");
   const [activeSector, setActiveSector] = useState("corporate");
   const [localUser, setLocalUser] = useState<any>(null);
 
@@ -242,10 +166,7 @@ export const Navbar = () => {
     }
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        portfolioRef.current &&
-        !portfolioRef.current.contains(e.target as Node)
-      ) {
+      if (portfolioRef.current && !portfolioRef.current.contains(e.target as Node)) {
         setShowPortfolioMenu(false);
       }
     };
@@ -278,16 +199,11 @@ export const Navbar = () => {
     router.push("/investors");
   };
 
-  const handlePortfolioSelect = (
-    category: string,
-    sector: string,
-    subSector?: string,
-  ) => {
-    const formattedSector = sector.toLowerCase().replace(/\s+/g, "-");
-    const formattedSub =
-      subSector && subSector.toLowerCase() !== "all"
-        ? `/${encodeURIComponent(subSector.toLowerCase().replace(/\s+/g, "-"))}`
-        : "";
+  const handlePortfolioSelect = (category: string, sector: string, subSector?: string) => {
+    const formattedSector = sector.toLowerCase().replace(/\s+/g, '-');
+    const formattedSub = (subSector && subSector.toLowerCase() !== "all")
+      ? `/${encodeURIComponent(subSector.toLowerCase().replace(/\s+/g, '-'))}`
+      : "";
 
     const targetPath = `/usecases/${category}/${formattedSector}${formattedSub}`;
 
@@ -313,8 +229,7 @@ export const Navbar = () => {
     setMobileOpen(false);
     setShowProfileDropdown(false);
     if (localUser?.user_type_id === 1) router.push("/admin/dashboard");
-    else if (localUser?.user_type_id === 2)
-      router.push("/creator/dashboard/request");
+    else if (localUser?.user_type_id === 2) router.push("/creator/dashboard/request");
     else if (localUser?.user_type_id === 3) router.push("/affiliate/dashboard");
     else if (localUser?.user_type_id === 4) router.push("/sales/dashboard");
   };
@@ -354,8 +269,7 @@ export const Navbar = () => {
                 const isRouteActive = isActive(link.href);
                 // UseCases is "active" if the dropdown is open
                 const isPortfolioActive =
-                  link.hasDropdown &&
-                  (showPortfolioMenu || pathname.startsWith("/usecases"));
+                  link.hasDropdown && (showPortfolioMenu || pathname.startsWith("/usecases"));
 
                 const active = isRouteActive || isPortfolioActive;
                 return (
@@ -420,13 +334,11 @@ export const Navbar = () => {
 
                     {/* RIGHT PANEL (Sectors & Sub-Sectors) */}
                     <div className="w-2/3 flex-1 flex flex-col">
-{portfolioConfig[activeCategory]?.sectors?.length > 0 ? (
-  <>
-    {/* TOP SECTION: Two-Column Grid for Primary Sectors */}
-    <div className="grid grid-cols-2 gap-x-12 pt-8">
-      {portfolioConfig[activeCategory].sectors
-        .slice(0, 2)
-        .map((sector, index) => (
+                      {portfolioConfig[activeCategory]?.sectors?.length > 0 ? (
+                        <>
+                          {/* TOP SECTION: Two-Column Grid for Primary Sectors with subsectors */}
+                          {/* <div className="grid grid-cols-2 gap-x-12 pt-8">
+                            {portfolioConfig[activeCategory].sectors.slice(0, 2).map((sector, index) => (
           <button
             key={sector.id}
             onMouseEnter={() => setActiveSector(sector.id)}
@@ -451,71 +363,67 @@ export const Navbar = () => {
     </div>
 
     {/* DYNAMIC MIDDLE ROW: Sub-sectors (Only if they exist for active sector) */}
-    <AnimatePresence mode="wait">
-      {portfolioConfig[activeCategory].sectors.find(
-        (s) => s.id === activeSector,
-      )?.subSectors?.length ? (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          className="bg-white/[0.04] border-y border-y-white/10 overflow-hidden mt-6"
-        >
-          <div className="flex flex-wrap gap-12 px-10 py-6">
-            {portfolioConfig[activeCategory].sectors
-              .find((s) => s.id === activeSector)
-              ?.subSectors?.map((sub) => (
-                <button
-                  key={sub}
-                  onClick={() =>
-                    handlePortfolioSelect(activeCategory, activeSector, sub)
-                  }
-                  className="text-left text-[#B8ACAC] hover:text-white text-xl font-light transition-colors py-1"
-                >
-                  {sub}
-                </button>
-              ))}
-          </div>
-        </motion.div>
-      ) : (
-        <div className="mt-6" />
-      )}
-    </AnimatePresence>
+                          <AnimatePresence mode="wait">
+                            {portfolioConfig[activeCategory].sectors.find(s => s.id === activeSector)?.subSectors.length ? (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="bg-white/[0.04] border-y border-y-white/10 overflow-hidden mt-6"
+                              >
+                                <div className="flex flex-wrap gap-12 px-10 py-6">
+                                  {portfolioConfig[activeCategory].sectors
+                                    .find((s) => s.id === activeSector)
+                                    ?.subSectors?.map((sub) => (
+                                      <button
+                                        key={sub}
+                                        onClick={() =>
+                                          handlePortfolioSelect(activeCategory, activeSector, sub)
+                                        }
+                                        className="text-left text-[#B8ACAC] hover:text-white text-xl font-light transition-colors py-1"
+                                      >
+                                        {sub}
+                                      </button>
+                                    ))}
+                                </div>
+                              </motion.div>
+                            ) : (
+                              <div className="mt-6" />
+                            )}
+                          </AnimatePresence>
 
-    {/* BOTTOM SECTION: Remaining Sectors in 2-Col Grid */}
-    <div className="grid grid-cols-2 p-10 pt-6 gap-x-12 gap-y-6">
-      {portfolioConfig[activeCategory].sectors
-        .slice(2)
-        .map((sector) => (
-          <button
-            key={sector.id}
-            onMouseEnter={() => setActiveSector(sector.id)}
-            onClick={() =>
-              handlePortfolioSelect(activeCategory, sector.id)
-            }
-            className={`flex items-center gap-4 transition-all ${
-              activeSector === sector.id
-                ? "text-white"
-                : "text-white/40 hover:text-white/60"
-            }`}
-          >
-            <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-              {sector.icon}
-            </div>
-            <span className="text-lg font-medium">{sector.label}</span>
-          </button>
-        ))}
-    </div>
-  </>
-) : (
-  /* EMPTY STATE: If a category literally has no sectors array */
-  <div className="flex-1 flex flex-col items-center justify-center text-white/20 gap-4">
-    <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center">
-      {portfolioConfig[activeCategory].icon}
-    </div>
-    <p className="text-xl font-medium">Coming Soon</p>
-  </div>
-)}
+                          {/* BOTTOM SECTION: Remaining Sectors in 2-Col Grid */}
+                          <div className="grid grid-cols-2 p-10 pt-6 gap-x-12 gap-y-6">
+                            {/* {portfolioConfig[activeCategory].sectors.slice(2).map((sector) => ( */}
+                            {portfolioConfig[activeCategory].sectors.map((sector) => (
+                                <button
+                                  key={sector.id}
+                                  onMouseEnter={() => setActiveSector(sector.id)}
+                                  onClick={() =>
+                                    handlePortfolioSelect(activeCategory, sector.id)
+                                  }
+                                  className={`flex items-center gap-4 transition-all ${activeSector === sector.id
+                                      ? "text-white"
+                                      : "text-white/40 hover:text-white/60"
+                                    }`}
+                                >
+                                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                                    {sector.icon}
+                                  </div>
+                                  <span className="text-lg font-medium">{sector.label}</span>
+                                </button>
+                              ))}
+                          </div>
+                        </>
+                      ) : (
+                        /* EMPTY STATE: If a category literally has no sectors array */
+                        <div className="flex-1 flex flex-col items-center justify-center text-white/20 gap-4">
+                          <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center">
+                            {portfolioConfig[activeCategory].icon}
+                          </div>
+                          <p className="text-xl font-medium">Coming Soon</p>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -675,7 +583,7 @@ export const Navbar = () => {
                                     mobileActiveCategory === cat ? null : cat,
                                   )
                                 }
-                                className="text-white text-lg font-semibold flex items-center justify-between py-2"
+                                className="text-[#B8ACAC] text-lg font-semibold flex items-center justify-between py-2"
                               >
                                 <span className="flex items-center gap-2">
                                   {portfolioConfig[cat].icon}{" "}
@@ -708,7 +616,7 @@ export const Navbar = () => {
                                                 sector.id,
                                               )
                                             }
-                                            className="text-white/40 text-sm font-bold uppercase tracking-widest"
+                                            className="text-[#B8ACAC]/80 text-sm font-semibold capitalize tracking-widest"
                                           >
                                             {sector.label}
                                           </button>
@@ -722,8 +630,8 @@ export const Navbar = () => {
                                       )} */}
                                         </div>
 
-                                        <div className="flex flex-wrap gap-2">
-                                          {/* If there are subsectors, show them as pills (old design) */}
+                                        {/* <div className="flex flex-wrap gap-2">
+                                          If there are subsectors, show them as pills (old design)
                                           {sector.subSectors.length > 0 ? (
                                             sector.subSectors.map((sub) => (
                                               <button
@@ -741,7 +649,7 @@ export const Navbar = () => {
                                               </button>
                                             ))
                                           ) : (
-                                            /* If no subsectors, provide a subtle pill to ensure the user can still click the sector */
+                                            If no subsectors, provide a subtle pill to ensure the user can still click the sector
                                             <button
                                               onClick={() =>
                                                 handlePortfolioSelect(
@@ -754,7 +662,7 @@ export const Navbar = () => {
                                               Explore {sector.label}
                                             </button>
                                           )}
-                                        </div>
+                                        </div> */}
                                       </div>
                                     ),
                                   )}
