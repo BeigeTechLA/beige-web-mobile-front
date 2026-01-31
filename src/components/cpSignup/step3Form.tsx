@@ -34,6 +34,12 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
   }, [featuredWork, links, resume, portfolio, setData]);
 
   const handleSubmit = async () => {
+    if (!links || links.length === 0) {
+      toast.error("Required Field", { 
+        description: "Please add at least one Social or Professional Link." 
+      });
+      return;
+    }
     if (!featuredWork || featuredWork.length === 0) {
       toast.error("Required Field", { 
         description: "Please add at least one item to your Featured Work." 
@@ -121,7 +127,9 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
         {/* Social Links (Optional) */}
         <div className={sectionClasses}>
           <div>
-            <h2 className="text-base font-semibold text-white">Social & Professional Links (Optional)</h2>
+            <h2 className="text-base font-semibold text-white">
+              Social & Professional Links <span className="text-500">*</span>
+            </h2>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -139,6 +147,10 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
               </div>
               <span className="text-sm font-medium">Add {links.length > 0 ? "another" : "a"} link</span>
             </button>
+            {/* Added a small helper text */}
+            {links.length === 0 && (
+              <p className="text-xs mt-1">At least one link is required to proceed.</p>
+            )}
           </div>
         </div>
 
