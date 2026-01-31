@@ -82,10 +82,10 @@ export const PortfolioHero = ({ type, category }: PortfolioHeroProps) => {
       setTrail((prev) => [...prev, newImage]);
       lastMousePos.current = { x, y };
 
-      // LIFESPAN: Disappears after 0.8s
+      // LIFESPAN: Disappears after 0.6s
       setTimeout(() => {
         setTrail((prev) => prev.filter((img) => img.id !== newImage.id));
-      }, 800); // Increased lifespan slightly for better visual "flow"
+      }, 600);
     }
   }, [imagesToDisplay.length]);
 

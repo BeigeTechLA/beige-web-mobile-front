@@ -19,7 +19,7 @@ export default function PhotoPortfolioPage({ params }: PageProps) {
     <main className="min-h-screen text-white font-sans">
       <PortfolioHero type={"video"} category={subCategory || category} />
       <Separator />
-      <DisplayGrid category={subCategory || category} />
+      <DisplayGrid type={"video"} category={subCategory || category} />
     </main>
   );
 }
