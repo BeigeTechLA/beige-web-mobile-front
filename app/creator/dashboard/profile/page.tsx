@@ -66,7 +66,7 @@ const getRoleLabel = (roleData: any) => {
     const roles = typeof roleData === 'string' ? JSON.parse(roleData) : roleData;
     const id = Array.isArray(roles) ? roles[0] : roles;
     const roleOptions: Record<string, string> = {
-      "9": "Videographer", "10": "Photographers", "11": "Editor",
+      "1": "Videographer", "2": "Photographers", "3": "Editor",
     };
     return roleOptions[id] || "Professional";
   } catch (e) {

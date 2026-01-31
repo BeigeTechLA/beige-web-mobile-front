@@ -37,9 +37,9 @@ const SkillsForm = ({ value = [], primaryRole, onChange }: SkillsFormProps) => {
   // 2. SELECT THE CORRECT LIST BASED ON ROLE
   const getOptionsByRole = () => {
     // Note: In your specific data: 9=Video, 10=Photo, 11=Editor
-    if (roleId === "9") return videographerSkills;
-    if (roleId === "10") return photographerSkills;
-    if (roleId === "11") return editorSkills;
+    if (roleId === "1") return videographerSkills;
+    if (roleId === "2") return photographerSkills;
+    if (roleId === "3") return editorSkills;
     
     // Default: Combine all if role is missing/different
     return [...videographerSkills, ...photographerSkills, ...editorSkills];
