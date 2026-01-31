@@ -225,19 +225,19 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     return (
       <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
         <div className="text-center">
-          <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
-            Our creators around your location are booked
+          <h2 className="text-lg lg:text-[54px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
+            Our system is finding your perfect match — let&apos;s get your shoot started.
           </h2>
           <p className="text-white/60 mb-6">
             {error
               ? "We encountered an issue loading creators. Please try again."
-              : "Looks like no creators are available right now, but our sales expert can help you find a great match."}
+              : "A Beige specialist will step in to make sure everything runs smoothly."}
           </p>
         </div>
 
         <div className="mx-auto">
           <Image
-            src={"/images/misc/NoCreators.svg"}
+            src={"/images/misc/FindingCreators.svg"}
             alt="No Creators found"
             width={164}
             height={184}
@@ -356,42 +356,42 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
             </Swiper>
           </div>
         </section>
-<div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-15 border-t border-white/10">
-  <Button
-    onClick={onNext}
-    className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
-  >
-    Complete Your Shoot
-  </Button>
-  <Button
-    onClick={handleConnectWithSales}
-    disabled={isCreatingSalesLead}
-    className="h-14 lg:h-[72px] border border-white/20 hover:bg-white/10 text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
-  >
-    {isCreatingSalesLead ? "Connecting..." : "Connect with Sales"}
-  </Button>
-</div>
+        <div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-15 border-t border-white/10">
+          <Button
+            onClick={onNext}
+            className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
+          >
+            Complete Your Shoot
+          </Button>
+          <Button
+            onClick={handleConnectWithSales}
+            disabled={isCreatingSalesLead}
+            className="h-14 lg:h-[72px] border border-white/20 hover:bg-white/10 text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
+          >
+            {isCreatingSalesLead ? "Connecting..." : "Connect with Sales"}
+          </Button>
+        </div>
 
-{/* Sales Confirmation Modal */}
-<Dialog open={showSalesModal} onOpenChange={setShowSalesModal}>
-  <DialogContent className="bg-white text-black">
-    <DialogHeader>
-      <DialogTitle>Thank You!</DialogTitle>
-      <DialogDescription className="text-black/70">
-        Our sales team will reach out to you shortly to help you find
-        the perfect creative team for your shoot.
-      </DialogDescription>
-    </DialogHeader>
-    <div className="flex justify-end mt-4">
-      <Button
-        onClick={handleModalClose}
-        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black"
-      >
-        Got it
-      </Button>
-    </div>
-  </DialogContent>
-</Dialog>
+        {/* Sales Confirmation Modal */}
+        <Dialog open={showSalesModal} onOpenChange={setShowSalesModal}>
+          <DialogContent className="bg-white text-black">
+            <DialogHeader>
+              <DialogTitle>Thank You!</DialogTitle>
+              <DialogDescription className="text-black/70">
+                Our sales team will reach out to you shortly to help you find
+                the perfect creative team for your shoot.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end mt-4">
+              <Button
+                onClick={handleModalClose}
+                className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black"
+              >
+                Got it
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
