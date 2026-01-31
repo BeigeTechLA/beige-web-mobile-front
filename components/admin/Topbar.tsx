@@ -1,20 +1,35 @@
-
 "use client";
 import React from "react";
-import { Sun, Moon, Upload, Search, ChevronDown, SlidersHorizontal, Download } from 'lucide-react';
-import Image from 'next/image';
+import {
+  Sun,
+  Moon,
+  Upload,
+  Search,
+  ChevronDown,
+  SlidersHorizontal,
+  Download,
+} from "lucide-react";
+import Image from "next/image";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
 export default function Topbar({ pathname }: { pathname: string }) {
-  const paths = pathname.split('/').filter(path => path).filter(path => path !== "admin");
+  const paths = pathname
+    .split("/")
+    .filter((path) => path)
+    .filter((path) => path !== "admin");
   const isShootsPage = pathname.includes("shoots");
 
   return (
     <header className="flex items-center justify-between p-4 lg:px-9 lg:py-6 border-b border-zinc-800 bg-[#0f0f0f] gap-4">
       {/* Left: Logo & Breadcrumbs/Title */}
       <div className="flex items-center gap-6 shrink-0">
-        <a href="https://book.beige.app" target="_blank" rel="noopener noreferrer" className="flex items-center shrink-0">
+        <a
+          href="https://beige.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center shrink-0"
+        >
           <Image
             src="/images/logos/beige_logo_vb.png"
             alt="BEIGE"
@@ -27,7 +42,9 @@ export default function Topbar({ pathname }: { pathname: string }) {
 
         {isShootsPage ? (
           <div className="flex items-center gap-3">
-            <h1 className="text-white font-semibold text-lg">Shoots Management</h1>
+            <h1 className="text-white font-semibold text-lg">
+              Shoots Management
+            </h1>
             <span className="bg-[#202020] text-[#9CA3AF] text-xs px-2.5 py-1 rounded-full border border-zinc-800">
               10 Shoots
             </span>
@@ -48,12 +65,9 @@ export default function Topbar({ pathname }: { pathname: string }) {
                       04 Chats
                     </span>
                   )}
-                  {
-                    !isLast &&
-                    <span className="mx-2">/</span>
-                  }
+                  {!isLast && <span className="mx-2">/</span>}
                 </React.Fragment>
-              )
+              );
             })}
           </nav>
         )}
@@ -63,9 +77,12 @@ export default function Topbar({ pathname }: { pathname: string }) {
       {isShootsPage && (
         <div className="flex-1 max-w-xl mx-auto">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
-            <Input 
-              placeholder="Search shoots, Clients, or IDs..." 
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+              size={18}
+            />
+            <Input
+              placeholder="Search shoots, Clients, or IDs..."
               className="bg-[#1A1A1A] border-zinc-800 pl-10 text-white placeholder:text-zinc-500 rounded-lg h-10 w-full focus-visible:ring-offset-0 focus-visible:ring-zinc-700"
             />
           </div>
@@ -77,19 +94,28 @@ export default function Topbar({ pathname }: { pathname: string }) {
         {isShootsPage && (
           <>
             {/* Status Dropdown */}
-            <Button variant="outline" className="bg-[#1A1A1A] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:text-white h-10 px-4 gap-2 font-normal">
+            <Button
+              variant="outline"
+              className="bg-[#1A1A1A] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:text-white h-10 px-4 gap-2 font-normal"
+            >
               All Status
               <ChevronDown size={16} className="opacity-50" />
             </Button>
 
             {/* Filters */}
-            <Button variant="outline" className="bg-[#1A1A1A] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:text-white h-10 px-4 gap-2 font-normal">
+            <Button
+              variant="outline"
+              className="bg-[#1A1A1A] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:text-white h-10 px-4 gap-2 font-normal"
+            >
               <SlidersHorizontal size={16} />
               Filters
             </Button>
 
             {/* Export */}
-            <Button variant="outline" className="bg-[#1A1A1A] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:text-white h-10 px-4 gap-2 font-normal">
+            <Button
+              variant="outline"
+              className="bg-[#1A1A1A] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:text-white h-10 px-4 gap-2 font-normal"
+            >
               <Download size={16} />
               Export
             </Button>
@@ -101,16 +127,13 @@ export default function Topbar({ pathname }: { pathname: string }) {
           </>
         )}
 
-        {
-          pathname.includes("messages") &&
+        {pathname.includes("messages") && (
           <Button className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity">
             Create Messages
           </Button>
-        }
+        )}
         {/* Dashboard elements */}
-        {
-          pathname.includes("dashboard") &&
-
+        {pathname.includes("dashboard") && (
           <>
             {/* Theme Toggle */}
             <div className="flex items-center bg-zinc-900 rounded-full p-1 border border-zinc-800">
@@ -136,27 +159,25 @@ export default function Topbar({ pathname }: { pathname: string }) {
               Book a Shoot
             </Button>
           </>
-        }
+        )}
 
-        {
-          pathname.includes("file-manager") &&
+        {pathname.includes("file-manager") && (
           <>
             <Button
               className="bg-[#202020] text-white px-5 py-3.5 rounded-lg font-semibold text-sm hover:bg-[#202020]/70 transition-opacity border border-white/20 flex gap-2"
-            // onClick={() => openModal("UPLOAD")}
+              // onClick={() => openModal("UPLOAD")}
             >
               <Upload size={24} />
               Upload Files
             </Button>
             <Button
               className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
-            // onClick={() => openModal("CREATE_FOLDER")}
+              // onClick={() => openModal("CREATE_FOLDER")}
             >
               Create Folder
             </Button>
           </>
-        }
-
+        )}
       </div>
     </header>
   );

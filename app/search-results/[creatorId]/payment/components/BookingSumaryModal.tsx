@@ -17,6 +17,7 @@ interface BookingSummaryModalProps {
   onBookAnother: () => void;
   onContinue: (shootName: string) => void;
   bookingDetails: BookingDetails;
+  shootType?: string;
 }
 
 export const BookingSummaryModal = ({
@@ -24,8 +25,25 @@ export const BookingSummaryModal = ({
   onBookAnother,
   onContinue,
   bookingDetails,
+  shootType,
 }: BookingSummaryModalProps) => {
   const [shootName, setShootName] = React.useState("");
+
+  // Determine form URL based on shoot type
+  const getFormUrl = () => {
+    const weddingFormUrl =
+      "https://docs.google.com/forms/d/e/1FAIpQLSdg9VNPGWzS0-48TtYCfejktfl2j3Hl4sAD4HSkUoQIMP9WQA/viewform";
+    const generalFormUrl =
+      "https://docs.google.com/forms/d/e/1FAIpQLSeYWPQXfFBqzt4FHVy6ccrS4WVbjFLHJQeIu56rj_zEinGGfQ/viewform";
+
+    return shootType?.toLowerCase() === "wedding"
+      ? weddingFormUrl
+      : generalFormUrl;
+  };
+
+  const handleOpenForm = () => {
+    window.open(getFormUrl(), "_blank");
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
@@ -63,9 +81,7 @@ export const BookingSummaryModal = ({
           {/* Details */}
           <div className="space-y-3 lg:space-y-6 py-6 px-8 lg:px-[50px] lg:py-10 pb-8 border-b border-black/10 text-sm lg:text-lg">
             <div className="flex justify-between">
-              <span className="text-[#626467]">
-                Confirmation Number
-              </span>
+              <span className="text-[#626467]">Confirmation Number</span>
               <span className="font-medium">
                 {bookingDetails.confirmationNumber}
               </span>
@@ -93,9 +109,7 @@ export const BookingSummaryModal = ({
             </div>
 
             <div className="flex justify-between">
-              <span className="text-[#626467]">
-                Payment Date & Time
-              </span>
+              <span className="text-[#626467]">Payment Date & Time</span>
               <span className="font-medium text-right">
                 {bookingDetails.paymentDate}
               </span>
@@ -108,8 +122,8 @@ export const BookingSummaryModal = ({
               Give Your Shoot A Name (Optional)
             </h4>
             <p className="text-sm lg:text-base text-black/60 mb-4 lg:mb-8">
-              If you give a shoot name and click “Continue to Dashboard”,
-              this name will be saved in your shoot details.
+              If you give a shoot name and click “Continue to Dashboard”, this
+              name will be saved in your shoot details.
             </p>
 
             <div className="relative w-full">
@@ -123,7 +137,19 @@ export const BookingSummaryModal = ({
                 className="h-14 lg:h-[82px] w-full rounded-[12px] border border-[#E5E5E5] px-4 text-[#1A1A1A] outline-none focus:border-[#1A1A1A] bg-white"
               />
             </div>
+          </div>
 
+          {/* Google Forms CTA */}
+          <div className="px-8 lg:px-[50px] pt-6 lg:pt-10 pb-4 border-b border-black/10">
+            <button
+              onClick={handleOpenForm}
+              className="w-full h-14 lg:h-[72px] rounded-[10px] lg:rounded-[20px] bg-[#E8D1AB] text-black text-base lg:text-xl font-medium hover:bg-[#dcb98a] transition flex items-center justify-center"
+            >
+              Complete All The Details For Your Shoot
+            </button>
+            <p className="text-xs lg:text-sm text-black/60 mt-2 text-center">
+              Help us prepare better by providing detailed shoot information
+            </p>
           </div>
 
           {/* Actions */}

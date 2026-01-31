@@ -46,8 +46,7 @@ body {
         #fff 2.28%,
         #ffffffF0 40%,
         #ffffff99 75%,
-        #ffffff33 100%
-      );
+        #ffffff33 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -55,11 +54,10 @@ body {
 
   .text-gradient-grey {
     background: linear-gradient(92deg,
-     #ffffffF0 0%,
+        #ffffffF0 0%,
         #ffffff73 40%,
         #ffffff59 80%,
-        #ffffff33 100%
-      );
+        #ffffff33 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -91,12 +89,15 @@ body {
 
 /* Hide scrollbar but keep scroll */
 .no-scrollbar {
-  -ms-overflow-style: none; /* IE & Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  /* IE & Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
 
 .no-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome, Safari */
+  display: none;
+  /* Chrome, Safari */
 }
 
 /* Chrome autofill fix — REQUIRED */
@@ -131,6 +132,7 @@ creator-swiper {
   0% {
     transform: translateX(-150%);
   }
+
   100% {
     transform: translateX(150%);
   }
@@ -138,4 +140,16 @@ creator-swiper {
 
 .animate-shimmer {
   animation: shimmer 2.8s ease-in-out infinite;
+}
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: none;
 }

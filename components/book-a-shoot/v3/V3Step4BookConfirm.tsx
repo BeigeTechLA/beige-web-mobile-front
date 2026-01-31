@@ -68,7 +68,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const [acceptTerms, setAcceptTerms] = useState(true);
 
   const shootInfo: ShootTypeProps = newshootTypes.find(
-    (type) => type.key === data.shootType
+    (type) => type.key === data.shootType,
   ) || {
     title: "Project",
     details: data.shootType || "Shoot type",
@@ -126,6 +126,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           creator_ids: data.selectedCrewIds,
           shoot_hours: durationHours,
           event_type: data.shootType || "general",
+          skip_discount: true, // Remove hour-based discounts for V3
+          skip_margin: true, // Remove beige margin for V3
         }).unwrap();
 
         console.log("V3Step4BookConfirm - API Result:", {
@@ -171,7 +173,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
             "Backend returned",
             result.creators?.length,
             "creators but lineItems has quantity sum of",
-            breakdown.length
+            breakdown.length,
           );
           setCrewBreakdown(breakdown);
         } else if (result.creators && result.creators.length > 0) {
@@ -421,7 +423,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           {/* Payment Method */}
           <div className="cursor-pointer rounded-2xl border transition-all relative overflow-hidden border-white/20">
             <div className="bg-[#171717] p-4 lg:p-7">
-              <h4 className="text-base lg:text-lg font-medium text-white">Payment Method</h4>
+              <h4 className="text-base lg:text-lg font-medium text-white">
+                Payment Method
+              </h4>
             </div>
             <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-4 lg:p-7">
               <div className="bg-[#E8D1AB] p-4 rounded-2xl text-black flex items-center justify-between cursor-pointer">
@@ -448,7 +452,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 <input
                   type="checkbox"
                   checked={acceptTerms}
-                  onChange={(e)=>setAcceptTerms(e.target.checked)}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
                 />
                 <p className="text-sm text-[#999]">
                   I agree to the{" "}
@@ -465,7 +469,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         <div className="lg:w-[380px] shrink-0 ">
           <div className="border border-white/10 rounded-2xl ">
             <div className="bg-[#101010] p-4 lg:p-7 rounded-t-2xl">
-              <h3 className="text-base lg:text-xl font-bold">Pricing Summary</h3>
+              <h3 className="text-base lg:text-xl font-bold">
+                Pricing Summary
+              </h3>
             </div>
             <div className="bg-[#171717] text-white">
               <div className="p-4 lg:p-6 border-b border-b-white/10">
@@ -543,11 +549,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       </div>
                       {crewBreakdown.length !==
                         (data.selectedCrewIds?.length || 0) && (
-                          <div className="text-xs text-yellow-500/80 flex items-center gap-1">
-                            ⚠️ Pricing breakdown showing {crewBreakdown.length}{" "}
-                            crew - check console logs
-                          </div>
-                        )}
+                        <div className="text-xs text-yellow-500/80 flex items-center gap-1">
+                          ⚠️ Pricing breakdown showing {crewBreakdown.length}{" "}
+                          crew - check console logs
+                        </div>
+                      )}
                     </div>
 
                     {/* Detailed Crew Breakdown */}

@@ -72,7 +72,7 @@ export default function LeadDetailPage() {
   const [generateDiscountCode, { isLoading: isGenerating }] =
     useGenerateDiscountCodeMutation();
 
-  const lead = leadData?.lead;
+  const lead = leadData;
   const booking = lead?.booking;
 
   // Extract data with defaults
@@ -84,21 +84,21 @@ export default function LeadDetailPage() {
     .toUpperCase()
     .slice(0, 2);
   const email = lead?.guest_email || "No email";
-  const phone = "N/A"; // Not in current schema
-  const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type] : "Unknown";
+  const phone = lead?.user?.phone_number || "N/A";
+  const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
   const status = lead ? mapLeadStatusToUI(lead.lead_status) : "Unknown";
 
   const bookingDate = booking?.event_date
     ? new Date(booking.event_date).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
     : "Not set";
   const location = booking?.event_location || "Not specified";
   const shootType = booking?.event_type || "Not specified";
 
-  const basePrice = booking?.budget || 0;
+  const basePrice = booking?.budget ? (typeof booking.budget === 'string' ? parseFloat(booking.budget) || 0 : booking.budget) : 0;
   const taxes = basePrice * 0.09; // 9% tax estimate
   const total = basePrice + taxes;
 

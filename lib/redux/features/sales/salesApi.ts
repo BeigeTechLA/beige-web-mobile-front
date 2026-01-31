@@ -105,9 +105,9 @@ export const salesApi = createApi({
       providesTags: (result) =>
         result
           ? [
-              ...result.leads.map(({ lead_id }) => ({ type: 'Lead' as const, id: lead_id })),
-              { type: 'Lead', id: 'LIST' },
-            ]
+            ...result.leads.map(({ lead_id }) => ({ type: 'Lead' as const, id: lead_id })),
+            { type: 'Lead', id: 'LIST' },
+          ]
           : [{ type: 'Lead', id: 'LIST' }],
     }),
 
