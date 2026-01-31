@@ -5,6 +5,15 @@ import { ChevronRight, Pencil, Trash2, Search, Filter, ArrowUpRight, Check, X, A
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
+import { SortDateButton } from "@/components/admin/SortDateButton";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
@@ -53,7 +62,20 @@ export const CreativePartnersTable = () => {
     const [totalRecords, setTotalRecords] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [skillsMap, setSkillsMap] = useState<Record<string, string>>({});
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+    const debouncedSearch = useDebounce(searchQuery, 500);
     const router = useRouter();
+
+    const handleDateSort = (date: Date | null) => {
+        setSelectedDate(date);
+        if (date) {
+            console.log(date);
+        } else {
+            console.log("unfiltered");
+        }
+    };
 
     // Fetch skills on mount
     useEffect(() => {
@@ -79,7 +101,15 @@ export const CreativePartnersTable = () => {
         const fetchCreativePartners = async () => {
             setLoading(true);
             try {
-                const response = await adminApi.getCrewMembers(currentPage, limit);
+                const params: any = {
+                    page: currentPage,
+                    limit: limit,
+                };
+
+                if (debouncedSearch) params.search = debouncedSearch;
+                if (statusFilter !== "all") params.status = statusFilter;
+
+                const response = await adminApi.getCrewMembers(params);
                 if (response && response.data) {
                     // Set pagination data
                     if (response.pagination) {
@@ -146,7 +176,7 @@ export const CreativePartnersTable = () => {
             }
         };
         fetchCreativePartners();
-    }, [currentPage, limit]);
+    }, [currentPage, limit, debouncedSearch, statusFilter]);
 
     const handleRowClick = (id: string, e: React.MouseEvent) => {
         // Prevent navigation if clicking on action buttons
@@ -240,18 +270,34 @@ export const CreativePartnersTable = () => {
 
             {/* Toolbar */}
             <div className="flex items-center justify-between gap-4">
-                {/* Search */}
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search"
-                        className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-[#555] transition-colors"
-                    />
+                {/* Search & Status Filter */}
+                <div className="flex items-center gap-4 flex-1">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-[#555] transition-colors"
+                        />
+                    </div>
+
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-[140px] bg-[#111] border-[#333] text-white rounded-lg h-[46px] focus:ring-0 capitalize">
+                            <SelectValue placeholder="All Status" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111] border-[#333] text-white">
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2.5 bg-[#111] border border-[#333] text-white rounded-lg hover:bg-[#222] transition-colors">
+                    {/* <button className="flex items-center gap-2 px-4 py-2.5 bg-[#111] border border-[#333] text-white rounded-lg hover:bg-[#222] transition-colors">
                         <span>All Status</span>
                         <ChevronRight className="rotate-90" size={16} />
                     </button>
@@ -265,17 +311,14 @@ export const CreativePartnersTable = () => {
                     </button>
                     <button className="px-6 py-2.5 bg-[#E5D5B8] text-black font-semibold rounded-lg hover:bg-[#d4c3a3] transition-colors">
                         Book a Shoot
-                    </button>
+                    </button> */}
+                    <SortDateButton
+                        selectedDate={selectedDate}
+                        onDateChange={handleDateSort}
+                    />
                 </div>
             </div>
 
-            {/* Pagination/Sort info */}
-            <div className="flex justify-end">
-                <button className="flex items-center gap-2 px-4 py-2 bg-[#111] border border-[#333] text-white rounded-full text-sm hover:bg-[#222] transition-colors">
-                    <span>Sort by Date</span>
-                    <Filter size={14} />
-                </button>
-            </div>
 
             {/* Table */}
             <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">

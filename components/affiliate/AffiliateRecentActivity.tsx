@@ -5,6 +5,8 @@ import { ChevronDown, Loader2 } from "lucide-react";
 import { affiliateApi, adminApi } from "@/lib/api";
 import Cookies from "js-cookie";
 
+import { format } from "date-fns";
+
 type Activity = {
     id: number;
     color: string;
@@ -21,7 +23,7 @@ const COLORS = [
     "bg-blue-400",
 ];
 
-export default function AffiliateRecentActivity() {
+export default function AffiliateRecentActivity({ externalSelectedDate }: { externalSelectedDate?: Date | null }) {
     const [activities, setActivities] = useState<Activity[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -30,8 +32,14 @@ export default function AffiliateRecentActivity() {
             const token = Cookies.get("revure_token");
             if (!token) return;
 
+            setLoading(true);
             try {
-                const response = await affiliateApi.getRecentActivity(token, 10);
+                const params: any = { limit: 10 };
+                if (externalSelectedDate) {
+                    params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+                }
+
+                const response = await affiliateApi.getRecentActivity(token, params);
                 if (!response.error) {
                     // Handle various data structures from API
                     const apiData = response.data || response;
@@ -54,7 +62,7 @@ export default function AffiliateRecentActivity() {
         };
 
         fetchActivities();
-    }, []);
+    }, [externalSelectedDate]);
 
     const formatTime = (dateString: string) => {
         try {
@@ -90,7 +98,7 @@ export default function AffiliateRecentActivity() {
             </div>
 
             {/* Timeline (scrollable) */}
-            <div className="relative flex-1 overflow-y-auto px-5 py-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <div className="relative flex-1 overflow-y-auto px-5 py-4 space-y-6 no-scrollbar">
                 {loading ? (
                     <div className="flex justify-center items-center h-full">
                         <Loader2 className="animate-spin text-[#E5D5B8]" size={24} />

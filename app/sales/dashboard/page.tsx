@@ -12,7 +12,6 @@ import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { SalesLead, LeadStatus } from "@/types/sales";
 
 // placeholder data
-const sortByData = ["Recent Leads (5)", "Recent Leads (15)", "Test Filter"];
 
 interface LeadData {
   lead_id: number;
@@ -67,7 +66,7 @@ const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
 
   return (
     <span
-      className={`px-7 py-3 rounded-full text-base font-medium border ${styles[status]}`}
+      className={`inline-flex items-center justify-center whitespace-nowrap px-7 py-3 rounded-full text-base font-medium border ${styles[status]}`}
     >
       {status}
     </span>
@@ -77,7 +76,6 @@ const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
 export default function SalesLeadsPage() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [sortBy, setSortBy] = React.useState("");
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -88,7 +86,8 @@ export default function SalesLeadsPage() {
   const { data, isLoading, isFetching } = useGetLeadsQuery({
     page: 1,
     limit: 50,
-    status: sortBy || undefined,
+    start_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
+    end_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
   });
 
   // Map backend data to UI format
@@ -150,14 +149,6 @@ export default function SalesLeadsPage() {
 
         {/* Sort By Date component to be added */}
         <div className="flex gap-2 ">
-          <BasicDropdown
-            label="Status"
-            value={sortBy}
-            roundedFull={true}
-            onChange={(val) => setSortBy(val)}
-            styles={"text-base h-[54px]"}
-            options={sortByData}
-          />
           <SortDateButton
             selectedDate={selectedDate}
             onDateChange={handleDateSort}

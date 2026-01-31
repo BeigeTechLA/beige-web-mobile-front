@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { AffiliateShootsTable } from "./AffiliateShootsTable";
 import { SlidersHorizontal, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SortDateButton } from "@/components/admin/SortDateButton";
 
 interface AffiliateShootsProps {
   onShootClick: (shootId: string) => void;
@@ -12,6 +13,17 @@ interface AffiliateShootsProps {
 export const AffiliateShoots: React.FC<AffiliateShootsProps> = ({
   onShootClick,
 }) => {
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const handleDateSort = (date: Date | null) => {
+    setSelectedDate(date);
+    if (date) {
+      console.log(date);
+    } else {
+      console.log("unfiltered");
+    }
+  };
+
   return (
     <div
       className="space-y-8"
@@ -27,15 +39,10 @@ export const AffiliateShoots: React.FC<AffiliateShootsProps> = ({
             Track and manage your photography and videography project
           </p>
         </div>
-        <button className="flex items-center gap-3 bg-transparent border border-[#333333] text-[#E0E0E0] px-6 py-3 rounded-full hover:bg-[#222222] transition-colors group">
-          <span className="text-base font-medium leading-none">
-            Sort by Date
-          </span>
-          <Calendar
-            size={18}
-            className="text-[#888888] group-hover:text-white transition-colors"
-          />
-        </button>
+        <SortDateButton
+          selectedDate={selectedDate}
+          onDateChange={handleDateSort}
+        />
       </div>
 
       {/* Divider */}
@@ -66,7 +73,7 @@ export const AffiliateShoots: React.FC<AffiliateShootsProps> = ({
         </div>
       </div>
 
-      <AffiliateShootsTable onShootClick={onShootClick} />
+      <AffiliateShootsTable onShootClick={onShootClick} externalSelectedDate={selectedDate} />
     </div>
   );
 };

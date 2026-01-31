@@ -10,10 +10,12 @@ import {
   Download,
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
 export default function Topbar({ pathname }: { pathname: string }) {
+  const router = useRouter();
   const paths = pathname
     .split("/")
     .filter((path) => path)
@@ -45,9 +47,9 @@ export default function Topbar({ pathname }: { pathname: string }) {
             <h1 className="text-white font-semibold text-lg">
               Shoots Management
             </h1>
-            <span className="bg-[#202020] text-[#9CA3AF] text-xs px-2.5 py-1 rounded-full border border-zinc-800">
+            {/* <span className="bg-[#202020] text-[#9CA3AF] text-xs px-2.5 py-1 rounded-full border border-zinc-800">
               10 Shoots
-            </span>
+            </span> */}
           </div>
         ) : (
           <nav className="flex items-center gap-4 text-sm text-white/40">
@@ -75,7 +77,7 @@ export default function Topbar({ pathname }: { pathname: string }) {
 
       {/* Center: Search Bar (Only for Shoots) */}
       {isShootsPage && (
-        <div className="flex-1 max-w-xl mx-auto">
+        <div className="flex-1 max-w-xl ml-auto mr-8">
           <div className="relative">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
@@ -94,34 +96,37 @@ export default function Topbar({ pathname }: { pathname: string }) {
         {isShootsPage && (
           <>
             {/* Status Dropdown */}
-            <Button
+            {/* <Button
               variant="outline"
               className="bg-[#1A1A1A] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:text-white h-10 px-4 gap-2 font-normal"
             >
               All Status
               <ChevronDown size={16} className="opacity-50" />
-            </Button>
+            </Button> */}
 
             {/* Filters */}
-            <Button
+            {/* <Button
               variant="outline"
               className="bg-[#1A1A1A] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:text-white h-10 px-4 gap-2 font-normal"
             >
               <SlidersHorizontal size={16} />
               Filters
-            </Button>
+            </Button> */}
 
             {/* Export */}
-            <Button
+            {/* <Button
               variant="outline"
               className="bg-[#1A1A1A] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:text-white h-10 px-4 gap-2 font-normal"
             >
               <Download size={16} />
               Export
-            </Button>
+            </Button> */}
 
             {/* Book a Shoot */}
-            <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-10 px-5 font-semibold">
+            <Button
+              onClick={() => router.push("/book-a-shoot")}
+              className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-10 px-5 font-semibold"
+            >
               Book a Shoot
             </Button>
           </>
@@ -136,14 +141,14 @@ export default function Topbar({ pathname }: { pathname: string }) {
         {pathname.includes("dashboard") && (
           <>
             {/* Theme Toggle */}
-            <div className="flex items-center bg-zinc-900 rounded-full p-1 border border-zinc-800">
+            {/* <div className="flex items-center bg-zinc-900 rounded-full p-1 border border-zinc-800">
               <Button className="p-1.5 rounded-full bg-[#E5D5B8] text-black">
                 <Moon size={18} />
               </Button>
               <Button className="p-1.5 text-zinc-500">
                 <Sun size={18} />
               </Button>
-            </div>
+            </div> */}
             <div className="relative shrink-0 w-8 h-8 lg:w-12 lg:h-12 rounded-full bg-zinc-800 overflow-hidden cursor-pointer border border-zinc-700">
               <Image
                 width={48}
@@ -155,7 +160,10 @@ export default function Topbar({ pathname }: { pathname: string }) {
             </div>
 
             {/* Action Button */}
-            <Button className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity">
+            <Button
+              onClick={() => router.push("/book-a-shoot")}
+              className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+            >
               Book a Shoot
             </Button>
           </>
@@ -165,14 +173,14 @@ export default function Topbar({ pathname }: { pathname: string }) {
           <>
             <Button
               className="bg-[#202020] text-white px-5 py-3.5 rounded-lg font-semibold text-sm hover:bg-[#202020]/70 transition-opacity border border-white/20 flex gap-2"
-              // onClick={() => openModal("UPLOAD")}
+            // onClick={() => openModal("UPLOAD")}
             >
               <Upload size={24} />
               Upload Files
             </Button>
             <Button
               className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
-              // onClick={() => openModal("CREATE_FOLDER")}
+            // onClick={() => openModal("CREATE_FOLDER")}
             >
               Create Folder
             </Button>

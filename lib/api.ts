@@ -268,10 +268,11 @@ export const affiliateApi = {
   },
 
   // Get client dashboard summary (affiliate dashboard)
-  getDashboardSummary: async (token: string) => {
+  getDashboardSummary: async (token: string, params: { date_on?: string; range?: string } = {}) => {
     try {
       const response = await api.get('client/get-dashboard-summary', {
         headers: { Authorization: `Bearer ${token}` },
+        params,
       });
       return response.data;
     } catch (error) {
@@ -285,11 +286,16 @@ export const affiliateApi = {
   },
 
   // Get shoots count by category (affiliate dashboard)
-  getShootsCountByCategory: async (token: string, tab?: string) => {
+  getShootsCountByCategory: async (token: string, params: { tab?: string; date_on?: string } = {}) => {
     try {
+      const finalParams: any = { ...params };
+      if (finalParams.tab && finalParams.tab !== 'All') {
+        finalParams.type = finalParams.tab.toLowerCase();
+        delete finalParams.tab;
+      }
       const response = await api.get('client/get-shoots-count-by-category', {
         headers: { Authorization: `Bearer ${token}` },
-        params: tab && tab !== 'All' ? { type: tab.toLowerCase() } : {},
+        params: finalParams,
       });
       return response.data;
     } catch (error) {
@@ -302,11 +308,11 @@ export const affiliateApi = {
     }
   },
   // Get shoot status (affiliate dashboard)
-  getShootStatus: async (token: string, range: 'all' | 'monthly' = 'all') => {
+  getShootStatus: async (token: string, params: { range?: 'all' | 'monthly'; date_on?: string } = {}) => {
     try {
       const response = await api.get('client/get-shoot-status', {
         headers: { Authorization: `Bearer ${token}` },
-        params: { range },
+        params: { range: 'all', ...params },
       });
       return response.data;
     } catch (error) {
@@ -319,10 +325,11 @@ export const affiliateApi = {
     }
   },
   // Get my shoots (affiliate dashboard)
-  getMyShoots: async (token: string) => {
+  getMyShoots: async (token: string, params: { status?: string; range?: string; date_on?: string; search?: string } = {}) => {
     try {
       const response = await api.get('client/get-my-shoots', {
         headers: { Authorization: `Bearer ${token}` },
+        params,
       });
       return response.data;
     } catch (error) {
@@ -345,11 +352,11 @@ export const affiliateApi = {
     }
   },
   // Get recent activity (affiliate dashboard)
-  getRecentActivity: async (token: string, limit: number = 10) => {
+  getRecentActivity: async (token: string, params: { limit?: number; date_on?: string } = {}) => {
     try {
       const response = await api.get('client/get-recent-activity', {
         headers: { Authorization: `Bearer ${token}` },
-        params: { limit },
+        params: { limit: 10, ...params },
       });
       return response.data;
     } catch (error) {
@@ -362,11 +369,11 @@ export const affiliateApi = {
     }
   },
   // Get top creative partners (affiliate dashboard)
-  getTopCreativePartners: async (token: string, range: 'all' | 'monthly' = 'all') => {
+  getTopCreativePartners: async (token: string, params: { range?: 'all' | 'monthly'; date_on?: string } = {}) => {
     try {
       const response = await api.get('client/get-top-creative-partners', {
         headers: { Authorization: `Bearer ${token}` },
-        params: { range },
+        params: { range: 'all', ...params },
       });
       return response.data;
     } catch (error) {
@@ -374,7 +381,7 @@ export const affiliateApi = {
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch top creative partners',
+        error: 'Failed to fetch top creatives',
       };
     }
   },
@@ -716,9 +723,9 @@ export const DeleteProfileFile = async (crewFilesId: string | number, payload: a
 };
 
 export const adminApi = {
-  getDashboardSummary: async () => {
+  getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
     try {
-      const response = await api.get('admin/get-dashboard-summary');
+      const response = await api.get('admin/get-dashboard-summary', { params });
       return response.data;
     } catch (error) {
       console.error('Get Dashboard Summary Error:', error);
@@ -833,11 +840,12 @@ export const adminApi = {
       };
     }
   },
-  getProjects: async () => {
+  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/get-projects', {
+        params,
         headers: {
-          'Content-Type': 'application/json', // Ensure standard headers are sent, or remove if causing issues. Some servers need strict no-body.
+          'Content-Type': 'application/json',
         }
       });
       return response.data;
@@ -906,10 +914,10 @@ export const adminApi = {
       };
     }
   },
-  getTopCreativePartners: async (range: 'all' | 'monthly' = 'all') => {
+  getTopCreativePartners: async (params: { range?: string; start_date?: string; end_date?: string } = {}) => {
     try {
       const response = await api.get('admin/dashboard/top-creative-partners', {
-        params: { range },
+        params,
       });
       return response.data;
     } catch (error: any) {
@@ -921,11 +929,13 @@ export const adminApi = {
       };
     }
   },
-  getCrewMembers: async (page: number = 1, limit: number = 50) => {
+  getCrewMembers: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
     try {
       const response = await api.post('admin/get-crew-members', {
-        page,
-        limit,
+        page: params.page || 1,
+        limit: params.limit || 50,
+        search: params.search,
+        status: params.status,
       });
       return response.data;
     } catch (error: any) {

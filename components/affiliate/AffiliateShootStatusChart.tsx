@@ -9,38 +9,22 @@ import {
 import { ChevronDown } from "lucide-react";
 import Cookies from "js-cookie";
 import { affiliateApi } from "@/lib/api";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { format } from "date-fns";
 
 interface ShootStatusBreakdown {
     label: string;
     count: number;
     color: string;
 }
-const data = [
-    {
-        name: "Successful Shoots",
-        value: 987,
-        fill: "#A78BFA",
-    },
-    {
-        name: "Pending Shoots",
-        value: 1674,
-        fill: "#60A5FA",
-    },
-    {
-        name: "Rejected Shoots",
-        value: 1073,
-        fill: "#FBBF24",
-    },
-    {
-        name: "In-Progress Shoots", // Second rejected/completed entry from your UI
-        value: 921,
-        fill: "#34D399",
-    },
-];
 
-const TOTAL_SHOOTS = "4,289";
-
-export const AffiliateShootStatusChart = () => {
+export const AffiliateShootStatusChart = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
     const [range, setRange] = React.useState<'all' | 'monthly'>('all');
     const [chartData, setChartData] = React.useState<any[]>([]);
     const [totalShoots, setTotalShoots] = React.useState<string>("0");
@@ -52,7 +36,12 @@ export const AffiliateShootStatusChart = () => {
             if (!token) return;
 
             try {
-                const response = await affiliateApi.getMyShoots(token);
+                const params: any = { range };
+                if (externalSelectedDate) {
+                    params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+                }
+
+                const response = await affiliateApi.getMyShoots(token, params);
                 if (response && !response.error && response.data) {
                     const { stats } = response.data;
 
@@ -74,7 +63,14 @@ export const AffiliateShootStatusChart = () => {
             }
         };
         fetchData();
-    }, []);
+    }, [externalSelectedDate, range]);
+
+    // Sync external selected date with range
+    React.useEffect(() => {
+        if (externalSelectedDate) {
+            setRange('monthly'); // Or 'custom' if supported, but here it's all/monthly
+        }
+    }, [externalSelectedDate]);
 
     const toggleRange = () => {
         setRange(prev => prev === 'all' ? 'monthly' : 'all');
@@ -89,6 +85,16 @@ export const AffiliateShootStatusChart = () => {
                     <div className="w-[3px] h-6 bg-[#E5D5B8]" />
                     <h3 className="">Shoot Status</h3>
                 </div>
+
+                <Select value={range} onValueChange={(val: any) => setRange(val)}>
+                    <SelectTrigger className="w-[110px] bg-[#1A1A1A] border-white/10 rounded-full h-8 text-[10px] text-white/70 focus:ring-0 px-3 border-none ring-0">
+                        <SelectValue placeholder="Range" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#111111] border-white/10">
+                        <SelectItem value="all">All time</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             <div className="p-10 flex flex-col lg:flex-row items-center justify-between gap-2">

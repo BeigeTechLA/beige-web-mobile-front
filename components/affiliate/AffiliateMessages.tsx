@@ -67,7 +67,7 @@ export default function AffiliateMessages() {
 
             <div className="flex items-center justify-between mb-6 shrink-0">
                 <div>
-                    <h1 className="text-2xl font-bold mb-1 text-white">Messages</h1>
+                    <h1 className="text-3xl font-bold mb-1 text-white">Messages</h1>
                     <p className="text-zinc-500 text-sm">
                         Communicate with clients and manage all your conversation in one place
                     </p>

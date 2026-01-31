@@ -5,6 +5,14 @@ import Image from "next/image";
 import { ChevronRight, ChevronDown, Loader2 } from "lucide-react";
 import Cookies from "js-cookie";
 import { affiliateApi, adminApi } from "@/lib/api";
+import { format } from "date-fns";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 type ShootStatus = "Pending" | "Pre Production" | "Completed" | "Rejected";
 
@@ -82,20 +90,43 @@ const StatusBadge = ({ status }: { status: string }) => {
     );
 };
 
-export const AffiliateOverallShootsTable = () => {
+export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
     const [shoots, setShoots] = useState<ShootRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
+
+    // Filtering states
+    const [range, setRange] = useState<string>("month");
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+
+    // Sync external selected date with range
+    useEffect(() => {
+        if (externalSelectedDate) {
+            setRange("custom");
+        } else if (range === "custom") {
+            setRange("month");
+        }
+    }, [externalSelectedDate]);
 
     useEffect(() => {
         const fetchData = async () => {
             const token = Cookies.get("revure_token");
             if (!token) return;
 
+            setLoading(true);
             try {
+                const params: any = { range };
+                if (statusFilter !== "all") {
+                    params.status = statusFilter;
+                }
+
+                if (externalSelectedDate && range === 'custom') {
+                    params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+                }
+
                 const [projectsResponse, skillsResponse] = await Promise.all([
-                    affiliateApi.getMyShoots(token),
+                    affiliateApi.getMyShoots(token, params),
                     adminApi.getSkills()
                 ]);
 
@@ -138,7 +169,7 @@ export const AffiliateOverallShootsTable = () => {
         };
 
         fetchData();
-    }, []);
+    }, [range, statusFilter, externalSelectedDate]);
 
     const totalPages = Math.ceil(shoots.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -160,12 +191,31 @@ export const AffiliateOverallShootsTable = () => {
                 </div>
 
                 <div className="flex gap-3">
-                    <button className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-full text-xs text-white/70 hover:bg-white/5 transition-colors">
-                        Month <ChevronDown size={14} />
-                    </button>
-                    <button className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-full text-xs text-white/70 hover:bg-white/5 transition-colors">
-                        All <ChevronDown size={14} />
-                    </button>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-[110px] bg-[#1A1A1A] border-white/10 rounded-full h-8 text-[10px] text-white/70 focus:ring-0 capitalize px-3">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111111] border-white/10">
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="upcoming">Upcoming</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                            <SelectItem value="draft">Draft</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={range} onValueChange={setRange}>
+                        <SelectTrigger className="w-[110px] bg-[#1A1A1A] border-white/10 rounded-full h-8 text-[10px] text-white/70 focus:ring-0 px-3">
+                            <SelectValue placeholder="Range" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111111] border-white/10">
+                            <SelectItem value="all">All time</SelectItem>
+                            <SelectItem value="week">Week</SelectItem>
+                            <SelectItem value="month">Month</SelectItem>
+                            <SelectItem value="year">Year</SelectItem>
+                            {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 

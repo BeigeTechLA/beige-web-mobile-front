@@ -8,6 +8,7 @@ import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
+import { SortDateButton } from "@/components/admin/SortDateButton";
 
 interface FolderEntry {
     id: string;
@@ -87,6 +88,16 @@ export default function SalesFolderManagerPage() {
     const [filteredFolders, setFilteredFolders] = useState<FolderEntry[]>(folderData);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [status, setStatus] = React.useState("")
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+    const handleDateSort = (date: Date | null) => {
+        setSelectedDate(date);
+        if (date) {
+            console.log(date);
+        } else {
+            console.log("unfiltered");
+        }
+    };
 
     const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
     const [activeFolderTitle, setActiveFolderTitle] = useState<string | null>(null);
@@ -145,7 +156,10 @@ export default function SalesFolderManagerPage() {
                     <p className="text-sm text-white/70">Here's what's happening with your folders and requests today.</p>
                 </div>
 
-                {/* Sort By Date component to be added */}
+                <SortDateButton
+                    selectedDate={selectedDate}
+                    onDateChange={handleDateSort}
+                />
             </div>
 
             <div className="flex justify-between items-center">

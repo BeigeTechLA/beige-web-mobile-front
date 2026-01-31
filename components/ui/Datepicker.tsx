@@ -133,19 +133,21 @@ export const DatePicker: React.FC<Props> = ({
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ width: "100%" }}>
-        <Typography
-          variant="body2"
-          sx={{ 
-            color: colors.labelText, 
-            fontWeight: "bold", 
-            mb: 1, 
-            fontSize: "10px", 
-            textTransform: "uppercase", 
-            letterSpacing: "0.1em" 
-          }}
-        >
-          {label}
-        </Typography>
+        {label && (
+          <Typography
+            variant="body2"
+            sx={{
+              color: colors.labelText,
+              fontWeight: "bold",
+              mb: 1,
+              fontSize: "10px",
+              textTransform: "uppercase",
+              letterSpacing: "0.1em"
+            }}
+          >
+            {label}
+          </Typography>
+        )}
 
         <MuiDatePicker
           value={value}

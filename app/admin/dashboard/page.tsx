@@ -1,3 +1,5 @@
+"use client";
+import React, { useState } from "react";
 import { OverallShootsTable } from "@/components/admin/OverallShootsTable";
 import OverviewChart from "@/components/admin/OverviewChart";
 import RecentActivity from "@/components/admin/RecentActivity";
@@ -7,8 +9,20 @@ import StackedDashboard from "@/components/admin/StatsModule";
 import { TopCreatives } from "@/components/admin/TopCreatives";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
+import { SortDateButton } from "@/components/admin/SortDateButton";
 
 export default function AdminDashboardPage() {
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const handleDateSort = (date: Date | null) => {
+    setSelectedDate(date);
+    if (date) {
+      console.log(date);
+    } else {
+      console.log("unfiltered");
+    }
+  };
+
   return (
     <>
       <div className="flex justify-between items-center">
@@ -16,13 +30,13 @@ export default function AdminDashboardPage() {
           <h1 className="text-2xl leading-[32px] font-semibold mb-1">Welcome back, Admin !</h1>
           <p className="text-sm text-white/70">Monitor revenue, shoots, clients, and performance metrics in one centralized dashboard.</p>
         </div>
-        {/* Placeholder until design is finalized */}
-        <Button className="h-[54px] text-[#C4C4C4] px-5 py-4 border rounded-full border-[#807E7E]">
-          <span>Sort by Date</span><Calendar size={24} />
-        </Button>
+        <SortDateButton
+          selectedDate={selectedDate}
+          onDateChange={handleDateSort}
+        />
       </div>
 
-      <OverviewChart />
+      <OverviewChart externalSelectedDate={selectedDate} />
 
       <div className="flex gap-4 mt-5">
         <div className="w-3/4 flex flex-col gap-4">
@@ -39,7 +53,7 @@ export default function AdminDashboardPage() {
           <ShootStatusChart />
         </div>
         <div className="w-1/4">
-        <RecentActivity />
+          <RecentActivity />
         </div>
       </div>
     </>
