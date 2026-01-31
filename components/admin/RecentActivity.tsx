@@ -83,7 +83,7 @@ export default function RecentActivity() {
       </div>
 
       {/* Timeline (scrollable) */}
-      <div className="relative flex-1 overflow-y-auto px-5 py-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+      <div className="relative flex-1 overflow-y-auto px-5 py-4 space-y-6 no-scrollbar">
         {loading ? (
           <div className="flex justify-center items-center h-full">
             <Loader2 className="animate-spin text-[#E5D5B8]" size={24} />

@@ -2,7 +2,16 @@
 
 import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Video, Camera, Film, Users, ChevronDown, UsersRound } from 'lucide-react';
+import { Video, Camera, Film, Users, ChevronDown, UsersRound, Calendar as CalendarIcon } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/Datepicker";
+import { format } from 'date-fns';
 
 // --- Dummy Data ---
 const data = [
@@ -25,15 +34,35 @@ const initialMetrics = [
 
 import { adminApi } from '@/lib/api';
 
-export default function OverviewChart() {
+interface OverviewChartProps {
+  externalSelectedDate?: Date | null;
+}
+
+export default function OverviewChart({ externalSelectedDate }: OverviewChartProps) {
   const [activeMetric, setActiveMetric] = useState('total');
   const [metrics, setMetrics] = useState<any[]>(initialMetrics);
   const [isLoading, setIsLoading] = useState(true);
+  const [range, setRange] = useState('month');
+
+  React.useEffect(() => {
+    if (externalSelectedDate) {
+      setRange('custom');
+    } else if (range === 'custom') {
+      // If external date cleared and we were in custom, go back to month
+      setRange('month');
+    }
+  }, [externalSelectedDate]);
 
   React.useEffect(() => {
     const fetchSummary = async () => {
+      setIsLoading(true);
       try {
-        const response = await adminApi.getDashboardSummary();
+        const params: any = { range };
+        if (range === 'custom' && externalSelectedDate) {
+          params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+        }
+
+        const response = await adminApi.getDashboardSummary(params);
         if (response && response.data) {
           const data = response.data;
           setMetrics([
@@ -87,7 +116,17 @@ export default function OverviewChart() {
     };
 
     fetchSummary();
-  }, []);
+  }, [range, externalSelectedDate]);
+
+  const getGrowthLabel = () => {
+    switch (range) {
+      case 'week': return 'from last week';
+      case 'month': return 'from last month';
+      case 'all': return 'all time';
+      case 'custom': return 'in selected range';
+      default: return 'from last month';
+    }
+  };
 
   return (
     <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-5 w-full text-white mt-9">
@@ -97,10 +136,26 @@ export default function OverviewChart() {
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <p className="">Overview</p>
         </div>
-        {/* Placeholder as of now */}
-        <button className="flex items-center gap-2 p-2.5 bg-zinc-900 border border-[#3D3D3D] rounded-full text-xs text-zinc-400">
-          Month <ChevronDown size={14} />
-        </button>
+        <div className="flex items-center gap-3">
+          <Select
+            value={range}
+            onValueChange={(val) => {
+              setRange(val);
+              // If user manually switches range, we might want to keep the top-level date
+              // but the API will prioritize the 'range' parameter unless it's 'custom'
+            }}
+          >
+            <SelectTrigger className="w-[110px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-xs text-zinc-400 focus:ring-0">
+              <SelectValue placeholder="Range" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#111111] border-[#3D3D3D]">
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="week">Week</SelectItem>
+              <SelectItem value="month">Month</SelectItem>
+              {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Metric Cards Grid */}
@@ -132,7 +187,7 @@ export default function OverviewChart() {
               <div className={`text-xs flex gap-1 items-center ${isActive ? 'text-[#171717]' : 'text-white/70'}`}>
                 <span className={`font-bold text-sm ${isActive ? 'text-[#047726]' : 'text-[#0DAE3D]'}`}>
                   {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
-                </span> from last month
+                </span> {getGrowthLabel()}
               </div>
             </div>
           );

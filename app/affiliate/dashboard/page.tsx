@@ -38,6 +38,7 @@ import AffiliateFileManager from "@/components/affiliate/AffiliateFileManager";
 import AffiliateMessages from "@/components/affiliate/AffiliateMessages";
 import { AffiliateShoots } from "@/components/affiliate/AffiliateShoots";
 import AffiliateShootDetails from "@/components/affiliate/AffiliateShootDetails";
+import { SortDateButton } from "@/components/admin/SortDateButton";
 import { Button } from "@/components/ui/button";
 import {
   affiliateApi,
@@ -72,6 +73,16 @@ export default function AffiliateDashboardPage() {
   const [referrals, setReferrals] = useState<ReferralHistoryItem[]>([]);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const handleDateSort = (date: Date | null) => {
+    setSelectedDate(date);
+    if (date) {
+      console.log(date);
+    } else {
+      console.log("unfiltered");
+    }
+  };
 
   const [isEditingCode, setIsEditingCode] = useState(false);
   const [newCode, setNewCode] = useState("");
@@ -84,6 +95,7 @@ export default function AffiliateDashboardPage() {
   ] = useGetBookingsMutation();
 
   const [dashboardSummary, setDashboardSummary] = useState<any>(null);
+  const [isDataRefreshing, setIsDataRefreshing] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -95,11 +107,19 @@ export default function AffiliateDashboardPage() {
       }
 
       try {
-        setIsLoading(true);
+        if (!selectedDate) setIsLoading(true);
+        else setIsDataRefreshing(true);
+
+        const params: any = {};
+        if (selectedDate) {
+          const { format } = await import("date-fns");
+          params.date_on = format(selectedDate, 'yyyy-MM-dd');
+        }
+
         const [statsData, referralHistory, summaryData] = await Promise.all([
           affiliateApi.getDashboardStats(token),
           affiliateApi.getReferralHistory(token),
-          affiliateApi.getDashboardSummary(token),
+          affiliateApi.getDashboardSummary(token, params),
         ]);
         setStats(statsData);
         setReferrals(referralHistory.referrals || []);
@@ -110,11 +130,12 @@ export default function AffiliateDashboardPage() {
         toast.error("Failed to load dashboard data.");
       } finally {
         setIsLoading(false);
+        setIsDataRefreshing(false);
       }
     };
 
     fetchDashboardData();
-  }, [router]);
+  }, [router, selectedDate]);
 
   // Fetch Bookings when tab changes to "bookings"
   const handleTabChange = async (tab: TabType) => {
@@ -279,11 +300,10 @@ export default function AffiliateDashboardPage() {
       <div className="flex-1 py-6 px-3 space-y-1">
         <button
           onClick={() => handleTabChange("dashboard")}
-          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === "dashboard"
-              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-              : "text-white/60 hover:text-white hover:bg-white/5"
-          }`}
+          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${activeTab === "dashboard"
+            ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+            : "text-white/60 hover:text-white hover:bg-white/5"
+            }`}
         >
           <LayoutDashboard size={20} />
           <span>Dashboard</span>
@@ -291,11 +311,10 @@ export default function AffiliateDashboardPage() {
 
         <button
           onClick={() => setActiveTab("overview")}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-            activeTab === "overview"
-              ? "bg-[#E5D5B8] text-black shadow-lg"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-          }`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "overview"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }`}
         >
           <Users size={20} />
           <span className="font-medium">Affiliate Overview</span>
@@ -303,11 +322,10 @@ export default function AffiliateDashboardPage() {
 
         <button
           onClick={() => setActiveTab("file-manager")}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-            activeTab === "file-manager"
-              ? "bg-[#E5D5B8] text-black shadow-lg"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-          }`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "file-manager"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }`}
         >
           <Folder size={20} />
           <span className="font-medium">File Manager</span>
@@ -315,11 +333,10 @@ export default function AffiliateDashboardPage() {
 
         <button
           onClick={() => setActiveTab("messages")}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-            activeTab === "messages"
-              ? "bg-[#E5D5B8] text-black shadow-lg"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-          }`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "messages"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }`}
         >
           <MessageSquare size={20} />
           <span className="font-medium">Messages</span>
@@ -327,11 +344,10 @@ export default function AffiliateDashboardPage() {
 
         <button
           onClick={() => handleTabChange("shoots")}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-            activeTab === "shoots"
-              ? "bg-[#E5D5B8] text-black shadow-lg"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-          }`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "shoots"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }`}
         >
           <Camera size={20} />
           <span className="font-medium">Shoots</span>
@@ -448,28 +464,28 @@ export default function AffiliateDashboardPage() {
                       in one centralized dashboard.
                     </p>
                   </div>
-                  <Button className="h-[54px] text-[#C4C4C4] px-5 py-4 border rounded-full border-[#807E7E]">
-                    <span>Sort by Date</span>
-                    <Calendar size={24} />
-                  </Button>
+                  <SortDateButton
+                    selectedDate={selectedDate}
+                    onDateChange={handleDateSort}
+                  />
                 </div>
 
-                <AffiliateOverviewChart />
+                <AffiliateOverviewChart externalSelectedDate={selectedDate} />
 
                 <div className="flex gap-4 mt-5">
                   <div className="w-3/4 flex flex-col gap-4">
-                    <AffiliateOverallShootsTable />
+                    <AffiliateOverallShootsTable externalSelectedDate={selectedDate} />
                   </div>
                   <div className="w-1/4">
-                    <AffiliateShootByCategory />
+                    <AffiliateShootByCategory externalSelectedDate={selectedDate} />
                   </div>
                 </div>
                 <div className="flex gap-4 mt-5">
                   <div className="w-3/4">
-                    <AffiliateShootStatusChart />
+                    <AffiliateShootStatusChart externalSelectedDate={selectedDate} />
                   </div>
                   <div className="w-1/4">
-                    <AffiliateRecentActivity />
+                    <AffiliateRecentActivity externalSelectedDate={selectedDate} />
                   </div>
                 </div>
               </>

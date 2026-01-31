@@ -6,6 +6,8 @@ import { affiliateApi } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import Cookies from "js-cookie";
 
+import { format } from "date-fns";
+
 // --- Types ---
 type CategoryData = {
     name: string;
@@ -17,7 +19,7 @@ type CategoryData = {
 const COLORS = ['#3B82F6', '#22C55E', '#8B5CF6', '#F59E0B', '#06B6D4', '#EC4899', '#EF4444', '#6366F1'];
 const TABS = ['All', 'Videography', 'Photography'];
 
-export default function AffiliateShootByCategory() {
+export default function AffiliateShootByCategory({ externalSelectedDate }: { externalSelectedDate?: Date | null }) {
     const [activeTab, setActiveTab] = useState('All');
     const [currentData, setCurrentData] = useState<CategoryData[]>([]);
     const [totalCount, setTotalCount] = useState(0);
@@ -30,7 +32,12 @@ export default function AffiliateShootByCategory() {
 
             setLoading(true);
             try {
-                const response = await affiliateApi.getShootsCountByCategory(token, activeTab);
+                const params: any = { tab: activeTab };
+                if (externalSelectedDate) {
+                    params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+                }
+
+                const response = await affiliateApi.getShootsCountByCategory(token, params);
 
                 if (!response.error && response.data) {
                     const rawCategories = response.data.categories || [];
@@ -52,7 +59,7 @@ export default function AffiliateShootByCategory() {
         };
 
         fetchData();
-    }, [activeTab]);
+    }, [activeTab, externalSelectedDate]);
 
     return (
         <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl w-full max-w-md text-white h-full flex flex-col">

@@ -3,6 +3,14 @@
 import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Video, Camera, Film, ChevronDown } from 'lucide-react';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { format } from "date-fns";
 
 // --- Dummy Data ---
 const data = [
@@ -24,10 +32,11 @@ const initialMetrics = [
 import { affiliateApi } from '@/lib/api';
 import Cookies from 'js-cookie';
 
-export default function AffiliateOverviewChart() {
+export default function AffiliateOverviewChart({ externalSelectedDate }: { externalSelectedDate?: Date | null }) {
     const [activeMetric, setActiveMetric] = useState('total');
     const [metrics, setMetrics] = useState<any[]>(initialMetrics);
     const [isLoading, setIsLoading] = useState(true);
+    const [range, setRange] = useState<string>('month');
 
     React.useEffect(() => {
         const fetchSummary = async () => {
@@ -36,7 +45,11 @@ export default function AffiliateOverviewChart() {
 
             try {
                 setIsLoading(true);
-                const response = await affiliateApi.getDashboardSummary(token);
+                const params: any = { range };
+                if (externalSelectedDate) {
+                    params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+                }
+                const response = await affiliateApi.getDashboardSummary(token, params);
                 if (response && response.data) {
                     const data = response.data;
                     setMetrics([
@@ -74,7 +87,14 @@ export default function AffiliateOverviewChart() {
         };
 
         fetchSummary();
-    }, []);
+    }, [externalSelectedDate, range]);
+
+    // Sync external selected date with range
+    React.useEffect(() => {
+        if (externalSelectedDate) {
+            setRange('month'); // Or 'custom' if supported
+        }
+    }, [externalSelectedDate]);
 
     return (
         <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-5 w-full text-white mt-9">
@@ -84,10 +104,18 @@ export default function AffiliateOverviewChart() {
                     <div className="w-[3px] h-6 bg-[#E5D5B8]" />
                     <p className="">Overview</p>
                 </div>
-                {/* Placeholder as of now */}
-                <button className="flex items-center gap-2 p-2.5 bg-zinc-900 border border-[#3D3D3D] rounded-full text-xs text-zinc-400">
-                    Month <ChevronDown size={14} />
-                </button>
+
+                <Select value={range} onValueChange={(val: any) => setRange(val)}>
+                    <SelectTrigger className="w-[110px] bg-[#1A1A1A] border-white/10 rounded-full h-8 text-[10px] text-white/70 focus:ring-0 px-3 border-none ring-0">
+                        <SelectValue placeholder="Range" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#111111] border-white/10">
+                        <SelectItem value="all">All time</SelectItem>
+                        <SelectItem value="week">Week</SelectItem>
+                        <SelectItem value="month">Month</SelectItem>
+                        <SelectItem value="year">Year</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Metric Cards Grid */}

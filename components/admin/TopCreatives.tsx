@@ -2,7 +2,16 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Calendar as CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/Datepicker";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -17,13 +26,22 @@ import { adminApi } from "@/lib/api";
 export const TopCreatives = () => {
   const [activeIndex, setActiveIndex] = useState(1); // Default to center
   const [partners, setPartners] = useState<any[]>([]);
-  const [range, setRange] = useState<'all' | 'monthly'>('all');
-  const [isOpen, setIsOpen] = useState(false);
+  const [range, setRange] = useState<string>('month');
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   React.useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const response = await adminApi.getTopCreativePartners(range);
+        const params: any = { range };
+        if (range === 'custom') {
+          if (startDate) params.start_date = format(startDate, 'yyyy-MM-dd');
+          if (endDate) params.end_date = format(endDate, 'yyyy-MM-dd');
+        }
+
+        const response = await adminApi.getTopCreativePartners(params);
         if (response && response.data) {
           const data = Array.isArray(response.data) ? response.data : [];
 
@@ -43,21 +61,21 @@ export const TopCreatives = () => {
           if (mappedPartners.length > 0) {
             setPartners(mappedPartners);
             setActiveIndex(Math.floor(mappedPartners.length / 2));
+          } else {
+            setPartners([]);
           }
         }
       } catch (error) {
         console.error("Failed to fetch top creatives:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchData();
-  }, [range]);
+  }, [range, startDate, endDate]);
 
   const activePartner = partners.length > 0 ? partners[activeIndex % partners.length] : null;
 
-  const toggleRange = () => {
-    setRange(prev => prev === 'all' ? 'monthly' : 'all');
-    setIsOpen(false);
-  };
 
   return (
     <div className="w-full bg-[#171717] rounded-2xl overflow-hidden text-white border border-[#3D3D3D]">
@@ -67,29 +85,57 @@ export const TopCreatives = () => {
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h2 className="">Top Creative Partners</h2>
         </div>
-        <div className="relative">
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-full text-xs text-white/70 hover:bg-white/5 transition-colors capitalize"
-          >
-            {range === 'monthly' ? 'Month' : 'All Time'} <ChevronDown size={14} />
-          </button>
-          {isOpen && (
-            <div className="absolute right-0 top-full mt-2 w-32 bg-[#1A1A1A] border border-white/10 rounded-xl overflow-hidden z-10 shadow-xl">
-              <button
-                onClick={() => toggleRange()}
-                className="w-full text-left px-4 py-2 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
-              >
-                {range === 'all' ? 'Month' : 'All Time'}
-              </button>
-            </div>
-          )}
+        <div className="flex items-center gap-3">
+          {/* {range === 'custom' && (
+  <div className="flex items-center gap-2">
+    <div className="w-[140px]">
+      <DatePicker
+        label=""
+        value={startDate}
+        onChange={setStartDate}
+        sx={{
+          height: '36px',
+          borderRadius: '99px',
+          '& .MuiInputBase-input': { fontSize: '12px', padding: '0 12px' }
+        }}
+      />
+    </div>
+    <div className="w-[140px]">
+      <DatePicker
+        label=""
+        value={endDate}
+        onChange={setEndDate}
+        sx={{
+          height: '36px',
+          borderRadius: '99px',
+          '& .MuiInputBase-input': { fontSize: '12px', padding: '0 12px' }
+        }}
+      />
+    </div>
+  </div>
+)} */}
+          <Select value={range} onValueChange={setRange}>
+            <SelectTrigger className="w-[110px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-xs text-white/70 focus:ring-0">
+              <SelectValue placeholder="Range" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#111111] border-[#3D3D3D]">
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="week">Week</SelectItem>
+              <SelectItem value="month">Month</SelectItem>
+              <SelectItem value="year">Year</SelectItem>
+              {/* <SelectItem value="custom">Custom</SelectItem> */}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       {/* Slider Section */}
       <div className="relative">
-        {partners.length > 0 ? (
+        {isLoading ? (
+          <div className="h-[200px] flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]" />
+          </div>
+        ) : partners.length > 0 ? (
           <Swiper
             effect={"coverflow"}
             grabCursor={true}

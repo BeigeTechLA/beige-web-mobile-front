@@ -2,8 +2,17 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { ChevronRight, ChevronDown, Loader2 } from "lucide-react";
+import { ChevronRight, ChevronDown, Loader2, Calendar as CalendarIcon } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { format } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/Datepicker";
 
 type ShootStatus = "Pending" | "Pre Production" | "Completed" | "Rejected";
 
@@ -87,11 +96,28 @@ export const OverallShootsTable = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  // New filtering states
+  const [range, setRange] = useState<string>("month");
+  const [status, setStatus] = useState<string>("all");
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
+        const params: any = { range };
+        if (status !== "all") {
+          params.status = status;
+        }
+
+        if (range === 'custom') {
+          if (startDate) params.start_date = format(startDate, 'yyyy-MM-dd');
+          if (endDate) params.end_date = format(endDate, 'yyyy-MM-dd');
+        }
+
         const [projectsResponse, skillsResponse] = await Promise.all([
-          adminApi.getProjects(),
+          adminApi.getProjects(params),
           adminApi.getSkills()
         ]);
 
@@ -134,7 +160,7 @@ export const OverallShootsTable = () => {
     };
 
     fetchData();
-  }, []);
+  }, [range, status, startDate, endDate]);
 
   const totalPages = Math.ceil(shoots.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -156,12 +182,60 @@ export const OverallShootsTable = () => {
         </div>
 
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-full text-xs text-white/70 hover:bg-white/5 transition-colors">
-            Month <ChevronDown size={14} />
-          </button>
-          <button className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-full text-xs text-white/70 hover:bg-white/5 transition-colors">
-            All <ChevronDown size={14} />
-          </button>
+          {/* {range === 'custom' && (
+            <div className="flex items-center gap-2">
+              <div className="w-[140px]">
+                <DatePicker
+                  label=""
+                  value={startDate}
+                  onChange={setStartDate}
+                  sx={{
+                    height: '36px',
+                    borderRadius: '99px',
+                    '& .MuiInputBase-input': { fontSize: '12px', padding: '0 12px' }
+                  }}
+                />
+              </div>
+              <div className="w-[140px]">
+                <DatePicker
+                  label=""
+                  value={endDate}
+                  onChange={setEndDate}
+                  sx={{
+                    height: '36px',
+                    borderRadius: '99px',
+                    '& .MuiInputBase-input': { fontSize: '12px', padding: '0 12px' }
+                  }}
+                />
+              </div>
+            </div>
+          )} */}
+
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="w-[120px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-xs text-white/70 focus:ring-0 capitalize">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#111111] border-[#3D3D3D]">
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="upcoming">Upcoming</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={range} onValueChange={setRange}>
+            <SelectTrigger className="w-[110px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-xs text-white/70 focus:ring-0">
+              <SelectValue placeholder="Range" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#111111] border-[#3D3D3D]">
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="week">Week</SelectItem>
+              <SelectItem value="month">Month</SelectItem>
+              <SelectItem value="year">Year</SelectItem>
+              {/* <SelectItem value="custom">Custom</SelectItem> */}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

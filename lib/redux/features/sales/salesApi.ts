@@ -95,7 +95,7 @@ export const salesApi = createApi({
 
     getLeads: builder.query<
       PaginatedLeadsResponse,
-      { page?: number; limit?: number; status?: string; lead_type?: string; assigned_to?: string; search?: string }
+      { page?: number; limit?: number; status?: string; lead_type?: string; assigned_to?: string; search?: string; start_date?: string; end_date?: string }
     >({
       query: (params) => ({
         url: 'sales/leads',

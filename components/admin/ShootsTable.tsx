@@ -6,6 +6,14 @@ import { ChevronRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 type ShootStatus = "Initiated" | "Pre Production" | "Post Production" | "Revision" | "Completed";
 
@@ -78,18 +86,41 @@ const StatusBadge = ({ status }: { status: string }) => {
     );
 };
 
-export const ShootsTable = () => {
+export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
     const router = useRouter();
     const [shoots, setShoots] = useState<ShootRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
+    // New filtering states
+    const [range, setRange] = useState<string>("month");
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+
+    // Sync external date with range
+    useEffect(() => {
+        if (externalSelectedDate) {
+            setRange("custom");
+        } else if (range === "custom") {
+            setRange("month");
+        }
+    }, [externalSelectedDate]);
+
     useEffect(() => {
         const fetchData = async () => {
+            setLoading(true);
             try {
+                const params: any = { range };
+                if (statusFilter !== "all") {
+                    params.status = statusFilter;
+                }
+
+                if (externalSelectedDate && range === 'custom') {
+                    params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+                }
+
                 const [projectsResponse, skillsResponse] = await Promise.all([
-                    adminApi.getProjects(),
+                    adminApi.getProjects(params),
                     adminApi.getSkills()
                 ]);
 
@@ -132,7 +163,7 @@ export const ShootsTable = () => {
         };
 
         fetchData();
-    }, []);
+    }, [range, statusFilter, externalSelectedDate]);
 
     const totalPages = Math.ceil(shoots.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -152,6 +183,37 @@ export const ShootsTable = () => {
 
     return (
         <div className="w-full bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+            {/* Table Header Controls */}
+            <div className="flex justify-between items-center p-6 border-b border-[#333333]">
+                <h3 className="text-xl font-semibold text-white">All Shoots</h3>
+                <div className="flex gap-3">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-[130px] bg-zinc-900 border-[#333333] rounded-lg h-10 text-sm text-white/70 focus:ring-0 capitalize">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111111] border-[#333333]">
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="upcoming">Upcoming</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                            <SelectItem value="draft">Draft</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={range} onValueChange={setRange}>
+                        <SelectTrigger className="w-[120px] bg-zinc-900 border-[#333333] rounded-lg h-10 text-sm text-white/70 focus:ring-0">
+                            <SelectValue placeholder="Range" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111111] border-[#333333]">
+                            <SelectItem value="all">All time</SelectItem>
+                            <SelectItem value="week">Week</SelectItem>
+                            <SelectItem value="month">Month</SelectItem>
+                            <SelectItem value="year">Year</SelectItem>
+                            {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
             {/* Table Grid */}
             <div className="w-full overflow-x-auto">
                 <table className="w-full text-left border-collapse">

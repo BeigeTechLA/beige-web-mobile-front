@@ -6,6 +6,16 @@ import { ChevronRight, Loader2 } from "lucide-react";
 import Cookies from "js-cookie";
 import { affiliateApi, adminApi } from "@/lib/api";
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { useDebounce } from "@/hooks/use-debounce";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Search } from "lucide-react";
 
 type ShootStatus = "Initiated" | "Pre Production" | "Post Production" | "Revision" | "Completed";
 
@@ -80,22 +90,53 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 interface AffiliateShootsTableProps {
     onShootClick: (shootId: string) => void;
+    externalSelectedDate?: Date | null;
 }
 
-export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onShootClick }) => {
+export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onShootClick, externalSelectedDate }) => {
     const [shoots, setShoots] = useState<ShootRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+
+    // Filtering states
+    const [range, setRange] = useState<string>("month");
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const debouncedSearch = useDebounce(searchQuery, 500);
+
+    // Sync external selected date with range
+    useEffect(() => {
+        if (externalSelectedDate) {
+            setRange("custom");
+        } else if (range === "custom") {
+            setRange("month");
+        }
+    }, [externalSelectedDate]);
 
     useEffect(() => {
         const fetchData = async () => {
             const token = Cookies.get("revure_token");
             if (!token) return;
 
+            setLoading(true);
             try {
+                const params: any = { range };
+                if (statusFilter !== "all") {
+                    params.status = statusFilter;
+                }
+                if (debouncedSearch) {
+                    params.search = debouncedSearch;
+                }
+
+                if (externalSelectedDate && range === 'custom') {
+                    params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+                }
+
                 const [projectsResponse, skillsResponse] = await Promise.all([
-                    affiliateApi.getMyShoots(token),
+                    affiliateApi.getMyShoots(token, params),
                     adminApi.getSkills()
                 ]);
 
@@ -138,7 +179,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
         };
 
         fetchData();
-    }, []);
+    }, [range, statusFilter, debouncedSearch, externalSelectedDate]);
 
     const totalPages = Math.ceil(shoots.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -158,6 +199,47 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
 
     return (
         <div className="w-full bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+            {/* Table Header Controls */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 border-b border-[#333333] gap-4">
+                <div className="relative w-full md:w-[300px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666666]" size={18} />
+                    <input
+                        type="text"
+                        placeholder="Search Shoots..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-[#1A1A1A] border border-[#3D3D3D] rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-[#666666] outline-none focus:border-[#E8D1AB]/50 transition-colors"
+                    />
+                </div>
+
+                <div className="flex gap-3 w-full md:w-auto">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-full md:w-[130px] bg-[#1A1A1A] border-[#3D3D3D] rounded-xl h-11 text-sm text-white/70 focus:ring-0 capitalize">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111111] border-[#3D3D3D]">
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="upcoming">Upcoming</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                            <SelectItem value="draft">Draft</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={range} onValueChange={setRange}>
+                        <SelectTrigger className="w-full md:w-[120px] bg-[#1A1A1A] border-[#3D3D3D] rounded-xl h-11 text-sm text-white/70 focus:ring-0">
+                            <SelectValue placeholder="Range" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111111] border-[#3D3D3D]">
+                            <SelectItem value="all">All time</SelectItem>
+                            <SelectItem value="week">Week</SelectItem>
+                            <SelectItem value="month">Month</SelectItem>
+                            <SelectItem value="year">Year</SelectItem>
+                            {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
             {/* Table Grid */}
             <div className="w-full overflow-x-auto">
                 <table className="w-full text-left border-collapse">

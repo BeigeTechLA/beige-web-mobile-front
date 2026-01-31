@@ -2,10 +2,12 @@
 import React from "react";
 import { Sun, Moon, Upload, Search, ChevronDown, SlidersHorizontal, Download } from 'lucide-react';
 import Image from 'next/image';
+import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
 export default function SalesTopbar({ pathname }: { pathname: string }) {
+    const router = useRouter();
     const paths = pathname.split('/').filter(path => path).filter(path => path !== "sales");
     const isShootsPage = pathname.includes("shoots");
 
@@ -27,9 +29,9 @@ export default function SalesTopbar({ pathname }: { pathname: string }) {
                 {isShootsPage ? (
                     <div className="flex items-center gap-3">
                         <h1 className="text-white font-semibold text-lg">Sales Shoots Management</h1>
-                        <span className="bg-[#202020] text-[#9CA3AF] text-xs px-2.5 py-1 rounded-full border border-zinc-800">
+                        {/* <span className="bg-[#202020] text-[#9CA3AF] text-xs px-2.5 py-1 rounded-full border border-zinc-800">
                             10 Shoots
-                        </span>
+                        </span> */}
                     </div>
                 ) : (
                     <nav className="flex items-center gap-4 text-sm text-white/40">
@@ -94,7 +96,10 @@ export default function SalesTopbar({ pathname }: { pathname: string }) {
                         </Button>
 
                         {/* Book a Shoot */}
-                        <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-10 px-5 font-semibold">
+                        <Button
+                            onClick={() => router.push("/book-a-shoot")}
+                            className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-10 px-5 font-semibold"
+                        >
                             Book a Shoot
                         </Button>
                     </>
@@ -112,14 +117,14 @@ export default function SalesTopbar({ pathname }: { pathname: string }) {
 
                     <>
                         {/* Theme Toggle */}
-                        <div className="flex items-center bg-zinc-900 rounded-full p-1 border border-zinc-800">
+                        {/* <div className="flex items-center bg-zinc-900 rounded-full p-1 border border-zinc-800">
                             <Button className="p-1.5 rounded-full bg-[#E5D5B8] text-black">
                                 <Moon size={18} />
                             </Button>
                             <Button className="p-1.5 text-zinc-500">
                                 <Sun size={18} />
                             </Button>
-                        </div>
+                        </div> */}
                         <div className="relative shrink-0 w-8 h-8 lg:w-12 lg:h-12 rounded-full bg-zinc-800 overflow-hidden cursor-pointer border border-zinc-700">
                             <Image
                                 width={48}
@@ -131,7 +136,10 @@ export default function SalesTopbar({ pathname }: { pathname: string }) {
                         </div>
 
                         {/* Action Button */}
-                        <Button className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity">
+                        <Button
+                            onClick={() => router.push("/book-a-shoot")}
+                            className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+                        >
                             Book a Shoot
                         </Button>
                     </>

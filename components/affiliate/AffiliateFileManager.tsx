@@ -8,6 +8,7 @@ import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import AffiliateFileActionMenu from "@/components/affiliate/file-manager/AffiliateFileActionMenu";
 import AffiliateLinkToShootModal from "@/components/affiliate/file-manager/AffiliateLinkToShootModal";
 import AffiliateUploadFilesModal from "@/components/affiliate/file-manager/AffiliateUploadFilesModal";
+import { SortDateButton } from "@/components/admin/SortDateButton";
 
 interface FolderEntry {
     id: string;
@@ -96,6 +97,16 @@ export default function AffiliateFileManager() {
     const [filteredFolders, setFilteredFolders] = useState<FolderEntry[]>(folderData);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [status, setStatus] = React.useState("")
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+    const handleDateSort = (date: Date | null) => {
+        setSelectedDate(date);
+        if (date) {
+            console.log(date);
+        } else {
+            console.log("unfiltered");
+        }
+    };
 
     const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
     const [activeFolderTitle, setActiveFolderTitle] = useState<string | null>(null);
@@ -192,6 +203,10 @@ export default function AffiliateFileManager() {
                     <h1 className="text-2xl leading-[32px] font-semibold mb-1">File Manager</h1>
                     <p className="text-sm text-white/70">Here's what's happening with your folders and requests today.</p>
                 </div>
+                <SortDateButton
+                    selectedDate={selectedDate}
+                    onDateChange={handleDateSort}
+                />
             </div>
 
             <div className="flex justify-between items-center">
