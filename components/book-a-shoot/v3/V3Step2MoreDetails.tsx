@@ -10,7 +10,7 @@ import { Video, Camera, Scissors, Mic, User, Film, MonitorPlay } from "lucide-re
 import { Check } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { isValidUrl } from "@/lib/utils";
-
+import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
 interface Props {
   data: BookingDataV3;
   updateData: (data: Partial<BookingDataV3>) => void;
@@ -60,6 +60,9 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
+  
+const [updateBookingCrew] = useUpdateBookingCrewMutation();
+
   const handleExtraTeamChange = (id: string, delta: number) => {
     const nextExtra = { ...extraTeam };
     const current = nextExtra[id] || 0;
@@ -94,27 +97,46 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     }
   }, [includedRoles.length, extraTeam, data.crewCount, updateData]);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!data.location) {
       toast.error("Please select a location");
       return;
     }
 
-    if (data.referenceLinks !== "" && !isValidUrl(data.referenceLinks)) {
-      toast.error("Please enter a valid reference link");
+    if (!data.bookingId) {
+      toast.error("Booking reference missing. Please restart.");
       return;
     }
 
-    // Calculate total crew count: base crew + extra crew
-    const baseCrewCount = includedRoles.length;
-    const extraCrewCount = Object.values(extraTeam).reduce((sum, count) => sum + count, 0);
-    const totalCrewCount = baseCrewCount + extraCrewCount;
+    const crewRoles: Record<string, number> = {};
 
-    // Save crew count to data
-    updateData({ crewCount: totalCrewCount });
+    // base crew
+    includedRoles.forEach((role: any) => {
+      crewRoles[role.id] = 1;
+    });
 
-    onNext();
+    // extra crew
+    Object.entries(extraTeam).forEach(([roleId, count]) => {
+      if (count > 0) {
+        crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
+      }
+    });
+
+    try {
+      await updateBookingCrew({
+        booking_id: data.bookingId,
+        crew_roles: crewRoles,
+      }).unwrap();
+
+      updateData({
+        roleCounts: crewRoles,
+      });
+      onNext();
+    } catch {
+      toast.error("Failed to save crew details");
+    }
   };
+
 
   const availableRolesToAdd = TEAM_ROLES.filter(role => {
     if (data.contentType.includes(role.id)) return true;

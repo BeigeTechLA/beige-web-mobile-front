@@ -879,7 +879,7 @@ function MultiCreatorPaymentContent() {
                         </span>
                       </div>
                       {/* Show discount if applied */}
-                      {quote.discountAmount && quote.discountAmount > 0 && (
+                      {/* {quote.discountAmount && quote.discountAmount > 0 && (
                         <div className="flex justify-between mb-3 text-green-600">
                           <span>
                             Discount Applied ({quote.discountPercent}%)
@@ -888,9 +888,9 @@ function MultiCreatorPaymentContent() {
                             -${parseFloat(quote.discountAmount).toFixed(2)}
                           </span>
                         </div>
-                      )}
+                      )} */}
                       {/* Show margin if applied */}
-                      {quote.marginAmount && quote.marginAmount > 0 && (
+                      {/* {quote.marginAmount && quote.marginAmount > 0 && (
                         <div className="flex justify-between mb-3">
                           <span className="text-[#626467]">
                             Service Fee ({quote.marginPercent}%)
@@ -899,7 +899,7 @@ function MultiCreatorPaymentContent() {
                             ${parseFloat(quote.marginAmount).toFixed(2)}
                           </span>
                         </div>
-                      )}
+                      )} */}
                     </div>
 
                     {/* Service fees removed - showing raw pricing */}
@@ -954,7 +954,7 @@ function MultiCreatorPaymentContent() {
               </div>
 
               {/* Support Buttons */}
-              <div className="grid grid-cols-2 gap-4 mt-5">
+              {/* <div className="grid grid-cols-2 gap-4 mt-5">
                 <button
                   onClick={() => console.log("Talk to someone clicked")}
                   className="h-12 lg:h-[67px] border border-white/10 rounded-xl flex items-center justify-center gap-2 hover:bg-white/5 transition-colors text-sm lg:text-lg font-medium bg-[#222222]"
@@ -1002,7 +1002,7 @@ function MultiCreatorPaymentContent() {
                   </svg>
                   Beige Bot
                 </button>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

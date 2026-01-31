@@ -170,8 +170,30 @@ export const BookAShootV3 = () => {
       // 1. Save Quote
       let savedQuoteId: number | null = null;
 
+      //       const CREW_ROLE_ITEMS = {
+      //   videographer: 11,
+      //   photographer: 10,
+      //   cinematographer: 12,
+      // };
+
+      // let quoteItems: Array<{ item_id: number; quantity: number }> = [];
+
+      // // Map selected content types to pricing items
+      // if (formData.contentType.includes("videographer")) {
+      //   quoteItems.push({ item_id: CREW_ROLE_ITEMS.videographer, quantity: 1 });
+      // }
+      // if (formData.contentType.includes("photographer")) {
+      //   quoteItems.push({ item_id: CREW_ROLE_ITEMS.photographer, quantity: 1 });
+      // }
+      // if (formData.contentType.includes("cinematographer")) {
+      //   quoteItems.push({
+      //     item_id: CREW_ROLE_ITEMS.cinematographer,
+      //     quantity: 1,
+      //   });
+      // }
+
       // Build items list based on content type
-      const CREW_ROLE_ITEMS = {
+      const CREW_ROLE_ITEMS: Record<string, number> = {
         videographer: 11,
         photographer: 10,
         cinematographer: 12,
@@ -179,19 +201,20 @@ export const BookAShootV3 = () => {
 
       let quoteItems: Array<{ item_id: number; quantity: number }> = [];
 
-      // Map selected content types to pricing items
-      if (formData.contentType.includes("videographer")) {
-        quoteItems.push({ item_id: CREW_ROLE_ITEMS.videographer, quantity: 1 });
-      }
-      if (formData.contentType.includes("photographer")) {
-        quoteItems.push({ item_id: CREW_ROLE_ITEMS.photographer, quantity: 1 });
-      }
-      if (formData.contentType.includes("cinematographer")) {
-        quoteItems.push({
-          item_id: CREW_ROLE_ITEMS.cinematographer,
-          quantity: 1,
+      // Use roleCounts instead of contentType
+      if (formData.roleCounts) {
+        Object.entries(formData.roleCounts).forEach(([role, count]) => {
+          const itemId = CREW_ROLE_ITEMS[role];
+
+          if (itemId && count > 0) {
+            quoteItems.push({
+              item_id: itemId,
+              quantity: count,
+            });
+          }
         });
       }
+
 
       // Add editing if selected (assuming generic editing item for now, ID 13 is a guess/placeholder,
       // strictly we should check database but let's stick to known IDs or skip if unknown)

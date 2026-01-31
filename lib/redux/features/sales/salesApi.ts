@@ -275,6 +275,16 @@ export const salesApi = createApi({
       }),
       transformResponse: (response: ApiResponse<FunnelData>) => response.data!,
     }),
+    updateBookingCrew: builder.mutation<
+      ApiResponse<void>,
+      { booking_id: number; crew_roles: Record<string, number> }
+    >({
+      query: ({ booking_id, crew_roles }) => ({
+       url: `sales/bookings/${booking_id}/crew`,
+        method: "PATCH",
+        body: { crew_roles },
+      }),
+    }),
   }),
 });
 
@@ -310,4 +320,5 @@ export const {
   useGetSalesRepsWorkloadQuery,
   useGetRecentActivitiesQuery,
   useGetLeadsFunnelDataQuery,
+  useUpdateBookingCrewMutation,
 } = salesApi;
