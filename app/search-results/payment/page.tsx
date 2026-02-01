@@ -73,6 +73,7 @@ function StripePaymentFormMulti({
   shootId,
   booking,
   quote,
+  setPaymentDetails,
 }: {
   clientSecret: string;
   amount: number;
@@ -81,6 +82,7 @@ function StripePaymentFormMulti({
   shootId: string | null;
   booking: any;
   quote: any;
+  setPaymentDetails: (details: any) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -202,8 +204,13 @@ function StripePaymentFormMulti({
         setAppliedDiscount(response.data.data);
         toast.success("Discount applied successfully!");
 
-        // Optionally refresh page to show updated pricing
-        // window.location.reload();
+        const detailsRes = await axios.get(
+          `${API_BASE_URL}guest-bookings/${shootId}/payment-details`
+        );
+
+        if (detailsRes.data.success) {
+          setPaymentDetails(detailsRes.data.data); 
+        }
       }
     } catch (error: any) {
       console.error("Error applying discount:", error);
@@ -760,6 +767,7 @@ function MultiCreatorPaymentContent() {
                   shootId={shootId}
                   booking={booking}
                   quote={quote}
+                  setPaymentDetails={setPaymentDetails} 
                 />
               </Elements>
             )}
