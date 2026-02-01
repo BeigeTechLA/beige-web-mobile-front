@@ -74,6 +74,7 @@ function StripePaymentFormMulti({
   booking,
   quote,
   setPaymentDetails,
+   setClientSecret,
 }: {
   clientSecret: string;
   amount: number;
@@ -83,6 +84,7 @@ function StripePaymentFormMulti({
   booking: any;
   quote: any;
   setPaymentDetails: (details: any) => void;
+  setClientSecret: (clientSecret: string) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -210,6 +212,7 @@ function StripePaymentFormMulti({
 
         if (detailsRes.data.success) {
           setPaymentDetails(detailsRes.data.data); 
+          setClientSecret("");
         }
       }
     } catch (error: any) {
@@ -768,6 +771,7 @@ function MultiCreatorPaymentContent() {
                   booking={booking}
                   quote={quote}
                   setPaymentDetails={setPaymentDetails} 
+                  setClientSecret={setClientSecret}
                 />
               </Elements>
             )}
