@@ -127,7 +127,6 @@ const navLinks = [
   { label: "About", href: "#about" },
   { label: "Find Creative Work", href: "/find-creative-work" },
   { label: "Use Cases", href: "#usecases", hasDropdown: true },
-  // { label: "Press", href: "#press" },
 ];
 
 export const Navbar = () => {
@@ -135,6 +134,7 @@ export const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showPortfolioMenu, setShowPortfolioMenu] = useState(false);
+  const [activeHash, setActiveHash] = useState("");
 
   // Mobile Specific States
   const [mobilePortfolioOpen, setMobilePortfolioOpen] = useState(false);
@@ -152,7 +152,18 @@ export const Navbar = () => {
   const showCartIcon = pathname?.startsWith("/search-results");
 
   const isActive = (href: string) => {
-    if (href.startsWith("#")) return false; // Hash links usually handled by scroll spies, but we'll keep them neutral
+    if (href === "/") {
+      return pathname === "/" && activeHash === "";
+    }
+
+    if (href.startsWith("#")) {
+      return activeHash === href;
+    }
+
+    if (href === "#usecases") {
+      return showPortfolioMenu || pathname.startsWith("/usecases") || activeHash === "#usecases";
+    }
+
     return pathname === href;
   };
 
@@ -165,7 +176,34 @@ export const Navbar = () => {
         console.error("Error parsing user data", e);
       }
     }
-    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+
+      const sections = ["about", "usecases"];
+      const scrollPosition = window.scrollY + 200; // Increased offset for better "trigger" feel
+
+      let currentHash = "";
+
+      // If we are near the very top, force Home to be active
+      if (window.scrollY < 150) {
+        setActiveHash("");
+      } else {
+        for (const section of sections) {
+          const element = document.getElementById(section);
+          if (element) {
+            const offsetTop = element.offsetTop;
+            const height = element.offsetHeight;
+            if (scrollPosition >= offsetTop && scrollPosition < offsetTop + height) {
+              currentHash = `#${section}`;
+              break;
+            }
+          }
+        }
+        setActiveHash(currentHash);
+      }
+    };
+
     const handleClickOutside = (e: MouseEvent) => {
       if (portfolioRef.current && !portfolioRef.current.contains(e.target as Node)) {
         setShowPortfolioMenu(false);
@@ -173,26 +211,48 @@ export const Navbar = () => {
     };
     window.addEventListener("scroll", handleScroll);
     document.addEventListener("mousedown", handleClickOutside);
+
+    // Run handleScroll once on mount to catch current position
+    handleScroll();
+
     return () => {
       window.removeEventListener("scroll", handleScroll);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, [pathname]);
 
   const handleNavClick = (href: string) => {
     if (href === "#usecases") {
       setShowPortfolioMenu(!showPortfolioMenu);
       return;
     }
+
     setShowPortfolioMenu(false);
     setMobileOpen(false);
+
     if (href.startsWith("#")) {
-      if (pathname !== "/") router.push("/" + href);
-      else {
+      // 1. Set active state immediately for instant visual feedback
+      setActiveHash(href);
+
+      if (pathname !== "/") {
+        router.push("/" + href);
+      } else {
         const element = document.querySelector(href);
-        if (element) element.scrollIntoView({ behavior: "smooth" });
+        if (element) {
+          // 2. Calculate position with an offset (e.g., 100px) so the fixed navbar doesn't overlap the section heading
+          const navbarOffset = 100;
+          const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+          const offsetPosition = elementPosition - navbarOffset;
+
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: "smooth"
+          });
+        }
       }
-    } else router.push(href);
+    } else {
+      router.push(href);
+    }
   };
 
   const handleInvestor = () => {
@@ -255,7 +315,7 @@ export const Navbar = () => {
               className="w-[120px] h-[24px] md:w-[158px] md:h-[32px] object-contain"
               priority
             />
-            <span className="absolute right-4 md:right-5 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-[#2E2E2E] border border-white/40 bg-gradient-to-br from-[#f8f8f8] via-[#d9d9d9] to-[#f2f2f2] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-sm overflow-hidden">
+            <span className="absolute right-4 md:right-5 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
               Beta
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
             </span>
@@ -267,12 +327,19 @@ export const Navbar = () => {
               ref={portfolioRef}
             >
               {navLinks.map((link) => {
+                // 1. Check if the specific link is active (via pathname or activeHash)
                 const isRouteActive = isActive(link.href);
-                // UseCases is "active" if the dropdown is open
+
+                // 2. Special case for Home: Only highlight "/" if there is no active hash (we are at the top)
+                const isHomeActive = link.href === "/" && pathname === "/" && activeHash === "";
+
+                // 3. Special case for Portfolio/Use Cases
                 const isPortfolioActive =
                   link.hasDropdown && (showPortfolioMenu || pathname.startsWith("/usecases"));
 
-                const active = isRouteActive || isPortfolioActive;
+                // Final 'active' determination
+                const active = (link.href === "/" ? isHomeActive : isRouteActive) || isPortfolioActive;
+
                 return (
                   <button
                     key={link.label}

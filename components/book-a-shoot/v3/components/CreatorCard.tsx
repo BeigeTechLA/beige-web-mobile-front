@@ -103,7 +103,7 @@ const CreatorCard = ({
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* <div className="flex items-center gap-2">
         <Link
           href={`/creatives/${crew_member_id}`}
           onClick={(e) => e.stopPropagation()}
@@ -115,7 +115,7 @@ const CreatorCard = ({
             View Profile
           </Button>
         </Link>
-      </div>
+      </div> */}
     </div>
   );
 

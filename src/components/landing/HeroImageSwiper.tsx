@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useAnimationFrame } from "framer-motion";
+import { useRef, useState, useEffect } from "react";
 
 const IMAGES = [
   "/images/landingHero/HeroBannerPhotos1.png",
@@ -18,46 +19,62 @@ const IMAGES = [
 ];
 
 export const HeroSwiper = () => {
-  //Double the array to create a seamless loop
-  const duplicatedImages = [...IMAGES, ...IMAGES];
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [loopWidth, setLoopWidth] = useState(0);
+  const x = useRef(0);
+
+  const images = [...IMAGES, ...IMAGES];
+
+  useEffect(() => {
+    if (!trackRef.current) return;
+    setLoopWidth(trackRef.current.scrollWidth / 2);
+  }, []);
+
+  useAnimationFrame((_, delta) => {
+    if (!trackRef.current || !loopWidth) return;
+
+    const speed = 250;
+    x.current -= (speed * delta) / 1000;
+
+    if (Math.abs(x.current) >= loopWidth) {
+      x.current = 0;
+    }
+
+    // IMPORTANT: translate ONLY
+    trackRef.current.style.transform = `translateX(${x.current}px)`;
+  });
 
   return (
-    <div className="relative w-full mt-12 lg:mt-20 overflow-visible py-10">
-      {/* 3D Perspective Container */}
-      <div
-        className="w-full"
-        style={{ perspective: "1700px" }} // Higher value = flatter, lower = more intense depth
-      >
-        <motion.div
-          className="flex gap-6 lg:gap-10"
+    <div className="relative w-full mt-12 lg:mt-20 overflow-hidden py-10">
+      {/* Perspective */}
+      <div style={{ perspective: "1700px" }}>
+        {/* Static rotation layer */}
+        <div
           style={{
+            transform: "rotateY(25deg)",
             transformStyle: "preserve-3d",
-            rotateY: "25deg", // This creates the "Right Side Depth" effect
-          }}
-          animate={{
-            x: ["0%", "-33.33%"], // Move across one set of the triple images
-          }}
-          transition={{
-            ease: "linear",
-            duration: 10, // Speed of the loop
-            repeat: Infinity,
           }}
         >
-          {duplicatedImages.map((src, index) => (
+          {/* Moving track */}
+        <div
+          ref={trackRef}
+          className="flex gap-6 lg:gap-10 will-change-transform"
+        >
+          {images.map((src, index) => (
             <div
               key={index}
-              className="relative flex-shrink-0 w-[280px] h-[420px] lg:w-[480px] lg:h-[550px]"
+                className="relative flex-shrink-0 w-[280px] h-[420px] lg:w-[480px] lg:h-[550px]"
             >
               <img
                 src={src}
                 alt={`Portfolio ${index}`}
                 className="w-full h-full object-cover rounded-[32px] lg:rounded-[48px] shadow-2xl border border-white/5"
               />
-              {/* Subtle overlay to enhance the "card" look */}
               <div className="absolute inset-0 rounded-[32px] lg:rounded-[48px] ring-1 ring-inset ring-white/10 pointer-events-none" />
             </div>
           ))}
-        </motion.div>
+          </div>
+        </div>
       </div>
     </div>
   );

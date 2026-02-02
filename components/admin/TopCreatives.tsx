@@ -158,7 +158,7 @@ export const TopCreatives = () => {
             {partners.map((partner, index) => (
               <SwiperSlide key={index} className="flex items-center justify-center">
                 <div
-                  className={`relative w-full h-full md:!w-[280px] md:!h-[212px] rounded-[20px] overflow-hidden transition-all duration-500 ${partner.bgColor}`}
+                  className={`relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] rounded-[20px] overflow-hidden transition-all duration-500 ${partner.bgColor}`}
                 >
                   <Image
                     src={partner.image}
@@ -179,7 +179,7 @@ export const TopCreatives = () => {
 
       {/* Dynamic Data Display (Center Only) */}
       {activePartner && (
-        <div className="w-full flex justify-center gap-8 mt-3 pb-5">
+        <div className="w-full flex flex-col lg:flex-row items-center lg:justify-center gap-3 lg:gap-8 mt-3 pb-5">
           <div className="flex flex-col gap-1">
             <h3 className="text-base font-medium leading-tight">
               {activePartner.name}
@@ -189,7 +189,7 @@ export const TopCreatives = () => {
             </p>
           </div>
 
-          <div className="bg-[#E8D1AB] text-black px-8 py-2 rounded-full">
+          <div className="bg-[#E8D1AB] text-black px-8 py-2 rounded-full w-fit ">
             <span className=" font-semibold leading-tight">{activePartner.earnings}</span>
           </div>
         </div>

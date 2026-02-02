@@ -16,19 +16,11 @@ import { CircleDollarSign, DollarSign, TrendingUp } from "lucide-react";
 import "swiper/css";
 import "swiper/css/effect-cards";
 
-const CHART_DATA = [
-  { name: "Jan", green: 2000, red: 1500 },
-  { name: "Feb", green: 3500, red: 3000 },
-  { name: "Mar", green: 6000, red: 3500 },
-  { name: "Apr", green: 3000, red: 3000 },
-  { name: "May", green: 300, red: 300 },
-];
-
 import { adminApi } from "@/lib/api";
 import { useEffect, useState } from "react";
 
 const CardWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="w-full max-w-[1100px] h-[340px] bg-[#101010] rounded-2xl border border-[#3D3D3D] p-5 text-white">
+  <div className="w-full max-w-[1100px] min-h-[450px] lg:h-[340px] bg-[#101010] rounded-2xl border border-[#3D3D3D] p-5 text-white overflow-hidden">
     {children}
   </div>
 );
@@ -50,9 +42,9 @@ const StatsLayout = ({
     { key: "margin_revenue", color: "#FF8484", stackId: "a", radius: [6, 6, 0, 0] }
   ]
 }: any) => (
-  <div className="bg-[#101010] flex gap-6 h-full max-h-[300px] items-center">
+  <div className="bg-[#101010] flex flex-col lg:flex-row gap-6 h-full lg:max-h-[300px] items-stretch lg:items-center">
     {/* Left */}
-    <div className="w-1/4 flex flex-col justify-between h-full">
+    <div className="lg:w-1/4 flex flex-col justify-between shrink-0">
       <div className="flex items-center gap-2">
         <div className="w-[3px] h-6 bg-[#E5D5B8]" />
         <h3 className="">{title}</h3>
@@ -70,10 +62,10 @@ const StatsLayout = ({
     </div>
 
     {/* Chart */}
-    <div className={`${hasInfoCard ? "w-1/2" : "w-3/4"} bg-[#161616] rounded-2xl p-4 border border-white/5 h-[300px]`}>
+    <div className={`${hasInfoCard ? "lg:w-1/2" : "lg:w-3/4"} bg-[#161616] rounded-2xl p-4 border border-white/5 h-[300px]`}>
       <div className="flex items-center gap-2 mb-2">
         <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-        <h3 className="">{graphTitle}</h3>
+        <h3 className="text-sm lg:text-base ">{graphTitle}</h3>
       </div>
 
       <ResponsiveContainer width="100%" height="85%">
@@ -87,7 +79,7 @@ const StatsLayout = ({
               dataKey={config.key}
               stackId={config.stackId}
               fill={config.color}
-              barSize={30}
+              barSize={window?.innerWidth < 768 ? 20 : 30}
               radius={config.radius}
             />
           ))}
@@ -98,8 +90,8 @@ const StatsLayout = ({
     {/* Right */}
     {
       hasInfoCard &&
-      <div className="w-1/4">
-        <div className="bg-[#ECD7B4] rounded-[28px] p-6 text-black h-[200px] flex flex-col justify-between">
+      <div className="w-full lg:w-1/4">
+        <div className="bg-[#ECD7B4] rounded-[28px] p-4 lg:p-6 text-black h-[200px] flex flex-col justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-black p-3 rounded-full text-white shrink-0">
               <CircleDollarSign size={30} />
@@ -124,7 +116,6 @@ const StatsLayout = ({
         </div>
       </div>
     }
-
   </div>
 );
 
@@ -242,7 +233,7 @@ export default function StackedDashboard() {
   return (
     <div className="dashboard-stack-container w-full bg-[#171717] rounded-2xl border border-[#3D3D3D] p-4">
       {/* SIDE MASK */}
-      <div className="relative overflow-hidden px-10">
+      <div className="relative overflow-hidden px-3 lg:px-10">
         <Swiper
           effect="cards"
           grabCursor

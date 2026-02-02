@@ -25,12 +25,12 @@ export const SortDateButton: React.FC<SortDateButtonProps> = ({
         {/* Styled Trigger Button */}
         <button
           onClick={() => setIsOpen(true)}
-          className="flex items-center gap-3 px-6 py-3.5 bg-[#1A1A1A] border border-white/10 rounded-full text-[#C4C4C4] hover:text-white hover:border-white/30 transition-all text-base font-medium shadow-sm"
+          className="shrink-0 flex items-center justify-between gap-1 lg:gap-3 px-3 py-1.5 lg:px-6 lg:py-3.5 bg-[#1A1A1A] border border-white/10 rounded-full text-[#C4C4C4] hover:text-white hover:border-white/30 transition-all text-[10px] lg:text-base lg:font-medium shadow-sm whitespace-nowrap w-fit"
         >
-          <span>
+          <span className="whitespace-nowrap">
             {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Sort by Date"}
           </span>
-          <Calendar size={24} className="text-[#C4C4C4]" />
+          <Calendar className="w-4 h-4 lg:w-6 lg:h-6 text-[#C4C4C4] shrink-0" />
         </button>
 
         {/* Hidden MUI DatePicker */}
@@ -40,7 +40,10 @@ export const SortDateButton: React.FC<SortDateButtonProps> = ({
             onOpen={() => setIsOpen(true)}
             onClose={() => setIsOpen(false)}
             value={selectedDate}
-            onChange={(newValue) => onDateChange(newValue)}
+            onChange={(newValue) => {
+                onDateChange(newValue);
+                setIsOpen(false); // Close after selection
+            }}
             slotProps={{
               desktopPaper: {
                 sx: {

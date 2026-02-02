@@ -129,9 +129,9 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
   };
 
   return (
-    <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-5 w-full text-white mt-9">
+    <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-5 w-full text-white mt-5 lg:mt-9">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-5 lg:mb-8">
         <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <p className="">Overview</p>
@@ -145,7 +145,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
               // but the API will prioritize the 'range' parameter unless it's 'custom'
             }}
           >
-            <SelectTrigger className="w-[110px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-xs text-zinc-400 focus:ring-0">
+            <SelectTrigger className="w-[110px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-[10px] lg:text-xs text-zinc-400 focus:ring-0">
               <SelectValue placeholder="Range" />
             </SelectTrigger>
             <SelectContent className="bg-[#111111] border-[#3D3D3D]">
@@ -177,7 +177,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                   <m.icon size={20} />
                 </div>
               </div>
-              <div className="text-[26px] font-bold mb-3">
+              <div className="text-[26px] leading-normal font-bold mb-3">
                 {isLoading ? (
                   <div className="h-8 w-16 bg-white/10 animate-pulse rounded" />
                 ) : (
@@ -195,7 +195,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
       </div>
 
       {/* Chart Section */}
-      <div className="h-[350px] w-full">
+      <div className="h-[310px] lg:h-[350px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
             <defs>
@@ -216,7 +216,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
               axisLine={false}
               tickLine={false}
               tick={{ fill: '#ffffff66', fontSize: 14 }}
-              dx={-10}
+              dx={-20}
             />
             <Tooltip
               contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: 'none', color: '#000' }}
