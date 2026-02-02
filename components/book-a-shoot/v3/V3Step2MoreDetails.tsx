@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
@@ -53,6 +53,12 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   // Let's assume data.teamIncluded stores the *extra* members or we need a new field.
   // The prompt says "Team Included in Package" comes from Step 1.
 
+  const teamIncludedRef = useRef<HTMLDivElement>(null);
+  const extraTeamRef = useRef<HTMLDivElement>(null);
+  const locationRef = useRef<HTMLDivElement>(null);
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const navigationRef = useRef<HTMLDivElement>(null);
+
   const includedRoles = data.contentType.filter(t => t !== 'editing').map(t => {
     const role = TEAM_ROLES.find(r => r.id === t);
     return role ? { ...role, count: 1 } : null;
@@ -60,8 +66,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
-  
-const [updateBookingCrew] = useUpdateBookingCrewMutation();
+
+  const [updateBookingCrew] = useUpdateBookingCrewMutation();
 
   const handleExtraTeamChange = (id: string, delta: number) => {
     const nextExtra = { ...extraTeam };
@@ -80,18 +86,18 @@ const [updateBookingCrew] = useUpdateBookingCrewMutation();
     const baseCount = includedRoles.length;
     const extraCount = Object.values(nextExtra).reduce((a, b) => a + b, 0);
 
-    updateData({ 
+    updateData({
       teamIncluded: summary,
-      crewCount: baseCount + extraCount 
+      crewCount: baseCount + extraCount
     });
   };
 
   // Ensure crewCount is accurate on mount/updates even if no extra team added
-  React.useEffect(() => {
+  useEffect(() => {
     const baseCount = includedRoles.length;
     const extraCount = Object.values(extraTeam).reduce((a, b) => a + b, 0);
     const total = baseCount + extraCount;
-    
+
     if (data.crewCount !== total) {
       updateData({ crewCount: total });
     }
@@ -137,23 +143,37 @@ const [updateBookingCrew] = useUpdateBookingCrewMutation();
     }
   };
 
-
   const availableRolesToAdd = TEAM_ROLES.filter(role => {
     if (data.contentType.includes(role.id)) return true;
     return false;
   });
 
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
+    setTimeout(() => {
+      if (ref && ref.current) {
+        const navOffset = 100; // Matches your navbar height
+        const elementPosition = ref.current.getBoundingClientRect().top + window.scrollY;
+        const offsetPosition = elementPosition - navOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth",
+        });
+      }
+    }, 100);
+  };
+
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
 
       {/* Header */}
-      <div className="text-center">
+      <div  className="text-center">
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">More Details</h2>
         <p className="text-white/60">Help us understand your project better</p>
       </div>
 
       {/* Team Included */}
-      <div className="pt-6 lg:pt-15 border-t border-white/10">
+      <div ref={teamIncludedRef} className="pt-6 lg:pt-15 border-t border-white/10">
         <h3 className="text-base lg:text-xl font-medium text-white/90 mb-4">Team Included in Package</h3>
         <div className="">
           {includedRoles.length > 0 ? (
@@ -179,7 +199,7 @@ const [updateBookingCrew] = useUpdateBookingCrewMutation();
       </div>
 
       {/* Add More Team Members */}
-      <div>
+      <div ref={extraTeamRef}>
         <div className="flex flex-col gap-3 lg:gap-6">
           <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
           <div className="flex gap-2 lg:gap-6">
@@ -203,6 +223,7 @@ const [updateBookingCrew] = useUpdateBookingCrewMutation();
                 updateData({ addTeamMembers: false });
                 setExtraTeam({});
                 updateData({ teamIncluded: [] });
+                scrollToRef(locationRef);
               }}
               className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
             >
@@ -251,18 +272,21 @@ const [updateBookingCrew] = useUpdateBookingCrewMutation();
       </div>
 
       {/* Location */}
-      <div className="pt-6 lg:pt-15 border-t border-white/10">
+      <div ref={locationRef} className="pt-6 lg:pt-15 border-t border-white/10">
         {/* <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3> */}
         <LocationPicker
           value={data.location}
-          onChange={(address, details) => updateData({ location: address, locationDetails: details })}
+          onChange={(address, details) => {
+            updateData({ location: address, locationDetails: details });
+            if (address) scrollToRef(detailsRef); // Scroll to details once location set
+          }}
           placeholder="Search for a location"
           colors={darkThemeColors}
         />
       </div>
 
       {/* Details Form */}
-      <div className="pt-6 lg:pt-15 border-t border-white/10 flex flex-col gap-4 lg:gap-10">
+      <div ref={detailsRef} className="pt-6 lg:pt-15 border-t border-white/10 flex flex-col gap-4 lg:gap-10">
         <div className="relative">
           <label
             htmlFor="specialInstructions"
@@ -290,6 +314,7 @@ const [updateBookingCrew] = useUpdateBookingCrewMutation();
             id="referenceLinks"
             value={data.referenceLinks}
             onChange={(e) => updateData({ referenceLinks: e.target.value })}
+            onBlur={() => scrollToRef(navigationRef)}
             placeholder="Share any links to inspo or reference content."
             className="w-full rounded-[12px] border border-white/30 p-4 pt-6 text-white outline-none focus:border-white/60 transition-all resize-none bg-[#101010] text-sm lg:text-base"
           />
@@ -298,7 +323,7 @@ const [updateBookingCrew] = useUpdateBookingCrewMutation();
       </div>
 
       {/* Navigation */}
-      <div className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
+      <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
         <Button
           onClick={onBack}
           className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] "

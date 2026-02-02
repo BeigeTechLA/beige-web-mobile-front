@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X, User, ChevronDown, LayoutDashboard, Image as PhotoIcon, Film, Briefcase, PartyPopper, ChevronRight, Megaphone, Package, CirclePlay, Podcast, Gem, Clapperboard, Handshake, Utensils, Binoculars, UsersRound, LogOut } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { Separator } from "./Separator";
 import { CartIcon } from "@/components/ui/CartIcon";
@@ -11,7 +12,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 
 const portfolioConfig = {
   photos: {
-    label: "Photo",
+    label: "Photos",
     icon: <PhotoIcon size={24} />,
     sectors: [
       {
@@ -65,7 +66,7 @@ const portfolioConfig = {
     ]
   },
   videos: {
-    label: "Video",
+    label: "Videos",
     icon: <Film size={24} />,
     sectors: [
       {
@@ -240,10 +241,10 @@ export const Navbar = () => {
         className={`pointer-events-auto mx-auto max-w-[1600px] px-6 lg:px-0 transition-all duration-300 rounded-[20px] ${isScrolled ? "bg-[#050505]/80 backdrop-blur-[12px]" : "bg-[#050505]/60 backdrop-blur-[8px]"} border-[0.5px] border-[#E8D1AB]/30`}
       >
         <div className="h-13 md:h-[88px] flex items-center justify-between lg:px-6">
-          <a
-            href="https://beige.app"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/"
+            // target="_blank"
+            // rel="noopener noreferrer"
             className="relative flex items-center"
           >
             <Image
@@ -258,7 +259,7 @@ export const Navbar = () => {
               Beta
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
             </span>
-          </a>
+          </Link>
           {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-12">
             <div

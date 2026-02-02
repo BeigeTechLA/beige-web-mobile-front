@@ -1,23 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BookingDataV3 } from "./types";
 import { ContentTypeCheckbox } from "./components/ContentTypeCheckbox";
 import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import {
-  Video,
-  Camera,
-  Scissors,
-  MonitorPlay,
-  Check,
-  Radio,
-  Info,
-  Clock,
-  SquaresUnite,
-} from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -43,7 +33,6 @@ import {
   peopleTeamsPhotoEditTypes,
   behindScenesPhotoEditTypes,
 } from "@/app/data/shootData";
-import { DateTimePicker } from "@/src/components/booking/v2/component/DateTimePicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import MultiSelectDropdown from "@/components/book-a-shoot/MultiSelectDropdown";
 import { parseDate } from "@/src/components/landing/lib/utils";
@@ -97,7 +86,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   onBack,
 }) => {
   const { user, isAuthenticated } = useAuth();
-  
+
   const [editTypeOptions, setEditTypeOptions] = useState<
     { key: string; value: string }[]
   >([]);
@@ -118,6 +107,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const isAllVisible = visibleCount >= availableShootTypes.length;
 
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
+
+  const emailRef = useRef<HTMLDivElement>(null);
+  const contentTypeRef = useRef<HTMLDivElement>(null);
+  const shootTypeRef = useRef<HTMLDivElement>(null);
+  const dateTimeRef = useRef<HTMLDivElement>(null);
+  const editsRef = useRef<HTMLDivElement>(null);
+  const navigationRef = useRef<HTMLDivElement>(null);
 
   // Auto-fill email if user is logged in
   useEffect(() => {
@@ -243,6 +239,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
     const newEnd = set(currentDate, { hours, minutes });
     updateData({ endDate: newEnd.toISOString() });
+    scrollToRef(editsRef);
   };
 
   const getStartTimeKey = () => {
@@ -369,6 +366,10 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
     // Reset the view more toggle
     setVisibleCount(INITIAL_COUNT);
+
+    if (nextContentType.length > 0) {
+      scrollToRef(shootTypeRef);
+    }
   };
 
   const validate = () => {
@@ -430,29 +431,44 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     return true;
   };
 
-const handleNext = async () => {
-  if (!validate()) return;
+  const handleNext = async () => {
+    if (!validate()) return;
 
-  try {
-    const res = await trackEarlyInterest({
-      guest_email: data.email,
-      user_id: user?.id,
-      content_type: data.contentType.join(","),
-      shoot_type: data.shootType,
-      client_name: user?.name,
-    }).unwrap();
+    try {
+      const res = await trackEarlyInterest({
+        guest_email: data.email,
+        user_id: user?.id,
+        content_type: data.contentType.join(","),
+        shoot_type: data.shootType,
+        client_name: user?.name,
+      }).unwrap();
 
-    updateData({
-      bookingId: res.data.booking_id,
-    });
+      updateData({
+        bookingId: res.data.booking_id,
+      });
 
-    onNext();
-  } catch (err) {
-    toast.error("Failed to start booking. Please try again.");
-  }
-};
+      onNext();
+    } catch (err) {
+      toast.error("Failed to start booking. Please try again.");
+    }
+  };
 
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
+    setTimeout(() => {
+      if (ref && ref.current) {
+        const navOffset = 100;
 
+        // Calculate absolute position relative to the entire document
+        const elementPosition = ref.current.getBoundingClientRect().top + window.scrollY;
+        const offsetPosition = elementPosition - navOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth",
+        });
+      }
+    }, 100);
+  };
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
       {/* Header */}
@@ -460,13 +476,10 @@ const handleNext = async () => {
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">
           Create Your Project
         </h2>
-        {/* <div className="flex justify-center gap-2 mb-8"> */}
-        {/* Simple dot indicators handled by parent usually, but preserving layout */}
-        {/* </div> */}
       </div>
 
       {/* Email Field */}
-      <div className="pt-6 lg:pt-15 border-t border-white/10">
+      <div ref={emailRef} className="pt-6 lg:pt-15 border-t border-white/10">
         <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
           Email Address <span className="text-[#E8D1AB]">*</span>
         </h3>
@@ -474,6 +487,19 @@ const handleNext = async () => {
           type="email"
           value={data.email}
           onChange={(e) => updateData({ email: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              if (emailRegex.test(data.email)) {
+                scrollToRef(contentTypeRef);
+                (e.target as HTMLInputElement).blur(); // Remove focus
+              }
+            }
+          }}
+          onBlur={() => {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (emailRegex.test(data.email)) scrollToRef(contentTypeRef);
+          }}
           placeholder="your@email.com"
           className="w-full h-14 lg:h-[82px] bg-[#101010] border border-white/10 rounded-2xl px-4 lg:px-6 text-white placeholder:text-white/40 focus:outline-none focus:border-[#E8D1AB] transition-colors"
         />
@@ -485,7 +511,7 @@ const handleNext = async () => {
       </div>
 
       {/* Content Type */}
-      <div className="pt-6 lg:pt-15 border-t border-white/10">
+      <div ref={contentTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
         <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <ContentTypeCheckbox
@@ -542,7 +568,7 @@ const handleNext = async () => {
       {data.contentType.length > 0 && (
         <>
           {/* Shoot Type */}
-          <div className="pt-6 lg:pt-15 border-t border-white/10">
+          <div ref={shootTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
             <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
               {data.contentType.includes("videographer") &&
                 //  ||data.contentType.includes("cinematographer")) && : Commented cinematographer as it is not being mentioned anywhere in UI
@@ -568,7 +594,10 @@ const handleNext = async () => {
                     image={type.image}
                     // stats={type.stats}
                     selected={data.shootType === type.key}
-                    onClick={() => updateData({ shootType: type.key })}
+                    onClick={() => {
+                      updateData({ shootType: type.key });
+                      scrollToRef(dateTimeRef);
+                    }}
                   />
                 </div>
               ))}
@@ -584,7 +613,7 @@ const handleNext = async () => {
           </div>
 
           {/* Date & Time */}
-          <div className="pt-6 lg:pt-15 border-t border-white/10">
+          <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
             <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
               Shoot Date & Time
             </h3>
@@ -625,14 +654,17 @@ const handleNext = async () => {
           </div>
 
           {/* Edits Needed */}
-          <div className="pt-6 lg:pt-15 border-t border-white/10">
+          <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
             <h3 className="text-lg lg:text-[28px] font-medium text-white/90 mb-3 lg:mb-6">
               Edits Needed?
             </h3>
 
             <div className="flex gap-4">
               <button
-                onClick={() => updateData({ editsNeeded: true })}
+                onClick={() => {
+                  updateData({ editsNeeded: true });
+                  scrollToRef(navigationRef);
+                }}
                 disabled={data.shootType === ""}
                 className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.editsNeeded
                   ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
@@ -650,7 +682,10 @@ const handleNext = async () => {
                 </div>
               </button>
               <button
-                onClick={() => updateData({ editsNeeded: false })}
+                onClick={() => {
+                  updateData({ editsNeeded: false });
+                  scrollToRef(navigationRef);
+                }}
                 disabled={data.shootType === ""}
                 className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.editsNeeded
                   ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
@@ -727,7 +762,7 @@ const handleNext = async () => {
       )}
 
       {/* Navigation */}
-      <div className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
+      <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
         <Button
           onClick={onBack}
           className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] "
