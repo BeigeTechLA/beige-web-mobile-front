@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -41,6 +41,9 @@ export const BookAShootV3 = () => {
   const [leadTracked, setLeadTracked] = useState(false);
   const [draftBookingId, setDraftBookingId] = useState<number | null>(null);
   const [leadId, setLeadId] = useState<number | null>(null);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+
+  const allowNavigation = useRef(false)
 
   const [createGuestBooking, { isLoading: isBookingLoading }] =
     useCreateGuestBookingMutation();
@@ -130,6 +133,10 @@ export const BookAShootV3 = () => {
 
   const prevStep = () => {
     if (internalStep === 1) {
+      if (isFormDirty()) {
+        setShowLeaveModal(true);
+        return;
+      }
       router.back();
       return;
     }
@@ -348,9 +355,49 @@ export const BookAShootV3 = () => {
     }
   };
 
+  const isFormDirty = useCallback(() => {
+    return formData.fullName !== initialDataV3.fullName ||
+      formData.email !== initialDataV3.email ||
+      internalStep > 1;
+  }, [formData, internalStep]);
+
+  useEffect(() => {
+    // Push a dummy state so the first "Back" click is captured by popstate
+    window.history.pushState(null, "", window.location.href);
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (!allowNavigation.current && isFormDirty()) {
+        // Re-push the dummy state so the URL doesn't actually change
+        window.history.pushState(null, "", window.location.href);
+        setShowLeaveModal(true);
+      } else if (allowNavigation.current) {
+        // If we've confirmed, let the navigation happen
+        // No need to call router.back() here, the browser is already doing it
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [isFormDirty]);
+
+  const handleConfirmLeave = () => {
+    allowNavigation.current = true;
+    setShowLeaveModal(false);
+
+    window.location.href = "/"; // Or use router.back()
+  };
+
   return (
     <div className="bg-[#101010] min-h-screen text-white selection:bg-[#ECE1CE] selection:text-black">
       <Navbar />
+
+      {/* LeaveConfirmation Modal */}
+      <LeaveConfirmationModal
+        isOpen={showLeaveModal}
+        onConfirm={handleConfirmLeave}
+        onCancel={() => setShowLeaveModal(false)}
+      />
+
       <main className="relative pt-24 lg:pt-44 pb-8 lg:pb-16 min-h-screen flex flex-col items-center">
         {/* Back Button (hide on loading) */}
         {internalStep !== 4 && (
@@ -376,6 +423,43 @@ export const BookAShootV3 = () => {
         </div>
       </main>
       <Footer />
+    </div>
+  );
+};
+
+const LeaveConfirmationModal = ({
+  isOpen,
+  onConfirm,
+  onCancel
+}: {
+  isOpen: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+      <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl">
+        <h3 className="text-2xl font-semibold text-white mb-4">Abandon Booking?</h3>
+        <p className="text-white/60 mb-8 leading-relaxed">
+          You've filled in details on this page. Moving back will lose all details. Do you wish to continue?
+        </p>
+        <div className="flex gap-4">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all font-medium"
+          >
+            Stay Here
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-3 px-6 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all font-medium"
+          >
+            Leave Page
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
