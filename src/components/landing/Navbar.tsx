@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { Separator } from "./Separator";
-import { CartIcon } from "@/components/ui/CartIcon";
+// import { CartIcon } from "@/components/ui/CartIcon";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 const portfolioConfig = {
@@ -501,7 +501,7 @@ export const Navbar = () => {
 
           {/* Right Side Auth (Existing logic) */}
           <div className="hidden lg:flex items-center gap-4">
-            {showCartIcon && <CartIcon />}
+            {/* {showCartIcon && <CartIcon />} */}
             {!localUser ? (
               <button
                 onClick={handleLogin}
@@ -562,7 +562,7 @@ export const Navbar = () => {
 
           {/* Mobile Menu Trigger */}
           <div className="lg:hidden flex items-center gap-3">
-            {showCartIcon && <CartIcon className="scale-90" />}
+            {/* {showCartIcon && <CartIcon className="scale-90" />} */}
             <button
               className="text-white p-2"
               onClick={() => setMobileOpen(true)}

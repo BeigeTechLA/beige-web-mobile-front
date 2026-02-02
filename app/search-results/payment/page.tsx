@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+// import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Star,
@@ -27,6 +27,7 @@ import { formatLocationForDisplay } from "@/lib/utils/locationHelpers";
 import { debounce } from "@/lib/utils";
 import { affiliateApi } from "@/lib/api";
 import axios from "axios";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Initialize Stripe
 const stripePromise = loadStripe(
@@ -464,6 +465,8 @@ function MultiCreatorPaymentContent() {
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId");
 
+  const router = useRouter();
+
   // State
   const [step, setStep] = useState<"loading" | "payment" | "success">(
     "loading",
@@ -473,6 +476,7 @@ function MultiCreatorPaymentContent() {
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string>("");
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
 
   // Inside MultiCreatorPaymentContent function
   const [showBackDialog, setShowBackDialog] = useState(false);
@@ -725,6 +729,22 @@ function MultiCreatorPaymentContent() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </button>
+        {/* Leave Confirmation Modal */}
+        <LeaveConfirmationModal
+          isOpen={showLeaveModal}
+         onConfirm={() => {
+         router.push("/book-a-shoot");
+         } }
+          onCancel={() => setShowLeaveModal(false)}
+        />
+
+        <button
+          onClick={() => setShowLeaveModal(true)}
+          className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </button>
 
         <div className="text-center mb-8 lg:mb-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -1002,6 +1022,43 @@ function MultiCreatorPaymentContent() {
     </div>
   );
 }
+
+const LeaveConfirmationModal = ({
+  isOpen,
+  onConfirm,
+  onCancel
+}: {
+  isOpen: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+      <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl">
+        <h3 className="text-2xl font-semibold text-white mb-4">Abandon Booking?</h3>
+        <p className="text-white/60 mb-8 leading-relaxed">
+          You've filled in details on this page. Moving back will lose all details. Do you wish to continue?
+        </p>
+        <div className="flex gap-4">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all font-medium"
+          >
+            Stay Here
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-3 px-6 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all font-medium"
+          >
+            Leave Page
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function MultiCreatorPaymentPage() {
   return (
