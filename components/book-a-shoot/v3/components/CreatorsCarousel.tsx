@@ -125,12 +125,12 @@ const CreatorCarousel = ({
                           </div>
                         )}
 
-                        <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-white/10">
+                        {/* <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-white/10">
                           <Star className="w-3 h-3 lg:w-[18px] lg:h-[18px] text-[#E8D1AB] fill-[#E4CC17]" />
                           <span className="text-white text-sm lg:text-lg font-medium">
                             {rating.toFixed(1)} ({creator.total_reviews || 0})
                           </span>
-                        </div>
+                        </div> */}
                       </div>
                     </div>
 

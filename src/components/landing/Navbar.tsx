@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { Separator } from "./Separator";
-import { CartIcon } from "@/components/ui/CartIcon";
+// import { CartIcon } from "@/components/ui/CartIcon";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 const portfolioConfig = {
@@ -397,23 +397,23 @@ export const Navbar = () => {
                           <div className="grid grid-cols-2 p-10 pt-6 gap-x-12 gap-y-6">
                             {/* {portfolioConfig[activeCategory].sectors.slice(2).map((sector) => ( */}
                             {portfolioConfig[activeCategory].sectors.map((sector) => (
-                                <button
-                                  key={sector.id}
-                                  onMouseEnter={() => setActiveSector(sector.id)}
-                                  onClick={() =>
-                                    handlePortfolioSelect(activeCategory, sector.id)
-                                  }
-                                  className={`flex items-center gap-4 transition-all ${activeSector === sector.id
-                                      ? "text-white"
-                                      : "text-white/40 hover:text-white/60"
-                                    }`}
-                                >
-                                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                                    {sector.icon}
-                                  </div>
-                                  <span className="text-lg font-medium">{sector.label}</span>
-                                </button>
-                              ))}
+                              <button
+                                key={sector.id}
+                                onMouseEnter={() => setActiveSector(sector.id)}
+                                onClick={() =>
+                                  handlePortfolioSelect(activeCategory, sector.id)
+                                }
+                                className={`flex items-center gap-4 transition-all ${activeSector === sector.id
+                                  ? "text-white"
+                                  : "text-white/40 hover:text-white/60"
+                                  }`}
+                              >
+                                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                                  {sector.icon}
+                                </div>
+                                <span className="text-lg font-medium">{sector.label}</span>
+                              </button>
+                            ))}
                           </div>
                         </>
                       ) : (
@@ -434,7 +434,7 @@ export const Navbar = () => {
 
           {/* Right Side Auth (Existing logic) */}
           <div className="hidden lg:flex items-center gap-4">
-            {showCartIcon && <CartIcon />}
+            {/* {showCartIcon && <CartIcon />} */}
             {!localUser ? (
               <button
                 onClick={handleLogin}
@@ -495,7 +495,7 @@ export const Navbar = () => {
 
           {/* Mobile Menu Trigger */}
           <div className="lg:hidden flex items-center gap-3">
-            {showCartIcon && <CartIcon className="scale-90" />}
+            {/* {showCartIcon && <CartIcon className="scale-90" />} */}
             <button
               className="text-white p-2"
               onClick={() => setMobileOpen(true)}
