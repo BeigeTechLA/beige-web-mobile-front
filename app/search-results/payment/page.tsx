@@ -64,6 +64,22 @@ const CARD_ELEMENT_OPTIONS = {
   },
 };
 
+// Helper for currency formatting
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+};
+
+// Helper for title casing
+const toTitleCase = (str: string) => {
+  if (!str) return "";
+  return str.replace(/\w\S*/g, (txt) => {
+    return txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase();
+  });
+};
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
   clientSecret,
@@ -74,7 +90,7 @@ function StripePaymentFormMulti({
   booking,
   quote,
   setPaymentDetails,
-   setClientSecret,
+  refreshPaymentIntent, // NEW PROP: used to update price in background
 }: {
   clientSecret: string;
   amount: number;
@@ -84,7 +100,7 @@ function StripePaymentFormMulti({
   booking: any;
   quote: any;
   setPaymentDetails: (details: any) => void;
-  setClientSecret: (clientSecret: string) => void;
+  refreshPaymentIntent: (updatedDetails: any) => Promise<void>; // NEW TYPE
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -186,6 +202,7 @@ function StripePaymentFormMulti({
   const applyDiscountCode = async () => {
     if (!discountCode || !discountValid || !quote?.quote_id) return;
 
+    setIsValidatingDiscount(true); // Ensure loading state is active
     try {
       const API_BASE_URL =
         (
@@ -211,13 +228,19 @@ function StripePaymentFormMulti({
         );
 
         if (detailsRes.data.success) {
-          setPaymentDetails(detailsRes.data.data); 
-          setClientSecret("");
+          // 1. Update the Summary text
+          setPaymentDetails(detailsRes.data.data);
+
+          // 2. Refresh the Stripe secret WITHOUT setting it to ""
+          // This keeps the CardElement mounted and prevents the page refresh
+          await refreshPaymentIntent(detailsRes.data.data);
         }
       }
     } catch (error: any) {
       console.error("Error applying discount:", error);
       toast.error(error.response?.data?.message || "Failed to apply discount");
+    } finally {
+      setIsValidatingDiscount(false);
     }
   };
 
@@ -327,13 +350,12 @@ function StripePaymentFormMulti({
               type="text"
               value={referralCode}
               onChange={(e) => handleReferralCodeChange(e.target.value)}
-              className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-12 text-white outline-none bg-[#272626] uppercase tracking-wider ${
-                referralCodeValid === true
-                  ? "border-green-500 focus:border-green-400"
-                  : referralCodeValid === false
-                    ? "border-red-500 focus:border-red-400"
-                    : "border-white/30 focus:border-white/50"
-              }`}
+              className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-12 text-white outline-none bg-[#272626] uppercase tracking-wider ${referralCodeValid === true
+                ? "border-green-500 focus:border-green-400"
+                : referralCodeValid === false
+                  ? "border-red-500 focus:border-red-400"
+                  : "border-white/30 focus:border-white/50"
+                }`}
               placeholder="Enter code"
               maxLength={10}
             />
@@ -372,13 +394,12 @@ function StripePaymentFormMulti({
               type="text"
               value={discountCode}
               onChange={(e) => handleDiscountCodeChange(e.target.value)}
-              className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-24 text-white outline-none bg-[#272626] uppercase tracking-wider ${
-                discountValid === true
-                  ? "border-green-500 focus:border-green-400"
-                  : discountValid === false
-                    ? "border-red-500 focus:border-red-400"
-                    : "border-white/30 focus:border-white/50"
-              }`}
+              className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-24 text-white outline-none bg-[#272626] uppercase tracking-wider ${discountValid === true
+                ? "border-green-500 focus:border-green-400"
+                : discountValid === false
+                  ? "border-red-500 focus:border-red-400"
+                  : "border-white/30 focus:border-white/50"
+                }`}
               placeholder="Enter discount code"
               maxLength={20}
               disabled={!!appliedDiscount}
@@ -432,7 +453,7 @@ function StripePaymentFormMulti({
         >
           {isProcessing
             ? "Processing..."
-            : `Confirm & Pay $${amount.toFixed(2)}`}
+            : `Confirm & Pay ${formatCurrency(amount)}`}
         </Button>
       </form>
     </div>
@@ -448,11 +469,41 @@ function MultiCreatorPaymentContent() {
     "loading",
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdatingIntent, setIsUpdatingIntent] = useState(false); // NEW STATE: for background loading
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string>("");
 
-  // Fetch payment details from backend
+  // Reusable function to fetch/update intent
+  const fetchIntent = async (details: any) => {
+    if (!details || !shootId) return;
+    const { booking, quote } = details;
+
+    try {
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
+      const response = await axios.post(`${API_BASE_URL}payments/create-intent-multi`, {
+        booking_id: shootId,
+        amount: quote.total,
+        guest_email: booking.guest_email,
+      });
+
+      if (response.data.success && response.data.data.clientSecret) {
+        setClientSecret(response.data.data.clientSecret);
+      }
+    } catch (err) {
+      console.error("Error creating payment intent:", err);
+      toast.error("Failed to initialize payment");
+    }
+  };
+
+  // Helper passed to child
+  const refreshPaymentIntent = async (updatedDetails: any) => {
+    setIsUpdatingIntent(true);
+    await fetchIntent(updatedDetails);
+    setIsUpdatingIntent(false);
+  };
+
+  // Initial Data Fetch
   useEffect(() => {
     const fetchPaymentDetails = async () => {
       if (!shootId) {
@@ -463,96 +514,30 @@ function MultiCreatorPaymentContent() {
 
       try {
         setIsLoading(true);
-        const API_BASE_URL =
-          (
-            process.env.NEXT_PUBLIC_API_ENDPOINT ||
-            "https://revure-api.beige.app/v1/"
-          ).replace(/\/$/, "") + "/";
-
-        const response = await axios.get(
-          `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
-        );
+        const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
+        const response = await axios.get(`${API_BASE_URL}guest-bookings/${shootId}/payment-details`);
 
         if (!response.data.success) {
-          throw new Error(
-            response.data.message || "Failed to load payment details",
-          );
+          throw new Error(response.data.message || "Failed to load payment details");
         }
 
         const data = response.data.data;
-        console.log("Payment details loaded:", {
-          hasQuote: !!data.quote,
-          quoteTotal: data.quote?.total,
-          creatorsCount: data.creators?.length,
-        });
-
-        // Validate that we have required data
-        if (!data.booking) {
-          throw new Error("Booking data is missing");
-        }
-
-        if (!data.quote || typeof data.quote.total !== "number") {
-          throw new Error(
-            "Quote data is missing or invalid. Please try creating the booking again.",
-          );
-        }
-
         setPaymentDetails(data);
+
+        // Initial Intent Fetch
+        await fetchIntent(data);
+
         setStep("payment");
         setIsLoading(false);
       } catch (err: any) {
         console.error("Error fetching payment details:", err);
         setError(err.message || "Failed to load payment information");
-        toast.error(err.message || "Failed to load payment information");
         setIsLoading(false);
       }
     };
 
     fetchPaymentDetails();
   }, [shootId]);
-
-  // Create payment intent when payment details are loaded
-  useEffect(() => {
-    const createPaymentIntent = async () => {
-      if (!paymentDetails || !shootId || clientSecret) return;
-
-      const { booking, quote } = paymentDetails;
-
-      // Add null check for quote
-      if (!quote || typeof quote.total !== "number") {
-        console.error("Quote data is missing or invalid:", { quote });
-        toast.error("Unable to calculate pricing. Please try again.");
-        return;
-      }
-
-      try {
-        const API_BASE_URL =
-          (
-            process.env.NEXT_PUBLIC_API_ENDPOINT ||
-            "https://revure-api.beige.app/v1/"
-          ).replace(/\/$/, "") + "/";
-
-        // Use total which includes any discounts and margins
-        const response = await axios.post(
-          `${API_BASE_URL}payments/create-intent-multi`,
-          {
-            booking_id: shootId,
-            amount: quote.total,
-            guest_email: booking.guest_email,
-          },
-        );
-
-        if (response.data.success && response.data.data.clientSecret) {
-          setClientSecret(response.data.data.clientSecret);
-        }
-      } catch (err) {
-        console.error("Error creating payment intent:", err);
-        toast.error("Failed to initialize payment");
-      }
-    };
-
-    createPaymentIntent();
-  }, [paymentDetails, shootId, clientSecret]);
 
   // Handle payment success
   const handlePaymentSuccess = async (paymentIntentId: string) => {
@@ -626,9 +611,8 @@ function MultiCreatorPaymentContent() {
 
   const { booking, creators, quote } = paymentDetails;
 
-  // Additional safety check (should be caught earlier in fetchPaymentDetails)
+  // Additional safety check
   if (!quote || typeof quote.total !== "number") {
-    console.error("Quote validation failed at render:", { quote });
     return (
       <div className="pt-20 lg:pt-32 pb-20">
         <div className="container mx-auto px-4 md:px-0 flex items-center justify-center min-h-[60vh]">
@@ -638,8 +622,7 @@ function MultiCreatorPaymentContent() {
               Quote Data Missing
             </h2>
             <p className="text-white/60 text-lg">
-              The pricing information for this booking is missing. Please try
-              creating a new booking.
+              The pricing information for this booking is missing.
             </p>
             <Link
               href="/book-a-shoot"
@@ -655,67 +638,30 @@ function MultiCreatorPaymentContent() {
 
   // Success View
   if (step === "success") {
-    // Determine Google Form URL based on event type
     const getFormUrl = () => {
-      const weddingFormUrl =
-        "https://docs.google.com/forms/d/e/1FAIpQLSdg9VNPGWzS0-48TtYCfejktfl2j3Hl4sAD4HSkUoQIMP9WQA/viewform";
-      const generalFormUrl =
-        "https://docs.google.com/forms/d/e/1FAIpQLSeYWPQXfFBqzt4FHVy6ccrS4WVbjFLHJQeIu56rj_zEinGGfQ/viewform";
-
-      return booking?.event_type?.toLowerCase().includes("wedding")
-        ? weddingFormUrl
-        : generalFormUrl;
-    };
-
-    const handleOpenForm = () => {
-      window.open(getFormUrl(), "_blank");
+      const weddingFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSdg9VNPGWzS0-48TtYCfejktfl2j3Hl4sAD4HSkUoQIMP9WQA/viewform";
+      const generalFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSeYWPQXfFBqzt4FHVy6ccrS4WVbjFLHJQeIu56rj_zEinGGfQ/viewform";
+      return booking?.event_type?.toLowerCase().includes("wedding") ? weddingFormUrl : generalFormUrl;
     };
 
     return (
       <div className="pt-20 lg:pt-32 pb-20">
         <div className="container mx-auto px-4 md:px-0">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center h-full min-h-[60vh]"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center h-full min-h-[60vh]">
             <div className="relative mb-8">
               <div className="absolute inset-0 bg-[#E8D1AB]/20 blur-[60px] rounded-full" />
               <div className="relative w-[220px] h-[220px] md:w-[372px] md:h-[356px]">
-                <Image
-                  src="/images/misc/PaymentDone.png"
-                  alt="Payment Done"
-                  fill
-                  className="object-contain"
-                  priority
-                />
+                <Image src="/images/misc/PaymentDone.png" alt="Payment Done" fill className="object-contain" priority />
               </div>
             </div>
-
-            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">
-              Payment Success
-            </h2>
-            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">
-              ${quote.total.toFixed(2)}
-            </p>
-
-            {/* Google Forms CTA */}
+            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Payment Success</h2>
+            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(quote.total)}</p>
             <div className="w-full max-w-2xl mb-6">
-              <button
-                onClick={handleOpenForm}
-                className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center"
-              >
+              <button onClick={() => window.open(getFormUrl(), "_blank")} className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center">
                 Complete All The Details For Your Shoot
               </button>
-              <p className="text-xs lg:text-sm text-white/60 mt-3 text-center">
-                Help us prepare better by providing detailed shoot information
-              </p>
             </div>
-
-            <Link
-              href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`}
-              className="h-12 lg:h-24 px-6 py-5 lg:px-20 lg:py-10 bg-white/10 hover:bg-white/20 text-white text-lg lg:text-2xl font-medium rounded-xl inline-flex items-center justify-center border border-white/20"
-            >
+            <Link href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`} className="h-12 lg:h-24 px-6 py-5 lg:px-20 lg:py-10 bg-white/10 hover:bg-white/20 text-white text-lg lg:text-2xl font-medium rounded-xl inline-flex items-center justify-center border border-white/20">
               View Booking Summary
             </Link>
           </motion.div>
@@ -728,27 +674,15 @@ function MultiCreatorPaymentContent() {
   return (
     <div className="pt-20 lg:pt-32 pb-20 min-h-screen">
       <div className="container mx-auto px-4 md:px-0">
-        {/* Back Button */}
-        <Link
-          href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`}
-          className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
-        >
+        <Link href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`} className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Link>
 
-        {/* Page Header */}
         <div className="text-center mb-8 lg:mb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h2 className="text-lg lg:text-[64px] lg:leading-[76px] font-bold text-gradient-white mb-3 lg:mb-5">
-              Confirm and Pay
-            </h2>
-            <p className="text-white/70 mx-auto text-xs lg:text-base">
-              Review your crew selection and complete your payment
-            </p>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <h2 className="text-lg lg:text-[64px] lg:leading-[76px] font-bold text-gradient-white mb-3 lg:mb-5">Confirm and Pay</h2>
+            <p className="text-white/70 mx-auto text-xs lg:text-base">Review your crew selection and complete your payment</p>
           </motion.div>
         </div>
 
@@ -761,40 +695,57 @@ function MultiCreatorPaymentContent() {
                 <p className="text-white/60">Initializing payment...</p>
               </div>
             ) : (
-              <Elements stripe={stripePromise}>
-                <StripePaymentFormMulti
-                  clientSecret={clientSecret}
-                  amount={quote.total}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                  shootId={shootId}
-                  booking={booking}
-                  quote={quote}
-                  setPaymentDetails={setPaymentDetails} 
-                  setClientSecret={setClientSecret}
-                />
-              </Elements>
+              <div className="relative">
+                {/* Loader Overlay when updating the price/intent so the form doesn't disappear */}
+                <AnimatePresence>
+                  {isUpdatingIntent && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 z-50 bg-[#171717]/60 backdrop-blur-[2px] rounded-[20px] flex flex-col items-center justify-center"
+                    >
+                      <Loader2 className="w-10 h-10 text-[#E8D1AB] animate-spin mb-2" />
+                      <p className="text-[#E8D1AB] font-medium">Updating Price...</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                  <StripePaymentFormMulti
+                    clientSecret={clientSecret}
+                    amount={quote.total}
+                    onSuccess={handlePaymentSuccess}
+                    onError={handlePaymentError}
+                    shootId={shootId}
+                    booking={booking}
+                    quote={quote}
+                    setPaymentDetails={setPaymentDetails}
+                    refreshPaymentIntent={refreshPaymentIntent}
+                  />
+                </Elements>
+              </div>
             )}
           </div>
 
           {/* Right Column: Summary */}
           <div className="lg:col-span-5 space-y-6">
             <div className="bg-[#171717] rounded-[24px] p-6 lg:p-10">
-              <h3 className="font-bold mb-7 text-base lg:text-2xl">
-                Booking Summary
-              </h3>
-
+              <h3 className="font-bold mb-7 text-base lg:text-2xl">Booking Summary</h3>
               <div className="bg-white rounded-[20px] text-black py-3 lg:py-5">
-                {/* Booking Details */}
                 <div className="p-3 lg:p-5 border-b border-black/20">
                   <h4 className="font-bold text-lg mb-3">
-                    {booking.shoot_name || "Unnamed Shoot"}
+                    {toTitleCase(booking.shoot_name || "Unnamed Shoot")}
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-[#626467]">Event Type:</span>
-                      <span className="capitalize">
-                        {booking.event_type || "N/A"}
+                      <span className="">
+                        {toTitleCase(
+                          (booking.project_name || booking.shoot_name || "")
+                            .split("-")[0]
+                            .trim(),
+                        )}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -812,15 +763,14 @@ function MultiCreatorPaymentContent() {
                   </div>
                 </div>
 
-                {/* Crew Members */}
-                <div className="p-3 lg:p-5 border-b border-black/20">
-                  <h4 className="font-bold text-base mb-3 flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    Your Crew ({creators?.length || 0})
-                  </h4>
-                  <div className="space-y-2">
-                    {creators &&
-                      creators.slice(0, 3).map((creator: any) => {
+                {creators && creators.length > 0 && (
+                  <div className="p-3 lg:p-5 border-b border-black/20">
+                    <h4 className="font-bold text-base mb-3 flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Your Crew ({creators?.length || 0})
+                    </h4>
+                    <div className="space-y-2">
+                      {creators.slice(0, 3).map((creator: any) => {
                         const imageUrl =
                           creator.profile_image ||
                           getFallbackImage(creator.crew_member_id);
@@ -845,24 +795,13 @@ function MultiCreatorPaymentContent() {
                                 {creator.role_name}
                               </p>
                             </div>
-                            {creator.rating > 0 && (
-                              <div className="flex items-center gap-1 text-xs">
-                                <Star className="w-3 h-3 fill-[#222222]" />
-                                <span>{creator.rating.toFixed(1)}</span>
-                              </div>
-                            )}
                           </div>
                         );
                       })}
-                    {creators && creators.length > 3 && (
-                      <p className="text-xs text-[#626467] text-center pt-2">
-                        +{creators.length - 3} more
-                      </p>
-                    )}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Pricing Breakdown */}
                 {quote && (
                   <div className="">
                     {quote.lineItems &&
@@ -874,24 +813,22 @@ function MultiCreatorPaymentContent() {
                           <span className="text-[#626467]">
                             {item.item_name}
                             {item.quantity > 1 && ` × ${item.quantity}`}
-                            {item.rate_type === "per_hour" &&
-                              ` (${booking.duration_hours}hrs)`}
                           </span>
                           <span className="font-medium">
-                            ${item.line_total?.toFixed(2) || "0.00"}
+                            {formatCurrency(item.line_total || 0)}
                           </span>
                         </div>
                       ))}
-
                     <div className="p-3 lg:p-5 border-b border-black/20">
                       <div className="flex justify-between mb-3">
                         <span className="text-[#626467]">Subtotal</span>
                         <span className="font-medium">
-                          ${quote.subtotal?.toFixed(2) || "0.00"}
+                          {formatCurrency(quote.subtotal || 0)}
                         </span>
                       </div>
-                      {/* Show discount if applied */}
-                      {/* {quote.discountAmount && quote.discountAmount > 0 && (
+                    </div>
+                    {/* Show discount if applied */}
+                    {/* {quote.discountAmount && quote.discountAmount > 0 && (
                         <div className="flex justify-between mb-3 text-green-600">
                           <span>
                             Discount Applied ({quote.discountPercent}%)
@@ -901,8 +838,8 @@ function MultiCreatorPaymentContent() {
                           </span>
                         </div>
                       )} */}
-                      {/* Show margin if applied */}
-                      {/* {quote.marginAmount && quote.marginAmount > 0 && (
+                    {/* Show margin if applied */}
+                    {/* {quote.marginAmount && quote.marginAmount > 0 && (
                         <div className="flex justify-between mb-3">
                           <span className="text-[#626467]">
                             Service Fee ({quote.marginPercent}%)
@@ -912,57 +849,15 @@ function MultiCreatorPaymentContent() {
                           </span>
                         </div>
                       )} */}
-                    </div>
-
-                    {/* Service fees removed - showing raw pricing */}
-
                     <div className="flex justify-between items-start p-3 lg:p-5">
                       <div className="flex flex-col gap-2 text-sm">
                         <span className="font-bold">Total</span>
                         <span className="text-[#212122]">Amount Due</span>
                       </div>
-                      <span className="text-xl font-bold">
-                        ${quote.total?.toFixed(2) || "0.00"}
-                      </span>
+                      <span className="text-xl font-bold">{formatCurrency(quote.total || 0)}</span>
                     </div>
                   </div>
                 )}
-
-                {/* Protection Badge */}
-                <div className="bg-[#E2FFD3] border-[0.5px] border-[#389903] rounded-xl p-3 lg:p-5 flex gap-2 mx-5 justify-start">
-                  <div className="w-4 h-4 lg:w-6 lg:h-6">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <path
-                        d="M3 10.4167C3 7.21907 3 5.62028 3.37752 5.08241C3.75503 4.54454 5.25832 4.02996 8.26491 3.00079L8.83772 2.80472C10.405 2.26824 11.1886 2 12 2C12.8114 2 13.595 2.26824 15.1623 2.80472L15.7351 3.00079C18.7417 4.02996 20.245 4.54454 20.6225 5.08241C21 5.62028 21 7.21907 21 10.4167C21 10.8996 21 11.4234 21 11.9914C21 17.6294 16.761 20.3655 14.1014 21.5273C13.38 21.8424 13.0193 22 12 22C10.9807 22 10.62 21.8424 9.89856 21.5273C7.23896 20.3655 3 17.6294 3 11.9914C3 11.4234 3 10.8996 3 10.4167Z"
-                        fill="#389903"
-                        stroke="#389903"
-                        strokeWidth="1.5"
-                      />
-                      <path
-                        d="M9.5 12.4L10.9286 14L14.5 10"
-                        stroke="white"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h5 className="text-[#1B1B1B] text-sm lg:text-base font-bold lg:mb-2">
-                      Beige Project Protection
-                    </h5>
-                    <p className="text-xs lg:text-sm text-[#212122] leading-relaxed">
-                      Your payment is protected with Stripe's secure encryption.
-                      Funds are only released when you're satisfied.
-                    </p>
-                  </div>
-                </div>
               </div>
 
               {/* Support Buttons */}
@@ -1026,20 +921,10 @@ function MultiCreatorPaymentContent() {
 export default function MultiCreatorPaymentPage() {
   return (
     <main className="bg-[#101010] min-h-screen text-white relative">
-      <img
-        src="/svg/HeroBanner.svg"
-        alt="Decorative Overlay"
-        className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0"
-      />
+      <img src="/svg/HeroBanner.svg" alt="Decorative Overlay" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0" />
       <div className="relative z-10">
         <Navbar />
-        <Suspense
-          fallback={
-            <div className="min-h-screen bg-[#101010] flex items-center justify-center">
-              <Loader2 className="w-12 h-12 text-[#E8D1AB] animate-spin" />
-            </div>
-          }
-        >
+        <Suspense fallback={<div className="min-h-screen bg-[#101010] flex items-center justify-center"><Loader2 className="w-12 h-12 text-[#E8D1AB] animate-spin" /></div>}>
           <MultiCreatorPaymentContent />
         </Suspense>
         <Footer />
