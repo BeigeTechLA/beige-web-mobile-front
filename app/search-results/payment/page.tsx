@@ -474,6 +474,41 @@ function MultiCreatorPaymentContent() {
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string>("");
 
+  // Inside MultiCreatorPaymentContent function
+  const [showBackDialog, setShowBackDialog] = useState(false);
+
+  const handleBackClick = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault(); // Stop internal Link from navigating immediately
+    if (step !== "success") {
+      setShowBackDialog(true);
+    } else {
+      // If successful, just go back normally
+      window.history.back();
+    }
+  };
+
+  useEffect(() => {
+    if (step === "success") return;
+
+    // Push a dummy state so we can catch the first pop
+    window.history.pushState(null, "", window.location.href);
+
+    const handlePopState = () => {
+      // Re-push state to keep the user on the page and show dialog
+      window.history.pushState(null, "", window.location.href);
+      setShowBackDialog(true);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [step]);
+
+  const handleConfirmBack = () => {
+    setShowBackDialog(false);
+    // Actually go back (two steps: the one we added + the intended back)
+    window.history.go(-2);
+  };
+
   // Reusable function to fetch/update intent
   const fetchIntent = async (details: any) => {
     if (!details || !shootId) return;
@@ -597,13 +632,18 @@ function MultiCreatorPaymentContent() {
           <p className="text-white/60 text-lg">
             {error || "Unable to load payment information for this booking."}
           </p>
-          <Link
+          {/* <Link
             href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`}
             className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors"
+          > */}
+          <button
+            onClick={handleBackClick}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Search Results
-          </Link>
+          </button>
+          {/* </Link> */}
         </div>
       </div>
     );
@@ -674,10 +714,17 @@ function MultiCreatorPaymentContent() {
   return (
     <div className="pt-20 lg:pt-32 pb-20 min-h-screen">
       <div className="container mx-auto px-4 md:px-0">
-        <Link href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`} className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors">
+        {/* <Link href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`} className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
-        </Link>
+        </Link> */}
+        <button
+            onClick={handleBackClick}
+            className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </button>
 
         <div className="text-center mb-8 lg:mb-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -914,6 +961,44 @@ function MultiCreatorPaymentContent() {
           </div>
         </div>
       </div>
+
+      {/* Back Button Disclaimer Popup */}
+      <AnimatePresence>
+        {showBackDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#1a1a1a] border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl"
+            >
+              <h3 className="text-2xl font-semibold text-white mb-4">Cancel Payment?</h3>
+              <p className="text-white/60 mb-8 leading-relaxed">
+                Your booking progress will be lost. If you have already clicked pay, please wait to avoid duplicate charges.
+              </p>
+              <div className="flex gap-4">
+                <Button
+                  onClick={() => setShowBackDialog(false)}
+                  className="flex-1 py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all font-medium"
+                >
+                  Continue Payment
+                </Button>
+                <Button
+                  onClick={handleConfirmBack}
+                  className="flex-1 py-3 px-6 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all font-medium"
+                >
+                  Leave Page
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
