@@ -722,13 +722,13 @@ function MultiCreatorPaymentContent() {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Link> */}
-        <button
+        {/* <button
             onClick={handleBackClick}
             className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
-          </button>
+          </button> */}
         {/* Leave Confirmation Modal */}
         <LeaveConfirmationModal
           isOpen={showLeaveModal}
