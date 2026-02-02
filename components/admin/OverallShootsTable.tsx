@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { ChevronRight, ChevronDown, Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronRight, ChevronDown, ChevronUp, Loader2, Calendar as CalendarIcon } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { format } from "date-fns";
 import {
@@ -12,9 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/Datepicker";
-
-type ShootStatus = "Pending" | "Pre Production" | "Completed" | "Rejected";
 
 // internal status mapping for styles
 const STATUS_STYLES = {
@@ -80,11 +77,12 @@ const parseSkills = (skills: string | number[] | null | undefined, skillMap: Rec
   return skillNames.join(", ");
 };
 
-const StatusBadge = ({ status }: { status: string }) => {
+const StatusBadge = ({ status, mobile }: { status: string; mobile?: boolean }) => {
   const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
+  const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
 
   return (
-    <span className={`px-6 py-2 rounded-full text-sm font-semibold border ${style}`}>
+    <span className={`${padding} rounded-full font-semibold border ${style}`}>
       {status}
     </span>
   );
@@ -94,6 +92,7 @@ export const OverallShootsTable = () => {
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<string | null>(null); // For mobile accordion
   const itemsPerPage = 5;
 
   // New filtering states
@@ -172,47 +171,22 @@ export const OverallShootsTable = () => {
     }
   };
 
+  const toggleExpand = (id: string) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
   return (
-    <div className="w-full bg-[#171717] rounded-2xl border border-white/5 overflow-hidden mt-8 min-h-[400px] flex flex-col">
+    <div className="w-full bg-[#171717] rounded-2xl border border-white/5 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col">
       {/* Table Header Controls */}
-      <div className="bg-[#101010] flex justify-between items-center p-5 border-b border-b-[#3D3D3D]">
+      <div className="bg-[#101010] flex flex-row justify-between items-center p-5 border-b border-b-[#3D3D3D] gap-4">
         <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h3 className="">Overall Shoots</h3>
         </div>
 
         <div className="flex gap-3">
-          {/* {range === 'custom' && (
-            <div className="flex items-center gap-2">
-              <div className="w-[140px]">
-                <DatePicker
-                  label=""
-                  value={startDate}
-                  onChange={setStartDate}
-                  sx={{
-                    height: '36px',
-                    borderRadius: '99px',
-                    '& .MuiInputBase-input': { fontSize: '12px', padding: '0 12px' }
-                  }}
-                />
-              </div>
-              <div className="w-[140px]">
-                <DatePicker
-                  label=""
-                  value={endDate}
-                  onChange={setEndDate}
-                  sx={{
-                    height: '36px',
-                    borderRadius: '99px',
-                    '& .MuiInputBase-input': { fontSize: '12px', padding: '0 12px' }
-                  }}
-                />
-              </div>
-            </div>
-          )} */}
-
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-[120px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-xs text-white/70 focus:ring-0 capitalize">
+            <SelectTrigger className="flex-1 sm:w-[120px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-[10px] lg:text-xs text-white/70 focus:ring-0 capitalize">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className="bg-[#111111] border-[#3D3D3D]">
@@ -225,7 +199,7 @@ export const OverallShootsTable = () => {
           </Select>
 
           <Select value={range} onValueChange={setRange}>
-            <SelectTrigger className="w-[110px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-xs text-white/70 focus:ring-0">
+            <SelectTrigger className="flex-1 sm:w-[110px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-[10px] lg:text-xs text-white/70 focus:ring-0">
               <SelectValue placeholder="Range" />
             </SelectTrigger>
             <SelectContent className="bg-[#111111] border-[#3D3D3D]">
@@ -239,8 +213,67 @@ export const OverallShootsTable = () => {
         </div>
       </div>
 
-      {/* Table Grid */}
-      <div className="w-full overflow-x-auto flex-grow">
+      {/*  MOBILE VIEW (Card Accordion)  */}
+      <div className="lg:hidden flex-grow space-y-4">
+        {loading ? (
+          <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#E8D1AB]" /></div>
+        ) : currentShoots.length > 0 ? (
+          <>
+            <div className="flex justify-between text-[#E8D1AB] text-sm font-medium p-4 mb-4 bg-[#101010] rounded-b-2xl border-b border-b-white/5">
+              <span>Customer Name</span>
+              <span>Status</span>
+            </div>
+            {currentShoots.map((shoot) => (
+              <div key={shoot.id} className="px-4 border-b border-white/5 pb-4 last:border-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => toggleExpand(shoot.id)}
+                      className={`w-6 h-6 flex items-center justify-center rounded-full border ${expandedId === shoot.id ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'} shrink-0`}
+                    >
+                      {expandedId === shoot.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                    <div className="w-10 h-10 relative rounded-lg overflow-hidden bg-white/10">
+                      <Image src={shoot.customerImage} alt="" fill className="object-cover" />
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-medium">{shoot.customerName}</p>
+                    </div>
+                  </div>
+                  <StatusBadge status={shoot.status} mobile />
+                </div>
+
+                {/* Expanded Details */}
+                {expandedId === shoot.id && (
+                  <div className="mt-4 grid grid-cols-2 gap-y-4 px-2">
+                    <div>
+                      <p className="text-[#666] text-[10px] uppercase tracking-wider">Shoot ID</p>
+                      <p className="text-white text-sm">{shoot.id}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[#666] text-[10px] uppercase tracking-wider">Price</p>
+                      <p className="text-white text-sm">{shoot.price}</p>
+                    </div>
+                    <div>
+                      <p className="text-[#666] text-[10px] uppercase tracking-wider">Category</p>
+                      <p className="text-white text-sm truncate pr-2">{shoot.category}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
+                      <button className="text-[#E5D5B8] text-sm font-medium">Details</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        ) : (
+          <div className="text-center py-10 text-white/50">No shoots found.</div>
+        )}
+      </div>
+
+      {/*  DESKTOP VIEW (Standard Table)  */}
+      <div className="hidden lg:block w-full overflow-x-auto flex-grow">
         <table className="w-full text-left">
           <thead className="bg-[#101010] ">
             <tr className="text-[#E8D1AB] text-sm font-medium rounded-b-xl">
@@ -324,7 +357,7 @@ export const OverallShootsTable = () => {
       {/* Pagination Controls */}
       {!loading && shoots.length > 0 && (
         <div className="flex justify-between items-center p-4 border-t border-white/5 bg-[#101010]">
-          <div className="text-sm text-white/40">
+          <div className="hidden lg:block text-sm text-white/40">
             Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, shoots.length)} of {shoots.length} entries
           </div>
           <div className="flex gap-2 items-center">
