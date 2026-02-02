@@ -5,11 +5,12 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { ChevronRight, MoreVertical } from "lucide-react";
+import { ChevronRight, MoreVertical, Search } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useRouter } from "next/navigation";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
+import { useDebounce } from "@/hooks/use-debounce";
 
 // placeholder data
 const sortByData = ["Recent Leads (5)", "Recent Leads (15)", "Test Filter"];
@@ -82,11 +83,14 @@ export default function AdminSaleRepManagerPage() {
   );
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 500);
 
   // Fetch real leads from API
   const { data, isLoading, isFetching } = useGetLeadsQuery({
     page: 1,
     limit: 50,
+    search: debouncedSearch || undefined,
     status: sortBy || undefined,
   });
 
@@ -163,14 +167,21 @@ export default function AdminSaleRepManagerPage() {
         </div>
       </div>
 
-      <div
-        className="h-[1px] w-full my-4 lg:my-9"
-        style={{
-          backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-          backgroundSize: "30px 1px", // 30px is the total dash + gap width
-          backgroundRepeat: "repeat-x",
-        }}
-      />
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="relative flex-1 max-w-md">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]"
+            size={18}
+          />
+          <input
+            type="text"
+            placeholder="Search leads..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-[#555] transition-colors"
+          />
+        </div>
+      </div>
 
       <div className="w-full overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
         {isLoading || isFetching ? (
