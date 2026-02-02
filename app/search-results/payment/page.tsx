@@ -27,6 +27,7 @@ import { formatLocationForDisplay } from "@/lib/utils/locationHelpers";
 import { debounce } from "@/lib/utils";
 import { affiliateApi } from "@/lib/api";
 import axios from "axios";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Initialize Stripe
 const stripePromise = loadStripe(
@@ -464,6 +465,8 @@ function MultiCreatorPaymentContent() {
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId");
 
+  const router = useRouter();
+
   // State
   const [step, setStep] = useState<"loading" | "payment" | "success">(
     "loading",
@@ -678,9 +681,9 @@ function MultiCreatorPaymentContent() {
         {/* Leave Confirmation Modal */}
         <LeaveConfirmationModal
           isOpen={showLeaveModal}
-          onConfirm={() => {
-            window.location.href = "http://localhost:3000/book-a-shoot";
-          }}
+         onConfirm={() => {
+         router.push("/book-a-shoot");
+         } }
           onCancel={() => setShowLeaveModal(false)}
         />
 
