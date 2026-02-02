@@ -64,6 +64,22 @@ const CARD_ELEMENT_OPTIONS = {
   },
 };
 
+// Helper for currency formatting
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+};
+
+// Helper for title casing
+const toTitleCase = (str: string) => {
+  if (!str) return "";
+  return str.replace(/\w\S*/g, (txt) => {
+    return txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase();
+  });
+};
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
   clientSecret,
@@ -213,8 +229,8 @@ function StripePaymentFormMulti({
 
         if (detailsRes.data.success) {
           // 1. Update the Summary text
-          setPaymentDetails(detailsRes.data.data); 
-          
+          setPaymentDetails(detailsRes.data.data);
+
           // 2. Refresh the Stripe secret WITHOUT setting it to ""
           // This keeps the CardElement mounted and prevents the page refresh
           await refreshPaymentIntent(detailsRes.data.data);
@@ -334,13 +350,12 @@ function StripePaymentFormMulti({
               type="text"
               value={referralCode}
               onChange={(e) => handleReferralCodeChange(e.target.value)}
-              className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-12 text-white outline-none bg-[#272626] uppercase tracking-wider ${
-                referralCodeValid === true
-                  ? "border-green-500 focus:border-green-400"
-                  : referralCodeValid === false
-                    ? "border-red-500 focus:border-red-400"
-                    : "border-white/30 focus:border-white/50"
-              }`}
+              className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-12 text-white outline-none bg-[#272626] uppercase tracking-wider ${referralCodeValid === true
+                ? "border-green-500 focus:border-green-400"
+                : referralCodeValid === false
+                  ? "border-red-500 focus:border-red-400"
+                  : "border-white/30 focus:border-white/50"
+                }`}
               placeholder="Enter code"
               maxLength={10}
             />
@@ -379,13 +394,12 @@ function StripePaymentFormMulti({
               type="text"
               value={discountCode}
               onChange={(e) => handleDiscountCodeChange(e.target.value)}
-              className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-24 text-white outline-none bg-[#272626] uppercase tracking-wider ${
-                discountValid === true
-                  ? "border-green-500 focus:border-green-400"
-                  : discountValid === false
-                    ? "border-red-500 focus:border-red-400"
-                    : "border-white/30 focus:border-white/50"
-              }`}
+              className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-24 text-white outline-none bg-[#272626] uppercase tracking-wider ${discountValid === true
+                ? "border-green-500 focus:border-green-400"
+                : discountValid === false
+                  ? "border-red-500 focus:border-red-400"
+                  : "border-white/30 focus:border-white/50"
+                }`}
               placeholder="Enter discount code"
               maxLength={20}
               disabled={!!appliedDiscount}
@@ -439,7 +453,7 @@ function StripePaymentFormMulti({
         >
           {isProcessing
             ? "Processing..."
-            : `Confirm & Pay $${amount.toFixed(2)}`}
+            : `Confirm & Pay ${formatCurrency(amount)}`}
         </Button>
       </form>
     </div>
@@ -464,7 +478,7 @@ function MultiCreatorPaymentContent() {
   const fetchIntent = async (details: any) => {
     if (!details || !shootId) return;
     const { booking, quote } = details;
-    
+
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
       const response = await axios.post(`${API_BASE_URL}payments/create-intent-multi`, {
@@ -509,7 +523,7 @@ function MultiCreatorPaymentContent() {
 
         const data = response.data.data;
         setPaymentDetails(data);
-        
+
         // Initial Intent Fetch
         await fetchIntent(data);
 
@@ -641,7 +655,7 @@ function MultiCreatorPaymentContent() {
               </div>
             </div>
             <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Payment Success</h2>
-            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">${quote.total.toFixed(2)}</p>
+            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(quote.total)}</p>
             <div className="w-full max-w-2xl mb-6">
               <button onClick={() => window.open(getFormUrl(), "_blank")} className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center">
                 Complete All The Details For Your Shoot
@@ -685,9 +699,9 @@ function MultiCreatorPaymentContent() {
                 {/* Loader Overlay when updating the price/intent so the form doesn't disappear */}
                 <AnimatePresence>
                   {isUpdatingIntent && (
-                    <motion.div 
-                      initial={{ opacity: 0 }} 
-                      animate={{ opacity: 1 }} 
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       className="absolute inset-0 z-50 bg-[#171717]/60 backdrop-blur-[2px] rounded-[20px] flex flex-col items-center justify-center"
                     >
@@ -720,11 +734,19 @@ function MultiCreatorPaymentContent() {
               <h3 className="font-bold mb-7 text-base lg:text-2xl">Booking Summary</h3>
               <div className="bg-white rounded-[20px] text-black py-3 lg:py-5">
                 <div className="p-3 lg:p-5 border-b border-black/20">
-                  <h4 className="font-bold text-lg mb-3">{booking.shoot_name || "Unnamed Shoot"}</h4>
+                  <h4 className="font-bold text-lg mb-3">
+                    {toTitleCase(booking.shoot_name || "Unnamed Shoot")}
+                  </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-[#626467]">Event Type:</span>
-                      <span className="capitalize">{booking.event_type || "N/A"}</span>
+                      <span className="">
+                        {toTitleCase(
+                          (booking.project_name || booking.shoot_name || "")
+                            .split("-")[0]
+                            .trim(),
+                        )}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#626467]">Duration:</span>
@@ -732,50 +754,81 @@ function MultiCreatorPaymentContent() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#626467]">Location:</span>
-                      <span className="truncate ml-2">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
+                      <span className="truncate ml-2">
+                        {booking.event_location
+                          ? formatLocationForDisplay(booking.event_location)
+                          : "N/A"}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3 lg:p-5 border-b border-black/20">
-                  <h4 className="font-bold text-base mb-3 flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    Your Crew ({creators?.length || 0})
-                  </h4>
-                  <div className="space-y-2">
-                    {creators && creators.slice(0, 3).map((creator: any) => {
-                        const imageUrl = creator.profile_image || getFallbackImage(creator.crew_member_id);
+                {creators && creators.length > 0 && (
+                  <div className="p-3 lg:p-5 border-b border-black/20">
+                    <h4 className="font-bold text-base mb-3 flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Your Crew ({creators?.length || 0})
+                    </h4>
+                    <div className="space-y-2">
+                      {creators.slice(0, 3).map((creator: any) => {
+                        const imageUrl =
+                          creator.profile_image ||
+                          getFallbackImage(creator.crew_member_id);
                         return (
-                          <div key={creator.crew_member_id} className="flex items-center gap-2">
+                          <div
+                            key={creator.crew_member_id}
+                            className="flex items-center gap-2"
+                          >
                             <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
-                              <Image src={imageUrl} alt={creator.name} fill className="object-cover" />
+                              <Image
+                                src={imageUrl}
+                                alt={creator.name}
+                                fill
+                                className="object-cover"
+                              />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{creator.name}</p>
-                              <p className="text-xs text-[#626467] truncate">{creator.role_name}</p>
+                              <p className="text-sm font-medium truncate">
+                                {creator.name}
+                              </p>
+                              <p className="text-xs text-[#626467] truncate">
+                                {creator.role_name}
+                              </p>
                             </div>
                           </div>
                         );
                       })}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {quote && (
                   <div className="">
-                    {quote.lineItems && quote.lineItems.map((item: any, index: number) => (
-                        <div key={index} className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20">
-                          <span className="text-[#626467]">{item.item_name} {item.quantity > 1 && ` × ${item.quantity}`}</span>
-                          <span className="font-medium">${item.line_total?.toFixed(2) || "0.00"}</span>
+                    {quote.lineItems &&
+                      quote.lineItems.map((item: any, index: number) => (
+                        <div
+                          key={index}
+                          className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20"
+                        >
+                          <span className="text-[#626467]">
+                            {item.item_name}
+                            {item.quantity > 1 && ` × ${item.quantity}`}
+                          </span>
+                          <span className="font-medium">
+                            {formatCurrency(item.line_total || 0)}
+                          </span>
                         </div>
                       ))}
                     <div className="p-3 lg:p-5 border-b border-black/20">
                       <div className="flex justify-between mb-3">
                         <span className="text-[#626467]">Subtotal</span>
-                        <span className="font-medium">${quote.subtotal?.toFixed(2) || "0.00"}</span>
+                        <span className="font-medium">
+                          {formatCurrency(quote.subtotal || 0)}
+                        </span>
                       </div>
                     </div>
                     {/* Show discount if applied */}
-                      {/* {quote.discountAmount && quote.discountAmount > 0 && (
+                    {/* {quote.discountAmount && quote.discountAmount > 0 && (
                         <div className="flex justify-between mb-3 text-green-600">
                           <span>
                             Discount Applied ({quote.discountPercent}%)
@@ -785,8 +838,8 @@ function MultiCreatorPaymentContent() {
                           </span>
                         </div>
                       )} */}
-                      {/* Show margin if applied */}
-                      {/* {quote.marginAmount && quote.marginAmount > 0 && (
+                    {/* Show margin if applied */}
+                    {/* {quote.marginAmount && quote.marginAmount > 0 && (
                         <div className="flex justify-between mb-3">
                           <span className="text-[#626467]">
                             Service Fee ({quote.marginPercent}%)
@@ -801,25 +854,12 @@ function MultiCreatorPaymentContent() {
                         <span className="font-bold">Total</span>
                         <span className="text-[#212122]">Amount Due</span>
                       </div>
-                      <span className="text-xl font-bold">${quote.total?.toFixed(2) || "0.00"}</span>
+                      <span className="text-xl font-bold">{formatCurrency(quote.total || 0)}</span>
                     </div>
                   </div>
                 )}
-
-                <div className="bg-[#E2FFD3] border-[0.5px] border-[#389903] rounded-xl p-3 lg:p-5 flex gap-2 mx-5 justify-start">
-                  <div className="w-4 h-4 lg:w-6 lg:h-6">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M3 10.4167C3 7.21907 3 5.62028 3.37752 5.08241C3.75503 4.54454 5.25832 4.02996 8.26491 3.00079L8.83772 2.80472C10.405 2.26824 11.1886 2 12 2C12.8114 2 13.595 2.26824 15.1623 2.80472L15.7351 3.00079C18.7417 4.02996 20.245 4.54454 20.6225 5.08241C21 5.62028 21 7.21907 21 10.4167C21 10.8996 21 11.4234 21 11.9914C21 17.6294 16.761 20.3655 14.1014 21.5273C13.38 21.8424 13.0193 22 12 22C10.9807 22 10.62 21.8424 9.89856 21.5273C7.23896 20.3655 3 17.6294 3 11.9914C3 11.4234 3 10.8996 3 10.4167Z" fill="#389903" stroke="#389903" strokeWidth="1.5" />
-                      <path d="M9.5 12.4L10.9286 14L14.5 10" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h5 className="text-[#1B1B1B] text-sm lg:text-base font-bold lg:mb-2">Beige Project Protection</h5>
-                    <p className="text-xs lg:text-sm text-[#212122] leading-relaxed">Your payment is protected with Stripe's secure encryption. Funds are only released when you're satisfied.</p>
-                  </div>
-                </div>
               </div>
-              
+
               {/* Support Buttons */}
               {/* <div className="grid grid-cols-2 gap-4 mt-5">
                 <button
