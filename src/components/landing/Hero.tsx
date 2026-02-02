@@ -5,6 +5,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Button } from "@/src/components/landing/ui/button";
 import RotatingInput from "./RotatingInput";
+import { HeroSwiper } from "./HeroImageSwiper";
 
 export const Hero = () => {
   const heroRef = useRef<HTMLElement | null>(null);
@@ -103,8 +104,21 @@ export const Hero = () => {
               </Button>
             </motion.div>
 
-            {/* New Hero Video */}
+            {/* THE SWIPER COMPONENT */}
             <div className="relative w-full h-[600px] lg:h-[800px] overflow-hidden">
+              <HeroSwiper />
+
+              {/* Top and Bottom fade */}
+              <div className="pointer-events-none absolute top-0 left-0 w-full h-[150px] z-[20] bg-gradient-to-b from-[#010101] via-[#010101]/60 to-transparent" />
+              <div className="pointer-events-none absolute bottom-0 left-0 w-full h-[150px] z-[20] bg-gradient-to-t from-[#010101] via-[#010101]/60 to-transparent" />
+
+              {/* 4. Side Fades */}
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-15 z-[20] bg-gradient-to-r from-[#010101] to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-15 z-[20] bg-gradient-to-l from-[#010101] to-transparent" />
+            </div>
+
+            {/* New Hero Video */}
+            {/* <div className="relative w-full h-[600px] lg:h-[800px] overflow-hidden">
               <div className="pointer-events-none absolute top-0 left-0 w-full h-[80px] z-[2] bg-gradient-to-t from-transparent via-[#010101]/80 to-[#010101]" />
               {activeVideoUrl && (
                 <video
@@ -117,7 +131,7 @@ export const Hero = () => {
                 />
               )}
               <div className="pointer-events-none absolute bottom-0 left-0 w-full h-[80px] z-[2] bg-gradient-to-t from-[#010101] via-[#010101]/80 to-transparent" />
-            </div>
+            </div> */}
           </div>
         </div>
 
