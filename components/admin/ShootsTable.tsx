@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MobileShootRow } from "@/components/admin/MobileShootRow";
+import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow";
 type ShootStatus = "Initiated" | "Pre Production" | "Post Production" | "Revision" | "Completed";
 
 interface ShootRecord {
@@ -226,13 +226,13 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
       ) : (
         <>
           {/* MOBILE ONLY VIEW (Visible on small screens, hidden on lg) */}
-          <div className="lg:hidden p-4 bg-[#111111]">
+          <div className="lg:hidden p-3 bg-[#111111]">
             <div className="flex justify-between px-5 py-3 text-[#E8D1AB] text-sm font-medium">
               <span>Customer Name</span>
               <span>Status</span>
             </div>
 
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-2 ">
               {currentShoots.map((shoot, idx) => (
                 <MobileShootRow
                   key={idx}

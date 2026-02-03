@@ -30,7 +30,7 @@ export default function ShootTabs({ activeTab, onTabChange }: ShootTabsProps) {
             key={tab}
             onClick={() => onTabChange(tab)}
             className={cn(
-              "pb-4 text-base font-medium transition-all duration-300 relative tracking-normal px-2 whitespace-nowrap flex-shrink-0",
+              "pb-2 lg:pb-4 text-sm lg:text-base font-medium transition-all duration-300 relative tracking-normal px-2 whitespace-nowrap flex-shrink-0",
               activeTab === tab
                 ? "text-[#E5D5B8]"
                 : "text-[#666666] hover:text-white"

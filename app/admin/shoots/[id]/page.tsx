@@ -105,7 +105,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     <div className="flex h-full -m-6 lg:-m-10 relative">
 
       {/* Main Content (Left) */}
-      <div className="flex-1 p-6 lg:p-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+      <div className="flex-1 p-6 pb-15 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         <ShootHeader activeTab={activeTab} project={project} />
         <Button
           className="w-full bg-[#202020] text-white hover:bg-[#202020]/50 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 mb-3"
