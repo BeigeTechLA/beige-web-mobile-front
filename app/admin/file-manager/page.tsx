@@ -210,7 +210,7 @@ export default function AdminFolderManagerPage() {
             <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
             <input
               type="text"
-              placeholder="Search equipment..."
+              placeholder="Search folder..."
               value={searchTerm}
               className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSearch(e.target.value)}
@@ -278,7 +278,6 @@ export default function AdminFolderManagerPage() {
                 <List size={20} />
               </Button>
             </div>
-
           </div>
         </div>
 
