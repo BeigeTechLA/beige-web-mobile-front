@@ -114,7 +114,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
             {/* Main Content (Left) */}
             <div className="flex-1 p-6 lg:p-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-                <ShootHeader activeTab={activeTab} project={project} />
+                <ShootHeader activeTab={activeTab} project={project} projectId={id} />
 
                 <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
 

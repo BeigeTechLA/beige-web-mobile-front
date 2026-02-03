@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ArrowLeft,
   Percent,
+  DollarSign,
   MapPinned,
   Copy,
 } from "lucide-react";
@@ -52,11 +53,12 @@ export default function LeadDetailPage() {
   const params = useParams();
   const leadId = params.id as string;
 
+
   const [discount, setDiscount] = useState("");
   const [showDiscountCode, setShowDiscountCode] = useState(false);
-  const [usageType, setUsageType] = useState<"one_time" | "multi_use">(
-    "one_time",
-  );
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed_amount">("percentage");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [usageType, setUsageType] = useState<"one_time" | "multi_use">("one_time");
   const [generatedCode, setGeneratedCode] = useState<string>("");
 
   // Fetch real lead data
@@ -105,11 +107,11 @@ export default function LeadDetailPage() {
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
     if (!discount || parseFloat(discount) <= 0) {
-      toast.error("Please enter a valid discount percentage");
+      toast.error("Please enter a valid discount value");
       return;
     }
 
-    if (parseFloat(discount) > 100) {
+    if (discountType === "percentage" && parseFloat(discount) > 100) {
       toast.error("Discount cannot exceed 100%");
       return;
     }
@@ -118,7 +120,7 @@ export default function LeadDetailPage() {
       const response = await generateDiscountCode({
         lead_id: parseInt(leadId),
         booking_id: lead?.booking_id,
-        discount_type: "percentage",
+        discount_type: discountType,
         discount_value: parseFloat(discount),
         usage_type: usageType,
         max_uses: usageType === "multi_use" ? 10 : undefined,
@@ -328,10 +330,49 @@ export default function LeadDetailPage() {
               }}
             />
             <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9">
-              {/* Percentage Input */}
+              {/* Discount Type Dropdown */}
               <div className="relative">
-                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest">
-                  Discount Percentage
+                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-10">
+                  Discount Type
+                </label>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="flex items-center justify-between w-full border border-white/50 rounded-xl px-4 py-4 text-left text-base text-white hover:border-white/80 transition-all"
+                  >
+                    {discountType === "percentage" ? "Percentage" : "Fixed Amount"}
+                    <ChevronDown size={18} className={`transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {isDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#0A0808] border border-white/20 rounded-xl overflow-hidden z-10 shadow-xl">
+                      <button
+                        onClick={() => {
+                          setDiscountType("percentage");
+                          setIsDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-3 text-white hover:bg-white/5 transition-colors"
+                      >
+                        Percentage
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDiscountType("fixed_amount");
+                          setIsDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-3 text-white hover:bg-white/5 transition-colors"
+                      >
+                        Fixed Amount
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Discount Value Input */}
+              <div className="relative">
+                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-10">
+                  {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
                 </label>
                 <div className="flex items-center border border-white/50 rounded-xl px-4 py-4 bg-transparent focus-within:border-[#E8D1AB]/50 transition-all">
                   <input
@@ -341,19 +382,12 @@ export default function LeadDetailPage() {
                     value={discount}
                     onChange={(e) => setDiscount(e.target.value)}
                   />
-                  <Percent size={20} className="text-white" />
+                  {discountType === "percentage" ? (
+                    <Percent size={20} className="text-white" />
+                  ) : (
+                    <DollarSign size={20} className="text-white" />
+                  )}
                 </div>
-              </div>
-
-              {/* Usage Type Dropdown */}
-              <div className="relative">
-                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest">
-                  Usage Type
-                </label>
-                <button className="flex items-center justify-between w-full border border-white/50 rounded-xl px-4 py-4 text-left text-base text-white/60 hover:border-white/20">
-                  Select usage type
-                  <ChevronDown size={18} />
-                </button>
               </div>
 
               {/* Action Button */}
