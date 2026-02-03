@@ -187,18 +187,18 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       {/* Team Included */}
       <div ref={teamIncludedRef} className="pt-6 lg:pt-15 border-t border-white/10">
         <h3 className="text-base lg:text-xl font-medium text-white/90 mb-4">Team Included in Package</h3>
-        <div className="">
+        <div>
           {includedRoles.length > 0 ? (
-            <div className="flex flex-col gap-4">
+            <div className={`grid grid-cols-1 ${includedRoles.length > 1 ? 'md:grid-cols-2' : ''} gap-4`}>
               {includedRoles.map((role: any) => (
                 <div key={role.id} className="flex items-center justify-between p-4 bg-[#101010] rounded-[12px] border border-white/10">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 lg:w-15 lg:h-15 rounded-[12px] flex items-center justify-center bg-[#171717] flex items-center justify-center text-[#E8D1AB]">
+                    <div className="w-10 h-10 lg:w-15 lg:h-15 rounded-[12px] flex items-center justify-center bg-[#171717] text-[#E8D1AB]">
                       {role.icon}
                     </div>
                     <span className="text-lg font-medium text-[#E8D1AB] capitalize">{role.label} x1</span>
                   </div>
-                  <div className="px-3 py-1 lg:py-3 lg:px-8 bg-[#211F1C] rounded-full text-sm text-[#E8D1AB] border border-[#E8D1AB]">
+                  <div className="px-3 py-1 lg:py-2 lg:px-6 bg-[#211F1C] rounded-full text-xs lg:text-sm text-[#E8D1AB] border border-[#E8D1AB] whitespace-nowrap">
                     Included
                   </div>
                 </div>
@@ -209,7 +209,6 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           )}
         </div>
       </div>
-
       {/* Add More Team Members */}
       <div ref={extraTeamRef}>
         <div className="flex flex-col gap-3 lg:gap-6">

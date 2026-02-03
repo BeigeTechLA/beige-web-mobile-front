@@ -105,10 +105,11 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
   // Track if the dropdown should be allowed to open (only when typing)
   const [shouldShowDropdown, setShouldShowDropdown] = useState(false);
 
+  // Default coordinates (Ahmedabad as fallback)
   const [viewState, setViewState] = useState({
-    latitude: 34.0522,
-    longitude: -118.2437,
-    zoom: 10
+    latitude: 23.0225,
+    longitude: 72.5714,
+    zoom: 12
   });
 
   const [marker, setMarker] = useState<LocationData | null>(null);
@@ -117,6 +118,27 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
     MAPBOX_TOKEN &&
     !MAPBOX_TOKEN.includes("replace_with") &&
     MAPBOX_TOKEN.length > 20;
+
+  /* ---------------------- INITIAL LOCATION DETECTION ---------------------- */
+
+  useEffect(() => {
+    // Detect user's current location on mount to center the map and bias search
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setViewState((prev) => ({
+            ...prev,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            zoom: 12
+          }));
+        },
+        (error) => {
+          console.warn("Location permission denied. Using default view.");
+        }
+      );
+    }
+  }, []);
 
   /* ---------------------------- MAP CLICK ---------------------------- */
 
@@ -167,10 +189,16 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
     setIsSearching(true);
 
     try {
+      /**
+       * Proximity Logic:
+       * We use the current viewState (map center) to bias search results.
+       * This ensures that if you're in Ahmedabad, "Shela" returns the local one first.
+       */
+      const proximity = `${viewState.longitude},${viewState.latitude}`;
       const res = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
           searchQuery
-        )}.json?access_token=${MAPBOX_TOKEN}&limit=5`
+        )}.json?access_token=${MAPBOX_TOKEN}&limit=5&proximity=${proximity}`
       );
       const data = await res.json();
       setSearchResults(data.features || []);
@@ -179,7 +207,7 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
     }
 
     setIsSearching(false);
-  }, [searchQuery, isValidToken, shouldShowDropdown]);
+  }, [searchQuery, isValidToken, shouldShowDropdown, viewState.latitude, viewState.longitude]);
 
   /* -------------------- AUTO SEARCH (DEBOUNCED) -------------------- */
 
@@ -268,12 +296,12 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
 
         <div className="flex items-center gap-3 h-full px-4">
           <MapPin size={20} color={colors.iconColorSelected} />
-          <div className="flex-1 truncate">
+          <div style={{ color: value ? colors.primaryText : colors.secondaryText }} className="flex-1 truncate">
             {value || placeholder}
           </div>
           {value && (
-            <button onClick={clearSelection}>
-              <X size={16} />
+            <button onClick={(e) => { e.stopPropagation(); clearSelection(); }}>
+              <X size={16} color={colors.secondaryText} />
             </button>
           )}
         </div>
@@ -284,12 +312,12 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
   /* ======================== EXPANDED VIEW ======================== */
 
   return (
-    <div className="w-full border rounded-xl overflow-hidden">
+    <div style={{ backgroundColor: colors.paperBg, borderColor: colors.divider }} className="w-full border rounded-xl overflow-hidden shadow-2xl">
 
       {/* SEARCH BAR */}
-      <div className="p-4 border-b">
+      <div style={{ borderColor: colors.divider }} className="p-4 border-b">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
+          <Search size={14} style={{ color: colors.secondaryText }} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
           <input
             autoFocus
             value={searchQuery}
@@ -298,21 +326,24 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
               // When user types manually, we enable the dropdown
               setShouldShowDropdown(true);
             }}
-            placeholder="Search location..."
-            className="w-full h-11 pl-9 pr-3 rounded-lg bg-black text-white"
+            placeholder="Search location (e.g. Shela)..."
+            style={{ backgroundColor: '#000', color: '#FFF', borderColor: colors.divider }}
+            className="w-full h-11 pl-9 pr-3 rounded-lg border outline-none focus:border-[#E8D1AB] transition-colors"
           />
         </div>
 
         {shouldShowDropdown && searchResults.length > 0 && (
-          <div className="mt-2 border rounded-lg max-h-48 overflow-y-auto">
+          <div style={{ borderColor: colors.divider, backgroundColor: colors.paperBg }} className="mt-2 border rounded-lg max-h-48 overflow-y-auto">
             {searchResults.map(r => (
               <button
                 key={r.id}
+                type="button"
                 onClick={() => selectSearchResult(r)}
-                className="w-full text-left px-4 py-3 hover:bg-white/5"
+                style={{ borderBottomColor: colors.divider }}
+                className="w-full text-left px-4 py-3 border-b last:border-0 hover:bg-white/5 transition-colors"
               >
-                <div className="text-sm">{r.text}</div>
-                <div className="text-xs opacity-60">{r.place_name}</div>
+                <div style={{ color: colors.primaryText }} className="text-sm font-medium">{r.text}</div>
+                <div style={{ color: colors.secondaryText }} className="text-xs opacity-60">{r.place_name}</div>
               </button>
             ))}
           </div>
@@ -333,6 +364,7 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
 
             <GeolocateControl
               position="top-right"
+              trackUserLocation={true}
               onGeolocate={(pos) => {
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
@@ -373,28 +405,43 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
 
             {marker && (
               <Marker latitude={marker.lat} longitude={marker.lng}>
-                <MapPin size={22} color="#E8D1AB" />
+                <div className="relative">
+                    <div style={{ backgroundColor: colors.accent }} className="absolute -top-1 -left-1 w-6 h-6 rounded-full animate-ping opacity-20" />
+                    <MapPin size={24} color={colors.accent} />
+                </div>
               </Marker>
             )}
           </Map>
         ) : (
           <div className="h-full flex items-center justify-center text-xs opacity-60">
-            Mapbox token missing
+            Mapbox token missing or invalid
           </div>
         )}
       </div>
 
       {/* FOOTER */}
-      <div className="p-4 flex justify-between items-center">
-        <div className="text-xs truncate">
+      <div style={{ borderColor: colors.divider }} className="p-4 border-t flex justify-between items-center bg-[#141414]">
+        <div style={{ color: colors.secondaryText }} className="text-xs truncate max-w-[50%]">
           {marker ? marker.address : "No location selected"}
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setIsExpanded(false)}>Cancel</button>
+        <div className="flex gap-3">
+          <button 
+            type="button"
+            style={{ color: colors.buttonSecondaryText }}
+            onClick={() => setIsExpanded(false)}
+            className="text-sm font-medium opacity-70 hover:opacity-100 transition-opacity"
+          >
+            Cancel
+          </button>
           <button
+            type="button"
             disabled={!marker}
             onClick={confirmLocation}
-            className="px-4 py-2 bg-[#E8D1AB] text-black rounded"
+            style={{
+              backgroundColor: marker ? colors.buttonPrimaryBg : colors.divider,
+              color: colors.buttonPrimaryText
+            }}
+            className="px-6 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Confirm
           </button>
