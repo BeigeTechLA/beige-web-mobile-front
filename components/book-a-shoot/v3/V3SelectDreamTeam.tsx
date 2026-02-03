@@ -481,6 +481,28 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           <AlertCircle className="text-[#E8D1AB] w-5 h-5 mt-0.5 shrink-0" />
 
           <p className="text-[#E8D1AB]/90 text-sm leading-relaxed">
+            A smaller pool is available in your area (
+            <span className="font-medium text-[#E8D1AB]">
+              {requirements.shortfall.video > 0 && `${requirements.shortfall.video} Videographer(s)`}
+              {requirements.shortfall.video > 0 && requirements.shortfall.photo > 0 && " and "}
+              {requirements.shortfall.photo > 0 && `${requirements.shortfall.photo} Photographer(s)`}
+            </span>
+            {" "}remaining).
+            <strong>
+              Start with what you see here and a Beige specialist will curate and manage the remaining creators for you.
+            </strong>
+          </p>
+        </motion.div>
+      )}
+      {/* {(requirements.shortfall.video > 0 || requirements.shortfall.photo > 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 max-w-2xl mx-auto bg-[#E8D1AB]/5 border border-[#E8D1AB]/20 p-4 rounded-xl flex items-start gap-3 text-left shadow-lg shadow-black/20"
+        >
+          <AlertCircle className="text-[#E8D1AB] w-5 h-5 mt-0.5 shrink-0" />
+
+          <p className="text-[#E8D1AB]/90 text-sm leading-relaxed">
             We noticed we have fewer creators available in your area than requested (
             <span className="font-medium text-[#E8D1AB]">
               {requirements.shortfall.video > 0 && `${requirements.shortfall.video} Videographer(s)`}
@@ -493,7 +515,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
             </strong>
           </p>
         </motion.div>
-      )}
+      )} */}
     </div>
   );
 };
