@@ -400,7 +400,7 @@ export const BookAShootV3 = () => {
 
       <main className="relative pt-24 lg:pt-44 pb-8 lg:pb-16 min-h-screen flex flex-col items-center">
         {/* Back Button (hide on loading) */}
-        {internalStep !== 4 && (
+        {(internalStep !== 4 && internalStep !== 1) && (
           <div className="w-full container z-20 px-4 md:px-6">
             <button
               onClick={prevStep}

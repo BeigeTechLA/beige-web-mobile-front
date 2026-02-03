@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react";
-import { Folder, FolderOpen, Grid3X3, History, Link, LinkIcon, List, MoreVertical, Search, Share2, Trash2, Unlink } from "lucide-react";
+import { Folder, FolderOpen, Grid3X3, History, Link, LinkIcon, List, MoreVertical, Search, Share2, Trash2, Unlink, Upload } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
@@ -9,6 +9,8 @@ import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { SortDateButton } from "@/components/admin/SortDateButton";
+import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
+import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 
 interface FolderEntry {
   id: string;
@@ -89,6 +91,16 @@ export default function SalesFolderManagerPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [status, setStatus] = React.useState("")
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  // Inside AdminFolderManagerPage component
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
+  const toggleDropdown = () => setIsOpen(!isOpen);
+
+  const handleSelect = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    setIsOpen(false);
+  };
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -104,6 +116,7 @@ export default function SalesFolderManagerPage() {
 
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
 
   const tabs = [
     { name: "All Files", icon: Folder },
@@ -152,8 +165,8 @@ export default function SalesFolderManagerPage() {
     <>
       <div className="flex justify-between items-center mb-3 lg:mb-6">
         <div className="text-white">
-          <h1 className="text-2xl leading-[32px] font-semibold mb-1">File Manager</h1>
-          <p className="text-sm text-white/70">Here's what's happening with your folders and requests today.</p>
+          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">File Manager</h1>
+          <p className="text-xs lg:text-sm text-white/70">Here's what's happening with your folders and requests today.</p>
         </div>
 
         <SortDateButton
@@ -162,13 +175,13 @@ export default function SalesFolderManagerPage() {
         />
       </div>
 
-      <div className="flex justify-between items-center">
-        <div className="flex flex-wrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit">
+      <div className="flex flex-col lg:flex-row gap-2 justify-between items-center">
+        <div className="flex flex-nowrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit overflow-x-auto no-scrollbar">
           {tabs.map((tab, index) => (
             <Button
               key={`tab_${index}`}
               onClick={() => onChange(tab.name)}
-              className={`flex gap-2 px-2 py-1 text-sm font-medium transition-all rounded-lg ${selectedTab === tab.name ? "bg-white text-black " : "hover:bg-white/10"}
+              className={`flex gap-2 px-2 py-[2px] text-sm font-medium transition-all rounded-lg h-7 lg:h-10 ${selectedTab === tab.name ? "bg-white text-black " : "hover:bg-white/10"}
           `}
             >
               <tab.icon size={20} />
@@ -177,9 +190,9 @@ export default function SalesFolderManagerPage() {
           ))}
         </div>
 
-        <p className="text-[#8F8F8F]">
-          Storage Used: <span className="text-[#E8D1AB]">{"24.5GB"}</span> / 100GB
-        </p>
+        <div className="w-full flex justify-between lg:justify-end gap-1 text-sm lg:text-base text-[#8F8F8F]">
+          <span>Storage Used:</span> <p><span className="text-[#E8D1AB]">{"24.5GB"}</span> / 100GB</p>
+        </div>
       </div>
 
       <div
@@ -192,14 +205,14 @@ export default function SalesFolderManagerPage() {
       />
 
       <div className="">
-        <div className="flex justify-between items-center mb-3 lg:mb-6">
+        <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
           <div className="relative flex-1 max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
+            <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
             <input
               type="text"
-              placeholder="Search equipment..."
+              placeholder="Search folder..."
               value={searchTerm}
-              className="w-full pl-9 pr-4 py-2 bg-[#18181b] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+              className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSearch(e.target.value)}
             />
           </div>
@@ -212,7 +225,40 @@ export default function SalesFolderManagerPage() {
               options={STATUSES}
             />
 
-            <div className="flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
+            {/* MOBILE VIEW: Dropdown Button */}
+            <div className="md:hidden relative">
+              <Button
+                onClick={toggleDropdown}
+                className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
+              >
+                {viewMode === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
+              </Button>
+
+              {/* Dropdown Menu */}
+              {isOpen && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+                  <button
+                    onClick={() => handleSelect('grid')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                      }`}
+                  >
+                    <Grid3X3 size={18} />
+                    Grid View
+                  </button>
+                  <button
+                    onClick={() => handleSelect('list')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                      }`}
+                  >
+                    <List size={18} />
+                    List View
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* DESKTOP VIEW: Original Toggle */}
+            <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
               <Button
                 onClick={() => setViewMode('grid')}
                 className={`px-5 py-2.5 rounded-l-lg transition-colors ${viewMode === 'grid'
@@ -232,7 +278,6 @@ export default function SalesFolderManagerPage() {
                 <List size={20} />
               </Button>
             </div>
-
           </div>
         </div>
 
@@ -254,6 +299,19 @@ export default function SalesFolderManagerPage() {
             </div>
           ) : (
             <div className={`flex flex-col gap-3`}>
+              {/* MOBILE LIST VIEW */}
+              <div className="lg:hidden">
+                {filteredFolders.map((folder) => (
+                  <MobileFolderRow
+                    key={folder.id}
+                    folder={folder}
+                    handleOpenMenu={(e, title) => handleOpenMenu(e, title)}
+                  />
+                ))}
+              </div>
+
+              {/* DESKTOP TABLE VIEW */}
+              <div className="hidden lg:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
@@ -326,6 +384,7 @@ export default function SalesFolderManagerPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )
         }
@@ -347,6 +406,37 @@ export default function SalesFolderManagerPage() {
         onClose={() => setIsLinkModalOpen(false)}
         folderName={selectedFolder || ""}
       />
+
+      {/* UploadFiles modal */}
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        folderName={selectedFolder || ""} //need this logic better figured out
+      />
+
+      {/* CreateFolderModal */}
+      <CreateFolderModal
+        isOpen={isCreateFolderModalOpen}
+        onClose={() => setIsCreateFolderModalOpen(false)}
+        onCreate={(data) => console.log("Creating folder:", data)}
+      />
+
+      {/* --- FLOATING MOBILE BUTTON --- */}
+      <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+        <Button
+          onClick={() => setIsUploadModalOpen(true)}
+          className="w-full bg-[#202020] text-white hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+        >
+          <Upload size={20} />
+          Upload Files
+        </Button>
+        <Button
+          onClick={() => setIsCreateFolderModalOpen(true)}
+          className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+        >
+          Create New Folder
+        </Button>
+      </div>
     </>
   )
 }
