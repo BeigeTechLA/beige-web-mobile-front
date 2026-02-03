@@ -281,8 +281,15 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
         ? `${S3_BASE_URL}${profilePhoto.file_path}`
         : null;
 
-    // Determine status
-    const status = !partner.is_active ? "Rejected" : (partner.is_draft ? "Pending" : "Approved");
+    // Determine status based on is_crew_verified field
+    // 0 = Pending, 1 = Approved, 2 = Rejected
+    const getStatus = () => {
+        if (partner.is_crew_verified === 0) return "Pending";
+        if (partner.is_crew_verified === 1) return "Approved";
+        if (partner.is_crew_verified === 2) return "Rejected";
+        return "Pending"; // Default to Pending if undefined
+    };
+    const status = getStatus();
 
     // Role mapping: Prioritize role.role_name, then ROLE_MAP, then fallback
     const ROLE_MAP: Record<string, string> = {
@@ -512,40 +519,19 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
                         </div>
                     </div>
 
-                    {/* Status & Actions */}
-                    <div className="flex flex-col items-end gap-4">
+                    {/* Status Badge Only */}
+                    <div className="flex flex-col items-end">
                         <span className={`px-5 py-2 rounded-full text-sm font-semibold border h-fit ${status === "Approved" ? "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20" :
                             status === "Pending" ? "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20" :
                                 "bg-[#FFF5F5] text-[#FF4D4D] border-[#FF4D4D]/20"
                             }`}>
                             {status}
                         </span>
-
-                        {status === "Pending" && (
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => handleVerifyStatus(2)}
-                                    disabled={isVerifying}
-                                    className="px-4 py-2 border border-[#EF4444] text-[#EF4444] text-sm font-semibold rounded-lg hover:bg-[#EF4444]/5 transition-colors disabled:opacity-50"
-                                >
-                                    Reject
-                                </button>
-                                <button
-                                    onClick={() => handleVerifyStatus(1)}
-                                    disabled={isVerifying}
-                                    className="px-4 py-2 bg-[#22C55E] text-white text-sm font-semibold rounded-lg hover:bg-[#1ea34d] transition-colors disabled:opacity-50 flex items-center gap-2"
-                                >
-                                    {isVerifying ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
-                                    Approve
-                                </button>
-                            </div>
-                        )}
-
                         {(status === "Approved" || status === "Rejected") && (
                             <button
                                 onClick={() => handleVerifyStatus(status === "Approved" ? 2 : 1)}
                                 disabled={isVerifying}
-                                className="text-[#666] hover:text-[#E0E0E0] text-xs underline underline-offset-4 disabled:opacity-50"
+                                className="text-[#666] hover:text-[#E0E0E0] text-xs underline underline-offset-4 disabled:opacity-50 mt-2"
                             >
                                 Change to {status === "Approved" ? "Rejected" : "Approved"}
                             </button>
