@@ -16,7 +16,7 @@ export const BasicDropdown = ({
   label,
   value,
   options,
-  roundedFull=false,
+  roundedFull = false,
   styles,
   onChange,
 }: StatusDropdownProps) => {
@@ -44,9 +44,7 @@ export const BasicDropdown = ({
       {/* Trigger: Compact & Rounded */}
       <button
         onClick={() => setOpen((prev) => !prev)}
-        className={`h-10 px-6 flex items-center gap-3 ${roundedFull ? "rounded-full":"rounded-lg"} bg-[#18181b] border transition-all duration-200 ${styles ? styles:"text-white text-sm"} 
-          ${open ? "border-[#E8D1AB]" : "border-white/10 hover:border-white/20"}
-        `}
+        className={`h-8 lg:h-10 px-3 lg:px-6 flex items-center gap-2 lg:gap-3 ${roundedFull ? "rounded-full" : "rounded-lg"} bg-[#18181b] border transition-all duration-200 ${styles ? styles : "text-white text-xs lg:text-sm"} ${open ? "border-[#E8D1AB]" : "border-white/10 hover:border-white/20"}`}
       >
         <span className="">
           {value || "Status"}
