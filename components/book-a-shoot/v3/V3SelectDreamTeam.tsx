@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
-import { Loader2, ArrowDownLeft, ArrowUpRight, CheckCircle2, X } from "lucide-react";
+import { Loader2, ArrowDownLeft, ArrowUpRight, CheckCircle2, X, AlertCircle } from "lucide-react";
 import { useSearchCreatorsQuery } from "@/lib/redux/features/creators/creatorsApi";
 import { useCreateSalesAssistedLeadMutation } from "@/lib/redux/features/sales/salesApi";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -158,15 +158,69 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   // Transform API creators to display format
   const creators: Creator[] = creatorsResponse?.data || [];
 
+  const getCreatorRole = (creator: Creator) => {
+    const roleName = creator.role_name?.toLowerCase() || "";
+    const roleIdStr = String(creator.role_id);
+    
+    if (roleName.includes("video") || roleIdStr.includes("1")) return "video";
+    if (roleName.includes("photo") || roleIdStr.includes("2")) return "photo";
+    return "other";
+  };
+
+   const requirements = useMemo(() => {
+    let reqVideo = data.videographyCount;
+    let reqPhoto = data.photographyCount;
+
+    if (typeof window !== "undefined") {
+      if (!reqVideo) reqVideo = Number(localStorage.getItem("required_videographers")) || 0;
+      if (!reqPhoto) reqPhoto = Number(localStorage.getItem("required_photographers")) || 0;
+    }
+
+    const availableVideo = creators.filter(c => getCreatorRole(c) === "video");
+    const availablePhoto = creators.filter(c => getCreatorRole(c) === "photo");
+
+    return {
+      required: { video: reqVideo, photo: reqPhoto },
+      available: { video: availableVideo, photo: availablePhoto },
+      shortfall: {
+        video: Math.max(0, reqVideo - availableVideo.length),
+        photo: Math.max(0, reqPhoto - availablePhoto.length)
+      }
+    };
+  }, [creators, data.videographyCount, data.photographyCount]);
+
+  const selectedCounts = useMemo(() => {
+    const selectedCreators = creators.filter(c => selectedIds.includes(c.crew_member_id));
+    return {
+      video: selectedCreators.filter(c => getCreatorRole(c) === "video").length,
+      photo: selectedCreators.filter(c => getCreatorRole(c) === "photo").length,
+    };
+  }, [selectedIds, creators]);
+
   const toggleSelection = (id: number) => {
+    const creator = creators.find(c => c.crew_member_id === id);
+    if (!creator) return;
+
+    const role = getCreatorRole(creator);
+
     setSelectedIds((prev) => {
-      // If already selected, allow deselection
-      if (prev.includes(id)) {
+      const isAlreadySelected = prev.includes(id);
+
+      if (isAlreadySelected) {
         return prev.filter((p) => p !== id);
       }
-      // If trying to add but already at limit, prevent addition
-      const crewLimit = data.crewCount || 0;
-      if (crewLimit > 0 && prev.length >= crewLimit) return prev;
+
+      if (role === "video" && selectedCounts.video >= requirements.required.video) {
+        toast.error(`You have already selected the required ${requirements.required.video} Videographers.`);
+        return prev;
+      }
+      if (role === "photo" && selectedCounts.photo >= requirements.required.photo) {
+        toast.error(`You have already selected the required ${requirements.required.photo} Photographers.`);
+        return prev;
+      }
+
+      if (data.crewCount > 0 && prev.length >= data.crewCount) return prev;
+
       return [...prev, id];
     });
   };
@@ -196,13 +250,22 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     }
   };
 
-  // Handle modal close and redirect
   const handleModalClose = () => {
     setShowSalesPopup(false);
     if (isAuthenticated) {
       router.push("/affiliate/dashboard");
     }
   };
+
+  const canContinue = useMemo(() => {
+    const videoSatisfied = selectedCounts.video === requirements.required.video || 
+                           selectedCounts.video === requirements.available.video.length;
+    
+    const photoSatisfied = selectedCounts.photo === requirements.required.photo || 
+                           selectedCounts.photo === requirements.available.photo.length;
+
+    return videoSatisfied && photoSatisfied && selectedIds.length > 0;
+  }, [selectedCounts, requirements, selectedIds]);
 
   if (isLoading) {
     return (
@@ -259,7 +322,6 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           </Button>
         </div>
 
-        {/* REUSABLE POPUP COMPONENT */}
         <AnimatePresence>
           {showSalesPopup && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -299,16 +361,14 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
             </div>
           )}
         </AnimatePresence>
-
+        
+        {/* Swiper Section for additional creators */}
         <section className="pt-6 lg:pt-15 border-t border-white/10 overflow-hidden">
           <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
-            {/* Header */}
             <div className="flex items-center justify-between mb-4 lg:mb-8 pb-4">
               <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
                 Browse other creative partners
               </h2>
-
-              {/* NAV ARROWS */}
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => swiperRef.current?.slidePrev()}
@@ -316,7 +376,6 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
                 >
                   <ArrowDownLeft className="w-4 lg:w-8 h-4 lg:h-8" />
                 </button>
-
                 <button
                   onClick={() => swiperRef.current?.slideNext()}
                   className="w-10 h-10 lg:w-22 lg:h-22 rounded-full border border-white/20 flex items-center justify-center text-white hover:bg-white/10 transition"
@@ -325,14 +384,10 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
                 </button>
               </div>
             </div>
-
-            {/* CAROUSEL */}
             <Swiper
               onSwiper={(swiper) => (swiperRef.current = swiper)}
               spaceBetween={24}
               slidesPerView={1.1}
-              preventClicks={false}
-              preventClicksPropagation={false}
               breakpoints={{
                 768: { slidesPerView: 2 },
                 1280: { slidesPerView: 3 },
@@ -356,76 +411,49 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
             </Swiper>
           </div>
         </section>
-{/* <div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-15 border-t border-white/10">
-  <Button
-    onClick={onNext}
-    className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
-  >
-    Complete Your Shoot
-  </Button>
-  <Button
-    onClick={handleConnectWithSales}
-    disabled={isCreatingSalesLead}
-    className="h-14 lg:h-[72px] border border-white/20 hover:bg-white/10 text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
-  >
-    {isCreatingSalesLead ? "Connecting..." : "Connect with Sales"}
-  </Button>
-</div> */}
-
-        {/* Sales Confirmation Modal */}
-        <Dialog open={showSalesModal} onOpenChange={setShowSalesModal}>
-          <DialogContent className="bg-white text-black">
-            <DialogHeader>
-              <DialogTitle>Thank You!</DialogTitle>
-              <DialogDescription className="text-black/70">
-                Our sales team will reach out to you shortly to help you find
-                the perfect creative team for your shoot.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex justify-end mt-4">
-              <Button
-                onClick={handleModalClose}
-                className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black"
-              >
-                Got it
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
-      {/* Header */}
       <div className="text-center">
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
           Select Your Dream Team
         </h2>
-        <p className="text-white/60">
-          Based on your project, we've handpicked the best professionals. Select
-          crew members to build your team.
+        <p className="text-white/60 mb-4">
+          Based on your project, we&apos;ve handpicked the best professionals. 
+          Select crew members to build your team.
         </p>
-        {data.crewCount > 0 && (
-          <p
-            className={`mt-2 text-lg font-medium ${selectedIds.length === data.crewCount ? "text-[#E8D1AB]" : "text-white/80"}`}
-          >
-            {selectedIds.length} of {data.crewCount} crew members selected
-          </p>
-        )}
+
+        {/* ROLE SELECTION STATUS */}
+        
       </div>
 
-      {/* Carousel */}
       <div className="border-t border-white/10 pt-15">
         <CreatorCarousel
           creators={creators}
-          selectedIds={data.selectedCrewIds || []}
+          selectedIds={selectedIds}
           toggleSelection={toggleSelection}
         />
       </div>
-
-      {/* Navigation */}
+     
+      <div className="flex flex-wrap justify-center gap-4 mt-4">
+        {requirements.required.video > 0 && (
+          <div className={`px-4 py-2 rounded-full border ${selectedCounts.video === requirements.required.video ? 'bg-[#E8D1AB]/20 border-[#E8D1AB]' : 'border-white/10'}`}>
+            <span className="text-white/90 text-sm">
+              Videographers: {selectedCounts.video} / {requirements.required.video}
+            </span>
+          </div>
+        )}
+        {requirements.required.photo > 0 && (
+          <div className={`px-4 py-2 rounded-full border ${selectedCounts.photo === requirements.required.photo ? 'bg-[#E8D1AB]/20 border-[#E8D1AB]' : 'border-white/10'}`}>
+            <span className="text-white/90 text-sm">
+              Photographers: {selectedCounts.photo} / {requirements.required.photo}
+            </span>
+          </div>
+        )}
+      </div>
       <div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-15 border-t border-white/10">
         <Button
           onClick={onBack}
@@ -435,12 +463,37 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         </Button>
         <Button
           onClick={onNext}
-          disabled={data.crewCount > 0 && selectedIds.length !== data.crewCount}
+          disabled={!canContinue}
           className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium  text-sm lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Continue with {selectedIds.length} Creatives
+          {canContinue ? `Continue with ${selectedIds.length} Creatives` : "Complete Selection"}
         </Button>
       </div>
+       
+
+        {/* SHORTFALL MESSAGE */}
+      {(requirements.shortfall.video > 0 || requirements.shortfall.photo > 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 max-w-2xl mx-auto bg-[#E8D1AB]/5 border border-[#E8D1AB]/20 p-4 rounded-xl flex items-start gap-3 text-left shadow-lg shadow-black/20"
+        >
+          <AlertCircle className="text-[#E8D1AB] w-5 h-5 mt-0.5 shrink-0" />
+
+          <p className="text-[#E8D1AB]/90 text-sm leading-relaxed">
+            We noticed we have fewer creators available in your area than requested (
+            <span className="font-medium text-[#E8D1AB]">
+              {requirements.shortfall.video > 0 && `${requirements.shortfall.video} Videographer(s)`}
+              {requirements.shortfall.video > 0 && requirements.shortfall.photo > 0 && " and "}
+              {requirements.shortfall.photo > 0 && `${requirements.shortfall.photo} Photographer(s)`}
+            </span>
+            {" "}remaining).
+            <strong>
+              You can continue with the available selection; our sales team will personally source the remaining talent for you.
+            </strong>
+          </p>
+        </motion.div>
+      )}
     </div>
   );
 };
