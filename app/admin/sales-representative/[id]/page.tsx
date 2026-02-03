@@ -40,7 +40,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 
   return (
     <span
-      className={`px-7 py-2 rounded-full text-base font-medium border ${currentStyle}`}
+      className={`text-nowrap px-4 py-1 rounded-full text-xs lg:text-base font-medium border lg:px-7 lg:py-2  ${currentStyle}`}
     >
       {status}
     </span>
@@ -181,10 +181,10 @@ export default function LeadDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Main Content Area (Left/Middle) */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-8 space-y-3 lg:space-y-6">
           {/* Client Details Card */}
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-            <h2 className="text-xl font-medium text-white p-4 lg:p-9">
+            <h2 className="lg:text-xl font-medium text-white p-5 lg:p-9">
               Client Details
             </h2>
             <div
@@ -195,19 +195,24 @@ export default function LeadDetailPage() {
                 backgroundRepeat: "repeat-x",
               }}
             />
-            <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9">
+            <div className="flex flex-col gap-3 lg:gap-6 p-5 lg:p-9">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-5">
                   <div className="w-[84px] h-[84px] rounded-2xl bg-[#FFF6D9] text-[#000000] border border-[#FFF6D9] flex items-center justify-center text-[30px] font-semibold">
                     {initials}
                   </div>
-                  <div>
-                    <h1 className="text-[22px] font-semibold">{clientName}</h1>
+                  <div className="flex flex-col gap-2">
+                    <h1 className="lg:text-[22px] font-semibold">{clientName}</h1>
+                    <div className=" lg:hidden">
+                      <StatusBadge status={status} />
+                    </div>
                   </div>
                 </div>
-                <StatusBadge status={status} />
+                <div className="hidden lg:block">
+                  <StatusBadge status={status} />
+                </div>
               </div>
-              <div className="flex flex-wrap gap-y-4 gap-x-8 text-sm text-[#AAA7A7]">
+              <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
                 <p>
                   Email ID : <span className="text-white">{email}</span>
                 </p>
@@ -225,7 +230,7 @@ export default function LeadDetailPage() {
 
           {/* Booking Summary Card */}
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-            <h2 className="text-xl font-medium text-white p-4 lg:p-9">
+            <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
               Booking Summary
             </h2>
             <div
@@ -239,38 +244,38 @@ export default function LeadDetailPage() {
             <div className="flex flex-col gap-3 lg:gap-5 p-4 lg:p-9">
               {/* Date */}
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-white/5 text-[#8E8E8E]">
+                <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
                   <Calendar size={20} />
                 </div>
                 <div>
                   <p className="text-xs text-[#71717B] font-medium mb-1">
                     Shoot Date
                   </p>
-                  <p className="text-base font-medium">{bookingDate}</p>
+                  <p className="text-xs lg:text-base font-medium">{bookingDate}</p>
                 </div>
               </div>
               {/* Location */}
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-white/5 text-[#8E8E8E]">
+                <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
                   <MapPinned size={20} />
                 </div>
                 <div>
                   <p className="text-xs text-[#71717B] font-medium mb-1">
                     Location
                   </p>
-                  <p className="text-base font-medium max-w-md">{location}</p>
+                  <p className="text-xs lg:text-base font-medium max-w-md">{location}</p>
                 </div>
               </div>
               {/* Type */}
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-white/5 text-[#8E8E8E]">
+                <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
                   <Camera size={20} />
                 </div>
                 <div>
                   <p className="text-xs text-[#71717B] font-medium mb-1">
                     Shoot Type
                   </p>
-                  <p className="text-base font-medium capitalize">
+                  <p className="text-xs lg:text-base font-medium capitalize">
                     {shootType}
                   </p>
                 </div>
@@ -280,7 +285,7 @@ export default function LeadDetailPage() {
 
           {/* Pricing Breakdown Card */}
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-            <h2 className="text-xl font-medium text-white p-4 lg:p-9">
+            <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
               Pricing Breakdown
             </h2>
             <div
@@ -294,19 +299,19 @@ export default function LeadDetailPage() {
             <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
               <div className="flex justify-between font-medium">
                 <span className="text-[#71717B] text-xs">Base Price</span>
-                <span className="text-white">
+                <span className="text-sm lg:text-base text-white">
                   ${basePrice.toLocaleString()}/-
                 </span>
               </div>
               <div className="flex justify-between font-medium">
                 <span className="text-[#71717B] text-xs">Taxes & Fees</span>
-                <span className="text-white">${taxes.toFixed(2)}/-</span>
+                <span className="text-sm lg:text-base text-white">${taxes.toFixed(2)}/-</span>
               </div>
             </div>
             <div className="h-[1px] w-full bg-[#3D3D3D]" />
             <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
               <span className="text-sm font-medium">Total Amount</span>
-              <span className="text-lg font-semibold text-[#E8D1AB]">
+              <span className="lg:text-lg font-semibold text-[#E8D1AB]">
                 ${total.toFixed(2)}/-
               </span>
             </div>
@@ -316,7 +321,7 @@ export default function LeadDetailPage() {
         {/* Right Sidebar - Discount Generator */}
         <div className="lg:col-span-4">
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-            <h2 className="text-xl font-medium text-white p-4 lg:p-9">
+            <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
               Generate Discount
             </h2>
             <div
@@ -327,10 +332,10 @@ export default function LeadDetailPage() {
                 backgroundRepeat: "repeat-x",
               }}
             />
-            <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9">
+            <div className="flex flex-col gap-6 p-5 pt-6 lg:p-9">
               {/* Percentage Input */}
               <div className="relative">
-                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest">
+                <label className="absolute -top-2 lg:-top-2.5 left-4 bg-[#171717] px-2 text-xs lg:text-sm text-white/60 capitalize tracking-widest">
                   Discount Percentage
                 </label>
                 <div className="flex items-center border border-white/50 rounded-xl px-4 py-4 bg-transparent focus-within:border-[#E8D1AB]/50 transition-all">
@@ -347,7 +352,7 @@ export default function LeadDetailPage() {
 
               {/* Usage Type Dropdown */}
               <div className="relative">
-                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest">
+                <label className="absolute -top-2 lg:-top-2.5 left-4 bg-[#171717] px-2 text-xs lg:text-sm text-white/60 capitalize tracking-widest">
                   Usage Type
                 </label>
                 <button className="flex items-center justify-between w-full border border-white/50 rounded-xl px-4 py-4 text-left text-base text-white/60 hover:border-white/20">

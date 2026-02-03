@@ -10,6 +10,7 @@ interface StatusDropdownProps {
   roundedFull?: boolean;
   styles?: string;
   onChange: (value: string) => void;
+  width?: string;
 }
 
 export const BasicDropdown = ({
@@ -19,6 +20,7 @@ export const BasicDropdown = ({
   roundedFull = false,
   styles,
   onChange,
+  width
 }: StatusDropdownProps) => {
   const [open, setOpen] = useState<boolean>(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -40,11 +42,11 @@ export const BasicDropdown = ({
   };
 
   return (
-    <div className="relative w-fit" ref={ref}>
+    <div className={`relative ${width ? width : "w-fit"}`} ref={ref}>
       {/* Trigger: Compact & Rounded */}
       <button
         onClick={() => setOpen((prev) => !prev)}
-        className={`h-8 lg:h-10 px-3 lg:px-6 flex items-center gap-2 lg:gap-3 ${roundedFull ? "rounded-full" : "rounded-lg"} bg-[#18181b] border transition-all duration-200 ${styles ? styles : "text-white text-xs lg:text-sm"} ${open ? "border-[#E8D1AB]" : "border-white/10 hover:border-white/20"}`}
+        className={` ${width ? width : "w-fit"} h-8 lg:h-10 px-3 lg:px-6 flex items-center gap-2 lg:gap-3 ${roundedFull ? "rounded-full" : "rounded-lg"} bg-[#18181b] border transition-all duration-200 ${styles ? styles : "text-white text-xs lg:text-sm"} ${open ? "border-[#E8D1AB]" : "border-white/10 hover:border-white/20"}`}
       >
         <span className="">
           {value || "Status"}
