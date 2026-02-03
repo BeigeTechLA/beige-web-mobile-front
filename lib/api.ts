@@ -801,6 +801,19 @@ export const adminApi = {
       };
     }
   },
+  deleteProject: async (projectId: string | number) => {
+    try {
+      const response = await api.delete(`admin/delete-project/${projectId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Delete Project Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to delete project',
+      };
+    }
+  },
   getPayoutPending: async () => {
     try {
       const response = await api.get('admin/dashboard/payout/pending');
