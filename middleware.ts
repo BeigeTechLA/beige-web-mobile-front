@@ -31,7 +31,7 @@ export function middleware(request: NextRequest) {
   const isAuthenticated = !!(user && token);
 
   // 2. Handle Authentication Pages (Login/Signup)
-  if (pathname.startsWith('/login') || pathname.startsWith('/signup')) {
+  if (pathname.startsWith('/login') || pathname.startsWith('/signup')|| pathname === '/creator-signup') {
     if (isAuthenticated) {
       // If already logged in, redirect to their dashboard
       const userTypeId = user.user_type_id || user.userTypeId;
@@ -42,11 +42,12 @@ export function middleware(request: NextRequest) {
   }
 
   // 3. Handle Protected Routes
-  const isProtectedRoute = PROTECTED_PREFIXES.some(prefix => pathname.startsWith(prefix));
+  const isProtectedRoute = PROTECTED_PREFIXES.some(prefix => 
+    pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
 
   if (isProtectedRoute) {
     if (!isAuthenticated) {
-      // Not logged in, redirect to login
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(loginUrl);
