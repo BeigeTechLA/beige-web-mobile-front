@@ -164,155 +164,153 @@ export const BookAShootV3 = () => {
   };
 
   const handleBookingSubmission = async () => {
-    try {
-      const calculateDurationHours = () => {
-        if (!formData.startDate || !formData.endDate) return 3;
-        const start = new Date(formData.startDate);
-        const end = new Date(formData.endDate);
-        const diffMs = end.getTime() - start.getTime();
-        const hours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
-        return hours;
-      };
+  try {
+    // 1. Calculate Shoot Duration in Hours
+    const calculateDurationHours = () => {
+      if (!formData.startDate || !formData.endDate) return 3; // Default fallback
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      const diffMs = end.getTime() - start.getTime();
+      // Round to nearest hour, minimum 1
+      return Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+    };
 
-      // 1. Save Quote
-      let savedQuoteId: number | null = null;
+    const shootHours = calculateDurationHours();
 
-      //       const CREW_ROLE_ITEMS = {
-      //   videographer: 11,
-      //   photographer: 10,
-      //   cinematographer: 12,
-      // };
+    // 2. Map Database Item IDs based on your SQL structure
+    const ITEM_IDS = {
+      videographer: 11,
+      photographer: 10,
+      cinematographer: 12,
+      additionalCamera: 50, // Flat rate additional camera
+      productionAssistant: 45, // Crew PA
+      soundEngineer: 46, // Crew Sound
+      director: 47, // Crew Director
+      gaffer: 48, // Crew Gaffer
+    };
 
-      // let quoteItems: Array<{ item_id: number; quantity: number }> = [];
+    let quoteItems: Array<{ item_id: number; quantity: number }> = [];
 
-      // // Map selected content types to pricing items
-      // if (formData.contentType.includes("videographer")) {
-      //   quoteItems.push({ item_id: CREW_ROLE_ITEMS.videographer, quantity: 1 });
-      // }
-      // if (formData.contentType.includes("photographer")) {
-      //   quoteItems.push({ item_id: CREW_ROLE_ITEMS.photographer, quantity: 1 });
-      // }
-      // if (formData.contentType.includes("cinematographer")) {
-      //   quoteItems.push({
-      //     item_id: CREW_ROLE_ITEMS.cinematographer,
-      //     quantity: 1,
-      //   });
-      // }
+    // 3. Add Base Crew (Calculated in Step 2 from roleCounts)
+    if (formData.roleCounts) {
+      Object.entries(formData.roleCounts).forEach(([role, count]) => {
+        // Map "videographer" string to ID 11, etc.
+        const itemId = ITEM_IDS[role as keyof typeof ITEM_IDS];
+        const quantity = Number(count);
 
-      // Build items list based on content type
-      const CREW_ROLE_ITEMS: Record<string, number> = {
-        videographer: 11,
-        photographer: 10,
-        cinematographer: 12,
-      };
-
-      let quoteItems: Array<{ item_id: number; quantity: number }> = [];
-
-      // Use roleCounts instead of contentType
-      if (formData.roleCounts) {
-        Object.entries(formData.roleCounts).forEach(([role, count]) => {
-          const itemId = CREW_ROLE_ITEMS[role];
-
-          if (itemId && count > 0) {
-            quoteItems.push({
-              item_id: itemId,
-              quantity: count,
-            });
-          }
-        });
-      }
-
-
-      // Add editing if selected (assuming generic editing item for now, ID 13 is a guess/placeholder,
-      // strictly we should check database but let's stick to known IDs or skip if unknown)
-      // If "editing" is in contentType, we might want to charge for it.
-      // For safety, let's only add what we know maps to the backend to ensure a valid quote.
-
-      if (quoteItems.length > 0) {
-        try {
-          const savedQuote = await saveQuote({
-            items: quoteItems,
-            shootHours: calculateDurationHours(),
-            eventType: formData.shootType || "general",
-            guestEmail: formData.email,
-            notes: formData.specialInstructions || undefined,
-          }).unwrap();
-
-          savedQuoteId = savedQuote.quote_id;
-          console.log("V3 Quote saved:", savedQuoteId);
-        } catch (quoteError) {
-          console.error("Failed to save quote in V3:", quoteError);
-          toast.error(
-            "Failed to generate pricing quote. Proceeding with booking...",
-          );
+        if (itemId && quantity > 0) {
+          quoteItems.push({
+            item_id: itemId,
+            quantity: quantity,
+          });
         }
-      }
-
-      // 2. Create or Update Booking
-      const bookingData: any = {
-        order_name: `${formData.shootType} Shoot - ${formData.fullName}`,
-        guest_email: formData.email,
-        project_type: null,
-        content_type: formData.contentType.join(","),
-        shoot_type: formData.shootType,
-        start_date_time: formData.startDate,
-        end_time: formData.endDate,
-        duration_hours: calculateDurationHours(),
-        location: formData.location,
-        budget_min: formData.budgetMin,
-        budget_max: formData.budgetMax,
-        crew_size: String(
-          formData.selectedCrewIds.length || quoteItems.length || 1,
-        ),
-        is_draft: false,
-        quote_id: savedQuoteId, // Pass the created quote ID
-
-        // New V3 fields
-        full_name: formData.fullName,
-        phone: formData.phone,
-        edits_needed: formData.editsNeeded,
-        video_edit_types: formData.videoEditTypes,
-        photo_edit_types: formData.photoEditTypes,
-        team_included: formData.teamIncluded,
-        add_team_members: formData.addTeamMembers,
-        special_instructions: formData.specialInstructions,
-        reference_links: formData.referenceLinks,
-        matching_method: formData.matchingMethod,
-        selected_crew_ids: formData.selectedCrewIds,
-      };
-
-      let result;
-      if (draftBookingId) {
-        // Update existing draft booking
-        result = await updateGuestBooking({
-          id: draftBookingId,
-          data: bookingData,
-        }).unwrap();
-        console.log("Updated draft booking:", draftBookingId);
-      } else {
-        // Create new booking (fallback if lead tracking failed)
-        result = await createGuestBooking(bookingData).unwrap();
-        console.log("Created new booking");
-      }
-
-      toast.success("Booking Created Successfully!", {
-        description: "Redirecting to payment...",
-      });
-
-      // 3. Redirect to Payment Page
-      const searchParams = new URLSearchParams({
-        shootId: String(result.booking_id), // Payment page expects shootId
-      });
-
-      router.push(`/search-results/payment?${searchParams.toString()}`);
-    } catch (error: any) {
-      console.error("Booking failed:", error);
-      toast.error("Booking Failed", {
-        description:
-          error?.data?.message || "Something went wrong. Please try again.",
       });
     }
-  };
+
+    // 4. INJECT MANDATORY ADD-ONS BASED ON SHOOT TYPE
+    
+    // Rule: Podcast & Shows -> Additional 2 Cameras
+    if (formData.shootType === "podcast") {
+      quoteItems.push({
+        item_id: ITEM_IDS.additionalCamera,
+        quantity: 2,
+      });
+    }
+
+    // Rule: Short Films & Narratives -> Mandatory Crew Stack
+    // Includes PA, Sound Engineer, Director, and Gaffer
+    if (formData.shootType === "short_film" || formData.shootType === "movie") {
+      quoteItems.push({ item_id: ITEM_IDS.productionAssistant, quantity: 1 });
+      quoteItems.push({ item_id: ITEM_IDS.soundEngineer, quantity: 1 });
+      quoteItems.push({ item_id: ITEM_IDS.director, quantity: 1 });
+      quoteItems.push({ item_id: ITEM_IDS.gaffer, quantity: 1 });
+    }
+
+    // 5. SAVE QUOTE (API Call)
+    // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
+    let savedQuoteId: number | null = null;
+
+    if (quoteItems.length > 0) {
+      try {
+        const quotePayload = {
+          items: quoteItems,
+          shootHours: shootHours,
+          eventType: formData.shootType || "general",
+          guestEmail: formData.email,
+          shoot_start_date: formData.startDate, // Backend uses this for Same/Next Day fees
+          notes: formData.specialInstructions || undefined,
+        };
+
+        const savedQuote = await saveQuote(quotePayload).unwrap();
+        savedQuoteId = savedQuote.quote_id;
+        console.log("Pricing Quote Generated:", savedQuoteId);
+      } catch (quoteError) {
+        console.error("Pricing Calculation Error:", quoteError);
+        toast.error("Error calculating final price, but proceeding with booking...");
+      }
+    }
+
+    // 6. PREPARE FINAL BOOKING PAYLOAD
+    const finalBookingData: any = {
+      order_name: `${formData.shootType.toUpperCase()} Shoot - ${formData.fullName}`,
+      guest_email: formData.email,
+      content_type: formData.contentType.join(","),
+      shoot_type: formData.shootType,
+      start_date_time: formData.startDate,
+      end_time: formData.endDate,
+      duration_hours: shootHours,
+      location: formData.location,
+      quote_id: savedQuoteId, // Attach the calculated price
+      
+      // User Profile Details
+      full_name: formData.fullName,
+      phone: formData.phone,
+      
+      // Editing Preferences
+      edits_needed: formData.editsNeeded,
+      video_edit_types: formData.videoEditTypes,
+      photo_edit_types: formData.photoEditTypes,
+      
+      // Team Logic
+      crew_size: String(formData.crewCount || 1),
+      matching_method: formData.matchingMethod || "ai_matchmaker",
+      selected_crew_ids: formData.selectedCrewIds || [],
+      
+      // Project Scope
+      special_instructions: formData.specialInstructions,
+      reference_links: formData.referenceLinks,
+      is_draft: false, // Marking as final booking
+    };
+
+    // 7. SUBMIT TO BACKEND
+    let submissionResult;
+
+    if (draftBookingId) {
+      // If we have a Lead/Draft ID from Step 1, update it
+      submissionResult = await updateGuestBooking({
+        id: draftBookingId,
+        data: finalBookingData,
+      }).unwrap();
+    } else {
+      // Fallback: Create fresh booking
+      submissionResult = await createGuestBooking(finalBookingData).unwrap();
+    }
+
+    toast.success("Booking Secured!", {
+      description: "Redirecting to secure payment gateway...",
+    });
+
+    // 8. REDIRECT TO PAYMENT
+    const paymentUrl = `/search-results/payment?shootId=${submissionResult.booking_id}`;
+    router.push(paymentUrl);
+
+  } catch (error: any) {
+    console.error("Final Booking Submission Failed:", error);
+    toast.error("Submission Failed", {
+      description: error?.data?.message || "Could not complete booking. Please check your connection.",
+    });
+  }
+};
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });

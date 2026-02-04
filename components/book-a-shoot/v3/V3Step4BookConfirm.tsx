@@ -68,6 +68,22 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const [crewBreakdown, setCrewBreakdown] = useState<
     Array<{ role: string; cost: number }>
   >([]);
+
+  // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
+  const [pricingGroups, setPricingGroups] = useState<{
+    shootCost: number;
+    additionalCP: {
+      totalCost: number;
+      videoCount: number;
+      photoCount: number;
+    };
+    mandatoryAddons: Array<{ role: string; cost: number }>;
+  }>({
+    shootCost: 0,
+    additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
+    mandatoryAddons: [],
+  });
+
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(true);
   const [showSalesPopup, setShowSalesPopup] = useState(false);
@@ -105,116 +121,139 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   }, [data.startDate, data.endDate]);
 
   // Calculate quote when component mounts or data changes
-  useEffect(() => {
-    const fetchQuote = async () => {
-      // Check if we have selected crew members and duration
-      if (durationHours === 0) {
-        setQuoteTotal(null);
-        setCrewBreakdown([]);
-        return;
-      }
+ useEffect(() => {
+  const fetchQuote = async () => {
+    // Check if we have duration
+    if (durationHours === 0) {
+      setQuoteTotal(null);
+      setCrewBreakdown([]);
+      return;
+    }
 
-      try {
-        console.log("V3Step4BookConfirm - Sending to API:", {
-          creator_ids: data.selectedCrewIds,
-          selectedCrewCount: data.selectedCrewIds?.length || 0,
-          shoot_hours: durationHours,
-          event_type: data.shootType,
-          crewCount: data.crewCount,
-        });
+    try {
+      console.log("V3Step4BookConfirm - Sending to API:", {
+        creator_ids: data.selectedCrewIds,
+        selectedCrewCount: data.selectedCrewIds?.length || 0,
+        shoot_hours: durationHours,
+        event_type: data.shootType,
+        crewCount: data.crewCount,
+        shoot_start_date: data.startDate, // Verification log
+      });
 
-        // Use the correct endpoint that handles multiple creators
-        const result = await calculateQuoteFromCreators({
-          creator_ids: data.selectedCrewIds,
-          shoot_hours: durationHours,
-          role_counts: data.roleCounts,
-          event_type: data.shootType || "general",
-          skip_discount: true, // Remove hour-based discounts for V3
-          skip_margin: true, // Remove beige margin for V3
-        }).unwrap();
+      // Use the correct endpoint that handles multiple creators and mandatory fees
+      const result = await calculateQuoteFromCreators({
+        creator_ids: data.selectedCrewIds,
+        shoot_hours: durationHours,
+        role_counts: data.roleCounts,
+        event_type: data.shootType || "general",
+        shoot_start_date: data.startDate, // <--- PASSING THE DATE FOR RUSH FEE CALCULATION
+        skip_discount: true, // Remove hour-based discounts for V3
+        skip_margin: true,   // Remove beige margin for V3
+      }).unwrap();
 
-        console.log("V3Step4BookConfirm - API Result:", {
-          total: result.total,
-          creators: result.creators,
-          lineItems: result.lineItems,
-          shootHours: result.shootHours,
-          durationHours,
-          crewCountFromData: data.crewCount,
-        });
+      console.log("V3Step4BookConfirm - API Result:", {
+        total: result.total,
+        creators: result.creators,
+        lineItems: result.lineItems,
+        shootHours: result.shootHours,
+        durationHours,
+      });
 
-        setQuoteTotal(result.total);
+      // result.total now includes Pre-Production and Rush Fees from backend logic
+      setQuoteTotal(result.total);
 
-        // Build crew breakdown from lineItems (has actual costs per role)
-        if (result.lineItems && result.lineItems.length > 0) {
-          const breakdown: Array<{ role: string; cost: number }> = [];
+      // --- START CATEGORIZATION LOGIC ---
+      let shootCostTotal = 0;
+      let addVideoCount = 0;
+      let addPhotoCount = 0;
+      let addCPTotalCost = 0;
+      const mandatoryAddonsList: Array<{ role: string; cost: number }> = [];
 
-          result.lineItems.forEach((item: any) => {
-            const itemTotal = parseFloat(item.line_total || 0);
-            const quantity = parseInt(item.quantity || 1);
-            const costPerPerson = itemTotal / quantity;
+      if (result.lineItems && result.lineItems.length > 0) {
+        result.lineItems.forEach((item: any) => {
+          const name = item.item_name;
+          const quantity = parseInt(item.quantity || 1);
+          const lineTotal = parseFloat(item.line_total || 0);
+          const unitPrice = lineTotal / quantity;
 
-            console.log("Processing lineItem:", {
-              item_name: item.item_name,
-              quantity: quantity,
-              line_total: itemTotal,
-              costPerPerson: costPerPerson,
-              selectedCrewCount: data.selectedCrewIds?.length,
-            });
-
-            // Create individual entries for each crew member in this role
-            for (let i = 0; i < quantity; i++) {
-              breakdown.push({
-                role: item.item_name,
-                cost: costPerPerson,
-              });
+          // 1. Shoot Cost: Includes Pre-production, Rush Fees, and 1 unit of Video/Photo
+          if (name.includes("Pre-Production") || name.toLowerCase().includes("rush")) {
+            shootCostTotal += lineTotal;
+          } 
+          else if (name === "Videographer" || name === "Photographer") {
+            // Add first unit to Shoot Cost
+            shootCostTotal += unitPrice;
+            
+            // If more than 1, aggregate the rest for "Additional Creative Partner Fees"
+            if (quantity > 1) {
+              const extraQty = quantity - 1;
+              addCPTotalCost += unitPrice * extraQty;
+              if (name === "Videographer") addVideoCount += extraQty;
+              if (name === "Photographer") addPhotoCount += extraQty;
             }
-          });
-
-          console.log("Crew breakdown from lineItems:", breakdown);
-          console.log("Raw lineItems:", result.lineItems);
-          console.log(
-            "Backend returned",
-            result.creators?.length,
-            "creators but lineItems has quantity sum of",
-            breakdown.length,
-          );
-          setCrewBreakdown(breakdown);
-        } else if (result.creators && result.creators.length > 0) {
-          // Fallback: divide total by number of creators
-          const costPerPerson = result.total / result.creators.length;
-          const breakdown = result.creators.map((creator: any) => ({
-            role: creator.role_name || creator.user_name || "Crew Member",
-            cost: costPerPerson,
-          }));
-          console.log("Crew breakdown from creators (fallback):", breakdown);
-          setCrewBreakdown(breakdown);
-        } else {
-          // Last resort: divide total by selected crew count
-          const crewCount = data.selectedCrewIds?.length || 1;
-          const costPerCrew = result.total / crewCount;
-          setCrewBreakdown([
-            {
-              role: crewCount > 1 ? `${crewCount} Crew Members` : "Crew Member",
-              cost: costPerCrew,
-            },
-          ]);
-        }
-      } catch (error) {
-        console.error("Failed to calculate quote:", error);
-        // Fallback: show placeholder
-        setQuoteTotal(null);
-        setCrewBreakdown([]);
-        toast.error("Failed to calculate pricing. Please try again.");
+          }
+          // 2. Mandatory Add-ons: PA, Sound, Director, Gaffer or Equipment
+          else if (item.is_mandatory) {
+            mandatoryAddonsList.push({
+              role: name,
+              cost: lineTotal
+            });
+          }
+          // 3. Fallback for other items (not Photo/Video but also not mandatory)
+          else {
+              // We'll treat other non-mandatory roles as additional CP fees as well
+              addCPTotalCost += lineTotal;
+          }
+        });
       }
-    };
+      
+      setPricingGroups({
+        shootCost: shootCostTotal,
+        additionalCP: {
+            totalCost: addCPTotalCost,
+            videoCount: addVideoCount,
+            photoCount: addPhotoCount
+        },
+        mandatoryAddons: mandatoryAddonsList
+      });
+      // --- END CATEGORIZATION LOGIC ---
 
-    fetchQuote();
-  }, [
-    data.selectedCrewIds,
-    data.shootType,
-    durationHours,
-    calculateQuoteFromCreators,
-  ]);
+      // Build crew breakdown from lineItems (has actual costs per role)
+      if (result.lineItems && result.lineItems.length > 0) {
+        const breakdown: Array<{ role: string; cost: number }> = [];
+
+        result.lineItems.forEach((item: any) => {
+          if (item.is_mandatory || item.hidden) return;
+
+          const itemTotal = parseFloat(item.line_total || 0);
+          const quantity = parseInt(item.quantity || 1);
+          const costPerPerson = itemTotal / quantity;
+
+          for (let i = 0; i < quantity; i++) {
+            breakdown.push({
+              role: item.item_name,
+              cost: costPerPerson,
+            });
+          }
+        });
+        setCrewBreakdown(breakdown);
+      }
+    } catch (error) {
+      console.error("Failed to calculate quote:", error);
+      setQuoteTotal(null);
+      setCrewBreakdown([]);
+      toast.error("Failed to calculate pricing. Please try again.");
+    }
+  };
+
+  fetchQuote();
+}, [
+  data.selectedCrewIds,
+  data.shootType,
+  data.startDate,
+  durationHours,
+  calculateQuoteFromCreators,
+]);
 
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
@@ -255,11 +294,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     {data.contentType.join(" & ")}
                   </h3>
                 </div>
-                {/* <div className="ml-auto">
-                  <Button variant="outline" size="sm" onClick={onBack} className="text-xs h-8 border-white/20 text-white/60 hover:text-white">
-                    Edit
-                  </Button>
-                </div> */}
               </div>
 
               <div className="rounded-[12px] overflow-hidden border border-white/10">
@@ -322,21 +356,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     </div>
                   </div>
                 </div>
-
-                {/* <div className="bg-[#101010] p-4 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60">
-                      <Calendar size={14} />
-                    </div>
-                    <span className="text-white font-medium">
-                      {data.startDate ? new Date(data.startDate).toLocaleDateString() : 'Date not set'}
-                    </span>
-                  </div>
-                  <div className="text-xs text-white/40 pl-11">
-                    {data.startDate ? new Date(data.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''} -
-                    {data.endDate ? new Date(data.endDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                  </div>
-                </div> */}
               </div>
 
               <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
@@ -442,15 +461,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   <div className="w-2.5 h-2.5 rounded-full bg-black" />
                 </div>
               </div>
-              {/* <div className="p-4 rounded-2xl bg-[#171717] text-white/60 flex items-center justify-between cursor-pointer hover:bg-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 lg:h-[62px] lg:w-[62px] bg-white/5 rounded-lg bg-[#101010] flex items-center justify-center">
-                    <span className="font-bold text-xs">Stripe</span>
-                  </div>
-                  <span className="font-medium">Pay via Stripe</span>
-                </div>
-                <div className="w-5 h-5 lg:w-8 lg:h-8 rounded-full border-2 border-white/20" />
-              </div> */}
               <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center">
                 <input
                   type="checkbox"
@@ -478,13 +488,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
             </div>
             <div className="bg-[#171717] text-white">
               <div className="p-4 lg:p-6 border-b border-b-white/10">
-                {/* Type of Servioces and Base price - Removed as per user request */}
-                {/* <div className="flex justify-between mb-3.5">
-                  <p className="text-[#A9A9A9] text-sm flex items-center gap-1">
-                    Video Services <Info size={18} className="text-white" />
-                  </p>
-                  <div className="font-bold">{"$6012.6"}</div>
-                </div> */}
 
                 {/* Package Offer section */}
                 <div className="rounded-2xl border transition-all relative overflow-hidden bg-[#FEF5E5] text-[#171717]">
@@ -550,58 +553,60 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                             : "members"}
                         </span>
                       </div>
-                      {/* {crewBreakdown.length !==
-                        (data.selectedCrewIds?.length || 0) && (
-                        <div className="text-xs text-yellow-500/80 flex items-center gap-1">
-                          ⚠️ Pricing breakdown showing {crewBreakdown.length}{" "}
-                          crew - check console logs
-                        </div>
-                      )} */}
                     </div>
 
-                    {/* Detailed Crew Breakdown */}
+                    {/* Detailed Pricing Breakdown - UPDATED CATEGORIZATION */}
                     <div className="space-y-3">
                       <div className="text-xs font-medium text-white/40 uppercase tracking-wide">
                         Pricing Breakdown
                       </div>
-                      {crewBreakdown.map((crew, index) => {
-                        const hourlyRate = crew.cost / durationHours;
-                        return (
-                          <div
-                            key={index}
-                            className="bg-[#101010] rounded-lg p-4 border border-white/5"
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="text-white font-medium">
-                                {crew.role}
-                              </div>
-                              <div className="font-bold text-white">
-                                {formatCurrency(crew.cost)}
-                              </div>
+                      
+                      {/* 1. SHOOT COST */}
+                      <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="text-white font-medium">Shoot Cost</div>
+                          <div className="font-bold text-white">
+                            {formatCurrency(pricingGroups.shootCost)}
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-[#A9A9A9] leading-tight">
+                          {/* Includes pre-production fee, rush fees (if any), and base {durationHours}hr crew. */}
+                        </p>
+                      </div>
+
+                      {/* 2. ADDITIONAL CREATIVE PARTNER FEES - UPDATED DISPLAY */}
+                      {pricingGroups.additionalCP.totalCost > 0 && (
+                        <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="text-white font-medium text-sm">
+                                Additional Creative Partner Fees
                             </div>
-                            <div className="text-xs text-white/50 space-y-1">
-                              {/* <div className="flex justify-between">
-                                <span>Hourly Rate:</span>
-                                <span>{formatCurrency(hourlyRate)}/hr</span>
-                              </div> */}
-                              <div className="flex justify-between">
-                                <span>Duration:</span>
-                                <span>
-                                  {durationHours}{" "}
-                                  {durationHours === 1 ? "hour" : "hours"}
-                                </span>
-                              </div>
-                              {/* <div className="flex justify-between pt-1 border-t border-white/10">
-                                <span>Calculation:</span>
-                                <span>
-                                  {formatCurrency(hourlyRate)} × {durationHours}
-                                  h = {formatCurrency(crew.cost)}
-                                </span>
-                              </div> */}
+                            <div className="font-bold text-white text-sm">
+                              {formatCurrency(pricingGroups.additionalCP.totalCost)}
                             </div>
                           </div>
-                        );
-                      })}
+                          <div className="text-[11px] text-[#A9A9A9] space-y-0.5 mt-1">
+                             {pricingGroups.additionalCP.videoCount > 0 && (
+                                 <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
+                             )}
+                             {pricingGroups.additionalCP.photoCount > 0 && (
+                                 <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
+                             )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3. MANDATORY ADD-ONS */}
+                      {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((addon, index) => (
+                        <div key={`addon-${index}`} className="bg-[#101010] rounded-lg p-4 border border-[#E8D1AB]/30">
+                          <div className="flex justify-between items-center">
+                            <div className="text-[#E8D1AB] font-medium text-sm pr-2">{addon.role}</div>
+                            <div className="font-bold text-white text-sm">
+                              {formatCurrency(addon.cost)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
 
                     <div className="border-t border-white/10 pt-4" />

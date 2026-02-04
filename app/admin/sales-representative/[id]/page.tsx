@@ -336,40 +336,56 @@ export default function LeadDetailPage() {
             />
             <div className="flex flex-col gap-6 p-5 pt-6 lg:p-9">
               {/* Discount Type Dropdown */}
-              <div className="relative">
-                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-10">
+              <div className="relative w-full">
+                {/* Label */}
+                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-20 pointer-events-none">
                   Discount Type
                 </label>
+
                 <div className="relative">
                   <button
+                    type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center justify-between w-full border border-white/50 rounded-xl px-4 py-4 text-left text-base text-white hover:border-white/80 transition-all"
+                    className={`flex items-center justify-between w-full border rounded-xl px-4 py-4 text-left text-base text-white transition-all ${isDropdownOpen ? "border-white/80 ring-1 ring-white/20" : "border-white/50"
+                      } hover:border-white/80`}
                   >
                     {discountType === "percentage" ? "Percentage" : "Fixed Amount"}
-                    <ChevronDown size={18} className={`transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown
+                      size={18}
+                      className={`transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
+                    />
                   </button>
 
+                  {/* Dropdown Menu */}
                   {isDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#0A0808] border border-white/20 rounded-xl overflow-hidden z-50 shadow-xl">
-                      <button
-                        onClick={() => {
-                          setDiscountType("percentage");
-                          setIsDropdownOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-3 text-white hover:bg-white/5 transition-colors"
-                      >
-                        Percentage
-                      </button>
-                      <button
-                        onClick={() => {
-                          setDiscountType("fixed_amount");
-                          setIsDropdownOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-3 text-white hover:bg-white/5 transition-colors"
-                      >
-                        Fixed Amount
-                      </button>
-                    </div>
+                    <>
+                      {/* Invisible backdrop to close dropdown when clicking outside */}
+                      <div
+                        className="fixed inset-0 z-30"
+                        onClick={() => setIsDropdownOpen(false)}
+                      ></div>
+
+                      <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0A0808] border border-white/20 rounded-xl overflow-hidden z-40 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <button
+                          onClick={() => {
+                            setDiscountType("percentage");
+                            setIsDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-4 text-white hover:bg-white/10 transition-colors border-b border-white/5"
+                        >
+                          Percentage
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDiscountType("fixed_amount");
+                            setIsDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-4 text-white hover:bg-white/10 transition-colors"
+                        >
+                          Fixed Amount
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
