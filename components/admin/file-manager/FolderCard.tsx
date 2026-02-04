@@ -59,10 +59,10 @@ export const FolderCard: React.FC<FolderCardProps> = ({
     <div
       ref={cardRef}
       onClick={handleOpenFolder}
-      className="w-full max-w-[350px] bg-[#18181b] rounded-[24px] border border-white/5 shadow-xl cursor-pointer hover:border-white/20 hover:bg-[#1c1c20] transition-all group"
+      className="w-full lg:max-w-[350px] bg-[#18181b] rounded-xl lg:rounded-3xl border border-white/5 shadow-xl cursor-pointer hover:border-white/20 hover:bg-[#1c1c20] transition-all group"
     >
       {/* Top Section */}
-      <div className="p-3 lg:p-5">
+      <div className="p-5">
         <div className="flex items-start justify-between">
           <div className="flex gap-3 items-start">
             <div>
@@ -103,7 +103,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
       </div>
 
       {/* Bottom Section */}
-      <div className="flex items-center border-t border-t-white/50 p-3 lg:p-5 gap-3">
+      <div className="flex items-center border-t border-t-white/50 p-5 gap-3">
         <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-[#000] text-base">
           {userInitials}
         </div>
