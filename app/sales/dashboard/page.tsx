@@ -283,6 +283,7 @@ export default function SalesLeadsPage() {
           isOpen={true}
           onClose={() => setMenuAnchor(null)}
           anchor={menuAnchor}
+          basePath="/sales/leads"
         />
       )}
     </>

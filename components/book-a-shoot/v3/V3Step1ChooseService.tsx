@@ -168,59 +168,136 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     setTimeOptions(options);
   }, []);
 
+  // --- Move these helpers up here ---
+  const getStartTimeKey = () => {
+    if (!data.startDate) return "";
+    const date = parseDate(data.startDate);
+    if (!date) return "";
+    return format(date, "HH:mm");
+  };
+
+  const getEndTimeKey = () => {
+    if (!data.endDate) return "";
+    const date = parseDate(data.endDate);
+    if (!date) return "";
+    return format(date, "HH:mm");
+  };
+
+  // --- Now the useMemos can safely use them ---
+  const filteredStartTimeOptions = React.useMemo(() => {
+    if (!data.startDate) return timeOptions;
+    
+    const selectedDate = parseDate(data.startDate);
+    const now = new Date();
+
+    const isToday = 
+      selectedDate?.getDate() === now.getDate() &&
+      selectedDate?.getMonth() === now.getMonth() &&
+      selectedDate?.getFullYear() === now.getFullYear();
+
+    if (!isToday) return timeOptions;
+
+    // Calculate minimum key (4 hours from now)
+    const minTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    const minKey = format(minTime, "HH:mm");
+
+    return timeOptions.filter((opt) => opt.key >= minKey);
+  }, [data.startDate, timeOptions]);
+
+  const filteredEndTimeOptions = React.useMemo(() => {
+    // If no start date/time is selected, show all
+    if (!data.startDate) return timeOptions;
+    
+    const startTimeKey = getStartTimeKey();
+    
+    // Only show times that are AFTER the selected start time
+    return timeOptions.filter((opt) => opt.key > startTimeKey);
+  }, [data.startDate, timeOptions]);
+
   const handleDateChange = (date: Date | null) => {
-    if (!date) {
-      updateData({ startDate: "", endDate: "" });
-      return;
+  if (!date) {
+    updateData({ startDate: "", endDate: "" });
+    return;
+  }
+
+  const now = new Date();
+  
+  const isToday = 
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  let newStart: Date;
+  let newEnd: Date;
+
+  if (isToday) {
+    newStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    
+    const mins = newStart.getMinutes();
+    if (mins > 0 && mins <= 30) {
+      newStart.setMinutes(30, 0, 0);
+    } else if (mins > 30) {
+      newStart.setHours(newStart.getHours() + 1, 0, 0, 0);
+    } else {
+      newStart.setMinutes(0, 0, 0);
     }
 
-    // Preserve times if they exist, otherwise default start to 9am, end to 5pm?
-    // Or just set date part.
-    let newStart = data.startDate
-      ? parseDate(data.startDate)
-      : set(date, { hours: 9, minutes: 0 });
-    let newEnd = data.endDate
-      ? parseDate(data.endDate)
-      : set(date, { hours: 17, minutes: 0 });
+    // 3. End time = Start time + 8 hours
+    newEnd = new Date(newStart.getTime() + 8 * 60 * 60 * 1000);
+  } else {
+    // Default for future dates: 9 AM to 5 PM
+    newStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+    newEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+  }
 
-    if (!newStart) newStart = set(date, { hours: 9, minutes: 0 });
-    if (!newEnd) newEnd = set(date, { hours: 17, minutes: 0 });
+  // Ensure the date part is strictly what was selected in the picker
+  const finalStart = set(newStart, {
+    year: date.getFullYear(),
+    month: date.getMonth(),
+    date: date.getDate(),
+  });
+  
+  const finalEnd = set(newEnd, {
+    year: date.getFullYear(),
+    month: date.getMonth(),
+    date: date.getDate(),
+  });
 
-    // Update the date part of both
-    newStart = set(newStart, {
-      year: date.getFullYear(),
-      month: date.getMonth(),
-      date: date.getDate(),
-    });
-    newEnd = set(newEnd, {
-      year: date.getFullYear(),
-      month: date.getMonth(),
-      date: date.getDate(),
-    });
-
-    updateData({
-      startDate: newStart.toISOString(),
-      endDate: newEnd.toISOString(),
-    });
-  };
-
+  updateData({
+    startDate: finalStart.toISOString(),
+    endDate: finalEnd.toISOString(),
+  });
+};
   const handleStartTimeChange = (timeKey: string) => {
-    // if (!timeKey) return;
-    if (!timeKey) {
-      updateData({ startDate: "" });
-      return;
-    }
-    const [hours, minutes] = timeKey.split(":").map(Number);
+  if (!timeKey) {
+    updateData({ startDate: "" });
+    return;
+  }
 
-    const currentDate = data.startDate ? parseDate(data.startDate) : new Date();
-    // If no date selected yet, maybe warn? or just use today?
-    // Assuming date is selected first or we default to today/tomorrow.
+  const [hours, minutes] = timeKey.split(":").map(Number);
+  const currentDate = data.startDate ? parseDate(data.startDate) : new Date();
 
-    if (!currentDate) return;
+  // Ensure we don't select a time before the current time
+  const now = new Date();
+  const selectedTime = new Date(currentDate.setHours(hours, minutes));
 
-    const newStart = set(currentDate, { hours, minutes });
-    updateData({ startDate: newStart.toISOString() });
-  };
+  if (selectedTime < now) {
+    toast.error("Selected time must be later than the current time.");
+    return; // Don't update the time if it's invalid
+  }
+
+  // Enforce a 4-hour gap for same-day bookings
+  const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000); // Add 4 hours to current time
+
+  if (selectedTime < minimumTime) {
+    toast.error("You must select a start time at least 4 hours from now.");
+    return; // Don't update the time if it's invalid
+  }
+
+  const newStart = set(currentDate, { hours, minutes });
+  updateData({ startDate: newStart.toISOString() });
+};
+
 
   const handleEndTimeChange = (timeKey: string) => {
     if (!timeKey) {
@@ -242,19 +319,19 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     scrollToRef(editsRef);
   };
 
-  const getStartTimeKey = () => {
-    if (!data.startDate) return "";
-    const date = parseDate(data.startDate);
-    if (!date) return "";
-    return format(date, "HH:mm");
-  };
+  // const getStartTimeKey = () => {
+  //   if (!data.startDate) return "";
+  //   const date = parseDate(data.startDate);
+  //   if (!date) return "";
+  //   return format(date, "HH:mm");
+  // };
 
-  const getEndTimeKey = () => {
-    if (!data.endDate) return "";
-    const date = parseDate(data.endDate);
-    if (!date) return "";
-    return format(date, "HH:mm");
-  };
+  // const getEndTimeKey = () => {
+  //   if (!data.endDate) return "";
+  //   const date = parseDate(data.endDate);
+  //   if (!date) return "";
+  //   return format(date, "HH:mm");
+  // };
 
   // Update edit type options based on shoot type
   useEffect(() => {
@@ -635,7 +712,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
               <div className="flex-1">
                 <DropdownSelect
                   title="Start Time"
-                  options={timeOptions}
+                  options={filteredStartTimeOptions}
                   value={getStartTimeKey()}
                   onChange={handleStartTimeChange}
                   bgColour="bg-[#101010]"
@@ -644,7 +721,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
               <div className="flex-1">
                 <DropdownSelect
                   title="End Time"
-                  options={timeOptions}
+                  options={filteredEndTimeOptions}
                   value={getEndTimeKey()}
                   onChange={handleEndTimeChange}
                   bgColour="bg-[#101010]"

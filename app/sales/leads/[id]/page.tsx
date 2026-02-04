@@ -11,6 +11,7 @@ import {
     Percent,
     MapPinned,
     Copy,
+    DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,11 +53,16 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
     const params = use(paramsPromise);
     const leadId = params.id;
 
-    const [discount, setDiscount] = useState("");
+    // Discount States
+    const [discountValue, setDiscountValue] = useState("");
+    const [discountType, setDiscountType] = useState<"percentage" | "fixed_amount">("percentage");
+    const [usageType, setUsageType] = useState<"one_time" | "multi_use">("one_time");
+    
+    // UI States for custom dropdowns
+    const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
+    const [isUsageDropdownOpen, setIsUsageDropdownOpen] = useState(false);
+
     const [showDiscountCode, setShowDiscountCode] = useState(false);
-    const [usageType, setUsageType] = useState<"one_time" | "multi_use">(
-        "one_time",
-    );
     const [generatedCode, setGeneratedCode] = useState<string>("");
 
     // Fetch real lead data
@@ -79,7 +85,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
     const clientName = lead?.client_name || lead?.guest_email || "Unknown Client";
     const initials = clientName
         .split(" ")
-        .map((n) => n[0])
+        .map((n: string) => n[0])
         .join("")
         .toUpperCase()
         .slice(0, 2);
@@ -104,13 +110,20 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
 
     // Handle discount code generation
     const handleGenerateDiscount = async () => {
-        if (!discount || parseFloat(discount) <= 0) {
-            toast.error("Please enter a valid discount percentage");
+        const val = parseFloat(discountValue);
+
+        if (!discountValue || val <= 0) {
+            toast.error("Please enter a valid discount value");
             return;
         }
 
-        if (parseFloat(discount) > 100) {
+        if (discountType === "percentage" && val > 100) {
             toast.error("Discount cannot exceed 100%");
+            return;
+        }
+
+        if (discountType === "fixed_amount" && val > total) {
+            toast.error("Discount amount cannot exceed total price");
             return;
         }
 
@@ -118,10 +131,10 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
             const response = await generateDiscountCode({
                 lead_id: parseInt(leadId),
                 booking_id: lead?.booking_id,
-                discount_type: "percentage",
-                discount_value: parseFloat(discount),
+                discount_type: discountType,
+                discount_value: val,
                 usage_type: usageType,
-                max_uses: usageType === "multi_use" ? 10 : undefined,
+                max_uses: usageType === "multi_use" ? 10 : 1,
             }).unwrap();
 
             if (response.success && response.data) {
@@ -328,45 +341,99 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                             }}
                         />
                         <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9">
-                            {/* Percentage Input */}
+                            
+                            {/* Discount Type Dropdown */}
                             <div className="relative">
-                                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest">
-                                    Discount Percentage
+                                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-10">
+                                    Discount Type
+                                </label>
+                                <button 
+                                    onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+                                    className="flex items-center justify-between w-full border border-white/50 rounded-xl px-4 py-4 text-left text-base text-white/60 hover:border-white/20"
+                                >
+                                    {discountType === "percentage" ? "Percentage (%)" : "Fixed Amount ($)"}
+                                    <ChevronDown size={18} />
+                                </button>
+                                {isTypeDropdownOpen && (
+                                    <div className="absolute top-full left-0 w-full mt-1 bg-[#171717] border border-[#3D3D3D] rounded-xl z-20 overflow-hidden">
+                                        <div 
+                                            className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm"
+                                            onClick={() => { setDiscountType("percentage"); setIsTypeDropdownOpen(false); }}
+                                        >
+                                            Percentage (%)
+                                        </div>
+                                        <div 
+                                            className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm"
+                                            onClick={() => { setDiscountType("fixed_amount"); setIsTypeDropdownOpen(false); }}
+                                        >
+                                            Fixed Amount ($)
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Value Input (Percentage or Amount) */}
+                            <div className="relative">
+                                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-10">
+                                    {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
                                 </label>
                                 <div className="flex items-center border border-white/50 rounded-xl px-4 py-4 bg-transparent focus-within:border-[#E8D1AB]/50 transition-all">
                                     <input
                                         type="number"
                                         placeholder="0"
                                         className="bg-transparent w-full outline-none text-white text-base"
-                                        value={discount}
-                                        onChange={(e) => setDiscount(e.target.value)}
+                                        value={discountValue}
+                                        onChange={(e) => setDiscountValue(e.target.value)}
                                     />
-                                    <Percent size={20} className="text-white" />
+                                    {discountType === "percentage" ? (
+                                        <Percent size={20} className="text-white" />
+                                    ) : (
+                                        <DollarSign size={20} className="text-white" />
+                                    )}
                                 </div>
                             </div>
 
                             {/* Usage Type Dropdown */}
-                            <div className="relative">
-                                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest">
+                            {/* <div className="relative">
+                                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-10">
                                     Usage Type
                                 </label>
-                                <button className="flex items-center justify-between w-full border border-white/50 rounded-xl px-4 py-4 text-left text-base text-white/60 hover:border-white/20">
-                                    Select usage type
+                                <button 
+                                    onClick={() => setIsUsageDropdownOpen(!isUsageDropdownOpen)}
+                                    className="flex items-center justify-between w-full border border-white/50 rounded-xl px-4 py-4 text-left text-base text-white/60 hover:border-white/20"
+                                >
+                                    {usageType === "one_time" ? "Single Use" : "Multi Use"}
                                     <ChevronDown size={18} />
                                 </button>
-                            </div>
+                                {isUsageDropdownOpen && (
+                                    <div className="absolute top-full left-0 w-full mt-1 bg-[#171717] border border-[#3D3D3D] rounded-xl z-20 overflow-hidden">
+                                        <div 
+                                            className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm"
+                                            onClick={() => { setUsageType("one_time"); setIsUsageDropdownOpen(false); }}
+                                        >
+                                            Single Use
+                                        </div>
+                                        <div 
+                                            className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm"
+                                            onClick={() => { setUsageType("multi_use"); setIsUsageDropdownOpen(false); }}
+                                        >
+                                            Multi Use
+                                        </div>
+                                    </div>
+                                )}
+                            </div> */}
 
                             {/* Action Button */}
                             <Button
                                 className="h-12 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 onClick={handleGenerateDiscount}
-                                disabled={isGenerating || !discount}
+                                disabled={isGenerating || !discountValue}
                             >
                                 {isGenerating ? "Generating..." : "Generate Code"}
                             </Button>
 
                             {showDiscountCode && generatedCode && (
-                                <div className="flex flex-col gap-2 bg-[#0A0808] border border-white/50 rounded-xl p-4">
+                                <div className="flex flex-col gap-2 bg-[#0A0808] border border-white/50 rounded-xl p-4 mt-2">
                                     <p className="text-sm font-medium text-white">
                                         Generated Code
                                     </p>
@@ -375,7 +442,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                                             {generatedCode}
                                         </div>
                                         <Button
-                                            className="h-8 w-8 bg-[#171717] hover:bg-[#272626]"
+                                            className="h-8 w-8 bg-[#171717] hover:bg-[#272626] p-0"
                                             onClick={handleCopyCode}
                                         >
                                             <Copy size={16} className="text-white" />

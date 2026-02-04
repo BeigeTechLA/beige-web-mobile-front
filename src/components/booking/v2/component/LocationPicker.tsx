@@ -88,8 +88,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Initialize viewState with a fallback (Los Angeles), 
-  // but we will update this in useEffect based on user's actual IP/GPS
+  // Initialize with fallback
   const [viewState, setViewState] = useState({
     latitude: 34.0522,
     longitude: -118.2437,
@@ -101,10 +100,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const isValidToken = MAPBOX_TOKEN && !MAPBOX_TOKEN.includes("replace_with_your_token") && MAPBOX_TOKEN.length > 20;
 
   /**
-   * EFFECT: Detect User's Current Location
-   * This runs when the component mounts to center the map on the user's current city
+   * Helper function to get current position and update map
    */
-  useEffect(() => {
+  const syncLocation = useCallback(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -116,24 +114,38 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           }));
         },
         (error) => {
-          console.warn("Location access denied by user. Using default coordinates.");
+          console.warn("Location access not yet granted or blocked.");
         },
         { enableHighAccuracy: false, timeout: 5000 }
       );
     }
   }, []);
 
+  /**
+   * EFFECT: Handle initial location and permission changes
+   */
+  useEffect(() => {
+    // 1. Try to get location immediately (triggers browser prompt)
+    syncLocation();
+
+    // 2. Watch for permission changes (When user clicks 'Allow' without refresh)
+    if ("permissions" in navigator) {
+      navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((result) => {
+        // If they click 'Allow', the 'onchange' event fires instantly
+        result.onchange = () => {
+          if (result.state === 'granted') {
+            syncLocation();
+          }
+        };
+      });
+    }
+  }, [syncLocation]);
+
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim() || !isValidToken) return;
 
     setIsSearching(true);
     try {
-      /**
-       * Proximity Logic:
-       * We add '&proximity=${viewState.longitude},${viewState.latitude}' 
-       * to the API call. This tells Mapbox to prioritize results 
-       * near the current map view (user's location).
-       */
       const proximity = `${viewState.longitude},${viewState.latitude}`;
       const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${MAPBOX_TOKEN}&limit=5&proximity=${proximity}`;
       
@@ -232,18 +244,21 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         </label>
         <div className="flex items-center gap-3 h-full px-4">
           <div
-            style={{ backgroundColor: value ? colors.iconBgSelected : colors.iconBg }}
+            style={{ 
+                backgroundColor: value ? colors.iconBgSelected : colors.iconBg,
+                //@ts-ignore
+                '--hover-bg': colors.iconBgHover 
+            } as any}
             className={`p-2 rounded-lg transition-colors ${!value ? 'group-hover:bg-[var(--hover-bg)]' : ''}`}
-            // Using a CSS variable hack to pass the dynamic color to the group-hover logic since we are preserving the Tailwind class structure
-            //@ts-ignore
-            style={{ '--hover-bg': colors.iconBgHover, backgroundColor: value ? colors.iconBgSelected : colors.iconBg }}
           >
             <MapPin
               size={18}
-              style={{ color: value ? colors.iconColorSelected : colors.iconColor }}
+              style={{ 
+                  color: value ? colors.iconColorSelected : colors.iconColor,
+                  //@ts-ignore
+                  '--hover-text': colors.iconColorHover 
+              } as any}
               className={!value ? 'group-hover:text-[var(--hover-text)]' : ''}
-              //@ts-ignore
-              style={{ '--hover-text': colors.iconColorHover, color: value ? colors.iconColorSelected : colors.iconColor }}
             />
           </div>
           <div className="flex-1 min-w-0">
@@ -285,7 +300,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Search (e.g. Shela)..."
+              placeholder="Search Your Location..."
               style={{
                 backgroundColor: colors.paperBg,
                 borderColor: colors.divider,
@@ -301,11 +316,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             onClick={handleSearch}
             disabled={isSearching}
             style={{
-              backgroundColor: colors.buttonPrimaryBg,
-              color: colors.buttonPrimaryText // Fixed to primary text for contrast
+              backgroundColor: colors.accent,
+              color: colors.buttonPrimaryText
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.buttonPrimaryBgHover}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.buttonPrimaryBg}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.accentHover}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.accent}
             className="px-4 h-10 rounded-lg font-medium transition-colors disabled:opacity-50"
           >
             {isSearching ? 'Searching...' : 'Search'}
@@ -376,6 +391,14 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                 position="top-right" 
                 trackUserLocation={true}
                 showUserLocation={true}
+                onGeolocate={(e: any) => {
+                  setViewState(prev => ({
+                    ...prev,
+                    latitude: e.coords.latitude,
+                    longitude: e.coords.longitude,
+                    zoom: 14
+                  }));
+                }}
             />
 
             {marker && (

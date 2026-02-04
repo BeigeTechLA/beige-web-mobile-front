@@ -36,8 +36,8 @@ const darkThemeColors = {
 };
 
 const TEAM_ROLES = [
-  { id: "videographer", label: "Videographer", price: 275, icon: <Video size={28} /> },
-  { id: "photographer", label: "Photographer", price: 275, icon: <Camera size={28} /> },
+  { id: "videographer", label: "Videographer", price: 250, icon: <Video size={28} /> }, // Changed from 275 to 250
+  { id: "photographer", label: "Photographer", price: 250, icon: <Camera size={28} /> }, // Changed from 275 to 250
   // { id: "editor", label: "Editor", price: 150, icon: <Scissors size={28} /> },
   // { id: "sound_engineer", label: "Sound Engineer", price: 275, icon: <Mic size={28} /> },
   // { id: "producer", label: "Producer", price: 220, icon: <User size={28} /> },
