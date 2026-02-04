@@ -732,9 +732,9 @@ function MultiCreatorPaymentContent() {
         {/* Leave Confirmation Modal */}
         <LeaveConfirmationModal
           isOpen={showLeaveModal}
-         onConfirm={() => {
-         router.push("/book-a-shoot");
-         } }
+          onConfirm={() => {
+            router.push("/book-a-shoot");
+          }}
           onCancel={() => setShowLeaveModal(false)}
         />
 
@@ -1037,16 +1037,16 @@ const LeaveConfirmationModal = ({
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
       <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl">
-        <h3 className="text-2xl font-semibold text-white mb-4">Abandon Booking?</h3>
+        <h3 className="text-2xl font-semibold text-white mb-4">Cancel Payment?</h3>
         <p className="text-white/60 mb-8 leading-relaxed">
-          You've filled in details on this page. Moving back will lose all details. Do you wish to continue?
+          Your booking progress will be lost. If you have already clicked pay, please wait to avoid duplicate charges.
         </p>
         <div className="flex gap-4">
           <button
             onClick={onCancel}
             className="flex-1 py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all font-medium"
           >
-            Stay Here
+            Continue Payment
           </button>
           <button
             onClick={onConfirm}

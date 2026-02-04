@@ -2,10 +2,11 @@
 
 import React from "react";
 import Image from "next/image";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   Select,
@@ -181,6 +182,27 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
     router.push(`/admin/shoots/${cleanId}`);
   };
 
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        const cleanId = id.replace('#', '');
+
+        if (window.confirm("Are you sure you want to delete this shoot?")) {
+            try {
+                const response = await adminApi.deleteProject(cleanId);
+                // Check for success property or if data is returned correctly
+                if (response?.success || response?.message === "Project deleted successfully") { // Adjust based on actual API response
+                    setShoots(prev => prev.filter(shoot => shoot.id !== id));
+                    toast.success("Shoot deleted successfully");
+                } else {
+                    toast.error(response?.error || "Failed to delete shoot");
+                }
+            } catch (error) {
+                console.error("Delete failed", error);
+                toast.error("An error occurred while deleting");
+            }
+        }
+    };
+
   return (
     <div className="w-full bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Table Header Controls */}
@@ -292,9 +314,17 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
                     {/* Action */}
                     <td className="py-5 px-6 text-right">
-                      <button className="text-white hover:text-white transition-colors">
-                        <ChevronRight size={20} className="text-[#666666]" />
-                      </button>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={(e) => handleDelete(e, shoot.id)}
+                                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#666] hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                          <button className="text-white hover:text-white transition-colors">
+                            <ChevronRight size={20} className="text-[#666666]" />
+                          </button>
+                                        </div>
                     </td>
                   </tr>
                 ))}

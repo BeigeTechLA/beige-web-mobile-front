@@ -2,17 +2,39 @@
 
 import React from "react";
 import Image from "next/image";
-import { ArrowLeft, SlidersHorizontal, Pencil, CheckCircle2, Circle, CircleX } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal, Pencil, CheckCircle2, Circle, CircleX, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { adminApi } from "@/lib/api";
+import { toast } from "sonner";
 
 interface ShootHeaderProps {
   activeTab?: string;
-  project?: any; // We'll define a proper type later or import it
+  project?: any;
+  projectId?: string;
 }
 
-export default function ShootHeader({ activeTab = "Overview", project }: ShootHeaderProps) {
+export default function ShootHeader({ activeTab = "Overview", project, projectId }: ShootHeaderProps) {
   const router = useRouter();
+
+  const handleDelete = async () => {
+    if (!projectId) return;
+
+    if (window.confirm("Are you sure you want to delete this shoot? This action cannot be undone.")) {
+      try {
+        const response = await adminApi.deleteProject(projectId);
+        if (response?.success || response?.message === "Project deleted successfully") { // Adjust based on actual API response
+          toast.success("Shoot deleted successfully");
+          router.push('/admin/shoots');
+        } else {
+          toast.error(response?.error || "Failed to delete shoot");
+        }
+      } catch (error) {
+        console.error("Delete failed", error);
+        toast.error("An error occurred while deleting");
+      }
+    }
+  };
 
   return (
     <div>
@@ -29,8 +51,12 @@ export default function ShootHeader({ activeTab = "Overview", project }: ShootHe
           </button>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="bg-[#2C2C2C] border-none text-red-400 hover:bg-[#3D3D3D] hover:text-red-300 rounded-lg h-10 px-4 gap-2">
-            <CircleX className="w-4 h-4" /> Cancel Shoot
+          <Button
+            variant="outline"
+            className="bg-[#2C2C2C] border-none text-red-400 hover:bg-[#3D3D3D] hover:text-red-300 rounded-lg h-10 px-4 gap-2"
+            onClick={handleDelete}
+          >
+            <Trash2 className="w-4 h-4" /> Delete Shoot
           </Button>
           <Button variant="outline" className="bg-[#1A1A1A] border border-white/10 text-white hover:bg-[#2C2C2C] rounded-lg h-10 px-4 gap-2">
             <SlidersHorizontal className="w-4 h-4" /> Filters

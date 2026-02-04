@@ -126,6 +126,24 @@ export const authApi = createApi({
       }),
     }),
 
+    // Change password for Crew (Special Endpoint)
+    changePasswordCrew: builder.mutation<{ message: string }, { user_id: number; currentPassword: string; newPassword: string }>({
+      query: (data) => ({
+        url: 'auth/change-password-crew',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
+    // Change password for Client (Special Endpoint)
+    changePasswordClient: builder.mutation<{ message: string }, { clientId: number; currentPassword: string; newPassword: string }>({
+      query: (data) => ({
+        url: 'auth/change-password-client',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
     // Creator registration - Step 1: Basic info
     registerCreatorStep1: builder.mutation<CreatorRegistrationStep1Response, FormData>({
       query: (formData) => ({
@@ -173,6 +191,8 @@ export const {
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useChangePasswordMutation,
+  useChangePasswordCrewMutation,
+  useChangePasswordClientMutation,
   useRegisterCreatorStep1Mutation,
   useRegisterCreatorStep2Mutation,
   useRegisterCreatorStep3Mutation,

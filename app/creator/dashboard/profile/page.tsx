@@ -18,8 +18,13 @@ import {
   Navigation,
   ChevronLeft,
   ChevronRight,
-  Loader2
+  Loader2,
+  EyeOff
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { useChangePasswordMutation } from "@/lib/redux/features/auth/authApi";
+import SecurityForm from "@/src/components/cpSignup/SecurityForm";
 
 import FeaturedWorkModal from "@/src/components/cpSignup/FeaturedWorkModal";
 import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";
@@ -138,25 +143,26 @@ export default function ProfilePage() {
   // const [socialLinks, setSocialLinks] = useState([]);
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
   const [isEditingSkills, setIsEditingSkills] = useState(false);
+  const [isEditingSecurity, setIsEditingSecurity] = useState(false);
   const [isEditingProfessionalInfo, setIsEditingProfessionalInfo] = useState(false);
   const [socialLinks, setSocialLinks] = useState<any[]>([]);
-// State for Certificate Preview
-const [previewCert, setPreviewCert] = useState<any>(null);
+  // State for Certificate Preview
+  const [previewCert, setPreviewCert] = useState<any>(null);
   // Banner Upload State
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleteModal, setDeleteModal] = useState<{
-  isOpen: boolean;
-  title: string;
-  description: string;
-  idsToDelete: number[];
-}>({
-  isOpen: false,
-  title: "",
-  description: "",
-  idsToDelete: [],
-});
+    isOpen: boolean;
+    title: string;
+    description: string;
+    idsToDelete: number[];
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    idsToDelete: [],
+  });
 
   // File Upload States
   const [certificates, setCertificates] = useState<File[]>([]);
@@ -202,32 +208,32 @@ const [previewCert, setPreviewCert] = useState<any>(null);
   }, []);
 
   useEffect(() => {
-  if (profile.social_media_links) {
-    try {
-      // API returns a stringified JSON object: "{\"linkedin\":\"...\"}"
-      const linksObj = typeof profile.social_media_links === 'string' 
-        ? JSON.parse(profile.social_media_links) 
-        : profile.social_media_links;
-      
-      const formattedLinks = Object.entries(linksObj || {}).map(([platform, url], index) => {
-        const platformInfo = SOCIAL_ICONS.find(i => i.id === platform);
-        return {
-          id: index,
-          platform: platform,
-          url: url as string,
-          name: platformInfo?.label || platform
-        };
-      });
-      setSocialLinks(formattedLinks);
-    } catch (e) {
-      console.error("Error parsing social links", e);
-    }
-  }
-}, [profile.social_media_links]);
+    if (profile.social_media_links) {
+      try {
+        // API returns a stringified JSON object: "{\"linkedin\":\"...\"}"
+        const linksObj = typeof profile.social_media_links === 'string'
+          ? JSON.parse(profile.social_media_links)
+          : profile.social_media_links;
 
-const featuredWorks = profile.crew_member_files?.filter(
-  (file: any) => file.file_type === "recent_work"
-) || [];
+        const formattedLinks = Object.entries(linksObj || {}).map(([platform, url], index) => {
+          const platformInfo = SOCIAL_ICONS.find(i => i.id === platform);
+          return {
+            id: index,
+            platform: platform,
+            url: url as string,
+            name: platformInfo?.label || platform
+          };
+        });
+        setSocialLinks(formattedLinks);
+      } catch (e) {
+        console.error("Error parsing social links", e);
+      }
+    }
+  }, [profile.social_media_links]);
+
+  const featuredWorks = profile.crew_member_files?.filter(
+    (file: any) => file.file_type === "recent_work"
+  ) || [];
 
   const handleSavePersonalInfo = async () => {
     // 1. Get the ID from localStorage (similar to how you did in useEffect)
@@ -329,95 +335,95 @@ const featuredWorks = profile.crew_member_files?.filter(
   };
 
   const handleSaveSocialLinks = async (updatedLinksArray: any[]) => {
-  const userStr = localStorage.getItem("revure_user");
-  const user = userStr ? JSON.parse(userStr) : null;
-  const crewMemberId = user?.crew_member_id;
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
 
-  if (!crewMemberId) return;
+    if (!crewMemberId) return;
 
-  // Convert Array [{platform: 'linkedin', url: '...'}] back to Object {linkedin: '...'}
-  const linksObject: Record<string, string> = {};
-  updatedLinksArray.forEach(item => {
-    linksObject[item.platform] = item.url;
-  });
+    // Convert Array [{platform: 'linkedin', url: '...'}] back to Object {linkedin: '...'}
+    const linksObject: Record<string, string> = {};
+    updatedLinksArray.forEach(item => {
+      linksObject[item.platform] = item.url;
+    });
 
-  const payload = {
-    crew_member_id: parseInt(crewMemberId),
-    social_media_links: JSON.stringify(linksObject)
+    const payload = {
+      crew_member_id: parseInt(crewMemberId),
+      social_media_links: JSON.stringify(linksObject)
+    };
+
+    try {
+      const response = await EditMyProfile(payload);
+      if (response.data && response.data.error === false) {
+        setSocialLinks(updatedLinksArray);
+        setIsSocialLinksModalOpen(false);
+        // Optional: Update local profile state as well
+        setProfile((prev: any) => ({ ...prev, social_media_links: JSON.stringify(linksObject) }));
+      }
+    } catch (err) {
+      console.error("Failed to update social links:", err);
+    }
   };
 
-  try {
-    const response = await EditMyProfile(payload);
-    if (response.data && response.data.error === false) {
-      setSocialLinks(updatedLinksArray);
-      setIsSocialLinksModalOpen(false);
-      // Optional: Update local profile state as well
-      setProfile((prev: any) => ({...prev, social_media_links: JSON.stringify(linksObject)}));
-    }
-  } catch (err) {
-    console.error("Failed to update social links:", err);
-  }
-};
+  const handleUploadResume = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-const handleUploadResume = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
 
-  const userStr = localStorage.getItem("revure_user");
-  const user = userStr ? JSON.parse(userStr) : null;
-  const crewMemberId = user?.crew_member_id;
+    if (!crewMemberId) return;
 
-  if (!crewMemberId) return;
+    try {
+      setIsPageLoading(true);
+      // Calling API with "resume" file_type
+      const response = await UploadProfileFile(
+        "resume",
+        [file], // Send as array
+        crewMemberId
+      );
 
-  try {
-    setIsPageLoading(true);
-    // Calling API with "resume" file_type
-    const response = await UploadProfileFile(
-      "resume", 
-      [file], // Send as array
-      crewMemberId
-    );
-
-    if (response.data && response.data.error === false) {
-      // Refresh profile to show the new resume
-      const updatedProfile = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
-      if (updatedProfile.data) {
-        setProfile(updatedProfile.data.data);
+      if (response.data && response.data.error === false) {
+        // Refresh profile to show the new resume
+        const updatedProfile = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
+        if (updatedProfile.data) {
+          setProfile(updatedProfile.data.data);
+        }
       }
+    } catch (err) {
+      console.error("Failed to upload resume:", err);
+    } finally {
+      setIsPageLoading(false); // 🔥 HIDE LOADER
     }
-  } catch (err) {
-    console.error("Failed to upload resume:", err);
-  } finally {
-    setIsPageLoading(false); // 🔥 HIDE LOADER
-  }
-};
+  };
 
-const getCrewId = () => {
-  const userStr = localStorage.getItem("revure_user");
-  const user = userStr ? JSON.parse(userStr) : null;
-  return user?.crew_member_id;
-};
+  const getCrewId = () => {
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    return user?.crew_member_id;
+  };
 
-// 1. Function to trigger the modal
-// 1. Function to trigger the modal
-const confirmDelete = (type: 'file' | 'project', data: any) => {
-  let ids: number[] = [];
-  let title = "Delete File";
-  let description = "Are you sure you want to remove this from your profile?";
+  // 1. Function to trigger the modal
+  // 1. Function to trigger the modal
+  const confirmDelete = (type: 'file' | 'project', data: any) => {
+    let ids: number[] = [];
+    let title = "Delete File";
+    let description = "Are you sure you want to remove this from your profile?";
 
-  if (type === 'project') {
-    // CHANGE: Use crew_files_id instead of id
-    ids = data.images.map((img: any) => img.crew_files_id);
-    title = `Delete "${data.title}"`;
-    description = `This will delete all ${data.images.length} media items in this project. This action cannot be undone.`;
-  } else {
-    // CHANGE: Use crew_files_id instead of id
-    ids = [data.crew_files_id];
-    title = "Delete Item";
-  }
+    if (type === 'project') {
+      // CHANGE: Use crew_files_id instead of id
+      ids = data.images.map((img: any) => img.crew_files_id);
+      title = `Delete "${data.title}"`;
+      description = `This will delete all ${data.images.length} media items in this project. This action cannot be undone.`;
+    } else {
+      // CHANGE: Use crew_files_id instead of id
+      ids = [data.crew_files_id];
+      title = "Delete Item";
+    }
 
-  setDeleteModal({ isOpen: true, title, description, idsToDelete: ids });
-};
+    setDeleteModal({ isOpen: true, title, description, idsToDelete: ids });
+  };
   const handleProfileUpdate = (updates: any) => {
     setProfile((prev: any) => ({ ...prev, ...updates }));
   };
@@ -430,129 +436,129 @@ const confirmDelete = (type: 'file' | 'project', data: any) => {
     }
   };
 
-const handleAddProject = async (data: any) => {
-  const userStr = localStorage.getItem("revure_user");
-  const user = userStr ? JSON.parse(userStr) : null;
-  const crewMemberId = user?.crew_member_id;
+  const handleAddProject = async (data: any) => {
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
 
-  if (!crewMemberId) return;
+    if (!crewMemberId) return;
 
-  try {
-    setIsPageLoading(true); // ✅ START LOADER
+    try {
+      setIsPageLoading(true); // ✅ START LOADER
 
-    const response = await UploadProfileFile(
-      "recent_work",
-      data.files,
-      crewMemberId,
-      {
-        title: data.title,
-        tag: data.tags.join(","),
+      const response = await UploadProfileFile(
+        "recent_work",
+        data.files,
+        crewMemberId,
+        {
+          title: data.title,
+          tag: data.tags.join(","),
+        }
+      );
+
+      if (response.data && response.data.error === false) {
+        const updatedProfile = await GetMyProfile({
+          crew_member_id: parseInt(crewMemberId),
+        });
+
+        if (updatedProfile.data) {
+          setProfile(updatedProfile.data.data);
+        }
+
+        setIsFeaturedModalOpen(false);
+      } else {
+        console.error("Upload error:", response.data.message);
       }
-    );
+    } catch (err) {
+      console.error("Failed to upload project:", err);
+    } finally {
+      setIsPageLoading(false); // ✅ STOP LOADER
+    }
+  };
 
-    if (response.data && response.data.error === false) {
-      const updatedProfile = await GetMyProfile({
-        crew_member_id: parseInt(crewMemberId),
-      });
 
-      if (updatedProfile.data) {
-        setProfile(updatedProfile.data.data);
+  const handleUploadCertificates = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
+
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
+
+    if (!crewMemberId) return;
+
+    try {
+      setIsPageLoading(true); // 🔥 SHOW LOADER
+
+      const filesArray = Array.from(selectedFiles);
+
+      const response = await UploadProfileFile(
+        "certifications",
+        filesArray,
+        crewMemberId
+      );
+
+      if (response?.data && response.data.error === false) {
+        const updatedProfile = await GetMyProfile({
+          crew_member_id: Number(crewMemberId),
+        });
+
+        if (updatedProfile?.data) {
+          setProfile(updatedProfile.data.data);
+        }
       }
-
-      setIsFeaturedModalOpen(false);
-    } else {
-      console.error("Upload error:", response.data.message);
+    } catch (err) {
+      console.error("Failed to upload certificates:", err);
+    } finally {
+      setIsPageLoading(false); // 🔥 HIDE LOADER
     }
-  } catch (err) {
-    console.error("Failed to upload project:", err);
-  } finally {
-    setIsPageLoading(false); // ✅ STOP LOADER
-  }
-};
+  };
 
 
-const handleUploadCertificates = async (
-  e: React.ChangeEvent<HTMLInputElement>
-) => {
-  const selectedFiles = e.target.files;
-  if (!selectedFiles || selectedFiles.length === 0) return;
+  const handleExecuteDelete = async () => {
+    const crewMemberId = getCrewId();
+    if (!crewMemberId || deleteModal.idsToDelete.length === 0) return;
 
-  const userStr = localStorage.getItem("revure_user");
-  const user = userStr ? JSON.parse(userStr) : null;
-  const crewMemberId = user?.crew_member_id;
+    try {
+      setIsPageLoading(true); // ✅ START LOADER
 
-  if (!crewMemberId) return;
+      await Promise.all(
+        deleteModal.idsToDelete.map((id) =>
+          DeleteProfileFile(id, { crew_member_id: parseInt(crewMemberId) })
+        )
+      );
 
-  try {
-    setIsPageLoading(true); // 🔥 SHOW LOADER
+      setDeleteModal((prev) => ({ ...prev, isOpen: false }));
+      setLightboxData((prev) => ({ ...prev, isOpen: false }));
+      setPreviewCert(null);
 
-    const filesArray = Array.from(selectedFiles);
-
-    const response = await UploadProfileFile(
-      "certifications",
-      filesArray,
-      crewMemberId
-    );
-
-    if (response?.data && response.data.error === false) {
-      const updatedProfile = await GetMyProfile({
-        crew_member_id: Number(crewMemberId),
-      });
-
-      if (updatedProfile?.data) {
-        setProfile(updatedProfile.data.data);
+      const response = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
+      if (response.data && response.data.error === false) {
+        setProfile(response.data.data);
       }
+    } catch (err) {
+      console.error("Delete failed:", err);
+    } finally {
+      setIsPageLoading(false); // ✅ STOP LOADER
     }
-  } catch (err) {
-    console.error("Failed to upload certificates:", err);
-  } finally {
-    setIsPageLoading(false); // 🔥 HIDE LOADER
-  }
-};
+  };
 
 
-const handleExecuteDelete = async () => {
-  const crewMemberId = getCrewId();
-  if (!crewMemberId || deleteModal.idsToDelete.length === 0) return;
-
-  try {
-    setIsPageLoading(true); // ✅ START LOADER
-
-    await Promise.all(
-      deleteModal.idsToDelete.map((id) =>
-        DeleteProfileFile(id, { crew_member_id: parseInt(crewMemberId) })
-      )
-    );
-
-    setDeleteModal((prev) => ({ ...prev, isOpen: false }));
-    setLightboxData((prev) => ({ ...prev, isOpen: false }));
-    setPreviewCert(null);
-
-    const response = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
-    if (response.data && response.data.error === false) {
-      setProfile(response.data.data);
-    }
-  } catch (err) {
-    console.error("Delete failed:", err);
-  } finally {
-    setIsPageLoading(false); // ✅ STOP LOADER
-  }
-};
-
-
-const certifications = profile.crew_member_files?.filter(
-  (f: any) => f.file_type === "certifications"
-) || [];
+  const certifications = profile.crew_member_files?.filter(
+    (f: any) => f.file_type === "certifications"
+  ) || [];
 
   const groupedWorks = profile.crew_member_files
     ?.filter((file: any) => file.file_type === "recent_work")
     .reduce((acc: any[], file: any) => {
       // Matches if both Title and Tag are the same
-      const existingProject = acc.find(p => 
-        p.title?.toLowerCase() === file.title?.toLowerCase() && 
+      const existingProject = acc.find(p =>
+        p.title?.toLowerCase() === file.title?.toLowerCase() &&
         p.tag === file.tag
       );
-      
+
       if (existingProject) {
         existingProject.images.push(file);
       } else {
@@ -621,38 +627,38 @@ const certifications = profile.crew_member_files?.filter(
               <StatBox value={profile.working_distance?.split(' ')[1] || "25"} sublabel="Miles Radius" />
             </div>
 
-{/* Find the Social Buttons section in your JSX (inside the Top Profile Card) */}
-<div className="flex flex-wrap items-center gap-3">
-  {socialLinks.length > 0 ? (
-    socialLinks.map((link) => {
-      const platformInfo = SOCIAL_ICONS.find(i => i.id === link.platform);
-      return (
-        <a 
-          key={link.id} 
-          href={link.url} 
-          target="_blank" 
-          rel="noopener noreferrer"
-        >
-          <SocialButton 
-            icon={platformInfo?.icon || Globe} 
-            label={platformInfo?.label || link.name} 
-          />
-        </a>
-      );
-    })
-  ) : (
-    <p className="text-xs text-white/20 italic">No social links added</p>
-  )}
-  
-  {/* The Edit Icon for Social Links */}
-  <button
-    onClick={() => setIsSocialLinksModalOpen(true)}
-    className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-[#E8D1AB] hover:text-black transition-all text-white/40"
-    title="Edit Social Links"
-  >
-    <Edit3 size={14} />
-  </button>
-</div>
+            {/* Find the Social Buttons section in your JSX (inside the Top Profile Card) */}
+            <div className="flex flex-wrap items-center gap-3">
+              {socialLinks.length > 0 ? (
+                socialLinks.map((link) => {
+                  const platformInfo = SOCIAL_ICONS.find(i => i.id === link.platform);
+                  return (
+                    <a
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <SocialButton
+                        icon={platformInfo?.icon || Globe}
+                        label={platformInfo?.label || link.name}
+                      />
+                    </a>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-white/20 italic">No social links added</p>
+              )}
+
+              {/* The Edit Icon for Social Links */}
+              <button
+                onClick={() => setIsSocialLinksModalOpen(true)}
+                className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-[#E8D1AB] hover:text-black transition-all text-white/40"
+                title="Edit Social Links"
+              >
+                <Edit3 size={14} />
+              </button>
+            </div>
           </div>
 
           {/* Banner Media Upload UI */}
@@ -814,15 +820,48 @@ const certifications = profile.crew_member_files?.filter(
                   </div>
                 )}
               </div>
+
+              {/* SECURITY */}
+              <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8">
+                <SectionHeader
+                  title="Security"
+                  isEditing={isEditingSecurity}
+                  onEdit={() => setIsEditingSecurity(!isEditingSecurity)}
+                />
+
+                {isEditingSecurity ? (
+                  <div className="animate-in fade-in zoom-in-95 duration-300">
+                    <SecurityForm onSuccess={() => setIsEditingSecurity(false)} />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-[#E8D1AB]/10 rounded-lg flex items-center justify-center text-[#E8D1AB]">
+                        <EyeOff size={20} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">Password</p>
+                        <p className="text-xs text-white/40">Last changed recently</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsEditingSecurity(true)}
+                      className="text-xs font-bold text-[#E8D1AB] hover:text-white transition-colors uppercase tracking-wider"
+                    >
+                      Change Password
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {/* FEATURED WORK TAB */}
-         {activeTab === "Featured Work" && (
+          {activeTab === "Featured Work" && (
             <div className="animate-in fade-in duration-500">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {/* ADD NEW PROJECT BOX */}
-                <div 
+                <div
                   onClick={() => setIsFeaturedModalOpen(true)}
                   className="border-2 border-dashed border-white/10 rounded-[2rem] h-[350px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
                 >
@@ -835,39 +874,39 @@ const certifications = profile.crew_member_files?.filter(
                 {/* DISPLAY GROUPED PROJECTS */}
                 {groupedWorks?.map((project: any, pIdx: number) => (
                   <div key={pIdx} className="group flex flex-col">
-                    <div 
+                    <div
                       className="h-[350px] rounded-[2rem] overflow-hidden border border-white/10 bg-[#111] relative cursor-pointer"
                       onClick={() => setLightboxData({ isOpen: true, project, index: 0 })}
                     >
                       {/* Main Image */}
-                      <img 
-                        src={`${S3_BASE_URL}${project.images[0].file_path}`} 
-                        alt={project.title} 
+                      <img
+                        src={`${S3_BASE_URL}${project.images[0].file_path}`}
+                        alt={project.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                       />
-                      
+
                       {/* HOVER OVERLAY */}
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-6">
                         <div className="flex justify-end gap-2">
-                         {/* Inside groupedWorks map */}
-<button 
-  onClick={(e) => {
-    e.stopPropagation();
-    confirmDelete('project', project); // project contains all image objects
-  }}
-  className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-full text-[10px] font-bold hover:bg-red-50 transition-colors shadow-lg"
->
-  <Trash2 size={14} /> Delete Project
-</button>
+                          {/* Inside groupedWorks map */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              confirmDelete('project', project); // project contains all image objects
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-full text-[10px] font-bold hover:bg-red-50 transition-colors shadow-lg"
+                          >
+                            <Trash2 size={14} /> Delete Project
+                          </button>
                           <button className="p-2 bg-white text-blue-600 rounded-full hover:bg-blue-50 transition-colors shadow-lg">
                             <Edit3 size={16} />
                           </button>
                         </div>
-                        
+
                         <div className="self-center">
-                           <div className="px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] text-white border border-white/20">
-                              {project.images.length} Media Items
-                           </div>
+                          <div className="px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] text-white border border-white/20">
+                            {project.images.length} Media Items
+                          </div>
                         </div>
 
                         <div className="flex justify-center gap-1.5">
@@ -877,7 +916,7 @@ const certifications = profile.crew_member_files?.filter(
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="mt-5 px-2">
                       <h4 className="text-base font-bold text-white tracking-tight">{project.title}</h4>
                       <p className="text-xs text-[#E8D1AB] mt-1 opacity-80 font-medium">#{project.tag}</p>
@@ -885,7 +924,7 @@ const certifications = profile.crew_member_files?.filter(
                   </div>
                 ))}
               </div>
-              
+
               {featuredWorks.length === 0 && (
                 <div className="mt-8">
                   <TabEmptyState
@@ -899,168 +938,168 @@ const certifications = profile.crew_member_files?.filter(
               )}
             </div>
           )}
-        {activeTab === "Certificates" && (
-  <div className="animate-in fade-in duration-500">
-    <input 
-      type="file" 
-      ref={certInputRef} 
-      className="hidden" 
-      multiple 
-      accept="image/*,application/pdf"
-      onChange={handleUploadCertificates} 
-    />
+          {activeTab === "Certificates" && (
+            <div className="animate-in fade-in duration-500">
+              <input
+                type="file"
+                ref={certInputRef}
+                className="hidden"
+                multiple
+                accept="image/*,application/pdf"
+                onChange={handleUploadCertificates}
+              />
 
-    {certifications.length === 0 ? (
-      <TabEmptyState
-        title="Showcase your certifications"
-        description="Upload your professional credentials and achievements to build trust with clients."
-        buttonText="Add Certificate"
-        footerText="PDF, JPG, DOCX or PNG files. Max 10MB per file."
-        onClick={() => certInputRef.current?.click()}
-      />
-    ) : (
-      <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          
-          {/* ADD CARD */}
-          <div 
-            onClick={() => certInputRef.current?.click()}
-            className="border-2 border-dashed border-white/10 rounded-[1.5rem] h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
-          >
-            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <Plus size={20} className="text-[#E8D1AB]" />
-            </div>
-            <p className="text-sm font-bold text-white mb-1">Add Certificate</p>
-            <p className="text-[10px] text-white/40 text-center px-6">Highlight achievements with a professional certificate.</p>
-          </div>
+              {certifications.length === 0 ? (
+                <TabEmptyState
+                  title="Showcase your certifications"
+                  description="Upload your professional credentials and achievements to build trust with clients."
+                  buttonText="Add Certificate"
+                  footerText="PDF, JPG, DOCX or PNG files. Max 10MB per file."
+                  onClick={() => certInputRef.current?.click()}
+                />
+              ) : (
+                <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
-          {/* CERTIFICATE CARDS */}
-          {certifications.map((cert: any, index: number) => {
-            const isPDF = cert.file_path.toLowerCase().endsWith('.pdf');
-            const fileUrl = `${S3_BASE_URL}${cert.file_path}`;
-            
-            return (
-              <div key={cert.id || index} className="relative group h-[220px] rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#0A0A0A]">
-                {/* Thumbnail (For PDF we show a placeholder or icon, for image we show the img) */}
-                {isPDF ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-white/20">
-                    <FileText size={48} />
-                    <span className="text-[10px] mt-2 font-bold uppercase tracking-widest">PDF Document</span>
+                    {/* ADD CARD */}
+                    <div
+                      onClick={() => certInputRef.current?.click()}
+                      className="border-2 border-dashed border-white/10 rounded-[1.5rem] h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <Plus size={20} className="text-[#E8D1AB]" />
+                      </div>
+                      <p className="text-sm font-bold text-white mb-1">Add Certificate</p>
+                      <p className="text-[10px] text-white/40 text-center px-6">Highlight achievements with a professional certificate.</p>
+                    </div>
+
+                    {/* CERTIFICATE CARDS */}
+                    {certifications.map((cert: any, index: number) => {
+                      const isPDF = cert.file_path.toLowerCase().endsWith('.pdf');
+                      const fileUrl = `${S3_BASE_URL}${cert.file_path}`;
+
+                      return (
+                        <div key={cert.id || index} className="relative group h-[220px] rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#0A0A0A]">
+                          {/* Thumbnail (For PDF we show a placeholder or icon, for image we show the img) */}
+                          {isPDF ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-white/20">
+                              <FileText size={48} />
+                              <span className="text-[10px] mt-2 font-bold uppercase tracking-widest">PDF Document</span>
+                            </div>
+                          ) : (
+                            <img src={fileUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-50 transition-all" />
+                          )}
+
+                          <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent">
+                            <p className="text-xs font-bold text-white">Certificate_{index + 1}</p>
+                          </div>
+
+                          {/* HOVER ACTIONS */}
+                          <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                            <button
+                              onClick={() => setPreviewCert(cert)}
+                              className="p-2 bg-white/10 backdrop-blur-md hover:bg-white text-white hover:text-black rounded-lg transition-all"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            {/* Inside certifications map */}
+                            <button
+                              onClick={() => confirmDelete('file', cert)}
+                              className="p-2 bg-white/10 backdrop-blur-md hover:bg-red-500 text-white rounded-lg transition-all"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <img src={fileUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-50 transition-all" />
-                )}
-
-                <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent">
-                  <p className="text-xs font-bold text-white">Certificate_{index + 1}</p>
                 </div>
-
-                {/* HOVER ACTIONS */}
-                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                  <button 
-                    onClick={() => setPreviewCert(cert)}
-                    className="p-2 bg-white/10 backdrop-blur-md hover:bg-white text-white hover:text-black rounded-lg transition-all"
-                  >
-                    <Eye size={16} />
-                  </button>
-                  {/* Inside certifications map */}
-<button 
-  onClick={() => confirmDelete('file', cert)}
-  className="p-2 bg-white/10 backdrop-blur-md hover:bg-red-500 text-white rounded-lg transition-all"
->
-  <Trash2 size={16} />
-</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    )}
-  </div>
-)}
+              )}
+            </div>
+          )}
 
           {/* RESUME TAB */}
           {/* RESUME TAB */}
-{activeTab === "Resume" && (
-  <div className="animate-in fade-in duration-500"> {/* Removed flex-center classes here */}
-    <input 
-      type="file" 
-      ref={resumeInputRef} 
-      className="hidden" 
-      accept=".pdf,.doc,.docx"
-      onChange={handleUploadResume} 
-    />
+          {activeTab === "Resume" && (
+            <div className="animate-in fade-in duration-500"> {/* Removed flex-center classes here */}
+              <input
+                type="file"
+                ref={resumeInputRef}
+                className="hidden"
+                accept=".pdf,.doc,.docx"
+                onChange={handleUploadResume}
+              />
 
-    {(() => {
-      // Find the resume in the profile data
-      const resumeFile = profile.crew_member_files?.find(
-        (f: any) => f.file_type === "resume"
-      );
+              {(() => {
+                // Find the resume in the profile data
+                const resumeFile = profile.crew_member_files?.find(
+                  (f: any) => f.file_type === "resume"
+                );
 
-      if (!resumeFile) {
-        return (
-          <TabEmptyState
-            title="Upload your resume"
-            description="Browse or drag and drop a file here to keep your profile updated."
-            buttonText="Select File"
-            footerText="Acceptable file types: PDF, JPG, PNG (max 5MB)"
-            onClick={() => resumeInputRef.current?.click()}
-          />
-        );
-      }
+                if (!resumeFile) {
+                  return (
+                    <TabEmptyState
+                      title="Upload your resume"
+                      description="Browse or drag and drop a file here to keep your profile updated."
+                      buttonText="Select File"
+                      footerText="Acceptable file types: PDF, JPG, PNG (max 5MB)"
+                      onClick={() => resumeInputRef.current?.click()}
+                    />
+                  );
+                }
 
-      // RESUME CARD (Wrapped in a flex container ONLY when data exists to keep it centered)
-      return (
-        <div className="flex justify-center py-10"> 
-          <div className="bg-[#111] border border-white/5 rounded-[2.5rem] p-12 w-full max-w-lg relative flex flex-col items-center justify-center text-center shadow-2xl">
-            
-            {/* Delete Icon (Top Right) */}
-            <button 
-              onClick={() => confirmDelete('file', resumeFile)}
-              className="absolute top-6 right-6 p-2.5 bg-white/5 hover:bg-red-500/20 text-white/40 hover:text-red-500 rounded-full border border-white/5 transition-all"
-              title="Delete Resume"
-            >
-              <Trash2 size={18} />
-            </button>
+                // RESUME CARD (Wrapped in a flex container ONLY when data exists to keep it centered)
+                return (
+                  <div className="flex justify-center py-10">
+                    <div className="bg-[#111] border border-white/5 rounded-[2.5rem] p-12 w-full max-w-lg relative flex flex-col items-center justify-center text-center shadow-2xl">
 
-            {/* File Icon Box */}
-            <div className="w-16 h-20 bg-white border border-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-xl">
-              <div className="relative">
-                <FileText size={40} className="text-red-500" />
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[8px] text-white font-black">
-                  PDF
-                </div>
-              </div>
+                      {/* Delete Icon (Top Right) */}
+                      <button
+                        onClick={() => confirmDelete('file', resumeFile)}
+                        className="absolute top-6 right-6 p-2.5 bg-white/5 hover:bg-red-500/20 text-white/40 hover:text-red-500 rounded-full border border-white/5 transition-all"
+                        title="Delete Resume"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+
+                      {/* File Icon Box */}
+                      <div className="w-16 h-20 bg-white border border-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-xl">
+                        <div className="relative">
+                          <FileText size={40} className="text-red-500" />
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[8px] text-white font-black">
+                            PDF
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* File Details */}
+                      <h3 className="text-xl font-bold text-white mb-1">My Resume</h3>
+                      <p className="text-sm text-white/40 mb-10 font-medium">
+                        Uploaded on {new Date(resumeFile.created_at || Date.now()).toLocaleDateString()}
+                      </p>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => window.open(`${S3_BASE_URL}${resumeFile.file_path}`, '_blank')}
+                          className="bg-white text-black font-bold px-10 py-3.5 rounded-2xl hover:bg-[#E8D1AB] transition-all active:scale-95 shadow-lg"
+                        >
+                          View File
+                        </button>
+                        <button
+                          onClick={() => resumeInputRef.current?.click()}
+                          className="bg-transparent text-white border border-white/10 font-bold px-10 py-3.5 rounded-2xl hover:bg-white/5 transition-all active:scale-95"
+                        >
+                          Replace
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
-
-            {/* File Details */}
-            <h3 className="text-xl font-bold text-white mb-1">My Resume</h3>
-            <p className="text-sm text-white/40 mb-10 font-medium">
-              Uploaded on {new Date(resumeFile.created_at || Date.now()).toLocaleDateString()}
-            </p>
-
-            {/* Action Buttons */}
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => window.open(`${S3_BASE_URL}${resumeFile.file_path}`, '_blank')}
-                className="bg-white text-black font-bold px-10 py-3.5 rounded-2xl hover:bg-[#E8D1AB] transition-all active:scale-95 shadow-lg"
-              >
-                View File
-              </button>
-              <button 
-                onClick={() => resumeInputRef.current?.click()}
-                className="bg-transparent text-white border border-white/10 font-bold px-10 py-3.5 rounded-2xl hover:bg-white/5 transition-all active:scale-95"
-              >
-                Replace
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    })()}
-  </div>
-)}
+          )}
           {/* EQUIPMENTS TAB */}
           {activeTab === "Equipments" && (
             <div className="animate-in fade-in duration-500">
@@ -1087,13 +1126,13 @@ const certifications = profile.crew_member_files?.filter(
             </div>
             <div className="flex items-center gap-4">
               {/* Inside Lightbox Top Bar */}
-<button 
-  onClick={() => confirmDelete('file', lightboxData.project.images[lightboxData.index])}
-  className="flex items-center gap-2 px-6 py-2.5 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full text-xs font-bold hover:bg-red-500 hover:text-white transition-all"
->
-  <Trash2 size={16} /> Delete This Image
-</button>
-              <button 
+              <button
+                onClick={() => confirmDelete('file', lightboxData.project.images[lightboxData.index])}
+                className="flex items-center gap-2 px-6 py-2.5 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full text-xs font-bold hover:bg-red-500 hover:text-white transition-all"
+              >
+                <Trash2 size={16} /> Delete This Image
+              </button>
+              <button
                 onClick={() => setLightboxData({ ...lightboxData, isOpen: false })}
                 className="p-3 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/10 transition-colors"
               >
@@ -1104,7 +1143,7 @@ const certifications = profile.crew_member_files?.filter(
 
           {/* Main Content (Image + Arrows) */}
           <div className="flex-1 relative flex items-center justify-center p-4">
-            <button 
+            <button
               className="absolute left-8 z-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
               onClick={() => setLightboxData({ ...lightboxData, index: (lightboxData.index - 1 + lightboxData.project.images.length) % lightboxData.project.images.length })}
             >
@@ -1112,14 +1151,14 @@ const certifications = profile.crew_member_files?.filter(
             </button>
 
             <div className="max-w-5xl w-full h-full flex items-center justify-center">
-              <img 
-                src={`${S3_BASE_URL}${lightboxData.project.images[lightboxData.index].file_path}`} 
+              <img
+                src={`${S3_BASE_URL}${lightboxData.project.images[lightboxData.index].file_path}`}
                 className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
                 alt="Preview"
               />
             </div>
 
-            <button 
+            <button
               className="absolute right-8 z-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
               onClick={() => setLightboxData({ ...lightboxData, index: (lightboxData.index + 1) % lightboxData.project.images.length })}
             >
@@ -1130,7 +1169,7 @@ const certifications = profile.crew_member_files?.filter(
           {/* Bottom Filmstrip Thumbnails */}
           <div className="p-8 flex justify-center gap-3 overflow-x-auto no-scrollbar">
             {lightboxData.project.images.map((img: any, idx: number) => (
-              <button 
+              <button
                 key={idx}
                 onClick={() => setLightboxData({ ...lightboxData, index: idx })}
                 className={`w-20 h-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${lightboxData.index === idx ? 'border-[#E8D1AB] scale-110' : 'border-transparent opacity-40 hover:opacity-100'}`}
@@ -1143,50 +1182,50 @@ const certifications = profile.crew_member_files?.filter(
       )}
 
       {/* CERTIFICATE PREVIEW MODAL */}
-{previewCert && (
-  <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
-    <div className="relative w-full max-w-5xl h-full flex flex-col">
-      
-      {/* Top Header */}
-      <div className="flex justify-end mb-4">
-        <button 
-          onClick={() => setPreviewCert(null)}
-          className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-xl border border-white/10 transition-all"
-        >
-          <span className="text-sm font-bold">Close Preview</span>
-          <X size={18} />
-        </button>
-      </div>
+      {previewCert && (
+        <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
+          <div className="relative w-full max-w-5xl h-full flex flex-col">
 
-      {/* Content Area */}
-      <div className="flex-1 bg-white rounded-2xl overflow-hidden relative shadow-2xl">
-        {/* External Link Button (Top Right of Doc) */}
-        <button 
-          onClick={() => window.open(`${S3_BASE_URL}${previewCert.file_path}`, '_blank')}
-          className="absolute top-4 right-4 z-10 p-2 bg-black/60 hover:bg-black text-white rounded-lg transition-all"
-          title="Open in new tab"
-        >
-          <Navigation size={20} />
-        </button>
+            {/* Top Header */}
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => setPreviewCert(null)}
+                className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-xl border border-white/10 transition-all"
+              >
+                <span className="text-sm font-bold">Close Preview</span>
+                <X size={18} />
+              </button>
+            </div>
 
-        {previewCert.file_path.toLowerCase().endsWith('.pdf') ? (
-          <iframe 
-            src={`https://docs.google.com/viewer?url=${encodeURIComponent(S3_BASE_URL + previewCert.file_path)}&embedded=true`}
-            className="w-full h-full border-none"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-zinc-100">
-            <img 
-              src={`${S3_BASE_URL}${previewCert.file_path}`} 
-              className="max-w-full max-h-full object-contain" 
-              alt="Preview"
-            />
+            {/* Content Area */}
+            <div className="flex-1 bg-white rounded-2xl overflow-hidden relative shadow-2xl">
+              {/* External Link Button (Top Right of Doc) */}
+              <button
+                onClick={() => window.open(`${S3_BASE_URL}${previewCert.file_path}`, '_blank')}
+                className="absolute top-4 right-4 z-10 p-2 bg-black/60 hover:bg-black text-white rounded-lg transition-all"
+                title="Open in new tab"
+              >
+                <Navigation size={20} />
+              </button>
+
+              {previewCert.file_path.toLowerCase().endsWith('.pdf') ? (
+                <iframe
+                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(S3_BASE_URL + previewCert.file_path)}&embedded=true`}
+                  className="w-full h-full border-none"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-zinc-100">
+                  <img
+                    src={`${S3_BASE_URL}${previewCert.file_path}`}
+                    className="max-w-full max-h-full object-contain"
+                    alt="Preview"
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+        </div>
+      )}
 
       <FeaturedWorkModal
         open={isFeaturedModalOpen}
@@ -1207,14 +1246,14 @@ const certifications = profile.crew_member_files?.filter(
         description={deleteModal.description}
       />
       {isPageLoading && (
-  <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center">
-    <div className="flex flex-col items-center gap-4">
-      <Loader2 className="h-10 w-10 animate-spin text-[#E8D1AB]" />
-      <p className="text-sm tracking-wide text-white/80">
-      </p>
-    </div>
-  </div>
-)}
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-[#E8D1AB]" />
+            <p className="text-sm tracking-wide text-white/80">
+            </p>
+          </div>
+        </div>
+      )}
 
     </div>
   );

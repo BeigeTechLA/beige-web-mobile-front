@@ -88,16 +88,56 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Initialize viewState with a fallback (Los Angeles), 
+  // but we will update this in useEffect based on user's actual IP/GPS
+  const [viewState, setViewState] = useState({
+    latitude: 34.0522,
+    longitude: -118.2437,
+    zoom: 10
+  });
+
+  const [marker, setMarker] = useState<LocationData | null>(null);
+
   const isValidToken = MAPBOX_TOKEN && !MAPBOX_TOKEN.includes("replace_with_your_token") && MAPBOX_TOKEN.length > 20;
+
+  /**
+   * EFFECT: Detect User's Current Location
+   * This runs when the component mounts to center the map on the user's current city
+   */
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setViewState((prev) => ({
+            ...prev,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            zoom: 12
+          }));
+        },
+        (error) => {
+          console.warn("Location access denied by user. Using default coordinates.");
+        },
+        { enableHighAccuracy: false, timeout: 5000 }
+      );
+    }
+  }, []);
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim() || !isValidToken) return;
 
     setIsSearching(true);
     try {
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${MAPBOX_TOKEN}&limit=5`
-      );
+      /**
+       * Proximity Logic:
+       * We add '&proximity=${viewState.longitude},${viewState.latitude}' 
+       * to the API call. This tells Mapbox to prioritize results 
+       * near the current map view (user's location).
+       */
+      const proximity = `${viewState.longitude},${viewState.latitude}`;
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${MAPBOX_TOKEN}&limit=5&proximity=${proximity}`;
+      
+      const response = await fetch(url);
       const data = await response.json();
       setSearchResults(data.features || []);
     } catch (error) {
@@ -105,7 +145,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       setSearchResults([]);
     }
     setIsSearching(false);
-  }, [searchQuery, isValidToken]);
+  }, [searchQuery, isValidToken, viewState.latitude, viewState.longitude]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -116,14 +156,6 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, handleSearch]);
-
-  const [viewState, setViewState] = useState({
-    latitude: 34.0522,
-    longitude: -118.2437,
-    zoom: 10
-  });
-
-  const [marker, setMarker] = useState<LocationData | null>(null);
 
   const handleMapClick = useCallback((event: any) => {
     const { lngLat } = event;
@@ -253,7 +285,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Search for a location..."
+              placeholder="Search (e.g. Shela)..."
               style={{
                 backgroundColor: colors.paperBg,
                 borderColor: colors.divider,
@@ -270,7 +302,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             disabled={isSearching}
             style={{
               backgroundColor: colors.buttonPrimaryBg,
-              color: colors.buttonSecondaryText
+              color: colors.buttonPrimaryText // Fixed to primary text for contrast
             }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.buttonPrimaryBgHover}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.buttonPrimaryBg}
@@ -340,7 +372,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             cursor="crosshair"
           >
             <NavigationControl position="top-right" showCompass={false} />
-            <GeolocateControl position="top-right" />
+            <GeolocateControl 
+                position="top-right" 
+                trackUserLocation={true}
+                showUserLocation={true}
+            />
 
             {marker && (
               <Marker latitude={marker.lat} longitude={marker.lng}>
@@ -380,11 +416,14 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             <span>No location selected</span>
           )}
         </div>
-        <div className="flex flex-col lg:flex-row gap-2">
+        <div className="flex flex-col lg:flex-row gap-2 mt-2 lg:mt-0">
           <button
             type="button"
             onClick={() => setIsExpanded(false)}
-            style={{ color: colors.buttonSecondaryText }}
+            style={{ 
+                color: colors.buttonSecondaryText,
+                backgroundColor: colors.buttonSecondaryBg 
+            }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.buttonSecondaryBgHover}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.buttonSecondaryBg}
             className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"

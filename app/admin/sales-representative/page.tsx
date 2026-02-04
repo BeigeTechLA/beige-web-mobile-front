@@ -195,7 +195,7 @@ export default function AdminSaleRepManagerPage() {
         </div>
       </div>
 
-      <div className="w-full overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
+      <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
         {isLoading || isFetching ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB]"></div>

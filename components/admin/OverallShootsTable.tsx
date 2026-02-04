@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { ChevronRight, ChevronDown, ChevronUp, Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronRight, ChevronDown, ChevronUp, Loader2, Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -175,6 +176,26 @@ export const OverallShootsTable = () => {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const cleanId = id.replace('#', '');
+
+    if (window.confirm("Are you sure you want to delete this shoot?")) {
+      try {
+        const response = await adminApi.deleteProject(cleanId);
+        if (response?.success || response?.message === "Project deleted successfully") {
+          setShoots(prev => prev.filter(shoot => shoot.id !== id));
+          toast.success("Shoot deleted successfully");
+        } else {
+          toast.error(response?.error || "Failed to delete shoot");
+        }
+      } catch (error) {
+        console.error("Delete failed", error);
+        toast.error("An error occurred while deleting");
+      }
+    }
+  };
+
   return (
     <div className="w-full bg-[#171717] rounded-2xl border border-white/5 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col">
       {/* Table Header Controls */}
@@ -260,7 +281,15 @@ export const OverallShootsTable = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
-                      <button className="text-[#E5D5B8] text-sm font-medium">Details</button>
+                      <div className="flex justify-end gap-2 mt-1">
+                        <button
+                          onClick={(e) => handleDelete(e, shoot.id)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#666] hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <button className="text-[#E5D5B8] text-sm font-medium">Details</button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -337,9 +366,17 @@ export const OverallShootsTable = () => {
 
                   {/* Action */}
                   <td className="py-2 px-4 text-right">
-                    <button className="p-2 text-white/40 hover:text-white transition-colors">
-                      <ChevronRight size={24} />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={(e) => handleDelete(e, shoot.id)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/40 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                      <button className="p-2 text-white/40 hover:text-white transition-colors">
+                        <ChevronRight size={24} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
