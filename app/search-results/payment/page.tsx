@@ -3,13 +3,10 @@
 import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-// import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
-  Star,
   Loader2,
   Users,
-  MessageCircleMore,
   CreditCard,
   Tag,
   Check,
@@ -478,6 +475,21 @@ function MultiCreatorPaymentContent() {
   const [clientSecret, setClientSecret] = useState<string>("");
   const [showLeaveModal, setShowLeaveModal] = useState(false);
 
+  // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
+  const [pricingGroups, setPricingGroups] = useState<{
+    shootCost: number;
+    additionalCP: {
+      totalCost: number;
+      videoCount: number;
+      photoCount: number;
+    };
+    mandatoryAddons: Array<{ role: string; cost: number }>;
+  }>({
+    shootCost: 0,
+    additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
+    mandatoryAddons: [],
+  });
+
   // Inside MultiCreatorPaymentContent function
   const [showBackDialog, setShowBackDialog] = useState(false);
 
@@ -512,6 +524,61 @@ function MultiCreatorPaymentContent() {
     // Actually go back (two steps: the one we added + the intended back)
     window.history.go(-2);
   };
+
+  // Logic to update categorized pricing groups whenever paymentDetails changes
+  useEffect(() => {
+    if (!paymentDetails?.quote?.lineItems) return;
+
+    const lineItems = paymentDetails.quote.lineItems;
+    let shootCostSum = 0;
+    let addVideoCount = 0;
+    let addPhotoCount = 0;
+    let addCPTotalCost = 0;
+    const mandatoryAddonItems: Array<{ role: string; cost: number }> = [];
+
+    lineItems.forEach((item: any) => {
+      const name = item.item_name;
+      const quantity = parseInt(item.quantity || 1);
+      const total = parseFloat(item.line_total || 0);
+      const unitPrice = total / quantity;
+
+      // 1. Base Fees (Pre-prod, Rush)
+      if (name.includes("Pre-Production") || name.toLowerCase().includes("rush")) {
+        shootCostSum += total;
+      } 
+      // 2. Primary Crew (1st Unit to Shoot Cost, others to Additional aggregated)
+      else if (name === "Videographer" || name === "Photographer") {
+        shootCostSum += unitPrice;
+        if (quantity > 1) {
+          const extraQty = quantity - 1;
+          addCPTotalCost += unitPrice * extraQty;
+          if (name === "Videographer") addVideoCount += extraQty;
+          if (name === "Photographer") addPhotoCount += extraQty;
+        }
+      } 
+      // 3. Mandatory Items
+      else if (item.is_mandatory) {
+        mandatoryAddonItems.push({
+          role: name,
+          cost: total,
+        });
+      } 
+      // 4. Other extras
+      else {
+        addCPTotalCost += total;
+      }
+    });
+
+    setPricingGroups({
+      shootCost: shootCostSum,
+      additionalCP: {
+          totalCost: addCPTotalCost,
+          videoCount: addVideoCount,
+          photoCount: addPhotoCount
+      },
+      mandatoryAddons: mandatoryAddonItems,
+    });
+  }, [paymentDetails]);
 
   // Reusable function to fetch/update intent
   const fetchIntent = async (details: any) => {
@@ -636,10 +703,6 @@ function MultiCreatorPaymentContent() {
           <p className="text-white/60 text-lg">
             {error || "Unable to load payment information for this booking."}
           </p>
-          {/* <Link
-            href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors"
-          > */}
           <button
             onClick={handleBackClick}
             className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors"
@@ -647,7 +710,6 @@ function MultiCreatorPaymentContent() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Search Results
           </button>
-          {/* </Link> */}
         </div>
       </div>
     );
@@ -718,17 +780,6 @@ function MultiCreatorPaymentContent() {
   return (
     <div className="pt-20 lg:pt-32 pb-20 min-h-screen">
       <div className="container mx-auto px-4 md:px-0">
-        {/* <Link href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`} className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </Link> */}
-        {/* <button
-            onClick={handleBackClick}
-            className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </button> */}
         {/* Leave Confirmation Modal */}
         <LeaveConfirmationModal
           isOpen={showLeaveModal}
@@ -871,21 +922,51 @@ function MultiCreatorPaymentContent() {
 
                 {quote && (
                   <div className="">
-                    {quote.lineItems &&
-                      quote.lineItems.map((item: any, index: number) => (
-                        <div
-                          key={index}
-                          className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20"
-                        >
-                          <span className="text-[#626467]">
-                            {item.item_name}
-                            {item.quantity > 1 && ` × ${item.quantity}`}
-                          </span>
-                          <span className="font-medium">
-                            {formatCurrency(item.line_total || 0)}
-                          </span>
+                    {/* NEW AGGREGATED PRICING DISPLAY */}
+                    
+                    {/* 1. SHOOT COST */}
+                    <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold text-[#212122]">Shoot Cost</span>
+                        <span className="text-[11px] text-[#626467] max-w-[200px]">
+                          {/* Includes base fees and 1st unit of crew. */}
+                        </span>
+                      </div>
+                      <span className="font-bold">
+                        {formatCurrency(pricingGroups.shootCost || 0)}
+                      </span>
+                    </div>
+
+                    {/* 2. AGGREGATED ADDITIONAL CP FEES */}
+                    {pricingGroups.additionalCP.totalCost > 0 && (
+                      <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20">
+                        <div className="flex flex-col gap-1">
+                            <span className="font-medium text-[#212122]">Additional Creative Partner Fees</span>
+                            <div className="text-[11px] text-[#626467] space-y-0.5">
+                                {pricingGroups.additionalCP.videoCount > 0 && (
+                                    <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
+                                )}
+                                {pricingGroups.additionalCP.photoCount > 0 && (
+                                    <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
+                                )}
+                            </div>
                         </div>
-                      ))}
+                        <span className="font-medium">
+                          {formatCurrency(pricingGroups.additionalCP.totalCost || 0)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* 3. MANDATORY ADD-ONS */}
+                    {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((item, idx) => (
+                      <div key={`addon-${idx}`} className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#E8D1AB]/5">
+                        <span className="text-[#626467] font-medium">{item.role}</span>
+                        <span className="font-bold">
+                          {formatCurrency(item.cost || 0)}
+                        </span>
+                      </div>
+                    ))}
+
                     <div className="p-3 lg:p-5 border-b border-black/20">
                       <div className="flex justify-between mb-3">
                         <span className="text-[#626467]">Subtotal</span>
@@ -894,28 +975,7 @@ function MultiCreatorPaymentContent() {
                         </span>
                       </div>
                     </div>
-                    {/* Show discount if applied */}
-                    {/* {quote.discountAmount && quote.discountAmount > 0 && (
-                        <div className="flex justify-between mb-3 text-green-600">
-                          <span>
-                            Discount Applied ({quote.discountPercent}%)
-                          </span>
-                          <span>
-                            -${parseFloat(quote.discountAmount).toFixed(2)}
-                          </span>
-                        </div>
-                      )} */}
-                    {/* Show margin if applied */}
-                    {/* {quote.marginAmount && quote.marginAmount > 0 && (
-                        <div className="flex justify-between mb-3">
-                          <span className="text-[#626467]">
-                            Service Fee ({quote.marginPercent}%)
-                          </span>
-                          <span className="font-medium">
-                            ${parseFloat(quote.marginAmount).toFixed(2)}
-                          </span>
-                        </div>
-                      )} */}
+
                     <div className="flex justify-between items-start p-3 lg:p-5">
                       <div className="flex flex-col gap-2 text-sm">
                         <span className="font-bold">Total</span>
@@ -926,57 +986,6 @@ function MultiCreatorPaymentContent() {
                   </div>
                 )}
               </div>
-
-              {/* Support Buttons */}
-              {/* <div className="grid grid-cols-2 gap-4 mt-5">
-                <button
-                  onClick={() => console.log("Talk to someone clicked")}
-                  className="h-12 lg:h-[67px] border border-white/10 rounded-xl flex items-center justify-center gap-2 hover:bg-white/5 transition-colors text-sm lg:text-lg font-medium bg-[#222222]"
-                >
-                  <MessageCircleMore className="w-4 h-4 lg:w-6 lg:h-6 fill-white text-black" />
-                  Talk To Someone
-                </button>
-                <button
-                  onClick={() => console.log("Beige bot clicked")}
-                  className="h-12 lg:h-[67px] bg-[#E8D1AB] text-black rounded-xl flex items-center justify-center gap-2 hover:bg-[#dcb98a] transition-colors text-sm lg:text-lg font-medium"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="w-4 h-4 lg:w-6 lg:h-6"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <mask
-                      id="mask0_295_5465"
-                      style={{ maskType: "luminance" }}
-                      maskUnits="userSpaceOnUse"
-                      x={0}
-                      y={0}
-                      width={24}
-                      height={24}
-                    >
-                      <path d="M0 0H24V24H0V0Z" fill="white" />
-                    </mask>
-                    <g mask="url(#mask0_295_5465)">
-                      <path
-                        d="M13.7755 1.752C13.7755 2.71958 12.9911 3.504 12.0235 3.504C11.0559 3.504 10.2715 2.71958 10.2715 1.752C10.2715 0.784416 11.0559 0 12.0235 0C12.9911 0 13.7755 0.784416 13.7755 1.752Z"
-                        fill="#212122"
-                      />
-                      <path
-                        fillRule="evenodd"
-                        clipRule="evenodd"
-                        d="M12.024 3.50391H9.024C6.39082 3.50391 4.15699 5.21386 3.37234 7.58391H3.264C1.46136 7.58391 0 9.04527 0 10.8479C0 12.6505 1.46136 14.1119 3.264 14.1119H3.34147C4.09699 16.5316 6.35539 18.2879 9.024 18.2879H15.024C17.6926 18.2879 19.9511 16.5316 20.7065 14.1119H20.736C22.5386 14.1119 24 12.6505 24 10.8479C24 9.04527 22.5386 7.58391 20.736 7.58391H20.6757C19.891 5.21386 17.6572 3.50391 15.024 3.50391H12.024ZM17.8409 10.4639C17.8409 11.6945 16.8433 12.6921 15.6127 12.6921C14.382 12.6921 13.3845 11.6945 13.3845 10.4639C13.3845 9.23328 14.382 8.23565 15.6127 8.23565C16.8433 8.23565 17.8409 9.23328 17.8409 10.4639ZM8.37221 12.6921C9.60283 12.6921 10.6005 11.6945 10.6005 10.4639C10.6005 9.23328 9.60283 8.23565 8.37221 8.23565C7.14163 8.23565 6.144 9.23328 6.144 10.4639C6.144 11.6945 7.14163 12.6921 8.37221 12.6921Z"
-                        fill="#212122"
-                      />
-                      <path
-                        d="M4.3125 23.9931C5.75048 21.1996 8.6624 19.2891 12.0206 19.2891C15.3788 19.2891 18.2907 21.1996 19.7287 23.9931H4.3125Z"
-                        fill="#212122"
-                      />
-                    </g>
-                  </svg>
-                  Beige Bot
-                </button>
-              </div> */}
             </div>
           </div>
         </div>

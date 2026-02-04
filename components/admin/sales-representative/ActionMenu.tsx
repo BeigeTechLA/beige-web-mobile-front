@@ -22,6 +22,7 @@ interface ActionMenuProps {
   anchor: { x: number; y: number };
   client: string | number | null;
   leadId: number;
+  basePath?: string; 
 }
 
 const ActionMenu: React.FC<ActionMenuProps> = ({
@@ -30,17 +31,19 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   anchor,
   client,
   leadId,
+  basePath,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [generatePaymentLink, { isLoading: generatingLink }] =
     useGeneratePaymentLinkMutation();
   const { data: leadData } = useGetLeadByIdQuery(leadId, { skip: !leadId });
-
+const targetPath = basePath ? basePath : pathname;
   if (!isOpen) return null;
 
   const handleOpenFolder = () => {
-    router.push(`${pathname}/${leadId}`);
+    // Navigate to the correct path
+    router.push(`${targetPath}/${leadId}`);
     onClose();
   };
 
@@ -94,25 +97,25 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
             label="Generate Discount"
             onClick={handleOpenFolder}
           />
-          <MenuButton
+          {/* <MenuButton
             icon={<LinkIcon size={18} />}
             label="Payment Link"
             onClick={handleGeneratePaymentLink}
             disabled={generatingLink}
-          />
+          /> */}
         </div>
 
         {/* Divider */}
         <div className="h-[1px] w-full bg-white/10" />
 
         {/* Section 2: Sharing */}
-        <div className="flex flex-col p-1.5">
+        {/* <div className="flex flex-col p-1.5">
           <MenuButton
             icon={<BookCheck size={18} />}
             label="Manage Quote"
             onClick={onClose}
           />
-        </div>
+        </div> */}
 
         {/* Divider */}
         <div className="h-[1px] w-full bg-white/10" />

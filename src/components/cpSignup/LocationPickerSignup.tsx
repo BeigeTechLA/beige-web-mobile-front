@@ -189,11 +189,6 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
     setIsSearching(true);
 
     try {
-      /**
-       * Proximity Logic:
-       * We use the current viewState (map center) to bias search results.
-       * This ensures that if you're in Ahmedabad, "Shela" returns the local one first.
-       */
       const proximity = `${viewState.longitude},${viewState.latitude}`;
       const res = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
@@ -326,7 +321,7 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
               // When user types manually, we enable the dropdown
               setShouldShowDropdown(true);
             }}
-            placeholder="Search location (e.g. Shela)..."
+            placeholder="Search Your location ..."
             style={{ backgroundColor: '#000', color: '#FFF', borderColor: colors.divider }}
             className="w-full h-11 pl-9 pr-3 rounded-lg border outline-none focus:border-[#E8D1AB] transition-colors"
           />
