@@ -131,6 +131,7 @@ export interface Creator {
   email?: string;
   phone?: string;
   profile_image?: string;
+  profile_photo?: string;
   role_id: number;
   role_name?: string;
   hourly_rate?: number;

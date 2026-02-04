@@ -12,6 +12,10 @@ import 'swiper/css/effect-coverflow';
 import 'swiper/css/navigation';
 import { Button } from '@/components/ui/button';
 
+const S3_BASE_URL =
+  "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/";
+
+
 // Fallback images for creators without profile photos
 const FALLBACK_IMAGES = [
   "/images/crew/CREW(1).png",
@@ -26,11 +30,22 @@ const FALLBACK_IMAGES = [
 
 // Get fallback image for creator
 const getCreatorImage = (creator: Creator, index: number) => {
-  if (creator.profile_image) {
-    return creator.profile_image;
+  const photo = creator.profile_photo;
+
+  if (photo && typeof photo === "string") {
+    // already a full URL
+    if (photo.startsWith("http")) {
+      return photo;
+    }
+
+    // filename → build S3 URL
+    return `${S3_BASE_URL}${photo}`;
   }
+
+  // fallback image
   return FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
 };
+
 
 const CreatorCarousel = ({
   creators,
