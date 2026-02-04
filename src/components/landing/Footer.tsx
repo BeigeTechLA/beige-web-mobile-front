@@ -194,7 +194,7 @@ export const Footer = () => {
         <Container>
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] items-center">
             <p className="text-white/40 text-sm lg:text-lg py-6">
-              Copyright © 2025 Beige. All rights reserved.
+              Copyright © 2026 Beige. All rights reserved.
             </p>
 
             {/* Social Icons */}

@@ -378,9 +378,9 @@ export const Navbar = () => {
                             setActiveCategory(cat);
                             setActiveSector(portfolioConfig[cat].sectors[0].id);
                           }}
-                          className={`flex items-center justify-between px-6 py-5 rounded-[40px] transition-all ${activeCategory === cat ? "bg-[#F3E6D0] text-black" : "text-white/60 hover:bg-white/5"}`}
+                          className={`flex items-center justify-between px-4 py-2 rounded-lg transition-all ${activeCategory === cat ? "bg-[#F3E6D0] text-black" : "text-white/60 hover:bg-white/5"}`}
                         >
-                          <div className="flex items-center gap-4 font-semibold text-xl">
+                          <div className="flex items-center gap-4 font-semibold text-lg">
                             <div
                               className={`p-2 rounded-full ${activeCategory === cat ? "bg-black/10" : "bg-white/10"}`}
                             >
