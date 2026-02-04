@@ -72,7 +72,7 @@ export const Footer = () => {
             {/* <div className="mt-8"> */}
             <Button
               onClick={handleStartProject}
-              className="bg-transparent border border-white/20 hover:bg-white/5 text-white h-[56px] px-6 rounded-full flex items-center gap-3 w-fit transition-all group"
+              className="bg-transparent border border-white/20 hover:bg-white/5 text-white h-[56px] px-6 rounded-lg flex items-center gap-3 w-fit transition-all group"
             >
               <div className="w-2 h-2 rounded-full bg-green-500" />
               Start Your Project with Beige
@@ -85,7 +85,7 @@ export const Footer = () => {
 
             <Button
               onClick={handleInvestor}
-              className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-full text-lg font-medium w-fit"
+              className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-lg text-lg font-medium w-fit"
             >
               Become a Investor
             </Button>

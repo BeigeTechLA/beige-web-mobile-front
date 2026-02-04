@@ -84,7 +84,7 @@ export const DatePicker: React.FC<Props> = ({
       color: "#FFFFFF !important", // Main Date Text
     },
     "& .MuiDatePickerToolbar-typography": {
-      color: "rgba(255, 255, 255, 0.5) !important", // "SELECT DATE" label
+      color: "#FFFFFF !important", // "SELECT DATE" label
     },
 
     // Month/Year Header Text and Arrow
@@ -168,7 +168,7 @@ export const DatePicker: React.FC<Props> = ({
                   height: "100%",
                   ...sx,
                   backgroundColor: colors.inputBackground,
-                  borderRadius: "16px",
+                  borderRadius: "8px",
                   "& fieldset": { borderColor: colors.inputBorder, borderWidth: "1px" },
                   "&:hover fieldset": { borderColor: colors.inputBorderHover },
                   "&.Mui-focused fieldset": { borderColor: colors.inputBorderFocus, borderWidth: "1.5px" },
@@ -176,7 +176,7 @@ export const DatePicker: React.FC<Props> = ({
                 "& .MuiInputBase-input": {
                   color: colors.inputText,
                   fontSize: "14px",
-                  padding: "0 14px",
+                  padding: "16px 14px",
                   height: "100%",
                 },
                 "& .MuiSvgIcon-root": { color: colors.iconColor, fontSize: "20px" },
@@ -189,6 +189,25 @@ export const DatePicker: React.FC<Props> = ({
                   border: "1px solid rgba(255,255,255,0.1)",
                   marginTop: "8px",
                   ...interiorStyles,
+                },
+              },
+            },
+            toolbar: {
+              sx: {
+                // Targets the "SELECT DATE" text label
+                "& .MuiTypography-overline": {
+                  color: "rgba(255, 255, 255, 0.5) !important",
+                  fontSize: "10px !important",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                },
+                // Fallback: some versions use this specific class instead
+                "& .MuiDatePickerToolbar-typography": {
+                  color: "rgba(255, 255, 255, 0.5) !important",
+                },
+                // Targets the actual selected date (e.g., "Tue, Feb 24")
+                "& .MuiDatePickerToolbar-title": {
+                  color: "#FFFFFF !important",
                 },
               },
             },
