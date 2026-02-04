@@ -35,20 +35,6 @@ const cardVariants = {
   hover: { height: 364 + INFO_HEIGHT },
 };
 
-// --- Image resolver (TEMP: frontend-side S3 handling) ---
-const S3_BASE_URL =
-  process.env.NEXT_PUBLIC_S3_BASE_URL ||
-  "https://beigexmemehouse.s3.amazonaws.com/beige/";
-
-const resolveImageUrl = (path?: string | null) => {
-  if (!path) return null;
-
-  // Already a full URL (future-proof)
-  if (path.startsWith("http")) return path;
-
-  return `${S3_BASE_URL.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
-};
-
 const infoVariants = {
   rest: {
     y: INFO_HEIGHT,
@@ -100,12 +86,9 @@ const CreatorCard = ({
     image.trim().length === 0 ||
     image === "/images/influencer/default.png";
 
-const resolvedImage = resolveImageUrl(image);
-
-const fallbackImage = isInvalidImage || !resolvedImage
-  ? crewImages[parseInt(creatorId) % 10]
-  : resolvedImage;
-
+  const fallbackImage = isInvalidImage
+    ? crewImages[parseInt(creatorId) % 10]
+    : image;
 
   const handleAddToCrew = (e: React.MouseEvent) => {
     e.preventDefault();
