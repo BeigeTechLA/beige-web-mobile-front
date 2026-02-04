@@ -161,13 +161,13 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   const getCreatorRole = (creator: Creator) => {
     const roleName = creator.role_name?.toLowerCase() || "";
     const roleIdStr = String(creator.role_id);
-    
+
     if (roleName.includes("video") || roleIdStr.includes("1")) return "video";
     if (roleName.includes("photo") || roleIdStr.includes("2")) return "photo";
     return "other";
   };
 
-   const requirements = useMemo(() => {
+  const requirements = useMemo(() => {
     let reqVideo = data.videographyCount;
     let reqPhoto = data.photographyCount;
 
@@ -211,11 +211,11 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       }
 
       if (role === "video" && selectedCounts.video >= requirements.required.video) {
-        toast.error(`You have already selected the required ${requirements.required.video} Videographers.`);
+        toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
         return prev;
       }
       if (role === "photo" && selectedCounts.photo >= requirements.required.photo) {
-        toast.error(`You have already selected the required ${requirements.required.photo} Photographers.`);
+        toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
         return prev;
       }
 
@@ -258,11 +258,11 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   };
 
   const canContinue = useMemo(() => {
-    const videoSatisfied = selectedCounts.video === requirements.required.video || 
-                           selectedCounts.video === requirements.available.video.length;
-    
-    const photoSatisfied = selectedCounts.photo === requirements.required.photo || 
-                           selectedCounts.photo === requirements.available.photo.length;
+    const videoSatisfied = selectedCounts.video === requirements.required.video ||
+      selectedCounts.video === requirements.available.video.length;
+
+    const photoSatisfied = selectedCounts.photo === requirements.required.photo ||
+      selectedCounts.photo === requirements.available.photo.length;
 
     return videoSatisfied && photoSatisfied && selectedIds.length > 0;
   }, [selectedCounts, requirements, selectedIds]);
@@ -361,7 +361,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
             </div>
           )}
         </AnimatePresence>
-        
+
         {/* Swiper Section for additional creators */}
         <section className="pt-6 lg:pt-15 border-t border-white/10 overflow-hidden">
           <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
@@ -422,12 +422,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           Select Your Dream Team
         </h2>
         <p className="text-white/60 mb-4">
-          Based on your project, we&apos;ve handpicked the best professionals. 
+          Based on your project, we&apos;ve handpicked the best professionals.
           Select crew members to build your team.
         </p>
 
         {/* ROLE SELECTION STATUS */}
-        
+
       </div>
 
       <div className="border-t border-white/10 pt-15">
@@ -437,19 +437,19 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           toggleSelection={toggleSelection}
         />
       </div>
-     
+
       <div className="flex flex-wrap justify-center gap-4 mt-4">
         {requirements.required.video > 0 && (
           <div className={`px-4 py-2 rounded-full border ${selectedCounts.video === requirements.required.video ? 'bg-[#E8D1AB]/20 border-[#E8D1AB]' : 'border-white/10'}`}>
             <span className="text-white/90 text-sm">
-              Videographers: {selectedCounts.video} / {requirements.required.video}
+              Videographer(s): {selectedCounts.video} / {requirements.required.video}
             </span>
           </div>
         )}
         {requirements.required.photo > 0 && (
           <div className={`px-4 py-2 rounded-full border ${selectedCounts.photo === requirements.required.photo ? 'bg-[#E8D1AB]/20 border-[#E8D1AB]' : 'border-white/10'}`}>
             <span className="text-white/90 text-sm">
-              Photographers: {selectedCounts.photo} / {requirements.required.photo}
+              Photographer(s): {selectedCounts.photo} / {requirements.required.photo}
             </span>
           </div>
         )}
@@ -469,9 +469,8 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           {canContinue ? `Continue with ${selectedIds.length} Creatives` : "Complete Selection"}
         </Button>
       </div>
-       
 
-        {/* SHORTFALL MESSAGE */}
+      {/* SHORTFALL MESSAGE */}
       {(requirements.shortfall.video > 0 || requirements.shortfall.photo > 0) && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -480,18 +479,21 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         >
           <AlertCircle className="text-[#E8D1AB] w-5 h-5 mt-0.5 shrink-0" />
 
-          <p className="text-[#E8D1AB]/90 text-sm leading-relaxed">
-            A smaller pool is available in your area (
-            <span className="font-medium text-[#E8D1AB]">
-              {requirements.shortfall.video > 0 && `${requirements.shortfall.video} Videographer(s)`}
-              {requirements.shortfall.video > 0 && requirements.shortfall.photo > 0 && " and "}
-              {requirements.shortfall.photo > 0 && `${requirements.shortfall.photo} Photographer(s)`}
-            </span>
-            {" "}remaining).
-            <strong>
+          <div className="text-[#E8D1AB]/90 text-sm leading-relaxed">
+            <p>
+              A smaller pool is available in your area (
+              <span className="font-medium text-[#E8D1AB]">
+                {requirements.shortfall.video > 0 && `${requirements.shortfall.video} Videographer(s)`}
+                {requirements.shortfall.video > 0 && requirements.shortfall.photo > 0 && " and "}
+                {requirements.shortfall.photo > 0 && `${requirements.shortfall.photo} Photographer(s)`}
+              </span>
+              {" "}available).
+            </p>
+            <p className="text-[#E8D1AB] font-semibold">
               Start with what you see here and a Beige specialist will curate and manage the remaining creators for you.
-            </strong>
-          </p>
+            </p>
+          </div>
+
         </motion.div>
       )}
       {/* {(requirements.shortfall.video > 0 || requirements.shortfall.photo > 0) && (

@@ -70,13 +70,19 @@ const formatDate = (dateString) => {
 /* Reusable Stat Card Component matching Affiliate UI */
 function StatCard({ label, value, icon, iconColor, hoverBorder, valueColor = "text-white", subtext }) {
   return (
-    <div className={`bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300`}>
-      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+    <div className={`bg-[#111] rounded-lg lg:rounded-xl p-4 lg:p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300`}>
+      {/* <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
         {React.cloneElement(icon, { size: 40, className: iconColor })}
+      </div> */}
+      <div className="absolute top-2 right-2 lg:top-0 lg:right-0 p-3 lg:p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
+        {React.cloneElement(icon, {
+          size: "100%",
+          className: `${iconColor} w-7 h-7 lg:w-10 lg:h-10`
+        })}
       </div>
       <div className="relative z-10">
         <p className="text-white/40 text-sm font-medium mb-1">{label}</p>
-        <p className={`text-2xl font-bold ${valueColor}`}>{value}</p>
+        <p className={`text-xl lg:text-2xl font-bold ${valueColor}`}>{value}</p>
         {subtext && <p className="text-xs text-white/40 mt-1">{subtext}</p>}
       </div>
     </div>
@@ -123,26 +129,26 @@ export default function AvailabilityPage() {
 
     if (!crewMemberId) return;
 
-      getCrewAvailability({
-          crew_member_id: crewMemberId,
-          month: currentMonth,
-          year: currentYear,
-      }).then((response) => {
-          console.log("API Response:", response);
-          if (response?.data?.data?.availability) {
-              setAvailability(response.data.data.availability);
-          }
-      });
+    getCrewAvailability({
+      crew_member_id: crewMemberId,
+      month: currentMonth,
+      year: currentYear,
+    }).then((response) => {
+      console.log("API Response:", response);
+      if (response?.data?.data?.availability) {
+        setAvailability(response.data.data.availability);
+      }
+    });
   }, [currentMonth, currentYear]);
 
 
-   useEffect(() => {
-   const userStr = localStorage.getItem("revure_user");
-      const user = userStr ? JSON.parse(userStr) : null;
-      const crewMemberId = user?.crew_member_id;
+  useEffect(() => {
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
 
-      if (!crewMemberId) return;
-    
+    if (!crewMemberId) return;
+
     if (crewMemberId) {
       GetUpcomingShoots({ crew_member_id: parseInt(crewMemberId) })
         .then((response) => {
@@ -160,18 +166,18 @@ export default function AvailabilityPage() {
 
 
   useEffect(() => {
-   const userStr = localStorage.getItem("revure_user");
-      const user = userStr ? JSON.parse(userStr) : null;
-      const crewMemberId = user?.crew_member_id;
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
 
-      if (!crewMemberId) return;
-    
+    if (!crewMemberId) return;
+
     if (crewMemberId) {
-      getCrewAvailability({ 
+      getCrewAvailability({
         crew_member_id: parseInt(crewMemberId),
         month: currentMonth,
         year: currentYear,
-    })
+      })
         .then((response) => {
           if (!response?.error && Array.isArray(response?.data)) {
             setUpcomingShoots(response.data);
@@ -185,24 +191,24 @@ export default function AvailabilityPage() {
     }
   }, []);
 
-//   const handleViewDetails = async (projectId) => {
-//     setIsSidebarOpen(true);
-//     setProjectLoading(true);
+  //   const handleViewDetails = async (projectId) => {
+  //     setIsSidebarOpen(true);
+  //     setProjectLoading(true);
 
-//     try {
-//       const response = await getProjectDetails({
-//         project_id: projectId,
-//       });
+  //     try {
+  //       const response = await getProjectDetails({
+  //         project_id: projectId,
+  //       });
 
-//       if (!response?.error) {
-//         setProjectDetails(response.data);
-//       }
-//     } catch (err) {
-//       console.error("Failed to fetch project details", err);
-//     } finally {
-//       setProjectLoading(false);
-//     }
-//   };
+  //       if (!response?.error) {
+  //         setProjectDetails(response.data);
+  //       }
+  //     } catch (err) {
+  //       console.error("Failed to fetch project details", err);
+  //     } finally {
+  //       setProjectLoading(false);
+  //     }
+  //   };
 
   useEffect(() => {
     const getSummaryData = () => {
@@ -282,9 +288,8 @@ export default function AvailabilityPage() {
       toast.custom(
         (t) => (
           <div
-            className={`${
-              t.visible ? "animate-enter" : "animate-leave"
-            } max-w-md w-full bg-[#111] border border-[#E8D1AB]/40 shadow-lg rounded-xl pointer-events-auto flex relative overflow-hidden`}
+            className={`${t.visible ? "animate-enter" : "animate-leave"
+              } max-w-lg w-full bg-[#111] border border-[#E8D1AB]/40 shadow-lg rounded-xl pointer-events-auto flex relative overflow-hidden`}
           >
             <div className="flex-1 p-4">
               <div className="flex items-start">
@@ -385,117 +390,115 @@ export default function AvailabilityPage() {
   };
 
   const renderCalendarDays = () => {
-  const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
-  const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-  const calendarDays = [];
+    const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+    const calendarDays = [];
 
-  for (let i = 0; i < firstDay; i++) {
-    calendarDays.push(<div key={`empty-${i}`} className="h-28 bg-[#0D0D0D]/50 border border-white/5" />);
-  }
+    for (let i = 0; i < firstDay; i++) {
+      calendarDays.push(<div key={`empty-${i}`} className="h-28 bg-[#0D0D0D]/50 border border-white/5" />);
+    }
 
-  const today = new Date();
-  const todayDateString = format(today, "yyyy-MM-dd");
+    const today = new Date();
+    const todayDateString = format(today, "yyyy-MM-dd");
 
-  for (let i = 1; i <= daysInMonth; i++) {
-    const dateString = `${currentYear}-${
-      currentMonth < 10 ? "0" + currentMonth : currentMonth
-    }-${i < 10 ? "0" + i : i}`;
-    const availabilityStatus = availability[dateString];
-    
-    const isAvailable = availabilityStatus?.available || availabilityStatus?.projectAssigned;
-    const isAssigned = availabilityStatus?.projectAssigned;
+    for (let i = 1; i <= daysInMonth; i++) {
+      const dateString = `${currentYear}-${currentMonth < 10 ? "0" + currentMonth : currentMonth
+        }-${i < 10 ? "0" + i : i}`;
+      const availabilityStatus = availability[dateString];
 
-    const isPastDate = dateString < todayDateString;
-    const isToday = dateString === todayDateString;
+      const isAvailable = availabilityStatus?.available || availabilityStatus?.projectAssigned;
+      const isAssigned = availabilityStatus?.projectAssigned;
 
-    // Background logic matching the high-end dashboard
-    const cardBackground = isPastDate
-      ? "bg-[#0D0D0D] opacity-40" 
-      : isAvailable
-      ? "bg-[#111]"
-      : "bg-[#161616]";
+      const isPastDate = dateString < todayDateString;
+      const isToday = dateString === todayDateString;
 
-    const textColor = isAvailable ? "text-white" : "text-white/30";
+      // Background logic matching the high-end dashboard
+      const cardBackground = isPastDate
+        ? "bg-[#0D0D0D] opacity-40"
+        : isAvailable
+          ? "bg-[#111]"
+          : "bg-[#161616]";
 
-    const handleDateClick = () => {
-      if (!isPastDate) {
-        setSelectedDate(dateString);
-        handleModalOpen();
-      }
-    };
+      const textColor = isAvailable ? "text-white" : "text-white/30";
 
-    const handleDateHover = (e) => {
-      if (isAssigned && availabilityStatus?.projectDetails) {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setHoverPosition({
-          x: rect.right + 10,
-          y: rect.top,
-        });
-        setHoveredProject({
-          date: dateString,
-          ...availabilityStatus.projectDetails,
-        });
-      }
-    };
+      const handleDateClick = () => {
+        if (!isPastDate) {
+          setSelectedDate(dateString);
+          handleModalOpen();
+        }
+      };
 
-    calendarDays.push(
-      <div
-        key={i}
-        onClick={handleDateClick}
-        onMouseEnter={handleDateHover}
-        onMouseLeave={handleDateLeave}
-        className={`h-28 p-3 border border-white/5 text-xs transition-all duration-200
+      const handleDateHover = (e) => {
+        if (isAssigned && availabilityStatus?.projectDetails) {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setHoverPosition({
+            x: rect.right + 10,
+            y: rect.top,
+          });
+          setHoveredProject({
+            date: dateString,
+            ...availabilityStatus.projectDetails,
+          });
+        }
+      };
+
+      calendarDays.push(
+        <div
+          key={i}
+          onClick={handleDateClick}
+          onMouseEnter={handleDateHover}
+          onMouseLeave={handleDateLeave}
+          className={`h-28 p-3 border border-white/5 text-xs transition-all duration-200
     ${cardBackground} ${textColor}
     ${!isPastDate ? "cursor-pointer" : ""} hover:border-[#E8D1AB]/30 hover:bg-[#1A1A1A] group`}
-      >
-        <div
-          className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold mb-1 transition-colors ${
-            isToday ? "bg-[#E8D1AB] text-black" : "group-hover:text-[#E8D1AB]"
-          }`}
         >
-          {i}
-        </div>
-
-        {availabilityStatus && (
-          <div className="space-y-1 mt-2">
-            {isAssigned && (
-              <div className="space-y-1">
-                {availabilityStatus.projectDetails?.project_name && (
-                  <>
-                    <EventDot color="bg-blue-500" label="Shoot" />
-                    <EventDot color="bg-[#E8D1AB]" label="Booked" />
-                  </>
-                )}
-              </div>
-            )}
-            {isAvailable && !isAssigned && (
-               <div className="flex items-center gap-1 text-green-500/70">
-                 <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                 <span>Available</span>
-               </div>
-            )}
+          <div
+            className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold mb-1 transition-colors ${isToday ? "bg-[#E8D1AB] text-black" : "group-hover:text-[#E8D1AB]"
+              }`}
+          >
+            {i}
           </div>
-        )}
-      </div>
-    );
-  }
 
-  return calendarDays;
-};
+          {availabilityStatus && (
+            <div className="space-y-1 mt-2">
+              {isAssigned && (
+                <div className="space-y-1">
+                  {availabilityStatus.projectDetails?.project_name && (
+                    <>
+                      <EventDot color="bg-blue-500" label="Shoot" />
+                      <EventDot color="bg-[#E8D1AB]" label="Booked" />
+                    </>
+                  )}
+                </div>
+              )}
+              {isAvailable && !isAssigned && (
+                <div className="flex items-center gap-1 text-green-500/70">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  <span className="hidden lg:block">Available</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return calendarDays;
+  };
 
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12 px-4 md:px-0 bg-transparent text-white">
+    <div className="max-w-6xl mx-auto space-y-4 lg:space-y-8 pb-6 lg:pb-12 px-0 bg-transparent text-white">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 lg:gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Manage Availability</h1>
-          <p className="text-white/60 text-sm md:text-base">Set your available dates and times for upcoming projects</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-white">Manage Availability</h1>
+          <p className="text-white/60 text-sm lg:text-base">Set your available dates and times for upcoming projects</p>
         </div>
 
         <Button
           onClick={handleModalOpen}
-          className="bg-[#E8D1AB] text-black rounded-xl h-12 px-8 hover:bg-[#d4be9a] transition-colors font-bold flex items-center gap-2"
+          className="bg-[#E8D1AB] text-black rounded-lg lg:rounded-xl h-10 lg:h-12 px-4 lg:px-8 hover:bg-[#d4be9a] transition-colors lg:font-bold flex items-center gap-2"
         >
           <Plus size={20} />
           Add Availability
@@ -503,7 +506,7 @@ export default function AvailabilityPage() {
       </div>
 
       {/* Summary Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Available Days"
           value={summaryData.availableDays}
@@ -527,23 +530,23 @@ export default function AvailabilityPage() {
         />
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-12 gap-4 lg:gap-6">
         {/* Main Calendar Section */}
-        <div className="col-span-12 lg:col-span-9 space-y-6">
-          <div className="bg-[#111] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+        <div className="col-span-12 lg:col-span-9 space-y-4 lg:space-y-6">
+          <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl overflow-hidden shadow-2xl">
             {/* Calendar Controls */}
-            <div className="p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="p-4 lg:p-6 border-b border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="flex items-center bg-black rounded-lg border border-white/10 p-1">
                   <button
                     onClick={() => handleMonthChange("prev")}
-                    className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 text-white/60 transition-colors"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-white/60 transition-colors"
                   >
                     <ChevronLeft size={18} />
                   </button>
                   <button
                     onClick={() => handleMonthChange("next")}
-                    className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 text-white/60 transition-colors"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-white/60 transition-colors"
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -572,7 +575,7 @@ export default function AvailabilityPage() {
                 >
                   Today
                 </Button>
-                <div className="h-4 w-[1px] bg-white/10 mx-2" />
+                {/* <div className="h-4 w-[1px] bg-white/10 mx-2" /> */}
                 {/* <Select>
                   <SelectTrigger className="w-[140px] bg-black border-white/10 text-white text-xs">
                     <SelectValue placeholder="All Events" />
@@ -604,16 +607,16 @@ export default function AvailabilityPage() {
 
         {/* Sidebar Info Section */}
         <div className="col-span-12 lg:col-span-3 space-y-4">
-          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 flex gap-3">
+          <div className="rounded-lg lg:rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 flex gap-3">
             <Info className="text-blue-400 shrink-0 mt-0.5" size={18} />
             <p className="text-xs text-blue-200/70 leading-relaxed">
               Your availability is automatically blocked for confirmed shoots.
             </p>
           </div>
 
-          <div className="bg-[#111] border border-white/5 rounded-xl p-6">
-            <h3 className="text-sm font-bold text-white mb-6 uppercase tracking-wider">Color Legend</h3>
-            <div className="space-y-4">
+          <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-6">
+            <h3 className="text-sm font-bold text-white mb-4 lg:mb-6 uppercase tracking-wider">Color Legend</h3>
+            <div className="space-y-2 lg:space-y-4">
               <Legend color="bg-white/20" label="Disabled" desc="Past or unavailable" />
               <Legend color="bg-[#E8D1AB]" label="Today" desc="Current date" />
               <Legend color="bg-blue-500" label="Shoots" desc="Confirmed projects" />
@@ -622,8 +625,8 @@ export default function AvailabilityPage() {
             </div>
           </div>
 
-          <div className="bg-[#111] border border-white/5 rounded-xl p-6">
-            <h3 className="text-sm font-bold text-white mb-6 uppercase tracking-wider">Quick Info</h3>
+          <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-6">
+            <h3 className="text-sm font-bold text-white mb-4 lg:mb-6 uppercase tracking-wider">Quick Info</h3>
             <p className="text-xs text-white/40 leading-relaxed mb-4">
               Keep your calendar updated to receive more project invitations. Confirmed bookings will appear with a blue marker.
             </p>
@@ -636,22 +639,22 @@ export default function AvailabilityPage() {
 
       {/* Availability Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-lg">
           <div
-            className={`w-full max-w-lg bg-[#111] border border-white/10 text-white rounded-2xl p-8 relative shadow-2xl
+            className={`w-full max-w-lg bg-[#111] border border-white/10 text-white rounded-xl lg:rounded-2xl mx-2 lg:mx-0 p-4 lg:p-8 relative shadow-2xl
             ${isAnimating ? "animate-in fade-in zoom-in duration-200" : "animate-out fade-out zoom-out duration-200"}
             max-h-[90vh] overflow-y-auto`}
           >
             <button
               onClick={handleModalClose}
-              className="absolute top-6 right-6 text-white/40 hover:text-[#E8D1AB] transition-colors"
+              className="absolute top-3 right-3 lg:top-6 lg:right-6 text-white/40 hover:text-[#E8D1AB] transition-colors"
             >
               <X size={20} />
             </button>
 
-            <h2 className="text-2xl font-bold mb-1 text-white">Add Availability</h2>
-            <p className="text-white/40 text-sm mb-8">Schedule your working hours</p>
-            
+            <h2 className="text-lg lg:text-2xl font-bold mb-1 text-white">Add Availability</h2>
+            <p className="text-white/40 text-xs lg:text-sm mb-4 lg:mb-8">Schedule your working hours</p>
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Type</label>
@@ -689,22 +692,22 @@ export default function AvailabilityPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Start Time</label>
-                      <TimePicker setTime={(time) => handleTimeChange(time, "startTime")} />
+                    <TimePicker setTime={(time) => handleTimeChange(time, "startTime")} />
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">End Time</label>
-                      <TimePicker setTime={(time) => handleTimeChange(time, "endTime")} />
+                    <TimePicker setTime={(time) => handleTimeChange(time, "endTime")} />
                   </div>
                 </div>
               )}
 
               <div className="flex items-center gap-3 py-2">
-                <input 
-                  type="checkbox" 
-                  id="allDay" 
-                  checked={isAllDay} 
-                  onChange={handleAllDayChange} 
-                  className="w-4 h-4 rounded border-white/10 bg-black text-[#E8D1AB] focus:ring-[#E8D1AB]" 
+                <input
+                  type="checkbox"
+                  id="allDay"
+                  checked={isAllDay}
+                  onChange={handleAllDayChange}
+                  className="w-4 h-4 rounded border-white/10 bg-black text-[#E8D1AB] focus:ring-[#E8D1AB]"
                 />
                 <label htmlFor="allDay" className="text-sm font-medium text-white/80 cursor-pointer">All day availability</label>
               </div>
@@ -752,11 +755,10 @@ export default function AvailabilityPage() {
                               const updated = current.includes(day) ? current.filter((d) => d !== day) : [...current, day];
                               handleFormChange(updated, "repeatOn");
                             }}
-                            className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${
-                              formData.repeatOn.includes(day) 
-                              ? "bg-[#E8D1AB] text-black border-[#E8D1AB]" 
-                              : "bg-black text-white/60 border-white/10 hover:border-white/30"
-                            }`}
+                            className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${formData.repeatOn.includes(day)
+                                ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
+                                : "bg-black text-white/60 border-white/10 hover:border-white/30"
+                              }`}
                           >
                             {day}
                           </button>
@@ -766,24 +768,24 @@ export default function AvailabilityPage() {
                   )}
 
                   {/* MONTHLY */}
-{formData.recurrence === "4" && (
-  <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-    <span>Repeat on Day</span>
-    <input
-      type="text"
-      value={formData.monthlyDay ?? ""}
-      onChange={(e) => {
-        const val = e.target.value.replace(/[^0-9]/g, "");
-        if (val === "" || (Number(val) >= 1 && Number(val) <= 31)) {
-          handleFormChange(val, "monthlyDay");
-        }
-      }}
-      // Added text-gray-900 and dark:text-white below
-      className="w-14 px-2 py-1 rounded-md bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white text-center outline-none focus:ring-2 focus:ring-orange-500"
-    />
-    <span>of each month</span>
-  </div>
-)}
+                  {formData.recurrence === "4" && (
+                    <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <span>Repeat on Day</span>
+                      <input
+                        type="text"
+                        value={formData.monthlyDay ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, "");
+                          if (val === "" || (Number(val) >= 1 && Number(val) <= 31)) {
+                            handleFormChange(val, "monthlyDay");
+                          }
+                        }}
+                        // Added text-gray-900 and dark:text-white below
+                        className="w-14 px-2 py-1 rounded-lg bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white text-center outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                      <span>of each month</span>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Until Date</label>
                     <DatePicker id="untilDate" onChange={(d) => handleFormChange(d, "untilDate")} />
@@ -792,16 +794,16 @@ export default function AvailabilityPage() {
               )}
 
               <div className="flex justify-end gap-3 pt-4">
-                <Button 
-                  type="button" 
+                <Button
+                  type="button"
                   onClick={handleModalClose}
                   variant="ghost"
                   className="text-white/40 hover:text-white"
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-bold px-8 rounded-xl"
                 >
                   Save Changes
@@ -813,94 +815,94 @@ export default function AvailabilityPage() {
       )}
 
       {/* Hover Card for Project Details */}
-          {hoveredProject && (
-              <div
-                  className="fixed z-50 w-[420px] bg-[#111] border border-[#E8D1AB]/30 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150"
-                  style={{
-                      top: hoverPosition.y,
-                      left: hoverPosition.x,
-                  }}
-                  onMouseLeave={handleDateLeave}
-              >
-                  {/* Header */}
-                  <div className="p-6 border-b border-white/10">
-                      <span className="inline-block mb-3 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full bg-[#E8D1AB]/10 text-[#E8D1AB] border border-[#E8D1AB]/20">
-                          Active Project
-                      </span>
+      {hoveredProject && (
+        <div
+          className="fixed z-50 w-[420px] bg-[#111] border border-[#E8D1AB]/30 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150"
+          style={{
+            top: hoverPosition.y,
+            left: hoverPosition.x,
+          }}
+          onMouseLeave={handleDateLeave}
+        >
+          {/* Header */}
+          <div className="p-6 border-b border-white/10">
+            <span className="inline-block mb-3 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full bg-[#E8D1AB]/10 text-[#E8D1AB] border border-[#E8D1AB]/20">
+              Active Project
+            </span>
 
-                      <h3 className="text-xl font-bold text-white mb-4">
-                          {hoveredProject.project_name}
-                      </h3>
+            <h3 className="text-xl font-bold text-white mb-4">
+              {hoveredProject.project_name}
+            </h3>
 
-                      <div className="flex flex-wrap gap-4 text-xs text-white/60">
-                          <span className="flex items-center gap-2">
-                              <Calendar size={14} className="text-[#E8D1AB]" />
-                              {hoveredProject.date}
-                          </span>
+            <div className="flex flex-wrap gap-4 text-xs text-white/60">
+              <span className="flex items-center gap-2">
+                <Calendar size={14} className="text-[#E8D1AB]" />
+                {hoveredProject.date}
+              </span>
 
-                          <span className="flex items-center gap-2">
-                              <MapPin size={14} className="text-[#E8D1AB]" />
-                              {formatLocation(hoveredProject.event_location)}
-                          </span>
+              <span className="flex items-center gap-2">
+                <MapPin size={14} className="text-[#E8D1AB]" />
+                {formatLocation(hoveredProject.event_location)}
+              </span>
 
-                          <span className="flex items-center gap-2">
-                              <Clock size={14} className="text-[#E8D1AB]" />
-                              12:00 PM – 4:00 PM
-                          </span>
-                      </div>
-                  </div>
+              <span className="flex items-center gap-2">
+                <Clock size={14} className="text-[#E8D1AB]" />
+                12:00 PM – 4:00 PM
+              </span>
+            </div>
+          </div>
 
-                  {/* Middle Section */}
-                  <div className="grid grid-cols-2 divide-x divide-white/10 border-b border-white/10 bg-white/[0.01]">
-                      {/* Streaming */}
-                      <div className="p-5">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">
-                              Streaming Platforms
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                              <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
-                                  <Video size={12} className="text-[#E8D1AB]" /> YouTube
-                              </span>
-                              <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
-                                  <Mic size={12} className="text-[#E8D1AB]" /> Twitch
-                              </span>
-                              <span className="px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/40">
-                                  +4
-                              </span>
-                          </div>
-                      </div>
+          {/* Middle Section */}
+          <div className="grid grid-cols-2 divide-x divide-white/10 border-b border-white/10 bg-white/[0.01]">
+            {/* Streaming */}
+            <div className="p-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">
+                Streaming Platforms
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
+                  <Video size={12} className="text-[#E8D1AB]" /> YouTube
+                </span>
+                <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
+                  <Mic size={12} className="text-[#E8D1AB]" /> Twitch
+                </span>
+                <span className="px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/40">
+                  +4
+                </span>
+              </div>
+            </div>
 
-                      {/* Equipment */}
-                      <div className="p-5">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">
-                              Equipment Assigned
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                              <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
-                                  📷 Camera
-                              </span>
-                              <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
-                                  🎥 Video
-                              </span>
-                              <span className="px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/40">
-                                  +3
-                              </span>
-                          </div>
-                      </div>
-                  </div>
+            {/* Equipment */}
+            <div className="p-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">
+                Equipment Assigned
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
+                  📷 Camera
+                </span>
+                <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
+                  🎥 Video
+                </span>
+                <span className="px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/40">
+                  +3
+                </span>
+              </div>
+            </div>
+          </div>
 
-                  {/* Footer */}
-                  <div className="p-4 px-6 flex items-center justify-between bg-black/20">
-                      <span className="text-[10px] font-medium text-white/30 uppercase tracking-tight">
-                          Last Updated 4h ago
-                      </span>
+          {/* Footer */}
+          <div className="p-4 px-6 flex items-center justify-between bg-black/20">
+            <span className="text-[10px] font-medium text-white/30 uppercase tracking-tight">
+              Last Updated 4h ago
+            </span>
 
-                      {/* <button className="text-[10px] font-bold uppercase tracking-widest text-[#E8D1AB] hover:text-white transition-colors">
+            {/* <button className="text-[10px] font-bold uppercase tracking-widest text-[#E8D1AB] hover:text-white transition-colors">
         View Details →
       </button> */}
-                  </div>
-              </div>
-          )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

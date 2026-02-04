@@ -9,6 +9,7 @@ import { WhySection } from "@/components/find-creative-work/WhySection";
 import { TopCreatives } from "@/src/components/landing/TopCreatives";
 import { GrowthJourneySection } from "@/components/find-creative-work/GrowthJourneySection";
 import { Potential } from "@/components/find-creative-work/PotentialSection";
+import { HowItWorks } from "@/components/find-creative-work/HowItWorks";
 
 export default function FindCreativeWorkPage() {
   return (
@@ -28,6 +29,9 @@ export default function FindCreativeWorkPage() {
       <Separator />
 
       <GrowthJourneySection />
+      <Separator />
+
+      <HowItWorks />
       <Separator />
 
       <TopCreatives title="Meet Our Top Creative Partners" />

@@ -30,6 +30,8 @@ const darkThemeColors = {
   accent: "#E8D1AB",
   accentHover: "#dcb98a",
   buttonPrimaryText: "#1A1A1A",
+  buttonPrimaryBg: "#E8D1AB",
+  buttonPrimaryBgHover: "#dcb98a",
   buttonSecondaryText: "#fff",
   buttonSecondaryBg: "#ffffff4d",
   buttonSecondaryBgHover: "#ffffff4d",

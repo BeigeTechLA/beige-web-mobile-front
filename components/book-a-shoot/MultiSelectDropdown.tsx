@@ -25,9 +25,10 @@ export default function MultiSelectDropdown({
   bgColour,
   onChange,
   maxDisplay = 2,
-  isDisabled=false,
+  isDisabled = false,
 }: MultiSelectDropdownProps) {
   const [open, setOpen] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false); // State for hover popup
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -44,7 +45,9 @@ export default function MultiSelectDropdown({
 
   const selectedOptions = options.filter((o) => value.includes(o.key));
   const displayOptions = selectedOptions.slice(0, maxDisplay);
-  const remainingCount = selectedOptions.length - maxDisplay;
+  // const remainingCount = selectedOptions.length - maxDisplay;
+  const remainingOptions = selectedOptions.slice(maxDisplay); // Get the rest
+  const remainingCount = remainingOptions.length;
 
   const handleToggle = (key: string) => {
     if (isDisabled) return; // Guard clause
@@ -94,11 +97,35 @@ export default function MultiSelectDropdown({
                   />
                 </div>
               ))}
+
+              {/* Remaining Selections Popup Logic */}
               {remainingCount > 0 && (
-                <span className="text-[#E8D1AB] text-xs lg:text-sm">
-                  +{remainingCount} more
-                </span>
+                <div
+                  className="relative group"
+                  onMouseEnter={() => setShowTooltip(true)}
+                  onMouseLeave={() => setShowTooltip(false)}
+                >
+                  <span className="text-[#E8D1AB] text-xs lg:text-sm cursor-pointer">
+                    +{remainingCount} more
+                  </span>
+
+                  {/* Hover Popup */}
+                  {showTooltip && (
+                    <div className="absolute bottom-full mb-2 left-0 z-50 bg-[#1A1A1A] border border-white/10 p-3 rounded-lg shadow-2xl min-w-[150px] animate-in fade-in zoom-in duration-200">
+                      <div className="flex flex-col gap-2">
+                        {remainingOptions.map((option) => (
+                          <div key={option.key} className="flex items-center justify-between gap-3  pb-1 last:pb-0">
+                            <span className="text-white text-xs whitespace-nowrap">{option.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Triangle Arrow */}
+                      <div className="absolute top-full left-4 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-[#1A1A1A]"></div>
+                    </div>
+                  )}
+                </div>
               )}
+
               {selectedOptions.length > 1 && (
                 <button
                   onClick={handleClearAll}
@@ -122,7 +149,7 @@ export default function MultiSelectDropdown({
 
       {/* Dropdown */}
       {open && !isDisabled && ( // Added extra safety check here
-        <div 
+        <div
           className={`absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto`}
         >
           {options.map((option) => {
@@ -158,4 +185,3 @@ export default function MultiSelectDropdown({
     </div>
   );
 }
-

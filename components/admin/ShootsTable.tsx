@@ -206,7 +206,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
   return (
     <div className="w-full bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Table Header Controls */}
-      <div className="flex justify-between items-center p-6 border-b border-[#333333]">
+      <div className="flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b border-[#333333] gap-2 ">
         <h3 className="text-xl font-semibold text-white">All Shoots</h3>
         <div className="flex gap-3">
           <Select value={statusFilter} onValueChange={setStatusFilter}>

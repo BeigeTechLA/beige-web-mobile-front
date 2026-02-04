@@ -57,7 +57,7 @@ export const GrowthJourneySection = () => {
   }, []);
 
   return (
-    <section className="py-10 md:py-32 bg-[#010101] relative overflow-hidden text-white">
+    <section id="growthJourney" className="py-10 md:py-32 bg-[#010101] relative overflow-hidden text-white">
       <Container>
         <div className="flex flex-col lg:flex-row justify-center mb-8 md:mb-18">
           <h2 className="text-lg md:text-[56px] font-medium text-gradient-white tracking-tight text-center lg:text-left">

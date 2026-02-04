@@ -2,8 +2,8 @@
 
 import React, { useRef, useEffect } from "react";
 import { motion, useScroll, useTransform, useSpring, useInView } from "framer-motion";
-import { Button } from "@/src/components/landing/ui/button";
 import { Container } from "@/components/ui/container";
+import Link from "next/link";
 
 export const WelcomeSection = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -43,6 +43,17 @@ export const WelcomeSection = () => {
 
   const vimeoUrl = `https://player.vimeo.com/video/1060256619?api=1&autoplay=1&muted=1&loop=1&controls=1&title=0&byline=0&portrait=0&badge=0&autopause=0&playsinline=1&transparent=0&vimeo_logo=0`;
 
+  const handleScroll = (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
+    e.preventDefault();
+
+    const targetId = e.currentTarget.getAttribute("href")?.replace("#", "");
+    const elem = document.getElementById(targetId || "");
+
+    elem?.scrollIntoView({
+      behavior: "smooth",
+    });
+  };
+
   return (
     <section className="py-10 lg:pt-50 lg:pb-32 bg-[#010101] overflow-hidden select-none">
       <Container>
@@ -71,12 +82,18 @@ export const WelcomeSection = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex gap-6 mx-auto items-center justify-center"
           >
-            <Button className="h-7 lg:h-15 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl">
+            <Link
+              href={"/creator-signup"}
+              className="py-1 lg:py-4 px-5 lg:px-8 rounded-lg bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
+            >
               Join Us
-            </Button>
-            <Button className="bg-transparent border border-white/20 hover:bg-white/5 text-white h-7 lg:h-15 px-5 lg:px-9 text-sm lg:text-xl rounded-full flex items-center gap-3 w-fit transition-all group">
+            </Link>
+            <Link
+              href="#howItWorks"
+              onClick={handleScroll}
+              className="bg-transparent border border-white/20 hover:bg-white/5 text-white py-1 lg:py-4 px-5 lg:px-9 text-sm lg:text-xl rounded-lg flex items-center gap-3 w-fit transition-all group">
               How It Works
-            </Button>
+            </Link>
           </motion.div>
         </div>
 

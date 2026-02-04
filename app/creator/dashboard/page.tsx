@@ -142,33 +142,33 @@ function DonutChartCard({
 
   return (
     <div className="bg-[#0B0B0B] border border-white/5 rounded-2xl p-6 transition-all hover:border-white/10">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-4 lg:mb-8">
         <div className="flex items-center gap-2">
-            {/* The vertical accent line from your screenshot */}
-            <div className="w-1 h-5 bg-[#E8D1AB] rounded-full" /> 
-            <h3 className="font-medium text-lg text-white/90">{title}</h3>
+          {/* The vertical accent line from your screenshot */}
+          <div className="w-1 h-5 bg-[#E8D1AB] rounded-full" />
+          <h3 className="font-medium lg:text-lg text-white/90">{title}</h3>
         </div>
         {rightFilter}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8 items-center">
         <div className="flex items-center justify-center relative">
           <div className="relative w-44 h-44 rounded-full" style={{ background: gradient }}>
             <div className="absolute inset-[35px] rounded-full bg-[#0B0B0B]" />
             {/* Inner Center Text like your screenshot */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold text-white">{total.toLocaleString()}</span>
+              <span className="text-2xl font-bold text-white">{total.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-2 lg:space-y-4">
           {slices.map((s) => {
             return (
               <div key={s.label} className="flex items-center justify-between group">
                 <div className="flex items-center gap-4">
                   {/* Circle with number inside - matching screenshot legend */}
-                  <div 
+                  <div
                     className="w-10 h-7 rounded-full border flex items-center justify-center text-[10px] font-bold"
                     style={{ borderColor: s.colorHex, color: 'white', backgroundColor: `${s.colorHex}15` }}
                   >
@@ -357,17 +357,17 @@ export default function CreatorDashboardPage() {
   // }, [user]);
 
   useEffect(() => {
-  const userStr = localStorage.getItem("revure_user");
-  const localUser = userStr ? JSON.parse(userStr) : null;
+    const userStr = localStorage.getItem("revure_user");
+    const localUser = userStr ? JSON.parse(userStr) : null;
 
-  // Use (user as any) to bypass the TypeScript check
-  const status = (user as any)?.is_crew_verified ?? localUser?.is_crew_verified ?? 0;
-  
-  setVerificationStatus(Number(status));
-  console.log("Verification Status:", status);
-  console.log("User Object:", user);
-  console.log("verification status::::", verificationStatus);
-}, [user]);
+    // Use (user as any) to bypass the TypeScript check
+    const status = (user as any)?.is_crew_verified ?? localUser?.is_crew_verified ?? 0;
+
+    setVerificationStatus(Number(status));
+    console.log("Verification Status:", status);
+    console.log("User Object:", user);
+    console.log("verification status::::", verificationStatus);
+  }, [user]);
 
   // if (verificationStatus === null) return null;
 
@@ -409,54 +409,54 @@ export default function CreatorDashboardPage() {
 
 
   // Helper Component for Pending/Rejected States
-function VerificationStatusOverlay({ status }: { status: number }) {
-  const isPending = status === 0;
+  function VerificationStatusOverlay({ status }: { status: number }) {
+    const isPending = status === 0;
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
-      <div className="mb-8 relative">
-        <div className="w-24 h-24 rounded-full bg-[#E8D1AB]/5 border border-[#E8D1AB]/20 flex items-center justify-center animate-pulse">
-          {isPending ? (
-            <Clock size={40} className="text-[#E8D1AB]" />
-          ) : (
-            <AlertTriangle size={40} className="text-red-500" />
-          )}
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
+        <div className="mb-8 relative">
+          <div className="w-24 h-24 rounded-full bg-[#E8D1AB]/5 border border-[#E8D1AB]/20 flex items-center justify-center animate-pulse">
+            {isPending ? (
+              <Clock size={40} className="text-[#E8D1AB]" />
+            ) : (
+              <AlertTriangle size={40} className="text-red-500" />
+            )}
+          </div>
         </div>
-      </div>
 
-      <h2 className="text-3xl font-bold text-white mb-4">
-        {isPending ? "Application Under Review" : "Application Status"}
-      </h2>
-      
-      <p className="text-white/60 max-w-md leading-relaxed mb-8">
-        {isPending 
-          ? "Welcome to the Beige collective. Our curation team is currently reviewing your portfolio and credentials. We maintain a high standard for our creators to ensure premium quality for our clients."
-          : "Thank you for your interest in joining Beige. At this time, our team has decided not to move forward with your application. We appreciate your talent and wish you the best in your creative journey."
-        }
-      </p>
+        <h2 className="text-3xl font-bold text-white mb-4">
+          {isPending ? "Application Under Review" : "Application Status"}
+        </h2>
 
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-sm w-full">
-        <h4 className="text-[10px] uppercase tracking-[0.2em] text-[#E8D1AB] mb-2">Next Steps</h4>
-        <p className="text-sm text-white/80">
-          {isPending 
-            ? "Reviews typically take 2-3 business days. You'll receive an email once your dashboard is fully activated."
-            : "If you feel this was an error or your portfolio has significantly changed, feel free to contact our support team."
+        <p className="text-white/60 max-w-md leading-relaxed mb-8">
+          {isPending
+            ? "Welcome to the Beige collective. Our curation team is currently reviewing your portfolio and credentials. We maintain a high standard for our creators to ensure premium quality for our clients."
+            : "Thank you for your interest in joining Beige. At this time, our team has decided not to move forward with your application. We appreciate your talent and wish you the best in your creative journey."
           }
         </p>
+
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-sm w-full">
+          <h4 className="text-[10px] uppercase tracking-[0.2em] text-[#E8D1AB] mb-2">Next Steps</h4>
+          <p className="text-sm text-white/80">
+            {isPending
+              ? "Reviews typically take 2-3 business days. You'll receive an email once your dashboard is fully activated."
+              : "If you feel this was an error or your portfolio has significantly changed, feel free to contact our support team."
+            }
+          </p>
+        </div>
+
+        {isPending && (
+          <Button
+            variant="outline"
+            className="mt-8 border-white/10 hover:bg-white/5 text-white/40"
+            onClick={() => window.location.reload()}
+          >
+            Refresh Status
+          </Button>
+        )}
       </div>
-      
-      {isPending && (
-         <Button 
-          variant="outline" 
-          className="mt-8 border-white/10 hover:bg-white/5 text-white/40"
-          onClick={() => window.location.reload()}
-         >
-           Refresh Status
-         </Button>
-      )}
-    </div>
-  );
-}
+    );
+  }
 
   // Map Filter Logic
   const filteredMarkers = useMemo(() => {
@@ -472,73 +472,73 @@ function VerificationStatusOverlay({ status }: { status: number }) {
 
   // Donut Chart Slices (Updated to Gold Theme)
   const shootStatusSlices: DonutSlice[] = [
-    { 
-        label: "Successful Shoots", 
-        value: creatorStats.completedShoots, 
-        colorHex: CHART_COLORS.purple, 
-        bulletClass: "bg-[#A879FF]" 
+    {
+      label: "Successful Shoots",
+      value: creatorStats.completedShoots,
+      colorHex: CHART_COLORS.purple,
+      bulletClass: "bg-[#A879FF]"
     },
-    { 
-        label: "Pending Shoots", 
-        value: creatorStats.pendingShoots, 
-        colorHex: CHART_COLORS.blue, 
-        bulletClass: "bg-[#36C1FF]" 
+    {
+      label: "Pending Shoots",
+      value: creatorStats.pendingShoots,
+      colorHex: CHART_COLORS.blue,
+      bulletClass: "bg-[#36C1FF]"
     },
-    { 
-        label: "Rejected Shoots", 
-        value: creatorStats.rejectedShoots, 
-        colorHex: CHART_COLORS.orange, 
-        bulletClass: "bg-[#FFC13F]" 
+    {
+      label: "Rejected Shoots",
+      value: creatorStats.rejectedShoots,
+      colorHex: CHART_COLORS.orange,
+      bulletClass: "bg-[#FFC13F]"
     },
-    { 
-        label: "Shoot Requests", 
-        value: creatorStats.shootRequests, 
-        colorHex: CHART_COLORS.green, 
-        bulletClass: "bg-[#2ED499]" 
+    {
+      label: "Shoot Requests",
+      value: creatorStats.shootRequests,
+      colorHex: CHART_COLORS.green,
+      bulletClass: "bg-[#2ED499]"
     },
   ];
 
 
   const shootCategorySlices: DonutSlice[] = useMemo(() => {
-  const slices = [
-    { 
-      label: "Photography Shoots", 
-      value: creatorStats.photographyShoots, 
-      colorHex: CHART_COLORS.purple,
-      bulletClass: "bg-[#A879FF]" 
-    },
-    { 
-      label: "Videography Shoots", 
-      value: Math.max(0, creatorStats.completedShoots - creatorStats.photographyShoots), 
-      colorHex: CHART_COLORS.blue,
-      bulletClass: "bg-[#36C1FF]" 
-    },
-    { 
-      label: "Rejected Shoots", 
-      value: creatorStats.rejectedShoots, 
-      colorHex: CHART_COLORS.orange,
-      bulletClass: "bg-[#FFC13F]" 
-    },
-    { 
-      label: "Shoot Requests", 
-      value: creatorStats.shootRequests, 
-      colorHex: CHART_COLORS.green,
-      bulletClass: "bg-[#2ED499]" 
-    },
-  ];
+    const slices = [
+      {
+        label: "Photography Shoots",
+        value: creatorStats.photographyShoots,
+        colorHex: CHART_COLORS.purple,
+        bulletClass: "bg-[#A879FF]"
+      },
+      {
+        label: "Videography Shoots",
+        value: Math.max(0, creatorStats.completedShoots - creatorStats.photographyShoots),
+        colorHex: CHART_COLORS.blue,
+        bulletClass: "bg-[#36C1FF]"
+      },
+      {
+        label: "Rejected Shoots",
+        value: creatorStats.rejectedShoots,
+        colorHex: CHART_COLORS.orange,
+        bulletClass: "bg-[#FFC13F]"
+      },
+      {
+        label: "Shoot Requests",
+        value: creatorStats.shootRequests,
+        colorHex: CHART_COLORS.green,
+        bulletClass: "bg-[#2ED499]"
+      },
+    ];
 
-  if (categoryTypeFilter === "photography") 
-    return slices.filter(s => s.label.includes("Photography") || s.label.includes("Rejected") || s.label.includes("Requests"));
-  if (categoryTypeFilter === "videography") 
-    return slices.filter(s => s.label.includes("Videography") || s.label.includes("Rejected") || s.label.includes("Requests"));
-  
-  return slices;
-}, [creatorStats, categoryTypeFilter]);
+    if (categoryTypeFilter === "photography")
+      return slices.filter(s => s.label.includes("Photography") || s.label.includes("Rejected") || s.label.includes("Requests"));
+    if (categoryTypeFilter === "videography")
+      return slices.filter(s => s.label.includes("Videography") || s.label.includes("Rejected") || s.label.includes("Requests"));
 
-    if (verificationStatus === null) return null;
+    return slices;
+  }, [creatorStats, categoryTypeFilter]);
+
+  if (verificationStatus === null) return null;
 
 
-   if (verificationStatus !== 1) {
+  if (verificationStatus !== 1) {
     return <VerificationStatusOverlay status={verificationStatus} />;
   }
 
@@ -546,21 +546,21 @@ function VerificationStatusOverlay({ status }: { status: number }) {
   // RENDER
   // ----------------------
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-12 text-white bg-[#111] p-4 md:p-8">
+    <div className="max-w-7xl mx-auto space-y-4 lg:space-y-8 pb-12 text-white bg-[#111] p-4 md:p-8">
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Welcome back, {user?.name || "Partner"}</h1>
-          <p className="text-white/60">Performance overview and shoot schedule</p>
+          <h1 className="text-2xl lg:text-3xl font-bold">Welcome back, {user?.name || "Partner"}</h1>
+          <p className="text-sm lg:text-base text-white/60">Performance overview and shoot schedule</p>
         </div>
-        <div className="flex items-center gap-3">
+        {/* <div className="flex items-center gap-3">
 
-        </div>
+        </div> */}
       </div>
 
       {/* Stats Cards (Luxury Style) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Completed Shoots"
           value={dashboardStats.completedShoots}
@@ -592,12 +592,12 @@ function VerificationStatusOverlay({ status }: { status: number }) {
       </div>
 
       {/* Main Content Grid: Map & Calendar */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
 
         {/* Map Section */}
-        <div className="lg:col-span-2 bg-[#111] border border-white/5 rounded-xl overflow-hidden relative min-h-[500px]">
+        <div className="lg:col-span-2 bg-[#111] border border-white/5 rounded-lg lg:rounded-xl overflow-hidden relative min-h-[500px]">
           {/* Map Controls */}
-          <div className="absolute top-4 left-4 z-10 flex gap-2">
+          <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
               <input
@@ -757,7 +757,7 @@ function VerificationStatusOverlay({ status }: { status: number }) {
       </div>
 
       {/* Donut Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <DonutChartCard
           title="Shoot Status"
           subtitle="Pipeline performance metrics"
@@ -887,13 +887,20 @@ function VerificationStatusOverlay({ status }: { status: number }) {
  */
 function StatCard({ label, value, icon, iconColor, hoverBorder }: any) {
   return (
-    <div className={`bg-[#111] rounded-xl p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[120px] flex flex-col justify-center`}>
-      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
+    <div className={`bg-[#111] rounded-lg lg:rounded-xl p-4 lg:p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[120px] flex flex-col justify-center`}>
+      {/* <div className="hidden lg:absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
         {React.cloneElement(icon, { size: 48, className: iconColor })}
+      </div> */}
+      <div className="absolute top-2 right-2 lg:top-0 lg:right-0 p-3 lg:p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
+        {React.cloneElement(icon, {
+          // Responsive size logic
+          size: "100%",
+          className: `${iconColor} w-8 h-8 lg:w-12 lg:h-12`
+        })}
       </div>
       <div className="relative z-10">
         <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">{label}</p>
-        <p className="text-4xl font-bold text-white">{value}</p>
+        <p className="text-2xl lg:text-4xl font-bold text-white">{value}</p>
       </div>
     </div>
   );
