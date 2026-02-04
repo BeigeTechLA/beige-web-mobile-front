@@ -11,11 +11,13 @@ import { Box } from "@mui/material";
 interface SortDateButtonProps {
   onDateChange: (date: Date | null) => void;
   selectedDate: Date | null;
+  width?: string;
 }
 
 export const SortDateButton: React.FC<SortDateButtonProps> = ({
   onDateChange,
-  selectedDate
+  selectedDate,
+  width
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -25,7 +27,7 @@ export const SortDateButton: React.FC<SortDateButtonProps> = ({
         {/* Styled Trigger Button */}
         {/* <button
           onClick={() => setIsOpen(true)}
-          className="shrink-0 flex items-center justify-between gap-1 lg:gap-3 px-3 py-1.5 lg:px-6 lg:py-3.5 bg-[#1A1A1A] border border-white/10 rounded-full text-[#C4C4C4] hover:text-white hover:border-white/30 transition-all text-[10px] lg:text-base lg:font-medium shadow-sm whitespace-nowrap w-fit"
+          className={`shrink-0 flex items-center justify-between gap-1 lg:gap-3 px-3 py-1.5 lg:px-6 lg:py-3.5 bg-[#1A1A1A] border border-white/10 rounded-full text-[#C4C4C4] hover:text-white hover:border-white/30 transition-all text-xs lg:text-base lg:font-medium shadow-sm whitespace-nowrap ${width ? width : "w-fit"}`}
         >
           <span className="whitespace-nowrap">
             {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Sort by Date"}

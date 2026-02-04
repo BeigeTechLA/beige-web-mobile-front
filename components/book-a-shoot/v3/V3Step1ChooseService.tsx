@@ -840,12 +840,12 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
       {/* Navigation */}
       <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
-        <Button
+        {/* <Button
           onClick={onBack}
           className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] "
         >
           Back
-        </Button>
+        </Button> */}
         <Button
           onClick={handleNext}
           // disabled={!data.shootType || !data.editType}

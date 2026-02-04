@@ -87,7 +87,7 @@ export default function ProjectTeam({ projectId }: { projectId: string }) {
                 Project Post Production Team
             </h3>
 
-            <div className="w-full h-px bg-[#222222] absolute top-16 left-0" />
+            {/* <div className="w-full h-px bg-[#222222] absolute top-16 left-0" /> */}
             <div className="w-full h-px bg-dashed border-t border-dashed border-[#333333] absolute top-20 left-0" />
 
             <AddPostProductionTeamModal

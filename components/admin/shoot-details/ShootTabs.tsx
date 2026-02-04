@@ -18,14 +18,19 @@ interface ShootTabsProps {
 
 export default function ShootTabs({ activeTab, onTabChange }: ShootTabsProps) {
   return (
-    <div className="w-full border-b border-[#222222] mb-6">
-      <div className="flex items-center justify-between w-full">
+    <div className="w-full border-b border-[#222222] mt-4 lg:mt-0 mb-6">
+      <div
+        className={cn(
+          "flex items-center w-full overflow-x-auto no-scrollbar",
+          "gap-6 lg:gap-0 lg:justify-between"
+        )}
+      >
         {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => onTabChange(tab)}
             className={cn(
-              "pb-4 text-base font-medium transition-all duration-300 relative tracking-normal px-2",
+              "pb-2 lg:pb-4 text-sm lg:text-base font-medium transition-all duration-300 relative tracking-normal px-2 whitespace-nowrap flex-shrink-0",
               activeTab === tab
                 ? "text-[#E5D5B8]"
                 : "text-[#666666] hover:text-white"

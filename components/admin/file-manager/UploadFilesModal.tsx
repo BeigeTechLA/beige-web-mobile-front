@@ -47,7 +47,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, folderName }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       {/* Modal Container */}
-      <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
+      <div className="mx-5 w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
 
         {/* Header */}
         <div className="relative p-3 lg:p-5">
