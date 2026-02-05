@@ -134,8 +134,10 @@ const CreatorCarousel = ({
                         src={imageUrl}
                         alt={creator.name}
                         fill
-                        className="object-cover object-top transition-transform duration-700 hover:scale-105"
+                        style={{ objectFit: 'cover', objectPosition: 'top' }}
+                        className="transition-transform duration-700 hover:scale-105"
                       />
+
                       {/* Selected Badge */}
                       {isSelected && (
                         <div className="absolute top-2 left-2 lg:top-4 lg:left-4 z-10">
