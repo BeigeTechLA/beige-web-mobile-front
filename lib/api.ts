@@ -141,6 +141,7 @@ export interface AffiliateValidationResponse {
   valid: boolean;
   referral_code?: string;
   affiliate_name?: string;
+  message?: string;
 }
 
 export interface AffiliateInfo {
@@ -211,18 +212,28 @@ export interface ReferralHistoryItem {
 
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
-  validateCode: async (code: string): Promise<AffiliateValidationResponse> => {
-    try {
-      const response = await api.get(`/affiliates/validate/${code}`);
-      return {
-        valid: response.data.valid || false,
-        referral_code: response.data.data?.referral_code,
-        affiliate_name: response.data.data?.affiliate_name,
-      };
-    } catch (error) {
-      return { valid: false };
-    }
-  },
+ validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
+  try {
+    const url = userId 
+      ? `/affiliates/validate/${code}?user_id=${userId}` 
+      : `/affiliates/validate/${code}`;
+
+    const response = await api.get(url);
+
+    return {
+      valid: response.data.valid || false,
+      referral_code: response.data.data?.referral_code,
+      affiliate_name: response.data.data?.affiliate_name,
+      message: response.data.message, // Success message
+    };
+  } catch (error: any) {
+    // FIX: Extract the message from the server error response
+    return { 
+      valid: false, 
+      message: error.response?.data?.message || "Invalid referral code" 
+    };
+  }
+},
 
   // Get current user's affiliate info (requires auth)
   getMyAffiliate: async (token: string): Promise<AffiliateInfo> => {

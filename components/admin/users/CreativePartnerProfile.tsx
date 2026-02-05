@@ -271,7 +271,8 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
     const fullName = `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || "Unknown Partner";
 
     // Base URL for uploads
-    const S3_BASE_URL = "https://beigexmemehouse.s3.amazonaws.com/beige/";
+    // const S3_BASE_URL = "https://beigexmemehouse.s3.amazonaws.com/beige/";
+    const S3_BASE_URL = "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/";
 
     // Get profile photo
     const profilePhoto = partner.crew_member_files?.find(

@@ -284,3 +284,39 @@ export interface PricingPackage {
   hourly_rate?: number;
   features?: string[];
 }
+// Raw API Response Types
+export interface CrewMemberFile {
+  crew_files_id: number;
+  file_type: string;
+  file_path: string;
+}
+
+export interface RawCreator {
+  crew_member_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone_number: string;
+  location: string;
+  working_distance: string;
+  primary_role: string | null; // JSON string
+  years_of_experience: number;
+  hourly_rate: string;
+  bio: string | null;
+  availability: null;
+  skills: string | null; // JSON string
+  certifications: null;
+  equipment_ownership: string;
+  is_beige_member: number;
+  is_available: number;
+  rating: null | number;
+  is_draft: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  social_media_links: string | null;
+  is_crew_verified: number;
+  crew_member_files: CrewMemberFile[];
+  role: null;
+  status: string;
+}

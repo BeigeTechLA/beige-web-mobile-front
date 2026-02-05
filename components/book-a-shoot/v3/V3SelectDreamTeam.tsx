@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
 import { Loader2, ArrowDownLeft, ArrowUpRight, CheckCircle2, X, AlertCircle } from "lucide-react";
-import { useSearchCreatorsQuery } from "@/lib/redux/features/creators/creatorsApi";
+import { useSearchCreatorsQuery, useGetRandomCrewQuery } from "@/lib/redux/features/creators/creatorsApi";
 import { useCreateSalesAssistedLeadMutation } from "@/lib/redux/features/sales/salesApi";
 import { useAuth } from "@/lib/hooks/useAuth";
 import type { Creator } from "@/lib/types";
@@ -38,84 +38,7 @@ interface Props {
   bookingId?: number;
 }
 
-const additionalCreators = [
-  {
-    crew_member_id: 135,
-    name: "Gary Ahmed",
-    role_id: "1",
-    role_name: "Videographer",
-    hourly_rate: 125,
-    rating: 4.5,
-    total_reviews: 10,
-    profile_image: "/images/crew/CREW(5).png",
-    location: "Los Angeles, California",
-    experience_years: 5,
-    bio: "videography specialist with professional experience",
-    skills: "videography",
-    is_available: true,
-  },
-  {
-    crew_member_id: 130,
-    name: "Yasmine Img",
-    role_id: "1",
-    role_name: "Videographer",
-    hourly_rate: 100,
-    rating: 4.5,
-    total_reviews: 23,
-    profile_image: "/images/crew/CREW(4).png",
-    location: "Los Angeles, California",
-    experience_years: 5,
-    bio: "Fashion and weddings",
-    skills: "videography, photography",
-    is_available: true,
-  },
-  {
-    crew_member_id: 132,
-    name: "Marcelo Echeverria",
-    role_id: "1",
-    role_name: "Videographer",
-    hourly_rate: 200,
-    rating: 4.5,
-    total_reviews: 12,
-    profile_image: "/images/crew/CREW(7).png",
-    location: "Los Angeles, California",
-    experience_years: 5,
-    bio: "videography specialist with professional experience",
-    skills: "videography",
-    is_available: true,
-  },
-  {
-    crew_member_id: 125,
-    name: "Corey Bishop",
-    role_id: "1",
-    role_name: "Videographer",
-    hourly_rate: 90,
-    rating: 4.5,
-    total_reviews: 10,
-    profile_image: "/images/crew/CREW(6).png",
-    location: "Los Angeles, California",
-    experience_years: 5,
-    bio: "videography specialist with professional experience",
-    skills: "videography",
-    is_available: true,
-  },
-  {
-    crew_member_id: 172,
-    name: "Parth Panchal",
-    role_id: '["9"]',
-    role_name: "Creative Professional",
-    hourly_rate: 50,
-    rating: 0,
-    total_reviews: 0,
-    profile_image: "/images/crew/CREW(10).png",
-    location:
-      "119 Rosemont Avenue, Los Angeles, California 90026, United States",
-    experience_years: 5,
-    bio: "acfade",
-    skills: '["18"]',
-    is_available: true,
-  },
-];
+
 
 export const V3SelectDreamTeam: React.FC<Props> = ({
   data,
@@ -158,26 +81,38 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   // Transform API creators to display format
   const creators: Creator[] = creatorsResponse?.data || [];
 
-  const getCreatorRole = (creator: Creator) => {
+  // Fetch random crew
+  const { data: randomCrewResponse } = useGetRandomCrewQuery();
+  const additionalCreators: Creator[] = randomCrewResponse || [];
+
+
+  const [showEmptyWarning, setShowEmptyWarning] = useState(false);
+
+  // Helper to determine capabilities (User Request: "if any crew have two ability like video and photo")
+  const getCreatorCapabilities = (creator: Creator) => {
     const roleName = creator.role_name?.toLowerCase() || "";
     const roleIdStr = String(creator.role_id);
+    const skills = creator.skills ? (typeof creator.skills === 'string' ? creator.skills.toLowerCase() : JSON.stringify(creator.skills).toLowerCase()) : "";
+    const bio = creator.bio?.toLowerCase() || "";
 
-    if (roleName.includes("video") || roleIdStr.includes("1")) return "video";
-    if (roleName.includes("photo") || roleIdStr.includes("2")) return "photo";
-    return "other";
+    const isVideo = roleName.includes("video") || roleIdStr.includes("1") || skills.includes("video") || skills.includes("videographer") || bio.includes("videographer");
+    const isPhoto = roleName.includes("photo") || roleIdStr.includes("2") || skills.includes("photo") || skills.includes("photographer") || bio.includes("photographer");
+
+    return { isVideo, isPhoto };
   };
 
   const requirements = useMemo(() => {
-    let reqVideo = data.videographyCount;
-    let reqPhoto = data.photographyCount;
+    let reqVideo = data.roleCounts?.videographer || 0;
+    let reqPhoto = data.roleCounts?.photographer || 0;
 
     if (typeof window !== "undefined") {
       if (!reqVideo) reqVideo = Number(localStorage.getItem("required_videographers")) || 0;
       if (!reqPhoto) reqPhoto = Number(localStorage.getItem("required_photographers")) || 0;
     }
 
-    const availableVideo = creators.filter(c => getCreatorRole(c) === "video");
-    const availablePhoto = creators.filter(c => getCreatorRole(c) === "photo");
+    // Availability is looser now, anyone with the capability counts towards "available"
+    const availableVideo = creators.filter(c => getCreatorCapabilities(c).isVideo);
+    const availablePhoto = creators.filter(c => getCreatorCapabilities(c).isPhoto);
 
     return {
       required: { video: reqVideo, photo: reqPhoto },
@@ -187,21 +122,53 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         photo: Math.max(0, reqPhoto - availablePhoto.length)
       }
     };
-  }, [creators, data.videographyCount, data.photographyCount]);
+  }, [creators, data.roleCounts]);
 
+  // Smart counting to distribute multi-role creators to fill holes
   const selectedCounts = useMemo(() => {
     const selectedCreators = creators.filter(c => selectedIds.includes(c.crew_member_id));
-    return {
-      video: selectedCreators.filter(c => getCreatorRole(c) === "video").length,
-      photo: selectedCreators.filter(c => getCreatorRole(c) === "photo").length,
-    };
-  }, [selectedIds, creators]);
+
+    let videoCount = 0;
+    let photoCount = 0;
+    const both: Creator[] = [];
+
+    // First pass: Assign single-role creators
+    selectedCreators.forEach(c => {
+      const caps = getCreatorCapabilities(c);
+      if (caps.isVideo && !caps.isPhoto) {
+        videoCount++;
+      } else if (!caps.isVideo && caps.isPhoto) {
+        photoCount++;
+      } else if (caps.isVideo && caps.isPhoto) {
+        both.push(c);
+      } else {
+        // Fallback for others (maybe editing only?), check primary role
+        const role = c.role_name?.toLowerCase() || "";
+        if (role.includes("video")) videoCount++;
+        else if (role.includes("photo")) photoCount++;
+      }
+    });
+
+    // Second pass: Assign dual-role creators to where they are needed
+    both.forEach(_ => {
+      if (videoCount < requirements.required.video) {
+        videoCount++;
+      } else if (photoCount < requirements.required.photo) {
+        photoCount++;
+      } else {
+        // If both full, just dump into video for now (or doesn't matter)
+        videoCount++;
+      }
+    });
+
+    return { video: videoCount, photo: photoCount };
+  }, [selectedIds, creators, requirements]);
 
   const toggleSelection = (id: number) => {
     const creator = creators.find(c => c.crew_member_id === id);
     if (!creator) return;
 
-    const role = getCreatorRole(creator);
+    const { isVideo, isPhoto } = getCreatorCapabilities(creator);
 
     setSelectedIds((prev) => {
       const isAlreadySelected = prev.includes(id);
@@ -210,13 +177,26 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         return prev.filter((p) => p !== id);
       }
 
-      if (role === "video" && selectedCounts.video >= requirements.required.video) {
-        toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
-        return prev;
-      }
-      if (role === "photo" && selectedCounts.photo >= requirements.required.photo) {
-        toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
-        return prev;
+      // Check if we have space in EITHER compatible role
+      const videoFull = selectedCounts.video >= requirements.required.video;
+      const photoFull = selectedCounts.photo >= requirements.required.photo;
+
+      if (isVideo && isPhoto) {
+        // If they are double agent, they can fit in if ANY slot is open
+        if (videoFull && photoFull) {
+          toast.error(`You have already selected the required team members.`);
+          return prev;
+        }
+      } else if (isVideo) {
+        if (videoFull) {
+          toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
+          return prev;
+        }
+      } else if (isPhoto) {
+        if (photoFull) {
+          toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
+          return prev;
+        }
       }
 
       if (data.crewCount > 0 && prev.length >= data.crewCount) return prev;
@@ -258,14 +238,18 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   };
 
   const canContinue = useMemo(() => {
-    const videoSatisfied = selectedCounts.video === requirements.required.video ||
-      selectedCounts.video === requirements.available.video.length;
+    // User Request: "if not ad any team then user can continue"
+    // So we always allow continue, but we will intercept the click if empty.
+    return true;
+  }, []);
 
-    const photoSatisfied = selectedCounts.photo === requirements.required.photo ||
-      selectedCounts.photo === requirements.available.photo.length;
-
-    return videoSatisfied && photoSatisfied && selectedIds.length > 0;
-  }, [selectedCounts, requirements, selectedIds]);
+  const handleContinue = () => {
+    if (selectedIds.length === 0) {
+      setShowEmptyWarning(true);
+    } else {
+      onNext();
+    }
+  };
 
   if (isLoading) {
     return (
@@ -399,6 +383,11 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
                   {({ isActive }) => (
                     <CreatorCard
                       {...creator}
+                      name={creator.name || "Creator"}
+                      role_name={creator.role_name || ""}
+                      // rating={creator.rating || 0}
+                      total_reviews={creator.total_reviews || 0}
+                      profile_image={creator.profile_image || ""}
                       isActive={isActive}
                       index={index}
                       isExpanded={hoveredIndex === index}
@@ -462,13 +451,67 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           Back
         </Button>
         <Button
-          onClick={onNext}
+          onClick={handleContinue}
           disabled={!canContinue}
           className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium  text-sm lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {canContinue ? `Continue with ${selectedIds.length} Creative(s)` : "Complete Selection"}
         </Button>
       </div>
+
+      {/* EMPTY SELECTION WARNING MODAL */}
+      <AnimatePresence>
+        {showEmptyWarning && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowEmptyWarning(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-[#1A1A1A] border border-white/10 p-8 lg:p-12 rounded-[24px] max-w-lg w-full text-center shadow-2xl"
+            >
+              <button
+                onClick={() => setShowEmptyWarning(false)}
+                className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+              <div className="bg-[#E8D1AB]/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="text-[#E8D1AB] w-10 h-10" />
+              </div>
+              <h3 className="text-2xl lg:text-3xl font-bold text-white mb-4">No Crew Selected?</h3>
+              <p className="text-white/60 text-lg leading-relaxed mb-8">
+                You are choosing to continue without adding any team members.
+                <br />
+                <span className="text-[#E8D1AB] font-medium">Beige's team will create the best talent for you based on your needs.</span>
+              </p>
+              <div className="flex flex-col md:flex-row gap-4">
+                <Button
+                  onClick={() => setShowEmptyWarning(false)}
+                  className="flex-1 bg-transparent border border-white/20 hover:bg-white/5 text-white h-14 rounded-xl"
+                >
+                  Go Back & Select
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowEmptyWarning(false);
+                    onNext();
+                  }}
+                  className="flex-1 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold h-14 rounded-xl"
+                >
+                  Yes, Continue
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* SHORTFALL MESSAGE */}
       {(requirements.shortfall.video > 0 || requirements.shortfall.photo > 0) && (
@@ -481,13 +524,13 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
           <div className="text-[#E8D1AB]/90 text-sm leading-relaxed">
             <p>
-              A smaller pool is available in your area (
+              A smaller pool is Unavailable in your area (
               <span className="font-medium text-[#E8D1AB]">
                 {requirements.shortfall.video > 0 && `${requirements.shortfall.video} Videographer(s)`}
                 {requirements.shortfall.video > 0 && requirements.shortfall.photo > 0 && " and "}
                 {requirements.shortfall.photo > 0 && `${requirements.shortfall.photo} Photographer(s)`}
               </span>
-              {" "}available).
+              {" "}Unavailable).
             </p>
             <p className="text-[#E8D1AB] font-semibold">
               Start with what you see here and a Beige specialist will curate and manage the remaining creators for you.
