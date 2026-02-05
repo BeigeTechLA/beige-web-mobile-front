@@ -484,10 +484,12 @@ function MultiCreatorPaymentContent() {
       photoCount: number;
     };
     mandatoryAddons: Array<{ role: string; cost: number }>;
+    editingFees: number; 
   }>({
     shootCost: 0,
     additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
     mandatoryAddons: [],
+    editingFees: 0,
   });
 
   // Inside MultiCreatorPaymentContent function
@@ -534,16 +536,29 @@ function MultiCreatorPaymentContent() {
     let addVideoCount = 0;
     let addPhotoCount = 0;
     let addCPTotalCost = 0;
+    let editingFeesSum = 0; // NEW: tracking editing total
     const mandatoryAddonItems: Array<{ role: string; cost: number }> = [];
 
     lineItems.forEach((item: any) => {
-      const name = item.item_name;
+      const name = item.item_name || "";
       const quantity = parseInt(item.quantity || 1);
       const total = parseFloat(item.line_total || 0);
       const unitPrice = total / quantity;
+      
+      // IMPROVED DETECTION: Check slug, category name, or keywords in item name
+      const categorySlug = item.pricing_item?.category?.slug?.toLowerCase();
+      const categoryName = item.pricing_item?.category?.name?.toLowerCase();
+      const lowerName = name.toLowerCase();
+
+      const isEditingItem = 
+        categorySlug === "editing" || 
+        categoryName === "editing" || 
+        lowerName.includes("reel") || 
+        lowerName.includes("highlight") || 
+        lowerName.includes("edited photos");
 
       // 1. Base Fees (Pre-prod, Rush)
-      if (name.includes("Pre-Production") || name.toLowerCase().includes("rush")) {
+      if (name.includes("Pre-Production") || lowerName.includes("rush")) {
         shootCostSum += total;
       } 
       // 2. Primary Crew (1st Unit to Shoot Cost, others to Additional aggregated)
@@ -556,19 +571,24 @@ function MultiCreatorPaymentContent() {
           if (name === "Photographer") addPhotoCount += extraQty;
         }
       } 
-      // 3. Mandatory Items
+      // 3. EDITING FEES (New logic based on category/keywords)
+      else if (isEditingItem) {
+        editingFeesSum += total;
+      }
+      // 4. Mandatory Items
       else if (item.is_mandatory) {
         mandatoryAddonItems.push({
           role: name,
           cost: total,
         });
       } 
-      // 4. Other extras
+      // 5. Other extras (leaks here if not caught by above blocks)
       else {
         addCPTotalCost += total;
       }
     });
 
+    // CRITICAL: Ensure all fields are updated in the state
     setPricingGroups({
       shootCost: shootCostSum,
       additionalCP: {
@@ -577,6 +597,7 @@ function MultiCreatorPaymentContent() {
           photoCount: addPhotoCount
       },
       mandatoryAddons: mandatoryAddonItems,
+      editingFees: editingFeesSum, // Update the editing total
     });
   }, [paymentDetails]);
 
@@ -884,7 +905,7 @@ function MultiCreatorPaymentContent() {
                 {creators && creators.length > 0 && (
                   <div className="p-3 lg:p-5 border-b border-black/20">
                     <h4 className="font-bold text-base mb-3 flex items-center gap-2">
-                      <Users className="w-4 h-4" />
+                      <center><Users className="w-4 h-4" /></center>
                       Your Crew ({creators?.length || 0})
                     </h4>
                     <div className="space-y-2">
@@ -957,7 +978,22 @@ function MultiCreatorPaymentContent() {
                       </div>
                     )}
 
-                    {/* 3. MANDATORY ADD-ONS */}
+                    {/* 3. EDITING FEES (NEW SECTION) */}
+                    {pricingGroups.editingFees > 0 && (
+                      <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#f8f8f8]">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-medium text-[#212122]">Editing Cost</span>
+                          <span className="text-[11px] text-[#626467]">
+                            Includes professional editing and content delivery
+                          </span>
+                        </div>
+                        <span className="font-medium">
+                          {formatCurrency(pricingGroups.editingFees)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* 4. MANDATORY ADD-ONS */}
                     {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((item, idx) => (
                       <div key={`addon-${idx}`} className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#E8D1AB]/5">
                         <span className="text-[#626467] font-medium">{item.role}</span>

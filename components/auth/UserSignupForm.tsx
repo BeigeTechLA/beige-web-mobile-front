@@ -59,6 +59,12 @@ export function UserSignupForm() {
 
       toast.success("Account created! Please verify your email.")
 
+      // Store credentials temporarily for auto-login after verification
+      sessionStorage.setItem('temp_login_credentials', JSON.stringify({
+        email: data.email,
+        password: data.password
+      }));
+
       // Redirect to verify email page
       router.push(`/verify-email?email=${encodeURIComponent(data.email)}`)
     } catch (error: any) {
