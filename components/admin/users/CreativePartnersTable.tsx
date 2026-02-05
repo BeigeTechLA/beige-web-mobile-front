@@ -398,9 +398,9 @@ export const CreativePartnersTable = () => {
                                             <div className="flex items-center justify-end gap-3">
                                                 {user.status === 'Approved' && (
                                                     <>
-                                                        <button className="text-[#E0E0E0] hover:text-white transition-colors">
+                                                        {/* <button className="text-[#E0E0E0] hover:text-white transition-colors">
                                                             <Pencil size={18} />
-                                                        </button>
+                                                        </button> */}
                                                         <button className="text-[#E0E0E0] hover:text-red-500 transition-colors">
                                                             <Trash2 size={18} />
                                                         </button>

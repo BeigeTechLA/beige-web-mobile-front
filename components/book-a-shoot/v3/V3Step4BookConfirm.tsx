@@ -69,6 +69,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     Array<{ role: string; cost: number }>
   >([]);
 
+  // Check if any editing services are selected
+  const hasEditing = data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0;
+
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
   shootCost: number;
@@ -523,18 +526,24 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       </div>
                       <p className="italic">All Raw Content </p>
                     </div>
-                    <div className="flex gap-3 items-center">
-                      <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
-                        <Package size={20} />
-                      </div>
-                      <p className="italic">Include Edited Deliverable </p>
-                    </div>
-                    <div className="flex gap-3 items-center">
-                      <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
-                        <RefreshCw size={20} />
-                      </div>
-                      <p className="italic">Up to 2 Sets of Revisions</p>
-                    </div>
+                    
+                    {/* Conditionally show Editing items */}
+                    {hasEditing && (
+                      <>
+                        <div className="flex gap-3 items-center">
+                          <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
+                            <Package size={20} />
+                          </div>
+                          <p className="italic">Include Edited Deliverable </p>
+                        </div>
+                        <div className="flex gap-3 items-center">
+                          <div className="bg-[#171717] rounded-full p-2.5 text-[#E8D1AB]">
+                            <RefreshCw size={20} />
+                          </div>
+                          <p className="italic">Up to 2 Sets of Revisions</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -625,18 +634,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                             </div>
                           </div>
                         )}
-
-                        {/* 4. MANDATORY ADD-ONS */}
-                        {/* {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((addon, index) => (
-    <div key={`addon-${index}`} className="bg-[#101010] rounded-lg p-4 border border-[#E8D1AB]/30">
-      <div className="flex justify-between items-center">
-        <div className="text-[#E8D1AB] font-medium text-sm pr-2">{addon.role}</div>
-        <div className="font-bold text-white text-sm">
-          {formatCurrency(addon.cost)}
-        </div>
-      </div>
-    </div>
-  ))} */}
                       </div>
 
                     <div className="border-t border-white/10 pt-4" />

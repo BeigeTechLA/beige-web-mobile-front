@@ -191,7 +191,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
                 </div>
 
                 <div className="flex gap-3">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    {/* <Select value={statusFilter} onValueChange={setStatusFilter}>
                         <SelectTrigger className="w-[110px] bg-[#1A1A1A] border-white/10 rounded-full h-8 text-[10px] text-white/70 focus:ring-0 capitalize px-3">
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
@@ -202,7 +202,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
                             <SelectItem value="cancelled">Cancelled</SelectItem>
                             <SelectItem value="draft">Draft</SelectItem>
                         </SelectContent>
-                    </Select>
+                    </Select> */}
 
                     <Select value={range} onValueChange={setRange}>
                         <SelectTrigger className="w-[110px] bg-[#1A1A1A] border-white/10 rounded-full h-8 text-[10px] text-white/70 focus:ring-0 px-3">

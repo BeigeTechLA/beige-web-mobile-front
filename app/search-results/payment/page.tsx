@@ -119,32 +119,80 @@ function StripePaymentFormMulti({
   const [discountData, setDiscountData] = useState<any>(null);
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [appliedDiscount, setAppliedDiscount] = useState<any>(null);
+  const [referralErrorMessage, setReferralErrorMessage] = useState("");
 
   // Debounced referral code validation
+  // const validateReferralCode = React.useCallback(
+  //   debounce(async (code: string) => {
+  //     if (!code || code.length < 4) {
+  //       setReferralCodeValid(null);
+  //       setReferralAffiliateName("");
+  //       return;
+  //     }
+
+  //     setIsValidatingReferral(true);
+  //     try {
+  //       const response = await affiliateApi.validateCode(code);
+  //       setReferralCodeValid(response.valid);
+  //       setReferralAffiliateName(response.affiliate_name || "");
+  //     } catch (error) {
+  //       console.error("Error validating referral code:", error);
+  //       setReferralCodeValid(false);
+  //       setReferralAffiliateName("");
+  //     } finally {
+  //       setIsValidatingReferral(false);
+  //     }
+  //   }, 500),
+  //   [],
+  // );
+
   const validateReferralCode = React.useCallback(
-    debounce(async (code: string) => {
-      if (!code || code.length < 4) {
-        setReferralCodeValid(null);
-        setReferralAffiliateName("");
-        return;
+  debounce(async (code: string) => {
+    if (!code || code.length < 4) {
+      setReferralCodeValid(null);
+      setReferralAffiliateName("");
+      setReferralErrorMessage(""); 
+      return;
+    }
+
+    setIsValidatingReferral(true);
+    try {
+      let userId = null;
+      try {
+        const storedUser = localStorage.getItem("revure_user");
+        if (storedUser) {
+          const userObj = JSON.parse(storedUser);
+          userId = userObj.id;
+        }
+      } catch (e) {
+        console.error("Error parsing user", e);
       }
 
-      setIsValidatingReferral(true);
-      try {
-        const response = await affiliateApi.validateCode(code);
-        setReferralCodeValid(response.valid);
+      const response = await affiliateApi.validateCode(code, userId);
+      
+      if (response.valid) {
+        // CASE: Code is good
+        setReferralCodeValid(true);
         setReferralAffiliateName(response.affiliate_name || "");
-      } catch (error) {
-        console.error("Error validating referral code:", error);
+        setReferralErrorMessage(""); 
+      } else {
+        // CASE: Code is bad (API returned 404 or 400)
         setReferralCodeValid(false);
         setReferralAffiliateName("");
-      } finally {
-        setIsValidatingReferral(false);
+        setReferralErrorMessage(response.message || "Invalid referral code");
       }
-    }, 500),
-    [],
-  );
 
+    } catch (error) {
+      // This will only run if there is a network crash
+      console.error("Network Error:", error);
+      setReferralCodeValid(false);
+      setReferralErrorMessage("Check your internet connection");
+    } finally {
+      setIsValidatingReferral(false); 
+    }
+  }, 500),
+  [],
+);
   // Debounced discount code validation
   const validateDiscountCode = React.useCallback(
     debounce(async (code: string) => {
@@ -374,11 +422,12 @@ function StripePaymentFormMulti({
             </p>
           )}
           {referralCodeValid === false && referralCode.length >= 4 && (
-            <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
-              <X className="w-4 h-4" />
-              Invalid referral code
-            </p>
-          )}
+  <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
+    <X className="w-4 h-4" />
+    {/* Use the dynamic message from the API state here */}
+    {referralErrorMessage || "Invalid referral code"}
+  </p>
+)}
         </div>
 
         {/* Discount Code */}
