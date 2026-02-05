@@ -118,7 +118,7 @@ const CreatorCarousel = ({
                         src={imageUrl}
                         alt={creator.name}
                         fill
-                        className="object-cover transition-transform duration-700 hover:scale-105"
+                        className="object-cover object-top transition-transform duration-700 hover:scale-105"
                       />
                       {/* Selected Badge */}
                       {isSelected && (
