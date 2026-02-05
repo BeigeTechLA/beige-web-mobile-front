@@ -488,7 +488,7 @@ export default function AvailabilityPage() {
 
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 lg:space-y-8 pb-6 lg:pb-12 px-0 bg-transparent text-white">
+    <div className="mx-auto space-y-4 lg:space-y-8 pb-6 lg:pb-12 px-0 bg-transparent text-white">
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 lg:gap-6">
         <div>
