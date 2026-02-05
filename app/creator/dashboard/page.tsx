@@ -888,9 +888,6 @@ export default function CreatorDashboardPage() {
 function StatCard({ label, value, icon, iconColor, hoverBorder }: any) {
   return (
     <div className={`bg-[#111] rounded-lg lg:rounded-xl p-4 lg:p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[120px] flex flex-col justify-center`}>
-      {/* <div className="hidden lg:absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
-        {React.cloneElement(icon, { size: 48, className: iconColor })}
-      </div> */}
       <div className="absolute top-2 right-2 lg:top-0 lg:right-0 p-3 lg:p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
         {React.cloneElement(icon, {
           // Responsive size logic

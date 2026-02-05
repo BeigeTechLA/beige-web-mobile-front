@@ -12,7 +12,7 @@ import {
   Ban,
   AlertTriangle,
   CheckCircle2,
-  LayoutGrid,
+  Grid3X3,
   List,
   MoreVertical,
   ChevronRight,
@@ -46,12 +46,14 @@ import ProjectDetailsContainer from "@/Crew/ProjectDetailsContainer";
 import { getProject } from "@/lib/api";
 
 import { toast } from "sonner";
+import { MobileRow } from "@/components/creator-profile/MobileRow";
 
 export default function RequestsShootsPage() {
   const router = useRouter();
 
   /* ---------------- VIEW TOGGLE STATE ---------------- */
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [isOpen, setIsOpen] = useState(false);
 
   // Modals & Data State
   const [projectDetailsOpen, setProjectDetailsOpen] = useState(false);
@@ -110,9 +112,10 @@ export default function RequestsShootsPage() {
     setIsLoading(true);
 
     try {
-      const statsPayload = { creator_id: crew_member_id,
+      const statsPayload = {
+        creator_id: crew_member_id,
         crew_member_id: crew_member_id
-       };
+      };
       const statsResponse = await getStatusCount(statsPayload);
       if (statsResponse && statsResponse.error === false) {
         setDashboardStats(statsResponse.data);
@@ -216,6 +219,14 @@ export default function RequestsShootsPage() {
     }
   };
 
+  const toggleDropdown = () => setIsOpen(!isOpen);
+
+  const handleSelect = (mode: 'grid' | 'list') => {
+    setView(mode);
+    setIsOpen(false);
+  };
+
+
   /* ---------------- FILTERING ---------------- */
   const filteredProjects = projects.filter((p) => {
     const title = (p.project_name || p.title || "").toLowerCase();
@@ -233,29 +244,30 @@ export default function RequestsShootsPage() {
   }
 
   if (projectDetailsOpen && projectDetailsData) {
-  return (
-    <ProjectDetailsContainer
-      apiResponse={projectDetailsData}
-      onBack={() => {
-        setProjectDetailsOpen(false);
-        setProjectDetailsData(null);
-      }}
-    />
-  );
-}
+    return (
+      <ProjectDetailsContainer
+        apiResponse={projectDetailsData}
+        onBack={() => {
+          setProjectDetailsOpen(false);
+          setProjectDetailsData(null);
+        }}
+      />
+    );
+  }
+
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12 text-white">
+    <div className="max-w-7xl mx-auto space-y-4 lg:space-y-8 pb-12 text-white">
       {/* Header */}
-      <div className="space-y-8">
+      <div className="space-y-4 lg:space-y-8">
         {/* 1. Simple Header: Title & Description */}
         <div>
-          <h1 className="text-3xl font-bold">Requests & Shoots</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold">Requests & Shoots</h1>
           <p className="text-white/60">Manage your production schedule and requests</p>
         </div>
 
         {/* 2. Stats Cards Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label="Pending Requests"
             value={dashboardStats?.pendingRequests || 0}
@@ -292,7 +304,7 @@ export default function RequestsShootsPage() {
         {/* 3. Filter Bar: Search, Select, and View Toggle */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           {/* Search Box - Now Left Aligned */}
-          <div className="relative w-full md:w-auto">
+          <div className="relative w-full lg:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
             <Input
               placeholder="Search projects..."
@@ -315,13 +327,46 @@ export default function RequestsShootsPage() {
               </SelectContent>
             </Select>
 
-            <div className="flex bg-[#1A1A1A] p-1 rounded-xl border border-white/5 w-fit">
+            {/* MOBILE VIEW: Dropdown Button */}
+            <div className="md:hidden relative">
+              <Button
+                onClick={toggleDropdown}
+                className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-12 w-12 rounded-lg text-white"
+              >
+                {view === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
+              </Button>
+
+              {/* Dropdown Menu */}
+              {isOpen && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+                  <button
+                    onClick={() => handleSelect('grid')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'grid' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                      }`}
+                  >
+                    <Grid3X3 size={18} />
+                    Grid View
+                  </button>
+                  <button
+                    onClick={() => handleSelect('list')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'list' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                      }`}
+                  >
+                    <List size={18} />
+                    List View
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* DESKTOP VIEW: Original Toggle */}
+            <div className="hidden lg:flex bg-[#1A1A1A] p-1 rounded-xl border border-white/5 w-fit">
               <button
                 onClick={() => setView("grid")}
                 className={`p-2 rounded-lg transition-all ${view === "grid" ? "bg-[#E8D1AB] text-black" : "text-white/40 hover:text-white"
                   }`}
               >
-                <LayoutGrid size={20} />
+                <Grid3X3 size={20} />
               </button>
               <button
                 onClick={() => setView("list")}
@@ -345,7 +390,7 @@ export default function RequestsShootsPage() {
               {filteredProjects.map((item) => (
                 <div
                   key={item.project_id}
-                  className="bg-[#111] border border-white/5 rounded-xl p-6 hover:border-[#E8D1AB]/40 transition-all group"
+                  className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-6 hover:border-[#E8D1AB]/40 transition-all group"
                 >
                   <div className="flex justify-between items-start mb-4">
                     <span
@@ -359,11 +404,11 @@ export default function RequestsShootsPage() {
                     <span className="text-white/20 text-xs italic">Recently updated</span>
                   </div>
 
-                  <h3 className="text-xl font-bold mb-4 group-hover:text-[#E8D1AB] transition-colors">
+                  <h3 className="text-xl font-bold mb-4 group-hover:text-[#E8D1AB] transition-colors capitalize">
                     {item.project_name || item.title || "Untitled Project"}
                   </h3>
 
-                  <div className="space-y-3 mb-6">
+                  <div className="space-y-3 mb-4 lg:mb-6">
                     <div className="flex items-center gap-3 text-white/60 text-sm">
                       <CalendarIcon size={16} className="text-[#E8D1AB]" />
                       <span>{item.event_date || item.shoot_date || "TBD"}</span>
@@ -408,7 +453,8 @@ export default function RequestsShootsPage() {
           ) : (
             /* --- DYNAMIC LIST VIEW (Matches Screenshot Style) --- */
             <div className="bg-[#111] border border-white/5 rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
+              {/* DESKTOP TABLE VIEW */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-white/[0.03] text-white/40 text-[11px] uppercase tracking-wider">
@@ -416,7 +462,7 @@ export default function RequestsShootsPage() {
                       <th className="px-6 py-4 font-semibold">Name</th>
                       <th className="px-6 py-4 font-semibold">Location</th>
                       <th className="px-6 py-4 font-semibold">Email</th>
-                          <th className="px-6 py-4 font-semibold">Category</th>
+                      <th className="px-6 py-4 font-semibold">Category</th>
                       <th className="px-6 py-4 font-semibold">Status</th>
                       <th className="px-6 py-4 font-semibold text-right pr-12">Action</th>
                     </tr>
@@ -479,9 +525,9 @@ export default function RequestsShootsPage() {
                             </div>
                           </td>
 
-                           <td className="px-6 py-5 text-sm text-white/60">
-                          Videographer
-                        </td>
+                          <td className="px-6 py-5 text-sm text-white/60">
+                            Videographer
+                          </td>
 
                           {/* Status Pill Column (Matched to Screenshot) */}
                           <td className="px-6 py-5">
@@ -539,6 +585,19 @@ export default function RequestsShootsPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* MOBILE COLLAPSIBLE VIEW */}
+              <div className="lg:hidden flex flex-col divide-y divide-white/5">
+                {filteredProjects.map((item) => (
+                  <MobileRow
+                    key={item.project_id}
+                    item={item}
+                    onApprove={() => setAcceptShootEvent(item)}
+                    onDecline={() => setDeclineShootEvent(item)}
+                    onViewDetails={() => handleOpenProjectDetails(item.project_id)}
+                  />
+                ))}
               </div>
             </div>
           )
@@ -621,13 +680,17 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon, iconColor, hoverBorder, valueColor = "text-white" }: StatCardProps) {
   return (
-    <div className={`bg-[#111] rounded-xl p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[10px] flex flex-col justify-center`}>
-      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
-        {React.cloneElement(icon, { size: 44, className: iconColor })}
+    <div className={`bg-[#111] rounded-lg lg:rounded-xl p-4 lg:p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[10px] flex flex-col justify-center`}>
+      <div className="absolute top-0 right-0 p-3 lg:p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
+        {React.cloneElement(icon, {
+          // Responsive size logic
+          size: "100%",
+          className: `${iconColor} w-8 h-8 lg:w-12 lg:h-12`
+        })}
       </div>
       <div className="relative z-10">
-        <p className="text-white/40 text-sm font-medium mb-3 uppercase tracking-wider">{label}</p>
-        <p className={`text-4xl font-bold ${valueColor}`}>{value}</p>
+        <p className="text-white/40 text-[10px] lg:text-sm font-medium mb-3 uppercase tracking-wider">{label}</p>
+        <p className={`text-2xl lg:text-4xl font-bold ${valueColor}`}>{value}</p>
       </div>
     </div>
   );

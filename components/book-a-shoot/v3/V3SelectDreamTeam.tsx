@@ -455,7 +455,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           disabled={!canContinue}
           className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium  text-sm lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {selectedIds.length > 0 ? `Continue with ${selectedIds.length} Creatives` : "Complete Selection"}
+          {canContinue ? `Continue with ${selectedIds.length} Creative(s)` : "Complete Selection"}
         </Button>
       </div>
 
