@@ -560,7 +560,7 @@ export default function CreatorDashboardPage() {
       </div>
 
       {/* Stats Cards (Luxury Style) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Completed Shoots"
           value={dashboardStats.completedShoots}
@@ -588,6 +588,29 @@ export default function CreatorDashboardPage() {
           icon={<Box />}
           iconColor="text-white/40"
           hoverBorder="hover:border-white/20"
+        />
+      </div> */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard
+          label="Completed Shoots"
+          value={dashboardStats.completedShoots}
+          icon={<Camera />}
+          iconColor="text-[#E8D1AB]"
+          hoverBorder="hover:border-[#E8D1AB]/30"
+        />
+        <StatCard
+          label="Upcoming Shoots"
+          value={dashboardStats.upcomingShoots}
+          icon={<CalendarIcon />}
+          iconColor="text-blue-400"
+          hoverBorder="hover:border-blue-400/30"
+        />
+        <StatCard
+          label="Pending Requests"
+          value={dashboardStats.pendingRequests}
+          icon={<Clock />}
+          iconColor="text-yellow-500"
+          hoverBorder="hover:border-yellow-500/30"
         />
       </div>
 

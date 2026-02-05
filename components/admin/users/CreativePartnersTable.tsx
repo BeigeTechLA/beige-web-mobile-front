@@ -401,9 +401,9 @@ export const CreativePartnersTable = () => {
                                                         {/* <button className="text-[#E0E0E0] hover:text-white transition-colors">
                                                             <Pencil size={18} />
                                                         </button> */}
-                                                        <button className="text-[#E0E0E0] hover:text-red-500 transition-colors">
+                                                        {/* <button className="text-[#E0E0E0] hover:text-red-500 transition-colors">
                                                             <Trash2 size={18} />
-                                                        </button>
+                                                        </button> */}
                                                         <button className="text-[#666] hover:text-white transition-colors">
                                                             <ChevronRight size={20} />
                                                         </button>
@@ -430,9 +430,9 @@ export const CreativePartnersTable = () => {
                                                 )}
                                                 {user.status === 'Rejected' && (
                                                     <>
-                                                        <button className="text-[#E0E0E0] hover:text-white transition-colors">
+                                                        {/* <button className="text-[#E0E0E0] hover:text-white transition-colors">
                                                             <AlertCircle size={20} />
-                                                        </button>
+                                                        </button> */}
                                                         <button className="text-[#666] hover:text-white transition-colors">
                                                             <ChevronRight size={20} />
                                                         </button>

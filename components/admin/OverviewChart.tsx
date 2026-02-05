@@ -25,10 +25,10 @@ const data = [
 ];
 
 const initialMetrics = [
-  { id: 'total', label: 'Total Shoot', value: '0', growth: 0, icon: Video, color: 'bg-[#E5D5B8]' },
-  { id: 'active', label: 'Active Shoot', value: '0', growth: 0, icon: Camera, color: 'bg-zinc-800' },
-  { id: 'completed', label: 'Completed Shoot', value: '0', growth: 0, icon: Film, color: 'bg-zinc-800' },
-  { id: 'clients', label: 'Total Client', value: '0', growth: 0, icon: UsersRound, color: 'bg-zinc-800' },
+  { id: 'total', label: 'Total Shoots', value: '0', growth: 0, icon: Video, color: 'bg-[#E5D5B8]' },
+  { id: 'active', label: 'Active Shoots', value: '0', growth: 0, icon: Camera, color: 'bg-zinc-800' },
+  { id: 'completed', label: 'Completed Shoots', value: '0', growth: 0, icon: Film, color: 'bg-zinc-800' },
+  { id: 'clients', label: 'Total Clients', value: '0', growth: 0, icon: UsersRound, color: 'bg-zinc-800' },
   { id: 'cps', label: 'Total CPs', value: '0', growth: 0, icon: Users, color: 'bg-zinc-800' },
 ];
 
@@ -68,7 +68,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
           setMetrics([
             {
               id: 'total',
-              label: 'Total Shoot',
+              label: 'Total Shoots',
               value: data.total_shoots?.count?.toString() || '0',
               growth: data.total_shoots?.growth || 0,
               icon: Video,
@@ -76,7 +76,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
             },
             {
               id: 'active',
-              label: 'Active Shoot',
+              label: 'Active Shoots',
               value: data.active_shoots?.count?.toString() || '0',
               growth: data.active_shoots?.growth || 0,
               icon: Camera,
@@ -84,7 +84,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
             },
             {
               id: 'completed',
-              label: 'Completed Shoot',
+              label: 'Completed Shoots',
               value: data.completed_shoots?.count?.toString() || '0',
               growth: data.completed_shoots?.growth || 0,
               icon: Film,
@@ -92,8 +92,8 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
             },
             {
               id: 'clients',
-              label: 'Total Client',
-              value: '0', // Not in current response, keeping placeholder
+              label: 'Total Clients',
+              value: data.total_clients?.count?.toString() || '0', // Not in current response, keeping placeholder
               growth: 0,
               icon: UsersRound,
               color: 'bg-zinc-800'
