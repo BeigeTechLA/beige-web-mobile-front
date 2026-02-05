@@ -239,6 +239,8 @@ export const BookAShootV3 = () => {
           guestEmail: formData.email,
           shoot_start_date: formData.startDate, // Backend uses this for Same/Next Day fees
           notes: formData.specialInstructions || undefined,
+          video_edit_types: formData.editsNeeded ? formData.videoEditTypes : [],
+          photo_edit_types: formData.editsNeeded ? formData.photoEditTypes : [],
         };
 
         const savedQuote = await saveQuote(quotePayload).unwrap();

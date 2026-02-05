@@ -71,18 +71,16 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
-    shootCost: number;
-    additionalCP: {
-      totalCost: number;
-      videoCount: number;
-      photoCount: number;
-    };
-    mandatoryAddons: Array<{ role: string; cost: number }>;
-  }>({
-    shootCost: 0,
-    additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
-    mandatoryAddons: [],
-  });
+  shootCost: number;
+  additionalCP: { totalCost: number; videoCount: number; photoCount: number };
+  mandatoryAddons: Array<{ role: string; cost: number }>;
+  editingFees: number; // ADDED
+}>({
+  shootCost: 0,
+  additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
+  mandatoryAddons: [],
+  editingFees: 0, // INITIALIZED
+});
 
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(true);
@@ -141,14 +139,26 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       });
 
       // Use the correct endpoint that handles multiple creators and mandatory fees
+      // const result = await calculateQuoteFromCreators({
+      //   creator_ids: data.selectedCrewIds,
+      //   shoot_hours: durationHours,
+      //   role_counts: data.roleCounts,
+      //   event_type: data.shootType || "general",
+      //   shoot_start_date: data.startDate, // <--- PASSING THE DATE FOR RUSH FEE CALCULATION
+      //   skip_discount: true, // Remove hour-based discounts for V3
+      //   skip_margin: true,   // Remove beige margin for V3
+      // }).unwrap();
+
       const result = await calculateQuoteFromCreators({
         creator_ids: data.selectedCrewIds,
         shoot_hours: durationHours,
         role_counts: data.roleCounts,
         event_type: data.shootType || "general",
-        shoot_start_date: data.startDate, // <--- PASSING THE DATE FOR RUSH FEE CALCULATION
-        skip_discount: true, // Remove hour-based discounts for V3
-        skip_margin: true,   // Remove beige margin for V3
+        shoot_start_date: data.startDate,
+        video_edit_types: data.videoEditTypes, // ADDED
+        photo_edit_types: data.photoEditTypes, // ADDED
+        skip_discount: true,
+        skip_margin: true,
       }).unwrap();
 
       console.log("V3Step4BookConfirm - API Result:", {
@@ -164,6 +174,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
       // --- START CATEGORIZATION LOGIC ---
       let shootCostTotal = 0;
+      let editFeesTotal = 0;
       let addVideoCount = 0;
       let addPhotoCount = 0;
       let addCPTotalCost = 0;
@@ -180,6 +191,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           if (name.includes("Pre-Production") || name.toLowerCase().includes("rush")) {
             shootCostTotal += lineTotal;
           } 
+         if (item.category_slug === 'editing') {
+      editFeesTotal += lineTotal;
+    } 
+
           else if (name === "Videographer" || name === "Photographer") {
             // Add first unit to Shoot Cost
             shootCostTotal += unitPrice;
@@ -208,14 +223,15 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       }
       
       setPricingGroups({
-        shootCost: shootCostTotal,
-        additionalCP: {
-            totalCost: addCPTotalCost,
-            videoCount: addVideoCount,
-            photoCount: addPhotoCount
-        },
-        mandatoryAddons: mandatoryAddonsList
-      });
+  shootCost: shootCostTotal,
+  editingFees: editFeesTotal, // UPDATE THIS
+  additionalCP: {
+    totalCost: addCPTotalCost,
+    videoCount: addVideoCount,
+    photoCount: addPhotoCount
+  },
+  mandatoryAddons: mandatoryAddonsList
+});
       // --- END CATEGORIZATION LOGIC ---
 
       // Build crew breakdown from lineItems (has actual costs per role)
@@ -556,58 +572,72 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     </div>
 
                     {/* Detailed Pricing Breakdown - UPDATED CATEGORIZATION */}
-                    <div className="space-y-3">
-                      <div className="text-xs font-medium text-white/40 uppercase tracking-wide">
-                        Pricing Breakdown
-                      </div>
-                      
-                      {/* 1. SHOOT COST */}
-                      <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
-                        <div className="flex justify-between items-start mb-1">
-                          <div className="text-white font-medium">Shoot Cost</div>
-                          <div className="font-bold text-white">
-                            {formatCurrency(pricingGroups.shootCost)}
-                          </div>
+                    {/* Detailed Pricing Breakdown */}
+                      <div className="space-y-3">
+                        <div className="text-xs font-medium text-white/40 uppercase tracking-wide">
+                          Pricing Breakdown
                         </div>
-                        <p className="text-[11px] text-[#A9A9A9] leading-tight">
-                          {/* Includes pre-production fee, rush fees (if any), and base {durationHours}hr crew. */}
-                        </p>
-                      </div>
 
-                      {/* 2. ADDITIONAL CREATIVE PARTNER FEES - UPDATED DISPLAY */}
-                      {pricingGroups.additionalCP.totalCost > 0 && (
+                        {/* 1. SHOOT COST */}
                         <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
                           <div className="flex justify-between items-start mb-1">
-                            <div className="text-white font-medium text-sm">
-                                Additional Creative Partner Fees
+                            <div className="text-white font-medium">Shoot Cost</div>
+                            <div className="font-bold text-white">
+                              {formatCurrency(pricingGroups.shootCost)}
                             </div>
-                            <div className="font-bold text-white text-sm">
-                              {formatCurrency(pricingGroups.additionalCP.totalCost)}
-                            </div>
-                          </div>
-                          <div className="text-[11px] text-[#A9A9A9] space-y-0.5 mt-1">
-                             {pricingGroups.additionalCP.videoCount > 0 && (
-                                 <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
-                             )}
-                             {pricingGroups.additionalCP.photoCount > 0 && (
-                                 <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
-                             )}
                           </div>
                         </div>
-                      )}
 
-                      {/* 3. MANDATORY ADD-ONS */}
-                      {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((addon, index) => (
-                        <div key={`addon-${index}`} className="bg-[#101010] rounded-lg p-4 border border-[#E8D1AB]/30">
-                          <div className="flex justify-between items-center">
-                            <div className="text-[#E8D1AB] font-medium text-sm pr-2">{addon.role}</div>
-                            <div className="font-bold text-white text-sm">
-                              {formatCurrency(addon.cost)}
+                        {/* NEW: 2. EDITING SERVICES */}
+                        {pricingGroups.editingFees > 0 && (
+                          <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="text-white font-medium text-sm">Editing Services</div>
+                              <div className="font-bold text-white text-sm">
+                                {formatCurrency(pricingGroups.editingFees)}
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-[#A9A9A9] flex flex-wrap gap-x-2">
+                              {data.videoEditTypes.length > 0 && <span>• Video Editing</span>}
+                              {data.photoEditTypes.length > 0 && <span>• Photo Editing</span>}
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        )}
+
+                        {/* 3. ADDITIONAL CREATIVE PARTNER FEES */}
+                        {pricingGroups.additionalCP.totalCost > 0 && (
+                          <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="text-white font-medium text-sm">
+                                Additional Crew
+                              </div>
+                              <div className="font-bold text-white text-sm">
+                                {formatCurrency(pricingGroups.additionalCP.totalCost)}
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-[#A9A9A9] space-y-0.5 mt-1">
+                              {pricingGroups.additionalCP.videoCount > 0 && (
+                                <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
+                              )}
+                              {pricingGroups.additionalCP.photoCount > 0 && (
+                                <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 4. MANDATORY ADD-ONS */}
+                        {/* {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((addon, index) => (
+    <div key={`addon-${index}`} className="bg-[#101010] rounded-lg p-4 border border-[#E8D1AB]/30">
+      <div className="flex justify-between items-center">
+        <div className="text-[#E8D1AB] font-medium text-sm pr-2">{addon.role}</div>
+        <div className="font-bold text-white text-sm">
+          {formatCurrency(addon.cost)}
+        </div>
+      </div>
+    </div>
+  ))} */}
+                      </div>
 
                     <div className="border-t border-white/10 pt-4" />
 
