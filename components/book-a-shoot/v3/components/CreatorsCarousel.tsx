@@ -80,9 +80,14 @@ const CreatorCarousel = ({
           allowTouchMove={true}
           allowSlideNext={true}
           allowSlidePrev={true}
-          preventClicks={false}
-          preventClicksPropagation={false}
           slideToClickedSlide={true}
+          /* --- SAFARI FIXES START --- */
+          touchStartPreventDefault={false}  // Allows touch start to reach the button
+          touchMoveStopPropagation={true}   // Prevents drag from eating the click
+          simulateTouch={true}              // Better event simulation for mobile
+          preventClicks={false}             // Ensure clicks aren't intercepted
+          preventClicksPropagation={false}  // Allow event to bubble to your button
+          /* --- SAFARI FIXES END --- */
           coverflowEffect={{
             rotate: 15,
             stretch: 0,
@@ -91,7 +96,7 @@ const CreatorCarousel = ({
             slideShadows: false,
           }}
           breakpoints={{
-            0: { slidesPerView: 3, spaceBetween: 40 },
+            0: { slidesPerView: 1.5, spaceBetween: 20 },
             768: { slidesPerView: 3, spaceBetween: 20 },
             1024: { slidesPerView: 5, spaceBetween: 30 },
           }}
@@ -99,7 +104,7 @@ const CreatorCarousel = ({
             prevEl: ".creator-prev-btn",
             nextEl: ".creator-next-btn",
           }}
-          className="w-full creator-swiper"
+          className="w-full creator-swiper !py-10 lg:!py-5"
         >
           {creators.map((creator, index) => {
             const creatorId = creator.crew_member_id;
@@ -163,7 +168,11 @@ const CreatorCarousel = ({
 
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => toggleSelection(creatorId)}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent Swiper from intercepting this as a drag/slide
+                            e.preventDefault();
+                            toggleSelection(creatorId);
+                          }}
                           className={`flex-1 py-2 lg:py-4 rounded-lg text-sm lg:text-base font-medium flex items-center justify-center transition-colors ${isSelected ? "bg-red-500/10 text-red-400 border border-red-500/30" : "bg-[#E8D1AB] text-black"
                             }`}
                         >
