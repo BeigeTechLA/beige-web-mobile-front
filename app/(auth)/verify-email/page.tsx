@@ -13,8 +13,10 @@ function VerifyEmailContent() {
 
   const {
     verifyEmail,
+    login,
     resendOTP,
     isVerifyEmailLoading,
+    isLoginLoading,
     isResendOTPLoading
   } = useAuth()
 
@@ -34,7 +36,26 @@ function VerifyEmailContent() {
 
       toast.success(result.message || "Email verified successfully!")
 
-      // If user was auto-logged in, redirect to affiliate dashboard
+      // Check for stored credentials to perform auto-login
+      const storedCreds = sessionStorage.getItem('temp_login_credentials');
+
+      if (storedCreds) {
+        try {
+          const { email: storedEmail, password } = JSON.parse(storedCreds);
+
+          // Verify emails match to avoid security issues
+          if (storedEmail === email) {
+            await login({ email, password });
+            sessionStorage.removeItem('temp_login_credentials');
+            router.push('/affiliate/dashboard');
+            return;
+          }
+        } catch (e) {
+          console.error("Auto-login failed:", e);
+        }
+      }
+
+      // If user was auto-logged in via token or manual login failed, redirect to affiliate dashboard
       // Otherwise redirect to login
       setTimeout(() => {
         if (result.token) {
@@ -78,7 +99,7 @@ function VerifyEmailContent() {
       email={email}
       onVerify={handleVerify}
       onResend={handleResend}
-      isVerifying={isVerifyEmailLoading}
+      isVerifying={isVerifyEmailLoading || isLoginLoading}
       isResending={isResending || isResendOTPLoading}
     />
   )
