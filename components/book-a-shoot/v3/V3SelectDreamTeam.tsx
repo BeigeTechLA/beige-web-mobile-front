@@ -385,7 +385,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
                       {...creator}
                       name={creator.name || "Creator"}
                       role_name={creator.role_name || ""}
-                      rating={creator.rating || 0}
+                      // rating={creator.rating || 0}
                       total_reviews={creator.total_reviews || 0}
                       profile_image={creator.profile_image || ""}
                       isActive={isActive}
