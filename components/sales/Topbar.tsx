@@ -15,7 +15,7 @@ export default function SalesTopbar({ pathname }: { pathname: string }) {
         <header className="flex items-center justify-between p-4 lg:px-9 lg:py-6 border-b border-zinc-800 bg-[#0f0f0f] gap-4">
             {/* Left: Logo & Breadcrumbs/Title */}
             <div className="flex items-center gap-6 shrink-0">
-                <a href="https://book.beige.app" target="_blank" rel="noopener noreferrer" className="flex items-center shrink-0">
+                <a href="https://beige.app" target="_blank" rel="noopener noreferrer" className="flex items-center shrink-0">
                     <Image
                         src="/images/logos/beige_logo_vb.png"
                         alt="BEIGE"
