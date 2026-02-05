@@ -54,6 +54,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useChangePasswordMutation, useChangePasswordClientMutation } from "@/lib/redux/features/auth/authApi";
 import Link from "next/link";
 import { useGetBookingsMutation } from "@/lib/redux/features/booking/bookingApi";
+import Image from "next/image";
 
 // Define a type for the active tab
 type TabType =
@@ -114,11 +115,11 @@ const AffiliateProfileSettings = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-4 lg:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Profile Settings</h1>
-        <p className="text-white/60 text-lg">Manage your personal information and account security.</p>
+        <h1 className="text-lg lg:text-3xl font-bold text-white mb-2">Profile Settings</h1>
+        <p className="text-white/60 lg:text-lg">Manage your personal information and account security.</p>
       </div>
 
       {/* Personal Info Card */}
@@ -457,9 +458,12 @@ export default function AffiliateDashboardPage() {
     <div className="flex flex-col h-full bg-[#111] text-white">
       <div className="p-6 border-b border-white/10 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <span className="text-2xl font-bold tracking-widest text-[#E8D1AB]">
-            BEIGE
-          </span>
+          <Image
+            src="/images/logos/beige_logo_vb.png"
+            alt="BEIGE"
+            width={100}
+            height={20}
+          />
         </Link>
         <button
           onClick={() => setIsSidebarOpen(false)}
@@ -622,9 +626,14 @@ export default function AffiliateDashboardPage() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* MOBILE TOP NAV */}
         <header className="lg:hidden h-16 border-b border-white/10 flex items-center justify-between px-4 bg-[#0A0A0A] sticky top-0 z-50">
-          <span className="text-xl font-bold tracking-widest text-[#E8D1AB]">
-            BEIGE
-          </span>
+          <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/images/logos/beige_logo_vb.png"
+            alt="BEIGE"
+            width={100}
+            height={20}
+          />
+        </Link>
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 text-white/80 hover:text-white"
@@ -634,15 +643,15 @@ export default function AffiliateDashboardPage() {
         </header>
 
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
-          <div className="max-w-6xl mx-auto space-y-8 pb-12">
+          <div className="mx-auto space-y-4 lg:space-y-8 pb-6 lg:pb-12">
             {activeTab === "dashboard" ? (
               <>
                 <div className="flex justify-between items-center">
                   <div className="text-white">
-                    <h1 className="text-2xl leading-[32px] font-semibold mb-1">
+                    <h1 className="text-lg lg:text-3xl lg:leading-[32px] font-semibold mb-1">
                       Welcome back, {user?.name || "Partner"} !
                     </h1>
-                    <p className="text-sm text-white/70">
+                    <p className=" lg:text-lg text-white/70">
                       Monitor revenue, shoots, clients, and performance metrics
                       in one centralized dashboard.
                     </p>
@@ -655,19 +664,19 @@ export default function AffiliateDashboardPage() {
 
                 <AffiliateOverviewChart externalSelectedDate={selectedDate} />
 
-                <div className="flex gap-4 mt-5">
-                  <div className="w-3/4 flex flex-col gap-4">
+                <div className="flex flex-col lg:flex-row gap-4 mt-5">
+                  <div className="lg:w-3/4 flex flex-col gap-4">
                     <AffiliateOverallShootsTable externalSelectedDate={selectedDate} />
                   </div>
-                  <div className="w-1/4">
+                  <div className="lg:w-1/4">
                     <AffiliateShootByCategory externalSelectedDate={selectedDate} />
                   </div>
                 </div>
-                <div className="flex gap-4 mt-5">
-                  <div className="w-3/4">
+                <div className="flex flex-col lg:flex-row gap-4 mt-5">
+                  <div className="lg:w-3/4">
                     <AffiliateShootStatusChart externalSelectedDate={selectedDate} />
                   </div>
-                  <div className="w-1/4">
+                  <div className="lg:w-1/4">
                     <AffiliateRecentActivity externalSelectedDate={selectedDate} />
                   </div>
                 </div>

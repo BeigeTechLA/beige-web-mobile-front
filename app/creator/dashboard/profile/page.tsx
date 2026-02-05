@@ -80,8 +80,8 @@ const getRoleLabel = (roleData: any) => {
 };
 
 const SectionHeader = ({ title, onEdit, isEditing }: { title: string, onEdit?: () => void, isEditing?: boolean }) => (
-  <div className="flex items-center justify-between mb-8">
-    <h2 className="text-xl font-bold text-white tracking-tight">{title}</h2>
+  <div className="flex items-center justify-between mb-4 lg:mb-8">
+    <h2 className="text-lg lg:text-xl font-bold text-white tracking-tight">{title}</h2>
     <button
       onClick={onEdit}
       className={`p-2 rounded-full transition-all duration-200 ${isEditing
@@ -95,7 +95,7 @@ const SectionHeader = ({ title, onEdit, isEditing }: { title: string, onEdit?: (
 );
 
 const TabEmptyState = ({ title, description, buttonText, footerText, onClick }: any) => (
-  <div className="bg-[#0A0A0A] border border-white/5 rounded-[2rem] h-[500px] flex items-center justify-center relative overflow-hidden">
+  <div className="bg-[#0A0A0A] border border-white/5 rounded-lg lg:rounded-2xl h-[500px] flex items-center justify-center relative overflow-hidden">
     <div className="absolute inset-0 grid grid-cols-4 pointer-events-none">
       {[1, 2, 3, 4].map((i) => (
         <div key={i} className="h-full border-r border-white/[0.03] last:border-r-0 bg-white/[0.01]" />
@@ -106,7 +106,7 @@ const TabEmptyState = ({ title, description, buttonText, footerText, onClick }: 
       <p className="text-white/40 text-sm mb-10 leading-relaxed max-w-md">{description}</p>
       <button
         onClick={onClick}
-        className="bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black font-bold px-10 py-3.5 rounded-2xl transition-all active:scale-95 shadow-xl"
+        className="bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black font-bold px-10 py-3.5 rounded-lg lg:rounded-2xl transition-all active:scale-95 shadow-xl"
       >
         {buttonText}
       </button>
@@ -586,20 +586,21 @@ export default function ProfilePage() {
 
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 md:p-8 font-sans selection:bg-[#E8D1AB] selection:text-black">
-      <div className="max-w-6xl mx-auto space-y-8">
+    // <div className="min-h-screen bg-black text-white font-sans selection:bg-[#E8D1AB] selection:text-black">
+    <>
+      <div className="mx-auto space-y-4 lg:space-y-8">
 
         {/* TOP PROFILE CARD */}
-        <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8 flex flex-col lg:flex-row gap-8">
-          <div className="flex-1 space-y-6">
+        <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-8 flex flex-col lg:flex-row gap-8">
+          <div className="flex-1 space-y-4 lg:space-y-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-zinc-800 overflow-hidden border-2 border-[#E8D1AB]">
+                <div className="w-15 h-15 lg:w-20 lg:h-20 rounded-full bg-zinc-800 overflow-hidden border-2 border-[#E8D1AB] shrink-0">
                   <img src={profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <h1 className="text-2xl font-bold">{profile.first_name} {profile.last_name}</h1>
+                    <h1 className="text-lg lg:text-2xl font-bold">{profile.first_name} {profile.last_name}</h1>
                     {profile.is_available === 1 && (
                       <span className="px-3 py-0.5 bg-green-500/10 border border-green-500/20 text-green-500 text-[10px] rounded-full flex items-center gap-1">
                         <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Available
@@ -616,12 +617,12 @@ export default function ProfilePage() {
 
             <div className="flex flex-wrap gap-2">
               {profile.skills?.slice(0, 3).map((skill: any) => (
-                <span key={skill.id} className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/60">{skill.name}</span>
+                <span key={skill.id} className="px-2 lg:px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/60">{skill.name}</span>
               ))}
               {profile.skills?.length > 3 && <span className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/40">+{profile.skills.length - 3} more</span>}
             </div>
 
-            <div className="bg-white/[0.02] border border-white/5 rounded-2xl flex max-w-sm">
+            <div className="bg-white/[0.02] text-sm lg:text-base border border-white/5 rounded-lg lg:rounded-2xl flex max-w-sm capitalize">
               <StatBox value={`$${Math.round(profile.hourly_rate)}`} sublabel="/Hour" />
               <StatBox value={`${profile.years_of_experience}`} sublabel="Years Exp." />
               <StatBox value={profile.working_distance?.split(' ')[1] || "25"} sublabel="Miles Radius" />
@@ -664,14 +665,14 @@ export default function ProfilePage() {
           {/* Banner Media Upload UI */}
           <div
             onClick={() => !mediaPreview && fileInputRef.current?.click()}
-            className={`w-full lg:w-[450px] min-h-[250px] relative rounded-[2rem] flex flex-col items-center justify-center p-4 text-center group transition-all overflow-hidden
+            className={`w-full lg:w-[450px] min-h-[150px] lg:min-h-[250px] relative rounded-lg lg:rounded-2xl flex flex-col items-center justify-center p-4 text-center group transition-all overflow-hidden
               ${mediaPreview ? 'bg-black border border-white/10 shadow-2xl' : 'bg-[#E8D1AB]/5 border-2 border-dashed border-[#E8D1AB]/20 cursor-pointer hover:bg-[#E8D1AB]/10'}`}
           >
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" onChange={handleFileChange} />
             {!mediaPreview ? (
               <>
                 <div className="relative w-32 h-24 mb-6">
-                  <div className="absolute top-0 left-0 w-16 h-16 bg-[#E8D1AB]/20 rounded-xl rotate-[-10deg]" />
+                  <div className="absolute top-0 left-0 w-16 h-16 bg-[#E8D1AB]/20 rounded-lg rotate-[-10deg]" />
                   <div className="absolute bottom-0 right-0 w-20 h-12 bg-[#E8D1AB]/40 rounded-lg rotate-[5deg] flex items-center justify-center">
                     <ImageIcon size={20} className="text-[#E8D1AB]" />
                   </div>
@@ -695,12 +696,12 @@ export default function ProfilePage() {
         </div>
 
         {/* NAVIGATION */}
-        <div className="flex border-b border-white/5 gap-8 overflow-x-auto no-scrollbar">
+        <div className="flex border-b border-white/5 gap-4 lg:gap-8 overflow-x-auto no-scrollbar">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-4 text-sm font-medium transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white'}`}
+              className={`pb-2 lg:pb-4 text-sm font-medium transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white'}`}
             >
               {tab}
               {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#E8D1AB]" />}
@@ -709,12 +710,12 @@ export default function ProfilePage() {
         </div>
 
         {/* TAB CONTENT */}
-        <div className="min-h-[400px] pb-20">
+        <div className="min-h-[400px] pb-10 lg:pb-20">
           {activeTab === "Overview" && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="space-y-4 lg:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
 
               {/* PERSONAL INFORMATION */}
-              <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8">
+              <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
                 <SectionHeader
                   title="Personal Information"
                   isEditing={isEditingPersonalInfo}
@@ -724,18 +725,18 @@ export default function ProfilePage() {
                 {isEditingPersonalInfo ? (
                   <div className="animate-in fade-in zoom-in-95 duration-300">
                     <PersonalInfoForm profile={profile} onChange={handleProfileUpdate} />
-                    <div className="mt-8 flex justify-end">
+                    <div className="mt-4 lg:mt-8 flex justify-end">
                       {/* CHANGED: onClick now calls handleSavePersonalInfo */}
                       <button
                         onClick={handleSavePersonalInfo}
-                        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold px-10 py-3 rounded-xl transition-colors"
+                        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
                       >
                         Save Changes
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-10 gap-x-20">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-10 gap-x-20">
                     <InfoField label="First Name" value={profile.first_name} />
                     <InfoField label="Last Name" value={profile.last_name} />
                     <InfoField label="Email Address" value={profile.email} />
@@ -747,7 +748,7 @@ export default function ProfilePage() {
               </div>
 
               {/* PROFESSIONAL DETAILS */}
-              <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8">
+              <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
                 <SectionHeader
                   title="Professional Details"
                   isEditing={isEditingProfessionalInfo}
@@ -757,18 +758,18 @@ export default function ProfilePage() {
                 {isEditingProfessionalInfo ? (
                   <div className="animate-in fade-in zoom-in-95 duration-300">
                     <ProfessionalInfoForm profile={profile} onChange={handleProfileUpdate} />
-                    <div className="mt-8 flex justify-end">
+                    <div className="mt-4 lg:mt-8 flex justify-end">
                       {/* UPDATED: Calls handleSaveProfessionalInfo */}
                       <button
                         onClick={handleSaveProfessionalInfo}
-                        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold px-10 py-3 rounded-xl transition-colors"
+                        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
                       >
                         Save Changes
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-10 gap-x-12">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-10 gap-x-12">
                     <InfoField label="Primary Role" value={getRoleLabel(profile.primary_role)} />
                     <InfoField label="Experience" value={`${profile.years_of_experience} Years`} />
                     <InfoField label="Hourly Rate" value={`$${profile.hourly_rate}`} />
@@ -780,7 +781,7 @@ export default function ProfilePage() {
               </div>
 
               {/* SKILLS */}
-              <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8">
+              <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
                 <SectionHeader
                   title="Skills"
                   isEditing={isEditingSkills}
@@ -794,10 +795,10 @@ export default function ProfilePage() {
                       primaryRole={profile.primary_role}
                       onChange={(newSkills) => handleProfileUpdate({ skills: newSkills })}
                     />
-                    <div className="mt-8 flex justify-end">
+                    <div className="mt-4 lg:mt-8 flex justify-end">
                       <button
                         onClick={handleSaveSkills}
-                        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold px-10 py-3 rounded-xl transition-colors"
+                        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-sm lg:text-base text-black font-bold px-4 lg:px-10 py-3 rounded-lg lg:rounded-xl transition-colors"
                       >
                         Save Changes
                       </button>
@@ -809,7 +810,7 @@ export default function ProfilePage() {
                       profile.skills.map((skill: any, index: number) => (
                         <span
                           key={skill.id || index}
-                          className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/80"
+                          className="px-2 lg:px-5 py-2.5 bg-white/5 border border-white/10 rounded-lg lg:rounded-xl text-sm text-white/80"
                         >
                           {skill.name || skill}
                         </span>
@@ -822,7 +823,7 @@ export default function ProfilePage() {
               </div>
 
               {/* SECURITY */}
-              <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8">
+              <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
                 <SectionHeader
                   title="Security"
                   isEditing={isEditingSecurity}
@@ -834,7 +835,7 @@ export default function ProfilePage() {
                     <SecurityForm onSuccess={() => setIsEditingSecurity(false)} />
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl">
+                  <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg lg:rounded-2xl">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-[#E8D1AB]/10 rounded-lg flex items-center justify-center text-[#E8D1AB]">
                         <EyeOff size={20} />
@@ -863,7 +864,7 @@ export default function ProfilePage() {
                 {/* ADD NEW PROJECT BOX */}
                 <div
                   onClick={() => setIsFeaturedModalOpen(true)}
-                  className="border-2 border-dashed border-white/10 rounded-[2rem] h-[350px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
+                  className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[350px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
                 >
                   <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <Plus size={24} className="text-[#E8D1AB]" />
@@ -875,7 +876,7 @@ export default function ProfilePage() {
                 {groupedWorks?.map((project: any, pIdx: number) => (
                   <div key={pIdx} className="group flex flex-col">
                     <div
-                      className="h-[350px] rounded-[2rem] overflow-hidden border border-white/10 bg-[#111] relative cursor-pointer"
+                      className="h-[350px] rounded-lg lg:rounded-2xl overflow-hidden border border-white/10 bg-[#111] relative cursor-pointer"
                       onClick={() => setLightboxData({ isOpen: true, project, index: 0 })}
                     >
                       {/* Main Image */}
@@ -919,7 +920,10 @@ export default function ProfilePage() {
 
                     <div className="mt-5 px-2">
                       <h4 className="text-base font-bold text-white tracking-tight">{project.title}</h4>
-                      <p className="text-xs text-[#E8D1AB] mt-1 opacity-80 font-medium">#{project.tag}</p>
+                      {
+                        project?.tag &&
+                        <p className="text-xs text-[#E8D1AB] mt-1 opacity-80 font-medium">#{project.tag}</p>
+                      }
                     </div>
                   </div>
                 ))}
@@ -938,6 +942,8 @@ export default function ProfilePage() {
               )}
             </div>
           )}
+
+          {/* CERTIFICATES TAB */}
           {activeTab === "Certificates" && (
             <div className="animate-in fade-in duration-500">
               <input
@@ -958,13 +964,13 @@ export default function ProfilePage() {
                   onClick={() => certInputRef.current?.click()}
                 />
               ) : (
-                <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8">
+                <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
                     {/* ADD CARD */}
                     <div
                       onClick={() => certInputRef.current?.click()}
-                      className="border-2 border-dashed border-white/10 rounded-[1.5rem] h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
+                      className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
                     >
                       <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                         <Plus size={20} className="text-[#E8D1AB]" />
@@ -979,7 +985,7 @@ export default function ProfilePage() {
                       const fileUrl = `${S3_BASE_URL}${cert.file_path}`;
 
                       return (
-                        <div key={cert.id || index} className="relative group h-[220px] rounded-[1.5rem] overflow-hidden border border-white/10 bg-[#0A0A0A]">
+                        <div key={cert.id || index} className="relative group h-[220px] rounded-lg lg:rounded-2xl overflow-hidden border border-white/10 bg-[#0A0A0A]">
                           {/* Thumbnail (For PDF we show a placeholder or icon, for image we show the img) */}
                           {isPDF ? (
                             <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-white/20">
@@ -995,7 +1001,7 @@ export default function ProfilePage() {
                           </div>
 
                           {/* HOVER ACTIONS */}
-                          <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                          <div className="absolute top-4 right-4 flex gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-all">
                             <button
                               onClick={() => setPreviewCert(cert)}
                               className="p-2 bg-white/10 backdrop-blur-md hover:bg-white text-white hover:text-black rounded-lg transition-all"
@@ -1019,7 +1025,6 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* RESUME TAB */}
           {/* RESUME TAB */}
           {activeTab === "Resume" && (
             <div className="animate-in fade-in duration-500"> {/* Removed flex-center classes here */}
@@ -1051,7 +1056,7 @@ export default function ProfilePage() {
 
                 // RESUME CARD (Wrapped in a flex container ONLY when data exists to keep it centered)
                 return (
-                  <div className="flex justify-center py-10">
+                  <div className="flex justify-center py-4 lg:py-10">
                     <div className="bg-[#111] border border-white/5 rounded-[2.5rem] p-12 w-full max-w-lg relative flex flex-col items-center justify-center text-center shadow-2xl">
 
                       {/* Delete Icon (Top Right) */}
@@ -1167,7 +1172,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Bottom Filmstrip Thumbnails */}
-          <div className="p-8 flex justify-center gap-3 overflow-x-auto no-scrollbar">
+          <div className="p-4 lg:p-8 flex justify-center gap-3 overflow-x-auto no-scrollbar">
             {lightboxData.project.images.map((img: any, idx: number) => (
               <button
                 key={idx}
@@ -1254,7 +1259,7 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-
-    </div>
+    </>
+    // </div>
   );
 }

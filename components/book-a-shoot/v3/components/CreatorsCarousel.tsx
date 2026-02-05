@@ -56,6 +56,17 @@ const CreatorCarousel = ({
   selectedIds: (string | number)[],
   toggleSelection: (id: number) => void;
 }) => {
+  const count = creators.length;
+
+  const dynamicSlides = {
+    mobile: Math.min(count, 1.5),
+    tablet: Math.min(count, 3),
+    desktop: Math.min(count, 5)
+  };
+
+  // Loop requires at least (slidesPerView * 2) items to be smooth
+  const shouldLoop = count >= 10;
+
   return (
     <div className="relative lg:max-w-4xl xl:max-w-5xl 2xl:max-w-[1500px] mx-auto z-10">
       {/* NAVIGATION BUTTONS */}
@@ -71,12 +82,12 @@ const CreatorCarousel = ({
         <Swiper
           modules={[EffectCoverflow, Navigation]}
           effect="coverflow"
-          centeredSlides
+          centeredSlides={count > 1}
           grabCursor
           initialSlide={Math.floor(creators.length / 2)}
-          slidesPerView={3}
+          slidesPerView={dynamicSlides.tablet}
           spaceBetween={30}
-          loop={creators.length < 5}
+          loop={shouldLoop}
           allowTouchMove={true}
           allowSlideNext={true}
           allowSlidePrev={true}
@@ -96,9 +107,9 @@ const CreatorCarousel = ({
             slideShadows: false,
           }}
           breakpoints={{
-            0: { slidesPerView: 1.5, spaceBetween: 20 },
-            768: { slidesPerView: 3, spaceBetween: 20 },
-            1024: { slidesPerView: 5, spaceBetween: 30 },
+            0: { slidesPerView: dynamicSlides.mobile, centeredSlides: count > 1 , spaceBetween: 20 },
+            768: { slidesPerView: dynamicSlides.tablet, centeredSlides: count > 1 , spaceBetween: 20 },
+            1024: { slidesPerView: dynamicSlides.desktop, centeredSlides: true , spaceBetween: 30 },
           }}
           navigation={{
             prevEl: ".creator-prev-btn",
