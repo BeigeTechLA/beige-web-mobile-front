@@ -209,7 +209,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
       <div className="flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b border-[#333333] gap-2 ">
         <h3 className="text-xl font-semibold text-white">All Shoots</h3>
         <div className="flex gap-3">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          {/* <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[130px] bg-zinc-900 border-[#333333] rounded-lg h-10 text-sm text-white/70 focus:ring-0 capitalize">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -220,7 +220,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
               <SelectItem value="cancelled">Cancelled</SelectItem>
               <SelectItem value="draft">Draft</SelectItem>
             </SelectContent>
-          </Select>
+          </Select> */}
 
           <Select value={range} onValueChange={setRange}>
             <SelectTrigger className="w-[120px] bg-zinc-900 border-[#333333] rounded-lg h-10 text-sm text-white/70 focus:ring-0">

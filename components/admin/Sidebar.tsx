@@ -11,14 +11,14 @@ const menuItems = [
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
-  // { name: 'Availability', icon: CalendarClock, link: '#' },
+  { name: 'Availability', icon: CalendarClock, link: '#', isDisabled: true },
   { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
   {
     name: 'Users',
     icon: Users,
     children: [
-      { name: 'All Users', link: '#' },
-      { name: 'Clients', link: '#' },
+      { name: 'All Users', link: '#', isDisabled: true },
+      { name: 'Clients', link: '#', isDisabled: true },
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
@@ -29,6 +29,7 @@ type MenuItem = {
   icon: any;
   link?: string;
   children?: { name: string; link: string }[];
+  isDisabled?: boolean;
 };
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -96,13 +97,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);
+            const isDisabled = item.isDisabled; // Get disabled state
 
             return (
               <div key={item.name}>
                 {hasChildren ? (
                   <button
-                    onClick={() => toggleExpand(item.name)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-sm ${active ? 'bg-[#E5D5B8] text-black' : 'text-zinc-500 hover:text-white'}`}
+                    onClick={() => !isDisabled && toggleExpand(item.name)} // Prevent toggle if disabled
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-sm ${active ? 'bg-[#E5D5B8] text-black' : 'text-zinc-500 hover:text-white'
+                      } ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     <div className="flex items-center gap-3">
                       <item.icon size={20} />
@@ -113,6 +116,16 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                       className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}
                     />
                   </button>
+                ) : isDisabled ? (
+                  /* Render a DIV instead of a LINK if disabled */
+                  <div
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-700 cursor-not-allowed select-none group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon size={20} />
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                  </div>
                 ) : (
                   <Link
                     href={item.link || '#'}
@@ -129,13 +142,22 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {item.children!.map((child) => {
                       const isChildActive = isActiveLink(child.link);
-                      return (
+                      const isChildDisabled = child.isDisabled;
+
+                      return isChildDisabled ? (
+                        <div
+                          key={child.name}
+                          className="block px-4 py-2 text-sm text-zinc-700 cursor-not-allowed italic"
+                        >
+                          {child.name}
+                        </div>
+                      ) : (
                         <Link
                           key={child.name}
                           href={child.link}
                           className={`block px-4 py-2 text-sm rounded-lg transition-colors ${isChildActive
-                            ? "text-white font-medium"
-                            : "text-zinc-500 hover:text-gray-300"
+                              ? "text-white font-medium"
+                              : "text-zinc-500 hover:text-gray-300"
                             }`}
                         >
                           {child.name}
