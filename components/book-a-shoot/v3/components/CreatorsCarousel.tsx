@@ -82,9 +82,9 @@ const CreatorCarousel = ({
           allowSlidePrev={true}
           slideToClickedSlide={true}
           /* --- SAFARI FIXES START --- */
-          touchStartPreventDefault={false}  // Allows touch start to reach the button
-          touchMoveStopPropagation={true}   // Prevents drag from eating the click
-          simulateTouch={true}              // Better event simulation for mobile
+          // touchStartPreventDefault={false}  // Allows touch start to reach the button
+          // touchMoveStopPropagation={true}   // Prevents drag from eating the click
+          // simulateTouch={true}              // Better event simulation for mobile
           preventClicks={false}             // Ensure clicks aren't intercepted
           preventClicksPropagation={false}  // Allow event to bubble to your button
           /* --- SAFARI FIXES END --- */
@@ -191,13 +191,11 @@ const CreatorCarousel = ({
                     </div>
                   </div>
                 </div>
-
               </SwiperSlide>
             );
           })}
         </Swiper>
       </div>
-
     </div>
   );
 };

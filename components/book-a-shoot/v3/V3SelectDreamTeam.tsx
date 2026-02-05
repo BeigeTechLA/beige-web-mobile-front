@@ -427,7 +427,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         />
       </div>
 
-      <div className="flex flex-wrap justify-center gap-4 mt-4">
+      <div className="flex flex-wrap justify-center gap-4">
         {requirements.required.video > 0 && (
           <div className={`px-4 py-2 rounded-full border ${selectedCounts.video === requirements.required.video ? 'bg-[#E8D1AB]/20 border-[#E8D1AB]' : 'border-white/10'}`}>
             <span className="text-white/90 text-sm">

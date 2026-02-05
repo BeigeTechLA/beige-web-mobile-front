@@ -257,7 +257,7 @@ export default function RequestsShootsPage() {
 
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 lg:space-y-8 pb-12 text-white">
+    <div className="mx-auto space-y-4 lg:space-y-8 pb-12 text-white">
       {/* Header */}
       <div className="space-y-4 lg:space-y-8">
         {/* 1. Simple Header: Title & Description */}
