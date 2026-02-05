@@ -186,11 +186,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   // --- Now the useMemos can safely use them ---
   const filteredStartTimeOptions = React.useMemo(() => {
     if (!data.startDate) return timeOptions;
-    
+
     const selectedDate = parseDate(data.startDate);
     const now = new Date();
 
-    const isToday = 
+    const isToday =
       selectedDate?.getDate() === now.getDate() &&
       selectedDate?.getMonth() === now.getMonth() &&
       selectedDate?.getFullYear() === now.getFullYear();
@@ -207,96 +207,96 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const filteredEndTimeOptions = React.useMemo(() => {
     // If no start date/time is selected, show all
     if (!data.startDate) return timeOptions;
-    
+
     const startTimeKey = getStartTimeKey();
-    
+
     // Only show times that are AFTER the selected start time
     return timeOptions.filter((opt) => opt.key > startTimeKey);
   }, [data.startDate, timeOptions]);
 
   const handleDateChange = (date: Date | null) => {
-  if (!date) {
-    updateData({ startDate: "", endDate: "" });
-    return;
-  }
-
-  const now = new Date();
-  
-  const isToday = 
-    date.getDate() === now.getDate() &&
-    date.getMonth() === now.getMonth() &&
-    date.getFullYear() === now.getFullYear();
-
-  let newStart: Date;
-  let newEnd: Date;
-
-  if (isToday) {
-    newStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-    
-    const mins = newStart.getMinutes();
-    if (mins > 0 && mins <= 30) {
-      newStart.setMinutes(30, 0, 0);
-    } else if (mins > 30) {
-      newStart.setHours(newStart.getHours() + 1, 0, 0, 0);
-    } else {
-      newStart.setMinutes(0, 0, 0);
+    if (!date) {
+      updateData({ startDate: "", endDate: "" });
+      return;
     }
 
-    // 3. End time = Start time + 8 hours
-    newEnd = new Date(newStart.getTime() + 8 * 60 * 60 * 1000);
-  } else {
-    // Default for future dates: 9 AM to 5 PM
-    newStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-    newEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
-  }
+    const now = new Date();
 
-  // Ensure the date part is strictly what was selected in the picker
-  const finalStart = set(newStart, {
-    year: date.getFullYear(),
-    month: date.getMonth(),
-    date: date.getDate(),
-  });
-  
-  const finalEnd = set(newEnd, {
-    year: date.getFullYear(),
-    month: date.getMonth(),
-    date: date.getDate(),
-  });
+    const isToday =
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
 
-  updateData({
-    startDate: finalStart.toISOString(),
-    endDate: finalEnd.toISOString(),
-  });
-};
+    let newStart: Date;
+    let newEnd: Date;
+
+    if (isToday) {
+      newStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+
+      const mins = newStart.getMinutes();
+      if (mins > 0 && mins <= 30) {
+        newStart.setMinutes(30, 0, 0);
+      } else if (mins > 30) {
+        newStart.setHours(newStart.getHours() + 1, 0, 0, 0);
+      } else {
+        newStart.setMinutes(0, 0, 0);
+      }
+
+      // 3. End time = Start time + 8 hours
+      newEnd = new Date(newStart.getTime() + 8 * 60 * 60 * 1000);
+    } else {
+      // Default for future dates: 9 AM to 5 PM
+      newStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+      newEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+    }
+
+    // Ensure the date part is strictly what was selected in the picker
+    const finalStart = set(newStart, {
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      date: date.getDate(),
+    });
+
+    const finalEnd = set(newEnd, {
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      date: date.getDate(),
+    });
+
+    updateData({
+      startDate: finalStart.toISOString(),
+      endDate: finalEnd.toISOString(),
+    });
+  };
   const handleStartTimeChange = (timeKey: string) => {
-  if (!timeKey) {
-    updateData({ startDate: "" });
-    return;
-  }
+    if (!timeKey) {
+      updateData({ startDate: "" });
+      return;
+    }
 
-  const [hours, minutes] = timeKey.split(":").map(Number);
-  const currentDate = data.startDate ? parseDate(data.startDate) : new Date();
+    const [hours, minutes] = timeKey.split(":").map(Number);
+    const currentDate = data.startDate ? parseDate(data.startDate) : new Date();
 
-  // Ensure we don't select a time before the current time
-  const now = new Date();
-  const selectedTime = new Date(currentDate.setHours(hours, minutes));
+    // Ensure we don't select a time before the current time
+    const now = new Date();
+    const selectedTime = new Date(currentDate.setHours(hours, minutes));
 
-  if (selectedTime < now) {
-    toast.error("Selected time must be later than the current time.");
-    return; // Don't update the time if it's invalid
-  }
+    if (selectedTime < now) {
+      toast.error("Selected time must be later than the current time.");
+      return; // Don't update the time if it's invalid
+    }
 
-  // Enforce a 4-hour gap for same-day bookings
-  const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000); // Add 4 hours to current time
+    // Enforce a 4-hour gap for same-day bookings
+    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000); // Add 4 hours to current time
 
-  if (selectedTime < minimumTime) {
-    toast.error("You must select a start time at least 4 hours from now.");
-    return; // Don't update the time if it's invalid
-  }
+    if (selectedTime < minimumTime) {
+      toast.error("You must select a start time at least 4 hours from now.");
+      return; // Don't update the time if it's invalid
+    }
 
-  const newStart = set(currentDate, { hours, minutes });
-  updateData({ startDate: newStart.toISOString() });
-};
+    const newStart = set(currentDate, { hours, minutes });
+    updateData({ startDate: newStart.toISOString() });
+  };
 
 
   const handleEndTimeChange = (timeKey: string) => {
@@ -743,10 +743,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   scrollToRef(navigationRef);
                 }}
                 disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.editsNeeded
-                  ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
-                  : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                  }`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
               >
                 <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
                 <div
@@ -764,10 +761,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   scrollToRef(navigationRef);
                 }}
                 disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.editsNeeded
-                  ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black"
-                  : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                  }`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
               >
                 <span className="font-medium text-sm lg:text-lg pr-2">No</span>
                 <div

@@ -106,56 +106,56 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   }, [includedRoles.length, extraTeam, data.crewCount, updateData]);
 
   const handleNext = async () => {
-  if (!data.location) {
-    toast.error("Please select a location");
-    return;
-  }
-
-  if (!data.bookingId) {
-    toast.error("Booking reference missing. Please restart.");
-    return;
-  }
-
-  const crewRoles: Record<string, number> = {};
-
-  // base crew
-  includedRoles.forEach((role: any) => {
-    crewRoles[role.id] = 1;
-  });
-
-  // extra crew
-  Object.entries(extraTeam).forEach(([roleId, count]) => {
-    if (count > 0) {
-      crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
+    if (!data.location) {
+      toast.error("Please select a location");
+      return;
     }
-  });
 
-  try {
-    const response = await updateBookingCrew({
-      booking_id: data.bookingId,
-      crew_roles: crewRoles,
-    }).unwrap();
+    if (!data.bookingId) {
+      toast.error("Booking reference missing. Please restart.");
+      return;
+    }
 
-    const serverCrewRoles = response.data.crew_roles;
-    const vCount = serverCrewRoles.videographer || 0;
-    const pCount = serverCrewRoles.photographer || 0;
+    const crewRoles: Record<string, number> = {};
 
-    localStorage.setItem("required_videographers", vCount.toString());
-    localStorage.setItem("required_photographers", pCount.toString());
-
-    updateData({
-      roleCounts: serverCrewRoles,
-      videographyCount: vCount,
-      photographyCount: pCount,
-      crewCount: vCount + pCount // Total crew
+    // base crew
+    includedRoles.forEach((role: any) => {
+      crewRoles[role.id] = 1;
     });
 
-    onNext();
-  } catch (error) {
-    console.error("Crew update error:", error);
-    toast.error("Failed to save crew details");
-  }
-};
+    // extra crew
+    Object.entries(extraTeam).forEach(([roleId, count]) => {
+      if (count > 0) {
+        crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
+      }
+    });
+
+    try {
+      const response = await updateBookingCrew({
+        booking_id: data.bookingId,
+        crew_roles: crewRoles,
+      }).unwrap();
+
+      const serverCrewRoles = response.data.crew_roles;
+      const vCount = serverCrewRoles.videographer || 0;
+      const pCount = serverCrewRoles.photographer || 0;
+
+      localStorage.setItem("required_videographers", vCount.toString());
+      localStorage.setItem("required_photographers", pCount.toString());
+
+      updateData({
+        roleCounts: serverCrewRoles,
+        videographyCount: vCount,
+        photographyCount: pCount,
+        crewCount: vCount + pCount // Total crew
+      });
+
+      onNext();
+    } catch (error) {
+      console.error("Crew update error:", error);
+      toast.error("Failed to save crew details");
+    }
+  };
 
   const availableRolesToAdd = TEAM_ROLES.filter(role => {
     if (data.contentType.includes(role.id)) return true;
@@ -181,7 +181,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
 
       {/* Header */}
-      <div  className="text-center">
+      <div className="text-center">
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">More Details</h2>
         <p className="text-white/60">Help us understand your project better</p>
       </div>
@@ -218,7 +218,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           <div className="flex gap-2 lg:gap-6">
             <button
               onClick={() => updateData({ addTeamMembers: true })}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              // className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
             >
               <span className="font-medium text-sm lg:text-lg pr-2">
                 Yes
@@ -238,7 +239,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
                 updateData({ teamIncluded: [] });
                 scrollToRef(locationRef);
               }}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              // className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!data.addTeamMembers ? "bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] border-transparent text-black" : "bg-transparent border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
             >
               <span className="font-medium text-sm lg:text-lg pr-2">
                 No

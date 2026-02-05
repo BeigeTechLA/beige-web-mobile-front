@@ -1,13 +1,42 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, useScroll, useTransform, useSpring, useInView } from "framer-motion";
 import { Container } from "@/components/ui/container";
 import Link from "next/link";
+import { Button } from "../ui/button";
 
 export const WelcomeSection = () => {
+  const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [joinUsUrl, setJoinUsUrl] = useState("/creator-signup")
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("revure_user");
+    if (storedUser) {
+      const role = JSON.parse(storedUser)?.role
+
+      switch (role) {
+        case "Admin":
+          setJoinUsUrl("/admin/dashboard")
+          break;
+        case "Creative":
+          setJoinUsUrl("/creator/dashboard")
+          break;
+        case "Client":
+          setJoinUsUrl("/affiliate/dashboard")
+          break;
+        default:
+          setJoinUsUrl("/sales/dashboard")
+      }
+    }
+  }, [])
+
+  const handleJoinUs = () => {
+    router.push(joinUsUrl)
+  }
 
   // Track if video is in focus
   const isInView = useInView(containerRef, { amount: 0.6 });
@@ -82,12 +111,12 @@ export const WelcomeSection = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex gap-6 mx-auto items-center justify-center"
           >
-            <Link
-              href={"/creator-signup"}
-              className="py-1 lg:py-4 px-5 lg:px-8 rounded-lg bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
+            <Button
+              onClick={handleJoinUs}
+              className="h-7 lg:h-15 px-5 lg:px-8 rounded-lg bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
             >
               Join Us
-            </Link>
+            </Button>
             <Link
               href="#howItWorks"
               onClick={handleScroll}
