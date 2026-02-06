@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { StatusBadge } from "./StatusBadge";
 
 // internal status mapping for styles
 const STATUS_STYLES = {
@@ -33,6 +34,8 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   5: "Cancelled",
 };
 
+type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" |"Unknown";
+
 interface ShootRecord {
   id: string;
   customerName: string;
@@ -40,7 +43,7 @@ interface ShootRecord {
   date: string;
   category: string;
   price: string;
-  status: string;
+  status: Status;
 }
 
 const parseSkills = (skills: string | number[] | null | undefined, skillMap: Record<number, string>): string => {
@@ -78,16 +81,16 @@ const parseSkills = (skills: string | number[] | null | undefined, skillMap: Rec
   return skillNames.join(", ");
 };
 
-const StatusBadge = ({ status, mobile }: { status: string; mobile?: boolean }) => {
-  const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
-  const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
+// const StatusBadge = ({ status, mobile }: { status: string; mobile?: boolean }) => {
+//   const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
+//   const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
 
-  return (
-    <span className={`${padding} rounded-full font-semibold border ${style}`}>
-      {status}
-    </span>
-  );
-};
+//   return (
+//     <span className={`${padding} rounded-full font-semibold border ${style}`}>
+//       {status}
+//     </span>
+//   );
+// };
 
 export const OverallShootsTable = () => {
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
@@ -139,7 +142,7 @@ export const OverallShootsTable = () => {
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
-          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown";
+          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown"as Status;
 
           return {
             id: `#${project.stream_project_booking_id}`,
