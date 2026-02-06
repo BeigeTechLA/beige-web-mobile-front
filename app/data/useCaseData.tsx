@@ -763,11 +763,11 @@ export const PODCAST_VIDEOS = [
     description: "",
     video: "734890419",
   },
-  {
-    title: "Karat’s Podcast | Live from Anaheim Convention Center",
-    description: "",
-    video: "1011327301",
-  },
+  // {
+  //   title: "Karat’s Podcast | Live from Anaheim Convention Center",
+  //   description: "",
+  //   video: "1011327301",
+  // },
   {
     title: "Las Vegas Digital Social Hour Networking Event",
     description: "",

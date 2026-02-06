@@ -7,6 +7,8 @@ import {
   Linkedin,
   Youtube,
   Facebook,
+  Music2,
+  Twitter,
   ArrowRight,
   PhoneCall,
   Mail,
@@ -16,6 +18,38 @@ import { Button } from "@/src/components/landing/ui/button";
 import Image from "next/image";
 import Link from "next/link";
 import { Separator } from "./Separator";
+
+const FOOTER_LINKS = [
+  {
+    name: "Media",
+    link: "https://beigemedia.ai/"
+  }, {
+    name: "Weddings",
+    link: "https://weddings.beigemedia.ai/"
+  }, {
+    name: "Fleet",
+    link: "https://fleet.beigemedia.ai/"
+  }, {
+    name: "Studios",
+    link: "https://studios.beigemedia.ai/"
+  }, {
+    name: "Creators",
+    link: "https://creators.beigemedia.ai/"
+  }, {
+    name: "Blog",
+    link: "https://blog.beigemedia.ai/"
+  },
+]
+// [Facebook, Linkedin, Youtube, Instagram]
+
+const SOCIAL_PLATFORMS = [
+  { name: "Facebook", icon: Facebook, href: "https://www.facebook.com/beigemedia" },
+  { name: "Linkedin", icon: Linkedin, href: "https://www.linkedin.com/company/beigemedia" },
+  { name: "Youtube", icon: Youtube, href: "https://www.youtube.com/@beigemedia" },
+  { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/beigemedia" },
+  { name: "Twitter", icon: Twitter, href: "https://www.twitter.com/beigemedia" },
+  { name: "Tiktok", icon: Music2, href: "https://www.tiktok.com/@beigemedia" },
+];
 
 export const Footer = () => {
   const router = useRouter();
@@ -39,6 +73,7 @@ export const Footer = () => {
 
   const handleStartProject = () => {
     console.log("Footer: Start Your Project clicked");
+    router.push("/book-a-shoot");
   };
 
   const handleInvestor = () => {
@@ -52,23 +87,23 @@ export const Footer = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 mb-24">
           {/* Logo & CTA Column */}
           <div className="lg:col-span-1 flex flex-col gap-8">
-            <a
-              href="https://beige.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block"
+            <Link
+              href="/"
+              className="relative flex items-center w-fit"
             >
-              <div className="relative w-[140px] h-[36px] lg:w-[228px] lg:h-10">
-                <Image
-                  src="/images/logos/beige_logo_vb.png"
-                  alt="Beige logo"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
-            </a>
-
+              <Image
+                src="/images/logos/beige_logo_vb.png"
+                alt="BEIGE"
+                width={158}
+                height={32}
+                className="w-[120px] h-[24px] md:w-[158px] md:h-[32px] object-contain"
+                priority
+              />
+              <span className="absolute right-4 md:right-5 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
+                Beta
+                <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+              </span>
+            </Link>
             {/* <div className="mt-8"> */}
             <Button
               onClick={handleStartProject}
@@ -98,40 +133,21 @@ export const Footer = () => {
                 Main Links
               </h4>
               <ul className="space-y-4">
-                <li>
-                  <button
-                    onClick={() => handleLinkClick("Home", "/")}
-                    className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
-                  >
-                    Home
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => handleLinkClick("About", "#about")}
-                    className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
-                  >
-                    About
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => handleLinkClick("Blogs", "#blogs")}
-                    className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
-                  >
-                    Blogs
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() =>
-                      handleLinkClick("Find Creative Work", "#find-work")
-                    }
-                    className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
-                  >
-                    Find Creative Work
-                  </button>
-                </li>
+                {
+                  FOOTER_LINKS.map(footerItem => {
+                    return (
+                      <li key={`footer_link_${footerItem.name.split(" ").join("_")}`}>
+                        <Link
+                          href={footerItem.link}
+                          target="_blank" rel="noopener noreferrer"
+                          className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium capitalize"
+                        >
+                          {footerItem.name}
+                        </Link>
+                      </li>
+                    )
+                  })
+                }
               </ul>
             </div>
 
@@ -140,12 +156,12 @@ export const Footer = () => {
               <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">
                 Legal
               </h4>
-              <ul className="space-y-4">
+              <ul className="space-y-4 pointer-events-none">
                 <li>
                   <button
-                    onClick={() =>
-                      handleLinkClick("Terms of Service", "/terms")
-                    }
+                    // onClick={() =>
+                    //   handleLinkClick("Terms of Service", "/terms")
+                    // }
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
                   >
                     Terms of Service
@@ -153,9 +169,9 @@ export const Footer = () => {
                 </li>
                 <li>
                   <button
-                    onClick={() =>
-                      handleLinkClick("Privacy Policy", "/privacy")
-                    }
+                    // onClick={() =>
+                    //   handleLinkClick("Privacy Policy", "/privacy")
+                    // }
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
                   >
                     Privacy Policy
@@ -199,19 +215,25 @@ export const Footer = () => {
 
             {/* Social Icons */}
             <div className="flex lg:border-l border-white/50">
-              {[Facebook, Linkedin, Youtube, Instagram].map((Icon, index) => (
-                <div
-                  key={index}
-                  className="w-16 h-16 flex items-center justify-center lg:border-r border-white/50  "
-                >
-                  <Link
-                    href="/about"
-                    className="rounded-full p-2 bg-white hover:bg-white/80 transition-colors"
+              {SOCIAL_PLATFORMS.map((platform) => {
+                const Icon = platform.icon;
+                return (
+                  <div
+                    key={platform.name}
+                    className="w-16 h-16 flex items-center justify-center lg:border-r border-white/50"
                   >
-                    <Icon className="w-6 h-6 fill-black" />
-                  </Link>
-                </div>
-              ))}
+                    <Link
+                      href={platform.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Visit our ${platform.name} page`}
+                      className="rounded-full p-2 bg-white hover:bg-white/80 transition-colors flex items-center justify-center"
+                    >
+                      <Icon className="w-6 h-6 text-black" strokeWidth={1.5} />
+                    </Link>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </Container>
