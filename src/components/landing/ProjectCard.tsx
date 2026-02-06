@@ -35,10 +35,10 @@ export default function ProjectCard({ project, i }: ProjectCardProps) {
           className="absolute inset-0 w-full h-full object-cover z-10 pointer-events-auto"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-black/50 z-20 pointer-events-none" />
+        {/* <div className="absolute inset-0 bg-black/50 z-20 pointer-events-none" /> */}
 
         {/* OVERLAY: Lowered z-index to 0 so it sits BEHIND the iframe controls */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#010101] via-[#010101]/40 to-transparent opacity-90 pointer-events-none z-0" />
+        {/* <div className="absolute inset-0 bg-gradient-to-t from-[#010101] via-[#010101]/40 to-transparent opacity-90 pointer-events-none z-0" /> */}
 
         {/* TEXT CONTENT: Kept at higher z-index but ensured pointer-events-none */}
         <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500 z-20 pointer-events-none">

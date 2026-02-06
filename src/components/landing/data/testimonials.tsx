@@ -4,11 +4,11 @@ export const TESTIMONIALS = [
     author: "Angela Carey",
     role: "",
   },
-  {
-    quote: "Beige Media was fantastic to work with in all phases of my keynote engagement. We had a pre-event call where I provided the vision for my speaking engagement, and they delivered. Some of the raw footage came out a bit shaky, but it was because the tripod failed in the middle of my speech. Somehow, it was fixed during the editing process!\n\nI will be working with Beige again for future engagements.",
-    author: "Jevon Wooden",
-    role: "",
-  },
+  // {
+  //   quote: "Beige Media was fantastic to work with in all phases of my keynote engagement. We had a pre-event call where I provided the vision for my speaking engagement, and they delivered. Some of the raw footage came out a bit shaky, but it was because the tripod failed in the middle of my speech. Somehow, it was fixed during the editing process!\n\nI will be working with Beige again for future engagements.",
+  //   author: "Jevon Wooden",
+  //   role: "",
+  // },
   {
     quote: "I had a great experience. The camera person was phenomenal to work with. The set up was seamless. The turnaround for my product was quick. I highly recommend them.",
     author: "Nate Andre",
@@ -19,11 +19,11 @@ export const TESTIMONIALS = [
     author: "Melissa Moss",
     role: "",
   },
-  {
-    quote: "We had a great experience working with the Beige team for our Halloween event. They were punctual, friendly, and professional, and followed our shot list and brief closely, capturing all the content we needed. While post-production could have been a bit faster for our social deadlines, they still delivered everything within the promised timeframe, provided a strong set of edited photos, and created an excellent recap video with two rounds of revisions. Overall, they met expectations and were great partners to work with.",
-    author: "Thalia Rodriguez",
-    role: "",
-  },
+  // {
+  //   quote: "We had a great experience working with the Beige team for our Halloween event. They were punctual, friendly, and professional, and followed our shot list and brief closely, capturing all the content we needed. While post-production could have been a bit faster for our social deadlines, they still delivered everything within the promised timeframe, provided a strong set of edited photos, and created an excellent recap video with two rounds of revisions. Overall, they met expectations and were great partners to work with.",
+  //   author: "Thalia Rodriguez",
+  //   role: "",
+  // },
   {
     quote: "I recently worked with Beige Media for a wedding in October, and I can’t recommend them highly enough. As a photographer, finding a videographer who collaborates well, communicates clearly, and respects the flow of the day is incredibly important — and Beige Media exceeded every expectation. Their team was professional, attentive, and easy to work with from start to finish. They checked in before, during, and after the wedding to make sure we were aligned and fully supported, which I truly appreciated. I wouldn’t hesitate to work with them again and highly recommend them to any couple or vendor team looking for exceptional video coverage.",
     author: "Taylor Martin",

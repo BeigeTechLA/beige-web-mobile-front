@@ -29,16 +29,16 @@ export const CP_DATA = [
     profilePictureFolderLink: "https://drive.google.com/drive/folders/18GDKFx9Y_dZeNYbIPCmAsggN6sRE08CJ",
     gears: ""
   },
-  {
-    name: "Stefano",
-    city: "Miami",
-    email: "smorles90@yahoo.com",
-    phone: "(786) 620-4279",
-    portfolio: "https://drive.google.com/drive/folders/1AMxF3poh87-GWlCITDksicjsLsnct1g7?usp=share_link",
-    profilePicture: "https://lh3.googleusercontent.com/u/0/d/1LnMMMxVFgq7ICyqJXrKEMCLAHTroO7dX",
-    profilePictureFolderLink: "https://drive.google.com/drive/folders/1APu_C5S-581H--q47vkD_DQOVISwiOFR",
-    gears: ""
-  },
+  // {
+  //   name: "Stefano",
+  //   city: "Miami",
+  //   email: "smorles90@yahoo.com",
+  //   phone: "(786) 620-4279",
+  //   portfolio: "https://drive.google.com/drive/folders/1AMxF3poh87-GWlCITDksicjsLsnct1g7?usp=share_link",
+  //   profilePicture: "https://lh3.googleusercontent.com/u/0/d/1LnMMMxVFgq7ICyqJXrKEMCLAHTroO7dX",
+  //   profilePictureFolderLink: "https://drive.google.com/drive/folders/1APu_C5S-581H--q47vkD_DQOVISwiOFR",
+  //   gears: ""
+  // },
   {
     name: "Cornelius M.",
     city: "Portland",

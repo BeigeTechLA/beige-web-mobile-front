@@ -172,7 +172,7 @@ export function LoginForm() {
           >
             <div className="relative z-10 flex lg:flex-col justify-between gap-2 h-full lg:w-1/2">
               <h2 className="text-black text-sm font-semibold leading-tight">
-                Create New account as User
+                Create New account as Client
               </h2>
 
               <div className="w-5 h-5 lg:w-[30px] lg:h-[30px] rounded-full border border-black flex items-center justify-center">
@@ -217,13 +217,13 @@ export function LoginForm() {
       <div className="pt-9">
         <h4 className="text-sm lg:text-[22px] text-[#878787] mb-2 lg:mb-3">Trusted by creative professionals and clients worldwide</h4>
         <div className="flex items-center justify-between">
-          <div className="flex gap-1 lg:gap-1.5">
-            <Star className="h-4 w-4 fill-[#BEA784] text-[#BEA784]" />
-            <span className="text-xs lg:text-[13px] text-[#D9D9D9] font-medium">4.9/5 Rating</span>
+          {/* <div className="flex gap-1 lg:gap-1.5"> */}
+            {/* <Star className="h-4 w-4 fill-[#BEA784] text-[#BEA784]" /> */}
+            <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">60 Seconds</span>To Book a Shoot </p>
 
-          </div>
-          <span className="text-xs lg:text-[13px] text-[#D9D9D9]">1000+ Active Creatives</span>
-          <span className="text-xs lg:text-[13px] text-[#D9D9D9]">5,000+ Projects Completed</span>
+          {/* </div> */}
+          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">4000+</span> Customers</p>
+          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">500+</span> Production Companies</p>
         </div>
       </div>
     </div>
