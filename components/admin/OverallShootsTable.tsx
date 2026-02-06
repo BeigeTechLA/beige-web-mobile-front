@@ -15,16 +15,6 @@ import {
 } from "@/components/ui/select";
 import { StatusBadge } from "./StatusBadge";
 
-// internal status mapping for styles
-const STATUS_STYLES = {
-  "Initiated": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-  "PreProduction": "bg-[#FDF4FF] text-[#C065F0] border-[#C065F0]/20",
-  "PostProduction": "bg-[#E0F2FE] text-[#0EA5E9] border-[#0EA5E9]/20",
-  "Revision": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-  "Completed": "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
-  "Cancelled": "bg-[#FFF5F5] text-[#EF4444] border-[#EF4444]/20",
-};
-
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
   1: "PreProduction",
@@ -80,17 +70,6 @@ const parseSkills = (skills: string | number[] | null | undefined, skillMap: Rec
 
   return skillNames.join(", ");
 };
-
-// const StatusBadge = ({ status, mobile }: { status: string; mobile?: boolean }) => {
-//   const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
-//   const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
-
-//   return (
-//     <span className={`${padding} rounded-full font-semibold border ${style}`}>
-//       {status}
-//     </span>
-//   );
-// };
 
 export const OverallShootsTable = () => {
   const [shoots, setShoots] = useState<ShootRecord[]>([]);

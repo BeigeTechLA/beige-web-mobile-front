@@ -16,7 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow";
-type ShootStatus = "Initiated" | "Pre Production" | "Post Production" | "Revision" | "Completed";
+import { StatusBadge } from "./StatusBadge";
+
+type ShootStatus ="Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" |"Unknown";
 
 interface ShootRecord {
   id: string;
@@ -25,18 +27,8 @@ interface ShootRecord {
   date: string;
   category: string;
   price: string;
-  status: string;
+  status: ShootStatus;
 }
-
-// internal status mapping for styles
-const STATUS_STYLES = {
-  "Initiated": "bg-[#FFF9E5] text-[#B18A00]",
-  "PreProduction": "bg-[#FDF4FF] text-[#C065F0]",
-  "PostProduction": "bg-[#EAEAEA] text-[#666666]",
-  "Revision": "bg-[#E6F0FF] text-[#3B82F6]",
-  "Completed": "bg-[#F0FFF4] text-[#22C55E]",
-  "Cancelled": "bg-[#FFF5F5] text-[#EF4444]",
-};
 
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
@@ -75,16 +67,6 @@ const parseSkills = (skills: string | number[] | null | undefined, skillMap: Rec
   });
 
   return skillNames.join(", ");
-};
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
-
-  return (
-    <span className={`px-6 py-2.5 rounded-full text-base font-medium leading-none ${style}`}>
-      {status}
-    </span>
-  );
 };
 
 export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
@@ -141,7 +123,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
-          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown";
+          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as ShootStatus;
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 

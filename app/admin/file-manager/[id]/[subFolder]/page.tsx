@@ -148,7 +148,7 @@ export default function AdminFileDetailsPage() {
 
       <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
 
-      <div className="">
+      <div className="pb-20 lg:pb-0">
         <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
           <div className="relative flex-1 max-w-xl">
             <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />

@@ -204,7 +204,7 @@ export default function AdminFolderManagerPage() {
         }}
       />
 
-      <div className="">
+      <div className="pb-20 lg:pb-0">
         <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
           <div className="relative flex-1 max-w-xl">
             <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
@@ -325,7 +325,18 @@ export default function AdminFolderManagerPage() {
                   </thead>
                   <tbody>
                     {filteredFolders.map((folder, idx) => (
-                      <tr key={idx} className="items-center">
+                      <tr
+                        key={idx}
+                        className="items-center cursor-pointer hover:bg-white/[0.02] transition-colors"
+                        onClick={(e) => {
+                          // Don't navigate if clicking on the action button
+                          if ((e.target as HTMLElement).closest('button')) return;
+
+                          const folderSlug = folder.title.toString().trim().toLowerCase().split(" ").join("-");
+                          const pathname = window.location.pathname;
+                          window.location.href = `${pathname}/${folderSlug}`;
+                        }}
+                      >
                         <td className="py-5 px-6 text-white flex gap-2 items-center">
                           <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
                             <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />

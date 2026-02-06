@@ -20,11 +20,11 @@ export default function ShootsPage() {
   };
 
   return (
-    <div className="space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+    <div className="space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Header */}
       <div className="flex justify-between items-start lg:items-end">
         <div>
-          <h1 className="lg:text-[32px] font-semibold text-white mb-2 leading-none">Shoots Management</h1>
+          <h1 className="text-lg lg:text-[32px] font-semibold text-white mb-2 leading-none">Shoots Management</h1>
           <p className="text-[#888888] text-xs lg:text-base leading-none">Track and manage your photography and videography project</p>
         </div>
         <SortDateButton
@@ -34,12 +34,11 @@ export default function ShootsPage() {
       </div>
 
       {/* Divider */}
-      {/* <div className="w-full h-px bg-dashed border-t border-dashed border-[#333333] opacity-80 lg:opacity-50" /> */}
       <div
         className="h-[1px] w-full my-4 lg:my-9"
         style={{
           backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-          backgroundSize: '30px 1px', // 30px is the total dash + gap width
+          backgroundSize: '30px 1px',
           backgroundRepeat: 'repeat-x'
         }}
       />
