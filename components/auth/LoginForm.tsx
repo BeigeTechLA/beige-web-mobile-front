@@ -219,11 +219,10 @@ export function LoginForm() {
         <div className="flex items-center justify-between">
           {/* <div className="flex gap-1 lg:gap-1.5"> */}
             {/* <Star className="h-4 w-4 fill-[#BEA784] text-[#BEA784]" /> */}
-            <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">60 Seconds</span>To Book a Shoot </p>
-
+            <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">$10M+</span>In Content Produced On Beige</p>
           {/* </div> */}
-          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">4000+</span> Customers</p>
-          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">500+</span> Production Companies</p>
+          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">5K+</span> Verified Creatives on Beige</p>
+          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">4K+</span> Shoots Books on Beige</p>
         </div>
       </div>
     </div>

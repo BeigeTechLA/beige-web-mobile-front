@@ -457,13 +457,18 @@ export default function AffiliateDashboardPage() {
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-[#111] text-white">
       <div className="p-6 border-b border-white/10 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="relative flex items-center">
           <Image
             src="/images/logos/beige_logo_vb.png"
             alt="BEIGE"
             width={100}
             height={20}
+            priority
           />
+          <span className="absolute right-0 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
+            Beta
+            <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+          </span>
         </Link>
         <button
           onClick={() => setIsSidebarOpen(false)}
@@ -626,14 +631,18 @@ export default function AffiliateDashboardPage() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* MOBILE TOP NAV */}
         <header className="lg:hidden h-16 border-b border-white/10 flex items-center justify-between px-4 bg-[#0A0A0A] sticky top-0 z-50">
-          <Link href="/" className="flex items-center gap-2">
-          <Image
-            src="/images/logos/beige_logo_vb.png"
-            alt="BEIGE"
-            width={100}
-            height={20}
-          />
-        </Link>
+          <Link href="/" className="relative flex items-center">
+            <Image
+              src="/images/logos/beige_logo_vb.png"
+              alt="BEIGE"
+              width={100}
+              height={20}
+            />
+            <span className="absolute right-0 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
+              Beta
+              <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+            </span>
+          </Link>
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 text-white/80 hover:text-white"

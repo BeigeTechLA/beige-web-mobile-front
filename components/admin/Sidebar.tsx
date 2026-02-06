@@ -79,13 +79,18 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     <aside className="w-full lg:w-64 border-r border-zinc-800 flex flex-col justify-between py-6 lg:py-9 px-5 bg-[#0A0A0A] h-full overflow-hidden">
       {/* Mobile Header with Logo and Close Button */}
       <div className="flex lg:hidden items-center justify-between mb-8">
-        <Image
-          src="/images/logos/beige_logo_vb.png"
-          alt="BEIGE"
-          width={100}
-          height={20}
-          className="brightness-200"
-        />
+        <Link href="/" className="relative flex items-center">
+          <Image
+            src="/images/logos/beige_logo_vb.png"
+            alt="BEIGE"
+            width={100}
+            height={20}
+          />
+          <span className="absolute right-0 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
+            Beta
+            <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+          </span>
+        </Link>
         <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-white">
           <X size={20} />
         </button>
@@ -156,8 +161,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                           key={child.name}
                           href={child.link}
                           className={`block px-4 py-2 text-sm rounded-lg transition-colors ${isChildActive
-                              ? "text-white font-medium"
-                              : "text-zinc-500 hover:text-gray-300"
+                            ? "text-white font-medium"
+                            : "text-zinc-500 hover:text-gray-300"
                             }`}
                         >
                           {child.name}

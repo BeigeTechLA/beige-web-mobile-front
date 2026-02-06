@@ -45,9 +45,9 @@ const FOOTER_LINKS = [
 const SOCIAL_PLATFORMS = [
   { name: "Facebook", icon: Facebook, href: "https://www.facebook.com/beigemedia" },
   { name: "Linkedin", icon: Linkedin, href: "https://www.linkedin.com/company/beigemedia" },
-  { name: "Youtube", icon: Youtube, href: "https://www.youtube.com/@beigemedia" },
-  { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/beigemedia" },
-  { name: "Twitter", icon: Twitter, href: "https://www.twitter.com/beigemedia" },
+  // { name: "Youtube", icon: Youtube, href: "https://www.youtube.com/@beigemedia" },
+  // { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/beigemedia" },
+  // { name: "Twitter", icon: Twitter, href: "https://www.twitter.com/beigemedia" },
   { name: "Tiktok", icon: Music2, href: "https://www.tiktok.com/@beigemedia" },
 ];
 
