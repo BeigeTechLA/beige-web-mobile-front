@@ -36,7 +36,7 @@ export default function AffiliateOverviewChart({ externalSelectedDate }: { exter
   const [activeMetric, setActiveMetric] = useState('total');
   const [metrics, setMetrics] = useState<any[]>(initialMetrics);
   const [isLoading, setIsLoading] = useState(true);
-  const [range, setRange] = useState<string>('month');
+  const [range, setRange] = useState<string>('all');
 
   useEffect(() => {
     const fetchSummary = async () => {

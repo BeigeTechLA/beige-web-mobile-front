@@ -212,28 +212,28 @@ export interface ReferralHistoryItem {
 
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
- validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
-  try {
-    const url = userId 
-      ? `/affiliates/validate/${code}?user_id=${userId}` 
-      : `/affiliates/validate/${code}`;
+  validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
+    try {
+      const url = userId
+        ? `/affiliates/validate/${code}?user_id=${userId}`
+        : `/affiliates/validate/${code}`;
 
-    const response = await api.get(url);
+      const response = await api.get(url);
 
-    return {
-      valid: response.data.valid || false,
-      referral_code: response.data.data?.referral_code,
-      affiliate_name: response.data.data?.affiliate_name,
-      message: response.data.message, // Success message
-    };
-  } catch (error: any) {
-    // FIX: Extract the message from the server error response
-    return { 
-      valid: false, 
-      message: error.response?.data?.message || "Invalid referral code" 
-    };
-  }
-},
+      return {
+        valid: response.data.valid || false,
+        referral_code: response.data.data?.referral_code,
+        affiliate_name: response.data.data?.affiliate_name,
+        message: response.data.message, // Success message
+      };
+    } catch (error: any) {
+      // FIX: Extract the message from the server error response
+      return {
+        valid: false,
+        message: error.response?.data?.message || "Invalid referral code"
+      };
+    }
+  },
 
   // Get current user's affiliate info (requires auth)
   getMyAffiliate: async (token: string): Promise<AffiliateInfo> => {
@@ -1054,6 +1054,19 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to assign post production member',
+      };
+    }
+  },
+  getDashboardChartData: async (params: { range?: string; date_on?: string } = {}) => {
+    try {
+      const response = await api.get('admin/dashboard-chart-data', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Dashboard Chart Data Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch dashboard chart data',
       };
     }
   },

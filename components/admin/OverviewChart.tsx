@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Video, Camera, Film, Users, ChevronDown, UsersRound, Calendar as CalendarIcon } from 'lucide-react';
+import { Video, Camera, Film, Users, ChevronDown, UsersRound, Calendar as CalendarIcon, ArrowUpRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import {
   Select,
   SelectContent,
@@ -12,17 +13,6 @@ import {
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/Datepicker";
 import { format } from 'date-fns';
-
-// --- Dummy Data ---
-const data = [
-  { name: 'Jan', total: 38, active: 30, completed: 8, clients: 15, cps: 20 },
-  { name: 'Feb', total: 25, active: 20, completed: 5, clients: 10, cps: 15 },
-  { name: 'Mar', total: 42, active: 35, completed: 7, clients: 20, cps: 25 },
-  { name: 'Apr', total: 65, active: 55, completed: 10, clients: 30, cps: 40 },
-  { name: 'May', total: 45, active: 30, completed: 15, clients: 45, cps: 50 },
-  { name: 'Jun', total: 50, active: 40, completed: 10, clients: 25, cps: 35 },
-  { name: 'Jul', total: 35, active: 20, completed: 15, clients: 35, cps: 45 },
-];
 
 const initialMetrics = [
   { id: 'total', label: 'Total Shoots', value: '0', growth: 0, icon: Video, color: 'bg-[#E5D5B8]' },
@@ -39,83 +29,107 @@ interface OverviewChartProps {
 }
 
 export default function OverviewChart({ externalSelectedDate }: OverviewChartProps) {
+  const router = useRouter();
   const [activeMetric, setActiveMetric] = useState('total');
   const [metrics, setMetrics] = useState<any[]>(initialMetrics);
   const [isLoading, setIsLoading] = useState(true);
-  const [range, setRange] = useState('month');
+  const [isChartLoading, setIsChartLoading] = useState(true);
+  const [range, setRange] = useState('all');
+  const [chartData, setChartData] = useState<any[]>([]);
 
   React.useEffect(() => {
     if (externalSelectedDate) {
       setRange('custom');
     } else if (range === 'custom') {
       // If external date cleared and we were in custom, go back to month
-      setRange('month');
+      setRange('all');
     }
   }, [externalSelectedDate]);
 
   React.useEffect(() => {
-    const fetchSummary = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
+      setIsChartLoading(true);
       try {
         const params: any = { range };
         if (range === 'custom' && externalSelectedDate) {
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
-        const response = await adminApi.getDashboardSummary(params);
-        if (response && response.data) {
-          const data = response.data;
+        const response = await adminApi.getDashboardChartData(params);
+        if (response && !response.error && response.summary && response.charts) {
+          const { summary, charts } = response;
+
+          // Transform Chart Data
+          const labels = charts.total_shoots?.map((item: any) => item.label) || [];
+          const consolidatedChartData = labels.map((label: string, index: number) => ({
+            name: label,
+            total: charts.total_shoots?.[index]?.value || 0,
+            active: charts.active_shoots?.[index]?.value || 0,
+            completed: charts.completed_shoots?.[index]?.value || 0,
+            clients: charts.total_clients?.[index]?.value || 0,
+            cps: charts.total_CPs?.[index]?.value || 0,
+          }));
+          setChartData(consolidatedChartData);
+
+          // Update Metrics
           setMetrics([
             {
               id: 'total',
               label: 'Total Shoots',
-              value: data.total_shoots?.count?.toString() || '0',
-              growth: data.total_shoots?.growth || 0,
+              value: summary.total_shoots?.count?.toString() || '0',
+              growth: summary.total_shoots?.growth || 0,
               icon: Video,
               color: 'bg-[#E5D5B8]'
             },
             {
               id: 'active',
               label: 'Active Shoots',
-              value: data.active_shoots?.count?.toString() || '0',
-              growth: data.active_shoots?.growth || 0,
+              value: summary.active_shoots?.count?.toString() || '0',
+              growth: summary.active_shoots?.growth || 0,
               icon: Camera,
               color: 'bg-zinc-800'
             },
             {
               id: 'completed',
               label: 'Completed Shoots',
-              value: data.completed_shoots?.count?.toString() || '0',
-              growth: data.completed_shoots?.growth || 0,
+              value: summary.completed_shoots?.count?.toString() || '0',
+              growth: summary.completed_shoots?.growth || 0,
               icon: Film,
               color: 'bg-zinc-800'
             },
             {
               id: 'clients',
               label: 'Total Clients',
-              value: data.total_clients?.count?.toString() || '0', // Not in current response, keeping placeholder
-              growth: 0,
+              value: summary.total_clients?.count?.toString() || '0',
+              growth: summary.total_clients?.growth || 0,
               icon: UsersRound,
               color: 'bg-zinc-800'
             },
             {
               id: 'cps',
-              label: 'Total CPs',
-              value: data.total_CPs?.count?.toString() || '0',
-              growth: data.total_CPs?.growth || 0,
+              label: 'Approved CPs',
+              value: summary.approved_CPs?.count?.toString() || '0',
+              growth: summary.approved_CPs?.growth || 0,
               icon: Users,
-              color: 'bg-zinc-800'
+              color: 'bg-zinc-800',
+              details: {
+                pending: summary.pending_CPs?.count || 0,
+                rejected: summary.rejected_CPs?.count || 0,
+                total: summary.total_CPs?.count || 0,
+              }
             },
           ]);
         }
       } catch (error) {
-        console.error('Error fetching dashboard summary:', error);
+        console.error('Error fetching dashboard data:', error);
       } finally {
         setIsLoading(false);
+        setIsChartLoading(false);
       }
     };
 
-    fetchSummary();
+    fetchData();
   }, [range, externalSelectedDate]);
 
   const getGrowthLabel = () => {
@@ -166,13 +180,42 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
             <div
               key={m.id}
               onClick={() => setActiveMetric(m.id)}
-              className={`cursor-pointer rounded-lg p-4 border border-transparent ${isActive ? 'bg-[#ECD7B4] text-[#171717]' : 'bg-[#101010] text-white hover:border-white/30'
+              className={`relative group cursor-pointer rounded-lg p-4 border border-transparent transition-all duration-200 ${isActive ? 'bg-[#ECD7B4] text-[#171717]' : 'bg-[#101010] text-white hover:border-white/30'
                 }`}
             >
+              {/* Tooltip for CPs */}
+              {m.id === 'cps' && m.details && (
+                <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-40 bg-[#1A1A1A] border border-[#3D3D3D] rounded-xl p-3 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none mb-2">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-[10px] uppercase tracking-wider text-zinc-500 font-bold">
+                      <span>CP Breakdown</span>
+                    </div>
+                    <div className="h-[1px] bg-[#3D3D3D] w-full" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-orange-400 font-medium">Pending</span>
+                      <span className="text-xs font-bold text-white">{m.details.pending}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-red-400 font-medium">Rejected</span>
+                      <span className="text-xs font-bold text-white">{m.details.rejected}</span>
+                    </div>
+                    <div className="h-[1px] bg-[#3D3D3D] w-full" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-400 font-medium">Total</span>
+                      <span className="text-xs font-bold text-white">{m.details.total}</span>
+                    </div>
+                  </div>
+                  {/* Arrow */}
+                  <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1A1A1A] border-r border-b border-[#3D3D3D] rotate-45" />
+                </div>
+              )}
+
               <div className="flex justify-between items-start mb-6">
-                <span className={`text-sm font-medium ${isActive ? 'text-black/70' : 'text-zinc-400'}`}>
-                  {m.label}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-medium ${isActive ? 'text-black/70' : 'text-zinc-400'}`}>
+                    {m.label}
+                  </span>
+                </div>
                 <div className={`p-2 rounded-full ${isActive ? 'bg-[#171717] text-[#E8D1AB]' : 'bg-[#2C2C2C] text-white/60'}`}>
                   <m.icon size={20} />
                 </div>
@@ -189,15 +232,32 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                   {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
                 </span> {getGrowthLabel()}
               </div>
+
+              {m.id === 'cps' && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push('/admin/users/creative-partners');
+                  }}
+                  className={`absolute bottom-3 right-3 p-1 rounded-full hover:bg-black/10 transition-colors ${isActive ? 'text-black/70' : 'text-zinc-400 hover:bg-white/10'}`}
+                >
+                  <ArrowUpRight size={16} />
+                </button>
+              )}
             </div>
           );
         })}
       </div>
 
       {/* Chart Section */}
-      <div className="h-[310px] lg:h-[350px] w-full">
+      <div className="h-[310px] lg:h-[350px] w-full relative">
+        {isChartLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-transparent z-10">
+            <div className="h-8 w-8 border-2 border-[#E5D5B8] border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data}>
+          <AreaChart data={chartData}>
             <defs>
               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#E5D5B8" stopOpacity={0.3} />
