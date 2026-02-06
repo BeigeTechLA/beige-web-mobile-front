@@ -24,8 +24,9 @@ import {
   MapPin,
   Info,
   ChevronRight,
-  Folder,
-  MessageSquare,
+  MessageCircle,
+  FolderOpen,
+  ChevronUp, ChevronDown
 } from "lucide-react";
 import { AffiliateOverallShootsTable } from "@/components/affiliate/AffiliateOverallShootsTable";
 import AffiliateOverviewChart from "@/components/affiliate/AffiliateOverviewChart";
@@ -38,11 +39,9 @@ import AffiliateFileManager from "@/components/affiliate/AffiliateFileManager";
 import AffiliateMessages from "@/components/affiliate/AffiliateMessages";
 import { AffiliateShoots } from "@/components/affiliate/AffiliateShoots";
 import AffiliateShootDetails from "@/components/affiliate/AffiliateShootDetails";
+import { AffiliateProfileSettings } from "@/components/affiliate/AffiliateProfileSettings";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Eye, EyeOff } from "lucide-react";
 import {
   affiliateApi,
   type AffiliateDashboardStats,
@@ -51,10 +50,10 @@ import {
 } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { useChangePasswordMutation, useChangePasswordClientMutation } from "@/lib/redux/features/auth/authApi";
 import Link from "next/link";
 import { useGetBookingsMutation } from "@/lib/redux/features/booking/bookingApi";
 import Image from "next/image";
+import { StatCard } from "@/components/admin/StatCard";
 
 // Define a type for the active tab
 type TabType =
@@ -65,173 +64,6 @@ type TabType =
   | "messages"
   | "shoots"
   | "profile";
-
-const AffiliateProfileSettings = () => {
-  const [changePasswordClient, { isLoading }] = useChangePasswordClientMutation();
-  const { user } = useAuth();
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (newPassword !== confirmPassword) {
-      toast.error("New passwords do not match");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-
-    try {
-      const userData = localStorage.getItem("revure_user");
-      const parsedUser = userData ? JSON.parse(userData) : null;
-      const userId = parsedUser?.id;
-
-      if (!userId) {
-        toast.error("User ID not found");
-        return;
-      }
-
-      const response = await changePasswordClient({
-        currentPassword: currentPassword,
-        newPassword: newPassword,
-        user_id: userId
-      }).unwrap();
-
-      toast.success(response.message || "Password changed successfully");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to change password");
-    }
-  };
-
-  return (
-    <div className="space-y-4 lg:space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-lg lg:text-3xl font-bold text-white mb-2">Profile Settings</h1>
-        <p className="text-white/60 lg:text-lg">Manage your personal information and account security.</p>
-      </div>
-
-      {/* Personal Info Card */}
-      <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8 md:p-10">
-        <h2 className="text-xl font-bold text-white tracking-tight mb-8">Personal Information</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-10 gap-x-16">
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-1">Full Name</p>
-            <p className="text-white/90 font-medium text-xl border-b border-white/10 pb-2">{user?.name || "Not set"}</p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-1">Email Address</p>
-            <p className="text-white/90 font-medium text-xl border-b border-white/10 pb-2">{user?.email || "Not set"}</p>
-          </div>
-          {/* <div className="space-y-2">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Role</p>
-            <div>
-              <span className="inline-flex items-center px-4 py-2 bg-[#E8D1AB]/10 text-[#E8D1AB] rounded-full text-sm font-bold uppercase tracking-wider border border-[#E8D1AB]/20">
-                Partner
-              </span>
-            </div>
-          </div> */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-1">User ID</p>
-            <p className="text-white/50 font-mono text-lg tracking-wider">#{user?.id}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Security Card */}
-      <div className="bg-[#111] border border-white/5 rounded-[2rem] p-8 md:p-10">
-        <h2 className="text-xl font-bold text-white tracking-tight mb-8">Security Settings</h2>
-        <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-white/60">Current Password</Label>
-              <div className="relative">
-                <Input
-                  type={showCurrentPassword ? "text" : "password"}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="bg-[#1A1A1A] border-white/10 text-white pr-12 h-14 text-lg rounded-xl focus:border-[#E8D1AB]/50 transition-colors"
-                  placeholder="Enter current password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
-                >
-                  {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-white/60">New Password</Label>
-              <div className="relative">
-                <Input
-                  type={showNewPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="bg-[#1A1A1A] border-white/10 text-white pr-12 h-14 text-lg rounded-xl focus:border-[#E8D1AB]/50 transition-colors"
-                  placeholder="Enter new password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
-                >
-                  {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-white/60">Confirm New Password</Label>
-              <div className="relative">
-                <Input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-[#1A1A1A] border-white/10 text-white pr-12 h-14 text-lg rounded-xl focus:border-[#E8D1AB]/50 transition-colors"
-                  placeholder="Confirm new password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
-                >
-                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-white/5">
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="bg-[#E8D1AB] text-black hover:bg-[#d4be98] px-10 h-12 text-lg font-bold rounded-xl w-full sm:w-auto transition-all active:scale-95"
-            >
-              {isLoading ? "Updating Password..." : "Update Password"}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
 
 export default function AffiliateDashboardPage() {
   const router = useRouter();
@@ -247,6 +79,7 @@ export default function AffiliateDashboardPage() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -508,7 +341,7 @@ export default function AffiliateDashboardPage() {
             : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
             }`}
         >
-          <Folder size={20} />
+          <FolderOpen size={20} />
           <span className="font-medium">File Manager</span>
         </button>
 
@@ -519,7 +352,7 @@ export default function AffiliateDashboardPage() {
             : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
             }`}
         >
-          <MessageSquare size={20} />
+          <MessageCircle size={20} />
           <span className="font-medium">Messages</span>
         </button>
 
@@ -597,6 +430,10 @@ export default function AffiliateDashboardPage() {
     </div>
   );
 
+  const toggleExpand = (id: number) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex">
       {/* DESKTOP SIDEBAR */}
@@ -660,7 +497,7 @@ export default function AffiliateDashboardPage() {
                     <h1 className="text-lg lg:text-3xl lg:leading-[32px] font-semibold mb-1">
                       Welcome back, {user?.name || "Partner"} !
                     </h1>
-                    <p className=" lg:text-lg text-white/70">
+                    <p className="text-xs lg:text-sm text-white/70">
                       Monitor revenue, shoots, clients, and performance metrics
                       in one centralized dashboard.
                     </p>
@@ -710,18 +547,18 @@ export default function AffiliateDashboardPage() {
             ) : activeTab === "overview" ? (
               <>
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 lg:gap-6">
                   <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">
+                    <h1 className="text-lg lg:text-3xl font-bold text-white mb-2">
                       Dashboard
                     </h1>
-                    <p className="text-white/60">
+                    <p className="text-xs lg:text-sm text-white/60">
                       Welcome back, {user?.name || "Partner"}
                     </p>
                   </div>
 
                   {/* Referral Code Card */}
-                  <div className="bg-[#1A1A1A] border border-[#E8D1AB]/20 rounded-xl p-1 pr-1 flex items-center gap-3 w-full md:w-auto min-w-[300px]">
+                  <div className="bg-[#1A1A1A] border border-[#E8D1AB]/20 rounded-lg lg:rounded-xl p-1 pr-1 flex items-center gap-3 w-full md:w-auto min-w-[300px]">
                     <div className="px-4 py-2 flex-1">
                       <span className="text-xs text-[#E8D1AB] uppercase tracking-wider font-semibold block mb-0.5">
                         Your Code
@@ -740,7 +577,7 @@ export default function AffiliateDashboardPage() {
                               );
                               setNewCode(value.toUpperCase());
                             }}
-                            className="bg-transparent border-b border-[#E8D1AB] outline-none text-xl font-mono font-bold text-white tracking-widest w-24 uppercase"
+                            className="bg-transparent border-b border-[#E8D1AB] outline-none lg:text-xl font-mono font-bold text-white tracking-widest w-24 uppercase"
                             disabled={isUpdating}
                           />
                           <button
@@ -766,7 +603,7 @@ export default function AffiliateDashboardPage() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-3">
-                          <span className="text-xl font-mono font-bold text-white tracking-widest">
+                          <span className="lg:text-xl font-mono font-bold text-white tracking-widest">
                             {stats?.affiliate.referral_code || "------"}
                           </span>
                           <button
@@ -798,7 +635,7 @@ export default function AffiliateDashboardPage() {
                 </div>
 
                 {/* Google Forms CTA Banner */}
-                <div className="bg-gradient-to-r from-[#E8D1AB]/10 to-[#E8D1AB]/5 border border-[#E8D1AB]/20 rounded-xl p-6 lg:p-8">
+                <div className="bg-gradient-to-r from-[#E8D1AB]/10 to-[#E8D1AB]/5 border border-[#E8D1AB]/20 rounded-lg lg:rounded-xl p-4 lg:p-8">
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     <div className="flex-1">
                       <h3 className="text-white font-semibold text-lg lg:text-xl mb-2">
@@ -824,77 +661,124 @@ export default function AffiliateDashboardPage() {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group hover:border-[#E8D1AB]/30 transition-colors">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                      <DollarSign size={48} className="text-[#E8D1AB]" />
-                    </div>
-                    <p className="text-white/40 text-sm font-medium mb-2">
-                      Total Earnings
-                    </p>
-                    <p className="text-2xl font-bold text-white">
-                      {formatCurrency(stats?.earnings.total_earnings || 0)}
-                    </p>
-                  </div>
-
-                  <div className="bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group hover:border-yellow-500/30 transition-colors">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                      <Clock size={48} className="text-yellow-500" />
-                    </div>
-                    <p className="text-white/40 text-sm font-medium mb-2">
-                      Pending Payout
-                    </p>
-                    <p className="text-2xl font-bold text-yellow-500">
-                      {formatCurrency(stats?.earnings.pending_earnings || 0)}
-                    </p>
-                  </div>
-
-                  <div className="bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group hover:border-blue-500/30 transition-colors">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                      <Users size={48} className="text-blue-500" />
-                    </div>
-                    <p className="text-white/40 text-sm font-medium mb-2">
-                      Total Referrals
-                    </p>
-                    <p className="text-2xl font-bold text-white">
-                      {stats?.stats.total_referrals || 0}
-                    </p>
-                    <p className="text-xs text-white/40 mt-1">
-                      {stats?.stats.successful_referrals || 0} successful
-                    </p>
-                  </div>
-
-                  <div className="bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group hover:border-purple-500/30 transition-colors">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                      <TrendingUp size={48} className="text-purple-500" />
-                    </div>
-                    <p className="text-white/40 text-sm font-medium mb-2">
-                      Conversion Rate
-                    </p>
-                    <p className="text-2xl font-bold text-white">
-                      {stats?.stats.conversion_rate || "0"}%
-                    </p>
-                  </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard
+                    label="Total Earnings"
+                    value={formatCurrency(stats?.earnings.total_earnings || 0)}
+                    icon={DollarSign}
+                    iconColor="text-green-500"
+                    hoverBorder="hover:border-green-500/30"
+                  />
+                  <StatCard
+                    label="Pending Payout"
+                    value={formatCurrency(stats?.earnings.pending_earnings || 0)}
+                    icon={Clock}
+                    iconColor="text-yellow-500"
+                    hoverBorder="hover:border-yellow-500/30"
+                    valueColor="text-yellow-500"
+                  />
+                  <StatCard
+                    label="Total Referrals"
+                    value={stats?.stats.total_referrals || 0}
+                    icon={Users}
+                    iconColor="text-blue-500"
+                    hoverBorder="hover:border-blue-500/30"
+                    subtext={`${stats?.stats.successful_referrals || 0} successful`}
+                  />
+                  <StatCard
+                    label="Conversion Rate"
+                    value={`${stats?.stats.conversion_rate || 0} %`}
+                    icon={TrendingUp}
+                    iconColor="text-purple-500"
+                    hoverBorder="hover:border-purple-500/30"
+                  />
                 </div>
 
                 {/* Referrals Table Section */}
-                <div className="bg-[#111] rounded-xl border border-white/5 overflow-hidden">
-                  <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                <div className="bg-[#111] rounded-lg lg:rounded-xl border border-white/5 overflow-hidden">
+                  <div className="p-4 lg:p-6 border-b border-white/5 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-white">
                       Recent Referrals
                     </h2>
                   </div>
-                  <div className="overflow-x-auto">
+                  {/* --- MOBILE VIEW (Accordion Cards) --- */}
+                  <div className="lg:hidden space-y-4">
+                    {referrals.length === 0 ? (
+                      <div className="px-6 py-12 text-center text-white/40 bg-white/5  border border-white/5">
+                        <Users className="mx-auto mb-3 opacity-20" size={32} />
+                        <p>No referrals yet. Share your code to start earning!</p>
+                      </div>
+                    ) : (
+                      referrals.map((referral) => {
+                        const isExpanded = expandedId === referral.referral_id;
+
+                        return (
+                          <div
+                            key={referral.referral_id}
+                            className="bg-[#101010] rounded-2xl border border-white/5 overflow-hidden"
+                          >
+                            <div
+                              className="p-4 flex items-center justify-between cursor-pointer"
+                              onClick={() => toggleExpand(referral.referral_id)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-6 h-6 flex items-center justify-center rounded-full border transition-colors ${isExpanded ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'}`}>
+                                  {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                </div>
+                                <div>
+                                  <p className="text-white/40 text-[10px] uppercase tracking-wider">Commission</p>
+                                  <p className="font-medium text-[#E8D1AB]">
+                                    {formatCurrency(referral.commission_amount)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col items-end gap-1">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize font-semibold ${getStatusColor(referral.status)}`}>
+                                  {referral.status}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Collapsible Content */}
+                            {isExpanded && (
+                              <div className="px-4 pb-5 pt-2 border-t border-white/5 grid grid-cols-2 gap-y-4">
+                                <div>
+                                  <p className="text-white/40 text-[10px] uppercase tracking-wider">Date</p>
+                                  <p className="text-white/80 text-sm">{formatDate(referral.created_at)}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-white/40 text-[10px] uppercase tracking-wider">Booking Amt</p>
+                                  <p className="text-white/60 text-sm">
+                                    {referral.booking_amount ? formatCurrency(referral.booking_amount) : "-"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-white/40 text-[10px] uppercase tracking-wider">Payout Status</p>
+                                  <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full capitalize font-semibold ${getPayoutStatusColor(referral.payout_status)}`}>
+                                    {referral.payout_status}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* --- DESKTOP VIEW (Original Table) --- */}
+                  <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full text-left text-sm min-w-[600px]">
                       <thead>
-                        <tr className="bg-white/5 text-white/40">
-                          <th className="px-6 py-4 font-medium">Date</th>
-                          <th className="px-6 py-4 font-medium">
+                        <tr className="text-[#E8D1AB] text-sm font-medium rounded-b-xl">
+                          <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D] ">Date</th>
+                          <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">
                             Booking Amount
                           </th>
-                          <th className="px-6 py-4 font-medium">Commission</th>
-                          <th className="px-6 py-4 font-medium">Status</th>
-                          <th className="px-6 py-4 font-medium">Payout</th>
+                          <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Commission</th>
+                          <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Status</th>
+                          <th className="pb-4 px-4 text-right bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Payout</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
@@ -954,7 +838,7 @@ export default function AffiliateDashboardPage() {
                 </div>
 
                 {/* How It Works */}
-                <div className="bg-[#111] rounded-xl border border-white/5 p-6">
+                <div className="bg-[#111] rounded-lg lg:rounded-xl border border-white/5 p-4 lg:p-6">
                   <h3 className="text-lg font-semibold mb-4 text-white">
                     How to Earn
                   </h3>

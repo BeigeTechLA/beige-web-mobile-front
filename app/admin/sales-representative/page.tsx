@@ -12,6 +12,7 @@ import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
+import { StatusBadge } from "@/components/admin/StatusBadge";
 
 // placeholder data
 const sortByData = ["Recent Leads (5)", "Recent Leads (15)", "Test Filter"];
@@ -57,22 +58,6 @@ const formatRelativeTime = (dateString: string): string => {
     return `${diffInDays} days ago`;
   }
   return date.toLocaleDateString();
-};
-
-const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
-  const styles = {
-    Booked: "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]",
-    Cancelled: "bg-[#fbd9d3] text-red-500 border-[#fbd9d3]",
-    "In-Progress": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]",
-  };
-
-  return (
-    <span
-      className={`text-nowrap px-4 py-3 rounded-full text-xs lg:text-base font-medium border ${styles[status]}`}
-    >
-      {status}
-    </span>
-  );
 };
 
 export default function AdminSaleRepManagerPage() {
@@ -174,23 +159,20 @@ export default function AdminSaleRepManagerPage() {
         className="lg:hidden h-[1px] w-full my-4 lg:my-9"
         style={{
           backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-          backgroundSize: '30px 1px', // 30px is the total dash + gap width
+          backgroundSize: '30px 1px',
           backgroundRepeat: 'repeat-x'
         }}
       />
 
       <div className="flex items-center justify-between gap-4 mb-6">
         <div className="relative flex-1 max-w-md">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]"
-            size={18}
-          />
+          <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
           <input
             type="text"
             placeholder="Search leads..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-[#555] transition-colors"
+            className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
           />
         </div>
       </div>
@@ -218,8 +200,8 @@ export default function AdminSaleRepManagerPage() {
               ))}
             </div>
 
-            {/* DESKTOP TABLE VIEW (hidden lg:block) */}
-            <div className="hidden lg:block w-full overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
+            {/* --- DESKTOP VIEW (Your Original Table) --- */}
+            <div className="hidden lg:block w-full overflow-x-auto">
               <table className="w-full text-left border-separate border-spacing-0">
                 <thead>
                   <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
@@ -283,8 +265,10 @@ export default function AdminSaleRepManagerPage() {
                       </td>
 
                       {/* Booking Status */}
-                      <td className="py-5 px-6">
-                        <StatusBadge status={lead.bookingStatus} />
+                      <td className="py-5 px-6 whitespace-nowrap w-px">
+                        <div className="flex items-center min-w-max">
+                          <StatusBadge status={lead.bookingStatus} />
+                        </div>
                       </td>
 
                       {/* Last Activity */}

@@ -23,6 +23,7 @@ import type {
   AffiliateDashboardStats,
   ReferralHistoryItem,
 } from "@/lib/api";
+import { StatCard } from "@/components/admin/StatCard";
 
 export default function AffiliateOverviewPage() {
   const { user } = useAuth();
@@ -212,18 +213,18 @@ export default function AffiliateOverviewPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Earnings"
           value={formatCurrency(stats?.earnings.total_earnings || 0)}
-          icon={<DollarSign />}
+          icon={DollarSign}
           iconColor="text-[#E8D1AB]"
           hoverBorder="hover:border-[#E8D1AB]/30"
         />
         <StatCard
           label="Pending Payout"
           value={formatCurrency(stats?.earnings.pending_earnings || 0)}
-          icon={<Clock />}
+          icon={Clock}
           iconColor="text-yellow-500"
           valueColor="text-yellow-500"
           hoverBorder="hover:border-yellow-500/30"
@@ -231,7 +232,7 @@ export default function AffiliateOverviewPage() {
         <StatCard
           label="Total Referrals"
           value={stats?.stats.total_referrals || 0}
-          icon={<Users />}
+          icon={Users}
           iconColor="text-blue-500"
           hoverBorder="hover:border-blue-500/30"
           subtext={`${stats?.stats.successful_referrals || 0} successful`}
@@ -239,7 +240,7 @@ export default function AffiliateOverviewPage() {
         <StatCard
           label="Conversion Rate"
           value={`${stats?.stats.conversion_rate || 0}%`}
-          icon={<TrendingUp />}
+          icon={TrendingUp}
           iconColor="text-purple-500"
           hoverBorder="hover:border-purple-500/30"
         />
@@ -358,46 +359,3 @@ const payoutColor = (status: string) => {
     default: return "text-white/60 bg-white/5";
   }
 };
-
-/* Stat Card Component */
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  icon: React.ReactElement;
-  iconColor: string;
-  hoverBorder: string;
-  valueColor?: string;
-  subtext?: string;
-}
-
-function StatCard({
-  label,
-  value,
-  icon,
-  iconColor,
-  hoverBorder,
-  valueColor = "text-white",
-  subtext,
-}: StatCardProps) {
-  return (
-    <div className={`bg-[#111] rounded-xl p-5 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300`}>
-      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-        {React.cloneElement(icon, { size: 40, className: iconColor })}
-      </div>
-      
-      <div className="relative z-10">
-        <p className="text-white/40 text-sm font-medium mb-1">
-          {label}
-        </p>
-        <p className={`text-2xl font-bold ${valueColor}`}>
-          {value}
-        </p>
-        {subtext && (
-          <p className="text-xs text-white/40 mt-1">
-            {subtext}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}

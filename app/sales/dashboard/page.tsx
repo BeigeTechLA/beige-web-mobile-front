@@ -105,7 +105,7 @@ export default function SalesLeadsPage() {
     client: string,
     leadId: number,
   ) => {
-    e.stopPropagation(); // Prevent row click
+    e.stopPropagation();
     setSelectedClient(client);
     setSelectedLeadId(leadId);
     const rect = e.currentTarget.getBoundingClientRect();
@@ -319,8 +319,10 @@ export default function SalesLeadsPage() {
                       </td>
 
                       {/* Booking Status */}
-                      <td className="py-5 px-6">
-                        <StatusBadge status={lead.bookingStatus} />
+                      <td className="py-5 px-6 whitespace-nowrap w-px">
+                        <div className="flex items-center min-w-max">
+                          <StatusBadge status={lead.bookingStatus} />
+                        </div>
                       </td>
 
                       {/* Last Activity */}
