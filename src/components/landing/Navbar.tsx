@@ -303,8 +303,6 @@ export const Navbar = () => {
         <div className="h-13 md:h-[88px] flex items-center justify-between lg:px-6">
           <Link
             href="/"
-            // target="_blank"
-            // rel="noopener noreferrer"
             className="relative flex items-center"
           >
             <Image

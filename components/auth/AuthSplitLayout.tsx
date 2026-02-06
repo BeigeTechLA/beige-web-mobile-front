@@ -58,13 +58,23 @@ export function AuthSplitLayout({
               </button>
             ) : null}
             <div className="bg-white/5 backdrop-blur-md px-4 py-2 md:px-6 md:py-3 rounded-full border border-white/10 shadow-2xl">
-              <Image
-                src="/images/logos/beige_logo_vb.png"
-                alt="BEIGE"
-                width={100}
-                height={30}
-                className="object-contain w-[80px] md:w-[120px] h-auto"
-              />
+              <Link
+                href="/"
+                className="relative flex items-center"
+              >
+                <Image
+                  src="/images/logos/beige_logo_vb.png"
+                  alt="BEIGE"
+                  width={100}
+                  height={30}
+                  className="object-contain w-[80px] md:w-[120px] h-auto"
+                  priority
+                />
+                <span className="absolute -right-1 md:right-1 -bottom-6 md:-bottom-9 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
+                  Beta
+                  <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+                </span>
+              </Link>
             </div>
           </div>
           {children}

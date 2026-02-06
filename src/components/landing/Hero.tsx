@@ -102,6 +102,12 @@ export const Hero = () => {
               >
                 Start Your Shoot
               </Button>
+              <Button
+                className="h-7 lg:h-15 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
+                onClick={() => router.push('/login')}
+              >
+                Sign Up
+              </Button>
             </motion.div>
 
             {/* THE SWIPER COMPONENT */}
@@ -134,13 +140,6 @@ export const Hero = () => {
             </div> */}
           </div>
         </div>
-
-        {/*  SVG OVERLAY  */}
-        {/* <img
-          src="/svg/HeroBanner.svg"
-          alt="Decorative Overlay"
-          className="absolute inset-0 w-full h-full object-cover z-[2] pointer-events-none"
-        /> */}
       </section>
     </>
   );

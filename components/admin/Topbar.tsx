@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import Link from "next/link";
 
 export default function Topbar({
   pathname,
@@ -36,14 +37,18 @@ export default function Topbar({
             >
               <Menu size={28} />
             </button>
-            <Image
-              src="/images/logos/beige_logo_vb.png"
-              alt="BEIGE"
-              width={100}
-              height={20}
-              className="object-contain"
-              priority
-            />
+            <Link href="/" className="relative flex items-center">
+              <Image
+                src="/images/logos/beige_logo_vb.png"
+                alt="BEIGE"
+                width={100}
+                height={20}
+              />
+              <span className="absolute right-0 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
+                Beta
+                <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+              </span>
+            </Link>
           </div>
 
           <div className="flex items-center gap-3">
@@ -94,7 +99,7 @@ export default function Topbar({
       <div className="hidden lg:flex items-center justify-between px-9 py-6 gap-4">
         {/* Left: Logo & Breadcrumbs/Title */}
         <div className="flex items-center gap-6 shrink-0">
-          <a href="https://beige.app" target="_blank" rel="noopener noreferrer" className="flex items-center shrink-0">
+          <a href="https://beige.app" target="_blank" rel="noopener noreferrer" className="relative flex items-center shrink-0">
             <Image
               src="/images/logos/beige_logo_vb.png"
               alt="BEIGE"
@@ -103,6 +108,10 @@ export default function Topbar({
               className="w-[158px] h-[32px] object-contain"
               priority
             />
+            <span className="absolute right-4 md:right-5 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
+              Beta
+              <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+            </span>
           </a>
 
           {isShootsPage ? (

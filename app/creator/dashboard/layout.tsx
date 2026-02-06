@@ -35,7 +35,18 @@ export default function AffiliateLayout({
 
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-[#111] border-b border-white/10 px-4 h-16 flex items-center justify-between">
-        <Image src="/images/logos/beige_logo_vb.png" alt="BEIGE" width={120} height={24} className="object-contain" />
+        <Link href="/" className="relative flex items-center">
+          <Image
+            src="/images/logos/beige_logo_vb.png"
+            alt="BEIGE"
+            width={100}
+            height={20}
+          />
+          <span className="absolute right-0 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
+            Beta
+            <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+          </span>
+        </Link>
         <button
           onClick={() => setIsSidebarOpen(true)}
           className="p-2 text-white"
@@ -146,7 +157,7 @@ function Sidebar({
         <Link
           href="/"
           onClick={onClose}
-          className="flex items-center gap-2"
+          className="relative flex items-center w-fit"
         >
           <Image
             src="/images/logos/beige_logo_vb.png"
@@ -156,6 +167,10 @@ function Sidebar({
             className="w-[120px] h-[24px] md:w-[158px] md:h-[32px] object-contain"
             priority
           />
+           <span className="absolute right-0 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
+              Beta
+              <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+            </span>
         </Link>
       </div>
 
