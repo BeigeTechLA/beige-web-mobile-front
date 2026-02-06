@@ -20,20 +20,24 @@ import {
 // internal status mapping for styles
 const STATUS_STYLES = {
     "Initiated": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-    "PreProduction": "bg-[#FDF4FF] text-[#C065F0] border-[#C065F0]/20",
-    "PostProduction": "bg-[#E0F2FE] text-[#0EA5E9] border-[#0EA5E9]/20",
+    "Pre_Production": "bg-[#FDF4FF] text-[#C065F0] border-[#C065F0]/20",
+    "Shoot Day": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
+    "Post_Production": "bg-[#E0F2FE] text-[#0EA5E9] border-[#0EA5E9]/20",
     "Revision": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
     "Completed": "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
+    "Assets Delivered": "bg-[#E0F2FE] text-[#0EA5E9] border-[#0EA5E9]/20",
     "Cancelled": "bg-[#FFF5F5] text-[#EF4444] border-[#EF4444]/20",
 };
 
 const STATUS_LABEL_MAP: Record<number, string> = {
     0: "Initiated",
-    1: "PreProduction",
-    2: "PostProduction",
-    3: "Revision",
-    4: "Completed",
-    5: "Cancelled",
+    1: "Pre_Production",
+    2: "Shoot Day",
+    3: "Post_Production",
+    4: "Revision",
+    5: "Completed",
+    6: "Assets Delivered",
+    7: "Cancelled",
 };
 
 interface LeadRecord {

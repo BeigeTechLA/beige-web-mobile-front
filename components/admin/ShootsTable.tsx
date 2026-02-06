@@ -31,20 +31,24 @@ interface ShootRecord {
 // internal status mapping for styles
 const STATUS_STYLES = {
   "Initiated": "bg-[#FFF9E5] text-[#B18A00]",
-  "PreProduction": "bg-[#FDF4FF] text-[#C065F0]",
-  "PostProduction": "bg-[#EAEAEA] text-[#666666]",
+  "Pre_Production": "bg-[#FDF4FF] text-[#C065F0]",
+  "Shoot Day": "bg-[#FFF9E5] text-[#B18A00]",
+  "Post_Production": "bg-[#EAEAEA] text-[#666666]",
   "Revision": "bg-[#E6F0FF] text-[#3B82F6]",
   "Completed": "bg-[#F0FFF4] text-[#22C55E]",
+  "Assets Delivered": "bg-[#EAEAEA] text-[#666666]",
   "Cancelled": "bg-[#FFF5F5] text-[#EF4444]",
 };
 
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
-  1: "PreProduction",
-  2: "PostProduction",
-  3: "Revision",
-  4: "Completed",
-  5: "Cancelled",
+  1: "Pre_Production",
+  2: "Shoot Day",
+  3: "Post_Production",
+  4: "Revision",
+  5: "Completed",
+  6: "Assets Delivered",
+  7: "Cancelled",
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -163,18 +167,22 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
       <div className="flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b border-[#333333] gap-2 ">
         <h3 className="text-xl font-semibold text-white">All Shoots</h3>
         <div className="flex gap-3">
-          {/* <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[130px] bg-zinc-900 border-[#333333] rounded-lg h-10 text-sm text-white/70 focus:ring-0 capitalize">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className="bg-[#111111] border-[#333333]">
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="upcoming">Upcoming</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="Initiated">Initiated</SelectItem>
+              <SelectItem value="Pre_Production">Pre Production</SelectItem>
+              <SelectItem value="Shoot Day">Shoot Day</SelectItem>
+              <SelectItem value="Post_Production">Post Production</SelectItem>
+              <SelectItem value="Revision">Revision</SelectItem>
+              <SelectItem value="Completed">Completed</SelectItem>
+              <SelectItem value="Assets Delivered">Assets Delivered</SelectItem>
+              <SelectItem value="Cancelled">Cancelled</SelectItem>
             </SelectContent>
-          </Select> */}
+          </Select>
 
           <Select value={range} onValueChange={setRange}>
             <SelectTrigger className="w-[120px] bg-zinc-900 border-[#333333] rounded-lg h-10 text-sm text-white/70 focus:ring-0">
