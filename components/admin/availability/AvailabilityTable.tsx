@@ -1,19 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronRight, Search, Filter, ArrowUpRight, Calendar, Eye } from "lucide-react";
+import { ChevronRight, Calendar, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { SortDateButton } from "@/components/admin/SortDateButton";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { useDebounce } from "@/hooks/use-debounce";
+
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
@@ -51,9 +44,6 @@ export const AvailabilityTable = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [skillsMap, setSkillsMap] = useState<Record<string, string>>({});
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [statusFilter, setStatusFilter] = useState<string>("all");
-    const debouncedSearch = useDebounce(searchQuery, 500);
     const router = useRouter();
 
     const handleDateSort = (date: Date | null) => {
@@ -88,8 +78,7 @@ export const AvailabilityTable = () => {
                     limit: limit,
                 };
 
-                if (debouncedSearch) params.search = debouncedSearch;
-                if (statusFilter !== "all") params.status = statusFilter;
+
 
                 const response = await adminApi.getCrewMembers(params);
                 if (response && response.data) {
@@ -152,7 +141,7 @@ export const AvailabilityTable = () => {
             }
         };
         fetchCreativePartners();
-    }, [currentPage, limit, debouncedSearch, statusFilter]);
+    }, [currentPage, limit]);
 
     const handleViewAvailability = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -163,7 +152,7 @@ export const AvailabilityTable = () => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 font-instrument-sans">
             {/* Header */}
             <div className="flex items-center gap-4">
                 <div>
@@ -174,63 +163,19 @@ export const AvailabilityTable = () => {
                                 {String(totalRecords).padStart(2, '0')} Available CPS
                             </span>
                         )} */}
-                        <span className="bg-[#2a2a2a] text-[#E5D5B8] text-xs px-2 py-0.5 rounded border border-[#E5D5B8]/20">
-                            09 Available CPS
-                        </span>
                     </div>
                     <p className="text-[#888]">Manage and review all onboarded creative professionals in one place.</p>
                 </div>
 
                 <div className="ml-auto flex items-center gap-2">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] text-white rounded-lg hover:bg-[#222] transition-colors text-sm">
-                        <span>Sort by Date</span>
-                        <Calendar size={16} />
-                    </button>
+                    <SortDateButton
+                        selectedDate={selectedDate}
+                        onDateChange={handleDateSort}
+                    />
                 </div>
             </div>
 
             <div className="w-full h-px bg-[#333] my-6 border-dashed border-b border-white/10" />
-
-
-            {/* Toolbar */}
-            <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 flex-1">
-                    <div className="relative flex-1 max-w-sm">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-[#555] transition-colors"
-                        />
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[120px] bg-[#111] border-[#333] text-white rounded-lg h-[42px] focus:ring-0 capitalize">
-                            <SelectValue placeholder="All Status" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#111] border-[#333] text-white">
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="approved">Approved</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="rejected">Rejected</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <button className="flex items-center gap-2 px-4 py-2.5 bg-[#111] border border-[#333] text-white rounded-lg hover:bg-[#222] transition-colors">
-                        <Filter size={16} />
-                        <span>Filters</span>
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2.5 bg-[#111] border border-[#333] text-white rounded-lg hover:bg-[#222] transition-colors">
-                        <ArrowUpRight size={16} />
-                        <span>Export</span>
-                    </button>
-                </div>
-            </div>
-
 
             {/* Table */}
             <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">

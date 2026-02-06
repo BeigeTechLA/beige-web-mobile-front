@@ -80,7 +80,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
   const itemsPerPage = 5;
 
   // Filtering states
-  const [range, setRange] = useState<string>("month");
+  const [range, setRange] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Sync external selected date with range
@@ -108,24 +108,9 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
-        const [projectsResponse, skillsResponse] = await Promise.all([
+        const [projectsResponse] = await Promise.all([
           affiliateApi.getMyShoots(token, params),
-          adminApi.getSkills()
         ]);
-
-        // Create Skill Map: ID -> Name
-        const skillMap: Record<number, string> = {};
-        if (skillsResponse && skillsResponse.data) {
-          const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
-            // Adapt to potential API responses: { id, name } or { id, skill_name } etc.
-            // Assuming 'name' based on standard conventions, but safeguard with 'skill_name' if needed or just dump whole object to see
-            const name = s.name || s.skill_name || s.title;
-            if (s.id && name) {
-              skillMap[s.id] = name;
-            }
-          });
-        }
 
         const projectsList = projectsResponse?.data?.projects || [];
 
@@ -138,7 +123,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
             customerName: project.project_name || "Untitled Project",
             customerImage: project.user_image || "/images/avatar.png",
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-            category: parseSkills(project.skills_needed, skillMap),
+            category: project.event_type_labels || "N/A",
             price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
             status: statusLabel,
           };

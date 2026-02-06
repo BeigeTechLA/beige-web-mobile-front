@@ -17,20 +17,24 @@ interface ShootRecord {
 // internal status mapping for styles
 const STATUS_STYLES = {
   "Initiated": "bg-[#FFF9E5] text-[#B18A00]",
-  "PreProduction": "bg-[#FDF4FF] text-[#C065F0]",
-  "PostProduction": "bg-[#EAEAEA] text-[#666666]",
+  "Pre_Production": "bg-[#FDF4FF] text-[#C065F0]",
+  "Shoot Day": "bg-[#FFF9E5] text-[#B18A00]",
+  "Post_Production": "bg-[#EAEAEA] text-[#666666]",
   "Revision": "bg-[#E6F0FF] text-[#3B82F6]",
   "Completed": "bg-[#F0FFF4] text-[#22C55E]",
+  "Assets Delivered": "bg-[#EAEAEA] text-[#666666]",
   "Cancelled": "bg-[#FFF5F5] text-[#EF4444]",
 };
 
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
-  1: "PreProduction",
-  2: "PostProduction",
-  3: "Revision",
-  4: "Completed",
-  5: "Cancelled",
+  1: "Pre_Production",
+  2: "Shoot Day",
+  3: "Post_Production",
+  4: "Revision",
+  5: "Completed",
+  6: "Assets Delivered",
+  7: "Cancelled",
 };
 
 interface MobileShootRowProps {

@@ -17,11 +17,13 @@ import { StatusBadge } from "./StatusBadge";
 
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
-  1: "PreProduction",
-  2: "PostProduction",
-  3: "Revision",
-  4: "Completed",
-  5: "Cancelled",
+  1: "Pre_Production",
+  2: "Shoot Day",
+  3: "Post_Production",
+  4: "Revision",
+  5: "Completed",
+  6: "Assets Delivered",
+  7: "Cancelled",
 };
 
 type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" |"Unknown";
@@ -29,7 +31,7 @@ type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduct
 interface ShootRecord {
   id: string;
   customerName: string;
-  customerImage: string;
+  initials: string;
   date: string;
   category: string;
   price: string;
@@ -79,7 +81,7 @@ export const OverallShootsTable = () => {
   const itemsPerPage = 5;
 
   // New filtering states
-  const [range, setRange] = useState<string>("month");
+  const [range, setRange] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -98,37 +100,21 @@ export const OverallShootsTable = () => {
           if (endDate) params.end_date = format(endDate, 'yyyy-MM-dd');
         }
 
-        const [projectsResponse, skillsResponse] = await Promise.all([
-          adminApi.getProjects(params),
-          adminApi.getSkills()
-        ]);
-
-        // Create Skill Map: ID -> Name
-        const skillMap: Record<number, string> = {};
-        if (skillsResponse && skillsResponse.data) {
-          const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
-            // Adapt to potential API responses: { id, name } or { id, skill_name } etc.
-            // Assuming 'name' based on standard conventions, but safeguard with 'skill_name' if needed or just dump whole object to see
-            const name = s.name || s.skill_name || s.title;
-            if (s.id && name) {
-              skillMap[s.id] = name;
-            }
-          });
-        }
-
+        const projectsResponse = await adminApi.getProjects(params);
         const projectsList = projectsResponse?.data?.projects || [];
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
-          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown"as Status;
+          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as Status;
+          const customerName = project.project_name || "Untitled Project";
+          const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 
           return {
             id: `#${project.stream_project_booking_id}`,
-            customerName: project.project_name || "Untitled Project",
-            customerImage: project.user_image || "/images/avatar.png",
+            customerName,
+            initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-            category: parseSkills(project.skills_needed, skillMap),
+            category: project.event_type_labels || "N/A",
             price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
             status: statusLabel,
           };
@@ -194,10 +180,14 @@ export const OverallShootsTable = () => {
             </SelectTrigger>
             <SelectContent className="bg-[#111111] border-[#3D3D3D]">
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="upcoming">Upcoming</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="Initiated">Initiated</SelectItem>
+              <SelectItem value="Pre_Production">Pre Production</SelectItem>
+              <SelectItem value="Shoot Day">Shoot Day</SelectItem>
+              <SelectItem value="Post_Production">Post Production</SelectItem>
+              <SelectItem value="Revision">Revision</SelectItem>
+              <SelectItem value="Completed">Completed</SelectItem>
+              <SelectItem value="Assets Delivered">Assets Delivered</SelectItem>
+              <SelectItem value="Cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
 
@@ -223,7 +213,7 @@ export const OverallShootsTable = () => {
         ) : currentShoots.length > 0 ? (
           <>
             <div className="flex justify-between text-[#E8D1AB] text-sm font-medium p-4 mb-4 bg-[#101010] rounded-b-2xl border-b border-b-white/5">
-              <span>Customer Name</span>
+              <span>Project Name</span>
               <span>Status</span>
             </div>
             {currentShoots.map((shoot) => (
@@ -236,8 +226,8 @@ export const OverallShootsTable = () => {
                     >
                       {expandedId === shoot.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                     </button>
-                    <div className="w-10 h-10 relative rounded-lg overflow-hidden bg-white/10">
-                      <Image src={shoot.customerImage} alt="" fill className="object-cover" />
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#F5F5F5] text-black font-semibold text-sm">
+                      {shoot.initials}
                     </div>
                     <div>
                       <p className="text-white text-sm font-medium">{shoot.customerName}</p>
@@ -291,7 +281,7 @@ export const OverallShootsTable = () => {
               <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
                border-b border-b-[#3D3D3D] ">Shoot ID</th>
               <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Customer Name</th>
+               border-b border-b-[#3D3D3D]">Project Name</th>
               <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
                border-b border-b-[#3D3D3D]">Category</th>
               <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
@@ -320,13 +310,8 @@ export const OverallShootsTable = () => {
                   {/* Customer Info */}
                   <td className="py-2 px-4">
                     <div className="flex items-center gap-4">
-                      <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-white/10">
-                        <Image
-                          src={shoot.customerImage}
-                          alt={shoot.customerName}
-                          fill
-                          className="object-cover"
-                        />
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-[#F5F5F5] text-black font-semibold text-lg">
+                        {shoot.initials}
                       </div>
                       <div>
                         <p className="text-white font-semibold text-base max-w-[200px] truncate" title={shoot.customerName}>{shoot.customerName}</p>
