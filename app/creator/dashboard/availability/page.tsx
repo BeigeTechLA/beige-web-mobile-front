@@ -33,6 +33,7 @@ import DatePicker from "@/components/ui/Datepicker";
 import TimePicker from "@/components/ui/Timepicker";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import { StatCard } from "@/components/admin/StatCard";
 
 // --- HELPERS ---
 const formatLocation = (locationInput) => {
@@ -66,28 +67,6 @@ const formatDate = (dateString) => {
     year: "numeric",
   });
 };
-
-/* Reusable Stat Card Component matching Affiliate UI */
-function StatCard({ label, value, icon, iconColor, hoverBorder, valueColor = "text-white", subtext }) {
-  return (
-    <div className={`bg-[#111] rounded-lg lg:rounded-xl p-4 lg:p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300`}>
-      {/* <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-        {React.cloneElement(icon, { size: 40, className: iconColor })}
-      </div> */}
-      <div className="absolute top-2 right-2 lg:top-0 lg:right-0 p-3 lg:p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
-        {React.cloneElement(icon, {
-          size: "100%",
-          className: `${iconColor} w-7 h-7 lg:w-10 lg:h-10`
-        })}
-      </div>
-      <div className="relative z-10">
-        <p className="text-white/40 text-sm font-medium mb-1">{label}</p>
-        <p className={`text-xl lg:text-2xl font-bold ${valueColor}`}>{value}</p>
-        {subtext && <p className="text-xs text-white/40 mt-1">{subtext}</p>}
-      </div>
-    </div>
-  );
-}
 
 export default function AvailabilityPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -510,21 +489,21 @@ export default function AvailabilityPage() {
         <StatCard
           label="Available Days"
           value={summaryData.availableDays}
-          icon={<CheckCircle />}
+          icon={CheckCircle}
           iconColor="text-green-500"
           hoverBorder="hover:border-green-500/30"
         />
         <StatCard
           label="Booked Shoots"
           value={summaryData.bookedShoots}
-          icon={<Video />}
+          icon={Video}
           iconColor="text-[#E8D1AB]"
           hoverBorder="hover:border-[#E8D1AB]/30"
         />
         <StatCard
           label="Time Off"
           value={`${summaryData.timeOff} days`}
-          icon={<Clock />}
+          icon={Clock}
           iconColor="text-red-400"
           hoverBorder="hover:border-red-400/30"
         />
@@ -756,8 +735,8 @@ export default function AvailabilityPage() {
                               handleFormChange(updated, "repeatOn");
                             }}
                             className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${formData.repeatOn.includes(day)
-                                ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
-                                : "bg-black text-white/60 border-white/10 hover:border-white/30"
+                              ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
+                              : "bg-black text-white/60 border-white/10 hover:border-white/30"
                               }`}
                           >
                             {day}

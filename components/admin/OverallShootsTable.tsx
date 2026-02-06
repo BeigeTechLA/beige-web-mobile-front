@@ -13,18 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-// internal status mapping for styles
-const STATUS_STYLES = {
-  "Initiated": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-  "Pre_Production": "bg-[#FDF4FF] text-[#C065F0] border-[#C065F0]/20",
-  "Shoot Day": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-  "Post_Production": "bg-[#E0F2FE] text-[#0EA5E9] border-[#0EA5E9]/20",
-  "Revision": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-  "Completed": "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
-  "Assets Delivered": "bg-[#E0F2FE] text-[#0EA5E9] border-[#0EA5E9]/20",
-  "Cancelled": "bg-[#FFF5F5] text-[#EF4444] border-[#EF4444]/20",
-};
+import { StatusBadge } from "./StatusBadge";
 
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
@@ -37,6 +26,8 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   7: "Cancelled",
 };
 
+type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" |"Unknown";
+
 interface ShootRecord {
   id: string;
   customerName: string;
@@ -44,18 +35,42 @@ interface ShootRecord {
   date: string;
   category: string;
   price: string;
-  status: string;
+  status: Status;
 }
 
-const StatusBadge = ({ status, mobile }: { status: string; mobile?: boolean }) => {
-  const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
-  const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
+const parseSkills = (skills: string | number[] | null | undefined, skillMap: Record<number, string>): string => {
+  if (!skills) return "N/A";
 
-  return (
-    <span className={`${padding} rounded-full font-semibold border ${style}`}>
-      {status}
-    </span>
-  );
+  let parsedSkills: any[] = [];
+
+  if (Array.isArray(skills)) {
+    parsedSkills = skills;
+  } else if (typeof skills === "string") {
+    try {
+      if (skills.trim().startsWith("[") && skills.trim().endsWith("]")) {
+        parsedSkills = JSON.parse(skills);
+      } else {
+        // If comma separated string
+        parsedSkills = skills.split(',').map(s => s.trim());
+      }
+    } catch (e) {
+      // ignore parse error, treat as single string
+      parsedSkills = [skills.replace(/[\[\]"]/g, "")];
+    }
+  }
+
+  // Map IDs to names if possible
+  const skillNames = parsedSkills.map(skill => {
+    // If it's a number or a string that looks like a number, try to map it
+    const skillId = Number(skill);
+    if (!isNaN(skillId) && skillMap[skillId]) {
+      return skillMap[skillId];
+    }
+    // Return original if not a mapped ID (remove quotes if any) OR if mapping not found
+    return String(skill).replace(/["]/g, "");
+  });
+
+  return skillNames.join(", ");
 };
 
 export const OverallShootsTable = () => {
@@ -90,7 +105,7 @@ export const OverallShootsTable = () => {
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
-          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown";
+          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as Status;
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 

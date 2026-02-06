@@ -14,18 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { StatusBadge } from "../admin/StatusBadge";
 
-type ShootStatus = "Pending" | "Pre Production" | "Completed" | "Rejected";
-
-// internal status mapping for styles
-const STATUS_STYLES = {
-  "Initiated": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-  "PreProduction": "bg-[#FDF4FF] text-[#C065F0] border-[#C065F0]/20",
-  "PostProduction": "bg-[#E0F2FE] text-[#0EA5E9] border-[#0EA5E9]/20",
-  "Revision": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
-  "Completed": "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
-  "Cancelled": "bg-[#FFF5F5] text-[#EF4444] border-[#EF4444]/20",
-};
+type Status = "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed";
 
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
@@ -43,25 +34,49 @@ interface ShootRecord {
   date: string;
   category: string;
   price: string;
-  status: string;
+  status: Status;
 }
 
-const StatusBadge = ({ status, mobile }: { status: string; mobile?: boolean }) => {
-  const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
-  const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
+const parseSkills = (skills: string | number[] | null | undefined, skillMap: Record<number, string>): string => {
+  if (!skills) return "N/A";
 
-  return (
-    <span className={`${padding} rounded-full font-semibold border ${style}`}>
-      {status}
-    </span>
-  );
+  let parsedSkills: any[] = [];
+
+  if (Array.isArray(skills)) {
+    parsedSkills = skills;
+  } else if (typeof skills === "string") {
+    try {
+      if (skills.trim().startsWith("[") && skills.trim().endsWith("]")) {
+        parsedSkills = JSON.parse(skills);
+      } else {
+        // If comma separated string
+        parsedSkills = skills.split(',').map(s => s.trim());
+      }
+    } catch (e) {
+      // ignore parse error, treat as single string
+      parsedSkills = [skills.replace(/[\[\]"]/g, "")];
+    }
+  }
+
+  // Map IDs to names if possible
+  const skillNames = parsedSkills.map(skill => {
+    // If it's a number or a string that looks like a number, try to map it
+    const skillId = Number(skill);
+    if (!isNaN(skillId) && skillMap[skillId]) {
+      return skillMap[skillId];
+    }
+    // Return original if not a mapped ID (remove quotes if any) OR if mapping not found
+    return String(skill).replace(/["]/g, "");
+  });
+
+  return skillNames.join(", ");
 };
 
 export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [expandedId, setExpandedId] = useState<string | null>(null); // For mobile accordion
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const itemsPerPage = 5;
 
   // Filtering states
@@ -101,7 +116,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
-          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown";
+          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as any;
 
           return {
             id: `#${project.stream_project_booking_id}`,
@@ -134,7 +149,8 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
     }
   };
 
-  const toggleExpand = (id: string) => {
+  const toggleExpand = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // Prevents triggering handleRowClick if they overlap
     setExpandedId(expandedId === id ? null : id);
   };
 
@@ -212,9 +228,9 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => toggleExpand(shoot.id)}
-                      className={`w-6 h-6 flex items-center justify-center rounded-full border ${expandedId === shoot.id ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'} shrink-0`}
+                      className={`w-6 h-6 flex items-center justify-center rounded-full border ${expandedId === shoot.id ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'border-white/10 text-white/60'} shrink-0`}
                     >
-                      {expandedId === shoot.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      <ChevronDown size={16} className="" />
                     </button>
                     <div className="w-10 h-10 relative rounded-lg overflow-hidden bg-white/10">
                       <Image src={shoot.customerImage} alt="" fill className="object-cover" />

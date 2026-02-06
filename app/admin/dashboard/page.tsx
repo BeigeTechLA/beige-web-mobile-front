@@ -35,7 +35,7 @@ export default function AdminDashboardPage() {
       `}</style>
       <div className="flex justify-between items-center">
         <div className="text-white">
-          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">Welcome back, Admin !</h1>
+          <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">Welcome back, Admin !</h1>
           <p className="text-xs lg:text-sm text-white/70">Monitor revenue, shoots, clients, and performance metrics in one centralized dashboard.</p>
         </div>
         <SortDateButton
