@@ -46,36 +46,6 @@ const STATUS_LABEL_MAP: Record<number, string> = {
     5: "Cancelled",
 };
 
-const parseSkills = (skills: string | number[] | null | undefined, skillMap: Record<number, string>): string => {
-    if (!skills) return "N/A";
-
-    let parsedSkills: any[] = [];
-
-    if (Array.isArray(skills)) {
-        parsedSkills = skills;
-    } else if (typeof skills === "string") {
-        try {
-            if (skills.trim().startsWith("[") && skills.trim().endsWith("]")) {
-                parsedSkills = JSON.parse(skills);
-            } else {
-                parsedSkills = skills.split(',').map(s => s.trim());
-            }
-        } catch (e) {
-            parsedSkills = [skills.replace(/[\[\]"]/g, "")];
-        }
-    }
-
-    const skillNames = parsedSkills.map(skill => {
-        const skillId = Number(skill);
-        if (!isNaN(skillId) && skillMap[skillId]) {
-            return skillMap[skillId];
-        }
-        return String(skill).replace(/["]/g, "");
-    });
-
-    return skillNames.join(", ");
-};
-
 const StatusBadge = ({ status }: { status: string }) => {
     const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
 
@@ -94,7 +64,7 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
     const itemsPerPage = 10;
 
     // New filtering states
-    const [range, setRange] = useState<string>("month");
+    const [range, setRange] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("all");
 
     // Sync external date with range
@@ -119,23 +89,7 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
                     params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
                 }
 
-                const [projectsResponse, skillsResponse] = await Promise.all([
-                    adminApi.getProjects(params),
-                    adminApi.getSkills()
-                ]);
-
-                // Create Skill Map: ID -> Name
-                const skillMap: Record<number, string> = {};
-                if (skillsResponse && skillsResponse.data) {
-                    const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-                    skillsList.forEach((s: any) => {
-                        const name = s.name || s.skill_name || s.title;
-                        if (s.id && name) {
-                            skillMap[s.id] = name;
-                        }
-                    });
-                }
-
+                const projectsResponse = await adminApi.getProjects(params);
                 const projectsList = projectsResponse?.data?.projects || [];
 
                 const mappedShoots = projectsList.map((item: any) => {
@@ -149,7 +103,7 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
                         customerName,
                         initials,
                         date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-                        category: parseSkills(project.skills_needed, skillMap),
+                        category: project.event_type_labels || "N/A",
                         price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
                         status: statusLabel,
                     };

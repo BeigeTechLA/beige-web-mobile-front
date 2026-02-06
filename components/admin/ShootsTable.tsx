@@ -47,36 +47,6 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   5: "Cancelled",
 };
 
-const parseSkills = (skills: string | number[] | null | undefined, skillMap: Record<number, string>): string => {
-  if (!skills) return "N/A";
-
-  let parsedSkills: any[] = [];
-
-  if (Array.isArray(skills)) {
-    parsedSkills = skills;
-  } else if (typeof skills === "string") {
-    try {
-      if (skills.trim().startsWith("[") && skills.trim().endsWith("]")) {
-        parsedSkills = JSON.parse(skills);
-      } else {
-        parsedSkills = skills.split(',').map(s => s.trim());
-      }
-    } catch (e) {
-      parsedSkills = [skills.replace(/[\[\]"]/g, "")];
-    }
-  }
-
-  const skillNames = parsedSkills.map(skill => {
-    const skillId = Number(skill);
-    if (!isNaN(skillId) && skillMap[skillId]) {
-      return skillMap[skillId];
-    }
-    return String(skill).replace(/["]/g, "");
-  });
-
-  return skillNames.join(", ");
-};
-
 const StatusBadge = ({ status }: { status: string }) => {
   const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
 
@@ -95,7 +65,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
   const itemsPerPage = 10;
 
   // New filtering states
-  const [range, setRange] = useState<string>("month");
+  const [range, setRange] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Sync external date with range
@@ -103,7 +73,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
     if (externalSelectedDate) {
       setRange("custom");
     } else if (range === "custom") {
-      setRange("month");
+      setRange("all");
     }
   }, [externalSelectedDate]);
 
@@ -120,23 +90,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
-        const [projectsResponse, skillsResponse] = await Promise.all([
-          adminApi.getProjects(params),
-          adminApi.getSkills()
-        ]);
-
-        // Create Skill Map: ID -> Name
-        const skillMap: Record<number, string> = {};
-        if (skillsResponse && skillsResponse.data) {
-          const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
-            const name = s.name || s.skill_name || s.title;
-            if (s.id && name) {
-              skillMap[s.id] = name;
-            }
-          });
-        }
-
+        const projectsResponse = await adminApi.getProjects(params);
         const projectsList = projectsResponse?.data?.projects || [];
 
         const mappedShoots = projectsList.map((item: any) => {
@@ -150,7 +104,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
             customerName,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-            category: parseSkills(project.skills_needed, skillMap),
+            category: project.event_type_labels || "N/A",
             price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
             status: statusLabel,
           };
@@ -182,26 +136,26 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
     router.push(`/admin/shoots/${cleanId}`);
   };
 
-    const handleDelete = async (e: React.MouseEvent, id: string) => {
-        e.stopPropagation();
-        const cleanId = id.replace('#', '');
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const cleanId = id.replace('#', '');
 
-        if (window.confirm("Are you sure you want to delete this shoot?")) {
-            try {
-                const response = await adminApi.deleteProject(cleanId);
-                // Check for success property or if data is returned correctly
-                if (response?.success || response?.message === "Project deleted successfully") { // Adjust based on actual API response
-                    setShoots(prev => prev.filter(shoot => shoot.id !== id));
-                    toast.success("Shoot deleted successfully");
-                } else {
-                    toast.error(response?.error || "Failed to delete shoot");
-                }
-            } catch (error) {
-                console.error("Delete failed", error);
-                toast.error("An error occurred while deleting");
-            }
+    if (window.confirm("Are you sure you want to delete this shoot?")) {
+      try {
+        const response = await adminApi.deleteProject(cleanId);
+        // Check for success property or if data is returned correctly
+        if (response?.success || response?.message === "Project deleted successfully") { // Adjust based on actual API response
+          setShoots(prev => prev.filter(shoot => shoot.id !== id));
+          toast.success("Shoot deleted successfully");
+        } else {
+          toast.error(response?.error || "Failed to delete shoot");
         }
-    };
+      } catch (error) {
+        console.error("Delete failed", error);
+        toast.error("An error occurred while deleting");
+      }
+    }
+  };
 
   return (
     <div className="w-full bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
@@ -250,7 +204,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
           {/* MOBILE ONLY VIEW (Visible on small screens, hidden on lg) */}
           <div className="lg:hidden p-3 bg-[#111111]">
             <div className="flex justify-between px-5 py-3 text-[#E8D1AB] text-sm font-medium">
-              <span>Customer Name</span>
+              <span>Project Name</span>
               <span>Status</span>
             </div>
 
@@ -271,7 +225,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
               <thead>
                 <tr className="text-[#E8D1AB] text-base font-medium border-b border-[#333333] cursor-pointer leading-none tracking-normal">
                   <th className="py-5 px-6 font-medium">Shoot ID</th>
-                  <th className="py-5 px-6 font-medium">Customer Name</th>
+                  <th className="py-5 px-6 font-medium">Project Name</th>
                   <th className="py-5 px-6 font-medium">Category</th>
                   <th className="py-5 px-6 font-medium">Price</th>
                   <th className="py-5 px-6 font-medium">Status</th>
@@ -314,17 +268,17 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
                     {/* Action */}
                     <td className="py-5 px-6 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={(e) => handleDelete(e, shoot.id)}
-                                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#666] hover:text-red-500 transition-colors"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-                          <button className="text-white hover:text-white transition-colors">
-                            <ChevronRight size={20} className="text-[#666666]" />
-                          </button>
-                                        </div>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(e) => handleDelete(e, shoot.id)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#666] hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                        <button className="text-white hover:text-white transition-colors">
+                          <ChevronRight size={20} className="text-[#666666]" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

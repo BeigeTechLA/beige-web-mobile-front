@@ -43,41 +43,6 @@ interface ShootRecord {
   status: string;
 }
 
-const parseSkills = (skills: string | number[] | null | undefined, skillMap: Record<number, string>): string => {
-  if (!skills) return "N/A";
-
-  let parsedSkills: any[] = [];
-
-  if (Array.isArray(skills)) {
-    parsedSkills = skills;
-  } else if (typeof skills === "string") {
-    try {
-      if (skills.trim().startsWith("[") && skills.trim().endsWith("]")) {
-        parsedSkills = JSON.parse(skills);
-      } else {
-        // If comma separated string
-        parsedSkills = skills.split(',').map(s => s.trim());
-      }
-    } catch (e) {
-      // ignore parse error, treat as single string
-      parsedSkills = [skills.replace(/[\[\]"]/g, "")];
-    }
-  }
-
-  // Map IDs to names if possible
-  const skillNames = parsedSkills.map(skill => {
-    // If it's a number or a string that looks like a number, try to map it
-    const skillId = Number(skill);
-    if (!isNaN(skillId) && skillMap[skillId]) {
-      return skillMap[skillId];
-    }
-    // Return original if not a mapped ID (remove quotes if any) OR if mapping not found
-    return String(skill).replace(/["]/g, "");
-  });
-
-  return skillNames.join(", ");
-};
-
 const StatusBadge = ({ status, mobile }: { status: string; mobile?: boolean }) => {
   const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
   const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
@@ -97,7 +62,7 @@ export const OverallShootsTable = () => {
   const itemsPerPage = 5;
 
   // New filtering states
-  const [range, setRange] = useState<string>("month");
+  const [range, setRange] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -116,25 +81,7 @@ export const OverallShootsTable = () => {
           if (endDate) params.end_date = format(endDate, 'yyyy-MM-dd');
         }
 
-        const [projectsResponse, skillsResponse] = await Promise.all([
-          adminApi.getProjects(params),
-          adminApi.getSkills()
-        ]);
-
-        // Create Skill Map: ID -> Name
-        const skillMap: Record<number, string> = {};
-        if (skillsResponse && skillsResponse.data) {
-          const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
-            // Adapt to potential API responses: { id, name } or { id, skill_name } etc.
-            // Assuming 'name' based on standard conventions, but safeguard with 'skill_name' if needed or just dump whole object to see
-            const name = s.name || s.skill_name || s.title;
-            if (s.id && name) {
-              skillMap[s.id] = name;
-            }
-          });
-        }
-
+        const projectsResponse = await adminApi.getProjects(params);
         const projectsList = projectsResponse?.data?.projects || [];
 
         const mappedShoots = projectsList.map((item: any) => {
@@ -146,7 +93,7 @@ export const OverallShootsTable = () => {
             customerName: project.project_name || "Untitled Project",
             customerImage: project.user_image || "/images/avatar.png",
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-            category: parseSkills(project.skills_needed, skillMap),
+            category: project.event_type_labels || "N/A",
             price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
             status: statusLabel,
           };
@@ -241,7 +188,7 @@ export const OverallShootsTable = () => {
         ) : currentShoots.length > 0 ? (
           <>
             <div className="flex justify-between text-[#E8D1AB] text-sm font-medium p-4 mb-4 bg-[#101010] rounded-b-2xl border-b border-b-white/5">
-              <span>Customer Name</span>
+              <span>Project Name</span>
               <span>Status</span>
             </div>
             {currentShoots.map((shoot) => (
@@ -309,7 +256,7 @@ export const OverallShootsTable = () => {
               <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
                border-b border-b-[#3D3D3D] ">Shoot ID</th>
               <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Customer Name</th>
+               border-b border-b-[#3D3D3D]">Project Name</th>
               <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
                border-b border-b-[#3D3D3D]">Category</th>
               <th className="pb-4 px-4 bg-[#101010] py-4 px-4 

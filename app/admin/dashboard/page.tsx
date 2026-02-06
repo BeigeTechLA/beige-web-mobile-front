@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation"; // Import router for navigation
 import { OverallShootsTable } from "@/components/admin/OverallShootsTable";
+import { LeadsShootsTable } from "@/components/admin/LeadsShootsTable";
 import OverviewChart from "@/components/admin/OverviewChart";
 import RecentActivity from "@/components/admin/RecentActivity";
 import ShootByCategory from "@/components/admin/ShootByCategory";
@@ -26,7 +27,12 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <>
+    <div className="overflow-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <style jsx global>{`
+        ::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
       <div className="flex justify-between items-center">
         <div className="text-white">
           <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">Welcome back, Admin !</h1>
@@ -69,6 +75,8 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      <LeadsShootsTable />
+
       {/* --- FLOATING MOBILE BUTTON --- */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
         <Button
@@ -78,6 +86,6 @@ export default function AdminDashboardPage() {
           Book a Shoot
         </Button>
       </div>
-    </>
+    </div>
   )
 }

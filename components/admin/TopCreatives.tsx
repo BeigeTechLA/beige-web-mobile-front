@@ -26,7 +26,7 @@ import { adminApi } from "@/lib/api";
 export const TopCreatives = () => {
   const [activeIndex, setActiveIndex] = useState(1); // Default to center
   const [partners, setPartners] = useState<any[]>([]);
-  const [range, setRange] = useState<string>('month');
+  const [range, setRange] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(false);
