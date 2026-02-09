@@ -200,7 +200,7 @@ export default function LeadDetailPage() {
             <div className="flex flex-col gap-3 lg:gap-6 p-5 lg:p-9">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-5">
-                  <div className="w-[84px] h-[84px] rounded-2xl bg-[#FFF6D9] text-[#000000] border border-[#FFF6D9] flex items-center justify-center text-[30px] font-semibold">
+                  <div className="w-13 h-13 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#FFF6D9] text-[#000000] border border-[#FFF6D9] flex items-center justify-center text-xl lg:text-[30px] font-semibold shrink-0">
                     {initials}
                   </div>
                   <div className="flex flex-col gap-2">

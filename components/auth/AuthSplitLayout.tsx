@@ -30,16 +30,16 @@ export function AuthSplitLayout({
   totalSteps,
 }: AuthSplitLayoutProps) {
 
-  const [cardIndex, setCardIndex] = React.useState(0);
-  const videoUrl = "/videos/LoginVideoRibbon.mp4";
+  // const [cardIndex, setCardIndex] = React.useState(0);
+  const videoUrl = "/videos/BeigeLogin.mp4"
 
   // Switching logic for the 3rd cell
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      setCardIndex((prev) => (prev === 0 ? 1 : 0));
-    }, 3000);
-    return () => clearInterval(timer);
-  }, []);
+  // React.useEffect(() => {
+  //   const timer = setInterval(() => {
+  //     setCardIndex((prev) => (prev === 0 ? 1 : 0));
+  //   }, 3000);
+  //   return () => clearInterval(timer);
+  // }, []);
 
   return (
     <div className="flex min-h-screen w-full bg-[#101010] text-white">
@@ -93,7 +93,7 @@ export function AuthSplitLayout({
           className="absolute inset-0 h-full w-full object-cover opacity-90"
         />
 
-        {/* The Grid Overlay (4x4) */}
+        {/* The Grid Overlay (4x4)
         <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 overflow-hidden">
           {Array.from({ length: 16 }).map((_, i) => {
             const isOrangeCard = i === 9;   // Row 3, Col 2
@@ -106,7 +106,7 @@ export function AuthSplitLayout({
               >
                 <div className="absolute inset-0 rounded-[14px] shadow-[0_0_0_20px_#101010] pointer-events-none z-10" />
 
-                {/* Orange Card Content */}
+                Orange Card Content
                 {isOrangeCard && (
                   <div className="absolute inset-0 z-20 bg-[#FF9D4D] rounded-[14px] p-4 flex flex-col justify-between shadow-2xl">
                     <div>
@@ -131,7 +131,7 @@ export function AuthSplitLayout({
                   </div>
                 )}
 
-                {/* Animated Card Content */}
+                Animated Card Content
                 {isAnimatedCard && (
                   <div className="absolute inset-0 z-20 overflow-hidden rounded-[14px]">
                     <AnimatePresence mode="popLayout">
@@ -200,14 +200,14 @@ export function AuthSplitLayout({
                   </div>
                 )}
 
-                {/* Plus Sign Marker (Only on empty cells) */}
+                Plus Sign Marker (Only on empty cells)
                 {!isOrangeCard && !isAnimatedCard && (
                   <Plus className="absolute -right-2 -bottom-2 text-black/50 w-4 h-4 z-30" />
                 )}
               </div>
             );
           })}
-        </div>
+        </div> */}
       </div>
     </div>
   );

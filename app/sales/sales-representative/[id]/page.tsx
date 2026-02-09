@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ArrowLeft,
   Percent,
+  DollarSign,
   MapPinned,
   Copy,
 } from "lucide-react";
@@ -20,31 +21,13 @@ import {
 import { LEAD_TYPE_LABELS } from "@/types/sales";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils/discountHelpers";
+import { StatusBadge } from "@/components/admin/StatusBadge";
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
   if (status === "abandoned") return "Cancelled";
   return "In-Progress";
-};
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const styles: Record<string, string> = {
-    Booked: "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]",
-    Cancelled: "bg-[#fbd9d3] text-red-500 border-[#fbd9d3]",
-    "In-Progress": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]",
-  };
-
-  const currentStyle =
-    styles[status] || "bg-gray-100 text-gray-800 border-gray-200";
-
-  return (
-    <span
-      className={`text-nowrap px-4 py-1 rounded-full text-xs lg:text-base font-medium border lg:px-7 lg:py-2  ${currentStyle}`}
-    >
-      {status}
-    </span>
-  );
 };
 
 export default function SalesSalesRepDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
@@ -54,6 +37,8 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
 
   const [discount, setDiscount] = useState("");
   const [showDiscountCode, setShowDiscountCode] = useState(false);
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed_amount">("percentage");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [usageType, setUsageType] = useState<"one_time" | "multi_use">(
     "one_time",
   );
@@ -86,7 +71,7 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
   const email = lead?.guest_email || "No email";
   const phone = lead?.user?.phone_number || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
-  const status = lead ? mapLeadStatusToUI(lead.lead_status) : "Unknown";
+  const status = lead ? mapLeadStatusToUI(lead.lead_status) : "Unknown" as any;
 
   const bookingDate = booking?.event_date
     ? new Date(booking.event_date).toLocaleDateString("en-US", {
@@ -198,7 +183,7 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
             <div className="flex flex-col gap-3 lg:gap-6 p-5 lg:p-9">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-5">
-                  <div className="w-[84px] h-[84px] rounded-2xl bg-[#FFF6D9] text-[#000000] border border-[#FFF6D9] flex items-center justify-center text-[30px] font-semibold">
+                  <div className="w-13 h-13 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#FFF6D9] text-[#000000] border border-[#FFF6D9] flex items-center justify-center text-xl lg:text-[30px] font-semibold shrink-0">
                     {initials}
                   </div>
                   <div className="flex flex-col gap-2">
@@ -209,8 +194,8 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
                   </div>
                 </div>
                 <div className="hidden lg:block">
-                <StatusBadge status={status} />
-              </div>
+                  <StatusBadge status={status} />
+                </div>
               </div>
               <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
                 <p>

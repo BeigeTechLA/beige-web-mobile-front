@@ -34,8 +34,7 @@ const AffiliateLinkToShootModal: React.FC<LinkToShootModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-[540px] bg-black border border-white/10 rounded-[24px] overflow-hidden shadow-2xl">
-
+            <div className="mx-5 lg:mx-0 w-full max-w-[540px] bg-black border border-white/10 rounded-lg lg:rounded-[24px] overflow-hidden shadow-2xl">
                 <div className="flex items-start justify-between p-3 lg:p-5 border-b border-b-white/30">
                     <div>
                         <h2 className="text-white text-lg font-semibold mb-2">Link Folder to Shoots</h2>
