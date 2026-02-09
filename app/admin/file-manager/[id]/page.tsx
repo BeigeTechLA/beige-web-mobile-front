@@ -10,6 +10,7 @@ import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
+
 const mainFolder = {
   id: "1",
   title: "Corporate_Lana_#123456",
@@ -72,7 +73,6 @@ export default function AdminFolderDetailsPage() {
     const filtered = mainFolder.subfolders.filter((folder) =>
       folder.title.toLowerCase().includes(value.toLowerCase())
     );
-
     setFilteredFolders(filtered);
   };
 
