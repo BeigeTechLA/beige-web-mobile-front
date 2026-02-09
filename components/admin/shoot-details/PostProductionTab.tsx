@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import PostProductionFolderView from "./PostProductionFolderView";
+import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
+import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
+import { Button } from "@/components/ui/button";
+
 interface FolderData {
   id: string;
   name: string;
@@ -24,37 +29,7 @@ interface FolderData {
   lastUpdated: string; // For Grid: "Opened 2 hours ago", For List: "02 Hours Ago"
 }
 
-const folders: FolderData[] = [
-  // {
-  //     id: "1",
-  //     name: "Raw Footage",
-  //     items: 24,
-  //     category: "Corporate Event",
-  //     linked: true,
-  //     lastUpdated: "Opened 2 hours ago",
-  // },
-  // {
-  //     id: "2",
-  //     name: "Edited Footage",
-  //     items: 24,
-  //     category: "Corporate Event",
-  //     linked: true,
-  //     lastUpdated: "Opened 2 hours ago",
-  // },
-  // {
-  //     id: "3",
-  //     name: "Final Deliverables",
-  //     items: 24,
-  //     category: "Corporate Event",
-  //     linked: true,
-  //     lastUpdated: "Opened 2 hours ago",
-  // },
-];
-
-import PostProductionFolderView from "./PostProductionFolderView";
-import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
-import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
-import { Button } from "@/components/ui/button";
+const folders: FolderData[] = [];
 
 export default function PostProductionTab() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");

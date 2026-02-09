@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { ChevronDown, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateMeetingModal from "./CreateMeetingModal";
-import { cn } from "@/lib/utils"; // Assuming you have a cn utility, or use standard string templates
+import { cn } from "@/lib/utils";
 
 const meetings = [
   { id: 1, date: "26 Nov 2024 at 12:00 pm", status: "Initiated", members: 4 },

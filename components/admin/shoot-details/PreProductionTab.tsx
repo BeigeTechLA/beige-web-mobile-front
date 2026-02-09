@@ -115,9 +115,9 @@ export default function PreProductionTab() {
         </div>
 
         {files.length > 0 ? (
-          <div className="p-6 flex gap-6 flex-wrap">
+          <div className="p-3 lg:p-6 flex gap-6 flex-wrap">
             {files.map((file) => (
-              <div key={file.id} className="border border-[#222222] bg-[#0A0A0A] rounded-xl p-5 flex items-center gap-5 w-[420px] group relative">
+              <div key={file.id} className="flex-0 border border-[#222222] bg-[#0A0A0A] rounded-xl p-3 lg:p-5 flex items-center gap-5 w-full lg:w-[420px] group relative">
                 {file.type.startsWith('image/') ? (
                   <div className="w-12 h-14 bg-[#1A1A1A] rounded-lg overflow-hidden shrink-0">
                     <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
@@ -131,7 +131,7 @@ export default function PreProductionTab() {
                 )}
 
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-base font-medium leading-tight mb-1 truncate" title={file.name}>{file.name}</h4>
+                   <h4 className="text-white text-sm lg:text-base font-medium leading-tight mb-1 truncate" title={file.name}>{file.name}</h4>
                   <div className="flex items-center gap-3">
                     <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-[#E5D5B8] text-sm underline underline-offset-4 hover:text-[#D4C3A3]">View File</a>
                     <span className="text-[#666] text-xs leading-none">• {file.size}</span>
@@ -140,7 +140,7 @@ export default function PreProductionTab() {
 
                 <button
                   onClick={() => removeFile(file.id)}
-                  className="opacity-0 group-hover:opacity-100 absolute top-2 right-2 p-1 text-[#666] hover:text-red-500 transition-all"
+                  className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 absolute top-2 right-2 p-1 text-[#666] hover:text-red-500 transition-all"
                 >
                   <Trash2 size={16} />
                 </button>
