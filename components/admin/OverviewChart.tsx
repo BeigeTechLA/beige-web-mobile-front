@@ -114,6 +114,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
               icon: Users,
               color: 'bg-zinc-800',
               details: {
+                approved: summary.approved_CPs?.count || 0,
                 pending: summary.pending_CPs?.count || 0,
                 rejected: summary.rejected_CPs?.count || 0,
                 total: summary.total_CPs?.count || 0,
@@ -185,12 +186,16 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
             >
               {/* Tooltip for CPs */}
               {m.id === 'cps' && m.details && (
-                <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-40 bg-[#1A1A1A] border border-[#3D3D3D] rounded-xl p-3 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none mb-2">
+                <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-40 bg-[#1A1A1A] border border-[#3D3D3D] rounded-xl p-3 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none mb-2">
                   <div className="space-y-2">
                     <div className="flex justify-between items-center text-[10px] uppercase tracking-wider text-zinc-500 font-bold">
                       <span>CP Breakdown</span>
                     </div>
                     <div className="h-[1px] bg-[#3D3D3D] w-full" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-[#0DAE3D] font-medium">Approved</span>
+                      <span className="text-xs font-bold text-white">{m.details.approved}</span>
+                    </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-orange-400 font-medium">Pending</span>
                       <span className="text-xs font-bold text-white">{m.details.pending}</span>

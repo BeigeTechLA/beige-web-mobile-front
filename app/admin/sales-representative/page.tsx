@@ -13,6 +13,32 @@ import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { User, Camera, AlertCircle, Check, X } from "lucide-react";
+import { toast } from "sonner";
+import { adminApi } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type TabType = "Booking" | "Client" | "Creative Partner";
+type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
+
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  type: "Client" | "Creative Partner";
+  status: UserStatus;
+  joinDate: string;
+  initials: string;
+  phoneNumber?: string;
+  role?: string;
+  imageUrl?: string | null;
+}
 
 // placeholder data
 const sortByData = ["Recent Leads (5)", "Recent Leads (15)", "Test Filter"];
@@ -22,17 +48,16 @@ interface LeadData {
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
-  bookingStatus: "Booked" | "Cancelled" | "In-Progress";
+  bookingStatus: "Paid" | "In-Progress";
   lastActivity: string;
   date: Date;
 }
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (
-  status: LeadStatus,
-): "Booked" | "Cancelled" | "In-Progress" => {
-  if (status === "booked") return "Booked";
-  if (status === "abandoned") return "Cancelled";
+  paymentStatus: string,
+): "Paid" | "In-Progress" => {
+  if (paymentStatus === "paid") return "Paid";
   return "In-Progress";
 };
 
@@ -71,33 +96,116 @@ export default function AdminSaleRepManagerPage() {
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const [activeTab, setActiveTab] = useState<TabType>("Booking");
 
-  // Fetch real leads from API
+  // Users state for Client and Creative Partner tabs
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersCurrentPage, setUsersCurrentPage] = useState(1);
+  const [usersTotalPages, setUsersTotalPages] = useState(0);
+  const [usersTotalRecords, setUsersTotalRecords] = useState(0);
+  const [usersLimit] = useState(50);
+  const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
+
+  // Fetch users for Client and Creative Partner tabs
+  const fetchUsers = async () => {
+    if (activeTab === "Booking") return;
+    setUsersLoading(true);
+    try {
+      const params: any = {
+        page: usersCurrentPage,
+        limit: usersLimit,
+      };
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (usersStatusFilter !== "all") params.status = usersStatusFilter;
+
+      let allUsers: UserData[] = [];
+      let pagination: any = null;
+
+      if (activeTab === "Client") {
+        const clientsRes = await adminApi.getClients(params);
+        if (clientsRes?.data) {
+          const mappedClients = (Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || [])).map((client: any) => ({
+            id: `#${client.user_id || client.id}`,
+            name: client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
+            email: client.email || "No Email",
+            type: "Client" as const,
+            status: (client.status === 1 || client.status === "Active" || client.status === "approved" ? "Active" :
+              client.status === 0 || client.status === "Inactive" || client.status === "rejected" ? "Inactive" : "Pending") as UserStatus,
+            joinDate: client.created_at ? new Date(client.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
+            initials: (client.name || "Unknown").split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
+            phoneNumber: client.phone_number || "N/A",
+            imageUrl: client.profile_image || client.image || null,
+          }));
+          allUsers = mappedClients;
+          pagination = clientsRes.pagination;
+        }
+      } else if (activeTab === "Creative Partner") {
+        const creativeRes = await adminApi.getPendingCP(params);
+        if (creativeRes?.data) {
+          const mappedCreatives = (Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || [])).map((member: any) => {
+            const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
+            const profilePhoto = member.crew_member_files?.find((file: any) => file.file_type === 'profile_photo');
+            return {
+              id: `#${member.crew_member_id || member.id}`,
+              name: fullName,
+              email: member.email || "No Email",
+              type: "Creative Partner" as const,
+              status: (member.status?.toLowerCase() === "approved" ? "Approved" :
+                member.status?.toLowerCase() === "rejected" ? "Rejected" : "Pending") as UserStatus,
+              joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
+              initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
+              role: member.role?.role_name || member.category_name || "N/A",
+              phoneNumber: member.phone_number || "N/A",
+              imageUrl: profilePhoto ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}` : null,
+            };
+          });
+          allUsers = mappedCreatives;
+          pagination = creativeRes.pagination;
+        }
+      }
+
+      setUsers(allUsers);
+      if (pagination) {
+        setUsersTotalRecords(pagination.total_records || allUsers.length);
+        setUsersTotalPages(pagination.total_pages || 1);
+      } else {
+        setUsersTotalRecords(allUsers.length);
+        setUsersTotalPages(1);
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      toast.error("Failed to load users");
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (activeTab !== "Booking") {
+      fetchUsers();
+    }
+  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter]);
+
   const { data, isLoading, isFetching } = useGetLeadsQuery({
     page: 1,
     limit: 50,
     search: debouncedSearch || undefined,
-    status: sortBy || undefined,
   });
 
   // Map backend data to UI format
-  const leadsData: LeadData[] = (data?.leads || []).map((lead: SalesLead) => ({
+  const leadsData: LeadData[] = (data?.leads || []).map((lead: any) => ({
     lead_id: lead.lead_id,
     clientName: lead.client_name || lead.guest_email || "Unknown Client",
     email: lead.guest_email || "No email",
     leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
-    bookingStatus: mapLeadStatusToUI(lead.lead_status),
+    bookingStatus: mapLeadStatusToUI(lead.payment_status),
     lastActivity: formatRelativeTime(lead.last_activity_at),
     date: new Date(lead.created_at),
   }));
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
-    if (date) {
-      console.log(date);
-    } else {
-      console.log("unfiltered");
-    }
   };
 
   const handleOpenMenu = (
@@ -125,7 +233,7 @@ export default function AdminSaleRepManagerPage() {
 
   return (
     <>
-      <div className="flex flex-col lg:flex-row gap-3 justify-between items-center mb-3 lg:mb-6">
+      <div className="flex flex-col lg:flex-row gap-6 justify-between items-start mb-6 w-full">
         <div className="text-white">
           <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">
             Sales Representative Management
@@ -135,23 +243,42 @@ export default function AdminSaleRepManagerPage() {
             your sales team.
           </p>
         </div>
+      </div>
 
-        {/* Sort By Date component to be added */}
-        <div className="flex gap-2 ">
-          <BasicDropdown
-            label="Status"
-            value={sortBy}
-            roundedFull={true}
-            onChange={(val) => setSortBy(val)}
-            styles={"text-xs lg:text-base lg:h-[54px]"}
-            options={sortByData}
-            width="w-full flex-1"
-          />
-          <SortDateButton
-            selectedDate={selectedDate}
-            onDateChange={handleDateSort}
-            width="w-full flex-1"
-          />
+      <div className="flex flex-col gap-6 mb-6">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 w-full md:flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+              <input
+                type="text"
+                placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+              />
+            </div>
+
+            {/* Status filter removed as per user request */}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 bg-[#111] p-1 rounded-xl w-fit border border-[#333]">
+          {(["Booking", "Client", "Creative Partner"] as TabType[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => {
+                setActiveTab(tab);
+                setUsersCurrentPage(1);
+              }}
+              className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all ${activeTab === tab
+                ? "bg-[#E5D5B8] text-black shadow-lg"
+                : "text-[#777] hover:text-white"
+                }`}
+            >
+              {tab === "Creative Partner" ? "CreativePartner_Signup" : tab === "Booking" ? "Booking_Leads" : "Client_Signup"}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -164,137 +291,271 @@ export default function AdminSaleRepManagerPage() {
         }}
       />
 
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
-          <input
-            type="text"
-            placeholder="Search leads..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
-          />
-        </div>
-      </div>
-
-      <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
-        {isLoading || isFetching ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB]"></div>
-          </div>
-        ) : leadsData.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-white/60">
-            <p>No leads found</p>
-          </div>
-        ) : (
-          <>
-
-            {/* MOBILE LIST VIEW (lg:hidden) */}
-            <div className="lg:hidden flex flex-col gap-2">
-              {leadsData.map((lead) => (
-                <MobileLeadRow
-                  key={lead.lead_id}
-                  lead={lead}
-                  onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
-                />
-              ))}
+      {activeTab === "Booking" ? (
+        <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
+          {isLoading || isFetching ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB]"></div>
             </div>
+          ) : leadsData.length === 0 ? (
+            <div className="flex items-center justify-center py-20 text-white/60">
+              <p>No leads found</p>
+            </div>
+          ) : (
+            <>
 
-            {/* --- DESKTOP VIEW (Your Original Table) --- */}
-            <div className="hidden lg:block w-full overflow-x-auto">
-              <table className="w-full text-left border-separate border-spacing-0">
+              {/* MOBILE LIST VIEW (lg:hidden) */}
+              <div className="lg:hidden flex flex-col gap-2">
+                {leadsData.map((lead) => (
+                  <MobileLeadRow
+                    key={lead.lead_id}
+                    lead={lead}
+                    onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
+                  />
+                ))}
+              </div>
+
+              {/* --- DESKTOP VIEW (Your Original Table) --- */}
+              <div className="hidden lg:block w-full overflow-x-auto">
+                <table className="w-full text-left border-separate border-spacing-0">
+                  <thead>
+                    <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
+                      <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">
+                        Client Name
+                      </th>
+                      <th className="py-5 px-6 font-medium border-b border-[#333333]">
+                        Email ID
+                      </th>
+                      <th className="py-5 px-6 font-medium border-b border-[#333333]">
+                        Lead Type
+                      </th>
+                      <th className="py-5 px-6 font-medium border-b border-[#333333]">
+                        Booking Status
+                      </th>
+                      <th className="py-5 px-6 font-medium border-b border-[#333333]">
+                        Last Activity
+                      </th>
+                      <th className="py-5 px-6 font-medium text-right rounded-r-2xl border-r border-b border-b-[#333333] border-r-[#333333]">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leadsData.map((lead) => (
+                      <tr
+                        key={lead.lead_id}
+                        onClick={() => handleRowClick(lead.lead_id)}
+                        className=" hover:bg-white/[0.02] transition-colors cursor-pointer"
+                      >
+                        {/* Client Name & Date */}
+                        <td className="py-5 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-[50px] h-[50px] rounded-lg bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-xl">
+                              {lead.clientName
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </div>
+                            <div>
+                              <p className="text-white font-medium text-base">
+                                {lead.clientName}
+                              </p>
+                              <p className="text-white/40 text-sm mt-1.5">
+                                {format(lead.date, "MMM dd, yyyy")}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Email */}
+                        <td className="py-5 px-6 text-white text-base">
+                          {lead.email}
+                        </td>
+
+                        {/* Lead Type */}
+                        <td className="py-5 px-6">
+                          <span className="text-white text-base">
+                            {lead.leadType}
+                          </span>
+                        </td>
+
+                        {/* Booking Status */}
+                        <td className="py-5 px-6 whitespace-nowrap w-px">
+                          <div className="flex items-center min-w-max">
+                            <StatusBadge status={lead.bookingStatus} />
+                          </div>
+                        </td>
+
+                        {/* Last Activity */}
+                        <td className="py-5 px-6 text-white text-base">
+                          {lead.lastActivity}
+                        </td>
+
+                        {/* Action */}
+                        <td className="py-5 px-6 text-right">
+                          <Button
+                            className="text-white hover:text-white/80 transition-colors"
+                            onClick={(e) =>
+                              handleOpenMenu(e, lead.clientName, lead.lead_id)
+                            }
+                          >
+                            <MoreVertical size={20} />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+
+      ) : (
+        <div className="space-y-6">
+          <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
-                    <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">
-                      Client Name
-                    </th>
-                    <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                      Email ID
-                    </th>
-                    <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                      Lead Type
-                    </th>
-                    <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                      Booking Status
-                    </th>
-                    <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                      Last Activity
-                    </th>
-                    <th className="py-5 px-6 font-medium text-right rounded-r-2xl border-r border-b border-b-[#333333] border-r-[#333333]">
-                      Action
-                    </th>
+                  <tr className="text-[#888] text-sm font-normal border-b border-[#333]">
+                    <th className="py-5 px-6 font-medium">User ID</th>
+                    <th className="py-5 px-6 font-medium">User Info</th>
+                    <th className="py-5 px-6 font-medium">Type</th>
+                    <th className="py-5 px-6 font-medium">Contact / Role</th>
+                    <th className="py-5 px-6 font-medium text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {leadsData.map((lead) => (
-                    <tr
-                      key={lead.lead_id}
-                      onClick={() => handleRowClick(lead.lead_id)}
-                      className=" hover:bg-white/[0.02] transition-colors cursor-pointer"
-                    >
-                      {/* Client Name & Date */}
-                      <td className="py-5 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-[50px] h-[50px] rounded-lg bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-xl">
-                            {lead.clientName
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </div>
-                          <div>
-                            <p className="text-white font-medium text-base">
-                              {lead.clientName}
-                            </p>
-                            <p className="text-white/40 text-sm mt-1.5">
-                              {format(lead.date, "MMM dd, yyyy")}
-                            </p>
-                          </div>
+                  {usersLoading ? (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-[#888]">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-6 h-6 border-2 border-[#E8D1AB] border-t-transparent rounded-full animate-spin" />
+                          <span>Loading users...</span>
                         </div>
-                      </td>
-
-                      {/* Email */}
-                      <td className="py-5 px-6 text-white text-base">
-                        {lead.email}
-                      </td>
-
-                      {/* Lead Type */}
-                      <td className="py-5 px-6">
-                        <span className="text-white text-base">
-                          {lead.leadType}
-                        </span>
-                      </td>
-
-                      {/* Booking Status */}
-                      <td className="py-5 px-6 whitespace-nowrap w-px">
-                        <div className="flex items-center min-w-max">
-                          <StatusBadge status={lead.bookingStatus} />
-                        </div>
-                      </td>
-
-                      {/* Last Activity */}
-                      <td className="py-5 px-6 text-white text-base">
-                        {lead.lastActivity}
-                      </td>
-
-                      {/* Action */}
-                      <td className="py-5 px-6 text-right">
-                        <Button
-                          className="text-white hover:text-white/80 transition-colors"
-                          onClick={(e) =>
-                            handleOpenMenu(e, lead.clientName, lead.lead_id)
-                          }
-                        >
-                          <MoreVertical size={20} />
-                        </Button>
                       </td>
                     </tr>
-                  ))}
+                  ) : users.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-[#888]">
+                        No users found.
+                      </td>
+                    </tr>
+                  ) : (
+                    users.map((user, idx) => (
+                      <tr
+                        key={idx}
+                        onClick={() => {
+                          const cleanId = user.id.replace('#', '');
+                          if (user.type === "Client") {
+                            router.push(`/admin/users/clients/${cleanId}`);
+                          } else {
+                            router.push(`/admin/users/creative-partners/${cleanId}`);
+                          }
+                        }}
+                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
+                      >
+                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
+                        <td className="py-5 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] overflow-hidden flex items-center justify-center text-[#E5D5B8] font-semibold text-sm border border-white/5 relative">
+                              {user.imageUrl ? (
+                                <img
+                                  src={user.imageUrl}
+                                  alt={user.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    if (target.parentElement) {
+                                      target.parentElement.textContent = user.initials;
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <span className="text-zinc-400">{user.initials}</span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
+                              <p className="text-[#666666] text-xs mt-0.5">{user.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-5 px-6">
+                          <div className="flex items-center gap-2 text-sm text-[#888]">
+                            {user.type === "Client" ? <User size={14} /> : <Camera size={14} />}
+                            <span>{user.type}</span>
+                          </div>
+                        </td>
+                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">
+                          <div className="flex flex-col gap-1">
+                            {user.phoneNumber && user.phoneNumber !== "N/A" && (
+                              <span className="text-zinc-500">{user.phoneNumber}</span>
+                            )}
+                            {user.type === "Creative Partner" && (
+                              <span className="w-fit px-2 py-0.5 bg-[#E5D5B8]/10 text-[#E5D5B8] rounded text-xs">
+                                {user.role}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-5 px-6 text-right">
+                          <button className="text-[#666] hover:text-white transition-colors">
+                            <ChevronRight size={20} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+
+          {/* Pagination for Users */}
+          {!usersLoading && usersTotalPages > 1 && (
+            <div className="flex justify-between items-center p-6 border-t border-[#333333]">
+              <div className="text-sm text-[#666666]">
+                Showing {((usersCurrentPage - 1) * usersLimit) + 1} to {Math.min(usersCurrentPage * usersLimit, usersTotalRecords)} of {usersTotalRecords} results
+              </div>
+              <div className="flex gap-2 items-center">
+                <button
+                  onClick={() => setUsersCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={usersCurrentPage === 1}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  Previous
+                </button>
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, usersTotalPages) }, (_, i) => {
+                    const pageNum = i + 1;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setUsersCurrentPage(pageNum)}
+                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${usersCurrentPage === pageNum
+                          ? "bg-[#E5D5B8] text-black"
+                          : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
+                          }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setUsersCurrentPage(prev => Math.min(usersTotalPages, prev + 1))}
+                  disabled={usersCurrentPage === usersTotalPages}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {menuAnchor && selectedLeadId && (
         <ActionMenu

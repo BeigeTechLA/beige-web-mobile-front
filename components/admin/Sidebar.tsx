@@ -11,14 +11,14 @@ const menuItems = [
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
-  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', isDisabled: true},
+  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', isDisabled: true },
   { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
   {
     name: 'Users',
     icon: Users,
     children: [
-      { name: 'All Users', link: '#', isDisabled: true },
-      { name: 'Clients', link: '#', isDisabled: true },
+      { name: 'All Users', link: '/admin/users/all' },
+      { name: 'Clients', link: '/admin/users/clients' },
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },

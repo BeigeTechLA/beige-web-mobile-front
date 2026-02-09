@@ -1070,6 +1070,33 @@ export const adminApi = {
       };
     }
   },
+  getClients: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
+    try {
+      const response = await api.get('admin/get-clients', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Clients Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch clients',
+      };
+    }
+  },
+
+  getPendingCP: async (params: { page?: number; limit?: number; search?: string } = {}) => {
+    try {
+      const response = await api.get('admin/get-pending-cp', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Pending CP Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch pending creative partners',
+      };
+    }
+  },
 };
 
 export const GetCreatorDashboardCount = async (payload: any) => {

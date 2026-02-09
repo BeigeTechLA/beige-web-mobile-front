@@ -9,7 +9,7 @@ interface LeadData {
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
-  bookingStatus: "Booked" | "Cancelled" | "In-Progress";
+  bookingStatus: "Paid" | "In-Progress";
   lastActivity: string;
   date: Date;
 }
@@ -21,8 +21,7 @@ interface MobileLeadRowProps {
 
 const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
   const styles = {
-    Booked: "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]",
-    Cancelled: "bg-[#fbd9d3] text-red-500 border-[#fbd9d3]",
+    Paid: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
     "In-Progress": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]",
   };
 

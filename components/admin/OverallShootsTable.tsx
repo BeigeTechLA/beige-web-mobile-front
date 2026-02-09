@@ -26,7 +26,7 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   7: "Cancelled",
 };
 
-type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" |"Unknown";
+type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Unknown";
 
 interface ShootRecord {
   id: string;
@@ -115,7 +115,11 @@ export const OverallShootsTable = () => {
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
             category: project.event_type_labels || "N/A",
-            price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
+            price: project.total_paid_amount
+              ? `$${parseFloat(project.total_paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : project.budget
+                ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : "$0.00",
             status: statusLabel,
           };
         });

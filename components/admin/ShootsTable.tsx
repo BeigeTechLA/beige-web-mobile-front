@@ -18,7 +18,7 @@ import {
 import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow";
 import { StatusBadge } from "./StatusBadge";
 
-type ShootStatus ="Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" |"Unknown";
+type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Unknown";
 
 interface ShootRecord {
   id: string;
@@ -89,7 +89,11 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
             category: project.event_type_labels || "N/A",
-            price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
+            price: project.total_paid_amount
+              ? `$${parseFloat(project.total_paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : project.budget
+                ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : "$0.00",
             status: statusLabel,
           };
         });

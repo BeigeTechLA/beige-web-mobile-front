@@ -1,4 +1,4 @@
-type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" |"Unknown";
+type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Paid" | "Unknown";
 
 export const StatusBadge = ({ status, mobile }: { status: Status; mobile?: boolean }) => {
   const styles = {
@@ -9,7 +9,7 @@ export const StatusBadge = ({ status, mobile }: { status: Status; mobile?: boole
     "Completed": "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
     "Cancelled": "bg-[#FFF5F5] text-[#EF4444] border-[#EF4444]/20",
     "Booked": "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]",
-    // "Cancelled": "bg-[#fbd9d3] text-red-500 border-[#fbd9d3]",
+    "Paid": "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
     "In-Progress": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]",
     "Unknown": "bg-zinc-800 text-zinc-400 border-zinc-700", // Default neutral style
   };

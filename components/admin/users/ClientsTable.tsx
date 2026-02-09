@@ -1,76 +1,70 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronRight, Calendar, Eye } from "lucide-react";
+import { ChevronRight, Search, Check, X, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { SortDateButton } from "@/components/admin/SortDateButton";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
 
+type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 
-type UserStatus = "Approved" | "Pending" | "Rejected";
-
-interface CreativePartner {
+interface Client {
     id: string;
     name: string;
     email: string;
-    role: string;
     status: UserStatus;
     joinDate: string;
     initials: string;
+    phoneNumber: string;
     imageUrl?: string | null;
 }
 
 const StatusBadge = ({ status }: { status: UserStatus }) => {
     const styles = {
+        Active: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
         Approved: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
         Pending: "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
+        Inactive: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
         Rejected: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
     };
 
+    const displayStatus = styles[status] ? status : "Pending";
+
     return (
-        <span className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${styles[status]}`}>
+        <span className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${styles[displayStatus as keyof typeof styles]}`}>
             {status}
         </span>
     );
 };
 
-export const AvailabilityTable = () => {
-    const [users, setUsers] = useState<CreativePartner[]>([]);
+export const ClientsTable = () => {
+    const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [limit] = useState(50);
     const [totalRecords, setTotalRecords] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
-    const [skillsMap, setSkillsMap] = useState<Record<string, string>>({});
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+    const debouncedSearch = useDebounce(searchQuery, 500);
     const router = useRouter();
 
     const handleDateSort = (date: Date | null) => {
         setSelectedDate(date);
     };
 
-    // Fetch skills on mount
     useEffect(() => {
-        const fetchSkills = async () => {
-            try {
-                const response = await adminApi.getSkills();
-                if (response && response.data) {
-                    const skillMap: Record<string, string> = {};
-                    response.data.forEach((skill: any) => {
-                        skillMap[skill.id?.toString()] = skill.name;
-                    });
-                    setSkillsMap(skillMap);
-                }
-            } catch (error) {
-                console.error("Failed to fetch skills:", error);
-            }
-        };
-        fetchSkills();
-    }, []);
-
-    useEffect(() => {
-        const fetchCreativePartners = async () => {
+        const fetchClients = async () => {
             setLoading(true);
             try {
                 const params: any = {
@@ -78,102 +72,104 @@ export const AvailabilityTable = () => {
                     limit: limit,
                 };
 
+                if (debouncedSearch) params.search = debouncedSearch;
+                if (statusFilter !== "all") params.status = statusFilter;
 
-
-                const response = await adminApi.getCrewMembers(params);
+                const response = await adminApi.getClients(params);
                 if (response && response.data) {
                     if (response.pagination) {
                         setTotalRecords(response.pagination.total_records || 0);
                         setTotalPages(response.pagination.total_pages || 0);
+                    } else {
+                        // If no pagination provided, treat as a single page
+                        setTotalRecords(Array.isArray(response.data) ? response.data.length : 0);
+                        setTotalPages(1);
                     }
 
                     const data = Array.isArray(response.data) ? response.data : (response.data.items || []);
 
-                    const mappedUsers = data.map((member: any) => {
-                        const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || "Unknown";
-
-                        let displayRole = "N/A";
-                        if (member.role?.role_name) {
-                            displayRole = member.role.role_name;
-                        } else if (member.skills) {
-                            try {
-                                const skillsArray = typeof member.skills === 'string' ? JSON.parse(member.skills) : member.skills;
-                                if (Array.isArray(skillsArray) && skillsArray.length > 0) {
-                                    const skillNames = skillsArray
-                                        .map((skillId: any) => skillsMap[skillId.toString()])
-                                        .filter(Boolean);
-                                    displayRole = skillNames.length > 0 ? skillNames.join(', ') : "N/A";
-                                }
-                            } catch (e) {
-                                displayRole = "N/A";
-                            }
-                        }
-
-                        const profilePhoto = member.crew_member_files?.find(
-                            (file: any) => file.file_type === 'profile_photo'
-                        );
-                        const imageUrl = profilePhoto
-                            ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}`
-                            : null;
-
-                        const apiStatus = member.status?.toLowerCase() || "";
-                        let displayStatus: UserStatus = "Pending";
-                        if (apiStatus === "approved") displayStatus = "Approved";
-                        else if (apiStatus === "rejected") displayStatus = "Rejected";
+                    const mappedClients = data.map((client: any) => {
+                        const fullName = client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown";
+                        const statusMapping = (val: any) => {
+                            if (val === 1 || val === "Active" || val === "approved") return "Active";
+                            if (val === 0 || val === "Inactive" || val === "rejected") return "Inactive";
+                            return "Pending";
+                        };
 
                         return {
-                            id: `#${member.crew_member_id}`,
+                            id: `#${client.user_id || client.id || client.client_id}`,
                             name: fullName,
-                            email: member.email || "No Email",
-                            role: displayRole,
-                            status: displayStatus,
-                            joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
+                            email: client.email || "No Email",
+                            status: statusMapping(client.status || client.is_active),
+                            joinDate: client.created_at ? new Date(client.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
                             initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
-                            imageUrl,
+                            phoneNumber: client.phone_number || "N/A",
+                            imageUrl: client.profile_image || client.image || null,
                         };
                     });
-                    setUsers(mappedUsers);
+                    setClients(mappedClients);
                 }
             } catch (error) {
-                console.error("Failed to fetch creative partners:", error);
+                console.error("Failed to fetch clients:", error);
+                toast.error("Failed to load clients");
             } finally {
                 setLoading(false);
             }
         };
-        fetchCreativePartners();
-    }, [currentPage, limit]);
+        fetchClients();
+    }, [currentPage, limit, debouncedSearch, statusFilter]);
 
-    const handleViewAvailability = (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        const cleanId = id.replace('#', '');
-        router.push(`/admin/availability/${cleanId}`);
+    const handleRowClick = (id: string, e: React.MouseEvent) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        // Navigation to client profile could be added here
+        // const cleanId = id.replace('#', '');
+        // router.push(`/admin/users/clients/${cleanId}`);
     };
 
     return (
-        <div className="space-y-6 font-instrument-sans">
+        <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <div>
-                    <div className="flex items-center gap-3">
-                        <h1 className="text-2xl font-bold text-white mb-1">Availability Management</h1>
-                        {/* {totalRecords > 0 && (
-                            <span className="bg-[#2a2a2a] text-[#E5D5B8] text-xs px-2 py-0.5 rounded border border-[#E5D5B8]/20">
-                                {String(totalRecords).padStart(2, '0')} Available CPS
-                            </span>
-                        )} */}
+            <div>
+                <h1 className="text-2xl font-bold text-white mb-2">Clients</h1>
+                <p className="text-[#888]">Manage and review all registered clients in one place.</p>
+            </div>
+
+            {/* Toolbar */}
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4 flex-1">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search clients..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-[#555] transition-colors"
+                        />
                     </div>
-                    <p className="text-[#888]">Manage and review all onboarded creative professionals in one place.</p>
+
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-[140px] bg-[#111] border-[#333] text-white rounded-lg h-[46px] focus:ring-0 capitalize">
+                            <SelectValue placeholder="All Status" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111] border-[#333] text-white">
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
-                <div className="ml-auto flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <SortDateButton
                         selectedDate={selectedDate}
                         onDateChange={handleDateSort}
                     />
                 </div>
             </div>
-
-            <div className="w-full h-px bg-[#333] my-6 border-dashed border-b border-white/10" />
 
             {/* Table */}
             <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">
@@ -182,77 +178,81 @@ export const AvailabilityTable = () => {
                         <thead>
                             <tr className="text-[#888] text-sm font-normal border-b border-[#333]">
                                 <th className="py-5 px-6 font-medium">User ID</th>
-                                <th className="py-5 px-6 font-medium">Creative Name</th>
+                                <th className="py-5 px-6 font-medium">Client Name</th>
                                 <th className="py-5 px-6 font-medium">Email ID</th>
-                                <th className="py-5 px-6 font-medium">Roles</th>
+                                <th className="py-5 px-6 font-medium">Mobile Number</th>
                                 <th className="py-5 px-6 font-medium">Status</th>
-                                <th className="py-5 px-6 font-medium text-center">Availability</th>
+                                <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
                         </thead>
                         {loading && (
                             <tbody>
                                 <tr>
-                                    <td colSpan={6} className="py-10 text-center text-[#888]">
-                                        Loading availability data...
+                                    <td colSpan={5} className="py-10 text-center text-[#888]">
+                                        Loading clients...
                                     </td>
                                 </tr>
                             </tbody>
                         )}
-                        {!loading && users.length === 0 && (
+                        {!loading && clients.length === 0 && (
                             <tbody>
                                 <tr>
-                                    <td colSpan={6} className="py-10 text-center text-[#888]">
-                                        No creative partners found.
+                                    <td colSpan={5} className="py-10 text-center text-[#888]">
+                                        No clients found.
                                     </td>
                                 </tr>
                             </tbody>
                         )}
-                        {!loading && users.length > 0 && (
+                        {!loading && clients.length > 0 && (
                             <tbody>
-                                {users.map((user, idx) => (
+                                {clients.map((client, idx) => (
                                     <tr
                                         key={idx}
-                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
+                                        onClick={(e) => handleRowClick(client.id, e)}
+                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
                                     >
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
+                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{client.id}</td>
                                         <td className="py-5 px-6">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-xl bg-[#F5F5F5] overflow-hidden flex items-center justify-center text-black font-semibold text-sm relative">
-                                                    {user.imageUrl ? (
+                                                    {client.imageUrl ? (
                                                         <img
-                                                            src={user.imageUrl}
-                                                            alt={user.name}
+                                                            src={client.imageUrl}
+                                                            alt={client.name}
                                                             className="w-full h-full object-cover"
                                                             onError={(e) => {
                                                                 const target = e.target as HTMLImageElement;
                                                                 target.style.display = 'none';
                                                                 if (target.parentElement) {
-                                                                    target.parentElement.textContent = user.initials;
+                                                                    target.parentElement.textContent = client.initials;
                                                                 }
                                                             }}
                                                         />
                                                     ) : (
-                                                        user.initials
+                                                        client.initials
                                                     )}
                                                 </div>
                                                 <div>
-                                                    <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                                                    <p className="text-[#666666] text-xs mt-0.5">{user.joinDate}</p>
+                                                    <p className="text-[#E0E0E0] font-medium text-[15px]">{client.name}</p>
+                                                    <p className="text-[#666666] text-xs mt-0.5">{client.joinDate}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.email}</td>
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.role}</td>
-                                        <td className="py-5 px-6">
-                                            <StatusBadge status={user.status} />
+                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{client.email}</td>
+                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">
+                                            <a href={`tel:${client.phoneNumber}`} className="hover:text-[#E5D5B8] transition-colors">
+                                                {client.phoneNumber}
+                                            </a>
                                         </td>
-                                        <td className="py-5 px-6 text-center">
-                                            <button
-                                                onClick={(e) => handleViewAvailability(user.id, e)}
-                                                className="w-8 h-8 flex items-center justify-center rounded-full border border-white/20 text-white/80 hover:bg-white/10 hover:text-white transition-colors mx-auto"
-                                            >
-                                                <Eye size={16} />
-                                            </button>
+                                        <td className="py-5 px-6">
+                                            <StatusBadge status={client.status} />
+                                        </td>
+                                        <td className="py-5 px-6 text-right">
+                                            <div className="flex items-center justify-end gap-3">
+                                                <button className="text-[#666] hover:text-white transition-colors">
+                                                    <ChevronRight size={20} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -261,6 +261,7 @@ export const AvailabilityTable = () => {
                     </table>
                 </div>
             </div>
+
             {/* Pagination */}
             {!loading && totalPages > 1 && (
                 <div className="flex justify-between items-center p-6 border-t border-[#333333]">

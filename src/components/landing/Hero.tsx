@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/src/components/landing/ui/button";
 import RotatingInput from "./RotatingInput";
 import { HeroSwiper } from "./HeroImageSwiper";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 export const Hero = () => {
   const heroRef = useRef<HTMLElement | null>(null);
@@ -14,6 +15,7 @@ export const Hero = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
 
   const videoFileName = "Beige - Slow Version.webm";
   const mobileVideoFileName = "Beige Mobile - Slower Version.webm";
@@ -102,12 +104,14 @@ export const Hero = () => {
               >
                 Start Your Shoot
               </Button>
-              <Button
-                className="h-7 lg:h-15 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
-                onClick={() => router.push('/login')}
-              >
-                Sign Up
-              </Button>
+              {!isAuthenticated && (
+                <Button
+                  className="h-7 lg:h-15 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
+                  onClick={() => router.push('/login')}
+                >
+                  Sign Up
+                </Button>
+              )}
             </motion.div>
 
             {/* THE SWIPER COMPONENT */}
