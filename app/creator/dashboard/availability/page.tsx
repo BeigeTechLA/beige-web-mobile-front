@@ -531,14 +531,8 @@ export default function AvailabilityPage() {
                   </button>
                 </div>
 
-                <span className="text-lg font-bold text-white tracking-tight">
-                  {new Date(currentYear, currentMonth - 1).toLocaleString(
-                    "default",
-                    {
-                      month: "long",
-                      year: "numeric",
-                    }
-                  )}
+                <span className="lg:text-lg font-bold text-white tracking-tight">
+                  {format(currentMonth, 'MMMM yyyy')}
                 </span>
               </div>
 

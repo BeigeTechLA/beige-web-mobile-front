@@ -15,7 +15,7 @@ import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow
 interface FolderEntry {
   id: string;
   title: string;
-  fileCount: number;
+  fileCount?: number;
   category: string;
   isLinked: boolean;
   lastOpened: string;
