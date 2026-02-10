@@ -47,6 +47,7 @@ import { getProject } from "@/lib/api";
 
 import { toast } from "sonner";
 import { MobileRow } from "@/components/creator-profile/MobileRow";
+import { StatCard } from "@/components/admin/StatCard";
 
 export default function RequestsShootsPage() {
   const router = useRouter();
@@ -271,7 +272,7 @@ export default function RequestsShootsPage() {
           <StatCard
             label="Pending Requests"
             value={dashboardStats?.pendingRequests || 0}
-            icon={<Clock />}
+            icon={Clock}
             iconColor="text-yellow-500"
             valueColor="text-yellow-500"
             hoverBorder="hover:border-yellow-500/30"
@@ -279,14 +280,14 @@ export default function RequestsShootsPage() {
           <StatCard
             label="Confirmed Shoots"
             value={dashboardStats?.confirmedRequests || 0}
-            icon={<Camera />}
+            icon={Camera}
             iconColor="text-[#E8D1AB]"
             hoverBorder="hover:border-[#E8D1AB]/30"
           />
           <StatCard
             label="Completed"
             value={dashboardStats?.completedShoots || 0}
-            icon={<CheckCircle2 />}
+            icon={CheckCircle2}
             iconColor="text-green-400"
             valueColor="text-green-400"
             hoverBorder="hover:border-green-400/30"
@@ -294,7 +295,7 @@ export default function RequestsShootsPage() {
           <StatCard
             label="Declined"
             value={dashboardStats?.declinedRequests || 0}
-            icon={<Ban />}
+            icon={Ban}
             iconColor="text-red-400"
             valueColor="text-red-400"
             hoverBorder="hover:border-red-400/30"
@@ -664,34 +665,6 @@ export default function RequestsShootsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-/* ---------------- SHARED STAT CARD ---------------- */
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  icon: React.ReactElement;
-  iconColor: string;
-  hoverBorder: string;
-  valueColor?: string;
-}
-
-function StatCard({ label, value, icon, iconColor, hoverBorder, valueColor = "text-white" }: StatCardProps) {
-  return (
-    <div className={`bg-[#111] rounded-lg lg:rounded-xl p-4 lg:p-6 border border-white/5 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[10px] flex flex-col justify-center`}>
-      <div className="absolute top-0 right-0 p-3 lg:p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
-        {React.cloneElement(icon, {
-          // Responsive size logic
-          size: "100%",
-          className: `${iconColor} w-8 h-8 lg:w-12 lg:h-12`
-        })}
-      </div>
-      <div className="relative z-10">
-        <p className="text-white/40 text-[10px] lg:text-sm font-medium mb-3 uppercase tracking-wider">{label}</p>
-        <p className={`text-2xl lg:text-4xl font-bold ${valueColor}`}>{value}</p>
-      </div>
     </div>
   );
 }

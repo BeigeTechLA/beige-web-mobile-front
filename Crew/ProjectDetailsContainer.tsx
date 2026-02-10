@@ -33,18 +33,18 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-6">
+        <div className="w-full lg:max-w-7xl mx-auto p-5 lg:p-8 space-y-4 lg:space-y-6">
           
           {/* 2. PROFILE HEADER */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-5">
-              <div className="h-20 w-20 rounded-2xl bg-blue-400/20 border border-blue-400/20 flex items-center justify-center text-blue-400 text-3xl font-bold shadow-lg">
+          <div className="flex flex-col lg:flex-row gap-2 lg:items-start justify-between">
+            <div className="flex items-start gap-3 lg:gap-5">
+              <div className="w-10 h-10 lg:h-20 lg:w-20 rounded-lg lg:rounded-2xl bg-blue-400/20 border border-blue-400/20 flex items-center justify-center text-blue-400 text-sm lg:text-3xl font-bold shadow-lg shrink-0">
                 {project?.project_name?.slice(0, 2).toUpperCase()}
               </div>
               
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold text-white/90">
+                  <h2 className="lg:text-2xl font-bold text-white/90">
                     {crew ? `${crew.first_name} ${crew.last_name}` : "Unassigned"} ({project?.skills_needed || "Videography"})
                   </h2>
                   <span className="bg-[#E8D1AB]/10 text-[#E8D1AB] text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest border border-[#E8D1AB]/10">
@@ -57,7 +57,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-end gap-3">
               <button className="border border-red-500 text-red-500 hover:bg-red-500/10 px-6 py-2 rounded-lg text-sm font-bold transition-all">
                 Cancel Shoot
               </button>
@@ -68,7 +68,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
           </div>
 
           {/* 3. HORIZONTAL INFO STRIP */}
-          <div className="flex flex-wrap items-center gap-y-4 gap-x-8 p-5 rounded-xl bg-[#E8D1AB]/[0.03] border border-[#E8D1AB]/10 text-[12px]">
+          <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-y-3 lg:gap-y-4 lg:gap-x-8 p-5 rounded-xl bg-[#E8D1AB]/[0.03] border border-[#E8D1AB]/10 text-[12px]">
             <StripItem label="Shoot Date" value={project?.event_date} />
             <Divider />
             <StripItem label="Time" value={`${project?.start_time?.slice(0,5)} - ${project?.duration_hours} Hours (${project?.duration_hours} Hours Duration)`} />
@@ -77,7 +77,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
             <Divider />
             <StripItem label="Payment Status" value={project?.payment_id ? "Paid" : "Pending"} />
             
-            <div className="w-full flex gap-8 pt-2 mt-2 border-t border-white/5">
+            <div className="w-full flex flex-col lg:flex-row gap-3 lg:gap-8 pt-2 mt-2 border-t border-white/5">
                 <StripItem label="Folder Link" value="http://drive.link/folder" isLink />
                 <Divider />
                 <StripItem label="Shoot Files" value="200 Image & 50 Videos" />
@@ -87,7 +87,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
           </div>
 
           {/* 4. TABS NAVIGATION */}
-          <div className="flex justify-between items-center border-b border-white/5 w-full overflow-x-auto scrollbar-hide">
+          <div className="flex items-center w-full overflow-x-auto no-scrollbar gap-6 lg:gap-0 lg:justify-between border-b border-[#222222]">
             <TabBtn label="Shoot Details" active={activeTab === "shoot-details"} onClick={() => setActiveTab("shoot-details")} />
             <TabBtn label="Pre Production Files" active={activeTab === "pre-prod"} onClick={() => setActiveTab("pre-prod")} />
             <TabBtn label="Post Production Files" active={activeTab === "post-prod"} onClick={() => setActiveTab("post-prod")} />

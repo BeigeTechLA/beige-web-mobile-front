@@ -1,7 +1,7 @@
 {
-  "name": "BeigeAI - On Demand Creative Professionals",
-  "short_name": "BeigeAI",
-  "description": "Connect with talented videographers, photographers, and creative professionals on demand",
+  "name": "Beige AI: Create Constant Instantly",
+  "short_name": "Beige AI",
+  "description": "Discover the power of Beige AI and how it can help you create constant content instantly.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#101010",
@@ -9,13 +9,13 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/images/logos/beige_logo_vb.png",
-      "sizes": "1920x550",
+      "src": "/images/logos/icon.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "productivity", "photo"],
+  "categories": ["business", "productivity", "photo", "video"],
   "screenshots": [
     {
       "src": "/og-preview.png",

@@ -11,7 +11,7 @@ export const WelcomeSection = () => {
   const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [joinUsUrl, setJoinUsUrl] = useState("/creator-signup")
+  const [joinUsUrl, setJoinUsUrl] = useState("/creative-partner-signup")
 
   useEffect(() => {
     const storedUser = localStorage.getItem("revure_user");

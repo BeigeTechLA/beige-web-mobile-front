@@ -190,10 +190,10 @@ export function LoginForm() {
               />
             </div>
           </Link>
-          <Link href="/creator-signup" className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#101010] to-[#474343] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300 lg:h-[163px]">
+          <Link href="/creative-partner-signup" className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#101010] to-[#474343] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300 lg:h-[163px]">
             <div className="relative z-10 flex lg:flex-col justify-between gap-2 h-full lg:w-1/2">
               <h2 className="text-white text-sm font-semibold leading-tight">
-                Create New account as Creator
+                Create New account as Creative Partner
               </h2>
 
               <div className="w-5 h-5 lg:w-[30px] lg:h-[30px] rounded-full border border-white flex items-center justify-center">
@@ -219,10 +219,10 @@ export function LoginForm() {
         <div className="flex items-center justify-between">
           {/* <div className="flex gap-1 lg:gap-1.5"> */}
             {/* <Star className="h-4 w-4 fill-[#BEA784] text-[#BEA784]" /> */}
-            <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">$10M+</span>In Content Produced</p>
+            <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">$10M+</span>in Content Produced</p>
           {/* </div> */}
-          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">5K+</span> Verified Creatives</p>
-          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">4K+</span> Shoots Books</p>
+          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">5K+</span> Vetted Creative Partners</p>
+          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">4K+</span> Shoots Booked</p>
         </div>
       </div>
     </div>

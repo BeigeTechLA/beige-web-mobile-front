@@ -22,19 +22,22 @@ const instrumentSans = Instrument_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL("https://beige.app"),
   title: {
-    default: "BeigeAI - Book a Video & Photo Shoot Instantly",
-    template: "%s | BeigeAI",
+    default: "Unlock Creativity with Beige AI: Create Instantly",
+    template: "%s | Beige AI",
   },
   description:
-    "Connect with talented creators for your next project. BeigeAI connects you with professional videographers, photographers, and creative professionals on demand.",
+    "Discover the power of beige ai and how it can help you create constant content instantly. Unlock new possibilities for your projects with the app!",
   keywords: [
     "videographers",
     "photographers",
     "creative professionals",
     "on demand",
-    "BeigeAI",
-    "video production",
+    "Beige AI",
+    "architecture video projects",
+    "AI-powered post production",
     "content creation",
+    "video production",
+    "photo shoot booking",
   ],
   authors: [{ name: "BeigeAI" }],
   creator: "BeigeAI",
@@ -43,18 +46,16 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/icon.png", type: "image/png" },
-      // { url: "/images/logos/beige_logo_vb.png", type: "image/png" },
     ],
     apple: [
-      // { url: "/images/logos/beige_logo_vb.png", type: "image/png" },
       { url: "/icon.png", type: "image/png" },
     ],
     shortcut: ["/icon.png"],
   },
   manifest: "/manifest.json",
   openGraph: {
-    title: "BeigeAI - Book a Video & Photo Shoot Instantly",
-    description: "Connect with talented creators for your next project",
+    title: "Unlock Creativity with Beige AI: Create Instantly",
+    description: "Discover the power of beige ai and how it can help you create constant content instantly.",
     url: "https://beige.app/",
     siteName: "BeigeAI",
     images: [
@@ -70,8 +71,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "BeigeAI - Book a Video & Photo Shoot Instantly",
-    description: "Connect with talented creators for your next project",
+    title: "Unlock Creativity with Beige AI: Create Instantly",
+    description: "Discover the power of beige ai and how it can help you create constant content instantly.",
     images: ["/og-preview.png"],
     creator: "@BeigeAI",
   },
