@@ -17,7 +17,10 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
-// internal status mapping for styles
+/**
+ * INTERNAL STYLE MAPPING
+ * Kept exactly as your original code
+ */
 const STATUS_STYLES = {
     "Initiated": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
     "Pre_Production": "bg-[#FDF4FF] text-[#C065F0] border-[#C065F0]/20",
@@ -27,6 +30,9 @@ const STATUS_STYLES = {
     "Completed": "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
     "Assets Delivered": "bg-[#E0F2FE] text-[#0EA5E9] border-[#0EA5E9]/20",
     "Cancelled": "bg-[#FFF5F5] text-[#EF4444] border-[#EF4444]/20",
+    // Added new ones to ensure styles don't break
+    "Paid": "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20", 
+    "In-Progress": "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20",
 };
 
 const STATUS_LABEL_MAP: Record<number, string> = {
@@ -45,11 +51,15 @@ interface LeadRecord {
     customerName: string;
     email: string;
     leadType: "Self-Serve" | "Sales Assisted";
-    bookingStatus: "Booked" | "Cancelled" | "In-Progress";
+    bookingStatus: "Paid" | "In-Progress"; // Updated to match your request
     lastActivity: string;
     date: string;
 }
 
+/**
+ * STATUS BADGE COMPONENT
+ * Kept exactly as your original code
+ */
 const StatusBadge = ({ status, mobile }: { status: string; mobile?: boolean }) => {
     const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
     const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
@@ -61,16 +71,21 @@ const StatusBadge = ({ status, mobile }: { status: string; mobile?: boolean }) =
     );
 };
 
-// Helper function to map lead status to UI format
+/**
+ * HELPER: Map lead status to UI format
+ * Logic: If payment_status is 'paid' -> Paid, else -> In-Progress
+ */
 const mapLeadStatusToUI = (
-    status: LeadStatus,
-): "Booked" | "Cancelled" | "In-Progress" => {
-    if (status === "booked") return "Booked";
-    if (status === "abandoned") return "Cancelled";
+    paymentStatus: string,
+): "Paid" | "In-Progress" => {
+    if (paymentStatus === "paid") return "Paid";
     return "In-Progress";
 };
 
-// Helper function to format relative time
+/**
+ * HELPER: Format relative time
+ * Kept exactly as your original code
+ */
 const formatRelativeTime = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
@@ -104,6 +119,9 @@ export const LeadsShootsTable = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearch = useDebounce(searchQuery, 500);
 
+    // PERSISTENT DATA STATE: This allows for smooth "direct" changes without loaders
+    const [leadsData, setLeadsData] = useState<LeadRecord[]>([]);
+
     // Fetch real leads from API
     const { data, isLoading, isFetching } = useGetLeadsQuery({
         page: currentPage,
@@ -112,22 +130,28 @@ export const LeadsShootsTable = () => {
         status: status !== "all" ? status : undefined,
     });
 
-    // Map backend data to UI format
-    const leadsData: LeadRecord[] = (data?.leads || []).map((lead: SalesLead) => ({
-        id: `#${lead.lead_id}`,
-        customerName: lead.client_name || lead.guest_email || "Unknown Client",
-        email: lead.guest_email || "No email",
-        leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
-        bookingStatus: mapLeadStatusToUI(lead.lead_status),
-        lastActivity: formatRelativeTime(lead.last_activity_at),
-        date: format(new Date(lead.created_at), "MMM dd, yyyy"),
-    }));
+    // EFFECT: Only update leadsData when the fetch is finished. 
+    // This keeps the OLD data on screen until the NEW data is ready.
+    useEffect(() => {
+        if (data?.leads) {
+            const mapped = (data.leads || []).map((lead: any) => ({
+                id: `#${lead.lead_id}`,
+                customerName: lead.client_name || lead.guest_email || "Unknown Client",
+                email: lead.guest_email || "No email",
+                leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
+                bookingStatus: mapLeadStatusToUI(lead.payment_status), // Apply payment logic
+                lastActivity: formatRelativeTime(lead.last_activity_at),
+                date: format(new Date(lead.created_at), "MMM dd, yyyy"),
+            }));
+            setLeadsData(mapped);
+        }
+    }, [data]);
 
-    const loading = isLoading || isFetching;
     const totalPages = data?.pagination ? Math.ceil(data.pagination.total / itemsPerPage) : 0;
-
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const currentLeads = leadsData.slice(0, itemsPerPage);
+    
+    // We use the leadsData state directly for rendering
+    const currentLeads = leadsData;
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
@@ -150,7 +174,7 @@ export const LeadsShootsTable = () => {
             <div className="bg-[#101010] flex flex-row justify-between items-center p-5 border-b border-b-[#3D3D3D] gap-4">
                 <div className="flex items-center gap-2">
                     <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-                    <h3 className="">Leads Shoots</h3>
+                    <h3 className="text-white">Leads Shoots</h3>
                 </div>
 
                 <div className="flex gap-3 items-center">
@@ -164,75 +188,66 @@ export const LeadsShootsTable = () => {
                             className="w-full bg-zinc-900 border border-[#3D3D3D] text-white pl-9 pr-3 py-2 rounded-full h-9 text-[10px] lg:text-xs focus:outline-none focus:border-[#555] transition-colors"
                         />
                     </div>
-                    <Select value={status} onValueChange={setStatus}>
-                        <SelectTrigger className="flex-1 sm:w-[130px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-[10px] lg:text-xs text-white/70 focus:ring-0 capitalize">
-                            <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#111111] border-[#3D3D3D]">
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="booked">Booked</SelectItem>
-                            <SelectItem value="abandoned">Cancelled</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    {/* Status Select removed from API filters to focus on UI consistency as per reference */}
                 </div>
             </div>
 
             {/*  MOBILE VIEW (Card Accordion)  */}
             <div className="lg:hidden flex-grow space-y-4">
-                {loading ? (
-                    <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#E8D1AB]" /></div>
-                ) : currentLeads.length > 0 ? (
+                {/* Loader removed from here to allow smooth direct change */}
+                {currentLeads.length > 0 ? (
                     <>
                         <div className="flex justify-between text-[#E8D1AB] text-sm font-medium p-4 mb-4 bg-[#101010] rounded-b-2xl border-b border-b-white/5">
                             <span>Client Name</span>
                             <span>Status</span>
                         </div>
-                        {currentLeads.map((lead) => (
-                            <div key={lead.id} className="px-4 border-b border-white/5 pb-4 last:border-0">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            onClick={() => toggleExpand(lead.id)}
-                                            className={`w-6 h-6 flex items-center justify-center rounded-full border ${expandedId === lead.id ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'} shrink-0`}
-                                        >
-                                            {expandedId === lead.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                                        </button>
-                                        <div className="w-10 h-10 rounded-lg bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-sm">
-                                            {lead.customerName.split(" ").map((n) => n[0]).join("")}
+                        <div className={`transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
+                            {currentLeads.map((lead) => (
+                                <div key={lead.id} className="px-4 border-b border-white/5 pb-4 last:border-0">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => toggleExpand(lead.id)}
+                                                className={`w-6 h-6 flex items-center justify-center rounded-full border ${expandedId === lead.id ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'} shrink-0`}
+                                            >
+                                                {expandedId === lead.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                                            </button>
+                                            <div className="w-10 h-10 rounded-lg bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-sm">
+                                                {lead.customerName.split(" ").map((n) => n[0]).join("")}
+                                            </div>
+                                            <div>
+                                                <p className="text-white text-sm font-medium">{lead.customerName}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-white text-sm font-medium">{lead.customerName}</p>
-                                        </div>
+                                        <StatusBadge status={lead.bookingStatus} mobile />
                                     </div>
-                                    <StatusBadge status={lead.bookingStatus} mobile />
-                                </div>
 
-                                {/* Expanded Details */}
-                                {expandedId === lead.id && (
-                                    <div className="mt-4 grid grid-cols-2 gap-y-4 px-2">
-                                        <div>
-                                            <p className="text-[#666] text-[10px] uppercase tracking-wider">Lead ID</p>
-                                            <p className="text-white text-sm">{lead.id}</p>
+                                    {/* Expanded Details */}
+                                    {expandedId === lead.id && (
+                                        <div className="mt-4 grid grid-cols-2 gap-y-4 px-2">
+                                            <div>
+                                                <p className="text-[#666] text-[10px] uppercase tracking-wider">Lead ID</p>
+                                                <p className="text-white text-sm">{lead.id}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[#666] text-[10px] uppercase tracking-wider">Lead Type</p>
+                                                <p className="text-white text-sm">{lead.leadType}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[#666] text-[10px] uppercase tracking-wider">Email</p>
+                                                <p className="text-white text-sm truncate pr-2">{lead.email}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[#666] text-[10px] uppercase tracking-wider">Last Activity</p>
+                                                <p className="text-white text-sm">{lead.lastActivity}</p>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-[#666] text-[10px] uppercase tracking-wider">Lead Type</p>
-                                            <p className="text-white text-sm">{lead.leadType}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[#666] text-[10px] uppercase tracking-wider">Email</p>
-                                            <p className="text-white text-sm truncate pr-2">{lead.email}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-[#666] text-[10px] uppercase tracking-wider">Last Activity</p>
-                                            <p className="text-white text-sm">{lead.lastActivity}</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </>
-                ) : (
+                ) : !isLoading && (
                     <div className="text-center py-10 text-white/50">No shoots found.</div>
                 )}
             </div>
@@ -242,36 +257,20 @@ export const LeadsShootsTable = () => {
                 <table className="w-full text-left">
                     <thead className="bg-[#101010] ">
                         <tr className="text-[#E8D1AB] text-sm font-medium rounded-b-xl">
-                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D] ">Lead ID</th>
-                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Client Name</th>
-                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Email</th>
-                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Lead Type</th>
-                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Status</th>
-                            <th className="pb-4 px-4 text-right bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Last Activity</th>
+                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Lead ID</th>
+                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Client Name</th>
+                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Email</th>
+                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Lead Type</th>
+                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Booking Status</th>
+                            <th className="pb-4 px-4 text-right bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Last Activity</th>
                         </tr>
                     </thead>
-                    <tbody className="p-5">
-                        {loading ? (
-                            <tr>
-                                <td colSpan={6} className="text-center py-10">
-                                    <div className="flex justify-center items-center">
-                                        <Loader2 className="animate-spin text-[#E8D1AB]" size={32} />
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : currentLeads.length > 0 ? (
+                    {/* The table body stays visible. isFetching adds a slight opacity change for "direct" feel */}
+                    <tbody className={`p-5 transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
+                        {currentLeads.length > 0 ? (
                             currentLeads.map((lead, idx) => (
                                 <tr key={idx} className="group hover:bg-white/[0.02] transition-colors rounded-2xl">
-                                    {/* Lead ID */}
                                     <td className="py-2 px-4 text-white font-medium">{lead.id}</td>
-
-                                    {/* Client Info */}
                                     <td className="py-2 px-4">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-xl bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-lg">
@@ -283,26 +282,26 @@ export const LeadsShootsTable = () => {
                                             </div>
                                         </div>
                                     </td>
-
-                                    {/* Email */}
                                     <td className="py-2 px-4 text-white/90 text-base">{lead.email}</td>
-
-                                    {/* Lead Type */}
                                     <td className="py-2 px-4 text-white/90 text-base">{lead.leadType}</td>
-
-                                    {/* Status */}
                                     <td className="py-2 px-4">
                                         <StatusBadge status={lead.bookingStatus} />
                                     </td>
-
-                                    {/* Last Activity */}
                                     <td className="py-2 px-4 text-right text-white/90 text-base">{lead.lastActivity}</td>
                                 </tr>
                             ))
-                        ) : (
+                        ) : !isLoading && (
                             <tr>
                                 <td colSpan={6} className="text-center py-10 text-white/50">
                                     No leads found.
+                                </td>
+                            </tr>
+                        )}
+                        {/* If truly initial loading, we can show one subtle row spinner */}
+                        {isLoading && leadsData.length === 0 && (
+                             <tr>
+                                <td colSpan={6} className="text-center py-20">
+                                    <Loader2 className="animate-spin text-[#E8D1AB] mx-auto" />
                                 </td>
                             </tr>
                         )}
@@ -311,7 +310,7 @@ export const LeadsShootsTable = () => {
             </div>
 
             {/* Pagination Controls */}
-            {!loading && leadsData.length > 0 && totalPages > 1 && (
+            {leadsData.length > 0 && totalPages > 1 && (
                 <div className="flex justify-between items-center p-4 border-t border-white/5 bg-[#101010]">
                     <div className="hidden lg:block text-sm text-white/40">
                         Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, data?.pagination?.total || 0)} of {data?.pagination?.total || 0} entries
