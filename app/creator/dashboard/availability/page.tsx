@@ -532,7 +532,7 @@ export default function AvailabilityPage() {
                 </div>
 
                 <span className="lg:text-lg font-bold text-white tracking-tight">
-                  {format(currentMonth, 'MMMM yyyy')}
+                  {format(new Date(currentYear, currentMonth - 1), 'MMMM yyyy')}
                 </span>
               </div>
 

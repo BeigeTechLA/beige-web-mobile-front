@@ -41,7 +41,8 @@ import {
   GetCreatorDashboardCount,
   getCrewAvailability,
   GetCreatorDashboardDetails,
-  GetCreatorStats
+  GetCreatorStats,
+  CheckVerificationStatus
 } from "@/lib/api";
 
 // ----------------------------
@@ -231,7 +232,7 @@ export default function CreatorDashboardPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [verificationStatus, setVerificationStatus] = useState<number | null>(null);
-
+   const [isSyncing, setIsSyncing] = useState(true);
 
   const [viewState, setViewState] = useState({
     latitude: 39.8283,
@@ -264,6 +265,46 @@ export default function CreatorDashboardPage() {
     }
     setAcceptShootEvent(null);
   };
+
+   useEffect(() => {
+    const syncStatusWithBackend = async () => {
+      const userStr = localStorage.getItem("revure_user");
+      const localUser = userStr ? JSON.parse(userStr) : null;
+      const crewId = user?.crew_member_id || localUser?.crew_member_id;
+
+      if (!crewId) {
+        setIsSyncing(false);
+        return;
+      }
+
+      try {
+        // 1. Ask backend for the REAL current status
+        const response = await CheckVerificationStatus({ crew_member_id: crewId });
+        
+        if (response && !response.error && response.data?.data) {
+          const latestStatus = Number(response.data.data.is_crew_verified);
+
+          // 2. Update React State (Unlocks the current page)
+          setVerificationStatus(latestStatus);
+
+          // 3. Update LocalStorage (Unlocks the Sidebar links)
+          const updatedUser = { ...localUser, is_crew_verified: latestStatus };
+          localStorage.setItem("revure_user", JSON.stringify(updatedUser));
+          
+          console.log("Status synced from backend:", latestStatus);
+        }
+      } catch (err) {
+        console.error("Sync failed:", err);
+        // Fallback to local storage if API fails
+        const status = (user as any)?.is_crew_verified ?? localUser?.is_crew_verified ?? 0;
+        setVerificationStatus(Number(status));
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
+    syncStatusWithBackend();
+  }, [user]);
 
   // 1. Fetch Stats (Logic from your code)
   useEffect(() => {
@@ -411,6 +452,15 @@ export default function CreatorDashboardPage() {
   // Helper Component for Pending/Rejected States
   function VerificationStatusOverlay({ status }: { status: number }) {
     const isPending = status === 0;
+
+     if (isSyncing) {
+    return (
+      <div className="min-h-screen bg-[#111] flex flex-col items-center justify-center">
+        <div className="w-10 h-10 border-4 border-[#E8D1AB]/20 border-t-[#E8D1AB] rounded-full animate-spin mb-4" />
+        <p className="text-[#E8D1AB] font-medium tracking-widest text-xs uppercase">Verifying Profile...</p>
+      </div>
+    );
+  }
 
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">

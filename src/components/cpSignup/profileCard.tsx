@@ -20,6 +20,9 @@ const roleOptions = [
   { value: "9", label: "Videographer" },
   { value: "10", label: "Photographers" },
   { value: "11", label: "Editor" },
+  { value: "1", label: "Videographer" },
+  { value: "2", label: "Photographers" },
+  { value: "3", label: "Editor" },
 ];
 
 const skillOptions = [
@@ -158,6 +161,7 @@ const skillOptions = [
 ];
 
 const ProfileCard = ({ data }) => {
+  console.log("ProfileCard data:", data);
   const rawRoles = data?.roles || (data?.role ? [data.role] : []);
 
   // Map IDs to labels and join them

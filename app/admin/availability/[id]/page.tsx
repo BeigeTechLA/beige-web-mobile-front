@@ -14,10 +14,11 @@ import {
   Mic,
   Copy,
   ArrowLeft,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminApi, getCrewAvailability } from "@/lib/api";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 
 // --- HELPERS ---
@@ -43,6 +44,18 @@ const formatLocation = (locationInput: string) => {
   return addressStr;
 };
 
+// Helper for time formatting
+const formatTimeRange = (start?: string, end?: string) => {
+  if (!start || !end) return "12:00 PM - 4:00 PM";
+  try {
+    const s = format(parseISO(`2000-01-01T${start}`), "h:mm a");
+    const e = format(parseISO(`2000-01-01T${end}`), "h:mm a");
+    return `${s} - ${e}`;
+  } catch (error) {
+    return `${start} - ${end}`;
+  }
+};
+
 interface CrewMember {
   id: number;
   first_name: string;
@@ -63,9 +76,13 @@ interface CrewMember {
 }
 
 interface ProjectDetails {
+  project_id?: number;
   project_name?: string;
   date?: string;
   event_location?: string;
+  start_time?: string;
+  end_time?: string;
+  status?: number;
 }
 
 interface AvailabilityStatus {
@@ -89,8 +106,10 @@ export default function AvailabilityDetailsPage() {
     bookedShoots: 0,
     timeOff: 0,
   });
-  const [hoveredProject, setHoveredProject] = useState<ProjectDetails | null>(null);
-  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+
+  // --- NEW SIDEBAR STATE ---
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [sidebarDate, setSidebarDate] = useState<string | null>(null);
 
   // Fetch Member Details
   useEffect(() => {
@@ -183,10 +202,6 @@ export default function AvailabilityDetailsPage() {
     }
   };
 
-  const handleDateLeave = () => {
-    setHoveredProject(null);
-  };
-
   const getFirstDayOfMonth = (month: number, year: number) => {
     return new Date(year, month - 1, 1).getDay();
   };
@@ -214,37 +229,26 @@ export default function AvailabilityDetailsPage() {
       const isPastDate = dateString < todayDateString;
       const isToday = dateString === todayDateString;
 
-      // Background logic matching the high-end dashboard
       const cardBackground = isPastDate
-        ? "bg-[#0D0D0D] opacity-40"
+        ? "bg-[#161616] opacity-90"
         : isAvailable
           ? "bg-[#111]"
           : "bg-[#161616]";
 
       const textColor = isAvailable ? "text-white" : "text-white/30";
 
-      const handleDateHover = (e: React.MouseEvent) => {
-        if (isAssigned && availabilityStatus?.projectDetails) {
-          const rect = e.currentTarget.getBoundingClientRect();
-          setHoverPosition({
-            x: rect.right + 10,
-            y: rect.top,
-          });
-          setHoveredProject({
-            date: dateString,
-            ...availabilityStatus.projectDetails,
-          });
-        }
-      };
-
       calendarDays.push(
         <div
           key={i}
-          onMouseEnter={handleDateHover}
-          onMouseLeave={handleDateLeave}
+          onClick={() => {
+            if (isAssigned) {
+              setSidebarDate(dateString);
+              setIsSidebarOpen(true);
+            }
+          }}
           className={`h-28 p-3 border border-white/5 text-xs transition-all duration-200
     ${cardBackground} ${textColor}
-    ${!isPastDate ? "cursor-default" : ""} hover:border-[#E8D1AB]/30 hover:bg-[#1A1A1A] group`}
+    ${isAssigned ? "cursor-pointer" : "cursor-default"} hover:border-[#E8D1AB]/30 hover:bg-[#1A1A1A] group`}
         >
           <div
             className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold mb-1 transition-colors ${isToday ? "bg-[#E8D1AB] text-black" : "group-hover:text-[#E8D1AB]"
@@ -281,7 +285,6 @@ export default function AvailabilityDetailsPage() {
   };
 
   const copyAvailabilityLink = () => {
-    // Placeholder link, ideally this should be a real link
     const link = `${window.location.origin}/availability/${id}`;
     navigator.clipboard.writeText(link);
     toast.success("Link copied to clipboard");
@@ -308,239 +311,289 @@ export default function AvailabilityDetailsPage() {
   const location = [member?.city, member?.state, member?.country].filter(Boolean).join(', ') || "Location Unknown";
 
   return (
-    <div className="space-y-8 pb-12 bg-transparent text-white font-instrument-sans">
-      {/* Header with Back Button */}
-      <div>
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-6 text-sm"
-        >
-          <ArrowLeft size={16} />
-          Back
-        </button>
+    <div className="relative min-h-screen">
+      <div className="space-y-8 pb-12 bg-transparent text-white font-instrument-sans">
+        {/* Header with Back Button */}
+        <div>
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-6 text-sm"
+          >
+            <ArrowLeft size={16} />
+            Back
+          </button>
 
-        <div className="flex items-center gap-2 text-sm text-white/40 mb-2">
-          <span>Availability Management</span>
-          <span>/</span>
-          <span className="text-white">Creative Partner Profile Details</span>
-        </div>
-      </div>
-
-      {/* Profile Card */}
-      <div className="bg-[#111] border border-[#333] rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="flex items-center gap-6">
-          <div className="w-24 h-24 rounded-xl bg-[#222] overflow-hidden flex-shrink-0">
-            {imageUrl ? (
-              <img src={imageUrl} alt={fullName} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-white/20 text-2xl font-bold">
-                {fullName.substring(0, 2).toUpperCase()}
-              </div>
-            )}
+          <div className="flex items-center gap-2 text-sm text-white/40 mb-2">
+            <span>Availability Management</span>
+            <span>/</span>
+            <span className="text-white">Creative Partner Profile Details</span>
           </div>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold text-white">{fullName}</h1>
-              {member?.status === 'approved' && (
-                <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <CheckCircle size={12} className="text-green-500" />
+        </div>
+
+        {/* Profile Card */}
+        <div className="bg-[#111] border border-[#333] rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <div className="w-24 h-24 rounded-xl bg-[#222] overflow-hidden flex-shrink-0">
+              {imageUrl ? (
+                <img src={imageUrl} alt={fullName} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white/20 text-2xl font-bold">
+                  {fullName.substring(0, 2).toUpperCase()}
                 </div>
               )}
             </div>
-            <p className="text-white/60 mb-2">{displayRole}</p>
-            <div className="flex items-center gap-2 text-white/40 text-sm">
-              <MapPin size={14} />
-              {location}
-            </div>
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-bold text-white">{fullName}</h1>
+                {member?.status === 'approved' && (
+                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <CheckCircle size={12} className="text-green-500" />
+                  </div>
+                )}
+              </div>
+              <p className="text-white/60 mb-2">{displayRole}</p>
+              <div className="flex items-center gap-2 text-white/40 text-sm">
+                <MapPin size={14} />
+                {location}
+              </div>
 
-            <div className="flex gap-3 mt-4">
-              {member?.linkedin_link && (
-                <a href={member.linkedin_link} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-[#1A1A1A] border border-white/10 rounded-lg text-white/60 text-xs hover:text-white hover:border-white/20 transition-colors flex items-center gap-2">
-                  Linkedin
-                </a>
-              )}
-              {member?.behance_link && (
-                <a href={member.behance_link} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-[#1A1A1A] border border-white/10 rounded-lg text-white/60 text-xs hover:text-white hover:border-white/20 transition-colors flex items-center gap-2">
-                  Behance
-                </a>
-              )}
-              {member?.portfolio_link && (
-                <a href={member.portfolio_link} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-[#1A1A1A] border border-white/10 rounded-lg text-white/60 text-xs hover:text-white hover:border-white/20 transition-colors flex items-center gap-2">
-                  Portfolio
-                </a>
-              )}
+              <div className="flex gap-3 mt-4">
+                {member?.linkedin_link && (
+                  <a href={member.linkedin_link} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-[#1A1A1A] border border-white/10 rounded-lg text-white/60 text-xs hover:text-white hover:border-white/20 transition-colors flex items-center gap-2">
+                    Linkedin
+                  </a>
+                )}
+                {member?.behance_link && (
+                  <a href={member.behance_link} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-[#1A1A1A] border border-white/10 rounded-lg text-white/60 text-xs hover:text-white hover:border-white/20 transition-colors flex items-center gap-2">
+                    Behance
+                  </a>
+                )}
+                {member?.portfolio_link && (
+                  <a href={member.portfolio_link} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-[#1A1A1A] border border-white/10 rounded-lg text-white/60 text-xs hover:text-white hover:border-white/20 transition-colors flex items-center gap-2">
+                    Portfolio
+                  </a>
+                )}
+              </div>
             </div>
+          </div>
+
+          <div>
+            <span className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${member?.status === 'approved' ? "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20" :
+                member?.status === 'pending' ? "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20" :
+                  "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20"
+              }`}>
+              {member?.status ? member.status.charAt(0).toUpperCase() + member.status.slice(1) : 'Approved'}
+            </span>
           </div>
         </div>
 
         <div>
-          <span className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${member?.status === 'approved' ? "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20" :
-              member?.status === 'pending' ? "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20" :
-                "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20"
-            }`}>
-            {member?.status ? member.status.charAt(0).toUpperCase() + member.status.slice(1) : 'Unknown'}
-          </span>
-        </div>
-      </div>
+          <h2 className="text-xl font-bold text-white mb-6">Availability</h2>
+          <div className="w-full h-px bg-[#333] border-dashed border-b border-white/10 mb-8" />
 
-      <div>
-        <h2 className="text-xl font-bold text-white mb-6">Availability</h2>
-        <div className="w-full h-px bg-[#333] border-dashed border-b border-white/10 mb-8" />
+          <div className="grid grid-cols-12 gap-6">
+            {/* Main Calendar Section */}
+            <div className="col-span-12 lg:col-span-9 space-y-6">
+              <div className="bg-[#111] border border-[#333] rounded-2xl overflow-hidden shadow-2xl">
+                {/* Calendar Controls */}
+                <div className="p-6 border-b border-[#333] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center bg-black rounded-lg border border-white/10 p-1">
+                      <button
+                        onClick={() => handleMonthChange("prev")}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-white/60 transition-colors"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleMonthChange("next")}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-white/60 transition-colors"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
 
-        <div className="grid grid-cols-12 gap-6">
-          {/* Main Calendar Section */}
-          <div className="col-span-12 lg:col-span-9 space-y-6">
-            <div className="bg-[#111] border border-[#333] rounded-2xl overflow-hidden shadow-2xl">
-              {/* Calendar Controls */}
-              <div className="p-6 border-b border-[#333] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center bg-black rounded-lg border border-white/10 p-1">
-                    <button
-                      onClick={() => handleMonthChange("prev")}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-white/60 transition-colors"
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleMonthChange("next")}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-white/60 transition-colors"
-                    >
-                      <ChevronRight size={18} />
-                    </button>
+                    <span className="text-lg font-bold text-white tracking-tight">
+                      {new Date(currentYear, currentMonth - 1).toLocaleString(
+                        "default",
+                        {
+                          month: "long",
+                          year: "numeric",
+                        }
+                      )}
+                    </span>
                   </div>
 
-                  <span className="text-lg font-bold text-white tracking-tight">
-                    {new Date(currentYear, currentMonth - 1).toLocaleString(
-                      "default",
-                      {
-                        month: "long",
-                        year: "numeric",
-                      }
-                    )}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E8D1AB]/40"
-                    onClick={() => {
-                      setCurrentMonth(new Date().getMonth() + 1);
-                      setCurrentYear(new Date().getFullYear());
-                    }}
-                  >
-                    Today
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E8D1AB]/40"
-                  >
-                    Sort by
-                    <ChevronLeft className="rotate-[-90deg] ml-2" size={14} />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 border-collapse">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                  (d, index) => (
-                    <div
-                      key={index}
-                      className="py-3 text-center text-[10px] font-bold uppercase tracking-widest text-white/30 bg-black/40 border-b border-r border-[#333]"
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E8D1AB]/40"
+                      onClick={() => {
+                        setCurrentMonth(new Date().getMonth() + 1);
+                        setCurrentYear(new Date().getFullYear());
+                      }}
                     >
-                      {d}
-                    </div>
-                  )
-                )}
-                {renderCalendarDays()}
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar Info Section */}
-          <div className="col-span-12 lg:col-span-3 space-y-6">
-
-            <div className="bg-[#111] border border-[#333] rounded-2xl p-6">
-              <h3 className="text-sm font-bold text-white mb-6 uppercase tracking-wider">Color Legend</h3>
-              <div className="space-y-4">
-                <Legend color="bg-white/20" label="Disabled" desc="Time off or blocked" />
-                <Legend color="bg-[#A8A29E]" label="Today's" desc="Time off or blocked" />
-                <Legend color="bg-blue-500" label="Shoots" desc="Confirmed shoots" />
-                <Legend color="bg-red-500" label="Conflicts" desc="Scheduling conflicts" />
-              </div>
-            </div>
-
-            <div className="bg-[#111] border border-[#333] rounded-2xl p-6">
-              <h3 className="text-sm font-bold text-white mb-6 uppercase tracking-wider">This Month</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center bg-[#1A1A1A] p-3 rounded-lg">
-                  <span className="text-white/60 text-sm">Available Days</span>
-                  <span className="text-white font-medium">{summaryData.availableDays}</span>
+                      Today
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E8D1AB]/40"
+                    >
+                      Sort by
+                      <ChevronLeft className="rotate-[-90deg] ml-2" size={14} />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center bg-[#1A1A1A] p-3 rounded-lg">
-                  <span className="text-white/60 text-sm">Booked Shoots</span>
-                  <span className="text-white font-medium">{summaryData.bookedShoots}</span>
-                </div>
-                <div className="flex justify-between items-center bg-[#1A1A1A] p-3 rounded-lg">
-                  <span className="text-white/60 text-sm">Time Off</span>
-                  <span className="text-white font-medium">{summaryData.timeOff} days</span>
+
+                {/* Calendar Grid */}
+                <div className="grid grid-cols-7 border-collapse">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                    (d, index) => (
+                      <div
+                        key={index}
+                        className="py-3 text-center text-[10px] font-bold uppercase tracking-widest text-white/30 bg-black/40 border-b border-r border-[#333]"
+                      >
+                        {d}
+                      </div>
+                    )
+                  )}
+                  {renderCalendarDays()}
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#111] border border-[#333] rounded-2xl p-6">
-              <h3 className="text-sm font-bold text-white mb-2">Share Availability</h3>
-              <p className="text-xs text-white/40 leading-relaxed mb-4">
-                Share your availability link with production teams
-              </p>
-              <Button
-                onClick={copyAvailabilityLink}
-                className="w-full bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-medium"
-              >
-                <Copy size={16} className="mr-2" />
-                Copy Link
-              </Button>
+            {/* Sidebar Info Section */}
+            <div className="col-span-12 lg:col-span-3 space-y-6">
+
+              <div className="bg-[#111] border border-[#333] rounded-2xl p-6">
+                <h3 className="text-sm font-bold text-white mb-6 uppercase tracking-wider">Color Legend</h3>
+                <div className="space-y-4">
+                  <Legend color="bg-white/20" label="Disabled" desc="Time off or blocked" />
+                  <Legend color="bg-[#A8A29E]" label="Today's" desc="Time off or blocked" />
+                  <Legend color="bg-blue-500" label="Shoots" desc="Confirmed shoots" />
+                  <Legend color="bg-[#E8D1AB]" label="Booked" desc="Scheduling conflicts" />
+                </div>
+              </div>
+
+              <div className="bg-[#111] border border-[#333] rounded-2xl p-6">
+                <h3 className="text-sm font-bold text-white mb-6 uppercase tracking-wider">This Month</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center bg-[#1A1A1A] p-3 rounded-lg">
+                    <span className="text-white/60 text-sm">Available Days</span>
+                    <span className="text-white font-medium">{summaryData.availableDays}</span>
+                  </div>
+                  <div className="flex justify-between items-center bg-[#1A1A1A] p-3 rounded-lg">
+                    <span className="text-white/60 text-sm">Booked Shoots</span>
+                    <span className="text-white font-medium">{summaryData.bookedShoots}</span>
+                  </div>
+                  <div className="flex justify-between items-center bg-[#1A1A1A] p-3 rounded-lg">
+                    <span className="text-white/60 text-sm">Time Off</span>
+                    <span className="text-white font-medium">{summaryData.timeOff} days</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#111] border border-[#333] rounded-2xl p-6">
+                <h3 className="text-sm font-bold text-white mb-2">Share Availability</h3>
+                <p className="text-xs text-white/40 leading-relaxed mb-4">
+                  Share your availability link with production teams
+                </p>
+                <Button
+                  onClick={copyAvailabilityLink}
+                  className="w-full bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-medium"
+                >
+                  <Copy size={16} className="mr-2" />
+                  Copy Link
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {hoveredProject && (
-        <div
-          className="fixed z-50 w-80 bg-[#111] border border-white/10 rounded-xl shadow-2xl overflow-hidden pointer-events-none"
-          style={{
-            top: hoverPosition.y,
-            left: hoverPosition.x,
-          }}
-        >
-          {/* Header */}
-          <div className="p-6 border-b border-white/10">
-            <span className="inline-block mb-3 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full bg-[#E8D1AB]/10 text-[#E8D1AB] border border-[#E8D1AB]/20">
-              Active Project
-            </span>
+      {/* --- SIDEBAR MODAL (Same as Screenshot UI) --- */}
+      {isSidebarOpen && sidebarDate && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity" 
+            onClick={() => setIsSidebarOpen(false)} 
+          />
+          
+          {/* Panel */}
+          <div className="relative w-full max-w-md bg-[#080808] border-l border-white/10 shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="p-8 pb-4 flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-white tracking-tight">
+                {format(parseISO(sidebarDate), "MMMM d, yyyy")}
+              </h2>
+              <button 
+                onClick={() => setIsSidebarOpen(false)}
+                className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-            <h3 className="text-xl font-bold text-white mb-4">
-              {hoveredProject.project_name}
-            </h3>
+            <div className="flex-1 overflow-y-auto p-8 pt-4 space-y-6">
+              {availability[sidebarDate]?.projectDetails ? (
+                <div className="bg-[#111] border border-white/5 rounded-[24px] p-6 space-y-6 ring-1 ring-white/5">
+                  <div className="flex justify-between items-start">
+                    <span className="px-3 py-1 bg-[#22C55E] text-white text-[10px] font-bold uppercase tracking-widest rounded-md">
+                      Initiated
+                    </span>
+                    {/* Avatars Placeholder */}
+                    <div className="flex -space-x-2">
+                       <div className="w-6 h-6 rounded-full bg-blue-500 border-2 border-[#111]" />
+                       <div className="w-6 h-6 rounded-full bg-purple-500 border-2 border-[#111]" />
+                       <div className="w-6 h-6 rounded-full bg-pink-500 border-2 border-[#111]" />
+                       <div className="w-6 h-6 rounded-full bg-[#E8D1AB] text-black text-[8px] flex items-center justify-center border-2 border-[#111] font-bold">+3</div>
+                    </div>
+                  </div>
 
-            <div className="flex flex-wrap gap-4 text-xs text-white/60">
-              <span className="flex items-center gap-2">
-                <Calendar size={14} className="text-[#E8D1AB]" />
-                {hoveredProject.date}
-              </span>
+                  <h3 className="text-xl font-bold text-white leading-tight">
+                    {availability[sidebarDate].projectDetails?.project_name}
+                  </h3>
 
-              <span className="flex items-center gap-2">
-                <MapPin size={14} className="text-[#E8D1AB]" />
-                {formatLocation(hoveredProject.event_location || "")}
-              </span>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 text-white/50 text-sm">
+                      <Calendar size={16} />
+                      <span>{format(parseISO(sidebarDate), "MMM d, yyyy")}</span>
+                    </div>
+                    <div className="flex items-start gap-3 text-white/50 text-sm">
+                      <MapPin size={16} className="mt-0.5" />
+                      <span className="leading-snug">
+                        {formatLocation(availability[sidebarDate].projectDetails?.event_location || "")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-white/50 text-sm">
+                      <Clock size={16} />
+                      <span>
+                        {formatTimeRange(
+                          availability[sidebarDate].projectDetails?.start_time, 
+                          availability[sidebarDate].projectDetails?.end_time
+                        )}
+                      </span>
+                    </div>
+                  </div>
 
-              <span className="flex items-center gap-2">
-                <Clock size={14} className="text-[#E8D1AB]" />
-                12:00 PM – 4:00 PM
-              </span>
+                  <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
+                      Updated recently
+                    </span>
+                    <Button 
+                      className="bg-[#E8D1AB] hover:bg-[#d4be9a] text-black font-bold h-10 px-6 rounded-xl"
+                      onClick={() => router.push(`/admin/shoots/${availability[sidebarDate].projectDetails?.project_id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-white/20 italic">No project details available.</p>
+              )}
             </div>
           </div>
         </div>
@@ -549,7 +602,7 @@ export default function AvailabilityDetailsPage() {
   );
 }
 
-/* Helper Components */
+/* Helper Components preserved exactly */
 function Legend({ color, label, desc }: { color: string; label: string; desc: string }) {
   return (
     <div className="flex items-start gap-3">

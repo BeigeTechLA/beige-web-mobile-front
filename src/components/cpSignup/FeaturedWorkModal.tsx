@@ -34,7 +34,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
       setTitle("");
       setTags([]);
       setTagInput("");
-      imagePreviews.forEach(url => URL.revokeObjectURL(url));
+      // imagePreviews.forEach(url => URL.revokeObjectURL(url));
       setImagePreviews([]);
       setRawFiles([]);
       setAddTagsOpen(false);
@@ -42,45 +42,54 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
   }, [open]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
 
-    const oversizedFiles = files.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
-    if (oversizedFiles.length > 0) {
-      toast.error(`File is too large. Max ${MAX_FILE_SIZE_MB}MB per file allowed.`);
-      if (fileRef.current) fileRef.current.value = "";
-      return;
+  // Validation: Size checks
+  const oversizedFiles = files.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+  if (oversizedFiles.length > 0) {
+    toast.error(`File too large. Max ${MAX_FILE_SIZE_MB}MB allowed.`);
+    if (fileRef.current) fileRef.current.value = "";
+    return;
+  }
+
+  try {
+    setIsCompressing(true);
+
+    // Process each file
+    const newPreviews: string[] = [];
+    const newRawFiles: File[] = [];
+
+    for (const file of files) {
+      let processedFile = file;
+
+      // Only compress if it's an image
+      if (file.type.startsWith('image/')) {
+        processedFile = await compressImage(file);
+      }
+
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(processedFile); 
+      });
+
+      newPreviews.push(base64);
+      newRawFiles.push(processedFile);
     }
 
-    const currentTotalSize = rawFiles.reduce((acc, f) => acc + f.size, 0);
-    const newFilesSize = files.reduce((acc, f) => acc + f.size, 0);
-    if ((currentTotalSize + newFilesSize) > MAX_TOTAL_PROJECT_MB * 1024 * 1024) {
-      toast.error(`Total project size cannot exceed ${MAX_TOTAL_PROJECT_MB}MB.`);
-      if (fileRef.current) fileRef.current.value = "";
-      return;
-    }
+    setImagePreviews((prev) => [...prev, ...newPreviews]);
+    setRawFiles((prev) => [...prev, ...newRawFiles]);
 
-    try {
-      setIsCompressing(true);
-      const compressedFiles = await Promise.all(
-        files.map(async (file) => {
-          if (file.type.startsWith('image/')) {
-            return await compressImage(file);
-          }
-          return file;
-        })
-      );
-
-      const previews = compressedFiles.map((file) => URL.createObjectURL(file));
-      setRawFiles((prev) => [...prev, ...compressedFiles]);
-      setImagePreviews((prev) => [...prev, ...previews]);
-    } catch (error) {
-      toast.error("An error occurred while processing files.");
-    } finally {
-      setIsCompressing(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  };
+  } catch (error) {
+    console.error("Upload error:", error);
+    toast.error("An error occurred while processing files.");
+  } finally {
+    setIsCompressing(false);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+};
 
   const removeTag = (t: string) => {
     setTags(tags.filter((x) => x !== t));

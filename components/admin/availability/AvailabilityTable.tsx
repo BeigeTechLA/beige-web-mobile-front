@@ -80,7 +80,7 @@ export const AvailabilityTable = () => {
 
 
 
-                const response = await adminApi.getCrewMembers(params);
+                const response = await adminApi.getapprovedCrewMembers(params);
                 if (response && response.data) {
                     if (response.pagination) {
                         setTotalRecords(response.pagination.total_records || 0);
@@ -165,12 +165,12 @@ export const AvailabilityTable = () => {
                     <p className="text-[#888]">Manage and review all onboarded creative professionals in one place.</p>
                 </div>
 
-                <div className="ml-auto flex items-center gap-2">
+                {/* <div className="ml-auto flex items-center gap-2">
                     <SortDateButton
                         selectedDate={selectedDate}
                         onDateChange={handleDateSort}
                     />
-                </div>
+                </div> */}
             </div>
 
             <div className="w-full h-px bg-[#333] my-6 border-dashed border-b border-white/10" />
@@ -212,7 +212,8 @@ export const AvailabilityTable = () => {
                                 {users.map((user, idx) => (
                                     <tr
                                         key={idx}
-                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
+                                        onClick={(e) => handleViewAvailability(user.id, e)}
+                                        className="border-b border-[#222] hover:bg-white/[0.04] cursor-pointer transition-colors last:border-0"
                                     >
                                         <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
                                         <td className="py-5 px-6">

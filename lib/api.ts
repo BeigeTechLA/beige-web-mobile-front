@@ -971,6 +971,25 @@ export const adminApi = {
       };
     }
   },
+
+  getapprovedCrewMembers: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
+    try {
+      const response = await api.post('admin/get-approved-crew-members', {
+        page: params.page || 1,
+        limit: params.limit || 50,
+        search: params.search,
+        status: params.status,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Crew Members Error:', error.response?.data || error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || error.message || 'Failed to fetch crew members',
+      };
+    }
+  },
   verifyCrewMember: async (payload: { crew_member_id: number; status: number }) => {
     try {
       const response = await api.post('admin/verify-crew-member', payload);
@@ -1167,6 +1186,24 @@ export const getAvailabilityDetails = async (payload: { year: string, month: str
       success: false,
       data: null,
       error: error.response?.data?.message || 'Failed to fetch availability details',
+    };
+  }
+};
+
+export const CheckVerificationStatus = async (payload: { crew_member_id: any }) => {
+  try {
+    const response = await api.post("creator/check-verification-status", payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error: any) {
+    console.error('Check Verification Status Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error.response?.data?.message || 'Failed to fetch verification status',
     };
   }
 };

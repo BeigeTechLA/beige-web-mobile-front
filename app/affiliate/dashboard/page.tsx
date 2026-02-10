@@ -289,7 +289,8 @@ export default function AffiliateDashboardPage() {
   // Sidebar Content Component
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-[#111] text-white">
-      <div className="p-6 border-b border-white/10 flex items-center justify-between">
+      {/* LOGO - Fixed at top */}
+      <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
         <Link href="/" className="relative flex items-center">
           <Image
             src="/images/logos/beige_logo_vb.png"
@@ -311,12 +312,13 @@ export default function AffiliateDashboardPage() {
         </button>
       </div>
 
-      <div className="flex-1 py-6 px-3 space-y-1">
+      {/* NAV LINKS - Scrollable middle section */}
+      <div className="flex-1 overflow-y-auto py-6 px-3 space-y-1 scrollbar-hide">
         <button
           onClick={() => handleTabChange("dashboard")}
           className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${activeTab === "dashboard"
-            ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-            : "text-white/60 hover:text-white hover:bg-white/5"
+              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+              : "text-white/60 hover:text-white hover:bg-white/5"
             }`}
         >
           <LayoutDashboard size={20} />
@@ -326,8 +328,8 @@ export default function AffiliateDashboardPage() {
         <button
           onClick={() => setActiveTab("overview")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "overview"
-            ? "bg-[#E5D5B8] text-black shadow-lg"
-            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+              ? "bg-[#E5D5B8] text-black shadow-lg"
+              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
             }`}
         >
           <Users size={20} />
@@ -337,8 +339,8 @@ export default function AffiliateDashboardPage() {
         <button
           onClick={() => setActiveTab("file-manager")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "file-manager"
-            ? "bg-[#E5D5B8] text-black shadow-lg"
-            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+              ? "bg-[#E5D5B8] text-black shadow-lg"
+              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
             }`}
         >
           <FolderOpen size={20} />
@@ -348,8 +350,8 @@ export default function AffiliateDashboardPage() {
         <button
           onClick={() => setActiveTab("messages")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "messages"
-            ? "bg-[#E5D5B8] text-black shadow-lg"
-            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+              ? "bg-[#E5D5B8] text-black shadow-lg"
+              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
             }`}
         >
           <MessageCircle size={20} />
@@ -359,14 +361,13 @@ export default function AffiliateDashboardPage() {
         <button
           onClick={() => handleTabChange("shoots")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "shoots"
-            ? "bg-[#E5D5B8] text-black shadow-lg"
-            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+              ? "bg-[#E5D5B8] text-black shadow-lg"
+              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
             }`}
         >
           <Camera size={20} />
           <span className="font-medium">Shoots</span>
         </button>
-
 
         <Link
           href="/book-a-shoot"
@@ -375,45 +376,27 @@ export default function AffiliateDashboardPage() {
           <Camera size={20} />
           <span>Book A Shoot</span>
         </Link>
+
         <button
           onClick={() => setActiveTab("profile")}
           className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${activeTab === "profile"
-            ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-            : "text-white/60 hover:text-white hover:bg-white/5"
+              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+              : "text-white/60 hover:text-white hover:bg-white/5"
             }`}
         >
           <Settings size={20} />
           <span>Profile</span>
         </button>
-
-        {/* MY BOOKINGS TAB */}
-        {/* <button 
-          onClick={() => handleTabChange("bookings")}
-          className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === "bookings" ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "text-white/60 hover:text-white hover:bg-white/5"
-          }`}
-        >
-          <Calendar size={20} />
-          <span>My Bookings</span>
-        </button>
-
-        <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50">
-          <Wallet size={20} />
-          <span>Payouts (Soon)</span>
-        </button>
-        <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50">
-          <Settings size={20} />
-          <span>Settings (Soon)</span>
-        </button> */}
       </div>
 
-      <div className="p-4 border-t border-white/10">
+      {/* USER PROFILE & LOGOUT - Fixed at bottom */}
+      <div className="p-4 border-t border-white/10 shrink-0 bg-[#111]">
         <div className="flex items-center gap-3 mb-4 px-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E8D1AB] to-[#C4A470] flex items-center justify-center text-black font-bold text-sm shrink-0">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#E8D1AB] to-[#C4A470] flex items-center justify-center text-black font-bold text-sm shrink-0 uppercase">
             {user?.name?.[0] || "A"}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium truncate">
+            <p className="text-sm font-semibold truncate text-white">
               {user?.name || "Affiliate"}
             </p>
             <p className="text-xs text-white/40 truncate">{user?.email}</p>
@@ -421,7 +404,7 @@ export default function AffiliateDashboardPage() {
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center w-full gap-2 px-3 py-2 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors text-sm"
+          className="flex items-center w-full gap-2 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors text-sm font-medium"
         >
           <LogOut size={16} />
           <span>Sign Out</span>
@@ -435,9 +418,9 @@ export default function AffiliateDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white flex">
+    <div className="h-screen bg-[#0A0A0A] text-white flex overflow-hidden">
       {/* DESKTOP SIDEBAR */}
-      <div className="hidden lg:block w-64 border-r border-white/10 shrink-0">
+      <div className="hidden lg:block w-64 border-r border-white/10 shrink-0 h-full">
         <SidebarContent />
       </div>
 
