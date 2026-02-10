@@ -190,7 +190,7 @@ export function LoginForm() {
               />
             </div>
           </Link>
-          <Link href="/creator-signup" className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#101010] to-[#474343] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300 lg:h-[163px]">
+          <Link href="/creative-partner-signup" className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#101010] to-[#474343] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300 lg:h-[163px]">
             <div className="relative z-10 flex lg:flex-col justify-between gap-2 h-full lg:w-1/2">
               <h2 className="text-white text-sm font-semibold leading-tight">
                 Create New account as Creative Partner
