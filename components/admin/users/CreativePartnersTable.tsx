@@ -326,10 +326,10 @@ export const CreativePartnersTable = () => {
                     <button className="px-6 py-2.5 bg-[#E5D5B8] text-black font-semibold rounded-lg hover:bg-[#d4c3a3] transition-colors">
                         Book a Shoot
                     </button> */}
-          <SortDateButton
+          {/* <SortDateButton
             selectedDate={selectedDate}
             onDateChange={handleDateSort}
-          />
+          /> */}
         </div>
       </div>
 

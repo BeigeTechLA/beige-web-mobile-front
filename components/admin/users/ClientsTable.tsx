@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronRight, Search, Check, X, AlertCircle } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
-import { SortDateButton } from "@/components/admin/SortDateButton";
+import { SortDateButton } from "@/components/admin/SortDateButton"; // Re-added your theme component
+import { format } from "date-fns";
 import {
     Select,
     SelectContent,
@@ -36,9 +37,7 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
         Inactive: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
         Rejected: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
     };
-
     const displayStatus = styles[status] ? status : "Pending";
-
     return (
         <span className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${styles[displayStatus as keyof typeof styles]}`}>
             {status}
@@ -53,14 +52,25 @@ export const ClientsTable = () => {
     const [limit] = useState(50);
     const [totalRecords, setTotalRecords] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+
+    // --- DATE FILTER STATES ---
+    const [range, setRange] = useState<string>("all");
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const debouncedSearch = useDebounce(searchQuery, 500);
     const router = useRouter();
 
+    // Handle single date selection from theme datepicker
     const handleDateSort = (date: Date | null) => {
         setSelectedDate(date);
+        if (date) {
+            setRange("custom");
+        } else {
+            setRange("all");
+        }
+        setCurrentPage(1);
     };
 
     useEffect(() => {
@@ -70,21 +80,24 @@ export const ClientsTable = () => {
                 const params: any = {
                     page: currentPage,
                     limit: limit,
+                    range: range
                 };
 
                 if (debouncedSearch) params.search = debouncedSearch;
                 if (statusFilter !== "all") params.status = statusFilter;
+                
+                // If custom date is picked via SortDateButton, send it as start/end
+                if (range === "custom" && selectedDate) {
+                    const formattedDate = format(selectedDate, "yyyy-MM-dd");
+                    params.start_date = formattedDate;
+                    params.end_date = formattedDate;
+                }
 
                 const response = await adminApi.getClients(params);
                 if (response && response.data) {
-                    if (response.pagination) {
-                        setTotalRecords(response.pagination.total_records || 0);
-                        setTotalPages(response.pagination.total_pages || 0);
-                    } else {
-                        // If no pagination provided, treat as a single page
-                        setTotalRecords(Array.isArray(response.data) ? response.data.length : 0);
-                        setTotalPages(1);
-                    }
+                    const pagination = response.pagination;
+                    setTotalRecords(pagination?.total_records || 0);
+                    setTotalPages(pagination?.total_pages || 1);
 
                     const data = Array.isArray(response.data) ? response.data : (response.data.items || []);
 
@@ -101,7 +114,7 @@ export const ClientsTable = () => {
                             name: fullName,
                             email: client.email || "No Email",
                             status: statusMapping(client.status || client.is_active),
-                            joinDate: client.created_at ? new Date(client.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
+                            joinDate: client.created_at ? format(new Date(client.created_at), 'MMM d, yyyy') : "N/A",
                             initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
                             phoneNumber: client.phone_number || "N/A",
                             imageUrl: client.profile_image || client.image || null,
@@ -117,17 +130,15 @@ export const ClientsTable = () => {
             }
         };
         fetchClients();
-    }, [currentPage, limit, debouncedSearch, statusFilter]);
+    }, [currentPage, limit, debouncedSearch, statusFilter, range, selectedDate]);
 
-    const handleRowClick = (id: string, e: React.MouseEvent) => {
-        if ((e.target as HTMLElement).closest('button')) return;
-        // Navigation to client profile could be added here
-        // const cleanId = id.replace('#', '');
-        // router.push(`/admin/users/clients/${cleanId}`);
+    const handleRowClick = (id: string) => {
+        const cleanId = id.replace('#', '');
+        router.push(`/admin/users/clients/${cleanId}`);
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
             {/* Header */}
             <div>
                 <h1 className="text-2xl font-bold text-white mb-2">Clients</h1>
@@ -135,34 +146,52 @@ export const ClientsTable = () => {
             </div>
 
             {/* Toolbar */}
-            <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 flex-1">
-                    <div className="relative flex-1 max-w-md">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-4 flex-1 w-full">
+                    {/* Search */}
+                    <div className="relative flex-1 max-w-md min-w-[240px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" size={18} />
                         <input
                             type="text"
-                            placeholder="Search clients..."
+                            placeholder="Search name or email..."
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                             className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-[#555] transition-colors"
                         />
                     </div>
 
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    {/* Status Select */}
+                    <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}>
                         <SelectTrigger className="w-[140px] bg-[#111] border-[#333] text-white rounded-lg h-[46px] focus:ring-0 capitalize">
-                            <SelectValue placeholder="All Status" />
+                            <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#111] border-[#333] text-white">
                             <SelectItem value="all">All Status</SelectItem>
                             <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="approved">Approved</SelectItem>
                             <SelectItem value="pending">Pending</SelectItem>
                             <SelectItem value="inactive">Inactive</SelectItem>
-                            <SelectItem value="rejected">Rejected</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {/* Range Select */}
+                    <Select value={range} onValueChange={(val) => { 
+                        setRange(val); 
+                        if (val !== "custom") setSelectedDate(null);
+                        setCurrentPage(1); 
+                    }}>
+                        <SelectTrigger className="w-[140px] bg-[#111] border-[#333] text-white rounded-lg h-[46px] focus:ring-0 capitalize">
+                            <SelectValue placeholder="Range" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#111] border-[#333] text-white">
+                            <SelectItem value="all">All Time</SelectItem>
+                            <SelectItem value="week">This Week</SelectItem>
+                            <SelectItem value="month">This Month</SelectItem>
+                            <SelectItem value="custom">Custom Date</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
 
+                {/* Theme Datepicker Component */}
                 <div className="flex items-center gap-3">
                     <SortDateButton
                         selectedDate={selectedDate}
@@ -185,30 +214,27 @@ export const ClientsTable = () => {
                                 <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
                         </thead>
-                        {loading && (
-                            <tbody>
+                        <tbody>
+                            {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="py-10 text-center text-[#888]">
-                                        Loading clients...
+                                    <td colSpan={6} className="py-20 text-center text-[#888]">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-6 h-6 border-2 border-[#E5D5B8] border-t-transparent rounded-full animate-spin" />
+                                            <span>Loading clients...</span>
+                                        </div>
                                     </td>
                                 </tr>
-                            </tbody>
-                        )}
-                        {!loading && clients.length === 0 && (
-                            <tbody>
+                            ) : clients.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="py-10 text-center text-[#888]">
-                                        No clients found.
+                                    <td colSpan={6} className="py-20 text-center text-[#888]">
+                                        No clients found for the selected filters.
                                     </td>
                                 </tr>
-                            </tbody>
-                        )}
-                        {!loading && clients.length > 0 && (
-                            <tbody>
-                                {clients.map((client, idx) => (
+                            ) : (
+                                clients.map((client, idx) => (
                                     <tr
                                         key={idx}
-                                        onClick={(e) => handleRowClick(client.id, e)}
+                                        onClick={() => handleRowClick(client.id)}
                                         className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
                                     >
                                         <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{client.id}</td>
@@ -234,35 +260,31 @@ export const ClientsTable = () => {
                                                 </div>
                                                 <div>
                                                     <p className="text-[#E0E0E0] font-medium text-[15px]">{client.name}</p>
-                                                    <p className="text-[#666666] text-xs mt-0.5">{client.joinDate}</p>
+                                                    <p className="text-[#666666] text-[10px] mt-0.5 uppercase tracking-wider font-bold">{client.joinDate}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{client.email}</td>
                                         <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">
-                                            <a href={`tel:${client.phoneNumber}`} className="hover:text-[#E5D5B8] transition-colors">
-                                                {client.phoneNumber}
-                                            </a>
+                                            {client.phoneNumber}
                                         </td>
                                         <td className="py-5 px-6">
                                             <StatusBadge status={client.status} />
                                         </td>
                                         <td className="py-5 px-6 text-right">
-                                            <div className="flex items-center justify-end gap-3">
-                                                <button className="text-[#666] hover:text-white transition-colors">
-                                                    <ChevronRight size={20} />
-                                                </button>
-                                            </div>
+                                            <button className="text-[#666] hover:text-white transition-colors">
+                                                <ChevronRight size={20} />
+                                            </button>
                                         </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        )}
+                                ))
+                            )}
+                        </tbody>
                     </table>
                 </div>
             </div>
 
-            {/* Pagination */}
+            {/* Pagination Logic */}
             {!loading && totalPages > 1 && (
                 <div className="flex justify-between items-center p-6 border-t border-[#333333]">
                     <div className="text-sm text-[#666666]">
@@ -278,20 +300,20 @@ export const ClientsTable = () => {
                         </button>
                         <div className="flex gap-1">
                             {(() => {
-                                const range = [];
+                                const rangePages = [];
                                 const delta = 1;
                                 const left = currentPage - delta;
                                 const right = currentPage + delta + 1;
 
                                 for (let i = 1; i <= totalPages; i++) {
                                     if (i === 1 || i === totalPages || (i >= left && i < right)) {
-                                        range.push(i);
+                                        rangePages.push(i);
                                     } else if (i === left - 1 || i === right) {
-                                        range.push('...');
+                                        rangePages.push('...');
                                     }
                                 }
 
-                                return range.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
+                                return rangePages.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
                                     page === '...' ? (
                                         <span key={`dots-${index}`} className="px-2 py-1 text-white/30 text-xs">...</span>
                                     ) : (

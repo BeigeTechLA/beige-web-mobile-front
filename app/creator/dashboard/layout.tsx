@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -17,74 +17,40 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { CheckVerificationStatus } from "@/lib/api";
 
-export default function AffiliateLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AffiliateLayout({ children }: { children: React.ReactNode; }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const pathname = usePathname();
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex overflow-hidden">
-      {/* Desktop Sidebar */}
       <div className="hidden lg:block w-64 flex-shrink-0">
         <Sidebar pathname={pathname} />
       </div>
 
-      {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-[#111] border-b border-white/10 px-4 h-16 flex items-center justify-between">
         <Link href="/" className="relative flex items-center">
-          <Image
-            src="/images/logos/beige_logo_vb.png"
-            alt="BEIGE"
-            width={100}
-            height={20}
-          />
-          <span className="absolute right-0 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
-            Beta
-            <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
-          </span>
+          <Image src="/images/logos/beige_logo_vb.png" alt="BEIGE" width={100} height={20} />
+          <span className="absolute right-0 -bottom-3 text-[8px] font-medium tracking-wide py-[1px] px-1 rounded-full text-white border border-white/40">Beta</span>
         </Link>
-        <button
-          onClick={() => setIsSidebarOpen(true)}
-          className="p-2 text-white"
-        >
+        <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-white">
           <Menu size={24} />
         </button>
       </div>
 
-      {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-black/80 z-50 lg:hidden backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              className="fixed inset-y-0 left-0 z-50 w-64 bg-[#111] lg:hidden"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/80 z-50 lg:hidden backdrop-blur-sm" />
+            <motion.div initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} className="fixed inset-y-0 left-0 z-50 w-64 bg-[#111] lg:hidden">
               <Sidebar pathname={pathname} onClose={() => setIsSidebarOpen(false)} />
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="absolute top-4 right-4 p-2 text-white/60 hover:text-white"
-              >
-                <X size={20} />
-              </button>
+              <button onClick={() => setIsSidebarOpen(false)} className="absolute top-4 right-4 p-2 text-white/60"><X size={20} /></button>
             </motion.div>
           </>
         )}
       </AnimatePresence>
 
-      {/* Page Content */}
       <div className="flex-1 flex flex-col min-h-screen h-screen overflow-hidden">
         <main className="flex-1 p-4 lg:p-8 pt-20 lg:pt-8 overflow-y-auto">
           {children}
@@ -94,35 +60,44 @@ export default function AffiliateLayout({
   );
 }
 
-/* ---------------- SIDEBAR ---------------- */
-
-function Sidebar({
-  pathname,
-  onClose,
-}: {
-  pathname: string;
-  onClose?: () => void;
-}) {
+function Sidebar({ pathname, onClose }: { pathname: string; onClose?: () => void; }) {
   const { logout, user } = useAuth();
+  const [isVerified, setIsVerified] = useState(false);
 
-  // Logic for verification status
-  const userStr = typeof window !== 'undefined' ? localStorage.getItem("revure_user") : null;
-  const localUser = userStr ? JSON.parse(userStr) : null;
-  // Fixed TS error using (user as any)
-  const status = (user as any)?.is_crew_verified ?? localUser?.is_crew_verified ?? 0;
-  const isVerified = Number(status) === 1;
+  // LOGIC TO SYNC SIDEBAR LOCKS
+  useEffect(() => {
+    const syncStatus = async () => {
+      const userStr = typeof window !== 'undefined' ? localStorage.getItem("revure_user") : null;
+      const localUser = userStr ? JSON.parse(userStr) : null;
+      const crewId = user?.crew_member_id || localUser?.crew_member_id;
 
-  const handleLogout = () => {
-    logout();
-    localStorage.clear();
-    onClose?.();
-  };
+      if (!crewId) return;
 
+      try {
+        const response = await CheckVerificationStatus({ crew_member_id: crewId });
+        if (response && !response.error && response.data?.data) {
+          const status = Number(response.data.data.is_crew_verified);
+          setIsVerified(status === 1);
+
+          // Keep storage in sync
+          const updatedUser = { ...localUser, is_crew_verified: status };
+          localStorage.setItem("revure_user", JSON.stringify(updatedUser));
+        }
+      } catch (err) {
+        console.error("Sidebar sync error", err);
+      }
+    };
+    syncStatus();
+  }, [user]);
+
+  const handleLogout = () => { logout(); localStorage.clear(); onClose?.(); };
   const isActive = (path: string) => pathname === path;
 
   const NavLink = ({ href, icon: Icon, label }: { href: string; icon: any; label: string }) => {
     const active = isActive(href);
-    const locked = !isVerified && href !== "/creator/dashboard";
+    // Allow Dashboard and Profile always; lock others if not verified
+    const isPublic = href === "/creator/dashboard" || href === "/creator/dashboard/profile";
+    const locked = !isVerified && !isPublic;
 
     if (locked) {
       return (
@@ -134,16 +109,7 @@ function Sidebar({
     }
 
     return (
-      <Link
-        href={href}
-        onClick={onClose}
-        className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors
-          ${active
-            ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-            : "text-white/60 hover:text-white hover:bg-white/5"
-          }
-        `}
-      >
+      <Link href={href} onClick={onClose} className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${active ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "text-white/60 hover:text-white hover:bg-white/5"}`}>
         <Icon size={20} />
         <span>{label}</span>
       </Link>
@@ -152,29 +118,12 @@ function Sidebar({
 
   return (
     <div className="flex flex-col h-full bg-[#111] border-r border-white/10 w-64">
-      {/* Logo */}
       <div className="p-6 border-b border-white/10">
-        <Link
-          href="/"
-          onClick={onClose}
-          className="relative flex items-center w-fit"
-        >
-          <Image
-            src="/images/logos/beige_logo_vb.png"
-            alt="BEIGE"
-            width={158}
-            height={32}
-            className="w-[120px] h-[24px] md:w-[158px] md:h-[32px] object-contain"
-            priority
-          />
-           <span className="absolute right-0 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
-              Beta
-              <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
-            </span>
+        <Link href="/" className="relative flex items-center w-fit">
+          <Image src="/images/logos/beige_logo_vb.png" alt="BEIGE" width={158} height={32} />
         </Link>
       </div>
 
-      {/* Navigation */}
       <div className="flex-1 py-6 px-3 space-y-1">
         <NavLink href="/creator/dashboard" icon={LayoutDashboard} label="Dashboard" />
         <NavLink href="/creator/dashboard/request" icon={Camera} label="Request & Shoots" />
@@ -182,41 +131,17 @@ function Sidebar({
         <NavLink href="/creator/dashboard/availability" icon={Calendar} label="Availability" />
         <NavLink href="/creator/dashboard/profile" icon={User} label="Profile" />
 
-        {/* New Payouts Button */}
-        <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50">
-          <Wallet size={20} />
-          <span>Payouts (Soon)</span>
-        </button>
-
-        {/* New Settings Button */}
-        <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-colors cursor-not-allowed opacity-50">
-          <Settings size={20} />
-          <span>Settings (Soon)</span>
-        </button>
+        <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 cursor-not-allowed opacity-50"><Wallet size={20} /><span>Payouts (Soon)</span></button>
+        <button className="flex items-center w-full gap-3 px-3 py-3 rounded-lg text-white/60 cursor-not-allowed opacity-50"><Settings size={20} /><span>Settings (Soon)</span></button>
       </div>
 
-      {/* User & Logout */}
       <div className="p-4 border-t border-white/10">
         <div className="flex items-center gap-3 mb-4 px-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E8D1AB] to-[#C4A470] flex items-center justify-center text-black font-bold text-sm">
-            {user?.name?.[0] || "A"}
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium truncate">
-              {user?.name || "Affiliate"}
-            </p>
-            <p className="text-xs text-white/40 truncate">
-              {user?.email}
-            </p>
-          </div>
+          <div className="w-8 h-8 rounded-full bg-[#E8D1AB] text-black font-bold flex items-center justify-center">{user?.name?.[0] || "A"}</div>
+          <div className="flex-1 overflow-hidden"><p className="text-sm font-medium truncate">{user?.name}</p><p className="text-xs text-white/40 truncate">{user?.email}</p></div>
         </div>
-
-        <button
-          onClick={handleLogout}
-          className="flex items-center w-full gap-2 px-3 py-2 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors text-sm"
-        >
-          <LogOut size={16} />
-          <span>Sign Out</span>
+        <button onClick={handleLogout} className="flex items-center w-full gap-2 px-3 py-2 text-red-400 hover:bg-red-400/10 transition-colors text-sm">
+          <LogOut size={16} /><span>Sign Out</span>
         </button>
       </div>
     </div>

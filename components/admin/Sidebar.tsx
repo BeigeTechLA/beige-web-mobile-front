@@ -11,7 +11,8 @@ const menuItems = [
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
-  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', isDisabled: true },
+  // { name: 'Availability', icon: CalendarClock, link: '/admin/availability', isDisabled: true },
+  { name: 'Availability', icon: CalendarClock, link: '/admin/availability' },
   { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
   {
     name: 'Users',

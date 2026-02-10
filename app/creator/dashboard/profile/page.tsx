@@ -273,6 +273,51 @@ export default function ProfilePage() {
     }
   };
 
+  useEffect(() => {
+  if (profile.social_media_links) {
+    try {
+      let linksObj = profile.social_media_links;
+
+      if (typeof linksObj === 'string') {
+        linksObj = JSON.parse(linksObj);
+        if (typeof linksObj === 'string') {
+          linksObj = JSON.parse(linksObj);
+        }
+      }
+
+      if (linksObj && typeof linksObj === 'object') {
+        const formattedLinks = Object.entries(linksObj)
+          .filter(([_, url]) => url && String(url).trim() !== "")
+          .map(([platform, url], index) => {
+            const platformInfo = SOCIAL_ICONS.find(i => i.id === platform.toLowerCase());
+            return {
+              id: index,
+              platform: platform,
+              url: url as string,
+              name: platformInfo?.label || platform
+            };
+          });
+        setSocialLinks(formattedLinks);
+      } else {
+        setSocialLinks([]);
+      }
+    } catch (e) {
+      console.error("Error parsing social links:", e);
+      setSocialLinks([]);
+    }
+  } else {
+    setSocialLinks([]);
+  }
+}, [profile.social_media_links]);
+
+const formatExternalUrl = (url: string) => {
+  if (!url) return "#";
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  return `https://${url}`;
+};
+
 
   const handleSaveProfessionalInfo = async () => {
     const userStr = localStorage.getItem("revure_user");
@@ -404,7 +449,6 @@ export default function ProfilePage() {
     return user?.crew_member_id;
   };
 
-  // 1. Function to trigger the modal
   // 1. Function to trigger the modal
   const confirmDelete = (type: 'file' | 'project', data: any) => {
     let ids: number[] = [];
@@ -636,7 +680,7 @@ export default function ProfilePage() {
                   return (
                     <a
                       key={link.id}
-                      href={link.url}
+                      href={formatExternalUrl(link.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
