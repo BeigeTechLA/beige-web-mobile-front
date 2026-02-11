@@ -57,6 +57,9 @@ export function LoginForm() {
         router.push('/affiliate/dashboard')
       } else if (userTypeId === 4 || userTypeId === 5) {
         router.push('/sales/dashboard')
+      }
+      else if (userTypeId === 6) {
+        router.push('/production-manager/dashboard')
       } else {
         // Fallback in case user_type_id is missing or different
         router.push('/admin/dashboard')
@@ -218,8 +221,8 @@ export function LoginForm() {
         <h4 className="text-sm lg:text-[22px] text-[#878787] mb-2 lg:mb-3">Trusted by creative professionals and clients worldwide</h4>
         <div className="flex items-center justify-between">
           {/* <div className="flex gap-1 lg:gap-1.5"> */}
-            {/* <Star className="h-4 w-4 fill-[#BEA784] text-[#BEA784]" /> */}
-            <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">$10M+</span>in Content Produced</p>
+          {/* <Star className="h-4 w-4 fill-[#BEA784] text-[#BEA784]" /> */}
+          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">$10M+</span>in Content Produced</p>
           {/* </div> */}
           <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">5K+</span> Vetted Creative Partners</p>
           <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">4K+</span> Shoots Booked</p>
