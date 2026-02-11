@@ -140,12 +140,12 @@ export const UserManagementTabbed = () => {
     }, [activeTab, currentPage, debouncedSearch, statusFilter]);
 
     const handleRowClick = (user: UserData) => {
-        const cleanId = user.id.replace('#', '');
-        if (user.type === "Client") {
-            router.push(`/admin/users/clients/${cleanId}`);
-        } else {
-            router.push(`/admin/users/creative-partners/${cleanId}`);
-        }
+        // const cleanId = user.id.replace('#', '');
+        // if (user.type === "Client") {
+        //     router.push(`/admin/users/clients/${cleanId}`);
+        // } else {
+        //     router.push(`/admin/users/creative-partners/${cleanId}`);
+        // }
     };
 
     return (
@@ -237,7 +237,7 @@ export const UserManagementTabbed = () => {
                                     <tr
                                         key={idx}
                                         onClick={() => handleRowClick(user)}
-                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
+                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
                                     >
                                         <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
                                         <td className="py-5 px-6">

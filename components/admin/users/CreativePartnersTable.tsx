@@ -535,22 +535,22 @@ export const CreativePartnersTable = () => {
                         {/* Action Buttons */}
                         <div className="flex items-end justify-between gap-3">
                           <div className="flex gap-2">
-                          {user.status === 'Pending' && (
-                            <>
-                              <button
-                                onClick={(e) => handleDecline(user.id, e)}
-                                className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors"
-                              >
-                                Decline
-                              </button>
-                              <button
-                                onClick={(e) => handleApprove(user.id, e)}
-                                className="px-4 py-2 bg-[#22C55E]/10 text-[#22C55E] text-xs font-semibold rounded-lg hover:bg-[#22C55E]/20 transition-colors border border-[#22C55E]/20"
-                              >
-                                Approve
-                              </button>
-                            </>
-                          )}
+                            {user.status === 'Pending' && (
+                              <>
+                                <button
+                                  onClick={(e) => handleDecline(user.id, e)}
+                                  className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors"
+                                >
+                                  Decline
+                                </button>
+                                <button
+                                  onClick={(e) => handleApprove(user.id, e)}
+                                  className="px-4 py-2 bg-[#22C55E]/10 text-[#22C55E] text-xs font-semibold rounded-lg hover:bg-[#22C55E]/20 transition-colors border border-[#22C55E]/20"
+                                >
+                                  Approve
+                                </button>
+                              </>
+                            )}
                           </div>
                           <button
                             onClick={(e) => handleRowClick(user.id, e)}

@@ -197,9 +197,9 @@ export const editorSkills = [
 ];
 
 export const distanceOptions = [
-  { value: "Upto 10 miles", label: "Upto 10 Miles" },
-  { value: "Upto 25 miles", label: "Upto 25 miles" },
-  { value: "Upto 50 miles", label: "Upto 50 miles" },
+  { value: "Upto 50 miles", label: "Upto 50 Miles" },
+  { value: "Upto 75 miles", label: "Upto 75 miles" },
+  { value: "Upto 100 miles", label: "Upto 100 miles" },
   { value: "I’m open to traveling ", label: "I’m open to traveling " },
 ];
 

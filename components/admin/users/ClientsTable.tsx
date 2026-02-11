@@ -85,7 +85,7 @@ export const ClientsTable = () => {
 
                 if (debouncedSearch) params.search = debouncedSearch;
                 if (statusFilter !== "all") params.status = statusFilter;
-                
+
                 // If custom date is picked via SortDateButton, send it as start/end
                 if (range === "custom" && selectedDate) {
                     const formattedDate = format(selectedDate, "yyyy-MM-dd");
@@ -133,8 +133,8 @@ export const ClientsTable = () => {
     }, [currentPage, limit, debouncedSearch, statusFilter, range, selectedDate]);
 
     const handleRowClick = (id: string) => {
-        const cleanId = id.replace('#', '');
-        router.push(`/admin/users/clients/${cleanId}`);
+        // const cleanId = id.replace('#', '');
+        // router.push(`/admin/users/clients/${cleanId}`);
     };
 
     return (
@@ -174,10 +174,10 @@ export const ClientsTable = () => {
                     </Select>
 
                     {/* Range Select */}
-                    <Select value={range} onValueChange={(val) => { 
-                        setRange(val); 
+                    <Select value={range} onValueChange={(val) => {
+                        setRange(val);
                         if (val !== "custom") setSelectedDate(null);
-                        setCurrentPage(1); 
+                        setCurrentPage(1);
                     }}>
                         <SelectTrigger className="w-[140px] bg-[#111] border-[#333] text-white rounded-lg h-[46px] focus:ring-0 capitalize">
                             <SelectValue placeholder="Range" />
@@ -235,7 +235,7 @@ export const ClientsTable = () => {
                                     <tr
                                         key={idx}
                                         onClick={() => handleRowClick(client.id)}
-                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
+                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
                                     >
                                         <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{client.id}</td>
                                         <td className="py-5 px-6">

@@ -4,19 +4,19 @@ import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 // Import all required Select sub-components
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
 import { LocationPicker } from "../booking/v2/component/LocationPicker";
 
 const distanceOptions = [
-  { value: "Upto 10 miles", label: "Upto 10 miles" },
-  { value: "Upto 25 miles", label: "Upto 25 miles" },
   { value: "Upto 50 miles", label: "Upto 50 miles" },
+  { value: "Upto 75 miles", label: "Upto 75 miles" },
+  { value: "Upto 100 miles", label: "Upto 100 miles" },
   { value: "I'm open to travelling", label: "I'm open to travelling" },
 ];
 
@@ -77,8 +77,8 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
     const profileUpdate = {
       ...newData,
       location: (typeof newData.location === "object" && newData.location !== null)
-                ? JSON.stringify(newData.location)
-                : newData.location,
+        ? JSON.stringify(newData.location)
+        : newData.location,
     };
     onChange?.(profileUpdate);
   };
@@ -88,7 +88,7 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12 animate-in fade-in duration-500">
-      
+
       <div className="flex flex-col">
         <Label className={labelClasses}>First Name</Label>
         <Input
@@ -123,10 +123,10 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
       <div className="flex flex-col">
         <Label className={labelClasses}>Contact Phone</Label>
         <Input
-            placeholder="Enter phone number"
-            value={formData.phone_number}
-            onChange={(e) => handleFieldChange("phone_number", e.target.value)}
-            className={inputClasses}
+          placeholder="Enter phone number"
+          value={formData.phone_number}
+          onChange={(e) => handleFieldChange("phone_number", e.target.value)}
+          className={inputClasses}
         />
       </div>
 
@@ -142,8 +142,8 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
 
       <div className="flex flex-col">
         <Label className={labelClasses}>Working Distance</Label>
-        <Select 
-          value={formData.working_distance} 
+        <Select
+          value={formData.working_distance}
           onValueChange={(val) => handleFieldChange("working_distance", val)}
         >
           <SelectTrigger className={inputClasses}>
