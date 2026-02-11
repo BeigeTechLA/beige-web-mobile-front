@@ -84,7 +84,7 @@ export const Footer = () => {
     <footer className="pb-8 lg:pt-24 lg:pb-16">
       <Separator />
       <Container className="pt-12 lg:pt-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 mb-24">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 mb-12 lg:mb-24">
           {/* Logo & CTA Column */}
           <div className="lg:col-span-1 flex flex-col gap-8">
             <Link
@@ -126,13 +126,13 @@ export const Footer = () => {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-0">
             {/* Links Column 1 */}
             <div>
               <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">
                 Main Links
               </h4>
-              <ul className="space-y-4">
+              <ul className="space-y-2 lg:space-y-4">
                 {
                   FOOTER_LINKS.map(footerItem => {
                     return (
@@ -156,7 +156,7 @@ export const Footer = () => {
               <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">
                 Legal
               </h4>
-              <ul className="space-y-4 pointer-events-none">
+              <ul className="space-y-2 lg:space-y-4 pointer-events-none">
                 <li>
                   <button
                     // onClick={() =>
@@ -185,7 +185,7 @@ export const Footer = () => {
               <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">
                 Contact Us
               </h4>
-              <ul className="space-y-4">
+              <ul className="space-y-2 lg:space-y-4">
                 <li className="text-white text-sm lg:text-lg font-medium flex items-center gap-2">
                   <PhoneCall className="w-4 h-4 lg:w-6 lg:h-6 text-white fill-white" />{" "}
                   323-826-7230

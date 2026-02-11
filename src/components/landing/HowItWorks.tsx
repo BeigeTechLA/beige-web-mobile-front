@@ -32,22 +32,17 @@ export const HowItWorks = () => {
   return (
     <section
       id="how-it-works"
-      className="py-10 md:py-32 bg-[#010101] relative overflow-hidden"
+      className="py-10 md:py-20 lg:py-32 bg-[#010101] relative overflow-hidden"
     >
       <Container>
-        {/* Section label */}
-        {/* <div className="inline-flex items-center border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
-          <p className="text-xs md:text-base text-white">How it works</p>
-        </div> */}
-
         {/* Heading + text */}
-        <div className="flex flex-col lg:flex-row justify-between mb-7 md:mb-10 gap-2.5 md:gap-10">
+        <div className="flex flex-col lg:flex-row justify-between mb-7 md:mb-10 gap-2.5 md:gap-5 lg:gap-10">
           <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
             Booking a Shoot Has Never <br />
             Been This Easy.
           </h2>
 
-          <p className="text-xs lg:text-base lg:leading-[28px] text-white/50 font-light max-w-[500px] lg:text-right">
+          <p className="text-xs md:text-base lg:leading-[28px] text-white/50 font-light max-w-[500px] lg:text-right">
             Manage your entire shoot from pre-production, production, post-production, and distribution—all powered by the unique synergies formed between real Beige Creatives and world class AI Tools.
           </p>
         </div>

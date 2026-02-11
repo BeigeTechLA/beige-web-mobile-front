@@ -109,7 +109,7 @@ export const Influencers = ({ autoplay = false }) => {
 
   return (
     <section
-      className="py-10 lg:py-32 bg-[#010101] overflow-hidden select-none flex flex-col items-center justify-center"
+      className="py-10 md:py-20 lg:py-32 bg-[#010101] overflow-hidden select-none flex flex-col items-center justify-center"
     >
       <Container>
         {/* HEADER */}
@@ -118,7 +118,7 @@ export const Influencers = ({ autoplay = false }) => {
             <p className="text-xs md:text-base text-white">Top Creators</p>
           </div> */}
           <SlidingHeading />
-          <p className="text-xs lg:text-base text-white/50 max-w-[640px] mx-auto">
+          <p className="text-xs md:text-base text-white/50 max-w-[640px] mx-auto">
             Beige is trusted by the world&apos;s top influencers.
           </p>
         </div>

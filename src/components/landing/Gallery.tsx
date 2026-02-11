@@ -43,18 +43,18 @@ export const Gallery = () => {
   }, [videoFileName, mobileVideoFileName]);
 
   return (
-    <section className="bg-[#010101] py-10 lg:py-32 relative overflow-hidden">
+    <section className="bg-[#010101] py-10 md:py-20 lg:py-32 relative overflow-hidden">
       {/* Header */}
       <div className="text-center mb-5 lg:mb-16 relative z-10">
         {/* <div className="inline-flex items-center border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
           <p className="text-xs md:text-base text-white">Gallery</p>
         </div> */}
 
-        <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-8 tracking-tight">
+        <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 lg:mb-8 tracking-tight">
           #ShotOnBeige
         </h2>
 
-        <p className="text-white/50 text-xs lg:text-base max-w-[600px] mx-auto px-8 md:px-0">
+        <p className="text-white/50 text-xs md:text-base max-w-[600px] mx-auto px-8 md:px-0">
           Photo content captured on Beige.
         </p>
       </div>

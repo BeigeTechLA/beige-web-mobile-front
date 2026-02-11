@@ -20,17 +20,17 @@ export const TopCreatives = ({ title, subtext = "" }: { title?: string, subtext?
   const [activeIndex, setActiveIndex] = useState(0);
 
   return (
-    <section className="py-10 lg:py-32 bg-[#010101] overflow-hidden select-none">
+    <section className="py-10 md:py-20 lg:py-32 bg-[#010101] overflow-hidden select-none">
       <Container>
         {/* HEADER */}
         <div className="text-center mb-12 lg:mb-20">
-          <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-4 tracking-tight">
+          <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 lg:mb-6 tracking-tight">
             {title || "Top Creative Partners"}
           </h2>
 
           {
             subtext && (
-              <p className="text-white/50 text-xs lg:text-base max-w-[600px] mx-auto px-8 md:px-0">
+              <p className="text-white/50 text-xs md:text-base max-w-[600px] mx-auto px-8 md:px-0">
                 {subtext}
               </p>
             )

@@ -58,7 +58,7 @@ export const Process = () => {
   }, [videoFileName]);
 
   return (
-    <section className="py-10 lg:py-32 bg-[#010101] relative overflow-hidden">
+    <section className="py-10 md:py-20 lg:py-32 bg-[#010101] relative overflow-hidden">
       <Container>
         {/* <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
           <p className="text-xs md:text-base text-white">Our Process</p>
@@ -68,10 +68,10 @@ export const Process = () => {
           {/* Left */}
           <div className="w-full lg:w-1/2 flex flex-col gap-10 md:gap-12">
             <div>
-              <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-8 tracking-tight">
+              <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 lg:mb-8 tracking-tight">
                 Built by creatives. <br />Powered for scale.
               </h2>
-              <p className="text-white/50 text-xs lg:text-base lg:leading-[28px] font-light max-w-[500px]">
+              <p className="text-white/50 text-xs md:text-base lg:leading-[28px] font-light max-w-[500px]">
                 Beige is the modern operating system for content production—connecting brands with elite creators, streamlined workflows, and predictable outcomes in minutes, not weeks.
               </p>
             </div>
