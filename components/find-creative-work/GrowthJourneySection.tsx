@@ -57,9 +57,9 @@ export const GrowthJourneySection = () => {
   }, []);
 
   return (
-    <section id="growthJourney" className="py-10 md:py-32 bg-[#010101] relative overflow-hidden text-white">
+    <section id="growthJourney" className="py-10 md:py-20 lg:py-32 bg-[#010101] relative overflow-hidden text-white">
       <Container>
-        <div className="flex flex-col lg:flex-row justify-center mb-8 md:mb-18">
+        <div className="flex flex-col lg:flex-row justify-center mb-8 lg:mb-18">
           <h2 className="text-lg md:text-[56px] font-medium text-gradient-white tracking-tight text-center lg:text-left">
             Our Journey of Growth
           </h2>
@@ -67,7 +67,7 @@ export const GrowthJourneySection = () => {
 
         <div className="relative">
           {/* Arrow Connector */}
-          <div className="hidden lg:block absolute -top-[78px] left-0 w-full h-[90px] pointer-events-none z-0">
+          <div className="hidden xl:block absolute -top-[78px] left-0 w-full h-[90px] pointer-events-none z-0">
             <div className="relative w-full h-full">
               {/* Horizontal top line */}
               <div className="absolute top-[22px] left-[18%] right-[14%] h-px bg-white/80" />
@@ -113,7 +113,8 @@ export const GrowthJourneySection = () => {
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-stretch relative z-10">
+          {/* <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-stretch relative z-10"> */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-8 items-stretch relative z-10">
             {GRAPH_DATA.map((data, i) => {
               const isHovered = hoveredIndex === i;
 

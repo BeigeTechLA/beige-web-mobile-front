@@ -25,9 +25,9 @@ export const Potential = () => {
   ];
 
   return (
-    <section id="Potential" className="py-10 md:py-32 relative overflow-hidden">
+    <section id="Potential" className="py-10 md:py-20 lg:py-32 relative overflow-hidden">
       <Container>
-        <div className="flex flex-col lg:flex-row gap-10 lg:gap-24 items-start">
+        <div className="flex flex-col lg:flex-row gap-10 lg:gap-24 items-center lg:items-start">
           {/* Left: Swiper Cards Section */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
@@ -77,12 +77,12 @@ export const Potential = () => {
           >
 
             {/* Heading */}
-            <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-8 tracking-tight text-center lg:text-left">
+            <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 lg:mb-8 tracking-tight text-center lg:text-left">
               Unlock Your Potential
             </h2>
 
             {/* Description */}
-            <p className="mx-auto lg:mx-0 text-white/60 text-xs lg:text-base leading-relaxed mb-5 lg:mb-12 font-light text-center lg:text-left">
+            <p className="mx-auto lg:mx-0 text-white/60 text-xs md:text-base leading-relaxed mb-5 lg:mb-12 font-light text-center lg:text-left">
               This initiative is designed to empower videographers and photographers worldwide to elevate their careers, represent
               Beige at shoots, and drive more business while enjoying exclusive benefits. Whether you&apos;re just starting out or you&apos;re
               a seasoned professional, there&apos;s a place for you in our global community of creatives. Together, we&apos;re shaping a

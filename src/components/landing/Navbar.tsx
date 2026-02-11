@@ -361,10 +361,10 @@ export const Navbar = () => {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 15 }}
-                    className="absolute top-20 left-1/2 -translate-x-1/2 w-[1090px] bg-[#000000] border border-[#424242] rounded-[30px] overflow-hidden shadow-2xl flex"
+                    className="absolute top-20 left-1/2 -translate-x-1/2 md:w-3xl xl:w-[1090px] bg-[#000000] border border-[#424242] rounded-[30px] overflow-hidden shadow-2xl flex"
                   >
                     {/* LEFT SIDEBAR (Category Selection) */}
-                    <div className="w-1/3 p-10 flex flex-col gap-6 border-r border-[#424242]">
+                    <div className="w-1/3 p-5 xl:p-10 flex flex-col gap-6 border-r border-[#424242]">
                       {(
                         Object.keys(portfolioConfig) as Array<
                           keyof typeof portfolioConfig
@@ -429,7 +429,7 @@ export const Navbar = () => {
     </div>
 
     {/* DYNAMIC MIDDLE ROW: Sub-sectors (Only if they exist for active sector) */}
-                          <AnimatePresence mode="wait">
+                          {/* <AnimatePresence mode="wait">
                             {portfolioConfig[activeCategory].sectors.find(s => s.id === activeSector)?.subSectors.length ? (
                               <motion.div
                                 initial={{ height: 0, opacity: 0 }}
@@ -456,10 +456,10 @@ export const Navbar = () => {
                             ) : (
                               <div className="mt-6" />
                             )}
-                          </AnimatePresence>
+                          </AnimatePresence> */}
 
                           {/* BOTTOM SECTION: Remaining Sectors in 2-Col Grid */}
-                          <div className="grid grid-cols-2 p-10 pt-6 gap-x-12 gap-y-6">
+                          <div className="grid grid-cols-2 p-5 xl:p-10 gap-6 xl:gap-x-12 gap-y-6">
                             {/* {portfolioConfig[activeCategory].sectors.slice(2).map((sector) => ( */}
                             {portfolioConfig[activeCategory].sectors.map((sector) => (
                               <button
@@ -476,7 +476,7 @@ export const Navbar = () => {
                                 <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
                                   {sector.icon}
                                 </div>
-                                <span className="text-lg font-medium">{sector.label}</span>
+                                <span className="xl:text-lg font-medium">{sector.label}</span>
                               </button>
                             ))}
                           </div>
