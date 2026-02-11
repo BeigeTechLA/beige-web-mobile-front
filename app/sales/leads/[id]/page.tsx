@@ -22,6 +22,7 @@ import { LEAD_TYPE_LABELS } from "@/types/sales";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils/discountHelpers";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import Link from "next/link";
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
@@ -47,6 +48,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
 
   const [showDiscountCode, setShowDiscountCode] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string>("");
+  const [generatedPaymentLink, setGeneratedPaymentLink] = useState<string>("Placeholder");
 
   // Fetch real lead data
   const {
@@ -139,6 +141,14 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
     }
   };
 
+  // Handle copy payment link
+  const handleCopyPaymentLink = async () => {
+    if (generatedPaymentLink) {
+      await copyToClipboard(generatedPaymentLink);
+      toast.success("Link copied to clipboard!");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-white font-sans flex items-center justify-center py-20">
@@ -157,7 +167,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
-        <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-8 text-center">
+        <div className="bg-[#18181B] border border-[#27272A] rounded-2xl p-8 text-center">
           <p className="text-white/60">Lead not found</p>
         </div>
       </div>
@@ -174,12 +184,19 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
         <ArrowLeft size={24} />
         <span className="text-sm font-medium">Back</span>
       </Button>
+      <div className="flex justify-between items-center mb-3 lg:mb-6">
+        <div className="text-white">
+          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">Lead Details</h1>
+          <p className="text-xs lg:text-sm text-white/70">Manage lead information and generate payment resources</p>
+        </div>
+
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Main Content Area (Left/Middle) */}
         <div className="lg:col-span-8 space-y-3 lg:space-y-6">
           {/* Client Details Card */}
-          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
+          <div className="bg-[#18181B] border border-[#27272A] rounded-2xl">
             <h2 className="lg:text-xl font-medium text-white p-5 lg:p-9">
               Client Details
             </h2>
@@ -225,7 +242,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
           </div>
 
           {/* Booking Summary Card */}
-          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
+          <div className="bg-[#18181B] border border-[#27272A] rounded-2xl">
             <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
               Booking Summary
             </h2>
@@ -280,7 +297,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
           </div>
 
           {/* Pricing Breakdown Card */}
-          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
+          <div className="bg-[#18181B] border border-[#27272A] rounded-2xl">
             <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
               Pricing Breakdown
             </h2>
@@ -304,7 +321,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                 <span className="text-sm lg:text-base text-white">${taxes.toFixed(2)}/-</span>
               </div>
             </div>
-            <div className="h-[1px] w-full bg-[#3D3D3D]" />
+            <div className="h-[1px] w-full bg-[#27272A]" />
             <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
               <span className="text-sm font-medium">Total Amount</span>
               <span className="lg:text-lg font-semibold text-[#E8D1AB]">
@@ -314,9 +331,10 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
           </div>
         </div>
 
-        {/* Right Sidebar - Discount Generator */}
-        <div className="lg:col-span-4">
-          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
+        {/* Right Sidebar */}
+        <div className="lg:col-span-4 space-y-3 lg:space-y-6">
+          {/* Discount Generator */}
+          <div className="bg-[#18181B] border border-[#27272A] rounded-2xl">
             <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
               Generate Discount
             </h2>
@@ -332,7 +350,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
               {/* Discount Type Dropdown */}
               <div className="relative w-full">
                 {/* Label */}
-                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-20 pointer-events-none">
+                <label className="absolute -top-2.5 left-4 bg-[#18181B] px-2 text-sm text-white/60 capitalize tracking-widest z-20 pointer-events-none">
                   Discount Type
                 </label>
 
@@ -348,7 +366,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                       className={`transition-transform duration-300 ${isTypeDropdownOpen ? "rotate-180" : ""}`} />
                   </button>
                   {isTypeDropdownOpen && (
-                    <div className="absolute top-full left-0 w-full mt-1 bg-[#171717] border border-[#3D3D3D] rounded-xl z-20 overflow-hidden">
+                    <div className="absolute top-full left-0 w-full mt-1 bg-[#18181B] border border-[#27272A] rounded-xl z-20 overflow-hidden">
                       <div
                         className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm"
                         onClick={() => { setDiscountType("percentage"); setIsTypeDropdownOpen(false); }}
@@ -363,32 +381,32 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                       </div>
                     </div>
                   )}
-                  </div>
                 </div>
+              </div>
 
-                {/* Value Input (Percentage or Amount) */}
-                <div className="relative">
-                <label className="absolute -top-2 lg:-top-2.5 left-4 bg-[#171717] px-2 text-xs lg:text-sm text-white/60 capitalize tracking-widest z-10">
-                    {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
-                  </label>
-                  <div className="flex items-center border border-white/50 rounded-xl px-4 py-4 bg-transparent focus-within:border-[#E8D1AB]/50 transition-all">
-                    <input
-                      type="number"
-                      placeholder="0"
-                      className="bg-transparent w-full outline-none text-white text-base"
-                      value={discountValue}
-                      onChange={(e) => setDiscountValue(e.target.value)}
-                    />
-                    {discountType === "percentage" ? (
-                      <Percent size={20} className="text-white" />
-                    ) : (
-                      <DollarSign size={20} className="text-white" />
-                    )}
-                  </div>
+              {/* Value Input (Percentage or Amount) */}
+              <div className="relative">
+                <label className="absolute -top-2 lg:-top-2.5 left-4 bg-[#18181B] px-2 text-xs lg:text-sm text-white/60 capitalize tracking-widest z-10">
+                  {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
+                </label>
+                <div className="flex items-center border border-white/50 rounded-xl px-4 py-4 bg-transparent focus-within:border-[#E8D1AB]/50 transition-all">
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className="bg-transparent w-full outline-none text-white text-base"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                  />
+                  {discountType === "percentage" ? (
+                    <Percent size={20} className="text-white" />
+                  ) : (
+                    <DollarSign size={20} className="text-white" />
+                  )}
                 </div>
+              </div>
 
-                {/* Usage Type Dropdown */}
-                {/* <div className="relative">
+              {/* Usage Type Dropdown */}
+              {/* <div className="relative">
                                 <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-10">
                                     Usage Type
                                 </label>
@@ -400,7 +418,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                                     <ChevronDown size={18} />
                                 </button>
                                 {isUsageDropdownOpen && (
-                                    <div className="absolute top-full left-0 w-full mt-1 bg-[#171717] border border-[#3D3D3D] rounded-xl z-20 overflow-hidden">
+                                    <div className="absolute top-full left-0 w-full mt-1 bg-[#171717] border border-[#27272A] rounded-xl z-20 overflow-hidden">
                                         <div 
                                             className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm"
                                             onClick={() => { setUsageType("one_time"); setIsUsageDropdownOpen(false); }}
@@ -417,37 +435,104 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                                 )}
                             </div> */}
 
-                {/* Action Button */}
-                <Button
-                  className="h-12 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={handleGenerateDiscount}
-                  disabled={isGenerating || !discountValue}
-                >
-                  {isGenerating ? "Generating..." : "Generate Code"}
-                </Button>
+              {/* Action Button */}
+              <Button
+                className="h-12 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleGenerateDiscount}
+                disabled={isGenerating || !discountValue}
+              >
+                {isGenerating ? "Generating..." : "Generate Code"}
+              </Button>
 
-                {showDiscountCode && generatedCode && (
+              {showDiscountCode && generatedCode && (
                 <div className="flex flex-col gap-2 bg-[#0A0808] border border-white/50 rounded-xl p-4">
-                    <p className="text-sm font-medium text-white">
-                      Generated Code
-                    </p>
-                    <div className="flex gap-2 items-center">
-                      <div className="flex-1 px-3 py-2 bg-[#171717] border border-[#3F3F46] rounded-sm text-sm text-[#E8D1AB] font-mono">
-                        {generatedCode}
-                      </div>
-                      <Button
-                      className="h-8 w-8 bg-[#171717] hover:bg-[#272626]"
-                        onClick={handleCopyCode}
-                      >
-                        <Copy size={16} className="text-white" />
-                      </Button>
+                  <p className="text-sm font-medium text-white">
+                    Generated Code
+                  </p>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 px-3 py-2 bg-[#18181B] border border-[#3F3F46] rounded-sm text-sm text-[#E8D1AB] font-mono">
+                      {generatedCode}
                     </div>
+                    <Button
+                      className="h-8 w-8 bg-[#18181B] hover:bg-[#272626]"
+                      onClick={handleCopyCode}
+                    >
+                      <Copy size={16} className="text-white" />
+                    </Button>
                   </div>
-                )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Payment Link Generator : Created but hidden. Remove hidden tag when integration is being done */}
+          <div className="hidden bg-[#18181B] border border-[#27272A] rounded-2xl">
+            <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
+              Generate Payment Link
+            </h2>
+            <div
+              className="h-[1px] w-full"
+              style={{
+                backgroundImage: `linear-gradient(to right, #ffffff66 50%, transparent 50%)`,
+                backgroundSize: "30px 1px",
+                backgroundRepeat: "repeat-x",
+              }}
+            />
+
+            <div className="p-6 lg:p-8 space-y-4">
+              {/* Booking ID Input */}
+              <div className="flex flex-col gap-2 ">
+                <label className="text-sm font-medium text-[#9F9FA9]">Booking ID</label>
+                <input
+                  type="text"
+                  placeholder="BKG-2026-001234"
+                  className="w-full bg-[#27272A] border border-[#3F3F46] text-sm text-[#D4D4D8] rounded-[10px] px-4 py-2 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB]"
+                />
+              </div>
+
+              {/* Discount Code Checkbox */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="discount"
+                  className="w-5 h-5 appearance-none  bg-[#27272A] checked:bg-[#2D6A4F] checked:border-transparent cursor-pointer relative after:content-[''] after:absolute after:hidden checked:after:block after:left-[6px] after:top-[2px] after:w-[6px] after:h-[10px] after:border-white after:border-b-2 after:border-r-2 after:rotate-45 focus:ring-0 focus:ring-offset-0"
+                />
+                <label htmlFor="discount" className="text-[#9F9FA9]">Include discount code</label>
+              </div>
+
+              {/* Generate Action Button */}
+              <button className="w-full bg-[#036544] hover:bg-[#036544]/80 text-white font-medium py-2.5 rounded-[10px] transition-colors">
+                Generate Link
+              </button>
+
+              {/* Payment Link Result Card */}
+              <div className="bg-[#1c1c20] border border-[#27272A] rounded-xl p-4 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs text-[#71717B] tracking-wider">Payment Link</label>
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      readOnly
+                      value="https://payment.example.com/bkg-2026-001234"
+                      className="w-full bg-[#18181B] border border-[#3F3F46] text-[#E8D1AB] text-sm rounded-sm px-3 py-2"
+                    />
+                    <Button
+                      className="h-8 w-8 bg-[#27272A] hover:bg-[#3f3f46] rounded-lg transition-colors"
+                      onClick={handleCopyPaymentLink}
+                    >
+                      <Copy size={16} className="text-white" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <Link href="/sales/payment" className="text-[#E8D1AB] text-sm underline underline-offset-4">
+                    Preview payment page
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      );
+    </div>
+  );
 }

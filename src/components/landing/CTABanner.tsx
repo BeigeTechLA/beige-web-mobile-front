@@ -13,19 +13,19 @@ export const CTABanner = () => {
   };
 
   return (
-    <section className="py-10 lg:py-24 relative overflow-hidden">
+    <section className="py-10 md:py-16 lg:py-24 relative overflow-hidden">
       <Container className="relative z-10">
         <div className="mx-auto text-center py-5 px-6 lg:py-16 bg-gradient-to-b from-[#E5CFA0] to-[#C9A668] rounded-[10px] lg:rounded-[20px]">
           {/* <div className="inline-block border-b border-t border-t-black/10 border-b-black/10 px-10 py-2 text-center mb-5 md:mb-6">
             <span className="text-black/60 text-xs md:text-base uppercase tracking-wide">Testimonial</span>
           </div> */}
 
-          <h2 className="text-lg md:text-[56px] font-medium text-black mb-2.5 md:mb-8  leading-[1.1] tracking-tight">
+          <h2 className="text-lg md:text-[56px] font-medium text-black mb-2.5 lg:mb-8  leading-[1.1] tracking-tight">
             AI-Powered Post-Production
           </h2>
 
-          <p className="text-black/60 text-xs lg:text-base lg:leading-[28px] max-w-2xl mx-auto mb-5 lg:mb-12">
-            <span className="font-medium text-sm lg:text-lg">Edited, optimized, and ready to ship.</span>
+          <p className="text-black/60 text-xs md:text-base lg:leading-[28px] max-w-2xl mx-auto mb-5 lg:mb-12">
+            <span className="font-medium text-sm md:text-base lg:text-lg">Edited, optimized, and ready to ship.</span>
             <br />
             We turn raw footage into polished, platform-ready assets using a blend of expert editors and AI-assisted workflows—fast enough for modern content cycles.
             <br />

@@ -41,7 +41,7 @@ export const FAQ = () => {
   };
 
   return (
-    <section className="py-10 lg:py-32 relative overflow-hidden">
+    <section className="py-10 md:py-20 lg:py-32 relative overflow-hidden">
       <Container>
         <div className="border-b border-t border-b-white/60 border-t-white/60 w-[140px] py-2 text-center mb-5 md:mb-6">
           <p className="text-xs md:text-base text-white">FAQ</p>
@@ -89,7 +89,7 @@ export const FAQ = () => {
                       onClick={() => toggleItem(index)}
                       className="flex justify-between items-center w-full text-left group"
                     >
-                      <span className="text-sm lg:text-[28px] text-white transition-colors pr-8">
+                      <span className="text-sm md:text-lg lg:text-[28px] text-white transition-colors pr-8">
                         {item.question}
                       </span>
 
@@ -116,7 +116,7 @@ export const FAQ = () => {
                           transition={{ duration: 0.3, ease: "easeInOut" }}
                           className="overflow-hidden"
                         >
-                          <p className="text-white/70 text-xs lg:text-xl leading-relaxed mt-2 lg:mt-4 pr-12">
+                          <p className="text-white/70 text-xs md:text-sm lg:text-xl leading-relaxed mt-2 lg:mt-4 pr-12">
                             {item.answer}
                           </p>
                         </motion.div>

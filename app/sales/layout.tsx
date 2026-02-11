@@ -13,7 +13,7 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex flex-col h-screen bg-[#0f0f0f] text-white overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#09090B] text-white overflow-hidden">
       <SalesTopbar pathname={pathname} onMenuClick={() => setMobileOpen(true)} />
 
       <div className="flex flex-1 overflow-hidden relative">

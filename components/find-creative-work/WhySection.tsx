@@ -15,7 +15,7 @@ const REASONS = [
 
 export const WhySection = () => {
   return (
-    <section className="py-10 md:py-32 bg-[#010101] relative overflow-hidden">
+    <section className="py-10 md:py-20 lg:py-32 bg-[#010101] relative overflow-hidden">
       <Container>
         <div className="flex flex-col lg:flex-row justify-between mb-4 md:mb-10 gap-2.5 lg:gap-10">
           <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
@@ -23,7 +23,7 @@ export const WhySection = () => {
             Grow More!
           </h2>
 
-          <p className="text-xs lg:text-base lg:leading-[28px] text-white/50 font-light max-w-2xl">
+          <p className="text-xs md:text-base lg:leading-[28px] text-white/50 font-light max-w-2xl">
             Join the Beige Video Creative Partner Referral Program and turn your connections into cash! As a trusted CP, you can earn up to $250 per referral by introducing new clients while you’re on set. Our three-tiered bonus system rewards you for every successful booking—no extra work required!
           </p>
         </div>
@@ -39,8 +39,8 @@ export const WhySection = () => {
         </div>
 
         <div className="p-5 lg:p-15 bg-gradient-to-b from-[#E5CFA0] to-[#C9A668] rounded-[10px] lg:rounded-[20px] flex flex-col lg:flex-row gap-5 xl:gap-25 items-center">
-          <p className="text-lg lg:text-[56px] leading-[1.1] font-medium text-black tracking-tight shrink-0">
-            Why Join<br /> Beige?
+          <p className="text-lg md:text-4xl lg:text-[56px] leading-[1.1] font-medium text-black tracking-tight shrink-0 lg:max-w-3xs">
+            Why Join Beige?
           </p>
 
           <div className="flex flex-col lg:flex-row flex-1 w-full justify-between lg:items-center gap-2">
@@ -55,7 +55,7 @@ export const WhySection = () => {
                 >
                   {/* <div className="text-black"> */}
                     <BadgeCheck className="w-8 h-8 lg:w-[54px] lg:h-[54px] shrink-0" strokeWidth={1} />
-                    <p className="text-xs lg:text-[23px] font-medium leading-snug">
+                    <p className="text-xs md:text-base lg:text-[23px] font-medium leading-snug">
                       {reason.text}
                     </p>
                   {/* </div> */}

@@ -35,9 +35,9 @@ const STEPS = [
 
 export const HowItWorks = () => {
   return (
-    <section id="howItWorks" className="py-10 lg:py-32 bg-[#010101] relative overflow-hidden">
+    <section id="howItWorks" className="py-10 md:py-20 lg:py-32 bg-[#010101] relative overflow-hidden">
       <Container>
-        <div className="flex flex-col lg:flex-row justify-center mb-8 md:mb-18">
+        <div className="flex flex-col lg:flex-row justify-center mb-8 lg:mb-18">
           <h2 className="text-lg md:text-[56px] font-medium text-gradient-white tracking-tight text-center lg:text-left">
             How It Works
           </h2>
@@ -52,7 +52,7 @@ const Steps = ({ steps }: { steps: typeof STEPS }) => {
   const [activeIndex, setActiveIndex] = useState<number>(0);
 
   return (
-    <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {steps.map((step, i) => {
         const isActive = activeIndex === i;
 

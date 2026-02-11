@@ -93,7 +93,7 @@ export const PortfolioHero = ({ type, category }: PortfolioHeroProps) => {
     <section
       ref={sectionRef}
       onMouseMove={handleMouseMove}
-      className="relative w-full flex flex-col items-center justify-center overflow-hidden px-10 mx-auto pt-30 pb-20 xl:pb-[220px] xl:pt-[260px]"
+      className="relative w-full flex flex-col items-center justify-center overflow-hidden px-10 mx-auto pt-30 md:pt-40 pb-20 xl:pb-[220px] xl:pt-[260px]"
     >
       {/* 3. Pre-render Hidden Images: Forces browser to keep them in GPU memory */}
       <div className="hidden" aria-hidden="true">
@@ -139,7 +139,7 @@ export const PortfolioHero = ({ type, category }: PortfolioHeroProps) => {
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-2xl lg:text-[64px] leading-tight font-bold text-gradient-white mb-2 lg:mb-5 capitalize text-center"
+          className="text-2xl md:text-4xl lg:text-[64px] leading-tight font-bold text-gradient-white mb-2 lg:mb-5 capitalize text-center"
         >
           {label} {type === "photo" ? "Photography" : "Videography"} Portfolio
         </motion.h1>

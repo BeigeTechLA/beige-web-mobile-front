@@ -84,14 +84,14 @@ export const WelcomeSection = () => {
   };
 
   return (
-    <section className="py-10 lg:pt-50 lg:pb-32 bg-[#010101] overflow-hidden select-none">
+    <section className="py-10 md:py-20 lg:pt-50 lg:pb-32 bg-[#010101] overflow-hidden select-none">
       <Container>
         <div className="text-center mb-12 lg:mb-20">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-2xl lg:text-[58px] leading-tight font-bold text-gradient-white mb-2"
+            className="text-2xl md:text-4xl lg:text-[58px] leading-tight font-bold text-gradient-white mb-2"
           >
             Welcome to the Beige<br />Creative Partners Ambassador Program
           </motion.h1>

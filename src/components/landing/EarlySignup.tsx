@@ -16,9 +16,8 @@ export const EarlySignup = () => {
 
 
   return (
-    <section className="py-10 lg:py-24 bg-[#010101] relative overflow-hidden">
+    <section className="py-10 md:py-20 lg:py-24 bg-[#010101] relative overflow-hidden">
       <Container>
-        {/* <div className="mx-auto text-center py-5 px-6 lg:py-16 bg-gradient-to-b from-[#E5CFA0] to-[#C9A668] rounded-[10px] lg:rounded-[20px]"> */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -27,10 +26,10 @@ export const EarlySignup = () => {
           className="text-center mb-8 lg:mb-16"
         >
           {/* Header */}
-          <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-8 tracking-tight">
+          <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 lg:mb-8 tracking-tight">
             Sign Up For Beige
           </h2>
-          <p className="text-white/50 text-xs lg:text-base max-w-[720px] mx-auto font-light">
+          <p className="text-white/50 text-xs md:text-base max-w-[720px] mx-auto font-light">
             Sign Up Now And Get Priority Access
           </p>
         </motion.div>

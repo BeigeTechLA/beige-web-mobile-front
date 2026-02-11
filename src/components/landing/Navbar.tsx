@@ -296,11 +296,11 @@ export const Navbar = () => {
   };
 
   return (
-    <nav className="fixed top-6 left-2 right-2 lg:left-0 lg:right-0 z-50 pointer-events-none z-50">
+    <nav className="fixed top-6 left-2 right-2 xl:left-0 xl:right-0 z-50 pointer-events-none z-50">
       <div
-        className={`pointer-events-auto mx-auto max-w-[1600px] px-6 lg:px-0 transition-all duration-300 rounded-[20px] ${isScrolled ? "bg-[#050505]/80 backdrop-blur-[12px]" : "bg-[#050505]/60 backdrop-blur-[8px]"} border-[0.5px] border-[#E8D1AB]/30`}
+        className={`pointer-events-auto mx-auto lg:max-w-4xl xl:max-w-[1600px] px-6 xl:px-0 transition-all duration-300 rounded-[20px] ${isScrolled ? "bg-[#050505]/80 backdrop-blur-[12px]" : "bg-[#050505]/60 backdrop-blur-[8px]"} border-[0.5px] border-[#E8D1AB]/30`}
       >
-        <div className="h-13 md:h-[88px] flex items-center justify-between lg:px-6">
+        <div className="h-13 md:h-[88px] flex items-center justify-between xl:px-6">
           <Link
             href="/"
             className="relative flex items-center"
@@ -310,7 +310,7 @@ export const Navbar = () => {
               alt="BEIGE"
               width={158}
               height={32}
-              className="w-[120px] h-[24px] md:w-[158px] md:h-[32px] object-contain"
+              className="w-[120px] h-[24px] lg:w-[158px] lg:h-[32px] object-contain"
               priority
             />
             <span className="absolute right-4 md:right-5 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
@@ -319,7 +319,7 @@ export const Navbar = () => {
             </span>
           </Link>
           {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-12">
+          <div className="hidden md:flex items-center gap-12">
             <div
               className="flex items-center gap-2 relative"
               ref={portfolioRef}
@@ -342,7 +342,7 @@ export const Navbar = () => {
                   <button
                     key={link.label}
                     onClick={() => handleNavClick(link.href)}
-                    className={`text-lg font-medium transition-all px-4 py-2 rounded-lg flex items-center gap-2 ${active ? "bg-white text-black hover:bg-white/90" : "text-white/70 hover:text-[#ECE1CE]"}`}
+                    className={`lg:text-lg font-medium transition-all px-2 xl:px-4 py-2 rounded-lg flex items-center gap-2 ${active ? "bg-white text-black hover:bg-white/90" : "text-white/70 hover:text-[#ECE1CE]"}`}
                   >
                     {link.label}
                     {link.hasDropdown && (
@@ -361,10 +361,10 @@ export const Navbar = () => {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 15 }}
-                    className="absolute top-20 left-1/2 -translate-x-1/2 w-[1090px] bg-[#000000] border border-[#424242] rounded-[30px] overflow-hidden shadow-2xl flex"
+                    className="absolute top-20 left-1/2 -translate-x-1/2 md:w-3xl xl:w-[1090px] bg-[#000000] border border-[#424242] rounded-[30px] overflow-hidden shadow-2xl flex"
                   >
                     {/* LEFT SIDEBAR (Category Selection) */}
-                    <div className="w-1/3 p-10 flex flex-col gap-6 border-r border-[#424242]">
+                    <div className="w-1/3 p-5 xl:p-10 flex flex-col gap-6 border-r border-[#424242]">
                       {(
                         Object.keys(portfolioConfig) as Array<
                           keyof typeof portfolioConfig
@@ -429,7 +429,7 @@ export const Navbar = () => {
     </div>
 
     {/* DYNAMIC MIDDLE ROW: Sub-sectors (Only if they exist for active sector) */}
-                          <AnimatePresence mode="wait">
+                          {/* <AnimatePresence mode="wait">
                             {portfolioConfig[activeCategory].sectors.find(s => s.id === activeSector)?.subSectors.length ? (
                               <motion.div
                                 initial={{ height: 0, opacity: 0 }}
@@ -456,10 +456,10 @@ export const Navbar = () => {
                             ) : (
                               <div className="mt-6" />
                             )}
-                          </AnimatePresence>
+                          </AnimatePresence> */}
 
                           {/* BOTTOM SECTION: Remaining Sectors in 2-Col Grid */}
-                          <div className="grid grid-cols-2 p-10 pt-6 gap-x-12 gap-y-6">
+                          <div className="grid grid-cols-2 p-5 xl:p-10 gap-6 xl:gap-x-12 gap-y-6">
                             {/* {portfolioConfig[activeCategory].sectors.slice(2).map((sector) => ( */}
                             {portfolioConfig[activeCategory].sectors.map((sector) => (
                               <button
@@ -476,7 +476,7 @@ export const Navbar = () => {
                                 <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
                                   {sector.icon}
                                 </div>
-                                <span className="text-lg font-medium">{sector.label}</span>
+                                <span className="xl:text-lg font-medium">{sector.label}</span>
                               </button>
                             ))}
                           </div>
@@ -498,12 +498,12 @@ export const Navbar = () => {
           </div>
 
           {/* Right Side Auth (Existing logic) */}
-          <div className="hidden lg:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4">
             {/* {showCartIcon && <CartIcon />} */}
             {!localUser ? (
               <button
                 onClick={handleLogin}
-                className="text-white hover:text-[#ECE1CE] text-lg font-medium transition-colors px-6 py-3 border border-white/30 hover:border-[#ECE1CE]/50 rounded-[10px]"
+                className="text-white hover:text-[#ECE1CE] xl:text-lg font-medium transition-colors p-3 xl:px-6 xl:py-3 border border-white/30 hover:border-[#ECE1CE]/50 rounded-[10px]"
               >
                 Login / Sign up
               </button>
@@ -559,7 +559,7 @@ export const Navbar = () => {
           </div>
 
           {/* Mobile Menu Trigger */}
-          <div className="lg:hidden flex items-center gap-3">
+          <div className="md:hidden flex items-center gap-3">
             {/* {showCartIcon && <CartIcon className="scale-90" />} */}
             <button
               className="text-white p-2"

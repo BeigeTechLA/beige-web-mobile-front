@@ -16,7 +16,7 @@ export const Projects = () => {
   const swiperRef = useRef<SwiperType | null>(null);
 
   return (
-    <section id="find-work" className="py-10 lg:py-32 border-t border-white/5 relative overflow-hidden">
+    <section id="find-work" className="py-10 md:py-20 lg:py-32 border-t border-white/5 relative overflow-hidden">
       <Container className="overflow-hidden">
 
         {/* Header */}
@@ -25,12 +25,12 @@ export const Projects = () => {
         </div> */}
 
         {/* Title + Nav */}
-        <div className="flex flex-col md:flex-row justify-between items-start mb-5 md:mb-16 gap-8">
+        <div className="flex flex-col md:flex-row justify-between items-start mb-5 lg:mb-16 gap-8">
           <div>
-            <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-4 tracking-tight">
+            <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 lg:mb-6 tracking-tight">
               #ShotOnBeige
             </h2>
-            <p className="text-white/50 text-xs lg:text-base font-light max-w-2xl">
+            <p className="text-white/50 text-xs md:text-base font-light max-w-2xl">
               Video content captured on Beige.
             </p>
           </div>

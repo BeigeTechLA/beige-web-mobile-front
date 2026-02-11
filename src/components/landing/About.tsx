@@ -12,7 +12,7 @@ export const About = () => {
   const router = useRouter();
 
   return (
-    <section id="about" className="py-10 md:py-32 relative overflow-hidden">
+    <section id="about" className="py-10 md:py-20 lg:py-32 bg-[#010101] relative overflow-hidden">
       <Container>
         <div className="flex flex-col lg:flex-row gap-10 lg:gap-24 items-start mb-8 lg:mb-32">
           {/* Left: Image/Video Section */}
@@ -66,7 +66,7 @@ export const About = () => {
             </h2>
 
             {/* Description */}
-            <p className="mx-auto lg:mx-0 text-white/60 text-xs lg:text-base leading-relaxed max-w-[600px] mb-5 lg:mb-12 font-light text-center lg:text-left">
+            <p className="mx-auto lg:mx-0 text-white/60 text-xs md:text-base leading-relaxed max-w-[600px] mb-5 lg:mb-12 font-light text-center lg:text-left">
               Choose your content type. Get matched with a creative team instantly. Book everything in one place
             </p>
 

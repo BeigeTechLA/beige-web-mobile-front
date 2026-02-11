@@ -168,19 +168,19 @@ export function LoginForm() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-4">
           <Link
             href="/signup/user"
-            className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#E9D3A2] to-[#E4C48A] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300 lg:h-[163px]"
+            className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#E9D3A2] to-[#E4C48A] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300"
           >
-            <div className="relative z-10 flex lg:flex-col justify-between gap-2 h-full lg:w-1/2">
+            <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
               <h2 className="text-black text-sm font-semibold leading-tight">
                 Create New account as Client
               </h2>
 
-              <div className="w-5 h-5 lg:w-[30px] lg:h-[30px] rounded-full border border-black flex items-center justify-center">
+              <div className="w-5 h-5 lg:w-[30px] lg:h-[30px] rounded-full border border-black flex items-center justify-center shrink-0">
                 <ArrowUpRight className="w-3 h-3 text-black" />
               </div>
             </div>
 
-            <div className="absolute right-0 bottom-0 h-20 lg:h-[190px] w-[45%] lg:w-[164px]">
+            {/* <div className="absolute right-0 bottom-0 h-20 lg:h-[190px] w-[45%] lg:w-[164px]">
               <Image
                 src="/images/loginsignup/userSignup.png"
                 alt="Create account"
@@ -188,20 +188,20 @@ export function LoginForm() {
                 className="object-contain object-bottom"
                 priority
               />
-            </div>
+            </div> */}
           </Link>
-          <Link href="/creative-partner-signup" className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#101010] to-[#474343] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300 lg:h-[163px]">
-            <div className="relative z-10 flex lg:flex-col justify-between gap-2 h-full lg:w-1/2">
+          <Link href="/creative-partner-signup" className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#101010] to-[#474343] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300">
+            <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
               <h2 className="text-white text-sm font-semibold leading-tight">
                 Create New account as Creative Partner
               </h2>
 
-              <div className="w-5 h-5 lg:w-[30px] lg:h-[30px] rounded-full border border-white flex items-center justify-center">
+              <div className="w-5 h-5 lg:w-[30px] lg:h-[30px] rounded-full border border-white flex items-center justify-center shrink-0">
                 <ArrowUpRight className="w-3 h-3 text-white" />
               </div>
             </div>
 
-            <div className="absolute right-0 bottom-0 h-20 lg:h-[190px] w-[45%] lg:w-[164px]">
+            {/* <div className="absolute right-0 bottom-0 h-20 lg:h-[190px] w-[45%] lg:w-[164px]">
               <Image
                 src="/images/loginsignup/creatorSignup.png"
                 alt="Create account"
@@ -209,7 +209,7 @@ export function LoginForm() {
                 className="object-contain object-bottom"
                 priority
               />
-            </div>
+            </div> */}
           </Link>
         </div>
       </div>

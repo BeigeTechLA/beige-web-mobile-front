@@ -26,7 +26,7 @@ export const Testimonials = () => {
   const isAllVisible = visibleCount >= TESTIMONIALS.length;
 
   return (
-    <section className="py-15 md:py-32 relative overflow-hidden">
+    <section className="py-10 md:py-20 lg:py-32 relative overflow-hidden">
       <Container>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -39,7 +39,7 @@ export const Testimonials = () => {
             <p className="text-xs md:text-base text-white">Testimonial</p>
           </div>
 
-          <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 md:mb-8 tracking-tight">
+          <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 lg:mb-8 tracking-tight">
             What Our Users Say <br /> about Beige.
           </h2>
           {/* <p className="text-white/50 text-xs lg:text-base max-w-[720px] mx-auto font-light">

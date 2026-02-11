@@ -87,7 +87,7 @@ export const AmbassadorProgramSection = () => {
   return (
     <div
       ref={containerRef}
-      className={`relative bg-[#010101] py-10 lg:py-32 ${isMobile ? "h-auto" : "h-[250vh]"}`}
+      className={`relative bg-[#010101] py-10 md:py-20 lg:py-32 ${isMobile ? "h-auto" : "h-[250vh]"}`}
     >
       {/* SIDE GRAPHICS (DESKTOP ONLY) */}
       {!isMobile && (
@@ -195,7 +195,7 @@ export const AmbassadorProgramSection = () => {
                   >
                     <p className="text-lg lg:text-[26px] text-[#E8D1AB]">{item.id}</p>
                     <div className="scale-90 lg:scale-100">{item.icon}</div>
-                    <p className="text-sm lg:text-[22px] font-medium leading-tight max-w-[200px] lg:max-w-[280px] text-[#BABABA]">
+                    <p className="text-sm md:text-base lg:text-[22px] font-medium leading-tight max-w-[200px] lg:max-w-[280px] text-[#BABABA]">
                       {item.text}
                     </p>
                   </motion.div>
@@ -207,7 +207,7 @@ export const AmbassadorProgramSection = () => {
                     className="absolute inset-0 flex items-center justify-center px-8 lg:px-12"
                   >
                     {isHovered && (
-                      <p className="text-sm lg:text-lg font-medium leading-tight text-center">
+                      <p className="text-sm md:text-base lg:text-lg font-medium leading-tight text-center">
                         {item.hoverText}
                       </p>
                     )}
