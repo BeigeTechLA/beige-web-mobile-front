@@ -70,12 +70,12 @@ const CreatorCarousel = ({
   return (
     <div className="relative lg:max-w-4xl xl:max-w-5xl 2xl:max-w-[1500px] mx-auto z-10">
       {/* NAVIGATION BUTTONS */}
-      <button className="creator-next-btn absolute left-5 lg:-left-[100px] -top-5 lg:top-1/2 -translate-y-1/2 z-10 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
+      <button className="creator-next-btn absolute left-5 xl:-left-[100px] -top-5 md:top-2 xl:top-1/2 -translate-y-1/2 z-10 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
         <ArrowDownLeft className="text-white/60 w-4 h-4 lg:w-7 lg:h-7" />
       </button>
 
       {/* RIGHT NAV */}
-      <button className="creator-prev-btn absolute right-5 lg:-right-[100px] -top-5 lg:top-1/2 -translate-y-1/2 z-10 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
+      <button className="creator-prev-btn absolute right-5 xl:-right-[100px] -top-5 md:top-2 xl:top-1/2 -translate-y-1/2 z-10 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
         <ArrowUpRight className="text-white/60 w-4 h-4 lg:w-7 lg:h-7" />
       </button>
       <div className='relative overflow-hidden'>

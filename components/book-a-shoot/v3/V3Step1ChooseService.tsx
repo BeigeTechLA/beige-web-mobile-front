@@ -658,7 +658,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             </h3>
 
             {/* <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"> */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
               {/* {availableShootTypes.map((type) => ( */}
               {availableShootTypes.slice(0, visibleCount).map((type) => (
                 <div
@@ -704,7 +704,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   colors={datePickerColours}
                   format="MM/dd/yyyy"
                   sx={{
-                    height: { xs: "56px", lg: "82px" },
+                    height: { xs: "56px", md: "82px" },
                     borderRadius: "16px",
                   }}
                 />

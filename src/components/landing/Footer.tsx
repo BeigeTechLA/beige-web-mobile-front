@@ -126,13 +126,13 @@ export const Footer = () => {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 xl:gap-0">
             {/* Links Column 1 */}
             <div>
               <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">
                 Main Links
               </h4>
-              <ul className="space-y-2 lg:space-y-4">
+              <ul className="space-y-2 xl:space-y-4">
                 {
                   FOOTER_LINKS.map(footerItem => {
                     return (

@@ -286,7 +286,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 pt-6 lg:pt-15 border-t border-white/10 bg-[#101010">
+      <div className="flex flex-col xl:flex-row gap-4 lg:gap-8 pt-6 lg:pt-15 border-t border-white/10 bg-[#101010]">
         {/* Left Column: Summary & Contact */}
         <div className="flex-1 flex flex-col gap-4 lg:gap-8">
           <div className="cursor-pointer rounded-2xl border transition-all relative overflow-hidden border-white/20">
@@ -498,7 +498,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         </div>
 
         {/* Right Column: Pricing Summary (Sticky) */}
-        <div className="lg:w-[380px] shrink-0 ">
+        <div className="xl:w-[380px] shrink-0 ">
           <div className="border border-white/10 rounded-2xl ">
             <div className="bg-[#101010] p-4 lg:p-7 rounded-t-2xl">
               <h3 className="text-base lg:text-xl font-bold">
