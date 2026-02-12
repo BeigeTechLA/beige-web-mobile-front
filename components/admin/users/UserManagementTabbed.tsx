@@ -77,8 +77,9 @@ export const UserManagementTabbed = () => {
             if (activeTab === "Client" || activeTab === "All") {
                 const clientsRes = await adminApi.getClients(params);
                 if (clientsRes?.data) {
+                    console.log("Fetched clients:", clientsRes.data);
                     const mappedClients = (Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || [])).map((client: any) => ({
-                        id: `#${client.user_id || client.id}`,
+                        id: `#${client.client_id || client.id || client.user_id}`,
                         name: client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
                         email: client.email || "No Email",
                         type: "Client" as UserType,
@@ -139,15 +140,15 @@ export const UserManagementTabbed = () => {
         fetchUsers();
     }, [activeTab, currentPage, debouncedSearch, statusFilter]);
 
-    const handleRowClick = (user: UserData) => {
-        // const cleanId = user.id.replace('#', '');
-        // if (user.type === "Client") {
-        //     router.push(`/admin/users/clients/${cleanId}`);
-        // } else {
-        //     router.push(`/admin/users/creative-partners/${cleanId}`);
-        // }
-    };
-
+   const handleRowClick = (user: UserData) => {
+    const cleanId = user.id.replace('#', '');
+    
+    if (user.type === "Client") {
+        router.push(`/admin/users/clients/${cleanId}`);
+    } else if (user.type === "Creative Partner") {
+        router.push(`/admin/users/creative-partners/${cleanId}`);
+    }
+};
     return (
         <div className="space-y-6">
             <div>
@@ -237,7 +238,7 @@ export const UserManagementTabbed = () => {
                                     <tr
                                         key={idx}
                                         onClick={() => handleRowClick(user)}
-                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
+                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
                                     >
                                         <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
                                         <td className="py-5 px-6">

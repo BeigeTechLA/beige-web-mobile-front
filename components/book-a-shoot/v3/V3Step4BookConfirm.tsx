@@ -22,7 +22,30 @@ import {
   Phone,
   CheckCircle2,
   X,
+  Video,
+  Camera,
 } from "lucide-react";
+import {
+  weddingEditTypes,
+  musicEditTypes,
+  commercialEditTypes,
+  tvSeriesEditTypes,
+  podcastEditTypes,
+  shortFilmEditTypes,
+  movieEditTypes,
+  corporateEventEditTypes,
+  privateEventEditTypes,
+  socialContentEditTypes,
+  weddingPhotoEditTypes,
+  corporateEventPhotoEditTypes,
+  privateEventPhotoEditTypes,
+  musicPhotoEditTypes,
+  commercialPhotoEditTypes,
+  socialContentPhotoEditTypes,
+  brandProductPhotoEditTypes,
+  peopleTeamsPhotoEditTypes,
+  behindScenesPhotoEditTypes,
+} from "@/app/data/shootData";
 import { useCalculateQuoteFromCreatorsMutation } from "@/lib/redux/features/pricing/pricingApi";
 import { newshootTypes } from "@/app/data/shootData";
 
@@ -274,6 +297,54 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   calculateQuoteFromCreators,
 ]);
 
+const displayContentType = data.contentType
+  .map((type) => {
+    const lower = type.toLowerCase();
+    if (lower.includes("videographer")) return "Videography";
+    if (lower.includes("photographer")) return "Photography";
+    return type;
+  })
+  .join(" & ");
+
+// 2. Logic to determine the icon
+const ContentTypeIcon = () => {
+  const types = data.contentType.map((t) => t.toLowerCase());
+  if (types.some((t) => t.includes("video"))) {
+    return <Video size={20} className="text-[#E8D1AB]" />;
+  }
+  return <Camera size={20} className="text-[#E8D1AB]" />;
+};
+
+const getVideoEditLabels = (keys: string[]) => {
+    // Combine all video arrays into one for searching
+    const allVideoOptions = [
+      ...weddingEditTypes, ...musicEditTypes, ...commercialEditTypes,
+      ...tvSeriesEditTypes, ...podcastEditTypes, ...shortFilmEditTypes,
+      ...movieEditTypes, ...corporateEventEditTypes, ...privateEventEditTypes,
+      ...socialContentEditTypes
+    ];
+    
+    return keys.map(key => {
+      const match = allVideoOptions.find(opt => opt.key === key);
+      return match ? match.value : key;
+    });
+  };
+
+  // Helper to get labels for Photo Edits
+  const getPhotoEditLabels = (keys: string[]) => {
+    // Combine all photo arrays into one for searching
+    const allPhotoOptions = [
+      ...weddingPhotoEditTypes, ...corporateEventPhotoEditTypes, ...privateEventPhotoEditTypes,
+      ...musicPhotoEditTypes, ...commercialPhotoEditTypes, ...socialContentPhotoEditTypes,
+      ...brandProductPhotoEditTypes, ...peopleTeamsPhotoEditTypes, ...behindScenesPhotoEditTypes
+    ];
+
+    return keys.map(key => {
+      const match = allPhotoOptions.find(opt => opt.key === key);
+      return match ? match.value : key;
+    });
+  };
+
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
       {/* Header */}
@@ -299,18 +370,18 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
             {/* Project Summary */}
             <div className="p-4 lg:p-6 flex flex-col gap-3 lg:gap-6 ">
               <div className="flex items-center gap-4 pb-4 lg:pb-8 border-b border-b-white/10">
-                <div className="w-10 h-10 bg-[#E8D5B533] rounded-[10px] overflow-hidden relative">
-                  {/* Placeholder for project image based on type */}
-                  <div className="absolute inset-0 bg-[#E8D1AB]/10 flex items-center justify-center text-[#E8D1AB]">
-                    {data.shootType.slice(0, 2).toUpperCase()}
-                  </div>
+                {/* Updated Icon Container */}
+                <div className="w-12 h-12 bg-[#E8D5B51A] rounded-[12px] flex items-center justify-center border border-[#E8D1AB1A]">
+                  <ContentTypeIcon />
                 </div>
+
                 <div>
                   <div className="text-sm text-[#999] capitalize tracking-wide mb-1">
                     Content Type
                   </div>
+                  {/* Updated Text Display */}
                   <h3 className="text-base text-white capitalize">
-                    {data.contentType.join(" & ")}
+                    {displayContentType}
                   </h3>
                 </div>
               </div>
@@ -399,18 +470,45 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   </h4>
                 </div>
                 <div className="p-4 lg:p-[30px] space-y-4">
-                  <div className="flex flex-col gap-2 text-sm">
-                    <span className="text-white">Video Edit</span>
-                    <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
-                      {data.videoEditTypes.join(", ") || "None"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-2 text-sm">
-                    <span className="text-white">Photo Edit</span>
-                    <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
-                      {data.photoEditTypes.join(", ") || "None"}
-                    </span>
-                  </div>
+
+                  {data.contentType.includes("videographer") && (
+                    <div className="flex flex-col gap-2 text-sm">
+                      <span className="text-white">Video Edit</span>
+                      <div className="flex flex-wrap gap-2">
+                        {data.videoEditTypes.length > 0 ? (
+                          getVideoEditLabels(data.videoEditTypes).map((label, i) => (
+                            <span key={i} className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
+                              {label}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-white/40">Raw Footage Only (No Edits)</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {data.contentType.includes("photographer") && (
+                    <div className="flex flex-col gap-2 text-sm">
+                      <span className="text-white">Photo Edit</span>
+                      <div className="flex flex-wrap gap-2">
+                        {data.photoEditTypes.length > 0 ? (
+                          getPhotoEditLabels(data.photoEditTypes).map((label, i) => (
+                            <span key={i} className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
+                              {label}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-white/40">Raw Photos Only (No Edits)</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fallback if user selected "No" to edits for everything */}
+                  {!data.contentType.includes("videographer") && !data.contentType.includes("photographer") && (
+                    <span className="text-white/40 text-sm">No editing services selected.</span>
+                  )}
                 </div>
               </div>
             </div>
