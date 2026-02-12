@@ -848,8 +848,8 @@ function MultiCreatorPaymentContent() {
 
   // Payment View
   return (
-    <div className="pt-20 lg:pt-32 pb-20 min-h-screen">
-      <div className="container mx-auto px-4 md:px-0">
+    <div className="pt-20 md:pt-32 pb-20 min-h-screen">
+      <div className="container mx-auto px-4 xl:px-0">
         {/* Leave Confirmation Modal */}
         <LeaveConfirmationModal
           isOpen={showLeaveModal}
@@ -874,9 +874,9 @@ function MultiCreatorPaymentContent() {
           </motion.div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
           {/* Left Column: Payment Form */}
-          <div className="lg:col-span-7 space-y-5">
+          <div className="xl:col-span-7 space-y-5">
             {!clientSecret ? (
               <div className="bg-[#171717] rounded-[20px] p-6 lg:p-10 flex flex-col items-center justify-center min-h-[400px]">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB] mb-4"></div>
@@ -917,7 +917,7 @@ function MultiCreatorPaymentContent() {
           </div>
 
           {/* Right Column: Summary */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="xl:col-span-5 space-y-6">
             <div className="bg-[#171717] rounded-[24px] p-6 lg:p-10">
               <h3 className="font-bold mb-7 text-base lg:text-2xl">Booking Summary</h3>
               <div className="bg-white rounded-[20px] text-black py-3 lg:py-5">
