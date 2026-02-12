@@ -511,25 +511,24 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const handleNext = async () => {
     if (!validate()) return;
 
-    try {
-      const res = await trackEarlyInterest({
-        guest_email: data.email,
-        user_id: user?.id,
-        content_type: data.contentType.join(","),
-        shoot_type: data.shootType,
-        client_name: user?.name,
-      }).unwrap();
+    // try {
+    //   const res = await trackEarlyInterest({
+    //     guest_email: data.email,
+    //     user_id: user?.id,
+    //     content_type: data.contentType.join(","),
+    //     shoot_type: data.shootType,
+    //     client_name: user?.name,
+    //   }).unwrap();
 
-      updateData({
-        bookingId: res.data.booking_id,
-      });
+    //   updateData({
+    //     bookingId: res.data.booking_id,
+    //   });
 
       onNext();
-    } catch (err) {
-      toast.error("Failed to start booking. Please try again.");
-    }
+    // } catch (err) {
+    //   toast.error("Failed to start booking. Please try again.");
+    // }
   };
-
   const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
     setTimeout(() => {
       if (ref && ref.current) {

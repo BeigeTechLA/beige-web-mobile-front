@@ -84,7 +84,7 @@ export const BookAShootV3 = () => {
       }
     };
 
-    trackLoggedInUser();
+    // trackLoggedInUser();
   }, [
     isAuthenticated,
     user?.email,
@@ -96,25 +96,49 @@ export const BookAShootV3 = () => {
 
   const nextStep = async () => {
     // Track lead when moving from step 1 to 2 (if not already tracked)
-    if (internalStep === 1 && !leadTracked && formData.email) {
-      try {
-        const result = await trackEarlyInterest({
-          guest_email: formData.email,
-          user_id: user?.id,
-          content_type: formData.contentType.join(","),
-          shoot_type: formData.shootType,
-        }).unwrap();
+    // if (internalStep === 1 && !leadTracked && formData.email) {
+    //   try {
+    //     const result = await trackEarlyInterest({
+    //       guest_email: formData.email,
+    //       user_id: user?.id,
+    //       content_type: formData.contentType.join(","),
+    //       shoot_type: formData.shootType,
+    //     }).unwrap();
 
-        setDraftBookingId(result.data.booking_id);
-        setLeadId(result.data.lead_id);
-        setLeadTracked(true);
-        console.log("Lead tracked after step 1:", result.data);
-      } catch (error) {
-        console.error("Failed to track lead:", error);
-        // Non-blocking error, continue with booking flow
-      }
+    //     setDraftBookingId(result.data.booking_id);
+    //     setLeadId(result.data.lead_id);
+    //     setLeadTracked(true);
+    //     console.log("Lead tracked after step 1:", result.data);
+    //   } catch (error) {
+    //     console.error("Failed to track lead:", error);
+    //     // Non-blocking error, continue with booking flow
+    //   }
+    // }
+
+     if (internalStep === 1 && !leadTracked && formData.email) {
+    try {
+      // Show a loading toast if you want
+      const result = await trackEarlyInterest({
+        guest_email: formData.email,
+        user_id: user?.id,
+        content_type: formData.contentType.join(","),
+        shoot_type: formData.shootType,
+        client_name: user?.name || formData.fullName,
+      }).unwrap();
+
+      // IMPORTANT: Update all states at once
+      const bId = result.data.booking_id;
+      setDraftBookingId(bId);
+      setLeadId(result.data.lead_id);
+      setLeadTracked(true);
+
+      updateData({ bookingId: bId });
+
+      console.log("Lead tracked successfully:", result.data);
+    } catch (error) {
+      console.error("Failed to track lead:", error);
     }
-
+  }
     if (internalStep === 3) {
       // Step 3 -> Loading -> Crew Selection
       setInternalStep(4); // Loading

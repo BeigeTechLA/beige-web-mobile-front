@@ -185,9 +185,9 @@ export const OverallShootsTable = () => {
             <SelectContent className="bg-[#111111] border-[#3D3D3D]">
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="Initiated">Initiated</SelectItem>
-              <SelectItem value="Pre_Production">Pre Production</SelectItem>
+              <SelectItem value="PreProduction">Pre Production</SelectItem>
               <SelectItem value="Shoot Day">Shoot Day</SelectItem>
-              <SelectItem value="Post_Production">Post Production</SelectItem>
+              <SelectItem value="PostProduction">Post Production</SelectItem>
               <SelectItem value="Revision">Revision</SelectItem>
               <SelectItem value="Completed">Completed</SelectItem>
               <SelectItem value="Assets Delivered">Assets Delivered</SelectItem>
