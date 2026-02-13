@@ -20,6 +20,7 @@ import {
   COMMERCIAL_VIDEOS,
   PRIVATE_VIDEOS,
   SHORT_FILMS_VIDEO,
+  KEYNOTE_VIDEOS,
 } from "@/app/data/useCaseData";
 
 interface PortfolioHeroProps {
@@ -49,6 +50,7 @@ const VIDEO_MAP: Record<string, { title: string; video: string }[]> = {
   "short-films-narratives": SHORT_FILMS_VIDEO,
   "commercial-advertising": COMMERCIAL_VIDEOS,
   "weddings": WEDDING_VIDEOS,
+  "keynote": KEYNOTE_VIDEOS,
 };
 
 export const DisplayGrid = ({ type, category }: PortfolioHeroProps) => {

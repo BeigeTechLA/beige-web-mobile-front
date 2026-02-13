@@ -875,3 +875,11 @@ export const SOCIAL_CONTENT_VIDEOS = [
     video: "1140878593",
   },
 ];
+
+export const KEYNOTE_VIDEOS = [
+  {
+    title: "Kristen Kavanaugh | Agency Initiative Conference on Inclusive Leadership & Culture",
+    description: "",
+    video: "862171621",
+  },
+];
