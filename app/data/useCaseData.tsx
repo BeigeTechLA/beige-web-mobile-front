@@ -882,4 +882,29 @@ export const KEYNOTE_VIDEOS = [
     description: "",
     video: "862171621",
   },
+  {
+    title: "Molly Kennedy - Keynote Speaker | Empowering Leadership & Personal Growth",
+    description: "",
+    video: "1076467651",
+  },
+  {
+    title: "Andy Walters – Highlights from an Inspiring Speaking Event",
+    description: "",
+    video: "1054294262",
+  },
+  {
+    title: "Natasha's Transformative Mind Valley Speech",
+    description: "",
+    video: "790147780",
+  },
+  {
+    title: "Flybridge 2024 Annual Meeting Highlights",
+    description: "",
+    video: "1055637977",
+  },
+  {
+    title: "Darryl Thomas Motivational Speech",
+    description: "",
+    video: "1006821258",
+  },
 ];
