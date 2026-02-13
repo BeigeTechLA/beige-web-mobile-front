@@ -93,6 +93,21 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     if (id) fetchProjectAndSkills();
   }, [id]);
 
+  const getInitials = (name) => {
+  if (!name) return "??";
+  
+  // Split the name into words
+  const words = name.trim().split(/\s+/);
+  
+  // Take the first letter of the first word
+  const first = words[0]?.charAt(0) || "";
+  
+  // Take the first letter of the second word (if it exists)
+  const second = words[1]?.charAt(0) || "";
+  
+  return (first + second).toUpperCase();
+};
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center min-h-[500px]">

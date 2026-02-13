@@ -1117,8 +1117,6 @@ export const adminApi = {
     }
   },
 
-  // --- ADD THESE TWO METHODS ---
-
   getClientById: async (id: string | number) => {
     try {
       const response = await api.get(`admin/get-client-by-id/${id}`);
