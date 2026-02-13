@@ -892,11 +892,11 @@ export const KEYNOTE_VIDEOS = [
     description: "",
     video: "1054294262",
   },
-  {
-    title: "Natasha's Transformative Mind Valley Speech",
-    description: "",
-    video: "790147780",
-  },
+  // {
+  //   title: "Natasha's Transformative Mind Valley Speech",
+  //   description: "",
+  //   video: "790147780",
+  // },
   {
     title: "Flybridge 2024 Annual Meeting Highlights",
     description: "",
