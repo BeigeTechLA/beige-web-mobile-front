@@ -110,7 +110,7 @@ export const ClientsTable = () => {
                         };
 
                         return {
-                            id: `#${client.user_id || client.id || client.client_id}`,
+                            id: `#${client.client_id || client.id || client.user_id}`, 
                             name: fullName,
                             email: client.email || "No Email",
                             status: statusMapping(client.status || client.is_active),
@@ -132,10 +132,15 @@ export const ClientsTable = () => {
         fetchClients();
     }, [currentPage, limit, debouncedSearch, statusFilter, range, selectedDate]);
 
+    // const handleRowClick = (id: string) => {
+    //     // const cleanId = id.replace('#', '');
+    //     // router.push(`/admin/users/clients/${cleanId}`);
+    // };
+
     const handleRowClick = (id: string) => {
-        // const cleanId = id.replace('#', '');
-        // router.push(`/admin/users/clients/${cleanId}`);
-    };
+    const cleanId = id.replace('#', '');
+    router.push(`/admin/users/clients/${cleanId}`);
+};
 
     return (
         <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
@@ -235,7 +240,7 @@ export const ClientsTable = () => {
                                     <tr
                                         key={idx}
                                         onClick={() => handleRowClick(client.id)}
-                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
+                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
                                     >
                                         <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{client.id}</td>
                                         <td className="py-5 px-6">

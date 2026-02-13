@@ -17,12 +17,11 @@ import { StatusBadge } from "./StatusBadge";
 
 const STATUS_LABEL_MAP: Record<number, string> = {
     0: "Initiated",
-    1: "Pre_Production",
+    1: "PreProduction",
     2: "Shoot Day",
-    3: "Post_Production",
+    3: "PostProduction",
     4: "Revision",
     5: "Completed",
-    6: "Assets Delivered",
     7: "Cancelled",
 };
 
@@ -185,12 +184,12 @@ export const OverallShootsTable = () => {
                         <SelectContent className="bg-[#111111] border-[#3D3D3D]">
                             <SelectItem value="all">All Status</SelectItem>
                             <SelectItem value="Initiated">Initiated</SelectItem>
-                            <SelectItem value="Pre_Production">Pre Production</SelectItem>
+                            <SelectItem value="preproduction">Pre Production</SelectItem>
                             <SelectItem value="Shoot Day">Shoot Day</SelectItem>
-                            <SelectItem value="Post_Production">Post Production</SelectItem>
+                            <SelectItem value="postproduction">Post Production</SelectItem>
                             <SelectItem value="Revision">Revision</SelectItem>
                             <SelectItem value="Completed">Completed</SelectItem>
-                            <SelectItem value="Assets Delivered">Assets Delivered</SelectItem>
+                            {/* <SelectItem value="Assets Delivered">Assets Delivered</SelectItem> */}
                             <SelectItem value="Cancelled">Cancelled</SelectItem>
                         </SelectContent>
                     </Select>

@@ -1116,6 +1116,36 @@ export const adminApi = {
       };
     }
   },
+
+  // --- ADD THESE TWO METHODS ---
+
+  getClientById: async (id: string | number) => {
+    try {
+      const response = await api.get(`admin/get-client-by-id/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Client By ID Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch client details',
+      };
+    }
+  },
+
+  getClientShoots: async (id: string | number) => {
+    try {
+      const response = await api.get(`admin/get-clients-shoots/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Client Shoots Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch client shoots',
+      };
+    }
+  },
 };
 
 export const GetCreatorDashboardCount = async (payload: any) => {
