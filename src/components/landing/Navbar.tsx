@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, User, ChevronDown, LayoutDashboard, Image as PhotoIcon, Film, Briefcase, PartyPopper, ChevronRight, Megaphone, Package, CirclePlay, Podcast, Gem, Clapperboard, Handshake, Utensils, Binoculars, UsersRound, LogOut } from "lucide-react";
+import { Menu, X, User, ChevronDown, LayoutDashboard, Image as PhotoIcon, Film, Briefcase, PartyPopper, ChevronRight, Megaphone, Package, CirclePlay, Podcast, Gem, Clapperboard, Handshake, Utensils, Binoculars, UsersRound, LogOut, MicVocal } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -116,6 +116,12 @@ const portfolioConfig = {
         id: "weddings",
         label: "Weddings",
         icon: <Gem size={24} />,
+        subSectors: []
+      },
+      {
+        id: "keynote",
+        label: "Keynotes",
+        icon: <MicVocal size={24} />,
         subSectors: []
       },
     ]
