@@ -3,10 +3,18 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 
+
+export type DropdownOption = {
+  label: string;
+  value: string;
+};
+
+type OptionType = string | DropdownOption;
+
 interface StatusDropdownProps {
   label: string;
   value: string;
-  options: string[];
+  options: OptionType[];
   roundedFull?: boolean;
   styles?: string;
   onChange: (value: string) => void;
@@ -36,6 +44,13 @@ export const BasicDropdown = ({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const normalizeOption = (opt: OptionType): DropdownOption => {
+    if (typeof opt === "string") {
+      return { label: opt, value: opt };
+    }
+    return opt;
+  };
+
   const handleSelect = (v: string) => {
     onChange(v);
     setOpen(false);
@@ -62,16 +77,17 @@ export const BasicDropdown = ({
       {open && (
         <div className="absolute top-14 left-0 min-w-[160px] bg-[#18181b] border border-white/10 rounded-[14px] shadow-2xl z-50 py-1.5 overflow-hidden">
           {options.map((opt) => {
-            const isSelected = opt === value;
+            const normalized = normalizeOption(opt);
+            const isSelected = normalized.value === value;
             return (
               <div
-                key={opt}
-                onClick={() => handleSelect(opt)}
+                key={normalized.value}
+                onClick={() => handleSelect(normalized.value)}
                 className={`px-4 py-2.5 text-sm cursor-pointer transition-colors
                   ${isSelected ? "bg-white/5 text-[#E8D1AB]" : "text-white/70 hover:bg-white/10 hover:text-white"}
                 `}
               >
-                {opt}
+                {normalized.label}
               </div>
             );
           })}

@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { ChevronRight, MoreVertical, Search, Loader2 } from "lucide-react";
+import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, ArrowUpRight } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useRouter } from "next/navigation";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
@@ -13,7 +13,7 @@ import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { User, Camera, AlertCircle, Check, X } from "lucide-react";
+import { User, Camera, Users, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
 import {
@@ -23,6 +23,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import DottedDivider from "@/components/admin/DottedDivider";
+import MetricCards from "@/components/admin/OverviewMetricCards";
+import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
+import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
+import { BookingStatus } from "@/components/sales/StatusBadge";
+import UsersTable from "@/components/sales/UsersTable";
 
 type TabType = "Booking" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
@@ -82,6 +88,38 @@ const formatRelativeTime = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
+// Placeholder values:update values on integration
+const initialMetrics = [
+  { id: 'total_active', label: 'Total Active Leads', value: '10', growth: 0, icon: Users, color: 'bg-[#E5D5B8]' },
+  { id: 'sales_assisted', label: 'Sales Assisted Leads', value: '5', growth: 0, icon: Target, color: 'bg-zinc-800' },
+  { id: 'total_conversion', label: 'Total Conversion Rate', value: '15.4', growth: 0, icon: ChartLine, color: 'bg-zinc-800' },
+  { id: 'total_bookings', label: 'Total Bookings', value: '25', growth: 0, icon: Calendar, color: 'bg-zinc-800' },
+];
+
+const OverviewFilters = [
+  "All time",
+  "Month",
+  "Week",
+]
+
+const tabs: { label: string; value: TabType }[] = [
+  { label: "Booking Leads", value: "Booking" },
+  { label: "Client Signup", value: "Client" },
+  { label: "Creative Partner Signup", value: "Creative Partner" },
+];
+
+const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
+  "Signed Up - Lead Created",
+  "Book a shoot - Lead Created",
+  "Manual - Lead Created",
+  "Booking In Progress",
+  "Proposal Sent",
+  "Ready for Payment",
+  "Payment Sent",
+  "Booked",
+  "Closed – Lost",
+];
+
 export default function AdminSaleRepManagerPage() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -108,6 +146,20 @@ export default function AdminSaleRepManagerPage() {
   const [usersTotalRecords, setUsersTotalRecords] = useState(0);
   const [usersLimit] = useState(50);
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
+
+  // Metrics STate
+  const [metrics, setMetrics] = useState<any[]>(initialMetrics);
+  const [activeMetric, setActiveMetric] = useState('total_active');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [range, setRange] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
+  const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
+
+  // const filteredLeads =
+  //   statusFilter === "All"
+  //     ? leads
+  //     : leads.filter((lead) => lead.bookingStatus === statusFilter);
 
   // Fetch users for Client and Creative Partner tabs
   const fetchUsers = async () => {
@@ -242,6 +294,16 @@ export default function AdminSaleRepManagerPage() {
     router.push(`/admin/sales-representative/${leadId}`);
   };
 
+  const getGrowthLabel = () => {
+    switch (range) {
+      case 'week': return 'from last week';
+      case 'month': return 'from last month';
+      case 'all': return 'all time';
+      case 'custom': return 'in selected range';
+      default: return 'from last month';
+    }
+  };
+
   return (
     <>
       <div className="flex flex-col lg:flex-row gap-6 justify-between items-start mb-6 w-full">
@@ -256,7 +318,21 @@ export default function AdminSaleRepManagerPage() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 mb-6">
+      <DottedDivider />
+
+      <OverviewMetricCards
+        metrics={metrics}
+        activeId={activeMetric}
+        onSelect={setActiveMetric}
+        isLoading={isLoading}
+        getGrowthLabel={() => getGrowthLabel()}
+        dropdownLabel="Duration"
+        dropdownValue={range}
+        dropdownOptions={OverviewFilters}
+        onDropdownChange={setRange}
+      />
+
+      <div className="flex flex-col gap-6 my-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 w-full md:flex-1">
             <div className="relative flex-1 max-w-md">
@@ -272,34 +348,18 @@ export default function AdminSaleRepManagerPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-[#111] p-1 rounded-xl w-fit border border-[#333]">
-          {(["Booking", "Client", "Creative Partner"] as TabType[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                setUsersCurrentPage(1);
-                setLeadsCurrentPage(1);
-              }}
-              className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all ${activeTab === tab
-                ? "bg-[#E5D5B8] text-black shadow-lg"
-                : "text-[#777] hover:text-white"
-                }`}
-            >
-              {tab === "Creative Partner" ? "CreativePartner_Signup" : tab === "Booking" ? "Booking_Leads" : "Client_Signup"}
-            </button>
-          ))}
-        </div>
+        <TabsSwitcher
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={(tab) => {
+            setActiveTab(tab);
+            setUsersCurrentPage(1);
+            setLeadsCurrentPage(1);
+          }}
+        />
       </div>
 
-      <div
-        className="lg:hidden h-[1px] w-full my-4 lg:my-9"
-        style={{
-          backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-          backgroundSize: '30px 1px',
-          backgroundRepeat: 'repeat-x'
-        }}
-      />
+      <DottedDivider className="lg:hidden" />
 
       {activeTab === "Booking" ? (
         <div className="flex flex-col gap-4">
@@ -431,139 +491,67 @@ export default function AdminSaleRepManagerPage() {
         </div>
 
       ) : (
-        <div className="space-y-6">
-          <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="text-[#888] text-sm font-normal border-b border-[#333]">
-                    <th className="py-5 px-6 font-medium">User ID</th>
-                    <th className="py-5 px-6 font-medium">User Info</th>
-                    <th className="py-5 px-6 font-medium">Type</th>
-                    <th className="py-5 px-6 font-medium">Contact</th>
-                    <th className="py-5 px-6 font-medium text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {usersLoading ? (
-                    <tr>
-                      <td colSpan={5} className="py-10 text-center text-[#888]">
-                        <div className="flex flex-col items-center gap-2">
-                          <Loader2 className="animate-spin text-[#E8D1AB]" size={24} />
-                          <span>Loading users...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : users.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-10 text-center text-[#888]">No users found.</td>
-                    </tr>
-                  ) : (
-                    users.map((user, idx) => (
-                      <tr
-                        key={idx}
-                        // onClick={() => {
-                        //   const cleanId = user.id.replace('#', '');
-                        //   if (user.type === "Client") {
-                        //     router.push(`/admin/users/clients/${cleanId}`);
-                        //   } else {
-                        //     router.push(`/admin/users/creative-partners/${cleanId}`);
-                        //   }
-                        // }}
-                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
-                      >
-                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
-                        <td className="py-5 px-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] overflow-hidden flex items-center justify-center text-[#E5D5B8] font-semibold text-sm border border-white/5 relative">
-                              {user.imageUrl ? (
-                                <img
-                                  src={user.imageUrl}
-                                  alt={user.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    if (target.parentElement) target.parentElement.textContent = user.initials;
-                                  }}
-                                />
-                              ) : (
-                                <span className="text-zinc-400">{user.initials}</span>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                              <p className="text-[#666666] text-xs mt-0.5">{user.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-5 px-6">
-                          <div className="flex items-center gap-2 text-sm text-[#888]">
-                            {user.type === "Client" ? <User size={14} /> : <Camera size={14} />}
-                            <span>{user.type}</span>
-                          </div>
-                        </td>
-                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">
-                          <div className="flex flex-col gap-1">
-                            {user.phoneNumber && user.phoneNumber !== "N/A" && (
-                              <span className="text-zinc-500">{user.phoneNumber}</span>
-                            )}
-                            {user.type === "Creative Partner" && (
-                              <span className="w-fit px-2 py-0.5 bg-[#E5D5B8]/10 text-[#E5D5B8] rounded text-xs">
-                                {user.role}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-5 px-6 text-right">
-                          <button className="text-[#666] hover:text-white transition-colors">
-                            <ChevronRight size={20} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Pagination for Users */}
-          {!usersLoading && usersTotalPages > 1 && (
-            <div className="flex justify-between items-center p-6 border-t border-[#333333]">
-              <div className="text-sm text-[#666666]">
-                Showing {((usersCurrentPage - 1) * usersLimit) + 1} to {Math.min(usersCurrentPage * usersLimit, usersTotalRecords)} of {usersTotalRecords} results
-              </div>
-              <div className="flex gap-2 items-center">
-                <button
-                  onClick={() => setUsersCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={usersCurrentPage === 1}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 transition-all"
-                >
-                  Previous
-                </button>
-                <div className="flex gap-1">
-                  {Array.from({ length: Math.min(5, usersTotalPages) }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setUsersCurrentPage(i + 1)}
-                      className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${usersCurrentPage === i + 1 ? "bg-[#E5D5B8] text-black" : "text-white/60 hover:bg-white/5"}`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+        <UsersTable<UserData>
+          data={users}
+          loading={usersLoading}
+          currentPage={usersCurrentPage}
+          totalPages={usersTotalPages}
+          totalRecords={usersTotalRecords}
+          limit={usersLimit}
+          headers={["User ID", "User Info", "Type", "Contact", "Action"]}
+          onPageChange={(page) => setUsersCurrentPage(page)}
+          renderRow={(user) => (
+            <tr
+              key={user.id}
+              onClick={() => {
+                const cleanId = user.id.replace('#', '');
+                const route = user.type === "Client" ? "clients" : "creative-partners";
+                router.push(`/admin/users/${route}/${cleanId}`);
+              }}
+              className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
+            >
+              <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
+              <td className="py-5 px-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] overflow-hidden flex items-center justify-center text-[#E5D5B8] font-semibold text-sm border border-white/5 relative">
+                    {user.imageUrl ? (
+                      <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-zinc-400">{user.initials}</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
+                    <p className="text-[#666666] text-xs mt-0.5">{user.email}</p>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setUsersCurrentPage(prev => Math.min(usersTotalPages, prev + 1))}
-                  disabled={usersCurrentPage === usersTotalPages}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 transition-all"
-                >
-                  Next
+              </td>
+              <td className="py-5 px-6">
+                <div className="flex items-center gap-2 text-sm text-[#888]">
+                  {user.type === "Client" ? <User size={14} /> : <Camera size={14} />}
+                  <span>{user.type}</span>
+                </div>
+              </td>
+              <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">
+                <div className="flex flex-col gap-1">
+                  {user.phoneNumber && user.phoneNumber !== "N/A" && (
+                    <span className="text-zinc-500">{user.phoneNumber}</span>
+                  )}
+                  {user.type === "Creative Partner" && (
+                    <span className="w-fit px-2 py-0.5 bg-[#E5D5B8]/10 text-[#E5D5B8] rounded text-xs">
+                      {user.role}
+                    </span>
+                  )}
+                </div>
+              </td>
+              <td className="py-5 px-6 text-right">
+                <button className="text-[#666] hover:text-white transition-colors">
+                  <ChevronRight size={20} />
                 </button>
-              </div>
-            </div>
+              </td>
+            </tr>
           )}
-        </div>
+        />
       )}
 
       {menuAnchor && selectedLeadId && (
