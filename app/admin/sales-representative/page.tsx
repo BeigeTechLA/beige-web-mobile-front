@@ -130,7 +130,7 @@ export default function AdminSaleRepManagerPage() {
     null,
   );
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
-  const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [activeTab, setActiveTab] = useState<TabType>("Booking");
@@ -276,13 +276,13 @@ export default function AdminSaleRepManagerPage() {
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
     client: string,
-    leadId: number,
+    id: number | string, // Change leadId: number to id: number | string
   ) => {
     e.stopPropagation();
     setSelectedClient(client);
-    setSelectedLeadId(leadId);
-    const rect = e.currentTarget.getBoundingClientRect();
+    setSelectedLeadId(id); // Now correctly stores the string ID
 
+    const rect = e.currentTarget.getBoundingClientRect();
     const isNearRightEdge = window.innerWidth - rect.right < 250;
     const isNearBottomEdge = window.innerHeight - rect.bottom < 150;
 
@@ -477,7 +477,17 @@ export default function AdminSaleRepManagerPage() {
 
               {/* Action */}
               <td className="py-5 px-6 text-right">
-                <button className="text-[#666] hover:text-white transition-colors p-1">
+                {/* <button className="text-[#666] hover:text-white transition-colors p-1" onClick={(e) =>handleOpenMenu(e, lead.clientName, lead.lead_id)}>
+                  <MoreVertical size={20} />
+                </button> */}
+                <button
+                  className="text-[#666] hover:text-white transition-colors p-1"
+                  onClick={(e) => {
+                    // Extract numeric/string ID without the '#' prefix
+                    const rawId = user.id.replace('#', '');
+                    handleOpenMenu(e, user.name, rawId as any);
+                  }}
+                >
                   <MoreVertical size={20} />
                 </button>
               </td>
@@ -508,6 +518,16 @@ export default function AdminSaleRepManagerPage() {
         />
       )}
 
+      {/* {menuAnchor && selectedLeadId && (
+        <ActionMenu
+          client={selectedClient}
+          leadId={selectedLeadId}
+          isOpen={true}
+          onClose={() => setMenuAnchor(null)}
+          anchor={menuAnchor}
+        />
+      )} */}
+
       {menuAnchor && selectedLeadId && (
         <ActionMenu
           client={selectedClient}
@@ -515,6 +535,14 @@ export default function AdminSaleRepManagerPage() {
           isOpen={true}
           onClose={() => setMenuAnchor(null)}
           anchor={menuAnchor}
+          // Dynamically set basePath based on active tab
+          basePath={
+            activeTab === "Client"
+              ? "/admin/sales-representative/client"
+              : activeTab === "Creative Partner"
+                ? "/admin/sales-representative/creative-partner" // Adjust if CP has a different path
+                : undefined // Defaults to current pathname in ActionMenu for "Booking" tab
+          }
         />
       )}
     </>
