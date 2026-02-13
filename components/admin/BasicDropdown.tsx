@@ -19,6 +19,7 @@ interface StatusDropdownProps {
   styles?: string;
   onChange: (value: string) => void;
   width?: string;
+  openAlign?: string;
 }
 
 export const BasicDropdown = ({
@@ -28,7 +29,8 @@ export const BasicDropdown = ({
   roundedFull = false,
   styles,
   onChange,
-  width
+  width,
+  openAlign="left"
 }: StatusDropdownProps) => {
   const [open, setOpen] = useState<boolean>(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -75,7 +77,7 @@ export const BasicDropdown = ({
 
       {/* Dropdown Menu */}
       {open && (
-        <div className="absolute top-14 left-0 min-w-[160px] bg-[#18181b] border border-white/10 rounded-[14px] shadow-2xl z-50 py-1.5 overflow-hidden">
+        <div className={`absolute top-14 ${openAlign == "left" ? "left-0":"right-0"} min-w-[160px] bg-[#18181b] border border-white/10 rounded-[14px] shadow-2xl z-50 py-1.5 overflow-hidden`}>
           {options.map((opt) => {
             const normalized = normalizeOption(opt);
             const isSelected = normalized.value === value;

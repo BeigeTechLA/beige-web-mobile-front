@@ -21,6 +21,11 @@ import {
 import { LEAD_TYPE_LABELS } from "@/types/sales";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils/discountHelpers";
+import GeneratePaymentLink from "@/components/sales/GeneratePaymentLink";
+import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
+import { IntentBadge } from "@/components/sales/IntentBadge";
+import DottedDivider from "@/components/admin/DottedDivider";
+import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
@@ -206,13 +211,23 @@ export default function LeadDetailPage() {
                   <div className="flex flex-col gap-2">
                     <h1 className="lg:text-[22px] font-semibold">{clientName}</h1>
                     <div className=" lg:hidden">
-                      <StatusBadge status={status} />
+                      {/* <StatusBadge status={status} /> */}
+                      <LeadsStatusBadge status={"Booked"} />
                     </div>
                   </div>
                 </div>
-                <div className="hidden lg:block">
-                  <StatusBadge status={status} />
+                <div className="flex gap-2 items-center">
+                  {/* update once data is available */}
+                  <IntentBadge intent={lead.intent || "Hot"} />
+
+                  <div className="hidden lg:block">
+                    {/* <StatusBadge status={status} /> */}
+                    <LeadsStatusBadge status={"Booked"} />
+                  </div>
                 </div>
+                {/* <div className="hidden lg:block">
+                  <LeadsStatusBadge status={"Booked"} />
+                </div> */}
               </div>
               <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
                 <p>
@@ -227,23 +242,29 @@ export default function LeadDetailPage() {
                   Lead Type : <span className="text-white">{leadType}</span>
                 </p>
               </div>
+              <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
+                <p>
+                  Temporary Booking ID : <span className="text-[#E8D1AB]">{"TMP-2024-001"}</span>
+                </p>
+                <div className="w-[1px] h-4 bg-white hidden md:block" />
+                <p>
+                  Lead Source : <span className="text-white">{"Website"}</span>
+                </p>
+                <div className="w-[1px] h-4 bg-white hidden md:block" />
+                <p>
+                  Assigned Sales Rep : <span className="text-white">{"John Doe"}</span>
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Booking Summary Card */}
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-            <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
+            <h2 className="lg:text-xl font-medium text-white p-4 !pb-0 lg:p-9">
               Booking Summary
             </h2>
-            <div
-              className="h-[1px] w-full"
-              style={{
-                backgroundImage: `linear-gradient(to right, #ffffff66 50%, transparent 50%)`,
-                backgroundSize: "30px 1px",
-                backgroundRepeat: "repeat-x",
-              }}
-            />
-            <div className="flex flex-col gap-3 lg:gap-5 p-4 lg:p-9">
+            <DottedDivider />
+            <div className="flex flex-col gap-3 lg:gap-5 px-4 lg:px-9 !pt-0">
               {/* Date */}
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
@@ -283,6 +304,10 @@ export default function LeadDetailPage() {
                 </div>
               </div>
             </div>
+            <DottedDivider />
+            <div className="p-4 !pt-0 lg:p-9">
+              <BookingStatusStepper currentStep={1} />
+            </div>
           </div>
 
           {/* Pricing Breakdown Card */}
@@ -321,7 +346,7 @@ export default function LeadDetailPage() {
         </div>
 
         {/* Right Sidebar - Discount Generator */}
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 space-y-3 lg:space-y-6">
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
             <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
               Generate Discount
@@ -440,6 +465,8 @@ export default function LeadDetailPage() {
               )}
             </div>
           </div>
+
+          <GeneratePaymentLink />
         </div>
       </div>
     </div>

@@ -27,8 +27,10 @@ import DottedDivider from "@/components/admin/DottedDivider";
 import MetricCards from "@/components/admin/OverviewMetricCards";
 import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
 import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
-import { BookingStatus } from "@/components/sales/StatusBadge";
+import { BookingStatus, LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import UsersTable from "@/components/sales/UsersTable";
+import LeadsTable from "@/components/sales/BookingLeadsTable";
+import { IntentBadge } from "@/components/sales/IntentBadge";
 
 type TabType = "Booking" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
@@ -51,7 +53,7 @@ interface LeadData {
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
-  bookingStatus: "Paid" | "In-Progress";
+  bookingStatus: "Paid" | "In-Progress" | BookingStatus; //update with code change
   lastActivity: string;
   date: Date;
 }
@@ -235,7 +237,7 @@ export default function AdminSaleRepManagerPage() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (activeTab !== "Booking") {
       fetchUsers();
     }
@@ -348,148 +350,76 @@ export default function AdminSaleRepManagerPage() {
           </div>
         </div>
 
-        <TabsSwitcher
-          tabs={tabs}
-          activeTab={activeTab}
-          onChange={(tab) => {
-            setActiveTab(tab);
-            setUsersCurrentPage(1);
-            setLeadsCurrentPage(1);
-          }}
-        />
+        <div className="flex flex-col lg:flex-row gap-2 justify-between">
+          <TabsSwitcher
+            tabs={tabs}
+            activeTab={activeTab}
+            onChange={(tab) => {
+              setActiveTab(tab);
+              setUsersCurrentPage(1);
+              setLeadsCurrentPage(1);
+            }}
+          />
+
+          <div className="flex flex-wrap gap-2 lg:gap-4">
+            <BasicDropdown
+              label="Lead Type"
+              value={range} // Update state as required
+              options={["All Leads", "Self-Serve", "Sales Assisted"]}
+              onChange={(val) => console.log("Lead Type:", val)}
+            />
+            {/* 2. Intent Type Dropdown */}
+            <BasicDropdown
+              label="Intent Type"
+              value={intentFilter}
+              options={["All", "Hot", "Warm", "Cold"]}
+              onChange={(val) => setIntentFilter(val as any)}
+            />
+
+            {/* 3. Booking Status Dropdown */}
+            <BasicDropdown
+              label="All Statuses"
+              value={statusFilter}
+              options={["All", ...BOOKING_STATUS_OPTIONS]}
+              onChange={(val) => setStatusFilter(val as any)}
+              openAlign={"right"}
+            />
+          </div>
+        </div>
+
       </div>
 
       <DottedDivider className="lg:hidden" />
 
       {activeTab === "Booking" ? (
         <div className="flex flex-col gap-4">
-          <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
-            {leadsIsLoading && displayLeads.length === 0 ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="animate-spin text-[#E8D1AB]" size={40} />
-              </div>
-            ) : displayLeads.length === 0 ? (
-              <div className="flex items-center justify-center py-20 text-white/60">
-                <p>No leads found</p>
-              </div>
-            ) : (
-              <>
-                {/* MOBILE LIST VIEW */}
-                <div className={`lg:hidden flex flex-col gap-2 transition-opacity duration-200 ${leadsIsFetching ? 'opacity-50' : 'opacity-100'}`}>
-                  {displayLeads.map((lead) => (
-                    <MobileLeadRow
-                      key={lead.lead_id}
-                      lead={lead}
-                      onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
-                    />
-                  ))}
-                </div>
-
-                {/* DESKTOP VIEW */}
-                <div className="hidden lg:block w-full overflow-x-auto">
-                  <table className="w-full text-left border-separate border-spacing-0">
-                    <thead>
-                      <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
-                        <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">
-                          Client Name
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Email ID
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Lead Type
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Booking Status
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Last Activity
-                        </th>
-                        <th className="py-5 px-6 font-medium text-right rounded-r-2xl border-r border-b border-b-[#333333] border-r-[#333333]">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className={`transition-opacity duration-200 ${leadsIsFetching ? 'opacity-50' : 'opacity-100'}`}>
-                      {displayLeads.map((lead) => (
-                        <tr
-                          key={lead.lead_id}
-                          onClick={() => handleRowClick(lead.lead_id)}
-                          className=" hover:bg-white/[0.02] transition-colors cursor-pointer"
-                        >
-                          <td className="py-5 px-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-[50px] h-[50px] rounded-lg bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-xl">
-                                {lead.clientName.split(" ").map((n) => n[0]).join("")}
-                              </div>
-                              <div>
-                                <p className="text-white font-medium text-base">{lead.clientName}</p>
-                                <p className="text-white/40 text-sm mt-1.5">{format(lead.date, "MMM dd, yyyy")}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-5 px-6 text-white text-base">{lead.email}</td>
-                          <td className="py-5 px-6 text-white text-base">{lead.leadType}</td>
-                          <td className="py-5 px-6 whitespace-nowrap w-px">
-                            <div className="flex items-center min-w-max">
-                              <StatusBadge status={lead.bookingStatus} />
-                            </div>
-                          </td>
-                          <td className="py-5 px-6 text-white text-base">{lead.lastActivity}</td>
-                          <td className="py-5 px-6 text-right">
-                            <Button
-                              className="text-white hover:text-white/80 transition-colors"
-                              onClick={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
-                            >
-                              <MoreVertical size={20} />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
+          {/* Desktop View */}
+          <div className="hidden lg:block">
+            <LeadsTable
+              data={displayLeads}
+              loading={leadsIsLoading}
+              isFetching={leadsIsFetching}
+              currentPage={leadsCurrentPage}
+              totalPages={leadsTotalPages}
+              totalRecords={leadsTotalRecords}
+              limit={leadsLimit}
+              onPageChange={(page) => setLeadsCurrentPage(page)}
+              onRowClick={handleRowClick}
+              onOpenMenu={handleOpenMenu}
+            />
           </div>
 
-          {/* Pagination for Leads */}
-          {!leadsIsLoading && leadsTotalPages > 1 && (
-            <div className="flex justify-between items-center p-6 border border-[#3D3D3D] rounded-2xl bg-[#171717]">
-              <div className="text-sm text-[#666666]">
-                Showing {((leadsCurrentPage - 1) * leadsLimit) + 1} to {Math.min(leadsCurrentPage * leadsLimit, leadsTotalRecords)} of {leadsTotalRecords} leads
-              </div>
-              <div className="flex gap-2 items-center">
-                <button
-                  onClick={() => setLeadsCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={leadsCurrentPage === 1}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 transition-all"
-                >
-                  Previous
-                </button>
-                <div className="flex gap-1">
-                  {Array.from({ length: Math.min(5, leadsTotalPages) }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setLeadsCurrentPage(i + 1)}
-                      className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${leadsCurrentPage === i + 1 ? "bg-[#E5D5B8] text-black" : "text-white/60 hover:bg-white/5"}`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setLeadsCurrentPage(prev => Math.min(leadsTotalPages, prev + 1))}
-                  disabled={leadsCurrentPage === leadsTotalPages}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 transition-all"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Mobile View */}
+          <div className="lg:hidden flex flex-col gap-2">
+            {displayLeads.map((lead) => (
+              <MobileLeadRow
+                key={lead.lead_id}
+                lead={lead}
+                onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
+              />
+            ))}
+          </div>
         </div>
-
       ) : (
         <UsersTable<UserData>
           data={users}
@@ -498,58 +428,82 @@ export default function AdminSaleRepManagerPage() {
           totalPages={usersTotalPages}
           totalRecords={usersTotalRecords}
           limit={usersLimit}
-          headers={["User ID", "User Info", "Type", "Contact", "Action"]}
+          headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
           onPageChange={(page) => setUsersCurrentPage(page)}
           renderRow={(user) => (
             <tr
               key={user.id}
-              onClick={() => {
-                const cleanId = user.id.replace('#', '');
-                const route = user.type === "Client" ? "clients" : "creative-partners";
-                router.push(`/admin/users/${route}/${cleanId}`);
-              }}
-              className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
+              className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
             >
-              <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
+              {/* User ID */}
+              <td className="py-5 px-6 text-[#888] text-[14px]">{user.id}</td>
+
+              {/* User Info */}
               <td className="py-5 px-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] overflow-hidden flex items-center justify-center text-[#E5D5B8] font-semibold text-sm border border-white/5 relative">
+                  <div className="w-10 h-10 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-sm">
                     {user.imageUrl ? (
-                      <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" />
+                      <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover rounded-lg" />
                     ) : (
-                      <span className="text-zinc-400">{user.initials}</span>
+                      <span>{user.initials}</span>
                     )}
                   </div>
                   <div>
                     <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                    <p className="text-[#666666] text-xs mt-0.5">{user.email}</p>
+                    <p className="text-[#666666] text-xs mt-0.5">{user.date}</p>
                   </div>
                 </div>
               </td>
+
+              {/* Type */}
+              <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">{user.type}</td>
+
+              {/* Intent */}
               <td className="py-5 px-6">
-                <div className="flex items-center gap-2 text-sm text-[#888]">
-                  {user.type === "Client" ? <User size={14} /> : <Camera size={14} />}
-                  <span>{user.type}</span>
-                </div>
+                {/* update once data is available */}
+                <IntentBadge intent={"Warm"} />
               </td>
-              <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">
-                <div className="flex flex-col gap-1">
-                  {user.phoneNumber && user.phoneNumber !== "N/A" && (
-                    <span className="text-zinc-500">{user.phoneNumber}</span>
-                  )}
-                  {user.type === "Creative Partner" && (
-                    <span className="w-fit px-2 py-0.5 bg-[#E5D5B8]/10 text-[#E5D5B8] rounded text-xs">
-                      {user.role}
-                    </span>
-                  )}
-                </div>
+
+              {/* Status */}
+              <td className="py-5 px-6">
+                {/* <StatusBadge status={user.status} /> */}
+                <LeadsStatusBadge status={"Booking In Progress"} />
               </td>
+
+              {/* Contact Info */}
+              <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">
+                {user.phoneNumber}
+              </td>
+
+              {/* Action */}
               <td className="py-5 px-6 text-right">
-                <button className="text-[#666] hover:text-white transition-colors">
-                  <ChevronRight size={20} />
+                <button className="text-[#666] hover:text-white transition-colors p-1">
+                  <MoreVertical size={20} />
                 </button>
               </td>
             </tr>
+          )}
+          renderMobileDetails={(user) => (
+            <div className="p-4 grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-white/40 text-[10px] uppercase">Email</p>
+                <p className="text-white text-sm truncate">{user.email}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-white/40 text-[10px] uppercase">Type</p>
+                <p className="text-white text-sm">{user.type}</p>
+              </div>
+              <div className="">
+                <p className="text-white/40 text-[10px] uppercase">Intent</p>
+                <div className="">
+                  <IntentBadge intent="Hot" size="sm" />
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-white/40 text-[10px] uppercase">Contact Info</p>
+                <p className="text-white text-sm">{user.phoneNumber}</p>
+              </div>
+            </div>
           )}
         />
       )}
