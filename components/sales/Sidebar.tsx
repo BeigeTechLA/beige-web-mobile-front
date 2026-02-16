@@ -61,7 +61,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex lg:hidden items-center justify-between mb-8">
         <Link href="/" className="relative flex items-center">
           <Image
-            src="/images/logos/beige_logo_vb.png"
+            src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
             alt="BEIGE"
             width={100}
             height={20}
