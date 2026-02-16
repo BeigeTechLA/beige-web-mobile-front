@@ -105,58 +105,114 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     }
   }, [includedRoles.length, extraTeam, data.crewCount, updateData]);
 
-  const handleNext = async () => {
-    if (!data.location) {
-      toast.error("Please select a location");
-      return;
+  // const handleNext = async () => {
+  //   if (!data.location) {
+  //     toast.error("Please select a location");
+  //     return;
+  //   }
+
+  //   if (!data.bookingId) {
+  //     toast.error("Booking reference missing. Please restart.");
+  //     return;
+  //   }
+
+  //   const crewRoles: Record<string, number> = {};
+
+  //   // base crew
+  //   includedRoles.forEach((role: any) => {
+  //     crewRoles[role.id] = 1;
+  //   });
+
+  //   // extra crew
+  //   Object.entries(extraTeam).forEach(([roleId, count]) => {
+  //     if (count > 0) {
+  //       crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
+  //     }
+  //   });
+
+  //   try {
+  //     const response = await updateBookingCrew({
+  //       booking_id: data.bookingId,
+  //       crew_roles: crewRoles,
+  //     }).unwrap();
+
+  //     const serverCrewRoles = response.data.crew_roles;
+  //     const vCount = serverCrewRoles.videographer || 0;
+  //     const pCount = serverCrewRoles.photographer || 0;
+
+  //     localStorage.setItem("required_videographers", vCount.toString());
+  //     localStorage.setItem("required_photographers", pCount.toString());
+
+  //     updateData({
+  //       roleCounts: serverCrewRoles,
+  //       videographyCount: vCount,
+  //       photographyCount: pCount,
+  //       crewCount: vCount + pCount // Total crew
+  //     });
+
+  //     onNext();
+  //   } catch (error) {
+  //     console.error("Crew update error:", error);
+  //     toast.error("Failed to save crew details");
+  //   }
+  // };
+
+  // Inside V3Step2MoreDetails.tsx
+
+const handleNext = async () => {
+  if (!data.location) {
+    toast.error("Please select a location");
+    return;
+  }
+
+  if (!data.bookingId) {
+    toast.error("Booking reference missing. Please restart.");
+    return;
+  }
+
+  const crewRoles: Record<string, number> = {};
+
+  // 1. Calculate Base Crew (Step 1 choices)
+  includedRoles.forEach((role: any) => {
+    crewRoles[role.id] = 1;
+  });
+
+  // 2. Add Extra Crew (Step 2 choices)
+  Object.entries(extraTeam).forEach(([roleId, count]) => {
+    if (count > 0) {
+      crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
     }
+  });
 
-    if (!data.bookingId) {
-      toast.error("Booking reference missing. Please restart.");
-      return;
-    }
+  try {
+    // 3. CALL API WITH ALL DETAILS
+    const response = await updateBookingCrew({
+      booking_id: data.bookingId,
+      crew_roles: crewRoles,
+      location: data.location,               // NEW: From LocationPicker
+      description: data.specialInstructions,  // NEW: From Textarea
+      reference_links: data.referenceLinks,   // NEW: From Input
+    }).unwrap();
 
-    const crewRoles: Record<string, number> = {};
+    const serverCrewRoles = response.data.crew_roles;
+    const vCount = serverCrewRoles.videographer || 0;
+    const pCount = serverCrewRoles.photographer || 0;
 
-    // base crew
-    includedRoles.forEach((role: any) => {
-      crewRoles[role.id] = 1;
+    // Update local context for Step 3/4
+    updateData({
+      roleCounts: serverCrewRoles,
+      videographyCount: vCount,
+      photographyCount: pCount,
+      crewCount: vCount + pCount
     });
 
-    // extra crew
-    Object.entries(extraTeam).forEach(([roleId, count]) => {
-      if (count > 0) {
-        crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
-      }
-    });
-
-    try {
-      const response = await updateBookingCrew({
-        booking_id: data.bookingId,
-        crew_roles: crewRoles,
-      }).unwrap();
-
-      const serverCrewRoles = response.data.crew_roles;
-      const vCount = serverCrewRoles.videographer || 0;
-      const pCount = serverCrewRoles.photographer || 0;
-
-      localStorage.setItem("required_videographers", vCount.toString());
-      localStorage.setItem("required_photographers", pCount.toString());
-
-      updateData({
-        roleCounts: serverCrewRoles,
-        videographyCount: vCount,
-        photographyCount: pCount,
-        crewCount: vCount + pCount // Total crew
-      });
-
-      onNext();
-    } catch (error) {
-      console.error("Crew update error:", error);
-      toast.error("Failed to save crew details");
-    }
-  };
-
+    onNext();
+  } catch (error) {
+    console.error("Save error:", error);
+    toast.error("Failed to save project details");
+  }
+};
+  
   const availableRolesToAdd = TEAM_ROLES.filter(role => {
     if (data.contentType.includes(role.id)) return true;
     return false;

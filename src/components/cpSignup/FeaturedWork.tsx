@@ -85,7 +85,7 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="text-base font-semibold text-white">Showcase Your Work *</h4>
-          <p className="text-sm text-white/50">Upload examples of your best work (Max {MAX_PROJECTS}).</p>
+          <p className="text-sm text-white/50">Upload images of your best work (png, jpg, jpeg, webp - Max {MAX_PROJECTS}).</p>
         </div>
 
         {items.length > 0 && (

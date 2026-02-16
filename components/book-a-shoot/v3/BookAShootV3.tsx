@@ -115,30 +115,56 @@ export const BookAShootV3 = () => {
     //   }
     // }
 
-     if (internalStep === 1 && !leadTracked && formData.email) {
-    try {
-      // Show a loading toast if you want
-      const result = await trackEarlyInterest({
-        guest_email: formData.email,
-        user_id: user?.id,
-        content_type: formData.contentType.join(","),
-        shoot_type: formData.shootType,
-        client_name: user?.name || formData.fullName,
-      }).unwrap();
+  //    if (internalStep === 1 && !leadTracked && formData.email) {
+  //   try {
+  //     // Show a loading toast if you want
+  //     const result = await trackEarlyInterest({
+  //       guest_email: formData.email,
+  //       user_id: user?.id,
+  //       content_type: formData.contentType.join(","),
+  //       shoot_type: formData.shootType,
+  //       client_name: user?.name || formData.fullName,
+  //     }).unwrap();
 
-      // IMPORTANT: Update all states at once
-      const bId = result.data.booking_id;
-      setDraftBookingId(bId);
-      setLeadId(result.data.lead_id);
-      setLeadTracked(true);
+  //     // IMPORTANT: Update all states at once
+  //     const bId = result.data.booking_id;
+  //     setDraftBookingId(bId);
+  //     setLeadId(result.data.lead_id);
+  //     setLeadTracked(true);
 
-      updateData({ bookingId: bId });
+  //     updateData({ bookingId: bId });
 
-      console.log("Lead tracked successfully:", result.data);
-    } catch (error) {
-      console.error("Failed to track lead:", error);
+  //     console.log("Lead tracked successfully:", result.data);
+  //   } catch (error) {
+  //     console.error("Failed to track lead:", error);
+  //   }
+  // }
+    if (internalStep === 1) {
+      try {
+        const result = await trackEarlyInterest({
+          booking_id: draftBookingId,
+          guest_email: formData.email,
+          user_id: user?.id,
+          content_type: formData.contentType.join(","),
+          shoot_type: formData.shootType,
+          client_name: user?.name || formData.fullName,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+
+          edits_needed: formData.editsNeeded,
+          video_edit_types: formData.videoEditTypes,
+          photo_edit_types: formData.photoEditTypes
+        }).unwrap();
+
+        setDraftBookingId(result.data.booking_id);
+        updateData({ bookingId: result.data.booking_id });
+        setLeadTracked(true);
+
+      } catch (error) {
+        console.error("Failed to save Step 1:", error);
+        toast.error("Progress not saved, but you can continue.");
+      }
     }
-  }
     if (internalStep === 3) {
       // Step 3 -> Loading -> Crew Selection
       setInternalStep(4); // Loading
@@ -282,8 +308,8 @@ export const BookAShootV3 = () => {
       guest_email: formData.email,
       content_type: formData.contentType.join(","),
       shoot_type: formData.shootType,
-      start_date_time: formData.startDate,
-      end_time: formData.endDate,
+      // start_date_time: formData.startDate,
+      // end_time: formData.endDate,
       duration_hours: shootHours,
       location: formData.location,
       quote_id: savedQuoteId, // Attach the calculated price
@@ -303,7 +329,7 @@ export const BookAShootV3 = () => {
       selected_crew_ids: formData.selectedCrewIds || [],
       
       // Project Scope
-      special_instructions: formData.specialInstructions,
+      // special_instructions: formData.specialInstructions,
       reference_links: formData.referenceLinks,
       is_draft: false, // Marking as final booking
     };
