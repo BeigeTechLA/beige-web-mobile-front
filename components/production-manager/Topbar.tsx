@@ -39,7 +39,7 @@ export default function Topbar({
                         </button>
                         <Link href="/" className="relative flex items-center">
                             <Image
-                                src="/images/logos/beige_logo_vb.png"
+                                src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
                                 alt="BEIGE"
                                 width={100}
                                 height={20}
@@ -95,7 +95,7 @@ export default function Topbar({
                 <div className="flex items-center gap-6 shrink-0">
                     <a href="https://beige.app" target="_blank" rel="noopener noreferrer" className="relative flex items-center shrink-0">
                         <Image
-                            src="/images/logos/beige_logo_vb.png"
+                            src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
                             alt="BEIGE"
                             width={158}
                             height={32}

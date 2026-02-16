@@ -4,18 +4,18 @@ import { motion, useAnimationFrame } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 
 const IMAGES = [
-  "/images/landingHero/HeroBannerPhotos1.png",
-  "/images/landingHero/HeroBannerPhotos2.png",
-  "/images/landingHero/HeroBannerPhotos3.png",
-  "/images/landingHero/HeroBannerPhotos4.png",
-  "/images/landingHero/HeroBannerPhotos5.png",
-  "/images/landingHero/HeroBannerPhotos6.png",
-  "/images/landingHero/HeroBannerPhotos7.png",
-  "/images/landingHero/HeroBannerPhotos8.png",
-  "/images/landingHero/HeroBannerPhotos9.png",
-  "/images/landingHero/HeroBannerPhotos10.png",
-  "/images/landingHero/HeroBannerPhotos11.png",
-  "/images/landingHero/HeroBannerPhotos12.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos1.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos2.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos3.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos4.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos5.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos6.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos7.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos8.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos9.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos10.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos11.png",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos12.png",
 ];
 
 export const HeroSwiper = () => {

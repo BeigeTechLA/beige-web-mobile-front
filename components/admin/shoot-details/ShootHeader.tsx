@@ -36,6 +36,14 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
     }
   };
 
+  const getInitials = (name: string) => {
+    if (!name) return "NA";
+    const words = name.trim().split(/\s+/);
+    const firstLetter = words[0]?.charAt(0) || "";
+    const secondLetter = words[1]?.charAt(0) || "";
+    return (firstLetter + secondLetter).toUpperCase();
+  };
+
   return (
     <div>
       <button onClick={() => router.back()} className="lg:hidden text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-3">
@@ -71,7 +79,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
       <div className="lg:bg-[#111111] lg:rounded-2xl lg:p-6 lg:border lg:border-[#222222] mb-6">
         <div className="flex gap-5">
           <div className="w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl bg-[#D6E4FF] flex items-center justify-center text-[#1E40AF] text-sm lg:text-2xl font-bold">
-            {project?.project_name ? project.project_name.substring(0, 2).toUpperCase() : "NA"}
+            {getInitials(project?.project_name)}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
