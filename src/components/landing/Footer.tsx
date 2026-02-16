@@ -92,7 +92,7 @@ export const Footer = () => {
               className="relative flex items-center w-fit"
             >
               <Image
-                src="/images/logos/beige_logo_vb.png"
+                src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
                 alt="BEIGE"
                 width={158}
                 height={32}

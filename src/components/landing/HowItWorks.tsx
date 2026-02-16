@@ -27,7 +27,7 @@ export const HowItWorks = () => {
   //   fetchSignedUrl();
   // }, [videoFileName]);
 
-  const videoUrl = "/videos/NewBookingFlow.mp4";
+  const videoUrl = "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/videos/NewBookingFlow.mp4";
 
   return (
     <section

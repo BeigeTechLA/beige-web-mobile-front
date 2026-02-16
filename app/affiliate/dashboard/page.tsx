@@ -293,7 +293,7 @@ export default function AffiliateDashboardPage() {
       <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
         <Link href="/" className="relative flex items-center">
           <Image
-            src="/images/logos/beige_logo_vb.png"
+            src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
             alt="BEIGE"
             width={100}
             height={20}
@@ -453,7 +453,7 @@ export default function AffiliateDashboardPage() {
         <header className="lg:hidden h-16 border-b border-white/10 flex items-center justify-between px-4 bg-[#0A0A0A] sticky top-0 z-50">
           <Link href="/" className="relative flex items-center">
             <Image
-              src="/images/logos/beige_logo_vb.png"
+              src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
               alt="BEIGE"
               width={100}
               height={20}

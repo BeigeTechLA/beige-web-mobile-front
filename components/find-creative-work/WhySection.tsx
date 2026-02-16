@@ -30,7 +30,7 @@ export const WhySection = () => {
 
         <div className="mb-5 lg:mb-12 relative w-full aspect-[16/7] overflow-hidden rounded-[10px] lg:rounded-[20px]">
           <Image
-            src="/images/categories/behind_scenes.jpg" //Temp image
+            src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/behind_scenes.jpg" //Temp image
             alt="Beige Creative Partners"
             fill
             className="object-cover"

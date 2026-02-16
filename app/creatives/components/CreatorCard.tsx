@@ -135,7 +135,7 @@ const CreatorCard = ({
           <div className="absolute top-4 flex items-center justify-between w-full px-2">
             <div className="w-[90px] h-[21px]">
               <Image
-                src="/images/logos/beige_logo_vb.png"
+                src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
                 alt={"Beige logo"}
                 width={90}
                 height={21}
