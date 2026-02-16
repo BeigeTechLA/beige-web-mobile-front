@@ -1,508 +1,508 @@
 export const BTS_IMAGES = [
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Behind-the-Scenes/Theo+King+123.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Behind-the-Scenes/Theo+King+123.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Behind-the-Scenes/Theo+King+143+(1).jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Behind-the-Scenes/Theo+King+143+(1).jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Behind-the-Scenes/Theo+King+78.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Behind-the-Scenes/Theo+King+78.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+23+2025%2C+11+58+58+AM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+23+2025%2C+11+58+58+AM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+23+2025%2C+2+40+03+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+23+2025%2C+2+40+03+PM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+23+2025%2C+1+17+59+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+23+2025%2C+1+17+59+PM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+23+2025%2C+11+07+16+AM+(1).jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+23+2025%2C+11+07+16+AM+(1).jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+03+2025%2C+1+46+11+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+03+2025%2C+1+46+11+PM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+03+2025%2C+4+13+03+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+03+2025%2C+4+13+03+PM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+03+2025%2C+4+23+13+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Behind-the-Scenes/Photo+Dec+03+2025%2C+4+23+13+PM.jpg"
   }
 ];
 
 export const FOOD_IMAGES = [
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/1.33.1_1.33.1.png"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/1.33.1_1.33.1.png"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/Himchuki+Proto-111_editedv1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/Himchuki+Proto-111_editedv1.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/Himchuki+Proto-83_editedv1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/Himchuki+Proto-83_editedv1.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/IMG_8303.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/IMG_8303.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/IMG_8373.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/IMG_8373.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/IMG_8673.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/IMG_8673.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/Jacob+Conley+-+Cousin+Main+Lobster-120.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/Jacob+Conley+-+Cousin+Main+Lobster-120.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/Jacob+Conley+-+Cousin+Main+Lobster-149.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/Jacob+Conley+-+Cousin+Main+Lobster-149.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/Jacob+Conley+-+Cousin+Main+Lobster-43.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/Jacob+Conley+-+Cousin+Main+Lobster-43.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/Jacob+Conley+-+Cousin+Main+Lobster-52.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/Jacob+Conley+-+Cousin+Main+Lobster-52.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/Jacob+Conley+-+Cousin+Main+Lobster-66.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/Jacob+Conley+-+Cousin+Main+Lobster-66.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Food/P1062562_editedv1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Food/P1062562_editedv1.jpg"
   }
 ];
 
 export const PEOPLE_IMAGES = [
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/The-Math-Company-9.webp"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/The-Math-Company-9.webp"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/StartUp.webp"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/StartUp.webp"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/P1108993.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/P1108993.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/P1108983.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/P1108983.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/L1060446.webp"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/L1060446.webp"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/Kids-Event-59.webp"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/Kids-Event-59.webp"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/DSC06458_editedv1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/DSC06458_editedv1.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/DSC01302.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/DSC01302.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/Copy+of+Copy+of+75.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/Copy+of+Copy+of+75.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/Bernstein+Women+Founder_s+Forum-275.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/Bernstein+Women+Founder_s+Forum-275.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/Bernstein+Women+Founder_s+Forum-274.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/Bernstein+Women+Founder_s+Forum-274.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/Bernstein+Women+Founder_s+Forum-194.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/Bernstein+Women+Founder_s+Forum-194.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/_DSC8320.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/_DSC8320.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/People%26Teams/_DSC1527_editedv3.png"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/People+%26+Teams/_DSC1527_editedv3.png"
   }
 ];
 
 export const SOCIAL_IMAGES = [
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/AJ-Jefferson-Corporate-Event-Day-2zzz.webp"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/AJ-Jefferson-Corporate-Event-Day-2zzz.webp"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/AJ-Jefferson-Corporate-Event-Day-2zzzz.webp"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/AJ-Jefferson-Corporate-Event-Day-2zzzz.webp"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/DSC_1638.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/DSC_1638.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/DSC_8296+(1).jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/DSC_8296+(1).jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/DSC09354.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/DSC09354.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/DSC09727.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/DSC09727.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/DSC09856.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/DSC09856.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/DV7A9526.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/DV7A9526.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/IMG_0142.JPG"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/IMG_0142.JPG"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/Photo+Aug+22+2025%2C+11+39+58+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/Photo+Aug+22+2025%2C+11+39+58+PM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/Photo+Oct+09+2025%2C+8+08+08+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/Photo+Oct+09+2025%2C+8+08+08+PM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/Photo+May+30+2025%2C+12+33+19+AM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/Photo+May+30+2025%2C+12+33+19+AM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/Photo+Dec+12+2024%2C+5+24+01+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/Photo+Dec+12+2024%2C+5+24+01+PM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/Photo+Oct+12+2025%2C+10+29+37+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/Photo+Oct+12+2025%2C+10+29+37+PM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/Photo+Oct+12+2025%2C+11+38+18+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/Photo+Oct+12+2025%2C+11+38+18+PM.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Social-Content/Photo+Sep+11+2025%2C+9+44+52+PM.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Social+Content/Photo+Sep+11+2025%2C+9+44+52+PM.jpg"
   }
 ];
 
 export const BRAND_IMAGES = [
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/_DSC6519_edited.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/_DSC6519_edited.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/_DSC6522_edited+-+Copy.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/_DSC6522_edited+-+Copy.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/_DSC9459.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/_DSC9459.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/_DSC9466.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/_DSC9466.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/A7400381_edited.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/A7400381_edited.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/A7400397_edited.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/A7400397_edited.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/Copy+of+COVER.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/Copy+of+COVER.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/DSC_1232.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/DSC_1232.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/DSC_7280.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/DSC_7280.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/DSC_7763.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/DSC_7763.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/DSC07297.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/DSC07297.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/DSCF0100.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/DSCF0100.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/DV7A9526.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/DV7A9526.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/fitness+3.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/fitness+3.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/Mclaren+5.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/Mclaren+5.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/Nychelitics.webp"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/Nychelitics.webp"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/U+first+Credit+Union+Location+7-3.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/U+first+Credit+Union+Location+7-3.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Brand%26Product/U+first+Credit+Union+Location+11-1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Brand+%26+Product/U+first+Credit+Union+Location+11-1.jpg"
   }
 ];
 
 export const PRIVATE_IMAGES = [
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/Copy+of+Photo-214.jpeg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/Copy+of+Photo-214.jpeg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/0+YES(043)_editedv3.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/0+YES(043)_editedv3.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/DSC09101_edited_11.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/DSC09101_edited_11.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/0+YES(002)_editedv3.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/0+YES(002)_editedv3.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/_JJD1613.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/_JJD1613.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/James+Williams-14.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/James+Williams-14.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/F42A9728.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/F42A9728.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/301A8252.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/301A8252.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/_PJM0048.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/_PJM0048.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/Copy+of+ZG7A8855.jpeg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/Copy+of+ZG7A8855.jpeg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/NZ5_3343.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/NZ5_3343.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/KAWSER-68.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/KAWSER-68.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/KAWSER-541.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/KAWSER-541.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/DSC06814.JPG"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/DSC06814.JPG"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Private-Events/9G5A4875+(1).jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Private+Events/9G5A4875+(1).jpg"
   }
 ];
 
 export const CORPORATE_IMAGES = [
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/_67A0458.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/_67A0458.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/_DSC2718.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/_DSC2718.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/AR204804.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/AR204804.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/Copy+of+Copy+of+1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/Copy+of+Copy+of+1.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/Copy+of+Copy+of+DSC05735.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/Copy+of+Copy+of+DSC05735.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/DSC06451.JPG"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/DSC06451.JPG"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/KARAT+EVENT-20.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/KARAT+EVENT-20.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/KARAT+EVENT-44.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/KARAT+EVENT-44.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/KARAT+EVENT-86.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/KARAT+EVENT-86.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/L1060660.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/L1060660.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/L1060940.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/L1060940.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/P1108246.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/P1108246.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/P1108266.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/P1108266.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/P1108434.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/P1108434.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/P1108494.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/P1108494.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/P1108544.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/P1108544.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/P1108598.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/P1108598.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/P1108922.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/P1108922.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/P1108983.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/P1108983.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/P1109002.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/P1109002.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Corporate-Events/P1109004.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Corporate+Events/P1109004.jpg"
   },
 ];
 
 export const WEDDING_IMAGES = [
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/_J4A9255_editedv1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/_J4A9255_editedv1.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/_L1A2693.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/_L1A2693.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/_W7A1108.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/_W7A1108.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/0+YES(028)_editedv3.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/0+YES(028)_editedv3.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/B7406436_editedv1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/B7406436_editedv1.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/C7405925_editedv1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/C7405925_editedv1.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/Corinna+Avelino+-136.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/Corinna+Avelino+-136.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/DSC_9095_editedv1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/DSC_9095_editedv1.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/DSC00166.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/DSC00166.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/DSC05912_editedv1.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/DSC05912_editedv1.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/DSC09147.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/DSC09147.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/ES6A6921.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/ES6A6921.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/Kawser+%26+Nafisa+Wedding+Reception-314.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/Kawser+%26+Nafisa+Wedding+Reception-314.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/NZ5_3446.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/NZ5_3446.jpg"
   },
   {
     name: "",
-    src: "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/UseCase_Web/Photos/Wedding/Z8V_5756.jpg"
+    src: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/UseCase_Web/Photos/Wedding+/Z8V_5756.jpg"
   }
 ];
 
