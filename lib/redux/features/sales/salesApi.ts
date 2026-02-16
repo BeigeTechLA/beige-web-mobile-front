@@ -275,16 +275,22 @@ export const salesApi = createApi({
       }),
       transformResponse: (response: ApiResponse<FunnelData>) => response.data!,
     }),
-    updateBookingCrew: builder.mutation<
-      ApiResponse<void>,
-      { booking_id: number; crew_roles: Record<string, number> }
-    >({
-      query: ({ booking_id, crew_roles }) => ({
-       url: `sales/bookings/${booking_id}/crew`,
-        method: "PATCH",
-        body: { crew_roles },
-      }),
-    }),
+   updateBookingCrew: builder.mutation<
+  ApiResponse<any>, // Changed to any so you can access response.data
+  { 
+    booking_id: number; 
+    crew_roles: Record<string, number>;
+    location?: string;           // Added
+    description?: string;        // Added
+    reference_links?: string;    // Added
+  }
+>({
+  query: ({ booking_id, ...payload }) => ({ // Use spread to get everything except id
+    url: `sales/bookings/${booking_id}/crew`,
+    method: "PATCH",
+    body: payload, // This now sends crew_roles, location, description, and reference_links
+  }),
+}),
   }),
 });
 
