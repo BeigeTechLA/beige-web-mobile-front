@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent"; // Adjust path as needed
+import Link from "next/link";
 
 export default function ClientDetailPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function ClientDetailPage() {
       <div className="">
         {/* Client Informatio  */}
         <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-          <div className="flex flex-col lg:flex-row gap-2 lg:justify-between lg:items-center p-5 lg:p-9 !pb-0">
+          <div className="flex flex-col lg:flex-row gap-2 lg:justify-between lg:items-center pt-5 px-5 lg:pt-9 lg:px-9 pb-0">
             <h2 className="lg:text-[22px] font-medium text-white">
               Client Information
             </h2>
@@ -50,12 +51,13 @@ export default function ClientDetailPage() {
               >
                 Update Intent
               </Button>
-              <Button
-                className="h-12 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              <Link
+               href={`/admin/sales-representative/client/${leadId}/create-booking`}
+                className="h-12 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed px-3 lg:px-5 whitespace-nowrap text-center"
                 onClick={() => { console.log("Create Booking") }}
               >
                 Create Booking
-              </Button>
+              </Link>
             </div>
           </div>
 
