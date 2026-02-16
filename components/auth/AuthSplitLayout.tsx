@@ -31,7 +31,7 @@ export function AuthSplitLayout({
 }: AuthSplitLayoutProps) {
 
   // const [cardIndex, setCardIndex] = React.useState(0);
-  const videoUrl = "/videos/BeigeLogin.mp4"
+  const videoUrl = "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/videos/BeigeLogin.mp4"
 
   // Switching logic for the 3rd cell
   // React.useEffect(() => {

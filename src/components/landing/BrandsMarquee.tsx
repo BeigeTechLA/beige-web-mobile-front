@@ -4,21 +4,21 @@ import React from "react";
 import { motion } from "framer-motion";
 
 const BRANDS_SET = [
-  { id: 1, name: "DHL", logo: "/logos/DHLLogo.svg" },
-  { id: 2, name: "RollsRoyce", logo: "/logos/Rollsroyce.svg" },
-  { id: 3, name: "OrangeTheory", logo: "/logos/orangeTheory.svg" },
+  { id: 1, name: "DHL", logo: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/DHLLogo.svg" },
+  { id: 2, name: "RollsRoyce", logo: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/Rollsroyce.svg" },
+  { id: 3, name: "OrangeTheory", logo: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/orangeTheory.svg" },
 ];
 
 const BRANDS_SET2 = [
-  { id: 1, name: "Amazon", logo: "/logos/Amazon_logo.svg" },
-  { id: 2, name: "Chase", logo: "/logos/Chase_logo.svg" },
-  { id: 3, name: "YoungLA", logo: "/logos/youngla.png" },
+  { id: 1, name: "Amazon", logo: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/Amazon_logo.svg" },
+  { id: 2, name: "Chase", logo: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/Chase_logo.svg" },
+  { id: 3, name: "YoungLA", logo: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/youngla.png" },
 ];
 
 const BRANDS_SET3 = [
-  { id: 1, name: "Toyota", logo: "/logos/Toyota_Logo.svg" },
-  { id: 2, name: "DHL", logo: "/logos/DHLLogo.svg" },  
-  { id: 3, name: "Karat", logo: "/logos/Karat.svg" },
+  { id: 1, name: "Toyota", logo: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/Toyota_Logo.svg" },
+  { id: 2, name: "DHL", logo: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/DHLLogo.svg" },  
+  { id: 3, name: "Karat", logo: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/Karat.svg" },
 ];
 
 const BrandCard = ({ name, logo }: { name: string; logo: string }) => (
