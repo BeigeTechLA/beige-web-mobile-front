@@ -266,9 +266,9 @@ export default function StackedDashboard() {
           <SwiperSlide>
             <CardWrapper>
               <StatsLayout
-                title="No Of CPs"
-                subtitle="This Is Overall CPs Overview"
-                graphTitle="Category Wise CPs"
+                title="No Of Creative Partners"
+                subtitle="This Is Overall Creative Partners Overview"
+                graphTitle="Category Wise Creative Partners"
                 rightLabel="Top Category"
                 rightValue={getTopCategory()}
                 value={cpCount?.total_cps || "0"}

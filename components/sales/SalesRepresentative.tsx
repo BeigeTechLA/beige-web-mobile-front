@@ -5,7 +5,7 @@ import { Users, TrendingUp, DollarSign, Award } from 'lucide-react';
 
 export default function SalesRepresentative() {
     const stats = [
-        { name: 'Active Clients', value: '48', icon: Users, change: '+12%', changeType: 'positive' },
+        { name: 'Active Users', value: '48', icon: Users, change: '+12%', changeType: 'positive' },
         { name: 'Total Revenue', value: '$127K', icon: DollarSign, change: '+23%', changeType: 'positive' },
         { name: 'Conversion Rate', value: '68%', icon: TrendingUp, change: '+5%', changeType: 'positive' },
         { name: 'Awards Won', value: '12', icon: Award, change: '+3', changeType: 'positive' },
@@ -22,7 +22,7 @@ export default function SalesRepresentative() {
             {/* Header */}
             <div>
                 <h1 className="text-3xl font-bold text-white mb-2">Sales Representative</h1>
-                <p className="text-zinc-400">Track your performance and manage client relationships</p>
+                <p className="text-zinc-400">Track your performance and manage user relationships</p>
             </div>
 
             {/* Stats Grid */}
@@ -49,9 +49,9 @@ export default function SalesRepresentative() {
                 ))}
             </div>
 
-            {/* Client List */}
+            {/* User List */}
             <div className="bg-[#1A1A1A] border border-zinc-800 rounded-xl p-6">
-                <h2 className="text-xl font-semibold text-white mb-4">Top Clients</h2>
+                <h2 className="text-xl font-semibold text-white mb-4">Top Users</h2>
                 <div className="space-y-4">
                     {clients.map((client) => (
                         <div

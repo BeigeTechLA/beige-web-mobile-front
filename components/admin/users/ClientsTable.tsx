@@ -146,8 +146,8 @@ export const ClientsTable = () => {
         <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-white mb-2">Clients</h1>
-                <p className="text-[#888]">Manage and review all registered clients in one place.</p>
+                <h1 className="text-2xl font-bold text-white mb-2">Users</h1>
+                <p className="text-[#888]">Manage and review all registered users in one place.</p>
             </div>
 
             {/* Toolbar */}
@@ -212,7 +212,7 @@ export const ClientsTable = () => {
                         <thead>
                             <tr className="text-[#888] text-sm font-normal border-b border-[#333]">
                                 <th className="py-5 px-6 font-medium">User ID</th>
-                                <th className="py-5 px-6 font-medium">Client Name</th>
+                                <th className="py-5 px-6 font-medium">User Name</th>
                                 <th className="py-5 px-6 font-medium">Email ID</th>
                                 <th className="py-5 px-6 font-medium">Mobile Number</th>
                                 <th className="py-5 px-6 font-medium">Status</th>
@@ -225,14 +225,14 @@ export const ClientsTable = () => {
                                     <td colSpan={6} className="py-20 text-center text-[#888]">
                                         <div className="flex flex-col items-center gap-2">
                                             <div className="w-6 h-6 border-2 border-[#E5D5B8] border-t-transparent rounded-full animate-spin" />
-                                            <span>Loading clients...</span>
+                                            <span>Loading users...</span>
                                         </div>
                                     </td>
                                 </tr>
                             ) : clients.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="py-20 text-center text-[#888]">
-                                        No clients found for the selected filters.
+                                        No users found for the selected filters.
                                     </td>
                                 </tr>
                             ) : (

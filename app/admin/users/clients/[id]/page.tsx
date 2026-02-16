@@ -91,8 +91,8 @@ export default function ClientDetailsPage() {
           <ChevronLeft size={20} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold">{client?.name || "Client Details"}</h1>
-          <p className="text-[#888] text-sm font-medium">Client ID: #{client?.client_id}</p>
+          <h1 className="text-2xl font-bold">{client?.name || "User Details"}</h1>
+          <p className="text-[#888] text-sm font-medium">User ID: #{client?.client_id}</p>
         </div>
       </div>
 
@@ -104,7 +104,7 @@ export default function ClientDetailsPage() {
                     <User size={20} />
                 </div>
                 <div className="space-y-1">
-                    <p className="text-[#666] text-[10px] uppercase font-bold tracking-widest">Client Name</p>
+                    <p className="text-[#666] text-[10px] uppercase font-bold tracking-widest">User Name</p>
                     <p className="text-white text-lg font-semibold">{client?.name}</p>
                 </div>
             </div>

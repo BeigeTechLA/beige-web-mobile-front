@@ -201,7 +201,7 @@ export default function AdminSaleRepManagerPage() {
     if (leadsApiData?.leads) {
       const mapped = (leadsApiData.leads || []).map((lead: any) => ({
         lead_id: lead.lead_id,
-        clientName: lead.client_name || lead.guest_email || "Unknown Client",
+        clientName: lead.client_name || lead.guest_email || "Unknown User",
         email: lead.guest_email || "No email",
         leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
         bookingStatus: mapLeadStatusToUI(lead.payment_status),
@@ -286,7 +286,7 @@ export default function AdminSaleRepManagerPage() {
                 : "text-[#777] hover:text-white"
                 }`}
             >
-              {tab === "Creative Partner" ? "CreativePartner_Signup" : tab === "Booking" ? "Booking_Leads" : "Client_Signup"}
+              {tab === "Creative Partner" ? "CreativePartner_Signup" : tab === "Booking" ? "Booking_Leads" : "User_Signup"}
             </button>
           ))}
         </div>
@@ -315,7 +315,7 @@ export default function AdminSaleRepManagerPage() {
             ) : (
               <>
                 {/* MOBILE LIST VIEW */}
-                <div className={`lg:hidden flex flex-col gap-2 transition-opacity duration-200 ${leadsIsFetching ? 'opacity-50' : 'opacity-100'}`}>
+                  <div className={`lg:hidden flex flex-col gap-2 transition-opacity duration-200 ${leadsIsFetching ? 'opacity-50' : 'opacity-100'}`}>
                   {displayLeads.map((lead) => (
                     <MobileLeadRow
                       key={lead.lead_id}
@@ -331,7 +331,7 @@ export default function AdminSaleRepManagerPage() {
                     <thead>
                       <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
                         <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">
-                          Client Name
+                          User Name
                         </th>
                         <th className="py-5 px-6 font-medium border-b border-[#333333]">
                           Email ID

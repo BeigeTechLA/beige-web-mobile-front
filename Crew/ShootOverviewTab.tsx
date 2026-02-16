@@ -12,7 +12,7 @@ export default function ShootOverviewTab({ project }: any) {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 lg:gap-y-10 lg:gap-x-16">
             <DetailItem label="Shoot Name" value={project.project_name} />
-            <DetailItem label="Client Name" value="Luxe Apparel Co." />
+            <DetailItem label="User Name" value="Luxe Apparel Co." />
             
             <DetailItem 
               label="Shoot Type" 

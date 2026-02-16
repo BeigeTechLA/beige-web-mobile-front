@@ -31,7 +31,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
           {/* Details Grid */}
           <div className="grid grid-cols-2 gap-y-3.5 gap-x-4">
             <div className="space-y-1">
-              <p className="text-xs uppercase tracking-widest text-white font-medium">Client Name</p>
+              <p className="text-xs uppercase tracking-widest text-white font-medium">User Name</p>
               <p className="text-base text-[#767676]">Sarah Johnson</p>
             </div>
             <div></div> {/* Empty for alignment */}
