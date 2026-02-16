@@ -19,7 +19,7 @@ const menuItems = [
     icon: Users,
     children: [
       { name: 'All Users', link: '/admin/users/all' },
-      { name: 'Clients', link: '/admin/users/clients' },
+      { name: 'Users', link: '/admin/users/clients' },
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },

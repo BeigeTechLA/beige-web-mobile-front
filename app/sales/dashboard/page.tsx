@@ -199,7 +199,7 @@ export default function SalesLeadsPage() {
   // Map backend data to UI format
   const leadsData: LeadData[] = (data?.leads || []).map((lead: SalesLead) => ({
     lead_id: lead.lead_id,
-    clientName: lead.client_name || lead.guest_email || "Unknown Client",
+    clientName: lead.client_name || lead.guest_email || "Unknown User",
     email: lead.guest_email || "No email",
     leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
     bookingStatus: mapLeadStatusToUI(lead.lead_status),
@@ -292,7 +292,7 @@ export default function SalesLeadsPage() {
                 : "text-[#777] hover:text-white"
                 }`}
             >
-              {tab}
+              {tab === "creative_partner_signup" ? "CreativePartner_Signup" : tab === "booking_leads" ? "Booking_Leads" : "User_Signup"}
             </button>
           ))}
         </div>
@@ -314,7 +314,7 @@ export default function SalesLeadsPage() {
                 {/* --- MOBILE VIEW (Collapsible Cards) --- */}
                 <div className="lg:hidden space-y-1">
                   <div className="flex justify-between text-[#E8D1AB] text-sm font-medium p-4 bg-[#101010] rounded-b-2xl border-b border-b-white/5">
-                    <span>Client Name</span>
+                    <span>User Name</span>
                     <span>Booking Status</span>
                   </div>
                   {leadsData.map((lead) => {
@@ -396,7 +396,7 @@ export default function SalesLeadsPage() {
                     <thead>
                       <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
                         <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">
-                          Client Name
+                          User Name
                         </th>
                         <th className="py-5 px-6 font-medium border-b border-[#333333]">
                           Email ID

@@ -18,8 +18,8 @@ const initialMetrics = [
   { id: 'total', label: 'Total Shoots', value: '0', growth: 0, icon: Video, color: 'bg-[#E5D5B8]' },
   { id: 'active', label: 'Active Shoots', value: '0', growth: 0, icon: Camera, color: 'bg-zinc-800' },
   { id: 'completed', label: 'Completed Shoots', value: '0', growth: 0, icon: Film, color: 'bg-zinc-800' },
-  { id: 'clients', label: 'Total Clients', value: '0', growth: 0, icon: UsersRound, color: 'bg-zinc-800' },
-  { id: 'cps', label: 'Total CPs', value: '0', growth: 0, icon: Users, color: 'bg-zinc-800' },
+  { id: 'clients', label: 'Total Users', value: '0', growth: 0, icon: UsersRound, color: 'bg-zinc-800' },
+  { id: 'cps', label: 'Total Creative Partners', value: '0', growth: 0, icon: Users, color: 'bg-zinc-800' },
 ];
 
 interface OverviewChartProps {
@@ -103,14 +103,14 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
             },
             {
               id: 'clients',
-              label: 'Total Clients',
+              label: 'Total Users',
               value: summary.total_clients?.count?.toString() || '0',
               growth: summary.total_clients?.growth || 0,
               icon: UsersRound,
             },
             {
               id: 'cps',
-              label: 'Approved CPs',
+              label: 'Total Creative Partners',
               value: summary.approved_CPs?.count?.toString() || '0',
               growth: summary.approved_CPs?.growth || 0,
               icon: Users,

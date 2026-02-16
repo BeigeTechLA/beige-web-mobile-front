@@ -97,7 +97,7 @@ export default function SalesSalesRepManagerPage() {
   // Map backend data to UI format
   const leadsData: LeadData[] = (data?.leads || []).map((lead: SalesLead) => ({
     lead_id: lead.lead_id,
-    clientName: lead.client_name || lead.guest_email || "Unknown Client",
+    clientName: lead.client_name || lead.guest_email || "Unknown User",
     email: lead.guest_email || "No email",
     leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
     bookingStatus: mapLeadStatusToUI(lead.lead_status),
@@ -208,7 +208,7 @@ export default function SalesSalesRepManagerPage() {
                 <thead>
                   <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
                     <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">
-                      Client Name
+                      User Name
                     </th>
                     <th className="py-5 px-6 font-medium border-b border-[#333333]">
                       Email ID

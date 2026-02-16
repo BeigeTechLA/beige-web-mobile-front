@@ -170,7 +170,7 @@ export const UserManagementTabbed = () => {
                             : "text-[#777] hover:text-white"
                             }`}
                     >
-                        {tab === "Creative Partner" ? "Creative Partners" : tab === "Client" ? "Clients" : "All Users"}
+                        {tab === "Creative Partner" ? "Creative Partners" : tab === "Client" ? "Users" : "All Users"}
                     </button>
                 ))}
             </div>

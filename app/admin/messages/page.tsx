@@ -71,7 +71,7 @@ export default function MessagesPage() {
         <div>
           <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">Messages</h1>
           <p className="text-xs lg:text-sm text-white/70">
-            Communicate with clients and manage all your conversation in one place
+            Communicate with Users and manage all your conversation in one place
           </p>
         </div>
       </div>
@@ -206,7 +206,7 @@ export default function MessagesPage() {
               </div>
               <div className="space-y-1.5">
                 <div className="bg-[#161616] p-4 rounded-[18px] rounded-tl-none border border-zinc-800/60 shadow-sm">
-                  <span className="text-[10px] text-zinc-500 uppercase block mb-1.5">~ Client</span>
+                  <span className="text-[10px] text-zinc-500 uppercase block mb-1.5">~ User</span>
                   <p className="text-[13px] text-zinc-300 leading-relaxed font-medium">
                     Hey! Quick Question - Are Drone Shots Confirmed for the shoots
                   </p>

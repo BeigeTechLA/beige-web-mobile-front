@@ -78,7 +78,7 @@ export default function LeadDetailPage() {
   const booking = lead?.booking;
 
   // Extract data with defaults
-  const clientName = lead?.client_name || lead?.guest_email || "Unknown Client";
+  const clientName = lead?.client_name || lead?.guest_email || "Unknown User";
   const initials = clientName
     .split(" ")
     .map((n) => n[0])
@@ -187,7 +187,7 @@ export default function LeadDetailPage() {
           {/* Client Details Card */}
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
             <h2 className="lg:text-xl font-medium text-white p-5 lg:p-9">
-              Client Details
+              User Details
             </h2>
             <div
               className="h-[1px] w-full"
