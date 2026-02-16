@@ -15,7 +15,7 @@ type MultiSelectDropdownProps = {
   bgColour: string;
   onChange: (keys: string[]) => void;
   maxDisplay?: number; // Max number of pills to display before showing "+N more"
-  isDisabled?: boolean; // Added prop
+  isDisabled?: boolean;
 };
 
 export default function MultiSelectDropdown({
@@ -28,7 +28,8 @@ export default function MultiSelectDropdown({
   isDisabled = false,
 }: MultiSelectDropdownProps) {
   const [open, setOpen] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false); // State for hover popup
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [hoveredPill, setHoveredPill] = useState<string | null>(null); // Track which pill is hovered
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -45,8 +46,7 @@ export default function MultiSelectDropdown({
 
   const selectedOptions = options.filter((o) => value.includes(o.key));
   const displayOptions = selectedOptions.slice(0, maxDisplay);
-  // const remainingCount = selectedOptions.length - maxDisplay;
-  const remainingOptions = selectedOptions.slice(maxDisplay); // Get the rest
+  const remainingOptions = selectedOptions.slice(maxDisplay);
   const remainingCount = remainingOptions.length;
 
   const handleToggle = (key: string) => {
@@ -87,7 +87,9 @@ export default function MultiSelectDropdown({
               {displayOptions.map((option) => (
                 <div
                   key={option.key}
-                  className="flex items-center gap-1.5 bg-[#2A2A2A] px-2 py-1 rounded-md text-white text-xs lg:text-sm"
+                  className="relative flex items-center gap-1.5 bg-[#2A2A2A] px-2 py-1 rounded-md text-white text-xs lg:text-sm"
+                  onMouseEnter={() => setHoveredPill(option.key)}
+                  onMouseLeave={() => setHoveredPill(null)}
                 >
                   <span className="truncate max-w-[120px]">{option.value}</span>
                   <X
@@ -95,6 +97,14 @@ export default function MultiSelectDropdown({
                     className="cursor-pointer opacity-70 hover:opacity-100 flex-shrink-0"
                     onClick={(e) => handleRemove(option.key, e)}
                   />
+
+                  {/* Individual Pill Hover Popup */}
+                  {hoveredPill === option.key && (
+                    <div className="absolute bottom-full mb-2 left-0 z-50 bg-[#1A1A1A] border border-white/10 p-2 px-3 rounded-lg shadow-2xl animate-in fade-in zoom-in duration-200">
+                      <span className="text-white text-xs whitespace-nowrap">{option.value}</span>
+                      <div className="absolute top-full left-4 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-[#1A1A1A]"></div>
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -114,7 +124,7 @@ export default function MultiSelectDropdown({
                     <div className="absolute bottom-full mb-2 left-0 z-50 bg-[#1A1A1A] border border-white/10 p-3 rounded-lg shadow-2xl min-w-[150px] animate-in fade-in zoom-in duration-200">
                       <div className="flex flex-col gap-2">
                         {remainingOptions.map((option) => (
-                          <div key={option.key} className="flex items-center justify-between gap-3  pb-1 last:pb-0">
+                          <div key={option.key} className="flex items-center justify-between gap-3 pb-1 last:pb-0">
                             <span className="text-white text-xs whitespace-nowrap">{option.value}</span>
                           </div>
                         ))}
@@ -147,35 +157,22 @@ export default function MultiSelectDropdown({
         )}
       </div>
 
-      {/* Dropdown */}
-      {open && !isDisabled && ( // Added extra safety check here
-        <div
-          className={`absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto`}
-        >
+      {open && !isDisabled && (
+        <div className={`absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto`}>
           {options.map((option) => {
             const isSelected = value.includes(option.key);
-
             return (
               <div
                 key={option.key}
                 onClick={() => handleToggle(option.key)}
                 className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition
-                  ${isSelected
-                    ? "bg-[#E8D1AB]/10 text-white"
-                    : "text-white/50 hover:bg-white/5"
-                  }`}
+                  ${isSelected ? "bg-[#E8D1AB]/10 text-white" : "text-white/50 hover:bg-white/5"}`}
               >
                 {/* Checkbox */}
-                <div
-                  className={`w-5 h-5 shrink-0 rounded flex items-center justify-center border transition-all
-                    ${isSelected
-                      ? "border-[#E8D1AB] bg-[#E8D1AB]"
-                      : "border-white/30"
-                    }`}
-                >
+                <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center border transition-all
+                    ${isSelected ? "border-[#E8D1AB] bg-[#E8D1AB]" : "border-white/30"}`}>
                   {isSelected && <Check size={14} className="text-black" strokeWidth={3} />}
                 </div>
-
                 <span className="text-sm lg:text-base">{option.value}</span>
               </div>
             );
