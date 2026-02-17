@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Image from "next/image";
+
 import {
   Calendar,
   MapPin,
@@ -12,12 +14,14 @@ import {
   DollarSign,
   MapPinned,
   Copy,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useGetLeadByIdQuery,
   useGenerateDiscountCodeMutation,
 } from "@/lib/redux/features/sales/salesApi";
+
 import { LEAD_TYPE_LABELS } from "@/types/sales";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils/discountHelpers";
@@ -26,6 +30,14 @@ import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
+
+// Swiper imports
+import { Swiper, SwiperSlide } from "swiper/react";
+import { EffectCoverflow } from "swiper/modules";
+
+// Swiper styles
+import "swiper/css";
+import "swiper/css/effect-coverflow";
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
@@ -53,6 +65,14 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+// Mock CP data
+const assignedCPs = [
+  { id: 1, name: "Ethan Cole", email: "ethan@example.com", image: "/images/crew/CREW(6).png", earnings: "$1,200.00", bgColor: "bg-blue-200" },
+  { id: 2, name: "Sarah Miller", email: "sarah@example.com", image: "/images/crew/CREW(5).png", earnings: "$2,450.00", bgColor: "bg-green-200" },
+  { id: 3, name: "David Chen", email: "david@example.com", image: "/images/crew/CREW(4).png", earnings: "$980.00", bgColor: "bg-orange-100" },
+  { id: 4, name: "Jessica V.", email: "jess@example.com", image: "/images/crew/CREW(3).png", earnings: "$3,100.00", bgColor: "bg-purple-200" },
+];
+
 export default function LeadDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -65,6 +85,9 @@ export default function LeadDetailPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [usageType, setUsageType] = useState<"one_time" | "multi_use">("one_time");
   const [generatedCode, setGeneratedCode] = useState<string>("");
+  const [activeCPIndex, setActiveCPIndex] = useState(0);
+
+  const activePartner = assignedCPs[activeCPIndex % assignedCPs.length];
 
   // Fetch real lead data
   const {
@@ -192,7 +215,7 @@ export default function LeadDetailPage() {
           {/* Client Details Card */}
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
             <h2 className="lg:text-xl font-medium text-white p-5 lg:p-9">
-              User Details
+              Client Details
             </h2>
             <div
               className="h-[1px] w-full"
@@ -255,6 +278,90 @@ export default function LeadDetailPage() {
                   Assigned Sales Rep : <span className="text-white">{"John Doe"}</span>
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Assigned CPs */}
+          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
+            <div className="flex justify-between items-center  p-4 !pb-0 lg:p-9">
+              <h2 className="lg:text-xl font-medium text-white">
+                Assigned CPs (04)
+                {/* Number to be dynamic */}
+              </h2>
+              <Button
+                className="h-12 w-fit bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 px-6 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              // onClick={handleGenerateDiscount}
+              >
+                <Plus className="text-black" size={18} /> Add More CPs
+              </Button>
+            </div>
+            <DottedDivider />
+            <div className="p-5 lg:p-9 space-y-6">
+              {/* Slider Section */}
+              <div className="relative pb-4">
+                {isLoading ? (
+                  <div className="h-[200px] flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]" />
+                  </div>
+                ) : assignedCPs.length > 0 ? (
+                  <Swiper
+                    effect={"coverflow"}
+                    grabCursor={true}
+                    centeredSlides={true}
+                    slidesPerView={1.5} // Better fit for the 8-column span on desktop
+                    breakpoints={{
+                      640: { slidesPerView: 2 },
+                      1024: { slidesPerView: 3 }
+                    }}
+                    initialSlide={0}
+                    loop={assignedCPs.length >= 3}
+                    spaceBetween={20}
+                    coverflowEffect={{
+                      rotate: 40,
+                      stretch: 0,
+                      depth: 100,
+                      modifier: 1,
+                      slideShadows: false,
+                    }}
+                    modules={[EffectCoverflow]}
+                    onSlideChange={(swiper) => setActiveCPIndex(swiper.realIndex)}
+                    className="w-full"
+                  >
+                    {assignedCPs.map((cp, index) => (
+                      <SwiperSlide key={cp.id} className="flex items-center justify-center">
+                        <div
+                          className={`relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] rounded-[20px] overflow-hidden transition-all duration-500 ${cp.bgColor}`}
+                        >
+                          <Image
+                            src={cp.image}
+                            alt={cp.name}
+                            fill
+                            className="object-cover object-top"
+                          />
+                        </div>
+                      </SwiperSlide>
+                    ))}
+                  </Swiper>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-white/50">
+                    No partners found.
+                  </div>
+                )}
+              </div>
+
+              {/* Active Partner Info - Centered Design */}
+              {activePartner && (
+                <div className="flex flex-col items-center text-center space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-semibold text-white">
+                      {activePartner.name}
+                    </h3>
+                    <p className="text-white/40 text-sm tracking-wide">
+                      {activePartner.email}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -467,6 +574,13 @@ export default function LeadDetailPage() {
           </div>
 
           <GeneratePaymentLink />
+
+          {/* Show only after booking is created? */}
+          <div className="lg:text-right lg:mt-[82px]">
+            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+              Change CPs
+            </Button>
+          </div>
         </div>
       </div>
     </div>
