@@ -67,7 +67,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   }).filter(Boolean);
 
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
-
+  const [errors, setErrors] = useState<string[]>([]);
 
   const [updateBookingCrew] = useUpdateBookingCrewMutation();
 
@@ -105,6 +105,12 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     }
   }, [includedRoles.length, extraTeam, data.crewCount, updateData]);
 
+  // Automatically clear the location error once data.location is truthy
+  useEffect(() => {
+    if (data.location && errors.includes("locationError")) {
+      setErrors(prev => prev.filter(err => err !== "locationError"));
+    }
+  }, [data.location, errors]);
   // const handleNext = async () => {
   //   if (!data.location) {
   //     toast.error("Please select a location");
@@ -159,60 +165,61 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   // Inside V3Step2MoreDetails.tsx
 
-const handleNext = async () => {
-  if (!data.location) {
-    toast.error("Please select a location");
-    return;
-  }
-
-  if (!data.bookingId) {
-    toast.error("Booking reference missing. Please restart.");
-    return;
-  }
-
-  const crewRoles: Record<string, number> = {};
-
-  // 1. Calculate Base Crew (Step 1 choices)
-  includedRoles.forEach((role: any) => {
-    crewRoles[role.id] = 1;
-  });
-
-  // 2. Add Extra Crew (Step 2 choices)
-  Object.entries(extraTeam).forEach(([roleId, count]) => {
-    if (count > 0) {
-      crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
+  const handleNext = async () => {
+    if (!data.location) {
+      toast.error("Please select a location");
+      setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
+      return;
     }
-  });
 
-  try {
-    // 3. CALL API WITH ALL DETAILS
-    const response = await updateBookingCrew({
-      booking_id: data.bookingId,
-      crew_roles: crewRoles,
-      location: data.location,               // NEW: From LocationPicker
-      description: data.specialInstructions,  // NEW: From Textarea
-      reference_links: data.referenceLinks,   // NEW: From Input
-    }).unwrap();
+    if (!data.bookingId) {
+      toast.error("Booking reference missing. Please restart.");
+      return;
+    }
 
-    const serverCrewRoles = response.data.crew_roles;
-    const vCount = serverCrewRoles.videographer || 0;
-    const pCount = serverCrewRoles.photographer || 0;
+    const crewRoles: Record<string, number> = {};
 
-    // Update local context for Step 3/4
-    updateData({
-      roleCounts: serverCrewRoles,
-      videographyCount: vCount,
-      photographyCount: pCount,
-      crewCount: vCount + pCount
+    // 1. Calculate Base Crew (Step 1 choices)
+    includedRoles.forEach((role: any) => {
+      crewRoles[role.id] = 1;
     });
 
-    onNext();
-  } catch (error) {
-    console.error("Save error:", error);
-    toast.error("Failed to save project details");
-  }
-};
-  
+    // 2. Add Extra Crew (Step 2 choices)
+    Object.entries(extraTeam).forEach(([roleId, count]) => {
+      if (count > 0) {
+        crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
+      }
+    });
+
+    try {
+      // 3. CALL API WITH ALL DETAILS
+      const response = await updateBookingCrew({
+        booking_id: data.bookingId,
+        crew_roles: crewRoles,
+        location: data.location,               // NEW: From LocationPicker
+        description: data.specialInstructions,  // NEW: From Textarea
+        reference_links: data.referenceLinks,   // NEW: From Input
+      }).unwrap();
+
+      const serverCrewRoles = response.data.crew_roles;
+      const vCount = serverCrewRoles.videographer || 0;
+      const pCount = serverCrewRoles.photographer || 0;
+
+      // Update local context for Step 3/4
+      updateData({
+        roleCounts: serverCrewRoles,
+        videographyCount: vCount,
+        photographyCount: pCount,
+        crewCount: vCount + pCount
+      });
+
+      onNext();
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error("Failed to save project details");
+    }
+  };
+
   const availableRolesToAdd = TEAM_ROLES.filter(role => {
     if (data.contentType.includes(role.id)) return true;
     return false;
@@ -353,6 +360,8 @@ const handleNext = async () => {
           }}
           placeholder="Search for a location"
           colors={darkThemeColors}
+          // error
+          hasError = {errors.includes("locationError")}
         />
       </div>
 

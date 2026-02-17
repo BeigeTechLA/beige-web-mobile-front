@@ -9,14 +9,15 @@ import Image from "next/image";
 const salesMenuItems = [
   { name: 'Sales', icon: LayoutDashboard, link: '/sales/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
-  { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
+  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', isDisabled: true },
+  { name: 'Messages', icon: MessageCircle, link: '/sales/messages', isDisabled: true },
 ];
 
 type SalesMenuItem = {
   name: string;
   icon: any;
   link?: string;
+  isDisabled?: boolean;
 };
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -80,17 +81,30 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         <nav className="space-y-2">
           {salesMenuItems.map((item) => {
             const active = isActiveLink(item.link);
+            const isDisabled = item.isDisabled;
 
             return (
               <div key={item.name}>
-                <Link
-                  href={item.link || '#'}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm ${active ? 'bg-[#E5D5B8] text-black' : 'text-zinc-500 hover:text-white'
-                    }`}
-                >
-                  <item.icon size={20} />
-                  <span className="font-medium">{item.name}</span>
-                </Link>
+                {isDisabled ? (
+                  /* Render a DIV instead of a LINK if disabled */
+                  <div
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-700 cursor-not-allowed select-none group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon size={20} />
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <Link
+                    href={item.link || '#'}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm ${active ? 'bg-[#E5D5B8] text-black' : 'text-zinc-500 hover:text-white'
+                      }`}
+                  >
+                    <item.icon size={20} />
+                    <span className="font-medium">{item.name}</span>
+                  </Link>
+                )}
               </div>
             );
           })}

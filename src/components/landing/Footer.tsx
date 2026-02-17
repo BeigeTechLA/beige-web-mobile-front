@@ -21,24 +21,31 @@ import { Separator } from "./Separator";
 
 const FOOTER_LINKS = [
   {
-    name: "Media",
-    link: "https://beigemedia.ai/"
-  }, {
-    name: "Weddings",
-    link: "https://weddings.beigemedia.ai/"
-  }, {
-    name: "Fleet",
-    link: "https://fleet.beigemedia.ai/"
-  }, {
-    name: "Studios",
-    link: "https://studios.beigemedia.ai/"
-  }, {
-    name: "Creators",
-    link: "https://creators.beigemedia.ai/"
-  }, {
-    name: "Blog",
-    link: "https://blog.beigemedia.ai/"
+    name: "Home",
+    link: "/"
   },
+  { name: "About", link: "#about" },
+  { name: "Find Creative Work", link: "/find-creative-work" },
+  // { label: "Use Cases", href: "#usecases", hasDropdown: true },
+  // {
+  //   name: "Media",
+  //   link: "https://beigemedia.ai/"
+  // }, {
+  //   name: "Weddings",
+  //   link: "https://weddings.beigemedia.ai/"
+  // }, {
+  //   name: "Fleet",
+  //   link: "https://fleet.beigemedia.ai/"
+  // }, {
+  //   name: "Studios",
+  //   link: "https://studios.beigemedia.ai/"
+  // }, {
+  //   name: "Creators",
+  //   link: "https://creators.beigemedia.ai/"
+  // }, {
+  //   name: "Blog",
+  //   link: "https://blog.beigemedia.ai/"
+  // },
 ]
 // [Facebook, Linkedin, Youtube, Instagram]
 
@@ -118,12 +125,12 @@ export const Footer = () => {
             </Button>
             {/* </div> */}
 
-            <Button
+            {/* <Button
               onClick={handleInvestor}
               className="bg-[#ECE1CE] text-black hover:bg-[#dcb98a] h-[48px] px-6 rounded-lg text-lg font-medium w-fit"
             >
               Become a Investor
-            </Button>
+            </Button> */}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 xl:gap-0">
@@ -139,7 +146,7 @@ export const Footer = () => {
                       <li key={`footer_link_${footerItem.name.split(" ").join("_")}`}>
                         <Link
                           href={footerItem.link}
-                          target="_blank" rel="noopener noreferrer"
+                          // target="_blank" rel="noopener noreferrer"
                           className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium capitalize"
                         >
                           {footerItem.name}

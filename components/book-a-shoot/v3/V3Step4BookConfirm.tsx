@@ -91,22 +91,23 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const [crewBreakdown, setCrewBreakdown] = useState<
     Array<{ role: string; cost: number }>
   >([]);
+  const [errors, setErrors] = useState<string[]>([])
 
   // Check if any editing services are selected
   const hasEditing = data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0;
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
-  shootCost: number;
-  additionalCP: { totalCost: number; videoCount: number; photoCount: number };
-  mandatoryAddons: Array<{ role: string; cost: number }>;
-  editingFees: number; // ADDED
-}>({
-  shootCost: 0,
-  additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
-  mandatoryAddons: [],
-  editingFees: 0, // INITIALIZED
-});
+    shootCost: number;
+    additionalCP: { totalCost: number; videoCount: number; photoCount: number };
+    mandatoryAddons: Array<{ role: string; cost: number }>;
+    editingFees: number; // ADDED
+  }>({
+    shootCost: 0,
+    additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
+    mandatoryAddons: [],
+    editingFees: 0, // INITIALIZED
+  });
 
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(true);
@@ -124,6 +125,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const handlePay = () => {
     if (!data.fullName || !data.phone) {
       toast.error("Please fill in your contact information");
+      setErrors((prev) => [...prev, "contactError"]);
       return;
     }
     // Trigger submission
@@ -145,177 +147,184 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   }, [data.startDate, data.endDate]);
 
   // Calculate quote when component mounts or data changes
- useEffect(() => {
-  const fetchQuote = async () => {
-    // Check if we have duration
-    if (durationHours === 0) {
-      setQuoteTotal(null);
-      setCrewBreakdown([]);
-      return;
-    }
+  useEffect(() => {
+    const fetchQuote = async () => {
+      // Check if we have duration
+      if (durationHours === 0) {
+        setQuoteTotal(null);
+        setCrewBreakdown([]);
+        return;
+      }
 
-    try {
-      console.log("V3Step4BookConfirm - Sending to API:", {
-        creator_ids: data.selectedCrewIds,
-        selectedCrewCount: data.selectedCrewIds?.length || 0,
-        shoot_hours: durationHours,
-        event_type: data.shootType,
-        crewCount: data.crewCount,
-        shoot_start_date: data.startDate, // Verification log
-      });
+      try {
+        console.log("V3Step4BookConfirm - Sending to API:", {
+          creator_ids: data.selectedCrewIds,
+          selectedCrewCount: data.selectedCrewIds?.length || 0,
+          shoot_hours: durationHours,
+          event_type: data.shootType,
+          crewCount: data.crewCount,
+          shoot_start_date: data.startDate, // Verification log
+        });
 
-      // Use the correct endpoint that handles multiple creators and mandatory fees
-      // const result = await calculateQuoteFromCreators({
-      //   creator_ids: data.selectedCrewIds,
-      //   shoot_hours: durationHours,
-      //   role_counts: data.roleCounts,
-      //   event_type: data.shootType || "general",
-      //   shoot_start_date: data.startDate, // <--- PASSING THE DATE FOR RUSH FEE CALCULATION
-      //   skip_discount: true, // Remove hour-based discounts for V3
-      //   skip_margin: true,   // Remove beige margin for V3
-      // }).unwrap();
+        // Use the correct endpoint that handles multiple creators and mandatory fees
+        // const result = await calculateQuoteFromCreators({
+        //   creator_ids: data.selectedCrewIds,
+        //   shoot_hours: durationHours,
+        //   role_counts: data.roleCounts,
+        //   event_type: data.shootType || "general",
+        //   shoot_start_date: data.startDate, // <--- PASSING THE DATE FOR RUSH FEE CALCULATION
+        //   skip_discount: true, // Remove hour-based discounts for V3
+        //   skip_margin: true,   // Remove beige margin for V3
+        // }).unwrap();
 
-      const result = await calculateQuoteFromCreators({
-        creator_ids: data.selectedCrewIds,
-        shoot_hours: durationHours,
-        role_counts: data.roleCounts,
-        event_type: data.shootType || "general",
-        shoot_start_date: data.startDate,
-        video_edit_types: data.videoEditTypes, // ADDED
-        photo_edit_types: data.photoEditTypes, // ADDED
-        skip_discount: true,
-        skip_margin: true,
-      }).unwrap();
+        const result = await calculateQuoteFromCreators({
+          creator_ids: data.selectedCrewIds,
+          shoot_hours: durationHours,
+          role_counts: data.roleCounts,
+          event_type: data.shootType || "general",
+          shoot_start_date: data.startDate,
+          video_edit_types: data.videoEditTypes, // ADDED
+          photo_edit_types: data.photoEditTypes, // ADDED
+          skip_discount: true,
+          skip_margin: true,
+        }).unwrap();
 
-      console.log("V3Step4BookConfirm - API Result:", {
-        total: result.total,
-        creators: result.creators,
-        lineItems: result.lineItems,
-        shootHours: result.shootHours,
-        durationHours,
-      });
+        console.log("V3Step4BookConfirm - API Result:", {
+          total: result.total,
+          creators: result.creators,
+          lineItems: result.lineItems,
+          shootHours: result.shootHours,
+          durationHours,
+        });
 
-      // result.total now includes Pre-Production and Rush Fees from backend logic
-      setQuoteTotal(result.total);
+        // result.total now includes Pre-Production and Rush Fees from backend logic
+        setQuoteTotal(result.total);
 
-      // --- START CATEGORIZATION LOGIC ---
-      let shootCostTotal = 0;
-      let editFeesTotal = 0;
-      let addVideoCount = 0;
-      let addPhotoCount = 0;
-      let addCPTotalCost = 0;
-      const mandatoryAddonsList: Array<{ role: string; cost: number }> = [];
+        // --- START CATEGORIZATION LOGIC ---
+        let shootCostTotal = 0;
+        let editFeesTotal = 0;
+        let addVideoCount = 0;
+        let addPhotoCount = 0;
+        let addCPTotalCost = 0;
+        const mandatoryAddonsList: Array<{ role: string; cost: number }> = [];
 
-      if (result.lineItems && result.lineItems.length > 0) {
-        result.lineItems.forEach((item: any) => {
-          const name = item.item_name;
-          const quantity = parseInt(item.quantity || 1);
-          const lineTotal = parseFloat(item.line_total || 0);
-          const unitPrice = lineTotal / quantity;
+        if (result.lineItems && result.lineItems.length > 0) {
+          result.lineItems.forEach((item: any) => {
+            const name = item.item_name;
+            const quantity = parseInt(item.quantity || 1);
+            const lineTotal = parseFloat(item.line_total || 0);
+            const unitPrice = lineTotal / quantity;
 
-          // 1. Shoot Cost: Includes Pre-production, Rush Fees, and 1 unit of Video/Photo
-          if (name.includes("Pre-Production") || name.toLowerCase().includes("rush")) {
-            shootCostTotal += lineTotal;
-          } 
-         if (item.category_slug === 'editing') {
-      editFeesTotal += lineTotal;
-    } 
-
-          else if (name === "Videographer" || name === "Photographer") {
-            // Add first unit to Shoot Cost
-            shootCostTotal += unitPrice;
-            
-            // If more than 1, aggregate the rest for "Additional Creative Partner Fees"
-            if (quantity > 1) {
-              const extraQty = quantity - 1;
-              addCPTotalCost += unitPrice * extraQty;
-              if (name === "Videographer") addVideoCount += extraQty;
-              if (name === "Photographer") addPhotoCount += extraQty;
+            // 1. Shoot Cost: Includes Pre-production, Rush Fees, and 1 unit of Video/Photo
+            if (name.includes("Pre-Production") || name.toLowerCase().includes("rush")) {
+              shootCostTotal += lineTotal;
             }
-          }
-          // 2. Mandatory Add-ons: PA, Sound, Director, Gaffer or Equipment
-          else if (item.is_mandatory) {
-            mandatoryAddonsList.push({
-              role: name,
-              cost: lineTotal
-            });
-          }
-          // 3. Fallback for other items (not Photo/Video but also not mandatory)
-          else {
+            if (item.category_slug === 'editing') {
+              editFeesTotal += lineTotal;
+            }
+
+            else if (name === "Videographer" || name === "Photographer") {
+              // Add first unit to Shoot Cost
+              shootCostTotal += unitPrice;
+
+              // If more than 1, aggregate the rest for "Additional Creative Partner Fees"
+              if (quantity > 1) {
+                const extraQty = quantity - 1;
+                addCPTotalCost += unitPrice * extraQty;
+                if (name === "Videographer") addVideoCount += extraQty;
+                if (name === "Photographer") addPhotoCount += extraQty;
+              }
+            }
+            // 2. Mandatory Add-ons: PA, Sound, Director, Gaffer or Equipment
+            else if (item.is_mandatory) {
+              mandatoryAddonsList.push({
+                role: name,
+                cost: lineTotal
+              });
+            }
+            // 3. Fallback for other items (not Photo/Video but also not mandatory)
+            else {
               // We'll treat other non-mandatory roles as additional CP fees as well
               addCPTotalCost += lineTotal;
-          }
+            }
+          });
+        }
+
+        setPricingGroups({
+          shootCost: shootCostTotal,
+          editingFees: editFeesTotal, // UPDATE THIS
+          additionalCP: {
+            totalCost: addCPTotalCost,
+            videoCount: addVideoCount,
+            photoCount: addPhotoCount
+          },
+          mandatoryAddons: mandatoryAddonsList
         });
+        // --- END CATEGORIZATION LOGIC ---
+
+        // Build crew breakdown from lineItems (has actual costs per role)
+        if (result.lineItems && result.lineItems.length > 0) {
+          const breakdown: Array<{ role: string; cost: number }> = [];
+
+          result.lineItems.forEach((item: any) => {
+            if (item.is_mandatory || item.hidden) return;
+
+            const itemTotal = parseFloat(item.line_total || 0);
+            const quantity = parseInt(item.quantity || 1);
+            const costPerPerson = itemTotal / quantity;
+
+            for (let i = 0; i < quantity; i++) {
+              breakdown.push({
+                role: item.item_name,
+                cost: costPerPerson,
+              });
+            }
+          });
+          setCrewBreakdown(breakdown);
+        }
+      } catch (error) {
+        console.error("Failed to calculate quote:", error);
+        setQuoteTotal(null);
+        setCrewBreakdown([]);
+        toast.error("Failed to calculate pricing. Please try again.");
       }
-      
-      setPricingGroups({
-  shootCost: shootCostTotal,
-  editingFees: editFeesTotal, // UPDATE THIS
-  additionalCP: {
-    totalCost: addCPTotalCost,
-    videoCount: addVideoCount,
-    photoCount: addPhotoCount
-  },
-  mandatoryAddons: mandatoryAddonsList
-});
-      // --- END CATEGORIZATION LOGIC ---
+    };
 
-      // Build crew breakdown from lineItems (has actual costs per role)
-      if (result.lineItems && result.lineItems.length > 0) {
-        const breakdown: Array<{ role: string; cost: number }> = [];
+    fetchQuote();
+  }, [
+    data.selectedCrewIds,
+    data.shootType,
+    data.startDate,
+    durationHours,
+    calculateQuoteFromCreators,
+  ]);
 
-        result.lineItems.forEach((item: any) => {
-          if (item.is_mandatory || item.hidden) return;
-
-          const itemTotal = parseFloat(item.line_total || 0);
-          const quantity = parseInt(item.quantity || 1);
-          const costPerPerson = itemTotal / quantity;
-
-          for (let i = 0; i < quantity; i++) {
-            breakdown.push({
-              role: item.item_name,
-              cost: costPerPerson,
-            });
-          }
-        });
-        setCrewBreakdown(breakdown);
-      }
-    } catch (error) {
-      console.error("Failed to calculate quote:", error);
-      setQuoteTotal(null);
-      setCrewBreakdown([]);
-      toast.error("Failed to calculate pricing. Please try again.");
+  // Automatically clear the location error once data.location is truthy
+  useEffect(() => {
+    if ((data.fullName || data.phone) && errors.includes("contactError")) {
+      setErrors(prev => prev.filter(err => err !== "contactError"));
     }
+  }, [data.fullName, data.phone, errors]);
+
+  const displayContentType = data.contentType
+    .map((type) => {
+      const lower = type.toLowerCase();
+      if (lower.includes("videographer")) return "Videography";
+      if (lower.includes("photographer")) return "Photography";
+      return type;
+    })
+    .join(" & ");
+
+  // 2. Logic to determine the icon
+  const ContentTypeIcon = () => {
+    const types = data.contentType.map((t) => t.toLowerCase());
+    if (types.some((t) => t.includes("video"))) {
+      return <Video size={20} className="text-[#E8D1AB]" />;
+    }
+    return <Camera size={20} className="text-[#E8D1AB]" />;
   };
 
-  fetchQuote();
-}, [
-  data.selectedCrewIds,
-  data.shootType,
-  data.startDate,
-  durationHours,
-  calculateQuoteFromCreators,
-]);
-
-const displayContentType = data.contentType
-  .map((type) => {
-    const lower = type.toLowerCase();
-    if (lower.includes("videographer")) return "Videography";
-    if (lower.includes("photographer")) return "Photography";
-    return type;
-  })
-  .join(" & ");
-
-// 2. Logic to determine the icon
-const ContentTypeIcon = () => {
-  const types = data.contentType.map((t) => t.toLowerCase());
-  if (types.some((t) => t.includes("video"))) {
-    return <Video size={20} className="text-[#E8D1AB]" />;
-  }
-  return <Camera size={20} className="text-[#E8D1AB]" />;
-};
-
-const getVideoEditLabels = (keys: string[]) => {
+  const getVideoEditLabels = (keys: string[]) => {
     // Combine all video arrays into one for searching
     const allVideoOptions = [
       ...weddingEditTypes, ...musicEditTypes, ...commercialEditTypes,
@@ -323,7 +332,7 @@ const getVideoEditLabels = (keys: string[]) => {
       ...movieEditTypes, ...corporateEventEditTypes, ...privateEventEditTypes,
       ...socialContentEditTypes
     ];
-    
+
     return keys.map(key => {
       const match = allVideoOptions.find(opt => opt.key === key);
       return match ? match.value : key;
@@ -517,7 +526,7 @@ const getVideoEditLabels = (keys: string[]) => {
           {/* Contact Info */}
           <div className="cursor-pointer rounded-2xl border transition-all relative overflow-hidden border-white/20">
             <div className="bg-[#171717] p-4 lg:p-7">
-              <h4 className="text-base lg:text-lg font-medium text-white">
+              <h4 className={`text-base lg:text-lg font-medium ${errors.includes("contactError") ? "text-red-400" : "text-white"}`}>
                 Contact Information
               </h4>
             </div>
@@ -624,7 +633,7 @@ const getVideoEditLabels = (keys: string[]) => {
                       </div>
                       <p className="italic">All Raw Content </p>
                     </div>
-                    
+
                     {/* Conditionally show Editing items */}
                     {hasEditing && (
                       <>
@@ -680,59 +689,59 @@ const getVideoEditLabels = (keys: string[]) => {
 
                     {/* Detailed Pricing Breakdown - UPDATED CATEGORIZATION */}
                     {/* Detailed Pricing Breakdown */}
-                      <div className="space-y-3">
-                        <div className="text-xs font-medium text-white/40 uppercase tracking-wide">
-                          Pricing Breakdown
-                        </div>
+                    <div className="space-y-3">
+                      <div className="text-xs font-medium text-white/40 uppercase tracking-wide">
+                        Pricing Breakdown
+                      </div>
 
-                        {/* 1. SHOOT COST */}
+                      {/* 1. SHOOT COST */}
+                      <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="text-white font-medium">Shoot Cost</div>
+                          <div className="font-bold text-white">
+                            {formatCurrency(pricingGroups.shootCost)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* NEW: 2. EDITING SERVICES */}
+                      {pricingGroups.editingFees > 0 && (
                         <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
                           <div className="flex justify-between items-start mb-1">
-                            <div className="text-white font-medium">Shoot Cost</div>
-                            <div className="font-bold text-white">
-                              {formatCurrency(pricingGroups.shootCost)}
+                            <div className="text-white font-medium text-sm">Editing Services</div>
+                            <div className="font-bold text-white text-sm">
+                              {formatCurrency(pricingGroups.editingFees)}
                             </div>
+                          </div>
+                          <div className="text-[11px] text-[#A9A9A9] flex flex-wrap gap-x-2">
+                            {data.videoEditTypes.length > 0 && <span>• Video Editing</span>}
+                            {data.photoEditTypes.length > 0 && <span>• Photo Editing</span>}
                           </div>
                         </div>
+                      )}
 
-                        {/* NEW: 2. EDITING SERVICES */}
-                        {pricingGroups.editingFees > 0 && (
-                          <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="text-white font-medium text-sm">Editing Services</div>
-                              <div className="font-bold text-white text-sm">
-                                {formatCurrency(pricingGroups.editingFees)}
-                              </div>
+                      {/* 3. ADDITIONAL CREATIVE PARTNER FEES */}
+                      {pricingGroups.additionalCP.totalCost > 0 && (
+                        <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="text-white font-medium text-sm">
+                              Additional Crew
                             </div>
-                            <div className="text-[11px] text-[#A9A9A9] flex flex-wrap gap-x-2">
-                              {data.videoEditTypes.length > 0 && <span>• Video Editing</span>}
-                              {data.photoEditTypes.length > 0 && <span>• Photo Editing</span>}
+                            <div className="font-bold text-white text-sm">
+                              {formatCurrency(pricingGroups.additionalCP.totalCost)}
                             </div>
                           </div>
-                        )}
-
-                        {/* 3. ADDITIONAL CREATIVE PARTNER FEES */}
-                        {pricingGroups.additionalCP.totalCost > 0 && (
-                          <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="text-white font-medium text-sm">
-                                Additional Crew
-                              </div>
-                              <div className="font-bold text-white text-sm">
-                                {formatCurrency(pricingGroups.additionalCP.totalCost)}
-                              </div>
-                            </div>
-                            <div className="text-[11px] text-[#A9A9A9] space-y-0.5 mt-1">
-                              {pricingGroups.additionalCP.videoCount > 0 && (
-                                <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
-                              )}
-                              {pricingGroups.additionalCP.photoCount > 0 && (
-                                <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
-                              )}
-                            </div>
+                          <div className="text-[11px] text-[#A9A9A9] space-y-0.5 mt-1">
+                            {pricingGroups.additionalCP.videoCount > 0 && (
+                              <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
+                            )}
+                            {pricingGroups.additionalCP.photoCount > 0 && (
+                              <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="border-t border-white/10 pt-4" />
 
@@ -790,54 +799,54 @@ const getVideoEditLabels = (keys: string[]) => {
         </Button>
       </div>
       <AnimatePresence>
-  {showSalesPopup && (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={() => setShowSalesPopup(false)}
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-      />
+        {showSalesPopup && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSalesPopup(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
 
-      {/* Modal */}
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="relative bg-[#1A1A1A] border border-white/10 p-8 lg:p-12 rounded-[24px] max-w-lg w-full text-center shadow-2xl"
-      >
-        <button
-          onClick={() => setShowSalesPopup(false)}
-          className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
-        >
-          <X size={24} />
-        </button>
+            {/* Modal */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-[#1A1A1A] border border-white/10 p-8 lg:p-12 rounded-[24px] max-w-lg w-full text-center shadow-2xl"
+            >
+              <button
+                onClick={() => setShowSalesPopup(false)}
+                className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
 
-        <div className="bg-[#E8D1AB]/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle2 className="text-[#E8D1AB] w-10 h-10" />
-        </div>
+              <div className="bg-[#E8D1AB]/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="text-[#E8D1AB] w-10 h-10" />
+              </div>
 
-        <h3 className="text-2xl lg:text-3xl font-bold text-white mb-4">
-          Request Received
-        </h3>
+              <h3 className="text-2xl lg:text-3xl font-bold text-white mb-4">
+                Request Received
+              </h3>
 
-        <p className="text-white/60 text-lg leading-relaxed">
-          Our Beige team will shortly reach out to you to finalize your creative
-          requirements.
-        </p>
+              <p className="text-white/60 text-lg leading-relaxed">
+                Our Beige team will shortly reach out to you to finalize your creative
+                requirements.
+              </p>
 
-        <Button
-          onClick={() => setShowSalesPopup(false)}
-          className="mt-8 w-full bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold h-14 rounded-xl"
-        >
-          Got it
-        </Button>
-      </motion.div>
-    </div>
-  )}
-</AnimatePresence>
+              <Button
+                onClick={() => setShowSalesPopup(false)}
+                className="mt-8 w-full bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold h-14 rounded-xl"
+              >
+                Got it
+              </Button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
