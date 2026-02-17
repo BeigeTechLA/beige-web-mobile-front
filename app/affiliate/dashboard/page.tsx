@@ -317,8 +317,8 @@ export default function AffiliateDashboardPage() {
         <button
           onClick={() => handleTabChange("dashboard")}
           className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${activeTab === "dashboard"
-              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-              : "text-white/60 hover:text-white hover:bg-white/5"
+            ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+            : "text-white/60 hover:text-white hover:bg-white/5"
             }`}
         >
           <LayoutDashboard size={20} />
@@ -328,8 +328,8 @@ export default function AffiliateDashboardPage() {
         <button
           onClick={() => setActiveTab("overview")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "overview"
-              ? "bg-[#E5D5B8] text-black shadow-lg"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
             }`}
         >
           <Users size={20} />
@@ -337,22 +337,28 @@ export default function AffiliateDashboardPage() {
         </button>
 
         <button
+          disabled
           onClick={() => setActiveTab("file-manager")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "file-manager"
-              ? "bg-[#E5D5B8] text-black shadow-lg"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-            }`}
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }
+            opacity-40 cursor-not-allowed
+            `}
         >
           <FolderOpen size={20} />
           <span className="font-medium">File Manager</span>
         </button>
 
         <button
+          disabled
           onClick={() => setActiveTab("messages")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "messages"
-              ? "bg-[#E5D5B8] text-black shadow-lg"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-            }`}
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }
+            opacity-40 cursor-not-allowed
+            `}
         >
           <MessageCircle size={20} />
           <span className="font-medium">Messages</span>
@@ -361,8 +367,8 @@ export default function AffiliateDashboardPage() {
         <button
           onClick={() => handleTabChange("shoots")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "shoots"
-              ? "bg-[#E5D5B8] text-black shadow-lg"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
             }`}
         >
           <Camera size={20} />
@@ -380,8 +386,8 @@ export default function AffiliateDashboardPage() {
         <button
           onClick={() => setActiveTab("profile")}
           className={`flex items-center w-full gap-3 px-3 py-3 rounded-lg font-medium transition-colors ${activeTab === "profile"
-              ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-              : "text-white/60 hover:text-white hover:bg-white/5"
+            ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
+            : "text-white/60 hover:text-white hover:bg-white/5"
             }`}
         >
           <Settings size={20} />

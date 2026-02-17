@@ -13,6 +13,7 @@ export interface LocationPickerColors {
   inputBorderHover: string;
   inputBorderFocus: string;
   labelText: string;
+  errorText: string;
   placeholderText: string;
   primaryText: string;
   secondaryText: string;
@@ -41,6 +42,7 @@ const defaultColors: LocationPickerColors = {
   inputBorderHover: "#1A1A1A",
   inputBorderFocus: "#1A1A1A",
   labelText: "#00000099", // #000/60
+  errorText: "#fc8181",
   placeholderText: "#666666",
   primaryText: "#1A1A1A",
   secondaryText: "#666666",
@@ -74,14 +76,17 @@ interface LocationPickerProps {
   onChange: (address: string) => void;
   placeholder?: string;
   colors?: Partial<LocationPickerColors>;
+  hasError?: boolean;
 }
 
 export const LocationPicker: React.FC<LocationPickerProps> = ({
   value,
   onChange,
   placeholder = "Select location on map",
-  colors: customColors
+  colors: customColors,
+  hasError = false
 }) => {
+
   const colors = { ...defaultColors, ...customColors };
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -148,7 +153,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     try {
       const proximity = `${viewState.longitude},${viewState.latitude}`;
       const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${MAPBOX_TOKEN}&limit=5&proximity=${proximity}`;
-      
+
       const response = await fetch(url);
       const data = await response.json();
       setSearchResults(data.features || []);
@@ -237,26 +242,26 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         onMouseLeave={(e) => e.currentTarget.style.borderColor = colors.inputBorder}
       >
         <label
-          style={{ backgroundColor: colors.inputBg, color: colors.labelText }}
-          className="absolute -top-3 left-4 px-2 text-base"
+          style={{ backgroundColor: colors.inputBg, color: hasError ? colors.errorText : colors.labelText }}
+          className="absolute -top-3 left-4 px-2 text-base transition-colors duration-300"
         >
           Select Location
         </label>
         <div className="flex items-center gap-3 h-full px-4">
           <div
-            style={{ 
-                backgroundColor: value ? colors.iconBgSelected : colors.iconBg,
-                //@ts-ignore
-                '--hover-bg': colors.iconBgHover 
+            style={{
+              backgroundColor: value ? colors.iconBgSelected : colors.iconBg,
+              //@ts-ignore
+              '--hover-bg': colors.iconBgHover
             } as any}
             className={`p-2 rounded-lg transition-colors ${!value ? 'group-hover:bg-[var(--hover-bg)]' : ''}`}
           >
             <MapPin
               size={18}
-              style={{ 
-                  color: value ? colors.iconColorSelected : colors.iconColor,
-                  //@ts-ignore
-                  '--hover-text': colors.iconColorHover 
+              style={{
+                color: value ? colors.iconColorSelected : colors.iconColor,
+                //@ts-ignore
+                '--hover-text': colors.iconColorHover
               } as any}
               className={!value ? 'group-hover:text-[var(--hover-text)]' : ''}
             />
@@ -387,18 +392,18 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             cursor="crosshair"
           >
             <NavigationControl position="top-right" showCompass={false} />
-            <GeolocateControl 
-                position="top-right" 
-                trackUserLocation={true}
-                showUserLocation={true}
-                onGeolocate={(e: any) => {
-                  setViewState(prev => ({
-                    ...prev,
-                    latitude: e.coords.latitude,
-                    longitude: e.coords.longitude,
-                    zoom: 14
-                  }));
-                }}
+            <GeolocateControl
+              position="top-right"
+              trackUserLocation={true}
+              showUserLocation={true}
+              onGeolocate={(e: any) => {
+                setViewState(prev => ({
+                  ...prev,
+                  latitude: e.coords.latitude,
+                  longitude: e.coords.longitude,
+                  zoom: 14
+                }));
+              }}
             />
 
             {marker && (
@@ -443,9 +448,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           <button
             type="button"
             onClick={() => setIsExpanded(false)}
-            style={{ 
-                color: colors.buttonSecondaryText,
-                backgroundColor: colors.buttonSecondaryBg 
+            style={{
+              color: colors.buttonSecondaryText,
+              backgroundColor: colors.buttonSecondaryBg
             }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.buttonSecondaryBgHover}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.buttonSecondaryBg}
