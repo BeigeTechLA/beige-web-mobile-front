@@ -6,9 +6,11 @@ import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info } from "l
 import { toast } from "sonner";
 import { set, format } from "date-fns";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+
 import DottedDivider from "@/components/admin/DottedDivider";
-import { IntentBadge } from "@/components/sales/IntentBadge";
 import { ContentTypeCheckbox } from "@/components/book-a-shoot/v3/components/ContentTypeCheckbox";
 import { MultiSelectDropdown } from "@/components/book-a-shoot";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
@@ -35,6 +37,13 @@ const TEAM_ROLES = [
   { id: "photographer", label: "Photographer", price: 250, icon: <Camera size={28} /> },
 ];
 
+const intentOptions = [
+  { value: "Hot", label: "Hot" },
+  { value: "Warm", label: "Warm" },
+  { value: "Cold", label: "Cold" },
+];
+
+
 export default function ClientDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -53,6 +62,8 @@ export default function ClientDetailPage() {
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
+  const [thumbtack, setThumbtack] = useState<string>("");
+  const [intent, setIntent] = useState<string>("");
 
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
@@ -321,17 +332,77 @@ export default function ClientDetailPage() {
         <span className="text-sm font-medium">Back</span>
       </Button>
 
-      <div className="flex items-center gap-5">
-        <div className="w-13 h-13 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#FFF6D9] text-[#000000] border border-[#FFF6D9] flex items-center justify-center text-xl lg:text-[30px] font-semibold shrink-0">
-          {/* {initials} */}
-          IN
-        </div>
-        <div className="flex gap-2 items-center">
-          <h1 className="lg:text-[22px] font-semibold">
-            {/* {clientName} */}
-            Client Name
-          </h1>
-          <IntentBadge intent={"Hot"} />
+      {/* Client Information */}
+      {/* Client Information Section */}
+      <div className="space-y-6">
+        <h3 className="text-base lg:text-xl font-medium text-white/90">
+          Client Information
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
+          {/* Row 1: Basic Info */}
+          <div className="relative space-y-2">
+            <Label htmlFor="name" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Client Name</Label>
+            <Input
+              id="name"
+              type="text"
+              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+            />
+          </div>
+
+          <div className="relative space-y-2">
+            <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email Id</Label>
+            <Input
+              id="email"
+              type="email"
+              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+            />
+          </div>
+
+          <div className="relative space-y-2">
+            <Label htmlFor="phone" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Phone Number</Label>
+            <Input
+              id="phone"
+              type="text"
+              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+            />
+          </div>
+
+          {/* Row 2: Location and Thumbtack */}
+          <div className="lg:col-span-2 relative space-y-2">
+            <Label htmlFor="location" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Location</Label>
+            <Input
+              id="location"
+              type="text"
+              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+            />
+          </div>
+
+          <FloatingLabelDropdown
+            label="Select Thumbtack"
+            value={thumbtack}
+            options={[
+              { value: "instagram", label: "Instagram" },
+              { value: "facebook", label: "Facebook" },
+              { value: "referral", label: "Referral" }
+            ]}
+            onChange={(val) => setThumbtack(val)}
+            placeholder=""
+            labelBg={"bg-[#000]"}
+            required
+          />
+
+
+          <FloatingLabelDropdown
+            label="Intent Type"
+            value={intent}
+            options={intentOptions}
+            onChange={(val) => setIntent(val)}
+            placeholder="Choose an intent..."
+            labelBg={"bg-[#000]"}
+            className="lg:col-span-4"
+            required
+          />
         </div>
       </div>
       <DottedDivider />
@@ -406,7 +477,7 @@ export default function ClientDetailPage() {
           label="Shoot Type"
           // If formData.shootType is an array in your state, use formData.shootType[0] 
           // or join them. Based on your previous logic, we'll pass the current value.
-          value={formData.shootType}
+          value={formData.shootType} 
           options={editTypeOptions}
           onChange={(val) => updateData({ shootType: val })}
           placeholder="Select the type of shoot"

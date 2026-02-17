@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 
 interface DropdownOption {
   value: string | number;
@@ -16,7 +16,7 @@ interface FloatingLabelDropdownProps {
   placeholder?: string;
   required?: boolean;
   className?: string;
-  labelBg?:string;
+  labelBg?: string;
 }
 
 export const FloatingLabelDropdown = ({
@@ -27,12 +27,11 @@ export const FloatingLabelDropdown = ({
   placeholder = "Select an option",
   required = false,
   className = "",
-  labelBg="bg-[#171717]"
+  labelBg = "bg-[#171717]"
 }: FloatingLabelDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Close when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -43,12 +42,16 @@ export const FloatingLabelDropdown = ({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Find the label for the current selected value
-  const selectedDisplayLabel = options.find((opt) => opt.value === value)?.label;
+  const selectedOption = options.find((opt) => opt.value === value);
 
   const handleSelect = (val: string | number) => {
     onChange(val.toString());
     setIsOpen(false);
+  };
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the dropdown from opening
+    onChange("");
   };
 
   return (
@@ -62,16 +65,33 @@ export const FloatingLabelDropdown = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`h-14 lg:h-[72px] w-full flex items-center justify-between bg-transparent border rounded-xl px-5 transition-all duration-200 
+        className={`h-14 lg:h-[82px] w-full flex items-center justify-between bg-transparent border rounded-xl px-5 transition-all duration-200 
           ${isOpen ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20" : "border-white/20 hover:border-white/40"}
         `}
       >
-        <span className={`text-sm lg:text-base truncate ${value ? "text-white" : "text-white/40"}`}>
-          {selectedDisplayLabel || placeholder}
+        <div className="flex flex-wrap gap-2 items-center overflow-hidden">
+          {selectedOption ? (
+            /* Selected Option Pill Style from Screenshot */
+            <div className="flex items-center gap-3 bg-[#333333] hover:bg-[#444444] text-white px-3 py-1.5 lg:py-2 rounded-lg transition-colors group/pill">
+              <span className="text-sm lg:text-base font-medium whitespace-nowrap">
+                {selectedOption.label}
+              </span>
+              <X
+                size={16}
+                className="text-white/80 hover:text-white cursor-pointer transition-colors"
+                onClick={handleClear}
+              />
+            </div>
+          ) : (
+            <span className="text-sm lg:text-base text-white/40">
+              {placeholder}
         </span>
+          )}
+        </div>
+
         <ChevronDown
           size={20}
-          className={`text-white/40 transition-transform duration-300 ${isOpen ? "rotate-180 text-[#E8D1AB]" : ""}`}
+          className={`text-white/40 shrink-0 ml-2 transition-transform duration-300 ${isOpen ? "rotate-180 text-[#E8D1AB]" : ""}`}
         />
       </button>
 
@@ -98,7 +118,6 @@ export const FloatingLabelDropdown = ({
         </div>
       )}
 
-      {/* CSS for custom scrollbar within the component file or global CSS */}
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
