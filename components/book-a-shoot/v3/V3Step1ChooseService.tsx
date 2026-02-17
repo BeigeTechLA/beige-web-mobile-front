@@ -221,47 +221,69 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     const now = new Date();
-
     const isToday =
       date.getDate() === now.getDate() &&
       date.getMonth() === now.getMonth() &&
       date.getFullYear() === now.getFullYear();
 
-    let newStart: Date;
-    let newEnd: Date;
+    const existingStart = data.startDate ? parseDate(data.startDate) : null;
+    const existingEnd = data.endDate ? parseDate(data.endDate) : null;
 
-    if (isToday) {
-      newStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    let finalStart: Date;
+    let finalEnd: Date;
 
-      const mins = newStart.getMinutes();
-      if (mins > 0 && mins <= 30) {
-        newStart.setMinutes(30, 0, 0);
-      } else if (mins > 30) {
-        newStart.setHours(newStart.getHours() + 1, 0, 0, 0);
-      } else {
-        newStart.setMinutes(0, 0, 0);
+    if (existingStart && existingEnd) {
+      finalStart = set(date, {
+        hours: existingStart.getHours(),
+        minutes: existingStart.getMinutes(),
+        seconds: 0,
+        milliseconds: 0,
+      });
+
+      finalEnd = set(date, {
+        hours: existingEnd.getHours(),
+        minutes: existingEnd.getMinutes(),
+        seconds: 0,
+        milliseconds: 0,
+      });
+
+      if (isToday) {
+        const minStartTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+
+        if (finalStart < minStartTime) {
+          const roundedStart = new Date(minStartTime);
+          const mins = roundedStart.getMinutes();
+          if (mins > 0 && mins <= 30) {
+            roundedStart.setMinutes(30, 0, 0);
+          } else if (mins > 30) {
+            roundedStart.setHours(roundedStart.getHours() + 1, 0, 0, 0);
+          } else {
+            roundedStart.setMinutes(0, 0, 0);
+          }
+
+          finalStart = roundedStart;
+          const durationMs = existingEnd.getTime() - existingStart.getTime();
+          finalEnd = new Date(finalStart.getTime() + (durationMs > 0 ? durationMs : 8 * 60 * 60 * 1000));
+        }
       }
-
-      // 3. End time = Start time + 8 hours
-      newEnd = new Date(newStart.getTime() + 8 * 60 * 60 * 1000);
     } else {
-      // Default for future dates: 9 AM to 5 PM
-      newStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-      newEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+      if (isToday) {
+        const minStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+        const mins = minStart.getMinutes();
+        if (mins > 0 && mins <= 30) {
+          minStart.setMinutes(30, 0, 0);
+        } else if (mins > 30) {
+          minStart.setHours(minStart.getHours() + 1, 0, 0, 0);
+        } else {
+          minStart.setMinutes(0, 0, 0);
+        }
+        finalStart = minStart;
+        finalEnd = new Date(finalStart.getTime() + 8 * 60 * 60 * 1000);
+      } else {
+        finalStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+        finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+      }
     }
-
-    // Ensure the date part is strictly what was selected in the picker
-    const finalStart = set(newStart, {
-      year: date.getFullYear(),
-      month: date.getMonth(),
-      date: date.getDate(),
-    });
-
-    const finalEnd = set(newEnd, {
-      year: date.getFullYear(),
-      month: date.getMonth(),
-      date: date.getDate(),
-    });
 
     updateData({
       startDate: finalStart.toISOString(),
@@ -300,24 +322,26 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
 
   const handleEndTimeChange = (timeKey: string) => {
-    if (!timeKey) {
-      updateData({ endDate: "" });
-      return;
-    }
-    // if (!timeKey) return;
-    const [hours, minutes] = timeKey.split(":").map(Number);
+  if (!timeKey) {
+    updateData({ endDate: "" });
+    return;
+  }
 
-    let currentDate = data.endDate
-      ? parseDate(data.endDate)
-      : data.startDate
-        ? parseDate(data.startDate)
-        : new Date();
-    if (!currentDate) return;
+  const [hours, minutes] = timeKey.split(":").map(Number);
+  
+  const baseDate = data.startDate ? parseDate(data.startDate) : new Date();
+  if (!baseDate) return;
 
-    const newEnd = set(currentDate, { hours, minutes });
-    updateData({ endDate: newEnd.toISOString() });
-    scrollToRef(editsRef);
-  };
+  const newEnd = set(new Date(baseDate), { 
+    hours, 
+    minutes, 
+    seconds: 0, 
+    milliseconds: 0 
+  });
+
+  updateData({ endDate: newEnd.toISOString() });
+  scrollToRef(editsRef);
+};
 
   // const getStartTimeKey = () => {
   //   if (!data.startDate) return "";
