@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
-import { LocationPicker } from "@/src/components/booking/v2/component/LocationPicker";
+import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
 import { Video, Camera, Scissors, Mic, User, Film, MonitorPlay } from "lucide-react";
 import { Check } from "lucide-react";
@@ -17,25 +17,6 @@ interface Props {
   onNext: () => void;
   onBack: () => void;
 }
-
-const darkThemeColors = {
-  inputBg: "#101010",
-  inputBorder: "#ffffff4d",
-  inputBorderHover: "#ffffff99",
-  labelText: "#ffffff99",
-  primaryText: "#FFFFFF",
-  secondaryText: "#ffffff99",
-  paperBg: "#1A1A1A",
-  divider: "#ffffff1a",
-  accent: "#E8D1AB",
-  accentHover: "#dcb98a",
-  buttonPrimaryText: "#1A1A1A",
-  buttonPrimaryBg: "#E8D1AB",
-  buttonPrimaryBgHover: "#dcb98a",
-  buttonSecondaryText: "#fff",
-  buttonSecondaryBg: "#ffffff4d",
-  buttonSecondaryBgHover: "#ffffff4d",
-};
 
 const TEAM_ROLES = [
   { id: "videographer", label: "Videographer", price: 250, icon: <Video size={28} /> }, // Changed from 275 to 250
