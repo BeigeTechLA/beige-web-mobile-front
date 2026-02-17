@@ -87,6 +87,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 }) => {
   const { user, isAuthenticated } = useAuth();
 
+  const [errors, setErrors] = useState<string[]>([])
+
   const [editTypeOptions, setEditTypeOptions] = useState<
     { key: string; value: string }[]
   >([]);
@@ -283,6 +285,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
     if (selectedTime < now) {
       toast.error("Selected time must be later than the current time.");
+      setErrors((prev) => [...prev, "timeError"]);
       return; // Don't update the time if it's invalid
     }
 
@@ -291,6 +294,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
     if (selectedTime < minimumTime) {
       toast.error("You must select a start time at least 4 hours from now.");
+      setErrors((prev) => [...prev, "timeError"]);
       return; // Don't update the time if it's invalid
     }
 
@@ -403,6 +407,20 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
   }, [data.shootType]);
 
+  // Clear errors when data changes
+  useEffect(() => {
+    setErrors((prev) => {
+      const newErrors = [...prev];
+      if (data.email && newErrors.includes("emailError")) return newErrors.filter(e => e !== "emailError");
+      if (data.contentType.length > 0 && newErrors.includes("contentError")) return newErrors.filter(e => e !== "contentError");
+      if (data.shootType && newErrors.includes("shootTypeError")) return newErrors.filter(e => e !== "shootTypeError");
+      if (data.startDate && data.endDate && newErrors.includes("timeError")) return newErrors.filter(e => e !== "timeError");
+      if (data.videoEditTypes.length > 0 && newErrors.includes("videoEditError")) return newErrors.filter(e => e !== "videoEditError");
+      if (data.photoEditTypes.length > 0 && newErrors.includes("photoEditError")) return newErrors.filter(e => e !== "photoEditError");
+      return prev;
+    });
+  }, [data]);
+
   const toggleContentType = (
     type: "videographer" | "photographer" | "editing"
   ) => {
@@ -452,32 +470,41 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const validate = () => {
     if (!data.email) {
       toast.error("Please enter your email address");
+      setErrors((prev) => [...prev, "emailError"]);
+
       return false;
     }
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(data.email)) {
       toast.error("Please enter a valid email address");
+      setErrors((prev) => [...prev, "emailError"]);
       return false;
     }
     if (data.contentType.length === 0) {
       toast.error("Please select at least one content type");
+      setErrors((prev) => [...prev, "contentError"]);
       return false;
     }
     if (!data.shootType) {
       toast.error("Please select a video/photo shoot type");
+      setErrors((prev) => [...prev, "shootTypeError"]);
+
       return false;
     }
     if (!data.startDate) {
       toast.error("Please select a start date and time");
+      setErrors((prev) => [...prev, "timeError"]);
       return false;
     }
     if (!data.endDate) {
       toast.error("Please select an end date and time");
+      setErrors((prev) => [...prev, "timeError"]);
       return false;
     }
     if (new Date(data.endDate) <= new Date(data.startDate)) {
       toast.error("End time must be after start time");
+      setErrors((prev) => [...prev, "timeError"]);
       return false;
     }
     if (data.editsNeeded) {
@@ -486,11 +513,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       const needsPhotoEdit = data.contentType.includes("photographer");
 
       if (needsVideoEdit && data.videoEditTypes.length === 0) {
+        setErrors((prev) => [...prev, "videoEditError"]);
         toast.error("Please select at least one video edit type");
         return false;
       }
 
       if (needsPhotoEdit && data.photoEditTypes.length === 0) {
+        setErrors((prev) => [...prev, "photoEditError"]);
         toast.error("Please select at least one photo edit type");
         return false;
       }
@@ -501,6 +530,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         data.videoEditTypes.length === 0 &&
         data.photoEditTypes.length === 0
       ) {
+        setErrors((prev) => [...prev, "editError"]);
         toast.error("Please select an edit type since you requested editing");
         return false;
       }
@@ -524,7 +554,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     //     bookingId: res.data.booking_id,
     //   });
 
-      onNext();
+    onNext();
     // } catch (err) {
     //   toast.error("Failed to start booking. Please try again.");
     // }
@@ -556,8 +586,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
       {/* Email Field */}
       <div ref={emailRef} className="pt-6 lg:pt-15 border-t border-white/10">
-        <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
-          Email Address <span className="text-[#E8D1AB]">*</span>
+        <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${errors.includes("emailError") ? "text-red-400" : "text-white/90"}`}>
+          Email Address <span className={`${errors.includes("emailError") ? "text-red-400" : "[#E8D1AB]"}`}>*</span>
         </h3>
         <input
           type="email"
@@ -588,7 +618,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
       {/* Content Type */}
       <div ref={contentTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-        <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
+        {/* <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3> */}
+        <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("contentError") ? "text-red-400" : "text-white/90"
+          }`}>
+          Content Type
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <ContentTypeCheckbox
             label="Select All"
@@ -645,7 +679,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         <>
           {/* Shoot Type */}
           <div ref={shootTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
+            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("shootTypeError") ? "text-red-400" : "text-white/90"
+              }`}>
               {data.contentType.includes("videographer") &&
                 //  ||data.contentType.includes("cinematographer")) && : Commented cinematographer as it is not being mentioned anywhere in UI
                 data.contentType.includes("photographer")
@@ -690,7 +725,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
           {/* Date & Time */}
           <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
+            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+              }`}>
               Shoot Date & Time
             </h3>
             <div className="flex flex-col lg:flex-row gap-6">
@@ -731,7 +767,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
           {/* Edits Needed */}
           <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className="text-lg lg:text-[28px] font-medium text-white/90 mb-3 lg:mb-6">
+            {/* <h3 className="text-lg lg:text-[28px] font-medium text-white/90 mb-3 lg:mb-6"> */}
+            <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
+              }`}>
               Edits Needed?
             </h3>
 
@@ -776,8 +814,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
             {data.editsNeeded && (
               <div className="animate-in slide-in-from-top-4 duration-300 mt-4 lg:mt-8">
-                <h4 className="text-white font-medium mb-4 flex items-center gap-2 lg:text-xl">
-                  <Info size={24} className="text-white" />
+                <h4 className={` ${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
+                  <Info size={24} className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"}`} />
                   Editing includes
                 </h4>
                 <p className="text-white/60 text-sm mb-11">

@@ -149,7 +149,7 @@ export default function SalesTopbar({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
             <Input
-              placeholder="Search shoots, Clients, or IDs..."
+              placeholder="Search shoots, Users, or IDs..."
               className="bg-[#1A1A1A] border-zinc-800 pl-10 text-white placeholder:text-zinc-500 rounded-lg h-10 w-full focus-visible:ring-offset-0 focus-visible:ring-zinc-700"
             />
           </div>

@@ -15,6 +15,10 @@ interface FeaturedWorkModalProps {
 const MAX_FILE_SIZE_MB = 5;
 const MAX_TOTAL_PROJECT_MB = 50;
 
+// NEW: Allowed types constants
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+const ALLOWED_EXT_TEXT = "png, jpg, jpeg, webp";
+
 const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -34,7 +38,6 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
       setTitle("");
       setTags([]);
       setTagInput("");
-      // imagePreviews.forEach(url => URL.revokeObjectURL(url));
       setImagePreviews([]);
       setRawFiles([]);
       setAddTagsOpen(false);
@@ -42,54 +45,63 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
   }, [open]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const files = Array.from(e.target.files || []);
-  if (!files.length) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-  // Validation: Size checks
-  const oversizedFiles = files.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
-  if (oversizedFiles.length > 0) {
-    toast.error(`File too large. Max ${MAX_FILE_SIZE_MB}MB allowed.`);
-    if (fileRef.current) fileRef.current.value = "";
-    return;
-  }
-
-  try {
-    setIsCompressing(true);
-
-    // Process each file
-    const newPreviews: string[] = [];
-    const newRawFiles: File[] = [];
-
-    for (const file of files) {
-      let processedFile = file;
-
-      // Only compress if it's an image
-      if (file.type.startsWith('image/')) {
-        processedFile = await compressImage(file);
-      }
-
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(processedFile); 
+    // 1. Validation: File Type Check
+    const invalidFiles = files.filter(f => !ALLOWED_TYPES.includes(f.type));
+    if (invalidFiles.length > 0) {
+      toast.error("Invalid File Type", {
+        description: `Only ${ALLOWED_EXT_TEXT} files are allowed.`
       });
-
-      newPreviews.push(base64);
-      newRawFiles.push(processedFile);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
     }
 
-    setImagePreviews((prev) => [...prev, ...newPreviews]);
-    setRawFiles((prev) => [...prev, ...newRawFiles]);
+    // 2. Validation: Size checks
+    const oversizedFiles = files.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      toast.error(`File too large. Max ${MAX_FILE_SIZE_MB}MB allowed.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
 
-  } catch (error) {
-    console.error("Upload error:", error);
-    toast.error("An error occurred while processing files.");
-  } finally {
-    setIsCompressing(false);
-    if (fileRef.current) fileRef.current.value = "";
-  }
-};
+    try {
+      setIsCompressing(true);
+
+      const newPreviews: string[] = [];
+      const newRawFiles: File[] = [];
+
+      for (const file of files) {
+        let processedFile = file;
+
+        // Compress images
+        if (file.type.startsWith('image/')) {
+          processedFile = await compressImage(file);
+        }
+
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(processedFile); 
+        });
+
+        newPreviews.push(base64);
+        newRawFiles.push(processedFile);
+      }
+
+      setImagePreviews((prev) => [...prev, ...newPreviews]);
+      setRawFiles((prev) => [...prev, ...newRawFiles]);
+
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("An error occurred while processing files.");
+    } finally {
+      setIsCompressing(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
 
   const removeTag = (t: string) => {
     setTags(tags.filter((x) => x !== t));
@@ -101,7 +113,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
       return;
     }
     if (rawFiles.length === 0) {
-      toast.error("Please upload at least one image or video.");
+      toast.error("Please upload at least one image.");
       return;
     }
 
@@ -142,7 +154,9 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
             <div className="space-y-2 relative">
               <div className="flex justify-between items-center ml-1">
                 <label className="text-sm font-medium text-white/60">Thumbnail / Media</label>
-                <span className="text-[10px] text-white/30 tracking-widest uppercase">Max {MAX_FILE_SIZE_MB}MB each • Total {MAX_TOTAL_PROJECT_MB}MB</span>
+                <span className="text-[10px] text-white/30 tracking-widest uppercase">
+                    {ALLOWED_EXT_TEXT} only • Max {MAX_FILE_SIZE_MB}MB
+                </span>
               </div>
 
               {imagePreviews.length === 0 ? (
@@ -155,26 +169,17 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
                   </div>
                   <div className="text-center px-6">
                     <div className="font-bold text-white text-lg">{isCompressing ? "Optimizing Files..." : "Upload Project Media"}</div>
-                    <div className="text-sm text-white/40 mt-1">Drag and drop or click to browse</div>
+                    <div className="text-sm text-white/40 mt-1">Allowed: {ALLOWED_EXT_TEXT}</div>
                   </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 relative">
-                  {isCompressing && (
-                    <div className="absolute inset-0 z-20 bg-black/40 backdrop-blur-[2px] rounded-[12px] flex items-center justify-center">
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="w-8 h-8 text-[#E8D1AB] animate-spin" />
-                        <span className="text-[#E8D1AB] font-medium text-sm">Processing...</span>
-                      </div>
-                    </div>
-                  )}
-
+                  {/* Previews logic remains same */}
                   {imagePreviews.map((src, index) => (
                     <div key={index} className="relative rounded-[12px] overflow-hidden border border-white/20 aspect-square group">
                       <img src={src} className="w-full h-full object-cover" />
                       <button
                         onClick={() => {
-                          URL.revokeObjectURL(src);
                           setImagePreviews((prev) => prev.filter((_, i) => i !== index));
                           setRawFiles((prev) => prev.filter((_, i) => i !== index));
                         }}
@@ -196,7 +201,15 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
                 </div>
               )}
 
-              <input ref={fileRef} type="file" multiple onChange={handleFileChange} className="hidden" accept="image/*,video/*" />
+              {/* Updated accept attribute */}
+              <input 
+                ref={fileRef} 
+                type="file" 
+                multiple 
+                onChange={handleFileChange} 
+                className="hidden" 
+                accept=".png,.jpg,.jpeg,.webp" 
+              />
             </div>
 
             <div className="flex flex-wrap gap-2">

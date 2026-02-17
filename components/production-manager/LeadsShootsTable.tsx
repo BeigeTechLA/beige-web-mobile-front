@@ -122,7 +122,7 @@ export const LeadsShootsTable = () => {
         if (data?.leads) {
             const mapped = (data.leads || []).map((lead: any) => ({
                 id: `#${lead.lead_id}`,
-                customerName: lead.client_name || lead.guest_email || "Unknown Client",
+                customerName: lead.client_name || lead.guest_email || "Unknown User",
                 email: lead.guest_email || "No email",
                 leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
                 bookingStatus: mapLeadStatusToUI(lead.payment_status), // Apply payment logic
@@ -184,7 +184,7 @@ export const LeadsShootsTable = () => {
                 {currentLeads.length > 0 ? (
                     <>
                         <div className="flex justify-between text-[#E8D1AB] text-sm font-medium p-4 mb-4 bg-[#101010] rounded-b-2xl border-b border-b-white/5">
-                            <span>Client Name</span>
+                            <span>User Name</span>
                             <span>Status</span>
                         </div>
                         <div className={`transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
@@ -244,7 +244,7 @@ export const LeadsShootsTable = () => {
                     <thead className="bg-[#101010] ">
                         <tr className="text-[#E8D1AB] text-sm font-medium rounded-b-xl">
                             <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Lead ID</th>
-                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Client Name</th>
+                            <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">User Name</th>
                             <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Email</th>
                             <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Lead Type</th>
                             <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Booking Status</th>

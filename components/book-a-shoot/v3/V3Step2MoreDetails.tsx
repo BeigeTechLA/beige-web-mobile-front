@@ -67,7 +67,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   }).filter(Boolean);
 
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
-
+  const [errors, setErrors] = useState<string[]>([]);
 
   const [updateBookingCrew] = useUpdateBookingCrewMutation();
 
@@ -105,9 +105,70 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     }
   }, [includedRoles.length, extraTeam, data.crewCount, updateData]);
 
+  // Automatically clear the location error once data.location is truthy
+  useEffect(() => {
+    if (data.location && errors.includes("locationError")) {
+      setErrors(prev => prev.filter(err => err !== "locationError"));
+    }
+  }, [data.location, errors]);
+  // const handleNext = async () => {
+  //   if (!data.location) {
+  //     toast.error("Please select a location");
+  //     return;
+  //   }
+
+  //   if (!data.bookingId) {
+  //     toast.error("Booking reference missing. Please restart.");
+  //     return;
+  //   }
+
+  //   const crewRoles: Record<string, number> = {};
+
+  //   // base crew
+  //   includedRoles.forEach((role: any) => {
+  //     crewRoles[role.id] = 1;
+  //   });
+
+  //   // extra crew
+  //   Object.entries(extraTeam).forEach(([roleId, count]) => {
+  //     if (count > 0) {
+  //       crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
+  //     }
+  //   });
+
+  //   try {
+  //     const response = await updateBookingCrew({
+  //       booking_id: data.bookingId,
+  //       crew_roles: crewRoles,
+  //     }).unwrap();
+
+  //     const serverCrewRoles = response.data.crew_roles;
+  //     const vCount = serverCrewRoles.videographer || 0;
+  //     const pCount = serverCrewRoles.photographer || 0;
+
+  //     localStorage.setItem("required_videographers", vCount.toString());
+  //     localStorage.setItem("required_photographers", pCount.toString());
+
+  //     updateData({
+  //       roleCounts: serverCrewRoles,
+  //       videographyCount: vCount,
+  //       photographyCount: pCount,
+  //       crewCount: vCount + pCount // Total crew
+  //     });
+
+  //     onNext();
+  //   } catch (error) {
+  //     console.error("Crew update error:", error);
+  //     toast.error("Failed to save crew details");
+  //   }
+  // };
+
+  // Inside V3Step2MoreDetails.tsx
+
   const handleNext = async () => {
     if (!data.location) {
       toast.error("Please select a location");
+      setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
       return;
     }
 
@@ -118,12 +179,12 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
     const crewRoles: Record<string, number> = {};
 
-    // base crew
+    // 1. Calculate Base Crew (Step 1 choices)
     includedRoles.forEach((role: any) => {
       crewRoles[role.id] = 1;
     });
 
-    // extra crew
+    // 2. Add Extra Crew (Step 2 choices)
     Object.entries(extraTeam).forEach(([roleId, count]) => {
       if (count > 0) {
         crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
@@ -131,29 +192,31 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     });
 
     try {
+      // 3. CALL API WITH ALL DETAILS
       const response = await updateBookingCrew({
         booking_id: data.bookingId,
         crew_roles: crewRoles,
+        location: data.location,               // NEW: From LocationPicker
+        description: data.specialInstructions,  // NEW: From Textarea
+        reference_links: data.referenceLinks,   // NEW: From Input
       }).unwrap();
 
       const serverCrewRoles = response.data.crew_roles;
       const vCount = serverCrewRoles.videographer || 0;
       const pCount = serverCrewRoles.photographer || 0;
 
-      localStorage.setItem("required_videographers", vCount.toString());
-      localStorage.setItem("required_photographers", pCount.toString());
-
+      // Update local context for Step 3/4
       updateData({
         roleCounts: serverCrewRoles,
         videographyCount: vCount,
         photographyCount: pCount,
-        crewCount: vCount + pCount // Total crew
+        crewCount: vCount + pCount
       });
 
       onNext();
     } catch (error) {
-      console.error("Crew update error:", error);
-      toast.error("Failed to save crew details");
+      console.error("Save error:", error);
+      toast.error("Failed to save project details");
     }
   };
 
@@ -297,6 +360,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           }}
           placeholder="Search for a location"
           colors={darkThemeColors}
+          // error
+          hasError = {errors.includes("locationError")}
         />
       </div>
 

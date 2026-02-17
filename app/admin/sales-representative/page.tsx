@@ -255,7 +255,7 @@ export default function AdminSaleRepManagerPage() {
     if (leadsApiData?.leads) {
       const mapped = (leadsApiData.leads || []).map((lead: any) => ({
         lead_id: lead.lead_id,
-        clientName: lead.client_name || lead.guest_email || "Unknown Client",
+        clientName: lead.client_name || lead.guest_email || "Unknown User",
         email: lead.guest_email || "No email",
         leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
         bookingStatus: mapLeadStatusToUI(lead.payment_status),

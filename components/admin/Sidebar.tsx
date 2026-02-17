@@ -9,8 +9,8 @@ import Image from "next/image";
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
-  { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
+  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', isDisabled: true },
+  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', isDisabled: true },
   // { name: 'Availability', icon: CalendarClock, link: '/admin/availability', isDisabled: true },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability' },
   { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
@@ -19,7 +19,7 @@ const menuItems = [
     icon: Users,
     children: [
       { name: 'All Users', link: '/admin/users/all' },
-      { name: 'Clients', link: '/admin/users/clients' },
+      { name: 'Users', link: '/admin/users/clients' },
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
