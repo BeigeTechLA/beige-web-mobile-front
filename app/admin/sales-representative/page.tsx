@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, ArrowUpRight } from "lucide-react";
+import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, ArrowUpRight, User, Camera, Users, Check, X } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useRouter } from "next/navigation";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
@@ -13,7 +13,6 @@ import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { User, Camera, Users, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
 import {
@@ -149,7 +148,7 @@ export default function AdminSaleRepManagerPage() {
   const [usersLimit] = useState(50);
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
 
-  // Metrics STate
+  // Metrics State
   const [metrics, setMetrics] = useState<any[]>(initialMetrics);
   const [activeMetric, setActiveMetric] = useState('total_active');
   const [isLoading, setIsLoading] = useState(false);
@@ -310,7 +309,7 @@ export default function AdminSaleRepManagerPage() {
     <>
       <div className="flex flex-col lg:flex-row gap-6 justify-between items-start mb-6 w-full">
         <div className="text-white">
-          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">
+          <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">
             Sales Representative Management
           </h1>
           <p className="text-xs lg:text-sm text-white/70">
@@ -319,7 +318,6 @@ export default function AdminSaleRepManagerPage() {
           </p>
         </div>
       </div>
-
       <DottedDivider />
 
       <OverviewMetricCards
@@ -375,7 +373,6 @@ export default function AdminSaleRepManagerPage() {
               options={["All", "Hot", "Warm", "Cold"]}
               onChange={(val) => setIntentFilter(val as any)}
             />
-
             {/* 3. Booking Status Dropdown */}
             <BasicDropdown
               label="All Statuses"
@@ -386,7 +383,6 @@ export default function AdminSaleRepManagerPage() {
             />
           </div>
         </div>
-
       </div>
 
       <DottedDivider className="lg:hidden" />

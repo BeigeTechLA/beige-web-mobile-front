@@ -46,24 +46,24 @@ const mapLeadStatusToUI = (status: string): string => {
   return "In-Progress";
 };
 
-const StatusBadge = ({ status }: { status: string }) => {
-  const styles: Record<string, string> = {
-    Booked: "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]",
-    Cancelled: "bg-[#fbd9d3] text-red-500 border-[#fbd9d3]",
-    "In-Progress": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]",
-  };
+// const StatusBadge = ({ status }: { status: string }) => {
+//   const styles: Record<string, string> = {
+//     Booked: "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]",
+//     Cancelled: "bg-[#fbd9d3] text-red-500 border-[#fbd9d3]",
+//     "In-Progress": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]",
+//   };
 
-  const currentStyle =
-    styles[status] || "bg-gray-100 text-gray-800 border-gray-200";
+//   const currentStyle =
+//     styles[status] || "bg-gray-100 text-gray-800 border-gray-200";
 
-  return (
-    <span
-      className={`text-nowrap px-4 py-1 rounded-full text-xs lg:text-base font-medium border lg:px-7 lg:py-2  ${currentStyle}`}
-    >
-      {status}
-    </span>
-  );
-};
+//   return (
+//     <span
+//       className={`text-nowrap px-4 py-1 rounded-full text-xs lg:text-base font-medium border lg:px-7 lg:py-2  ${currentStyle}`}
+//     >
+//       {status}
+//     </span>
+//   );
+// };
 
 // Mock CP data
 const assignedCPs = [
