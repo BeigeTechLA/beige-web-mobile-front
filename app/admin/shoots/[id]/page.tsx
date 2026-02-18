@@ -126,7 +126,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         actions={
           <>
             {/* Need to add filters  */}
-            <Button className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[##FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/60 transition-colors ">
+            <Button className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors ">
               <CircleX /> Cancel Shoot
             </Button>
             <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
@@ -141,7 +141,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         <div className="flex-1 p-6 pb-15 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
           <ShootHeader activeTab={activeTab} project={project} projectId={id} />
           <Button
-            className="w-full bg-[#202020] text-white hover:bg-[#202020]/50 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 mb-3"
+            className="lg:hidden w-full bg-[#202020] text-white hover:bg-[#202020]/50 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 mb-3"
             onClick={() => setIsTimelineOpen(true)}
           >
             View Project Timeline
@@ -151,7 +151,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
           {activeTab === "Overview" && (
             <>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[500px]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
                 <ProjectTeam projectId={id} />
                 <AssignedCP projectId={id} />
               </div>
