@@ -15,7 +15,8 @@ import { DatePicker } from "@/components/ui/Datepicker";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
-import { EffectCoverflow } from "swiper/modules";
+// Added Mousewheel module for perfect mouse scrolling interaction
+import { EffectCoverflow, Mousewheel } from "swiper/modules";
 
 // Swiper styles
 import "swiper/css";
@@ -60,6 +61,7 @@ export const TopCreatives = () => {
 
           if (mappedPartners.length > 0) {
             setPartners(mappedPartners);
+            // This ensures we start at the middle slide regardless of data length
             setActiveIndex(Math.floor(mappedPartners.length / 2));
           } else {
             setPartners([]);
@@ -74,7 +76,7 @@ export const TopCreatives = () => {
     fetchData();
   }, [range, startDate, endDate]);
 
-  const activePartner = partners.length > 0 ? partners[activeIndex % partners.length] : null;
+  const activePartner = partners.length > 0 ? partners[activeIndex] : null;
 
 
   return (
@@ -137,13 +139,14 @@ export const TopCreatives = () => {
           </div>
         ) : partners.length > 0 ? (
           <Swiper
+            key={partners.length} // Force re-render when data loads to fix initial centering
             effect={"coverflow"}
             grabCursor={true}
             centeredSlides={true}
             slidesPerView={3}
-            initialSlide={1}
-            loop={partners.length >= 3} // Only loop if enough items
-            spaceBetween={10}
+            initialSlide={Math.floor(partners.length / 2)} // Starts at center
+            loop={partners.length >= 5} // Loop only if enough items to prevent "jumping"
+            mousewheel={{ forceToAxis: true }} // Allows scrolling with mouse wheel perfectly
             coverflowEffect={{
               rotate: 50,
               stretch: 0,
@@ -151,7 +154,7 @@ export const TopCreatives = () => {
               modifier: 1,
               slideShadows: false,
             }}
-            modules={[EffectCoverflow]}
+            modules={[EffectCoverflow, Mousewheel]}
             onSlideChange={(swiper) => setActiveIndex(swiper.realIndex)}
             className="w-full"
           >
