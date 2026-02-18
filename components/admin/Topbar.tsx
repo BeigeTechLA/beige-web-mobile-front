@@ -128,11 +128,10 @@ export default function Topbar({ pathname, actions, title }: TopbarProps) {
           </div>
         )} */}
 
-        {/* Right: Desktop Actions (Kept exactly as original) */}
+        {/* Right: Desktop Actions */}
         <div className="flex items-center gap-3 shrink-0">
           {actions}
 
-          {/* We keep the avatar as a standard element if it's not in the dashboard view */}
           {pathname.includes("dashboard") && (
             <div className="relative shrink-0 w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700 ml-2">
               <Image width={40} height={40} className="object-contain" src="/images/avatar.png" alt="User" />

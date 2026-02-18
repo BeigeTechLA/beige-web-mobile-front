@@ -59,7 +59,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside className="w-full lg:w-64 border-r border-zinc-800 flex flex-col justify-between py-6 lg:py-9 px-5 bg-[#0A0A0A] h-full overflow-hidden">
       {/* Mobile Header with Logo and Close Button */}
-      <div className="flex lg:hidden items-center justify-between mb-8">
+      <div className="flex items-center justify-between lg:justify-center mb-8">
         <Link href="/" className="relative flex items-center">
           <Image
             src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
@@ -72,11 +72,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
           </span>
         </Link>
-        <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-white">
+        <button onClick={onClose} className=" lg:hidden p-2 bg-zinc-900 rounded-full text-white">
           <X size={20} />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto mb-6 pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+      <div className="flex-1 overflow-y-auto my-6 pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
         {/* Navigation Items */}
         <nav className="space-y-2">
           {salesMenuItems.map((item) => {
@@ -98,7 +98,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 ) : (
                   <Link
                     href={item.link || '#'}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm ${active ? 'bg-[#E5D5B8] text-black' : 'text-zinc-500 hover:text-white'
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm ${active ? 'bg-[#E5D5B8] text-black' : 'text-zinc-500 hover:text-white'
                       }`}
                   >
                     <item.icon size={20} />

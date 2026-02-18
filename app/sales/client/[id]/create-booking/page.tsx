@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, usePathname } from "next/navigation";
 import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info } from "lucide-react";
 import { toast } from "sonner";
 import { set, format } from "date-fns";
@@ -21,6 +21,7 @@ import { parseDate } from "@/src/components/landing/lib/utils";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
+import Topbar from "@/components/admin/Topbar";
 
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
@@ -37,6 +38,7 @@ const TEAM_ROLES = [
 
 export default function ClientDetailPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useParams();
   const leadId = params.id as string;
 
@@ -311,7 +313,9 @@ export default function ClientDetailPage() {
   };
 
   return (
-    <div className="text-white font-sans mb-20">
+    <>
+      <Topbar pathname={pathname} />
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans mb-20">
       {/* Back Button */}
       <Button
         onClick={() => router.back()}
@@ -652,5 +656,6 @@ export default function ClientDetailPage() {
         </Button>
       </div>
     </div>
+    </>
   );
 }

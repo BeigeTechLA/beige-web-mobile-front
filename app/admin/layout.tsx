@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu } from "lucide-react";
 
 import Sidebar from "@/components/admin/Sidebar";
 

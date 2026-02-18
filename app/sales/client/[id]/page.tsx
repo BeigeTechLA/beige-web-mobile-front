@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -9,9 +9,11 @@ import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent"; // Adjust path as needed
 import Link from "next/link";
+import Topbar from "@/components/admin/Topbar";
 
 export default function ClientDetailPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useParams();
   const leadId = params.id as string;
 
@@ -27,7 +29,9 @@ export default function ClientDetailPage() {
   };
 
   return (
-    <div className="text-white font-sans">
+    <>
+      <Topbar pathname={pathname} />
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans">
       {/* Back Button */}
       <Button
         onClick={() => router.back()}
@@ -128,5 +132,6 @@ export default function ClientDetailPage() {
         currentIntent="Hot" // Pass the current intent from your data
       />
     </div>
+    </>
   );
 }

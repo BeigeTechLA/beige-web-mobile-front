@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { MoreVertical, Search, ChevronDown, ChevronUp, ChevronRight, User, Camera, ChartLine, Calendar, Users, Target } from "lucide-react";
+import { MoreVertical, Search, ChevronDown, ChevronUp, ChevronRight, User, Camera, ChartLine, Calendar, Users, Target, ArrowUpToLine } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
-import { useRouter } from "next/navigation";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -24,6 +24,7 @@ import { BookingStatus, LeadsStatusBadge } from "@/components/sales/LeadsStatusB
 import UsersTable from "@/components/sales/UsersTable";
 import LeadsTable from "@/components/sales/BookingLeadsTable";
 import { IntentBadge } from "@/components/sales/IntentBadge";
+import Topbar from "@/components/admin/Topbar";
 
 type TabType = "Booking" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
@@ -117,6 +118,8 @@ const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
 ];
 export default function SalesLeadsPage() {
   const router = useRouter();
+  const pathname = usePathname();
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(
     null,
@@ -321,7 +324,32 @@ export default function SalesLeadsPage() {
 
   return (
     <>
-      <div className="flex flex-col lg:flex-row gap-6 justify-between items-start mb-6 w-full">
+      <Topbar pathname={pathname}
+        actions={
+          <>
+            {/* Add other filters */}
+            <div className="relative flex-1 max-w-lg">
+              <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+              <input
+                type="text"
+                placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-12 w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+              />
+            </div>
+            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+              <ArrowUpToLine /> Export
+            </Button>
+            <Button onClick={() => router.push("/admin/sales-representative/create-new-deal")} className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
+              Create new deal
+            </Button>
+          </>
+        }
+      />
+
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
+        <div className="flex flex-col lg:flex-row gap-6 justify-between items-start w-full">
         <div className="text-white">
           <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">
             Sales Leads Management
@@ -563,6 +591,7 @@ export default function SalesLeadsPage() {
           }
         />
       )}
+      </div>
     </>
   );
 }

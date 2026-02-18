@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, use } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -31,6 +31,7 @@ import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
+import Topbar from "@/components/admin/Topbar";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -57,6 +58,8 @@ const assignedCPs = [
 
 export default function SalesLeadDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+
+  const pathname = usePathname();
   const params = use(paramsPromise);
   const leadId = params.id;
 
@@ -202,7 +205,9 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
   }
 
   return (
-    <div className="text-white font-sans">
+    <>
+      <Topbar pathname={pathname} />
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans">
       {/* Back Button */}
       <Button
         onClick={() => router.back()}
@@ -605,5 +610,6 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
         </div>
       </div>
     </div>
+    </>
   );
 }
