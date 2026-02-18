@@ -62,12 +62,13 @@ const CARD_ELEMENT_OPTIONS = {
   },
 };
 
-// Helper for currency formatting
-const formatCurrency = (amount: number) => {
+// Helper for currency formatting - UPDATED to handle string numbers safely
+const formatCurrency = (amount: any) => {
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-  }).format(amount);
+  }).format(numericAmount || 0);
 };
 
 // Helper for title casing
@@ -105,6 +106,9 @@ function StripePaymentFormMulti({
   const [isProcessing, setIsProcessing] = useState(false);
   const [cardholderName, setCardholderName] = useState("");
 
+  const searchParams = useSearchParams();
+  const urlDiscount = searchParams.get("discount");
+
   // Referral code state
   const [referralCode, setReferralCode] = useState("");
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(
@@ -120,6 +124,15 @@ function StripePaymentFormMulti({
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [appliedDiscount, setAppliedDiscount] = useState<any>(null);
   const [referralErrorMessage, setReferralErrorMessage] = useState("");
+
+  // AUTO-APPLY DISCOUNT FROM URL IF PRESENT
+  useEffect(() => {
+    if (urlDiscount && !appliedDiscount && !discountCode) {
+      const upperCode = urlDiscount.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      setDiscountCode(upperCode);
+      validateDiscountCode(upperCode);
+    }
+  }, [urlDiscount]);
 
   // Debounced referral code validation
   // const validateReferralCode = React.useCallback(
@@ -480,7 +493,7 @@ function StripePaymentFormMulti({
           {appliedDiscount && (
             <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
               <Check className="w-4 h-4" />
-              Discount applied: Save $
+              Discount applied: You Save $
               {appliedDiscount.discount_amount.toFixed(2)}
             </p>
           )}
@@ -659,7 +672,7 @@ function MultiCreatorPaymentContent() {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
       const response = await axios.post(`${API_BASE_URL}payments/create-intent-multi`, {
         booking_id: shootId,
-        amount: quote.total,
+        amount: parseFloat(quote.total), // ENSURE NUMBER
         guest_email: booking.guest_email,
       });
 
@@ -787,8 +800,11 @@ function MultiCreatorPaymentContent() {
 
   const { booking, creators, quote } = paymentDetails;
 
-  // Additional safety check
-  if (!quote || typeof quote.total !== "number") {
+  // Additional safety check - UPDATED to handle String totals
+  const quoteTotal = quote?.total ? parseFloat(quote.total) : null;
+  const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
+
+  if (!isQuoteValid) {
     return (
       <div className="pt-20 lg:pt-32 pb-20">
         <div className="container mx-auto px-4 md:px-0 flex items-center justify-center min-h-[60vh]">
@@ -831,7 +847,7 @@ function MultiCreatorPaymentContent() {
               </div>
             </div>
             <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Payment Success</h2>
-            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(quote.total)}</p>
+            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(quoteTotal)}</p>
             <div className="w-full max-w-2xl mb-6">
               <button onClick={() => window.open(getFormUrl(), "_blank")} className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center">
                 Complete All The Details For Your Shoot
@@ -902,7 +918,7 @@ function MultiCreatorPaymentContent() {
                 <Elements stripe={stripePromise} options={{ clientSecret }}>
                   <StripePaymentFormMulti
                     clientSecret={clientSecret}
-                    amount={quote.total}
+                    amount={quoteTotal || 0}
                     onSuccess={handlePaymentSuccess}
                     onError={handlePaymentError}
                     shootId={shootId}
@@ -1053,23 +1069,44 @@ function MultiCreatorPaymentContent() {
                     ))}
 
                     <div className="p-3 lg:p-5 border-b border-black/20">
-                      <div className="flex justify-between mb-3">
-                        <span className="text-[#626467]">Subtotal</span>
-                        <span className="font-medium">
-                          {formatCurrency(quote.subtotal || 0)}
-                        </span>
-                      </div>
-                    </div>
+      <div className="flex justify-between mb-1">
+        <span className="text-[#626467]">Subtotal</span>
+        <span className="font-medium">
+          {formatCurrency(quote.subtotal || 0)}
+        </span>
+      </div>
 
-                    <div className="flex justify-between items-start p-3 lg:p-5">
-                      <div className="flex flex-col gap-2 text-sm">
-                        <span className="font-bold">Total</span>
-                        <span className="text-[#212122]">Amount Due</span>
-                      </div>
-                      <span className="text-xl font-bold">{formatCurrency(quote.total || 0)}</span>
-                    </div>
-                  </div>
-                )}
+      {/* NEW: DISCOUNT BREAKDOWN ROW */}
+      {parseFloat(quote.discount_total || 0) > 0 && (
+        <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+          <div className="flex flex-col">
+            <span className="text-green-600 font-bold flex items-center gap-1">
+              <Tag className="w-3 h-3" />
+              Discount
+            </span>
+            {/* Show percentage if available in the quote object */}
+            {quote.discount_percentage && (
+               <span className="text-[10px] text-green-600/80">
+                 ({quote.discount_percentage}% off)
+               </span>
+            )}
+          </div>
+          <span className="text-green-600 font-bold">
+            -{formatCurrency(quote.discount_total)}
+          </span>
+        </div>
+      )}
+    </div>
+
+    <div className="flex justify-between items-start p-3 lg:p-5 bg-[#fcf8f1] rounded-b-[20px]">
+      <div className="flex flex-col gap-2 text-sm">
+        <span className="font-bold">Total</span>
+        <span className="text-[#212122]">Amount Due</span>
+      </div>
+      <span className="text-xl font-bold">{formatCurrency(quoteTotal || 0)}</span>
+    </div>
+  </div>
+)}
               </div>
             </div>
           </div>

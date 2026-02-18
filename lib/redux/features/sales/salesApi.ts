@@ -209,12 +209,24 @@ export const salesApi = createApi({
       transformResponse: (response: ApiResponse<PaymentLinkDetails>) => response.data!,
     }),
 
-    validatePaymentLink: builder.query<{ valid: boolean; booking_id?: number; discount_code_id?: number }, string>({
+    validatePaymentLink: builder.query<{
+      valid: boolean;
+      success: boolean;
+      message?: string;
+      reason_code?: string;
+      booking_id?: number;
+      discount_code?: string;
+    }, string>({
       query: (token) => `sales/payment-links/${token}/validate`,
-      transformResponse: (response: ApiResponse<any>) => ({
-        valid: response.success,
-        ...response.data,
-      }),
+      transformResponse: (response: any) => {
+        return {
+          success: response.success,
+          valid: response.valid,
+          message: response.message,
+          reason_code: response.reason_code,
+          ...response.data,
+        };
+      },
     }),
 
     markPaymentLinkUsed: builder.mutation<ApiResponse<void>, string>({

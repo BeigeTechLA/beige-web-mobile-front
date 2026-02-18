@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useValidatePaymentLinkQuery } from '@/lib/redux/features/sales/salesApi';
 import { Navbar } from '@/src/components/landing/Navbar';
 import { Footer } from '@/src/components/landing/Footer';
-import { CheckCircle, XCircle, Clock, ArrowRight } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, Loader2, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function PaymentLinkPage() {
@@ -13,56 +13,67 @@ export default function PaymentLinkPage() {
   const router = useRouter();
   const token = params.token as string;
 
-  const { data, isLoading, error } = useValidatePaymentLinkQuery(token, {
+  const { data, isLoading, isFetching, error } = useValidatePaymentLinkQuery(token, {
     skip: !token,
   });
 
   const [countdown, setCountdown] = useState(5);
-  const [autoRedirect, setAutoRedirect] = useState(true);
 
-  const paymentLink = data?.data;
-  const isValid = data?.success && paymentLink && !paymentLink.is_used && !paymentLink.is_expired;
-
-  // Auto-redirect on successful validation
   useEffect(() => {
-    if (isValid && paymentLink && autoRedirect) {
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            handleProceedToPayment();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(timer);
+    if (!isFetching && data) {
+      console.log("--- Payment Link Debug ---");
+      console.log("Full API Response:", data);
+      console.log("Reason Code:", data?.reason_code || data?.data?.reason_code);
+      console.log("Valid Status:", data?.valid);
+      console.log("Booking ID:", data?.booking_id || data?.data?.booking_id);
     }
-  }, [isValid, paymentLink, autoRedirect]);
+  }, [data, isFetching]);
+  
+  const isAlreadyPaid = data?.reason_code === "PAID" || data?.data?.reason_code === "PAID";
+  
+  const paymentDetails = data?.data || data;
+  const bookingId = paymentDetails?.booking_id;
 
-  const handleProceedToPayment = () => {
-    if (paymentLink?.booking) {
-      const creatorId = paymentLink.booking.creator_id || 'unknown';
-      const bookingId = paymentLink.booking.stream_project_booking_id;
-      let url = `/search-results/${creatorId}/payment?shootId=${bookingId}`;
+  const isValid = !isAlreadyPaid && (data?.valid === true || !!bookingId);
 
-      // Add discount code to URL if present
-      if (paymentLink.discount_code?.code) {
-        url += `&discount=${paymentLink.discount_code.code}`;
+  const handleProceedToPayment = useCallback(() => {
+    if (bookingId) {
+      let url = `/search-results/payment?shootId=${bookingId}`;
+      if (paymentDetails?.discount_code) {
+        url += `&discount=${paymentDetails.discount_code}`;
       }
-
+      console.log("Redirecting to:", url);
       router.push(url);
     }
-  };
+  }, [bookingId, paymentDetails, router]);
 
-  if (isLoading) {
+  // Timer Logic
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isValid && !isFetching) {
+      timer = setInterval(() => {
+        setCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
+      }, 1000);
+    }
+    return () => { if(timer) clearInterval(timer); };
+  }, [isValid, isFetching]);
+
+  // Redirect Logic
+  useEffect(() => {
+    if (countdown === 0 && isValid && !isFetching) {
+      handleProceedToPayment();
+    }
+  }, [countdown, isValid, isFetching, handleProceedToPayment]);
+
+
+  if (isLoading || isFetching) {
     return (
-      <main className="bg-[#101010] min-h-screen text-white">
+      <main className="bg-[#101010] min-h-screen text-white flex flex-col relative">
         <Navbar />
-        <div className="container mx-auto px-4 pt-32 pb-20 flex items-center justify-center min-h-[calc(100vh-200px)]">
+        <div className="flex-grow flex items-center justify-center pt-40 pb-20">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB] mx-auto mb-4"></div>
-            <p className="text-white/60">Validating payment link...</p>
+            <Loader2 className="w-12 h-12 text-[#E8D1AB] animate-spin mx-auto mb-4" />
+            <p className="text-white/60">Verifying link security...</p>
           </div>
         </div>
         <Footer />
@@ -70,25 +81,23 @@ export default function PaymentLinkPage() {
     );
   }
 
-  if (error || !data?.success) {
+  if (isAlreadyPaid) {
     return (
-      <main className="bg-[#101010] min-h-screen text-white">
+      <main className="bg-[#101010] min-h-screen text-white flex flex-col relative">
         <Navbar />
-        <div className="container mx-auto px-4 pt-32 pb-20 flex items-center justify-center min-h-[calc(100vh-200px)]">
-          <div className="max-w-md w-full text-center">
-            <div className="bg-[#171717] rounded-2xl p-8 border border-white/10">
-              <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold mb-4">Invalid Payment Link</h1>
-              <p className="text-white/60 mb-6">
-                {error ? 'Failed to validate payment link' : data?.message || 'This payment link is invalid or has expired.'}
-              </p>
-              <Button
-                onClick={() => router.push('/')}
-                className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black"
-              >
-                Go to Homepage
-              </Button>
-            </div>
+        <div className="flex-grow flex items-center justify-center px-4 pt-40 pb-20">
+          <div className="max-w-md w-full text-center bg-[#171717] rounded-2xl p-10 border border-[#E8D1AB]/30 shadow-2xl">
+            <PartyPopper className="w-20 h-20 text-[#E8D1AB] mx-auto mb-6" />
+            <h1 className="text-3xl font-bold mb-4 text-white">Payment Received</h1>
+            <p className="text-white/70 text-lg mb-8 leading-relaxed">
+              {data?.message || "Payment for this project has already been completed. You're all set!"}
+            </p>
+            <Button 
+              onClick={() => router.push('/')} 
+              className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black w-full h-14 text-lg font-bold"
+            >
+              Back to Homepage
+            </Button>
           </div>
         </div>
         <Footer />
@@ -96,25 +105,18 @@ export default function PaymentLinkPage() {
     );
   }
 
-  if (paymentLink?.is_used) {
+  if (!isValid) {
     return (
-      <main className="bg-[#101010] min-h-screen text-white">
+      <main className="bg-[#101010] min-h-screen text-white flex flex-col relative">
         <Navbar />
-        <div className="container mx-auto px-4 pt-32 pb-20 flex items-center justify-center min-h-[calc(100vh-200px)]">
-          <div className="max-w-md w-full text-center">
-            <div className="bg-[#171717] rounded-2xl p-8 border border-white/10">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold mb-4">Link Already Used</h1>
-              <p className="text-white/60 mb-6">
-                This payment link has already been used and cannot be accessed again.
-              </p>
-              <Button
-                onClick={() => router.push('/')}
-                className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black"
-              >
-                Go to Homepage
-              </Button>
-            </div>
+        <div className="flex-grow flex items-center justify-center px-4 pt-40 pb-20">
+          <div className="max-w-md w-full text-center bg-[#171717] rounded-2xl p-8 border border-red-500/20 shadow-2xl">
+            <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold mb-4">Invalid Link</h1>
+            <p className="text-white/60 mb-6">{data?.message || "This link is no longer valid or has expired."}</p>
+            <Button onClick={() => router.push('/')} className="bg-white/10 hover:bg-white/20 text-white w-full h-12">
+              Go to Homepage
+            </Button>
           </div>
         </div>
         <Footer />
@@ -122,130 +124,20 @@ export default function PaymentLinkPage() {
     );
   }
 
-  if (paymentLink?.is_expired) {
-    return (
-      <main className="bg-[#101010] min-h-screen text-white">
-        <Navbar />
-        <div className="container mx-auto px-4 pt-32 pb-20 flex items-center justify-center min-h-[calc(100vh-200px)]">
-          <div className="max-w-md w-full text-center">
-            <div className="bg-[#171717] rounded-2xl p-8 border border-white/10">
-              <Clock className="w-16 h-16 text-orange-500 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold mb-4">Link Expired</h1>
-              <p className="text-white/60 mb-2">
-                This payment link has expired and can no longer be used.
-              </p>
-              {paymentLink.expires_at && (
-                <p className="text-white/40 text-sm mb-6">
-                  Expired on: {new Date(paymentLink.expires_at).toLocaleString()}
-                </p>
-              )}
-              <Button
-                onClick={() => router.push('/')}
-                className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black"
-              >
-                Go to Homepage
-              </Button>
-            </div>
-          </div>
-        </div>
-        <Footer />
-      </main>
-    );
-  }
-
-  // Valid link - show booking summary and redirect
   return (
-    <main className="bg-[#101010] min-h-screen text-white">
+    <main className="bg-[#101010] min-h-screen text-white flex flex-col relative">
       <Navbar />
-      <div className="container mx-auto px-4 pt-32 pb-20 flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <div className="max-w-2xl w-full">
-          <div className="bg-[#171717] rounded-2xl p-8 border border-white/10">
-            <div className="text-center mb-8">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h1 className="text-3xl font-bold mb-2">Payment Link Verified</h1>
-              <p className="text-white/60">
-                Your payment link has been validated. You'll be redirected to complete your booking.
-              </p>
-            </div>
-
-            {/* Booking Summary */}
-            {paymentLink?.booking && (
-              <div className="bg-[#272626] rounded-xl p-6 mb-6">
-                <h2 className="text-xl font-bold mb-4">Booking Summary</h2>
-                <div className="space-y-3 text-sm">
-                  {paymentLink.booking.project_name && (
-                    <div className="flex justify-between">
-                      <span className="text-white/60">Project:</span>
-                      <span className="text-white font-medium">{paymentLink.booking.project_name}</span>
-                    </div>
-                  )}
-                  {paymentLink.booking.event_type && (
-                    <div className="flex justify-between">
-                      <span className="text-white/60">Event Type:</span>
-                      <span className="text-white font-medium capitalize">{paymentLink.booking.event_type}</span>
-                    </div>
-                  )}
-                  {paymentLink.booking.event_date && (
-                    <div className="flex justify-between">
-                      <span className="text-white/60">Date:</span>
-                      <span className="text-white font-medium">
-                        {new Date(paymentLink.booking.event_date).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                  {paymentLink.booking.budget && (
-                    <div className="flex justify-between">
-                      <span className="text-white/60">Budget:</span>
-                      <span className="text-white font-medium">${paymentLink.booking.budget}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Discount Info */}
-            {paymentLink?.discount_code && (
-              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span className="text-green-400 font-medium">Discount Code Included</span>
-                </div>
-                <p className="text-white/80 text-sm">
-                  Code <span className="font-mono font-bold">{paymentLink.discount_code.code}</span> will be automatically applied
-                  {paymentLink.discount_code.discount_type === 'percentage'
-                    ? ` (${paymentLink.discount_code.discount_value}% off)`
-                    : ` ($${paymentLink.discount_code.discount_value} off)`}
-                </p>
-              </div>
-            )}
-
-            {/* Auto-redirect countdown */}
-            {autoRedirect && (
-              <div className="text-center mb-6">
-                <p className="text-white/60 text-sm">
-                  Redirecting in <span className="font-bold text-[#E8D1AB]">{countdown}</span> seconds...
-                </p>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex gap-4">
-              <Button
-                onClick={handleProceedToPayment}
-                className="flex-1 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium h-12 text-base"
-              >
-                Proceed to Payment
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-              <Button
-                onClick={() => setAutoRedirect(false)}
-                variant="outline"
-                className="border-white/10 hover:bg-white/5"
-              >
-                Cancel Auto-redirect
-              </Button>
-            </div>
-          </div>
+      <div className="flex-grow flex items-center justify-center px-4 pt-40 pb-20">
+        <div className="max-w-md w-full text-center bg-[#171717] rounded-2xl p-10 border border-[#E8D1AB]/20 shadow-2xl">
+          <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-6" />
+          <h1 className="text-3xl font-bold mb-4">Link Verified</h1>
+          <p className="text-white/70 mb-2">Redirecting to our secure checkout...</p>
+          <p className="text-[#E8D1AB] text-sm font-medium mb-8">
+            Redirecting in <span className="text-xl font-bold">{countdown}</span> seconds
+          </p>
+          <Button onClick={handleProceedToPayment} className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black w-full h-14 text-lg font-bold group">
+            Continue to Payment <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+          </Button>
         </div>
       </div>
       <Footer />
