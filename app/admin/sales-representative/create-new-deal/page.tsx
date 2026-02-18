@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, usePathname } from "next/navigation";
 import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info } from "lucide-react";
 import { toast } from "sonner";
 import { set, format } from "date-fns";
@@ -23,6 +23,7 @@ import { parseDate } from "@/src/components/landing/lib/utils";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
+import Topbar from "@/components/admin/Topbar";
 
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
@@ -46,6 +47,7 @@ const intentOptions = [
 
 export default function ClientDetailPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useParams();
   const leadId = params.id as string;
 
@@ -322,406 +324,409 @@ export default function ClientDetailPage() {
   };
 
   return (
-    <div className="text-white font-sans mb-20">
-      {/* Back Button */}
-      <Button
-        onClick={() => router.back()}
-        className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0"
-      >
-        <ArrowLeft size={24} />
-        <span className="text-sm font-medium">Back</span>
-      </Button>
+    <>
+      <Topbar pathname={pathname} />
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans mb-20">
+        {/* Back Button */}
+        <Button
+          onClick={() => router.back()}
+          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0"
+        >
+          <ArrowLeft size={24} />
+          <span className="text-sm font-medium">Back</span>
+        </Button>
 
-      {/* Client Information */}
-      {/* Client Information Section */}
-      <div className="space-y-6">
-        <h3 className="text-base lg:text-xl font-medium text-white/90">
-          Client Information
-        </h3>
+        {/* Client Information */}
+        {/* Client Information Section */}
+        <div className="space-y-6">
+          <h3 className="text-base lg:text-xl font-medium text-white/90">
+            Client Information
+          </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
-          {/* Row 1: Basic Info */}
-          <div className="relative space-y-2">
-            <Label htmlFor="name" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Client Name</Label>
-            <Input
-              id="name"
-              type="text"
-              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
+            {/* Row 1: Basic Info */}
+            <div className="relative space-y-2">
+              <Label htmlFor="name" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Client Name</Label>
+              <Input
+                id="name"
+                type="text"
+                className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+              />
+            </div>
+
+            <div className="relative space-y-2">
+              <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email Id</Label>
+              <Input
+                id="email"
+                type="email"
+                className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+              />
+            </div>
+
+            <div className="relative space-y-2">
+              <Label htmlFor="phone" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Phone Number</Label>
+              <Input
+                id="phone"
+                type="text"
+                className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+              />
+            </div>
+
+            {/* Row 2: Location and Thumbtack */}
+            <div className="lg:col-span-2 relative space-y-2">
+              <Label htmlFor="location" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Location</Label>
+              <Input
+                id="location"
+                type="text"
+                className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+              />
+            </div>
+
+            <FloatingLabelDropdown
+              label="Select Thumbtack"
+              value={thumbtack}
+              options={[
+                { value: "instagram", label: "Instagram" },
+                { value: "facebook", label: "Facebook" },
+                { value: "referral", label: "Referral" }
+              ]}
+              onChange={(val) => setThumbtack(val)}
+              placeholder=""
+              labelBg={"bg-[#000]"}
+              required
+            />
+
+
+            <FloatingLabelDropdown
+              label="Intent Type"
+              value={intent}
+              options={intentOptions}
+              onChange={(val) => setIntent(val)}
+              placeholder="Choose an intent..."
+              labelBg={"bg-[#000]"}
+              className="lg:col-span-4"
+              required
             />
           </div>
-
-          <div className="relative space-y-2">
-            <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email Id</Label>
-            <Input
-              id="email"
-              type="email"
-              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
-            />
-          </div>
-
-          <div className="relative space-y-2">
-            <Label htmlFor="phone" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Phone Number</Label>
-            <Input
-              id="phone"
-              type="text"
-              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
-            />
-          </div>
-
-          {/* Row 2: Location and Thumbtack */}
-          <div className="lg:col-span-2 relative space-y-2">
-            <Label htmlFor="location" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Location</Label>
-            <Input
-              id="location"
-              type="text"
-              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
-            />
-          </div>
-
-          <FloatingLabelDropdown
-            label="Select Thumbtack"
-            value={thumbtack}
-            options={[
-              { value: "instagram", label: "Instagram" },
-              { value: "facebook", label: "Facebook" },
-              { value: "referral", label: "Referral" }
-            ]}
-            onChange={(val) => setThumbtack(val)}
-            placeholder=""
-            labelBg={"bg-[#000]"}
-            required
-          />
-
-
-          <FloatingLabelDropdown
-            label="Intent Type"
-            value={intent}
-            options={intentOptions}
-            onChange={(val) => setIntent(val)}
-            placeholder="Choose an intent..."
-            labelBg={"bg-[#000]"}
-            className="lg:col-span-4"
-            required
-          />
         </div>
-      </div>
-      <DottedDivider />
+        <DottedDivider />
 
-      {/* Content Type */}
-      <div ref={contentTypeRef} className="">
-        <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <ContentTypeCheckbox
-            label="Select All"
-            icon={<SquaresUnite size={20} />}
-            checked={
-              formData.contentType.length === 2 && //As cinematography is not to be included in the length count at present
-              !formData.contentType.includes("editing")
-            }
-            onChange={(checked) => {
-              if (checked)
-                updateData({
-                  contentType: [
-                    "videographer",
-                    "photographer",
-                  ],
-                });
-              else updateData({ contentType: [] });
-            }}
-          />
-          <ContentTypeCheckbox
-            label="Videography"
-            icon={<Video size={20} />}
-            checked={formData.contentType.includes("videographer")}
-            onChange={() => toggleContentType("videographer")}
-          />
-          <ContentTypeCheckbox
-            label="Photography"
-            icon={<Camera size={20} />}
-            checked={formData.contentType.includes("photographer")}
-            onChange={() => toggleContentType("photographer")}
-          />
-          <ContentTypeCheckbox
-            label="AI Editing"
-            subLabel="Coming Soon"
-            icon={<Scissors size={20} />}
-            checked={false}
-            onChange={() => { }}
-            disabled={true}
-          />
-          <ContentTypeCheckbox
-            label="Livestream"
-            subLabel="Coming Soon"
-            icon={<Radio size={20} />}
-            checked={false}
-            onChange={() => { }}
-            disabled={true}
-          />
-        </div>
-      </div>
-      <DottedDivider />
-
-      <div ref={shootTypeRef} className="">
-        <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
-          {!formData.contentType || formData.contentType.length === 0
-            ? "Shoot Type"
-            : formData.contentType.includes("videographer") &&
-              formData.contentType.includes("photographer")
-              ? "Video and Photo Shoot Type"
-              : formData.contentType.includes("videographer") ||
-                formData.contentType.includes("cinematographer")
-                ? "Video Shoot Type"
-                : "Photo Shoot Type"}
-        </h3>
-        <FloatingLabelDropdown
-          label="Shoot Type"
-          // If formData.shootType is an array in your state, use formData.shootType[0] 
-          // or join them. Based on your previous logic, we'll pass the current value.
-          value={formData.shootType} 
-          options={editTypeOptions}
-          onChange={(val) => updateData({ shootType: val })}
-          placeholder="Select the type of shoot"
-          labelBg="bg-[#101010]"
-          required
-        />
-      </div>
-      <DottedDivider />
-
-      {/* Date & Time */}
-      <div ref={dateTimeRef} className="">
-        <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors text-white/90`}>
-          Shoot Date & Time
-        </h3>
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1">
-            <DatePicker
-              label="Select Date"
-              value={formData.startDate ? parseDate(formData.startDate) : null}
-              onChange={handleDateChange}
-              minDate={new Date()}
-              colors={datePickerColours}
-              format="MM/dd/yyyy"
-              sx={{
-                height: { xs: "56px", md: "82px" },
-                borderRadius: "16px",
+        {/* Content Type */}
+        <div ref={contentTypeRef} className="">
+          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <ContentTypeCheckbox
+              label="Select All"
+              icon={<SquaresUnite size={20} />}
+              checked={
+                formData.contentType.length === 2 && //As cinematography is not to be included in the length count at present
+                !formData.contentType.includes("editing")
+              }
+              onChange={(checked) => {
+                if (checked)
+                  updateData({
+                    contentType: [
+                      "videographer",
+                      "photographer",
+                    ],
+                  });
+                else updateData({ contentType: [] });
               }}
             />
-          </div>
-          <div className="flex-1">
-            <DropdownSelect
-              title="Start Time"
-              options={filteredStartTimeOptions}
-              value={getStartTimeKey()}
-              onChange={handleStartTimeChange}
-              bgColour="bg-[#101010]"
+            <ContentTypeCheckbox
+              label="Videography"
+              icon={<Video size={20} />}
+              checked={formData.contentType.includes("videographer")}
+              onChange={() => toggleContentType("videographer")}
             />
-          </div>
-          <div className="flex-1">
-            <DropdownSelect
-              title="End Time"
-              options={filteredEndTimeOptions}
-              value={getEndTimeKey()}
-              onChange={handleEndTimeChange}
-              bgColour="bg-[#101010]"
+            <ContentTypeCheckbox
+              label="Photography"
+              icon={<Camera size={20} />}
+              checked={formData.contentType.includes("photographer")}
+              onChange={() => toggleContentType("photographer")}
+            />
+            <ContentTypeCheckbox
+              label="AI Editing"
+              subLabel="Coming Soon"
+              icon={<Scissors size={20} />}
+              checked={false}
+              onChange={() => { }}
+              disabled={true}
+            />
+            <ContentTypeCheckbox
+              label="Livestream"
+              subLabel="Coming Soon"
+              icon={<Radio size={20} />}
+              checked={false}
+              onChange={() => { }}
+              disabled={true}
             />
           </div>
         </div>
-      </div>
-      <DottedDivider />
+        <DottedDivider />
 
-      {/* Edits Needed */}
-      <div ref={editsRef} className="">
-        <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors text-white/90`}>
-          Edits Needed?
-        </h3>
-
-        <div className="flex gap-4">
-          <button
-            onClick={() => {
-              updateData({ editsNeeded: true });
-              scrollToRef(navigationRef);
-            }}
-            disabled={formData.shootType === ""}
-            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${formData.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-          >
-            <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-            <div
-              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${formData.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
-                }`}
-            >
-              {formData.editsNeeded && (
-                <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-              )}
-            </div>
-          </button>
-          <button
-            onClick={() => {
-              updateData({ editsNeeded: false });
-              scrollToRef(navigationRef);
-            }}
-            disabled={formData.shootType === ""}
-            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!formData.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-          >
-            <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-            <div
-              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!formData.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
-                }`}
-            >
-              {!formData.editsNeeded && (
-                <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-              )}
-            </div>
-          </button>
+        <div ref={shootTypeRef} className="">
+          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
+            {!formData.contentType || formData.contentType.length === 0
+              ? "Shoot Type"
+              : formData.contentType.includes("videographer") &&
+                formData.contentType.includes("photographer")
+                ? "Video and Photo Shoot Type"
+                : formData.contentType.includes("videographer") ||
+                  formData.contentType.includes("cinematographer")
+                  ? "Video Shoot Type"
+                  : "Photo Shoot Type"}
+          </h3>
+          <FloatingLabelDropdown
+            label="Shoot Type"
+            // If formData.shootType is an array in your state, use formData.shootType[0] 
+            // or join them. Based on your previous logic, we'll pass the current value.
+            value={formData.shootType}
+            options={editTypeOptions}
+            onChange={(val) => updateData({ shootType: val })}
+            placeholder="Select the type of shoot"
+            labelBg="bg-[#101010]"
+            required
+          />
         </div>
+        <DottedDivider />
 
-        {formData.editsNeeded && (
-          <div className="animate-in slide-in-from-top-4 duration-300 mt-4 lg:mt-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {formData.contentType.includes("videographer") &&
-                editTypeOptions.length > 0 && (
-                  <div>
-                    <MultiSelectDropdown
-                      title="Video Edit Type"
-                      options={editTypeOptions}
-                      value={formData.videoEditTypes}
-                      onChange={(values) =>
-                        updateData({ videoEditTypes: values })
-                      }
-                      bgColour={"bg-[#101010]"}
-                    />
-                  </div>
-                )}
-
-              {/* Photo Edit Type - Show if photographer selected */}
-              {formData.contentType.includes("photographer") &&
-                photoEditTypeOptions.length > 0 && (
-                  <div>
-                    <MultiSelectDropdown
-                      title="Photo Edit Type"
-                      options={photoEditTypeOptions}
-                      value={formData.photoEditTypes}
-                      onChange={(values) =>
-                        updateData({ photoEditTypes: values })
-                      }
-                      bgColour={"bg-[#101010]"}
-                    />
-                    {photoEditNote && (
-                      <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
-                        <Info size={16} className="mt-0.5 flex-shrink-0" />
-                        <span>{photoEditNote}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
+        {/* Date & Time */}
+        <div ref={dateTimeRef} className="">
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors text-white/90`}>
+            Shoot Date & Time
+          </h3>
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex-1">
+              <DatePicker
+                label="Select Date"
+                value={formData.startDate ? parseDate(formData.startDate) : null}
+                onChange={handleDateChange}
+                minDate={new Date()}
+                colors={datePickerColours}
+                format="MM/dd/yyyy"
+                sx={{
+                  height: { xs: "56px", md: "82px" },
+                  borderRadius: "16px",
+                }}
+              />
+            </div>
+            <div className="flex-1">
+              <DropdownSelect
+                title="Start Time"
+                options={filteredStartTimeOptions}
+                value={getStartTimeKey()}
+                onChange={handleStartTimeChange}
+                bgColour="bg-[#101010]"
+              />
+            </div>
+            <div className="flex-1">
+              <DropdownSelect
+                title="End Time"
+                options={filteredEndTimeOptions}
+                value={getEndTimeKey()}
+                onChange={handleEndTimeChange}
+                bgColour="bg-[#101010]"
+              />
             </div>
           </div>
-        )}
-      </div>
-      <DottedDivider />
+        </div>
+        <DottedDivider />
 
-      {/* Additional Creatives */}
-      <div ref={extraTeamRef}>
-        <div className="flex flex-col gap-3 lg:gap-6">
-          <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
-          <div className="flex gap-2 lg:gap-6">
+        {/* Edits Needed */}
+        <div ref={editsRef} className="">
+          <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors text-white/90`}>
+            Edits Needed?
+          </h3>
+
+          <div className="flex gap-4">
             <button
-              onClick={() => updateData({ addTeamMembers: true })}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${formData.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              onClick={() => {
+                updateData({ editsNeeded: true });
+                scrollToRef(navigationRef);
+              }}
+              disabled={formData.shootType === ""}
+              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${formData.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
             >
-              <span className="font-medium text-sm lg:text-lg pr-2">
-                Yes
-              </span>
+              <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
               <div
-                className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${formData.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+                className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${formData.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                  }`}
               >
-                {formData.addTeamMembers && (
+                {formData.editsNeeded && (
                   <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
                 )}
               </div>
             </button>
             <button
               onClick={() => {
-                updateData({ addTeamMembers: false });
-                setExtraTeam({});
-                updateData({ teamIncluded: [] });
-                scrollToRef(locationRef);
+                updateData({ editsNeeded: false });
+                scrollToRef(navigationRef);
               }}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!formData.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              disabled={formData.shootType === ""}
+              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!formData.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
             >
-              <span className="font-medium text-sm lg:text-lg pr-2">
-                No
-              </span>
+              <span className="font-medium text-sm lg:text-lg pr-2">No</span>
               <div
-                className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${!formData.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+                className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!formData.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                  }`}
               >
-                {!formData.addTeamMembers && (
+                {!formData.editsNeeded && (
                   <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
                 )}
               </div>
             </button>
           </div>
-        </div>
 
-        {formData.addTeamMembers && (
-          <div className="bg-[#171717] rounded-[20px] p-3 lg:p-6 border border-white/5 animate-in slide-in-from-top-4 mt-4 md:mt-6">
-            <div className="flex flex-col gap-4">
-              {availableRolesToAdd.length > 0 ? (
-                availableRolesToAdd.map((role) => (
-                  <div key={role.id} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60">
-                        {role.icon}
-                      </div>
-                      <div>
-                        <div className="text-lg font-medium text-white">{role.label}</div>
-                      </div>
+          {formData.editsNeeded && (
+            <div className="animate-in slide-in-from-top-4 duration-300 mt-4 lg:mt-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {formData.contentType.includes("videographer") &&
+                  editTypeOptions.length > 0 && (
+                    <div>
+                      <MultiSelectDropdown
+                        title="Video Edit Type"
+                        options={editTypeOptions}
+                        value={formData.videoEditTypes}
+                        onChange={(values) =>
+                          updateData({ videoEditTypes: values })
+                        }
+                        bgColour={"bg-[#101010]"}
+                      />
                     </div>
-                    <QuantityControl
-                      value={extraTeam[role.id] || 0}
-                      onIncrease={() => handleExtraTeamChange(role.id, 1)}
-                      onDecrease={() => handleExtraTeamChange(role.id, -1)}
-                    />
-                  </div>
-                ))
-              ) : (
-                <p className="text-white/40 italic">No eligible roles to add based on your selection.</p>
-              )}
+                  )}
+
+                {/* Photo Edit Type - Show if photographer selected */}
+                {formData.contentType.includes("photographer") &&
+                  photoEditTypeOptions.length > 0 && (
+                    <div>
+                      <MultiSelectDropdown
+                        title="Photo Edit Type"
+                        options={photoEditTypeOptions}
+                        value={formData.photoEditTypes}
+                        onChange={(values) =>
+                          updateData({ photoEditTypes: values })
+                        }
+                        bgColour={"bg-[#101010]"}
+                      />
+                      {photoEditNote && (
+                        <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                          <Info size={16} className="mt-0.5 flex-shrink-0" />
+                          <span>{photoEditNote}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+              </div>
+            </div>
+          )}
+        </div>
+        <DottedDivider />
+
+        {/* Additional Creatives */}
+        <div ref={extraTeamRef}>
+          <div className="flex flex-col gap-3 lg:gap-6">
+            <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
+            <div className="flex gap-2 lg:gap-6">
+              <button
+                onClick={() => updateData({ addTeamMembers: true })}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${formData.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              >
+                <span className="font-medium text-sm lg:text-lg pr-2">
+                  Yes
+                </span>
+                <div
+                  className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${formData.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+                >
+                  {formData.addTeamMembers && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  updateData({ addTeamMembers: false });
+                  setExtraTeam({});
+                  updateData({ teamIncluded: [] });
+                  scrollToRef(locationRef);
+                }}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!formData.addTeamMembers ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              >
+                <span className="font-medium text-sm lg:text-lg pr-2">
+                  No
+                </span>
+                <div
+                  className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${!formData.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}
+                >
+                  {!formData.addTeamMembers && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
             </div>
           </div>
-        )}
-      </div>
-      <DottedDivider />
 
-      {/* Location */}
-      <div ref={locationRef} className="">
-        <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
-        <LocationPicker
-          value={formData.location}
-          onChange={(address: string, details?: any) => {
-            updateData({ location: address, locationDetails: details });
-          }}
-          placeholder="Search for a location"
-          colors={darkThemeColors}
-        />
-      </div>
-      <DottedDivider />
+          {formData.addTeamMembers && (
+            <div className="bg-[#171717] rounded-[20px] p-3 lg:p-6 border border-white/5 animate-in slide-in-from-top-4 mt-4 md:mt-6">
+              <div className="flex flex-col gap-4">
+                {availableRolesToAdd.length > 0 ? (
+                  availableRolesToAdd.map((role) => (
+                    <div key={role.id} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60">
+                          {role.icon}
+                        </div>
+                        <div>
+                          <div className="text-lg font-medium text-white">{role.label}</div>
+                        </div>
+                      </div>
+                      <QuantityControl
+                        value={extraTeam[role.id] || 0}
+                        onIncrease={() => handleExtraTeamChange(role.id, 1)}
+                        onDecrease={() => handleExtraTeamChange(role.id, -1)}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-white/40 italic">No eligible roles to add based on your selection.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        <DottedDivider />
 
-      <CreativeProfileSelector />
+        {/* Location */}
+        <div ref={locationRef} className="">
+          <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
+          <LocationPicker
+            value={formData.location}
+            onChange={(address: string, details?: any) => {
+              updateData({ location: address, locationDetails: details });
+            }}
+            placeholder="Search for a location"
+            colors={darkThemeColors}
+          />
+        </div>
+        <DottedDivider />
 
-      <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
-        <Button
-          // onClick={onBack}
-          className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] "
-        >
-          Back
-        </Button>
-        <Button
-          // onClick={handleNext}
-          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
-        >
-          Continue
-        </Button>
+        <CreativeProfileSelector />
+
+        <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
+          <Button
+            // onClick={onBack}
+            className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] "
+          >
+            Back
+          </Button>
+          <Button
+            // onClick={handleNext}
+            className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+          >
+            Continue
+          </Button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
