@@ -1,15 +1,19 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Topbar from "@/components/admin/Topbar";
 
 export default function SalesLeadDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   return (
-    <div className="min-h-screen text-white font-sans flex flex-col items-center">
+    <>
+      <Topbar pathname={pathname} />
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 min-h-screen text-white font-sans flex flex-col items-center">
       {/* Header Navigation */}
       <div className="w-full max-w-2xl flex justify-between items-center mb-12 px-4">
         <h2 className="lg:text-xl font-medium">Complete Your Payment</h2>
@@ -106,5 +110,6 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
         Need help? Contact support at <span className="text-[#52525C]">support@example.com</span>
       </p>
     </div>
+    </>
   );
 }

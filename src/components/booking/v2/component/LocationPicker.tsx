@@ -7,6 +7,26 @@ import { MapPin, Search, X } from 'lucide-react';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
+export const darkThemeColors = {
+  inputBg: "#101010",
+  inputBorder: "#ffffff4d",
+  inputBorderHover: "#ffffff99",
+  labelText: "#ffffff99",
+  primaryText: "#FFFFFF",
+  secondaryText: "#ffffff99",
+  paperBg: "#1A1A1A",
+  divider: "#ffffff1a",
+  accent: "#E8D1AB",
+  accentHover: "#dcb98a",
+  buttonPrimaryText: "#1A1A1A",
+  buttonPrimaryBg: "#E8D1AB",
+  buttonPrimaryBgHover: "#dcb98a",
+  buttonSecondaryText: "#fff",
+  buttonSecondaryBg: "#ffffff4d",
+  buttonSecondaryBgHover: "#ffffff4d",
+};
+
+
 export interface LocationPickerColors {
   inputBg: string;
   inputBorder: string;

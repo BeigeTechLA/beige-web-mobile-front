@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { ChevronDown, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
@@ -32,7 +32,7 @@ export const TopCreatives = () => {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {

@@ -16,6 +16,7 @@ type MultiSelectDropdownProps = {
   onChange: (keys: string[]) => void;
   maxDisplay?: number; // Max number of pills to display before showing "+N more"
   isDisabled?: boolean;
+  fullWidth?: boolean;
 };
 
 export default function MultiSelectDropdown({
@@ -26,6 +27,7 @@ export default function MultiSelectDropdown({
   onChange,
   maxDisplay = 2,
   isDisabled = false,
+  fullWidth= false
 }: MultiSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -71,7 +73,7 @@ export default function MultiSelectDropdown({
   };
 
   return (
-    <div className={`relative w-full max-w-md ${isDisabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`} ref={dropdownRef}>
+    <div className={`relative w-full ${fullWidth ? "": "max-w-md"} ${isDisabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`} ref={dropdownRef}>
       <div
         className={`min-h-14 lg:min-h-[82px] relative ${bgColour} rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40`}
         onClick={() => !isDisabled && setOpen((p) => !p)} // Check isDisabled here

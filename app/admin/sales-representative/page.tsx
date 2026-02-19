@@ -1,19 +1,18 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { ChevronRight, MoreVertical, Search, Loader2 } from "lucide-react";
+import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, ArrowUpRight, User, Camera, Users, Check, X, ArrowUpToLine } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
-import { useRouter } from "next/navigation";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { User, Camera, AlertCircle, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
 import {
@@ -23,6 +22,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import DottedDivider from "@/components/admin/DottedDivider";
+import MetricCards from "@/components/admin/OverviewMetricCards";
+import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
+import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
+import { BookingStatus, LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
+import UsersTable from "@/components/sales/UsersTable";
+import LeadsTable from "@/components/sales/BookingLeadsTable";
+import { IntentBadge } from "@/components/sales/IntentBadge";
+import Topbar from "@/components/admin/Topbar";
 
 type TabType = "Booking" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
@@ -45,7 +53,7 @@ interface LeadData {
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
-  bookingStatus: "Paid" | "In-Progress";
+  bookingStatus: "Paid" | "In-Progress" | BookingStatus; //update with code change
   lastActivity: string;
   date: Date;
 }
@@ -82,15 +90,49 @@ const formatRelativeTime = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
+// Placeholder values:update values on integration
+const initialMetrics = [
+  { id: 'total_active', label: 'Total Active Leads', value: '10', growth: 0, icon: Users, color: 'bg-[#E5D5B8]' },
+  { id: 'sales_assisted', label: 'Sales Assisted Leads', value: '5', growth: 0, icon: Target, color: 'bg-zinc-800' },
+  { id: 'total_conversion', label: 'Total Conversion Rate', value: '15.4', growth: 0, icon: ChartLine, color: 'bg-zinc-800' },
+  { id: 'total_bookings', label: 'Total Bookings', value: '25', growth: 0, icon: Calendar, color: 'bg-zinc-800' },
+];
+
+const OverviewFilters = [
+  "All time",
+  "Month",
+  "Week",
+]
+
+const tabs: { label: string; value: TabType }[] = [
+  { label: "Booking Leads", value: "Booking" },
+  { label: "Client Signup", value: "Client" },
+  { label: "Creative Partner Signup", value: "Creative Partner" },
+];
+
+const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
+  "Signed Up - Lead Created",
+  "Book a shoot - Lead Created",
+  "Manual - Lead Created",
+  "Booking In Progress",
+  "Proposal Sent",
+  "Ready for Payment",
+  "Payment Sent",
+  "Booked",
+  "Closed – Lost",
+];
+
 export default function AdminSaleRepManagerPage() {
   const router = useRouter();
+  const pathname = usePathname();
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sortBy, setSortBy] = React.useState("");
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(
     null,
   );
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
-  const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [activeTab, setActiveTab] = useState<TabType>("Booking");
@@ -108,6 +150,20 @@ export default function AdminSaleRepManagerPage() {
   const [usersTotalRecords, setUsersTotalRecords] = useState(0);
   const [usersLimit] = useState(50);
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
+
+  // Metrics State
+  const [metrics, setMetrics] = useState<any[]>(initialMetrics);
+  const [activeMetric, setActiveMetric] = useState('total_active');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [range, setRange] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
+  const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
+
+  // const filteredLeads =
+  //   statusFilter === "All"
+  //     ? leads
+  //     : leads.filter((lead) => lead.bookingStatus === statusFilter);
 
   // Fetch users for Client and Creative Partner tabs
   const fetchUsers = async () => {
@@ -183,7 +239,7 @@ export default function AdminSaleRepManagerPage() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (activeTab !== "Booking") {
       fetchUsers();
     }
@@ -222,13 +278,13 @@ export default function AdminSaleRepManagerPage() {
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
     client: string,
-    leadId: number,
+    id: number | string, // Change leadId: number to id: number | string
   ) => {
     e.stopPropagation();
     setSelectedClient(client);
-    setSelectedLeadId(leadId);
-    const rect = e.currentTarget.getBoundingClientRect();
+    setSelectedLeadId(id); // Now correctly stores the string ID
 
+    const rect = e.currentTarget.getBoundingClientRect();
     const isNearRightEdge = window.innerWidth - rect.right < 250;
     const isNearBottomEdge = window.innerHeight - rect.bottom < 150;
 
@@ -242,331 +298,242 @@ export default function AdminSaleRepManagerPage() {
     router.push(`/admin/sales-representative/${leadId}`);
   };
 
+  const getGrowthLabel = () => {
+    switch (range) {
+      case 'week': return 'from last week';
+      case 'month': return 'from last month';
+      case 'all': return 'all time';
+      case 'custom': return 'in selected range';
+      default: return 'from last month';
+    }
+  };
+
   return (
     <>
-      <div className="flex flex-col lg:flex-row gap-6 justify-between items-start mb-6 w-full">
-        <div className="text-white">
-          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">
-            Sales Representative Management
-          </h1>
-          <p className="text-xs lg:text-sm text-white/70">
-            View activity, manage assignments, and monitor performance across
-            your sales team.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-6 mb-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4 w-full md:flex-1">
-            <div className="relative flex-1 max-w-md">
+      <Topbar pathname={pathname}
+        actions={
+          <>
+            {/* Add other filters */}
+            <div className="relative flex-1 max-w-lg">
               <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
               <input
                 type="text"
                 placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+                className="h-12 w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+              />
+            </div>
+            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+              <ArrowUpToLine /> Export
+            </Button>
+            <Button onClick={() => router.push("/admin/sales-representative/create-new-deal")} className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
+              Create new deal
+            </Button>
+          </>
+        }
+      />
+
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
+        <div className="flex flex-col lg:flex-row gap-6 justify-between items-start w-full">
+          <div className="text-white">
+            <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">
+              Sales Representative Management
+            </h1>
+            <p className="text-xs lg:text-sm text-white/70">
+              View activity, manage assignments, and monitor performance across
+              your sales team.
+            </p>
+          </div>
+        </div>
+        <DottedDivider />
+
+        <OverviewMetricCards
+          metrics={metrics}
+          activeId={activeMetric}
+          onSelect={setActiveMetric}
+          isLoading={isLoading}
+          getGrowthLabel={() => getGrowthLabel()}
+          dropdownLabel="Duration"
+          dropdownValue={range}
+          dropdownOptions={OverviewFilters}
+          onDropdownChange={setRange}
+        />
+
+        <div className="flex flex-col gap-6 my-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 w-full md:flex-1">
+
+            </div>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-2 justify-between">
+            <TabsSwitcher
+              tabs={tabs}
+              activeTab={activeTab}
+              onChange={(tab) => {
+                setActiveTab(tab);
+                setUsersCurrentPage(1);
+                setLeadsCurrentPage(1);
+              }}
+            />
+
+            <div className="flex flex-wrap gap-2 lg:gap-4">
+              <BasicDropdown
+                label="Lead Type"
+                value={range} // Update state as required
+                options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                onChange={(val) => console.log("Lead Type:", val)}
+              />
+              {/* 2. Intent Type Dropdown */}
+              <BasicDropdown
+                label="Intent Type"
+                value={intentFilter}
+                options={["All", "Hot", "Warm", "Cold"]}
+                onChange={(val) => setIntentFilter(val as any)}
+              />
+              {/* 3. Booking Status Dropdown */}
+              <BasicDropdown
+                label="All Statuses"
+                value={statusFilter}
+                options={["All", ...BOOKING_STATUS_OPTIONS]}
+                onChange={(val) => setStatusFilter(val as any)}
+                openAlign={"right"}
               />
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-[#111] p-1 rounded-xl w-fit border border-[#333]">
-          {(["Booking", "Client", "Creative Partner"] as TabType[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                setUsersCurrentPage(1);
-                setLeadsCurrentPage(1);
-              }}
-              className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all ${activeTab === tab
-                ? "bg-[#E5D5B8] text-black shadow-lg"
-                : "text-[#777] hover:text-white"
-                }`}
-            >
-              {tab === "Creative Partner" ? "CreativePartner_Signup" : tab === "Booking" ? "Booking_Leads" : "User_Signup"}
-            </button>
-          ))}
-        </div>
-      </div>
+        <DottedDivider className="lg:hidden" />
 
-      <div
-        className="lg:hidden h-[1px] w-full my-4 lg:my-9"
-        style={{
-          backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-          backgroundSize: '30px 1px',
-          backgroundRepeat: 'repeat-x'
-        }}
-      />
+        {activeTab === "Booking" ? (
+          <div className="flex flex-col gap-4">
+            {/* Desktop View */}
+            <div className="hidden lg:block">
+              <LeadsTable
+                data={displayLeads}
+                loading={leadsIsLoading}
+                isFetching={leadsIsFetching}
+                currentPage={leadsCurrentPage}
+                totalPages={leadsTotalPages}
+                totalRecords={leadsTotalRecords}
+                limit={leadsLimit}
+                onPageChange={(page) => setLeadsCurrentPage(page)}
+                onRowClick={handleRowClick}
+                onOpenMenu={handleOpenMenu}
+              />
+            </div>
 
-      {activeTab === "Booking" ? (
-        <div className="flex flex-col gap-4">
-          <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
-            {leadsIsLoading && displayLeads.length === 0 ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="animate-spin text-[#E8D1AB]" size={40} />
-              </div>
-            ) : displayLeads.length === 0 ? (
-              <div className="flex items-center justify-center py-20 text-white/60">
-                <p>No leads found</p>
-              </div>
-            ) : (
-              <>
-                {/* MOBILE LIST VIEW */}
-                  <div className={`lg:hidden flex flex-col gap-2 transition-opacity duration-200 ${leadsIsFetching ? 'opacity-50' : 'opacity-100'}`}>
-                  {displayLeads.map((lead) => (
-                    <MobileLeadRow
-                      key={lead.lead_id}
-                      lead={lead}
-                      onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
-                    />
-                  ))}
-                </div>
+            {/* Mobile View */}
+            <div className="lg:hidden flex flex-col gap-2">
+              {displayLeads.map((lead) => (
+                <MobileLeadRow
+                  key={lead.lead_id}
+                  lead={lead}
+                  onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <UsersTable<UserData>
+            data={users}
+            loading={usersLoading}
+            currentPage={usersCurrentPage}
+            totalPages={usersTotalPages}
+            totalRecords={usersTotalRecords}
+            limit={usersLimit}
+            headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
+            onPageChange={(page) => setUsersCurrentPage(page)}
+            renderRow={(user) => (
+              <tr
+                key={user.id}
+                className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
+              >
+                {/* User ID */}
+                <td className="py-5 px-6 text-[#888] text-[14px]">{user.id}</td>
 
-                {/* DESKTOP VIEW */}
-                <div className="hidden lg:block w-full overflow-x-auto">
-                  <table className="w-full text-left border-separate border-spacing-0">
-                    <thead>
-                      <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
-                        <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">
-                          User Name
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Email ID
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Lead Type
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Booking Status
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Last Activity
-                        </th>
-                        <th className="py-5 px-6 font-medium text-right rounded-r-2xl border-r border-b border-b-[#333333] border-r-[#333333]">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className={`transition-opacity duration-200 ${leadsIsFetching ? 'opacity-50' : 'opacity-100'}`}>
-                      {displayLeads.map((lead) => (
-                        <tr
-                          key={lead.lead_id}
-                          onClick={() => handleRowClick(lead.lead_id)}
-                          className=" hover:bg-white/[0.02] transition-colors cursor-pointer"
-                        >
-                          <td className="py-5 px-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-[50px] h-[50px] rounded-lg bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-xl">
-                                {lead.clientName.split(" ").map((n) => n[0]).join("")}
-                              </div>
-                              <div>
-                                <p className="text-white font-medium text-base">{lead.clientName}</p>
-                                <p className="text-white/40 text-sm mt-1.5">{format(lead.date, "MMM dd, yyyy")}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-5 px-6 text-white text-base">{lead.email}</td>
-                          <td className="py-5 px-6 text-white text-base">{lead.leadType}</td>
-                          <td className="py-5 px-6 whitespace-nowrap w-px">
-                            <div className="flex items-center min-w-max">
-                              <StatusBadge status={lead.bookingStatus} />
-                            </div>
-                          </td>
-                          <td className="py-5 px-6 text-white text-base">{lead.lastActivity}</td>
-                          <td className="py-5 px-6 text-right">
-                            <Button
-                              className="text-white hover:text-white/80 transition-colors"
-                              onClick={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
-                            >
-                              <MoreVertical size={20} />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
+                {/* User Info */}
+                <td className="py-5 px-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-sm">
+                      {user.imageUrl ? (
+                        <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <span>{user.initials}</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
+                      <p className="text-[#666666] text-xs mt-0.5">{user.date}</p>
+                    </div>
+                  </div>
+                </td>
+
+                {/* Type */}
+                <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">{user.type}</td>
+
+                {/* Intent */}
+                <td className="py-5 px-6">
+                  {/* update once data is available */}
+                  <IntentBadge intent={"Warm"} />
+                </td>
+
+                {/* Status */}
+                <td className="py-5 px-6">
+                  {/* <StatusBadge status={user.status} /> */}
+                  <LeadsStatusBadge status={"Booking In Progress"} />
+                </td>
+
+                {/* Contact Info */}
+                <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">
+                  {user.phoneNumber}
+                </td>
+
+                {/* Action */}
+                <td className="py-5 px-6 text-right">
+                  {/* <button className="text-[#666] hover:text-white transition-colors p-1" onClick={(e) =>handleOpenMenu(e, lead.clientName, lead.lead_id)}>
+                  <MoreVertical size={20} />
+                </button> */}
+                  <button
+                    className="text-[#666] hover:text-white transition-colors p-1"
+                    onClick={(e) => {
+                      // Extract numeric/string ID without the '#' prefix
+                      const rawId = user.id.replace('#', '');
+                      handleOpenMenu(e, user.name, rawId as any);
+                    }}
+                  >
+                    <MoreVertical size={20} />
+                  </button>
+                </td>
+              </tr>
             )}
-          </div>
-
-          {/* Pagination for Leads */}
-          {!leadsIsLoading && leadsTotalPages > 1 && (
-            <div className="flex justify-between items-center p-6 border border-[#3D3D3D] rounded-2xl bg-[#171717]">
-              <div className="text-sm text-[#666666]">
-                Showing {((leadsCurrentPage - 1) * leadsLimit) + 1} to {Math.min(leadsCurrentPage * leadsLimit, leadsTotalRecords)} of {leadsTotalRecords} leads
-              </div>
-              <div className="flex gap-2 items-center">
-                <button
-                  onClick={() => setLeadsCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={leadsCurrentPage === 1}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 transition-all"
-                >
-                  Previous
-                </button>
-                <div className="flex gap-1">
-                  {Array.from({ length: Math.min(5, leadsTotalPages) }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setLeadsCurrentPage(i + 1)}
-                      className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${leadsCurrentPage === i + 1 ? "bg-[#E5D5B8] text-black" : "text-white/60 hover:bg-white/5"}`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+            renderMobileDetails={(user) => (
+              <div className="p-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-white/40 text-[10px] uppercase">Email</p>
+                  <p className="text-white text-sm truncate">{user.email}</p>
                 </div>
-                <button
-                  onClick={() => setLeadsCurrentPage(prev => Math.min(leadsTotalPages, prev + 1))}
-                  disabled={leadsCurrentPage === leadsTotalPages}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 transition-all"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-      ) : (
-        <div className="space-y-6">
-          <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="text-[#888] text-sm font-normal border-b border-[#333]">
-                    <th className="py-5 px-6 font-medium">User ID</th>
-                    <th className="py-5 px-6 font-medium">User Info</th>
-                    <th className="py-5 px-6 font-medium">Type</th>
-                    <th className="py-5 px-6 font-medium">Contact</th>
-                    <th className="py-5 px-6 font-medium text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {usersLoading ? (
-                    <tr>
-                      <td colSpan={5} className="py-10 text-center text-[#888]">
-                        <div className="flex flex-col items-center gap-2">
-                          <Loader2 className="animate-spin text-[#E8D1AB]" size={24} />
-                          <span>Loading users...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : users.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-10 text-center text-[#888]">No users found.</td>
-                    </tr>
-                  ) : (
-                    users.map((user, idx) => (
-                      <tr
-                        key={idx}
-                        // onClick={() => {
-                        //   const cleanId = user.id.replace('#', '');
-                        //   if (user.type === "Client") {
-                        //     router.push(`/admin/users/clients/${cleanId}`);
-                        //   } else {
-                        //     router.push(`/admin/users/creative-partners/${cleanId}`);
-                        //   }
-                        // }}
-                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
-                      >
-                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
-                        <td className="py-5 px-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] overflow-hidden flex items-center justify-center text-[#E5D5B8] font-semibold text-sm border border-white/5 relative">
-                              {user.imageUrl ? (
-                                <img
-                                  src={user.imageUrl}
-                                  alt={user.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    if (target.parentElement) target.parentElement.textContent = user.initials;
-                                  }}
-                                />
-                              ) : (
-                                <span className="text-zinc-400">{user.initials}</span>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                              <p className="text-[#666666] text-xs mt-0.5">{user.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-5 px-6">
-                          <div className="flex items-center gap-2 text-sm text-[#888]">
-                            {user.type === "Client" ? <User size={14} /> : <Camera size={14} />}
-                            <span>{user.type}</span>
-                          </div>
-                        </td>
-                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">
-                          <div className="flex flex-col gap-1">
-                            {user.phoneNumber && user.phoneNumber !== "N/A" && (
-                              <span className="text-zinc-500">{user.phoneNumber}</span>
-                            )}
-                            {user.type === "Creative Partner" && (
-                              <span className="w-fit px-2 py-0.5 bg-[#E5D5B8]/10 text-[#E5D5B8] rounded text-xs">
-                                {user.role}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-5 px-6 text-right">
-                          <button className="text-[#666] hover:text-white transition-colors">
-                            <ChevronRight size={20} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Pagination for Users */}
-          {!usersLoading && usersTotalPages > 1 && (
-            <div className="flex justify-between items-center p-6 border-t border-[#333333]">
-              <div className="text-sm text-[#666666]">
-                Showing {((usersCurrentPage - 1) * usersLimit) + 1} to {Math.min(usersCurrentPage * usersLimit, usersTotalRecords)} of {usersTotalRecords} results
-              </div>
-              <div className="flex gap-2 items-center">
-                <button
-                  onClick={() => setUsersCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={usersCurrentPage === 1}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 transition-all"
-                >
-                  Previous
-                </button>
-                <div className="flex gap-1">
-                  {Array.from({ length: Math.min(5, usersTotalPages) }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setUsersCurrentPage(i + 1)}
-                      className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${usersCurrentPage === i + 1 ? "bg-[#E5D5B8] text-black" : "text-white/60 hover:bg-white/5"}`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+                <div className="text-right">
+                  <p className="text-white/40 text-[10px] uppercase">Type</p>
+                  <p className="text-white text-sm">{user.type}</p>
                 </div>
-                <button
-                  onClick={() => setUsersCurrentPage(prev => Math.min(usersTotalPages, prev + 1))}
-                  disabled={usersCurrentPage === usersTotalPages}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 transition-all"
-                >
-                  Next
-                </button>
+                <div className="">
+                  <p className="text-white/40 text-[10px] uppercase">Intent</p>
+                  <div className="">
+                    <IntentBadge intent="Hot" size="sm" />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white/40 text-[10px] uppercase">Contact Info</p>
+                  <p className="text-white text-sm">{user.phoneNumber}</p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          />
+        )}
 
-      {menuAnchor && selectedLeadId && (
+        {/* {menuAnchor && selectedLeadId && (
         <ActionMenu
           client={selectedClient}
           leadId={selectedLeadId}
@@ -574,7 +541,26 @@ export default function AdminSaleRepManagerPage() {
           onClose={() => setMenuAnchor(null)}
           anchor={menuAnchor}
         />
-      )}
+      )} */}
+
+        {menuAnchor && selectedLeadId && (
+          <ActionMenu
+            client={selectedClient}
+            leadId={selectedLeadId}
+            isOpen={true}
+            onClose={() => setMenuAnchor(null)}
+            anchor={menuAnchor}
+            // Dynamically set basePath based on active tab
+            basePath={
+              activeTab === "Client"
+                ? "/admin/sales-representative/client"
+                : activeTab === "Creative Partner"
+                  ? "/admin/sales-representative/creative-partner" // Adjust if CP has a different path
+                  : undefined // Defaults to current pathname in ActionMenu for "Booking" tab
+            }
+          />
+        )}
+      </div>
     </>
   );
 }

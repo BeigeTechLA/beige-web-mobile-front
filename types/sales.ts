@@ -39,18 +39,76 @@ export interface SalesLead {
   contacted_sales_at?: string;
   created_at: string;
   updated_at: string;
+  intent?: string;
+  booking_status?: string;
+  payment_status?: string;
+  booking_step?: number;
+  can_edit_booking?: boolean;
+  intent_source?: string;
+  selected_crew_ids?: number[];
+  fulfillmentSummary?: Record<string, {
+    required: number;
+    pending: number;
+    accepted: number;
+    rejected: number;
+    display: string;
+    needs_attention: boolean;
+  }>;
+  pricing_breakdown?: {
+    shoot_cost: number;
+    editing_cost: number;
+    additional_creatives_cost: number;
+    discount: number;
+    total: number;
+  };
 }
 
 export interface SalesLeadDetails extends SalesLead {
   booking: {
     stream_project_booking_id: number;
     project_name: string;
-    event_date?: string;
-    event_type?: string;
-    event_location?: string;
-    duration_hours?: number;
-    budget?: number | string;
     description?: string;
+    event_type?: string;
+    shoot_type?: string;
+    content_type?: string;
+    event_date?: string;
+    duration_hours?: number;
+    start_time?: string;
+    end_time?: string;
+    budget?: number | string;
+    crew_size_needed?: number;
+    event_location?: string;
+    streaming_platforms?: string;
+    crew_roles?: string;
+    skills_needed?: string;
+    equipments_needed?: string;
+    reference_links?: string;
+    edits_needed?: boolean;
+    special_instructions?: string;
+    is_draft?: boolean;
+    is_completed?: boolean;
+    is_cancelled?: boolean;
+    is_active?: boolean;
+    payment_id?: number;
+    payment_completed_at?: string;
+    created_at?: string;
+    status?: number;
+    video_edit_types?: string[];
+    photo_edit_types?: string[];
+    assigned_crews?: Array<{
+      crew_member_id: number;
+      crew_accept: number;
+      status: string;
+      is_active: boolean;
+      crew_member: {
+        crew_member_id: number;
+        first_name: string;
+        last_name: string;
+        primary_role: string;
+        hourly_rate: string;
+      };
+      acceptance_status: string;
+    }>;
   };
   discount_codes?: DiscountCode[];
   payment_links?: PaymentLink[];

@@ -54,7 +54,7 @@ export const ContentTypeCheckbox: React.FC<ContentTypeCheckboxProps> = ({
       {
         !disabled &&
         <div
-          className={`w-6 h-6 rounded border border-[#DDD] flex items-center justify-center transition-all ${checked
+          className={`w-6 h-6 rounded border border-[#DDD] flex items-center justify-center transition-all shrink-0 ${checked
             ? "bg-black border-black text-[#E8D1AB]"
             : "bg-transparent border-white/20"
             }`}

@@ -9,8 +9,8 @@ import Image from "next/image";
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', isDisabled: true },
-  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', isDisabled: true },
+  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
+  { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
   // { name: 'Availability', icon: CalendarClock, link: '/admin/availability', isDisabled: true },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability' },
   { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
@@ -19,7 +19,7 @@ const menuItems = [
     icon: Users,
     children: [
       { name: 'All Users', link: '/admin/users/all' },
-      { name: 'Users', link: '/admin/users/clients' },
+      { name: 'Clients', link: '/admin/users/clients' },
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
@@ -79,7 +79,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside className="w-full lg:w-64 border-r border-zinc-800 flex flex-col justify-between py-6 lg:py-9 px-5 bg-[#0A0A0A] h-full overflow-hidden">
       {/* Mobile Header with Logo and Close Button */}
-      <div className="flex lg:hidden items-center justify-between mb-8">
+      {/* <div className="flex lg:hidden items-center justify-between mb-8"> */}
+      <div className="flex items-center justify-between lg:justify-center mb-8">
         <Link href="/" className="relative flex items-center">
           <Image
             src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
@@ -92,11 +93,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
           </span>
         </Link>
-        <button onClick={onClose} className="p-2 bg-zinc-900 rounded-full text-white">
+        <button onClick={onClose} className=" lg:hidden p-2 bg-zinc-900 rounded-full text-white">
           <X size={20} />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto mb-6 pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+      <div className="flex-1 overflow-y-auto my-6 pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
         {/* Navigation Items */}
         <nav className="space-y-2">
           {menuItems.map((item) => {
