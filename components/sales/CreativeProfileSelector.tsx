@@ -12,14 +12,28 @@ const CREATIVES = [
   { id: 5, name: "Ethan Cole", status: "Active", shoots: 5, specialities: "Videography & Photography", availability: "16 February, 2026 Hours" },
 ];
 
-export const CreativeProfileSelector = () => {
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+export const CreativeProfileSelector = ({
+  selectedIds: externalSelectedIds,
+  onChange
+}: {
+  selectedIds?: number[],
+  onChange?: (ids: number[]) => void
+} = {}) => {
+  const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+  const selectedIds = externalSelectedIds || internalSelectedIds;
+
   const toggleSelection = (id: number) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
+    const nextIds = selectedIds.includes(id)
+      ? selectedIds.filter(item => item !== id)
+      : [...selectedIds, id];
+
+    if (onChange) {
+      onChange(nextIds);
+    } else {
+      setInternalSelectedIds(nextIds);
+    }
   };
 
   return (

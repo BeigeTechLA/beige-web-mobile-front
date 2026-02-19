@@ -12,7 +12,11 @@ export type BookingStatus =
   | "Payment Sent"
   | "Proposal Sent"
   | "Booked"
-  | "Closed – Lost";
+  | "Closed – Lost"
+  | "In-Progress"
+  | "Paid"
+  | "Cancelled"
+  | "Unknown";
 
 const BOOKING_STATUS_STYLES: Record<
   BookingStatus,
@@ -54,6 +58,22 @@ const BOOKING_STATUS_STYLES: Record<
     bg: "bg-[#FFB9B9]",
     text: "text-[#F03434]",
   },
+  "In-Progress": {
+    bg: "bg-[#FFF4C9]",
+    text: "text-[#BA6605]",
+  },
+  "Paid": {
+    bg: "bg-[#D4FFE4]",
+    text: "text-[#16A34A]",
+  },
+  "Cancelled": {
+    bg: "bg-[#FFB9B9]",
+    text: "text-[#F03434]",
+  },
+  "Unknown": {
+    bg: "bg-gray-200",
+    text: "text-gray-600",
+  },
 };
 
 interface StatusBadgeProps {
@@ -61,13 +81,13 @@ interface StatusBadgeProps {
 }
 
 export function LeadsStatusBadge({ status }: StatusBadgeProps) {
-  const style = BOOKING_STATUS_STYLES[status];
+  const style = BOOKING_STATUS_STYLES[status] || BOOKING_STATUS_STYLES["Unknown"];
 
   return (
     <span
       className={`text-nowrap px-3 py-2 rounded-full text-sm lg:text-base font-medium ${style.bg} ${style.text}`}
     >
-      {status}
+      {status || "Unknown"}
     </span>
   );
 }

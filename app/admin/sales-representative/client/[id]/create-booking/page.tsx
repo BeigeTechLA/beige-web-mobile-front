@@ -21,6 +21,7 @@ import { parseDate } from "@/src/components/landing/lib/utils";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
+import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
 
 const INITIAL_COUNT = 6;
@@ -55,6 +56,45 @@ export default function ClientDetailPage() {
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
+
+  // Fetch lead data for pre-population
+  const { data: leadData, isLoading: isLeadLoading } = useGetLeadByIdQuery(parseInt(leadId), {
+    skip: !leadId,
+  });
+
+  // Pre-populate form data when lead data is available
+  useEffect(() => {
+    if (leadData && leadData.booking) {
+      const b = leadData.booking;
+      const pricing = leadData.pricing_breakdown;
+
+      setFormData((prev) => ({
+        ...prev,
+        bookingId: b.stream_project_booking_id || b.booking_id,
+        contentType: (b.content_type?.split(",") as any) || [],
+        shootType: b.shoot_type || b.event_type || "",
+        startDate: b.event_date || b.start_time || "",
+        endDate: b.end_time || "",
+        editsNeeded: b.edits_needed ?? true,
+        videoEditTypes: b.video_edit_types || [],
+        photoEditTypes: b.photo_edit_types || [],
+        location: b.event_location || "",
+        specialInstructions: b.special_instructions || "",
+        referenceLinks: b.reference_links || "",
+        crewCount: b.crew_size_needed || 0,
+        fullName: leadData.client_name || leadData.guest_email || "",
+        email: leadData.guest_email || "",
+        phone: leadData.user?.phone_number || "",
+      }));
+
+      // Map extra team if available
+      if (b.assigned_crews) {
+        const extra: Record<string, number> = {};
+        // This is a simplified mapping, might need adjustment based on how extraTeam is stored
+        setExtraTeam(extra);
+      }
+    }
+  }, [leadData]);
 
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
@@ -245,6 +285,20 @@ export default function ClientDetailPage() {
     scrollToRef(editsRef);
   };
 
+  const getStartTimeKey = () => {
+    if (!formData.startDate) return "";
+    const date = parseDate(formData.startDate);
+    if (!date) return "";
+    return format(date, "HH:mm");
+  };
+
+  const getEndTimeKey = () => {
+    if (!formData.endDate) return "";
+    const date = parseDate(formData.endDate);
+    if (!date) return "";
+    return format(date, "HH:mm");
+  };
+
   const filteredEndTimeOptions = React.useMemo(() => {
     // If no start date/time is selected, show all
     if (!formData.startDate) return timeOptions;
@@ -276,19 +330,6 @@ export default function ClientDetailPage() {
     return timeOptions.filter((opt) => opt.key >= minKey);
   }, [formData.startDate, timeOptions]);
 
-  const getStartTimeKey = () => {
-    if (!formData.startDate) return "";
-    const date = parseDate(formData.startDate);
-    if (!date) return "";
-    return format(date, "HH:mm");
-  };
-
-  const getEndTimeKey = () => {
-    if (!formData.endDate) return "";
-    const date = parseDate(formData.endDate);
-    if (!date) return "";
-    return format(date, "HH:mm");
-  };
 
   const handleExtraTeamChange = (id: string, delta: number) => {
     const nextExtra = { ...extraTeam };
@@ -327,15 +368,13 @@ export default function ClientDetailPage() {
 
         <div className="flex items-center gap-5">
           <div className="w-13 h-13 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#FFF6D9] text-[#000000] border border-[#FFF6D9] flex items-center justify-center text-xl lg:text-[30px] font-semibold shrink-0">
-            {/* {initials} */}
-            IN
+            {formData.fullName ? formData.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "IN"}
           </div>
           <div className="flex gap-2 items-center">
             <h1 className="lg:text-[22px] font-semibold">
-              {/* {clientName} */}
-              Client Name
+              {formData.fullName || "Client Name"}
             </h1>
-            <IntentBadge intent={"Hot"} />
+            <IntentBadge intent={(leadData?.intent || "Hot") as any} />
           </div>
         </div>
         <DottedDivider />

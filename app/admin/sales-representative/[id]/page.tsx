@@ -15,10 +15,13 @@ import {
   MapPinned,
   Copy,
   Plus,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useGetLeadByIdQuery,
+  useUpdateBookingCrewMutation,
+  useRemoveAssignedCrewMutation,
   useGenerateDiscountCodeMutation,
 } from "@/lib/redux/features/sales/salesApi";
 
@@ -47,14 +50,6 @@ const mapLeadStatusToUI = (status: string): string => {
   return "In-Progress";
 };
 
-// Mock CP data
-const assignedCPs = [
-  { id: 1, name: "Ethan Cole", email: "ethan@example.com", image: "/images/crew/CREW(6).png", earnings: "$1,200.00", bgColor: "bg-blue-200" },
-  { id: 2, name: "Sarah Miller", email: "sarah@example.com", image: "/images/crew/CREW(5).png", earnings: "$2,450.00", bgColor: "bg-green-200" },
-  { id: 3, name: "David Chen", email: "david@example.com", image: "/images/crew/CREW(4).png", earnings: "$980.00", bgColor: "bg-orange-100" },
-  { id: 4, name: "Jessica V.", email: "jess@example.com", image: "/images/crew/CREW(3).png", earnings: "$3,100.00", bgColor: "bg-purple-200" },
-];
-
 export default function LeadDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -70,7 +65,6 @@ export default function LeadDetailPage() {
   const [generatedCode, setGeneratedCode] = useState<string>("");
   const [activeCPIndex, setActiveCPIndex] = useState(0);
 
-  const activePartner = assignedCPs[activeCPIndex % assignedCPs.length];
 
   // Fetch real lead data
   const {
@@ -88,6 +82,18 @@ export default function LeadDetailPage() {
   const lead = leadData;
   const booking = lead?.booking;
 
+  // Extract CPs from assigned_crews
+  const assignedCPs = booking?.assigned_crews?.map((crew) => ({
+    id: crew.crew_member_id,
+    name: `${crew.crew_member.first_name} ${crew.crew_member.last_name}`,
+    email: crew.crew_member.first_name.toLowerCase() + "@example.com", // Fallback email
+    image: `/images/crew/CREW(${Math.floor(Math.random() * 6) + 1}).png`, // Random fallback image
+    earnings: `$${crew.crew_member.hourly_rate}`,
+    bgColor: "bg-blue-200"
+  })) || [];
+
+  const activePartner = assignedCPs[activeCPIndex % (assignedCPs.length || 1)];
+
   // Extract data with defaults
   const clientName = lead?.client_name || lead?.guest_email || "Unknown User";
   const initials = clientName
@@ -99,7 +105,7 @@ export default function LeadDetailPage() {
   const email = lead?.guest_email || "No email";
   const phone = lead?.user?.phone_number || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
-  const status = lead ? mapLeadStatusToUI(lead.lead_status) : "Unknown";
+  const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
 
   const bookingDate = booking?.event_date
     ? new Date(booking.event_date).toLocaleDateString("en-US", {
@@ -109,11 +115,14 @@ export default function LeadDetailPage() {
     })
     : "Not set";
   const location = booking?.event_location || "Not specified";
-  const shootType = booking?.event_type || "Not specified";
+  const shootType = booking?.shoot_type || booking?.event_type || "Not specified";
 
-  const basePrice = booking?.budget ? (typeof booking.budget === 'string' ? parseFloat(booking.budget) || 0 : booking.budget) : 0;
-  const taxes = basePrice * 0.09; // 9% tax estimate
-  const total = basePrice + taxes;
+  // Pricing from breakdown
+  const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
+  const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
+  const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
+  const total = lead?.pricing_breakdown?.total || 0;
+  const taxes = 0; // Taxes are now part of total/breakdown if needed
 
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
@@ -153,6 +162,22 @@ export default function LeadDetailPage() {
     if (generatedCode) {
       await copyToClipboard(generatedCode);
       toast.success("Code copied to clipboard!");
+    }
+  };
+
+  const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
+
+  const handleRemoveCP = async (cpId: number) => {
+    try {
+      await removeAssignedCrew({
+        lead_id: Number(params.id),
+        crew_member_id: cpId,
+      }).unwrap();
+
+      toast.success("Crew member unassigned successfully");
+    } catch (error) {
+      console.error("Failed to unassign crew member:", error);
+      toast.error("Failed to unassign crew member");
     }
   };
 
@@ -220,17 +245,17 @@ export default function LeadDetailPage() {
                       <h1 className="lg:text-[22px] font-semibold">{clientName}</h1>
                       <div className=" lg:hidden">
                         {/* <StatusBadge status={status} /> */}
-                        <LeadsStatusBadge status={"Booked"} />
+                        <LeadsStatusBadge status={status as any} />
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2 items-center">
                     {/* update once data is available */}
-                    <IntentBadge intent={lead.intent || "Hot"} />
+                    <IntentBadge intent={(lead.intent || "Hot") as any} />
 
                     <div className="hidden lg:block">
                       {/* <StatusBadge status={status} /> */}
-                      <LeadsStatusBadge status={"Booked"} />
+                      <LeadsStatusBadge status={status as any} />
                     </div>
                   </div>
                   {/* <div className="hidden lg:block">
@@ -252,15 +277,15 @@ export default function LeadDetailPage() {
                 </div>
                 <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
                   <p>
-                    Temporary Booking ID : <span className="text-[#E8D1AB]">{"TMP-2024-001"}</span>
+                    Temporary Booking ID : <span className="text-[#E8D1AB]">{`TMP-${new Date(lead.created_at).getFullYear()}-${lead.booking_id?.toString().padStart(3, '0')}`}</span>
                   </p>
                   <div className="w-[1px] h-4 bg-white hidden md:block" />
                   <p>
-                    Lead Source : <span className="text-white">{"Website"}</span>
+                    Lead Source : <span className="text-white">{lead.intent_source || "Website"}</span>
                   </p>
                   <div className="w-[1px] h-4 bg-white hidden md:block" />
                   <p>
-                    Assigned Sales Rep : <span className="text-white">{"John Doe"}</span>
+                    Assigned Sales Rep : <span className="text-white">{lead.assigned_sales_rep?.name || "Unassigned"}</span>
                   </p>
                 </div>
               </div>
@@ -270,8 +295,7 @@ export default function LeadDetailPage() {
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
               <div className="flex justify-between items-center  p-4 !pb-0 lg:p-9">
                 <h2 className="lg:text-xl font-medium text-white">
-                  Assigned CPs (04)
-                  {/* Number to be dynamic */}
+                  Assigned CPs ({assignedCPs.length.toString().padStart(2, '0')})
                 </h2>
                 <Button
                   className="h-12 w-fit bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 px-6 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -323,6 +347,15 @@ export default function LeadDetailPage() {
                               fill
                               className="object-cover object-top"
                             />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveCP(cp.id);
+                              }}
+                              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black flex items-center justify-center text-white hover:bg-black/80 transition-all z-10"
+                            >
+                              <X size={16} />
+                            </button>
                           </div>
                         </SwiperSlide>
                       ))}
@@ -352,9 +385,17 @@ export default function LeadDetailPage() {
 
             {/* Booking Summary Card */}
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-              <h2 className="lg:text-xl font-medium text-white p-4 !pb-0 lg:p-9">
-                Booking Summary
-              </h2>
+              <div className="flex justify-between items-center p-4 !pb-0 lg:p-9">
+                <h2 className="lg:text-xl font-medium text-white">
+                  Booking Summary
+                </h2>
+                <Button
+                  onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
+                  className="h-10 w-fit bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-2 px-4 rounded-lg transition-all text-sm"
+                >
+                  Edit Details
+                </Button>
+              </div>
               <DottedDivider />
               <div className="flex flex-col gap-3 lg:gap-5 px-4 lg:px-9 !pt-0">
                 {/* Date */}
@@ -398,7 +439,7 @@ export default function LeadDetailPage() {
               </div>
               <DottedDivider />
               <div className="p-4 !pt-0 lg:p-9">
-                <BookingStatusStepper currentStep={1} />
+                <BookingStatusStepper currentStep={lead.booking_step || 1} />
               </div>
             </div>
 
@@ -423,15 +464,19 @@ export default function LeadDetailPage() {
                   </span>
                 </div>
                 <div className="flex justify-between font-medium">
-                  <span className="text-[#71717B] text-xs">Taxes & Fees</span>
-                  <span className="text-sm lg:text-base text-white">${taxes.toFixed(2)}/-</span>
+                  <span className="text-[#71717B] text-xs">Editing Fee</span>
+                  <span className="text-sm lg:text-base text-white">${editingCost.toLocaleString()}/-</span>
+                </div>
+                <div className="flex justify-between font-medium">
+                  <span className="text-[#71717B] text-xs">Additional Creatives</span>
+                  <span className="text-sm lg:text-base text-white">${additionalCreatives.toLocaleString()}/-</span>
                 </div>
               </div>
               <div className="h-[1px] w-full bg-[#3D3D3D]" />
               <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
                 <span className="text-sm font-medium">Total Amount</span>
                 <span className="lg:text-lg font-semibold text-[#E8D1AB]">
-                  ${total.toFixed(2)}/-
+                  ${total.toLocaleString()}/-
                 </span>
               </div>
             </div>

@@ -287,22 +287,38 @@ export const salesApi = createApi({
       }),
       transformResponse: (response: ApiResponse<FunnelData>) => response.data!,
     }),
-   updateBookingCrew: builder.mutation<
-  ApiResponse<any>, // Changed to any so you can access response.data
-  { 
-    booking_id: number; 
-    crew_roles: Record<string, number>;
-    location?: string;           // Added
-    description?: string;        // Added
-    reference_links?: string;    // Added
-  }
->({
-  query: ({ booking_id, ...payload }) => ({ // Use spread to get everything except id
-    url: `sales/bookings/${booking_id}/crew`,
-    method: "PATCH",
-    body: payload, // This now sends crew_roles, location, description, and reference_links
-  }),
-}),
+    updateBookingCrew: builder.mutation<
+      ApiResponse<any>, // Changed to any so you can access response.data
+      {
+        booking_id: number;
+        crew_roles: Record<string, number>;
+        location?: string;           // Added
+        description?: string;        // Added
+        reference_links?: string;    // Added
+      }
+    >({
+      query: ({ booking_id, ...payload }) => ({ // Use spread to get everything except id
+        url: `sales/bookings/${booking_id}/crew`,
+        method: "PATCH",
+        body: payload, // This now sends crew_roles, location, description, and reference_links
+      }),
+    }),
+    removeAssignedCrew: builder.mutation<ApiResponse<void>, { lead_id: number; crew_member_id: number }>({
+      query: (data) => ({
+        url: 'admin/remove-assigned-crew',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
+    }),
+    updateLeadBooking: builder.mutation<ApiResponse<any>, { lead_id: number; payload: any }>({
+      query: ({ lead_id, payload }) => ({
+        url: `sales/leads/${lead_id}/booking`,
+        method: 'PUT',
+        body: payload,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }],
+    }),
   }),
 });
 
@@ -339,4 +355,6 @@ export const {
   useGetRecentActivitiesQuery,
   useGetLeadsFunnelDataQuery,
   useUpdateBookingCrewMutation,
+  useRemoveAssignedCrewMutation,
+  useUpdateLeadBookingMutation,
 } = salesApi;
