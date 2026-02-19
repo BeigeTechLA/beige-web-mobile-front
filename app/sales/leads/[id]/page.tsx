@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState, use } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams, usePathname } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+
 import {
   Calendar,
   MapPin,
@@ -9,20 +12,34 @@ import {
   ChevronDown,
   ArrowLeft,
   Percent,
+  DollarSign,
   MapPinned,
   Copy,
-  DollarSign,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useGetLeadByIdQuery,
   useGenerateDiscountCodeMutation,
 } from "@/lib/redux/features/sales/salesApi";
+
 import { LEAD_TYPE_LABELS } from "@/types/sales";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils/discountHelpers";
-import { StatusBadge } from "@/components/admin/StatusBadge";
-import Link from "next/link";
+import GeneratePaymentLink from "@/components/sales/GeneratePaymentLink";
+import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
+import { IntentBadge } from "@/components/sales/IntentBadge";
+import DottedDivider from "@/components/admin/DottedDivider";
+import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
+import Topbar from "@/components/admin/Topbar";
+
+// Swiper imports
+import { Swiper, SwiperSlide } from "swiper/react";
+import { EffectCoverflow } from "swiper/modules";
+
+// Swiper styles
+import "swiper/css";
+import "swiper/css/effect-coverflow";
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
@@ -31,13 +48,24 @@ const mapLeadStatusToUI = (status: string): string => {
   return "In-Progress";
 };
 
+// Mock CP data
+const assignedCPs = [
+  { id: 1, name: "Ethan Cole", email: "ethan@example.com", image: "/images/crew/CREW(6).png", earnings: "$1,200.00", bgColor: "bg-blue-200" },
+  { id: 2, name: "Sarah Miller", email: "sarah@example.com", image: "/images/crew/CREW(5).png", earnings: "$2,450.00", bgColor: "bg-green-200" },
+  { id: 3, name: "David Chen", email: "david@example.com", image: "/images/crew/CREW(4).png", earnings: "$980.00", bgColor: "bg-orange-100" },
+  { id: 4, name: "Jessica V.", email: "jess@example.com", image: "/images/crew/CREW(3).png", earnings: "$3,100.00", bgColor: "bg-purple-200" },
+];
+
 export default function SalesLeadDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+
+  const pathname = usePathname();
   const params = use(paramsPromise);
   const leadId = params.id;
 
   // Discount States
   const [discountValue, setDiscountValue] = useState("");
+  const [showDiscountCode, setShowDiscountCode] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed_amount">("percentage");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [usageType, setUsageType] = useState<"one_time" | "multi_use">("one_time");
@@ -46,8 +74,10 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   const [isUsageDropdownOpen, setIsUsageDropdownOpen] = useState(false);
 
-  const [showDiscountCode, setShowDiscountCode] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string>("");
+  const [activeCPIndex, setActiveCPIndex] = useState(0);
+
+  const activePartner = assignedCPs[activeCPIndex % assignedCPs.length];
   const [generatedPaymentLink, setGeneratedPaymentLink] = useState<string>("Placeholder");
 
   // Fetch real lead data
@@ -167,7 +197,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
-        <div className="bg-[#18181B] border border-[#27272A] rounded-2xl p-8 text-center">
+        <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-8 text-center">
           <p className="text-white/60">Lead not found</p>
         </div>
       </div>
@@ -175,7 +205,9 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
   }
 
   return (
-    <div className="text-white font-sans">
+    <>
+      <Topbar pathname={pathname} />
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans">
       {/* Back Button */}
       <Button
         onClick={() => router.back()}
@@ -196,7 +228,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
         {/* Main Content Area (Left/Middle) */}
         <div className="lg:col-span-8 space-y-3 lg:space-y-6">
           {/* Client Details Card */}
-          <div className="bg-[#18181B] border border-[#27272A] rounded-2xl">
+          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
             <h2 className="lg:text-xl font-medium text-white p-5 lg:p-9">
               Client Details
             </h2>
@@ -217,12 +249,19 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                   <div className="flex flex-col gap-2">
                     <h1 className="lg:text-[22px] font-semibold">{clientName}</h1>
                     <div className=" lg:hidden">
-                      <StatusBadge status={status} />
+                      {/* <StatusBadge status={status} /> */}
+                      <LeadsStatusBadge status={"Booked"} />
                     </div>
                   </div>
                 </div>
-                <div className="hidden lg:block">
-                  <StatusBadge status={status} />
+                <div className="flex gap-2 items-center">
+                  {/* update once data is available */}
+                  <IntentBadge intent={lead.intent || "Hot"} />
+
+                  <div className="hidden lg:block">
+                    {/* <StatusBadge status={status} /> */}
+                    <LeadsStatusBadge status={"Booked"} />
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
@@ -238,23 +277,114 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                   Lead Type : <span className="text-white">{leadType}</span>
                 </p>
               </div>
+              <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
+                <p>
+                  Temporary Booking ID : <span className="text-[#E8D1AB]">{"TMP-2024-001"}</span>
+                </p>
+                <div className="w-[1px] h-4 bg-white hidden md:block" />
+                <p>
+                  Lead Source : <span className="text-white">{"Website"}</span>
+                </p>
+                <div className="w-[1px] h-4 bg-white hidden md:block" />
+                <p>
+                  Assigned Sales Rep : <span className="text-white">{"John Doe"}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Assigned CPs */}
+          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
+            <div className="flex justify-between items-center  p-4 !pb-0 lg:p-9">
+              <h2 className="lg:text-xl font-medium text-white">
+                Assigned CPs (04)
+                {/* Number to be dynamic */}
+              </h2>
+              <Link
+                href={"/sales/select-creatives"}
+                className="flex gap-1 items-center h-12 w-fit bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 px-6 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              // onClick={handleGenerateDiscount}
+              >
+                <Plus className="text-black" size={18} /> Add More CPs
+              </Link>
+            </div>
+            <DottedDivider />
+            <div className="p-5 lg:p-9 space-y-6">
+              {/* Slider Section */}
+              <div className="relative pb-4">
+                {isLoading ? (
+                  <div className="h-[200px] flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]" />
+                  </div>
+                ) : assignedCPs.length > 0 ? (
+                  <Swiper
+                    effect={"coverflow"}
+                    grabCursor={true}
+                    centeredSlides={true}
+                    slidesPerView={1.5} // Better fit for the 8-column span on desktop
+                    breakpoints={{
+                      640: { slidesPerView: 2 },
+                      1024: { slidesPerView: 3 }
+                    }}
+                    initialSlide={0}
+                    loop={assignedCPs.length >= 3}
+                    spaceBetween={20}
+                    coverflowEffect={{
+                      rotate: 40,
+                      stretch: 0,
+                      depth: 100,
+                      modifier: 1,
+                      slideShadows: false,
+                    }}
+                    modules={[EffectCoverflow]}
+                    onSlideChange={(swiper) => setActiveCPIndex(swiper.realIndex)}
+                    className="w-full"
+                  >
+                    {assignedCPs.map((cp, index) => (
+                      <SwiperSlide key={cp.id} className="flex items-center justify-center">
+                        <div
+                          className={`relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] rounded-[20px] overflow-hidden transition-all duration-500 ${cp.bgColor}`}
+                        >
+                          <Image
+                            src={cp.image}
+                            alt={cp.name}
+                            fill
+                            className="object-cover object-top"
+                          />
+                        </div>
+                      </SwiperSlide>
+                    ))}
+                  </Swiper>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-white/50">
+                    No partners found.
+                  </div>
+                )}
+              </div>
+
+              {/* Active Partner Info - Centered Design */}
+              {activePartner && (
+                <div className="flex flex-col items-center text-center space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-semibold text-white">
+                      {activePartner.name}
+                    </h3>
+                    <p className="text-white/40 text-sm tracking-wide">
+                      {activePartner.email}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Booking Summary Card */}
-          <div className="bg-[#18181B] border border-[#27272A] rounded-2xl">
-            <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
+          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
+            <h2 className="lg:text-xl font-medium text-white p-4 !pb-0 lg:p-9">
               Booking Summary
             </h2>
-            <div
-              className="h-[1px] w-full"
-              style={{
-                backgroundImage: `linear-gradient(to right, #ffffff66 50%, transparent 50%)`,
-                backgroundSize: "30px 1px",
-                backgroundRepeat: "repeat-x",
-              }}
-            />
-            <div className="flex flex-col gap-3 lg:gap-5 p-4 lg:p-9">
+            <DottedDivider />
+            <div className="flex flex-col gap-3 lg:gap-5 px-4 lg:px-9 !pt-0">
               {/* Date */}
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
@@ -294,10 +424,14 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                 </div>
               </div>
             </div>
+            <DottedDivider />
+            <div className="p-4 !pt-0 lg:p-9">
+              <BookingStatusStepper currentStep={1} />
+            </div>
           </div>
 
           {/* Pricing Breakdown Card */}
-          <div className="bg-[#18181B] border border-[#27272A] rounded-2xl">
+          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
             <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
               Pricing Breakdown
             </h2>
@@ -321,7 +455,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                 <span className="text-sm lg:text-base text-white">${taxes.toFixed(2)}/-</span>
               </div>
             </div>
-            <div className="h-[1px] w-full bg-[#27272A]" />
+            <div className="h-[1px] w-full bg-[#3D3D3D]" />
             <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
               <span className="text-sm font-medium">Total Amount</span>
               <span className="lg:text-lg font-semibold text-[#E8D1AB]">
@@ -334,7 +468,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
         {/* Right Sidebar */}
         <div className="lg:col-span-4 space-y-3 lg:space-y-6">
           {/* Discount Generator */}
-          <div className="bg-[#18181B] border border-[#27272A] rounded-2xl">
+          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
             <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
               Generate Discount
             </h2>
@@ -350,7 +484,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
               {/* Discount Type Dropdown */}
               <div className="relative w-full">
                 {/* Label */}
-                <label className="absolute -top-2.5 left-4 bg-[#18181B] px-2 text-sm text-white/60 capitalize tracking-widest z-20 pointer-events-none">
+                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-20 pointer-events-none">
                   Discount Type
                 </label>
 
@@ -450,11 +584,11 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                     Generated Code
                   </p>
                   <div className="flex gap-2 items-center">
-                    <div className="flex-1 px-3 py-2 bg-[#18181B] border border-[#3F3F46] rounded-sm text-sm text-[#E8D1AB] font-mono">
+                    <div className="flex-1 px-3 py-2 bg-[#171717] border border-[#3F3F46] rounded-sm text-sm text-[#E8D1AB] font-mono">
                       {generatedCode}
                     </div>
                     <Button
-                      className="h-8 w-8 bg-[#18181B] hover:bg-[#272626]"
+                      className="h-8 w-8 bg-[#171717] hover:bg-[#272626]"
                       onClick={handleCopyCode}
                     >
                       <Copy size={16} className="text-white" />
@@ -465,74 +599,17 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
             </div>
           </div>
 
-          {/* Payment Link Generator : Created but hidden. Remove hidden tag when integration is being done */}
-          <div className="hidden bg-[#18181B] border border-[#27272A] rounded-2xl">
-            <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
-              Generate Payment Link
-            </h2>
-            <div
-              className="h-[1px] w-full"
-              style={{
-                backgroundImage: `linear-gradient(to right, #ffffff66 50%, transparent 50%)`,
-                backgroundSize: "30px 1px",
-                backgroundRepeat: "repeat-x",
-              }}
-            />
+          <GeneratePaymentLink />
 
-            <div className="p-6 lg:p-8 space-y-4">
-              {/* Booking ID Input */}
-              <div className="flex flex-col gap-2 ">
-                <label className="text-sm font-medium text-[#9F9FA9]">Booking ID</label>
-                <input
-                  type="text"
-                  placeholder="BKG-2026-001234"
-                  className="w-full bg-[#27272A] border border-[#3F3F46] text-sm text-[#D4D4D8] rounded-[10px] px-4 py-2 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB]"
-                />
-              </div>
-
-              {/* Discount Code Checkbox */}
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="discount"
-                  className="w-5 h-5 appearance-none  bg-[#27272A] checked:bg-[#2D6A4F] checked:border-transparent cursor-pointer relative after:content-[''] after:absolute after:hidden checked:after:block after:left-[6px] after:top-[2px] after:w-[6px] after:h-[10px] after:border-white after:border-b-2 after:border-r-2 after:rotate-45 focus:ring-0 focus:ring-offset-0"
-                />
-                <label htmlFor="discount" className="text-[#9F9FA9]">Include discount code</label>
-              </div>
-
-              {/* Generate Action Button */}
-              <button className="w-full bg-[#036544] hover:bg-[#036544]/80 text-white font-medium py-2.5 rounded-[10px] transition-colors">
-                Generate Link
-              </button>
-
-              {/* Payment Link Result Card */}
-              <div className="bg-[#1c1c20] border border-[#27272A] rounded-xl p-4 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs text-[#71717B] tracking-wider">Payment Link</label>
-                  <div className="flex gap-2 mt-2">
-                    <input
-                      readOnly
-                      value="https://payment.example.com/bkg-2026-001234"
-                      className="w-full bg-[#18181B] border border-[#3F3F46] text-[#E8D1AB] text-sm rounded-sm px-3 py-2"
-                    />
-                    <Button
-                      className="h-8 w-8 bg-[#27272A] hover:bg-[#3f3f46] rounded-lg transition-colors"
-                      onClick={handleCopyPaymentLink}
-                    >
-                      <Copy size={16} className="text-white" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <Link href="/sales/payment" className="text-[#E8D1AB] text-sm underline underline-offset-4">
-                    Preview payment page
-                  </Link>
-                </div>
-              </div>
-            </div>
+          {/* Show only after booking is created? */}
+          <div className="lg:text-right lg:mt-[82px]">
+            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+              Change CPs
+            </Button>
           </div>
         </div>
       </div>
     </div>
+    </>
   );
 }

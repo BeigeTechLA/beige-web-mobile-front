@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
 import { Plus, User, Loader2 } from "lucide-react";
@@ -10,6 +11,7 @@ import { adminApi } from "@/lib/api";
 
 import "swiper/css";
 import "swiper/css/effect-coverflow";
+import { Button } from "@/components/ui/button";
 
 interface TeamMember {
     id: number;
@@ -22,6 +24,7 @@ interface TeamMember {
 const BG_COLORS = ["bg-[#FFFAC2]", "bg-[#F3E8FF]", "bg-[#E0F2FE]", "bg-[#FCE7F3]", "bg-[#DCFCE7]"];
 
 export default function ProjectTeam({ projectId }: { projectId: string }) {
+    const router = useRouter();
     const [activeIndex, setActiveIndex] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -161,6 +164,13 @@ export default function ProjectTeam({ projectId }: { projectId: string }) {
                         <p className="text-[#888888] text-base font-medium leading-none mt-2 transition-all duration-300">
                             {teamMembers[activeIndex]?.role}
                         </p>
+                    </div>
+
+
+                    <div className="flex flex-col lg:flex-row gap-4">
+                        <Button className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
+                            <Plus /> Add More Team Members
+                        </Button>
                     </div>
                 </>
             )}

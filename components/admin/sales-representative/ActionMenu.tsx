@@ -22,7 +22,7 @@ interface ActionMenuProps {
   anchor: { x: number; y: number };
   client: string | number | null;
   leadId: number;
-  basePath?: string; 
+  basePath?: string;
 }
 
 const ActionMenu: React.FC<ActionMenuProps> = ({
@@ -35,15 +35,23 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
 }) => {
   const router = useRouter();
   const pathname = usePathname();
+
   const [generatePaymentLink, { isLoading: generatingLink }] =
     useGeneratePaymentLinkMutation();
   const { data: leadData } = useGetLeadByIdQuery(leadId, { skip: !leadId });
-const targetPath = basePath ? basePath : pathname;
+  const targetPath = basePath ? basePath : pathname;
   if (!isOpen) return null;
 
   const handleOpenFolder = () => {
     // Navigate to the correct path
-    router.push(`${targetPath}/${leadId}`);
+    const resolvedPath = basePath ? basePath : pathname;
+
+    // Ensure we don't end up with // if the path ends in a slash
+    const cleanPath = resolvedPath.endsWith("/")
+      ? resolvedPath.slice(0, -1)
+      : resolvedPath;
+
+    router.push(`${cleanPath}/${leadId}`);
     onClose();
   };
 
