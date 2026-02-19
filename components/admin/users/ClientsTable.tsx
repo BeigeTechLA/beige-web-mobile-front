@@ -166,7 +166,7 @@ export const ClientsTable = () => {
                     </div>
 
                     {/* Status Select */}
-                    <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}>
+                    {/* <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}>
                         <SelectTrigger className="w-[140px] bg-[#111] border-[#333] text-white rounded-lg h-[46px] focus:ring-0 capitalize">
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
@@ -176,7 +176,7 @@ export const ClientsTable = () => {
                             <SelectItem value="pending">Pending</SelectItem>
                             <SelectItem value="inactive">Inactive</SelectItem>
                         </SelectContent>
-                    </Select>
+                    </Select> */}
 
                     {/* Range Select */}
                     <Select value={range} onValueChange={(val) => {
