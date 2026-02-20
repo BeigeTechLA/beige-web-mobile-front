@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
 import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info } from "lucide-react";
 import { toast } from "sonner";
@@ -15,26 +15,40 @@ import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
 
-import { newshootTypes } from "@/app/data/shootData";
+// Import all specific shoot and edit types
+import {
+    newshootTypes,
+    videoShootTypes,
+    photoShootTypes,
+    hybridShootTypes,
+    weddingEditTypes,
+    musicEditTypes,
+    commercialEditTypes,
+    tvSeriesEditTypes,
+    podcastEditTypes,
+    shortFilmEditTypes,
+    movieEditTypes,
+    corporateEventEditTypes,
+    privateEventEditTypes,
+    socialContentEditTypes,
+    weddingPhotoEditTypes,
+    corporateEventPhotoEditTypes,
+    privateEventPhotoEditTypes,
+    musicPhotoEditTypes,
+    commercialPhotoEditTypes,
+    socialContentPhotoEditTypes,
+    brandProductPhotoEditTypes,
+    peopleTeamsPhotoEditTypes,
+    behindScenesPhotoEditTypes,
+} from "@/app/data/shootData";
+
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
-import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
+import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
 import { useGetLeadByIdQuery, useUpdateLeadBookingMutation } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
-
-const INITIAL_COUNT = 6;
-
-const shootTypeOptions = newshootTypes.map((shoot) => ({
-    value: shoot.key,
-    label: shoot.title
-}));
-
-const editTypeOptions = newshootTypes.map((shoot) => ({
-    key: shoot.key,
-    value: shoot.title
-}));
 
 const TEAM_ROLES = [
     { id: "videographer", label: "Videographer", price: 250, icon: <Video size={28} /> },
@@ -51,15 +65,18 @@ export default function EditBookingPage() {
     const shootTypeRef = useRef<HTMLDivElement>(null);
     const dateTimeRef = useRef<HTMLDivElement>(null);
     const editsRef = useRef<HTMLDivElement>(null);
-    const navigationRef = useRef<HTMLDivElement>(null);
     const extraTeamRef = useRef<HTMLDivElement>(null);
     const locationRef = useRef<HTMLDivElement>(null);
 
     const [formData, setFormData] = useState<BookingDataV3>(initialDataV3);
-    const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
+
+    // Dynamic Options State
+    const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
+    const [videoEditTypeOptions, setVideoEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
     const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
-    const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
     const [photoEditNote, setPhotoEditNote] = useState<string>("");
+
+    const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
     const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
     // Fetch lead data for pre-population
@@ -69,29 +86,121 @@ export default function EditBookingPage() {
 
     const [updateLeadBooking, { isLoading: isUpdating }] = useUpdateLeadBookingMutation();
 
+    // 1. Generate time options
     useEffect(() => {
-        // Generate time options
         const options = [];
         for (let i = 0; i < 24; i++) {
             for (let j = 0; j < 60; j += 30) {
                 const h = i.toString().padStart(2, '0');
                 const m = j.toString().padStart(2, '0');
-                options.push({ key: `${h}:${m}`, value: `${i % 12 || 12}:${m} ${i >= 12 ? 'PM' : 'AM'}` });
+                const date = new Date();
+                date.setHours(i);
+                date.setMinutes(j);
+                options.push({ key: `${h}:${m}`, value: format(date, "h:mm aa") });
             }
         }
         setTimeOptions(options);
     }, []);
+
+    // 2. Determine available shoot types based on content type selection
+    useEffect(() => {
+        const isVideo = formData.contentType.includes("videographer");
+        const isPhoto = formData.contentType.includes("photographer");
+
+        if (isVideo && isPhoto) {
+            setAvailableShootTypes(hybridShootTypes);
+        } else if (isPhoto) {
+            setAvailableShootTypes(photoShootTypes);
+        } else if (isVideo) {
+            setAvailableShootTypes(videoShootTypes);
+        } else {
+            setAvailableShootTypes(newshootTypes); // Fallback
+        }
+    }, [formData.contentType]);
+
+    // 3. Update edit type options based on shoot type
+    useEffect(() => {
+        setVideoEditTypeOptions([]);
+        setPhotoEditTypeOptions([]);
+        setPhotoEditNote("");
+
+        switch (formData.shootType) {
+            case "wedding":
+                setVideoEditTypeOptions(weddingEditTypes);
+                setPhotoEditTypeOptions(weddingPhotoEditTypes);
+                setPhotoEditNote("50 edited photos per hour for weddings");
+                break;
+            case "music":
+                setVideoEditTypeOptions(musicEditTypes);
+                setPhotoEditTypeOptions(musicPhotoEditTypes);
+                setPhotoEditNote("25 edited photos per hour");
+                break;
+            case "commercial":
+                setVideoEditTypeOptions(commercialEditTypes);
+                setPhotoEditTypeOptions(commercialPhotoEditTypes);
+                setPhotoEditNote("25 edited photos per hour");
+                break;
+            case "tv":
+                setVideoEditTypeOptions(tvSeriesEditTypes);
+                break;
+            case "podcast":
+                setVideoEditTypeOptions(podcastEditTypes);
+                break;
+            case "short_film":
+                setVideoEditTypeOptions(shortFilmEditTypes);
+                break;
+            case "movie":
+                setVideoEditTypeOptions(movieEditTypes);
+                break;
+            case "corporate":
+                setVideoEditTypeOptions(corporateEventEditTypes);
+                setPhotoEditTypeOptions(corporateEventPhotoEditTypes);
+                setPhotoEditNote("25 edited photos per hour");
+                break;
+            case "private":
+                setVideoEditTypeOptions(privateEventEditTypes);
+                setPhotoEditTypeOptions(privateEventPhotoEditTypes);
+                setPhotoEditNote("25 edited photos per hour");
+                break;
+            case "social_content":
+                setVideoEditTypeOptions(socialContentEditTypes);
+                setPhotoEditTypeOptions(socialContentPhotoEditTypes);
+                setPhotoEditNote("25 edited photos per hour");
+                break;
+            case "brand_product":
+                setPhotoEditTypeOptions(brandProductPhotoEditTypes);
+                setPhotoEditNote("25 edited photos per hour");
+                break;
+            case "people_teams":
+                setPhotoEditTypeOptions(peopleTeamsPhotoEditTypes);
+                setPhotoEditNote("25 edited photos per hour");
+                break;
+            case "behind_scenes":
+                setPhotoEditTypeOptions(behindScenesPhotoEditTypes);
+                setPhotoEditNote("25 edited photos per hour");
+                break;
+            default:
+                setVideoEditTypeOptions([]);
+                setPhotoEditTypeOptions([]);
+        }
+    }, [formData.shootType]);
 
     // Pre-populate form data when lead data is available
     useEffect(() => {
         if (leadData && leadData.booking) {
             const b = leadData.booking as any;
 
-            const start = b.start_time ? new Date(b.start_time) : null;
-            const endStr = (start && !isNaN(start.getTime()) && b.end_time)
-                ? `${start.toDateString()} ${b.end_time}`
-                : null;
-            const end = endStr ? new Date(endStr) : null;
+            const eventDateStr = b.event_date || ""; // "YYYY-MM-DD"
+            const startTimeStr = b.start_time || "09:00:00"; // "HH:mm:ss"
+            const endTimeStr = b.end_time || "17:00:00"; // "HH:mm:ss"
+
+            let start: Date | null = null;
+            let end: Date | null = null;
+
+            if (eventDateStr) {
+                start = new Date(`${eventDateStr}T${startTimeStr}`);
+                end = new Date(`${eventDateStr}T${endTimeStr}`);
+            }
 
             setFormData((prev) => ({
                 ...prev,
@@ -108,14 +217,22 @@ export default function EditBookingPage() {
                 selectedCrewIds: leadData.selected_crew_ids || [],
                 fullName: leadData.client_name || leadData.guest_email || "",
                 email: leadData.guest_email || "",
-                phone: leadData.user?.phone_number || "",
+                phone: leadData.user?.phone_number || (leadData as any).phone || "",
             }));
 
-            // Pre-populate extra team if available
-            if (b.crew_roles && typeof b.crew_roles === 'object') {
-                const crewRoles: Record<string, number> = b.crew_roles as any;
-                const extra: Record<string, number> = {};
+            if (b.crew_roles) {
+                let crewRoles: Record<string, number> = {};
+                if (typeof b.crew_roles === 'string') {
+                    try {
+                        crewRoles = JSON.parse(b.crew_roles);
+                    } catch (e) {
+                        console.error("Error parsing crew_roles", e);
+                    }
+                } else {
+                    crewRoles = b.crew_roles;
+                }
 
+                const extra: Record<string, number> = {};
                 Object.entries(crewRoles).forEach(([role, count]) => {
                     if (count > 1) {
                         extra[role] = count - 1;
@@ -149,7 +266,11 @@ export default function EditBookingPage() {
                 photoEditTypes: [],
             });
         } else {
-            updateData({ contentType: nextContentType });
+            // If specific type is removed, clear its respective edit types
+            let update: Partial<BookingDataV3> = { contentType: nextContentType };
+            if (!nextContentType.includes("videographer")) update.videoEditTypes = [];
+            if (!nextContentType.includes("photographer")) update.photoEditTypes = [];
+            updateData(update);
         }
 
         if (nextContentType.length > 0) {
@@ -160,6 +281,13 @@ export default function EditBookingPage() {
     const availableRolesToAdd = TEAM_ROLES.filter(role =>
         formData.contentType.includes(role.id as any)
     );
+
+    const shootTypeOptions = useMemo(() => {
+        return availableShootTypes.map((shoot) => ({
+            value: shoot.key,
+            label: shoot.title
+        }));
+    }, [availableShootTypes]);
 
     const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
         setTimeout(() => {
@@ -175,18 +303,8 @@ export default function EditBookingPage() {
             updateData({ startDate: "", endDate: "" });
             return;
         }
-        const finalStart = set(new Date(), {
-            year: date.getFullYear(),
-            month: date.getMonth(),
-            date: date.getDate(),
-            hours: 9, minutes: 0, seconds: 0, milliseconds: 0
-        });
-        const finalEnd = set(new Date(), {
-            year: date.getFullYear(),
-            month: date.getMonth(),
-            date: date.getDate(),
-            hours: 17, minutes: 0, seconds: 0, milliseconds: 0
-        });
+        const finalStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+        const finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
 
         updateData({
             startDate: finalStart.toISOString(),
@@ -206,9 +324,9 @@ export default function EditBookingPage() {
     const handleEndTimeChange = (timeKey: string) => {
         if (!timeKey) return;
         const [hours, minutes] = timeKey.split(":").map(Number);
-        let currentDate = formData.endDate ? parseDate(formData.endDate) : (formData.startDate ? parseDate(formData.startDate) : new Date());
-        if (!currentDate) return;
-        const newEnd = set(currentDate, { hours, minutes });
+        let baseDate = formData.startDate ? parseDate(formData.startDate) : new Date();
+        if (!baseDate) return;
+        const newEnd = set(new Date(baseDate), { hours, minutes, seconds: 0 });
         updateData({ endDate: newEnd.toISOString() });
     };
 
@@ -237,7 +355,6 @@ export default function EditBookingPage() {
 
         const duration = differenceInHours(parseDate(formData.endDate)!, parseDate(formData.startDate)!);
 
-        // Construct crew_roles
         const crew_roles: Record<string, number> = {};
         formData.contentType.forEach((role) => {
             if (role !== "editing") {
@@ -332,7 +449,10 @@ export default function EditBookingPage() {
                         label="Shoot Type"
                         value={formData.shootType}
                         options={shootTypeOptions}
-                        onChange={(val) => updateData({ shootType: val })}
+                        onChange={(val) => {
+                            updateData({ shootType: val });
+                            scrollToRef(dateTimeRef);
+                        }}
                         placeholder="Select the type of shoot"
                         labelBg="bg-[#101010]"
                         required
@@ -389,12 +509,32 @@ export default function EditBookingPage() {
                         })}
                     </div>
                     {formData.editsNeeded && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                            {formData.contentType.includes("videographer") && (
-                                <MultiSelectDropdown title="Video Edit Type" options={editTypeOptions} value={formData.videoEditTypes} onChange={(v) => updateData({ videoEditTypes: v })} bgColour="bg-[#101010]" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 animate-in slide-in-from-top-4 duration-300">
+                            {formData.contentType.includes("videographer") && videoEditTypeOptions.length > 0 && (
+                                <MultiSelectDropdown
+                                    title="Video Edit Type"
+                                    options={videoEditTypeOptions}
+                                    value={formData.videoEditTypes}
+                                    onChange={(v) => updateData({ videoEditTypes: v })}
+                                    bgColour="bg-[#101010]"
+                                />
                             )}
-                            {formData.contentType.includes("photographer") && (
-                                <MultiSelectDropdown title="Photo Edit Type" options={editTypeOptions} value={formData.photoEditTypes} onChange={(v) => updateData({ photoEditTypes: v })} bgColour="bg-[#101010]" />
+                            {formData.contentType.includes("photographer") && photoEditTypeOptions.length > 0 && (
+                                <div>
+                                    <MultiSelectDropdown
+                                        title="Photo Edit Type"
+                                        options={photoEditTypeOptions}
+                                        value={formData.photoEditTypes}
+                                        onChange={(v) => updateData({ photoEditTypes: v })}
+                                        bgColour="bg-[#101010]"
+                                    />
+                                    {photoEditNote && (
+                                        <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                                            <Info size={16} className="mt-0.5 flex-shrink-0" />
+                                            <span>{photoEditNote}</span>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                     )}
@@ -430,9 +570,11 @@ export default function EditBookingPage() {
                         colors={darkThemeColors}
                     />
                 </div>
+
                 <DottedDivider />
 
-                <CreativeProfileSelector
+                <CreativeProfileSelectorAdd
+                    leadId={leadId}
                     selectedIds={formData.selectedCrewIds}
                     onChange={(ids) => updateData({ selectedCrewIds: ids })}
                 />

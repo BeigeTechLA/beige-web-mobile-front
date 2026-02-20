@@ -344,7 +344,10 @@ export const salesApi = createApi({
       }),
       transformResponse: (response: ApiResponse<any[]>) => response.data || [],
     }),
-
+    getClientFullDetails: builder.query<any, string | number>({
+      query: (userId) => `admin/get-client-details-with-shoots/${userId}`,
+      transformResponse: (response: ApiResponse<any>) => response.data,
+    }),
   }),
 });
 
@@ -387,4 +390,5 @@ export const {
   useNotifyPaymentLinkMutation,
   useGetCrewForLeadQuery,
   useLazyGetCrewForLeadQuery,
+  useGetClientFullDetailsQuery,
 } = salesApi;
