@@ -264,7 +264,11 @@ export default function EditBookingPage() {
         };
 
         try {
-            await updateLeadBooking({ lead_id: parseInt(leadId), payload }).unwrap();
+            await updateLeadBooking({
+                booking_id: formData.bookingId as number,
+                payload,
+                lead_id: parseInt(leadId)
+            }).unwrap();
             toast.success("Booking updated successfully");
             router.back();
         } catch (error) {
@@ -346,6 +350,7 @@ export default function EditBookingPage() {
                             minDate={new Date()}
                             colors={datePickerColours}
                             format="MM/dd/yyyy"
+                            sx={{ height: { xs: '56px', lg: '82px' }, borderRadius: '16px' }}
                         />
                         <DropdownSelect
                             title="Start Time"

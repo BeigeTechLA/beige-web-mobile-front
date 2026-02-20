@@ -320,13 +320,13 @@ export const salesApi = createApi({
       }),
       invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
     }),
-    updateLeadBooking: builder.mutation<ApiResponse<any>, { lead_id: number; payload: any }>({
-      query: ({ lead_id, payload }) => ({
-        url: `sales/leads/${lead_id}/booking`,
+    updateLeadBooking: builder.mutation<ApiResponse<any>, { booking_id: number; payload: any; lead_id?: number }>({
+      query: ({ booking_id, payload }) => ({
+        url: `sales/leads/${booking_id}/booking`,
         method: 'PUT',
         body: payload,
       }),
-      invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }],
+      invalidatesTags: (result, error, { lead_id }) => lead_id ? [{ type: 'Lead', id: lead_id }] : ['Lead'],
     }),
 
     assignCrewFromLead: builder.mutation<ApiResponse<void>, { lead_id: number; crew_member_ids: number[] }>({

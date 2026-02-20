@@ -17,10 +17,10 @@ import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
 
-import { 
-  newshootTypes, 
-  videoShootTypes, 
-  photoShootTypes, 
+import {
+  newshootTypes,
+  videoShootTypes,
+  photoShootTypes,
   hybridShootTypes,
   weddingEditTypes,
   musicEditTypes,
@@ -91,7 +91,7 @@ export default function ClientDetailPage() {
   const [thumbtack, setThumbtack] = useState<string>("");
   const [intent, setIntent] = useState<string>("");
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
-  
+
   // Client Info State
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
@@ -107,66 +107,66 @@ export default function ClientDetailPage() {
   }, []);
 
   const getCityName = useCallback(() => {
-  // 1️⃣ If Mapbox details exist (from context array)
-  if (formData.locationDetails?.context) {
-    // Mapbox stores city in context with id starting with "place."
-    const placeComponent = formData.locationDetails.context.find(
-      (component: any) => component.id && component.id.startsWith("place.")
-    );
+    // 1️⃣ If Mapbox details exist (from context array)
+    if (formData.locationDetails?.context) {
+      // Mapbox stores city in context with id starting with "place."
+      const placeComponent = formData.locationDetails.context.find(
+        (component: any) => component.id && component.id.startsWith("place.")
+      );
 
-    if (placeComponent) {
-      return placeComponent.text;
+      if (placeComponent) {
+        return placeComponent.text;
+      }
     }
-  }
 
-  // 2️⃣ Fallback: Extract from formatted string safely
-  if (formData.location) {
-    const parts = formData.location.split(",");
-    if (parts.length >= 2) {
-      return parts[parts.length - 3]?.trim() || parts[1].trim();
+    // 2️⃣ Fallback: Extract from formatted string safely
+    if (formData.location) {
+      const parts = formData.location.split(",");
+      if (parts.length >= 2) {
+        return parts[parts.length - 3]?.trim() || parts[1].trim();
+      }
     }
-  }
 
-  return "";
-}, [formData.location, formData.locationDetails]);
+    return "";
+  }, [formData.location, formData.locationDetails]);
 
   // --- API LOGIC FOR CREW ---
   const fetchAvailableCrew = useCallback(async () => {
-  if (!formData.startDate || formData.contentType.length === 0 || !formData.location) {
-    return;
-  }
-
-  setIsLoadingCrew(true);
-  try {
-    const dateObj = parseDate(formData.startDate);
-    const dateStr = dateObj ? format(dateObj, "yyyy-MM-dd") : "";
-    const roles = formData.contentType.filter(t => t !== 'editing').join(',');
-    
-    // GET ONLY THE CITY NAME HERE
-    const citySearch = getCityName();
-
-if (!citySearch) {
-  setCrewList([]);
-  setIsLoadingCrew(false);
-  return;
-}
-
-const response = await fetch(
-  `http://localhost:5001/v1/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
-);
-    const result = await response.json();
-
-    if (result.success) {
-      setCrewList(result.data);
-    } else {
-      setCrewList([]);
+    if (!formData.startDate || formData.contentType.length === 0 || !formData.location) {
+      return;
     }
-  } catch (error) {
-    console.error("Error fetching crew:", error);
-  } finally {
-    setIsLoadingCrew(false);
-  }
-}, [formData.startDate, formData.contentType, formData.location, getCityName]);
+
+    setIsLoadingCrew(true);
+    try {
+      const dateObj = parseDate(formData.startDate);
+      const dateStr = dateObj ? format(dateObj, "yyyy-MM-dd") : "";
+      const roles = formData.contentType.filter(t => t !== 'editing').join(',');
+
+      // GET ONLY THE CITY NAME HERE
+      const citySearch = getCityName();
+
+      if (!citySearch) {
+        setCrewList([]);
+        setIsLoadingCrew(false);
+        return;
+      }
+
+      const response = await fetch(
+        `http://localhost:5001/v1/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
+      );
+      const result = await response.json();
+
+      if (result.success) {
+        setCrewList(result.data);
+      } else {
+        setCrewList([]);
+      }
+    } catch (error) {
+      console.error("Error fetching crew:", error);
+    } finally {
+      setIsLoadingCrew(false);
+    }
+  }, [formData.startDate, formData.contentType, formData.location, getCityName]);
 
   // Trigger fetch when inputs change
   useEffect(() => {
@@ -368,7 +368,7 @@ const response = await fetch(
     if (nextContentType.length === 0) {
       updateData({ contentType: [], shootType: "", startDate: "", endDate: "", editsNeeded: true, videoEditTypes: [], photoEditTypes: [] });
     } else {
-      updateData({ 
+      updateData({
         contentType: nextContentType,
         videoEditTypes: nextContentType.includes("videographer") ? formData.videoEditTypes : [],
         photoEditTypes: nextContentType.includes("photographer") ? formData.photoEditTypes : []
@@ -691,9 +691,9 @@ const response = await fetch(
           <LocationPicker
             value={formData.location}
             onChange={(address, details) => {
-              updateData({ 
-                location: address, 
-                locationDetails: details 
+              updateData({
+                location: address,
+                locationDetails: details
               });
             }}
             placeholder="Search for a location"
@@ -727,30 +727,30 @@ const response = await fetch(
               isLoading={isLoadingCrew}
               emptyMessage="No matching professionals found for this date/location."
               videographerCount={
-                formData.contentType.includes("videographer") 
-                  ? 1 + (extraTeam["videographer"] as number || 0) 
+                formData.contentType.includes("videographer")
+                  ? 1 + (extraTeam["videographer"] as number || 0)
                   : 0
               }
               photographerCount={
-                formData.contentType.includes("photographer") 
-                  ? 1 + (extraTeam["photographer"] as number || 0) 
+                formData.contentType.includes("photographer")
+                  ? 1 + (extraTeam["photographer"] as number || 0)
                   : 0
               }
             />
           )}
         </div>
-        
+
         <DottedDivider />
 
         {/* Navigation Buttons */}
         <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
-          <Button 
+          <Button
             onClick={() => router.back()}
             className="h-14 lg:h-[72px] border border-[#8E8E8E] bg-transparent hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
           >
             Back
           </Button>
-          <Button 
+          <Button
             disabled={formData.selectedCrewIds.length === 0 || isSubmitting}
             onClick={async () => {
               if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent) {
@@ -763,7 +763,7 @@ const response = await fetch(
                 // Calculate duration in hours
                 const startDate = parseDate(formData.startDate);
                 const endDate = parseDate(formData.endDate);
-                const durationHours = startDate && endDate 
+                const durationHours = startDate && endDate
                   ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60))
                   : 0;
 

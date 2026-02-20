@@ -60,12 +60,19 @@ export const CreativeProfileSelectorAdd = ({
             if (leadId && stats?.location) {
                 setIsLoading(true);
                 try {
-                    // Extract city from location (assuming format: "Street, City, State Zip, Country")
-                    const locationParts = stats.location.split(',');
-                    let city = stats.location;
+                    // Extract city from location (handles standard comma and Arabic comma)
+                    const location = stats.location || "";
+                    const locationParts = location.split(/[,،]/);
+                    let city = location;
 
                     if (locationParts.length > 1) {
-                        city = locationParts[1].trim();
+                        // Usually the second part in "Street, City/Pincode City, State, Country"
+                        let candidate = locationParts[1].trim();
+                        // Remove pincodes/numbers to isolate city
+                        candidate = candidate.replace(/\d+/g, '').trim();
+                        if (candidate) {
+                            city = candidate;
+                        }
                     }
 
                     const response = await salesApi.getCrewForLead({
