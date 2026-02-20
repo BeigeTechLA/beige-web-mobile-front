@@ -25,6 +25,15 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager"
+}
+
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false)
   const { login, isLoginLoading } = useAuth()
@@ -46,8 +55,28 @@ export function LoginForm() {
 
       toast.success(result.message || "Login successful!")
 
+
+      // --- GA4 LOGIN TRACKING ---
+      // Extract user data for tracking
+      const user = result?.user
+      const userTypeId = user?.user_type_id
+      const userTypeName = userTypeId ? USER_TYPE[userTypeId as keyof typeof USER_TYPE] : "Unknown";
+
+      // Map user_type_id to a readable string if needed, 
+      // or pass the ID directly as per your requirement.
+      pushToDataLayer("login", {
+        custom_user_id: user?.id || null,
+        email: data.email, // using form data
+        user_type: userTypeName,
+        location: "login_page",
+        duration_on_page: performance.now() / 1000,
+        // Phone might be in the result object depending on your API
+        phone: user?.phone || null,
+      });
+      // ---------------------------
+
       // Extract user_type_id from the response
-      const userTypeId = result?.user?.user_type_id
+      // const userTypeId = result?.user?.user_type_id
 
       // Logic for conditional redirection
       if (userTypeId === 1) {
@@ -206,7 +235,7 @@ export function LoginForm() {
           <Link
             href="/creative-partner-signup"
             onClick={() => {
-              pushToDataLayer("sign_up_started_user", {
+              pushToDataLayer("sign_up_started_cp", {
                 type: "Action Tracking",
                 user_type: "creative_partner",
                 location_in_website: "login_page",
