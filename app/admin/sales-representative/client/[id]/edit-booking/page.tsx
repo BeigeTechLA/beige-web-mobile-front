@@ -45,7 +45,7 @@ import {
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
-import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
+import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
 import { useGetLeadByIdQuery, useUpdateLeadBookingMutation } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
@@ -381,7 +381,11 @@ export default function EditBookingPage() {
         };
 
         try {
-            await updateLeadBooking({ lead_id: parseInt(leadId), payload }).unwrap();
+            await updateLeadBooking({
+                booking_id: formData.bookingId as number,
+                payload,
+                lead_id: parseInt(leadId)
+            }).unwrap();
             toast.success("Booking updated successfully");
             router.back();
         } catch (error) {
@@ -466,6 +470,7 @@ export default function EditBookingPage() {
                             minDate={new Date()}
                             colors={datePickerColours}
                             format="MM/dd/yyyy"
+                            sx={{ height: { xs: '56px', lg: '82px' }, borderRadius: '16px' }}
                         />
                         <DropdownSelect
                             title="Start Time"
@@ -568,7 +573,7 @@ export default function EditBookingPage() {
 
                 <DottedDivider />
 
-                <CreativeProfileSelector
+                <CreativeProfileSelectorAdd
                     leadId={leadId}
                     selectedIds={formData.selectedCrewIds}
                     onChange={(ids) => updateData({ selectedCrewIds: ids })}

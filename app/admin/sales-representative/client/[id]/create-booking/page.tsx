@@ -15,10 +15,10 @@ import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
 
-import { 
-  newshootTypes, 
-  videoShootTypes, 
-  photoShootTypes, 
+import {
+  newshootTypes,
+  videoShootTypes,
+  photoShootTypes,
   hybridShootTypes,
   weddingEditTypes,
   musicEditTypes,
@@ -287,7 +287,7 @@ export default function ClientDetailPage() {
     if (nextContentType.length === 0) {
       updateData({ contentType: [], shootType: "", startDate: "", endDate: "", editsNeeded: true, videoEditTypes: [], photoEditTypes: [] });
     } else {
-      updateData({ 
+      updateData({
         contentType: nextContentType,
         videoEditTypes: nextContentType.includes("videographer") ? formData.videoEditTypes : [],
         photoEditTypes: nextContentType.includes("photographer") ? formData.photoEditTypes : []
