@@ -760,6 +760,19 @@ export const adminApi = {
       };
     }
   },
+   getClientFullDetails: async (userId: string | number) => {
+    try {
+      const response = await api.get(`admin/get-client-details-with-shoots/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Client Full Details Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch client profile and shoots',
+      };
+    }
+  },
   getMonthlyRevenue: async () => {
     try {
       const response = await api.get('admin/dashboard/revenue/monthly');

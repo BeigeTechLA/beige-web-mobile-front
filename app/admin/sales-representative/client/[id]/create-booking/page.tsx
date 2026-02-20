@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info } from "lucide-react";
+import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { set, format } from "date-fns";
 
@@ -47,6 +47,7 @@ import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelec
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
 import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
+import { adminApi } from "@/lib/api"; // Added for fetching client profile
 
 const INITIAL_COUNT = 6;
 
@@ -74,6 +75,11 @@ export default function ClientDetailPage() {
     ...initialDataV3,
     selectedCrewIds: []
   });
+
+  // --- NEW: Profile State ---
+  const [clientProfile, setClientProfile] = useState<any>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+
   const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
   const [videoEditTypeOptions, setVideoEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
@@ -82,8 +88,34 @@ export default function ClientDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [crewList, setCrewList] = useState<any[]>([]);
   const [isLoadingCrew, setIsLoadingCrew] = useState(false);
+  const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
   const { data: leadData } = useGetLeadByIdQuery(parseInt(leadId), { skip: !leadId });
+
+  // 1. Fetch Client Profile to show name proper
+  useEffect(() => {
+    const fetchClientProfile = async () => {
+      try {
+        setIsProfileLoading(true);
+        const res = await adminApi.getClientFullDetails(leadId);
+        if (res && !res.error) {
+          setClientProfile(res.data.profile);
+          // Sync with formData
+          setFormData(prev => ({
+            ...prev,
+            fullName: res.data.profile.user.name,
+            email: res.data.profile.user.email,
+            phone: res.data.profile.user.phone_number || "",
+          }));
+        }
+      } catch (err) {
+        console.error("Profile Fetch Error:", err);
+      } finally {
+        setIsProfileLoading(false);
+      }
+    };
+    if (leadId) fetchClientProfile();
+  }, [leadId]);
 
   // Pre-populate form data when lead data is available
   useEffect(() => {
@@ -101,14 +133,16 @@ export default function ClientDetailPage() {
         photoEditTypes: b.photo_edit_types || [],
         location: b.event_location || "",
         crewCount: b.crew_size_needed || 0,
-        fullName: leadData.client_name || leadData.guest_email || "",
-        email: leadData.guest_email || "",
-        phone: leadData.user?.phone_number || "",
       }));
     }
   }, [leadData]);
 
-  const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
+  // Dynamic Initials
+  const initials = useMemo(() => {
+    const name = clientProfile?.user?.name || leadData?.client_name || "Client Name";
+    if (!name) return "IN";
+    return name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+  }, [clientProfile, leadData]);
 
   const includedRoles = formData.contentType.filter(t => t !== 'editing').map(t => {
     const role = TEAM_ROLES.find(r => r.id === t);
@@ -238,7 +272,7 @@ export default function ClientDetailPage() {
       }
 
       const response = await fetch(
-        `http://localhost:5001/v1/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/v1/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
       );
       const result = await response.json();
 
@@ -494,6 +528,15 @@ export default function ClientDetailPage() {
     }
   };
 
+  if (isProfileLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-white bg-[#101010]">
+        <Loader2 className="w-10 h-10 animate-spin text-[#E8D1AB]" />
+        <p className="mt-4 opacity-50">Loading client profile...</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <Topbar pathname={pathname} />
@@ -501,21 +544,25 @@ export default function ClientDetailPage() {
         {/* Back Button */}
         <Button
           onClick={() => router.back()}
-          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0"
+          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-8 p-0"
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
 
-        <div className="flex items-center gap-5">
-          <div className="w-13 h-13 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#FFF6D9] text-[#000000] border border-[#FFF6D9] flex items-center justify-center text-xl lg:text-[30px] font-semibold shrink-0">
-            {formData.fullName ? formData.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "IN"}
+        {/* Dynamic Profile Header */}
+        <div className="flex items-center gap-5 mb-8">
+          <div className="w-16 h-16 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-[#101010] border border-[#E8D1AB] flex items-center justify-center text-xl lg:text-[30px] font-bold shrink-0">
+            {initials}
           </div>
-          <div className="flex gap-2 items-center">
-            <h1 className="lg:text-[22px] font-semibold">
-              {formData.fullName || "Client Name"}
-            </h1>
-            <IntentBadge intent={(leadData?.intent || "Hot") as any} />
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-3 items-center">
+              <h1 className="lg:text-[28px] text-xl font-bold">
+                {clientProfile?.user?.name || leadData?.client_name || "Client Name"}
+              </h1>
+              <IntentBadge intent={(leadData?.intent || "Hot") as any} />
+            </div>
+            <p className="text-sm text-white/40">{clientProfile?.user?.email || leadData?.guest_email}</p>
           </div>
         </div>
         <DottedDivider />
@@ -565,7 +612,7 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
-        {/* Shoot Type - Shows different options based on content type */}
+        {/* Shoot Type */}
         <div ref={shootTypeRef}>
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
             {formData.contentType.length > 1 ? "Video and Photo Shoot Type" : formData.contentType.includes("videographer") ? "Video Shoot Type" : "Photo Shoot Type"}
@@ -630,7 +677,7 @@ export default function ClientDetailPage() {
             <button
               onClick={() => { updateData({ editsNeeded: true }); scrollToRef(navigationRef); }}
               disabled={formData.shootType === ""}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${formData.editsNeeded ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
+              className={`h-14 lg:h-[82px] w-[120px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${formData.editsNeeded ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
             >
               <span className="font-medium text-sm lg:text-lg">Yes</span>
               <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${formData.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"}`}>
@@ -640,7 +687,7 @@ export default function ClientDetailPage() {
             <button
               onClick={() => { updateData({ editsNeeded: false }); scrollToRef(navigationRef); }}
               disabled={formData.shootType === ""}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${!formData.editsNeeded ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
+              className={`h-14 lg:h-[82px] w-[120px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${!formData.editsNeeded ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
             >
               <span className="font-medium text-sm lg:text-lg">No</span>
               <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!formData.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"}`}>
@@ -691,7 +738,7 @@ export default function ClientDetailPage() {
             <div className="flex gap-2 lg:gap-6">
               <button
                 onClick={() => updateData({ addTeamMembers: true })}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${formData.addTeamMembers ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
+                className={`h-14 lg:h-[82px] w-[120px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${formData.addTeamMembers ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
               >
                 <span className="font-medium text-sm lg:text-lg">Yes</span>
                 <div className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${formData.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}>
@@ -700,7 +747,7 @@ export default function ClientDetailPage() {
               </button>
               <button
                 onClick={() => { updateData({ addTeamMembers: false }); setExtraTeam({}); updateData({ teamIncluded: [] }); scrollToRef(locationRef); }}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${!formData.addTeamMembers ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
+                className={`h-14 lg:h-[82px] w-[120px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${!formData.addTeamMembers ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
               >
                 <span className="font-medium text-sm lg:text-lg">No</span>
                 <div className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${!formData.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}>
