@@ -29,7 +29,7 @@ api.interceptors.request.use(
 
 
 // Role mapping
-const ROLE_MAP: Record<number, string> = {
+export const ROLE_MAP: Record<number, string> = {
   1: 'Videographer',
   2: 'Photographer',
   3: 'Editor',
@@ -1234,4 +1234,33 @@ export const CheckVerificationStatus = async (payload: { crew_member_id: any }) 
       error: error.response?.data?.message || 'Failed to fetch verification status',
     };
   }
+};
+
+export const salesApi = {
+  getLeadStats: async (leadId: number | string) => {
+    try {
+      const response = await api.get(`/sales/get-lead-stats/${leadId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get Lead Stats Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch lead stats',
+      };
+    }
+  },
+  getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string }) => {
+    try {
+      const response = await api.get('admin/get-crew-for-lead/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Get Crew For Lead Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch crew for lead',
+      };
+    }
+  },
 };

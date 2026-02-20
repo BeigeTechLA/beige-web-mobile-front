@@ -14,6 +14,7 @@ interface LeadData {
   bookingStatus: "Paid" | "In-Progress" | BookingStatus; //update with code change
   lastActivity: string;
   date: Date;
+  intent: string;
 }
 
 interface LeadsTableProps {
@@ -124,7 +125,7 @@ export default function LeadsTable({
               </td>
               <td className="p-3 lg:py-5 text-white/80 text-sm lg:text-base border-b border-[#222] group-last:border-0">
                 {/* update once data is available */}
-                <IntentBadge intent={"Hot"} />
+                <IntentBadge intent={(lead.intent || "Hot") as any} />
               </td>
               <td className="p-3 lg:py-5 border-b border-[#222] group-last:border-0 shrink-0">
                 {/* <StatusBadge status={lead.bookingStatus} /> */}

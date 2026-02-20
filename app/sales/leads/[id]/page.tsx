@@ -84,6 +84,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
 
   const activePartner = assignedCPs[activeCPIndex % assignedCPs.length];
   const [generatedPaymentLink, setGeneratedPaymentLink] = useState<string>("Placeholder");
+  const [generatedDiscountId, setGeneratedDiscountId] = useState<number | undefined>(undefined);
 
   // Fetch real lead data
   const {
@@ -159,6 +160,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
 
       if (response.success && response.data) {
         setGeneratedCode(response.data.code);
+        setGeneratedDiscountId(response.data.discount_code_id);
         setShowDiscountCode(true);
         toast.success("Discount code generated successfully!");
       }
@@ -636,7 +638,11 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
               </div>
             </div>
 
-            <GeneratePaymentLink />
+            <GeneratePaymentLink
+              leadId={parseInt(leadId)}
+              bookingId={lead?.booking_id}
+              discountCodeId={generatedDiscountId}
+            />
 
             {/* Show only after booking is created? */}
             <div className="lg:text-right lg:mt-[82px]">

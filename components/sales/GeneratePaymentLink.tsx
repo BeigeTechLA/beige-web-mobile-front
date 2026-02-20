@@ -6,17 +6,66 @@ import { Switch } from "@/components/ui/switch";
 import DottedDivider from "../admin/DottedDivider";
 import { Copy, Mail, Check } from "lucide-react"; // Added for icons
 import { toast } from "sonner";
+import { useGeneratePaymentLinkMutation, useNotifyPaymentLinkMutation } from "@/lib/redux/features/sales/salesApi";
 
-const GeneratePaymentLink = () => {
+interface GeneratePaymentLinkProps {
+  leadId?: number;
+  bookingId?: number;
+  discountCodeId?: number;
+}
+
+const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId }: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>(null);
   const [isLocked, setIsLocked] = useState(false);
-  const [isGenerated, setIsGenerated] = useState(false); // Toggle state
 
-  const paymentUrl = "https://payment.example.com/bkg-2026-001234"; // to be generated
+  // API Mutations
+  const [generateLink, { isLoading: isGenerating }] = useGeneratePaymentLinkMutation();
+  const [notifyLink, { isLoading: isNotifying }] = useNotifyPaymentLinkMutation();
+
+  const [paymentData, setPaymentData] = useState<{ url: string; id: number } | null>(null);
+
+  const handleGenerate = async () => {
+    if (!bookingId) {
+      toast.error("Booking ID is required to generate a payment link");
+      return;
+    }
+
+    try {
+      const response = await generateLink({
+        lead_id: leadId,
+        booking_id: bookingId,
+        discount_code_id: discountCodeId,
+        expiry_hours: 2
+      }).unwrap();
+
+      if (response.success && response.data) {
+        setPaymentData({
+          url: response.data.url || "",
+          id: response.data.payment_link_id
+        });
+        toast.success("Payment link generated successfully");
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to generate payment link");
+    }
+  };
+
+  const handleNotify = async () => {
+    if (!paymentData?.id) return;
+
+    try {
+      await notifyLink({ payment_link_id: paymentData.id }).unwrap();
+      toast.success("Payment link sent successfully via Email/SMS");
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to send notification");
+    }
+  };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(paymentUrl);
-    toast.success("Link copied to clipboard");
+    if (paymentData?.url) {
+      navigator.clipboard.writeText(paymentData.url);
+      toast.success("Link copied to clipboard");
+    }
   };
 
   return (
@@ -24,7 +73,7 @@ const GeneratePaymentLink = () => {
       {/* Header */}
       <div className="flex items-center justify-between px-5 lg:px-9 pt-5 lg:pt-10">
         <h2 className="lg:text-xl font-medium text-white">Payment Link</h2>
-        {isGenerated && (
+        {paymentData && (
           <Button className="text-[#E8D1AB] text-xs lg:text-sm border border-[#E8D1AB]/20 bg-[#0A0808] px-4 py-1.5 rounded-lg hover:bg-[#E8D1AB]/10 transition-all">
             View & Send Invoice
           </Button>
@@ -34,7 +83,7 @@ const GeneratePaymentLink = () => {
       <DottedDivider />
 
       <div className="px-4 pb-4 lg:pb-8 lg:px-9">
-        {!isGenerated ? (
+        {!paymentData ? (
           /* --- INITIAL GENERATE VIEW --- */
           <div className="space-y-4 lg:space-y-6 mt-2">
             <div className="space-y-4">
@@ -44,8 +93,8 @@ const GeneratePaymentLink = () => {
                   type="button"
                   onClick={() => setAttachDiscount("Yes")}
                   className={`h-12 w-[100px] lg:w-[110px] rounded-lg border px-2 lg:px-3 flex items-center justify-between transition-all duration-300 ${attachDiscount === "Yes"
-                      ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
-                      : "bg-[#101010] border-white/10 text-[#A9A9A9]"
+                    ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                    : "bg-[#101010] border-white/10 text-[#A9A9A9]"
                     }`}
                 >
                   <span className="font-medium text-sm lg:text-base">Yes</span>
@@ -59,8 +108,8 @@ const GeneratePaymentLink = () => {
                   type="button"
                   onClick={() => setAttachDiscount("No")}
                   className={`h-12 w-[100px] lg:w-[110px] rounded-lg border px-2 lg:px-3 flex items-center justify-between transition-all duration-300 ${attachDiscount === "No"
-                      ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
-                      : "bg-[#101010] border-white/10 text-[#A9A9A9]"
+                    ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                    : "bg-[#101010] border-white/10 text-[#A9A9A9]"
                     }`}
                 >
                   <span className="font-medium text-sm lg:text-base">No</span>
@@ -85,10 +134,11 @@ const GeneratePaymentLink = () => {
             </div>
 
             <Button
-              onClick={() => setIsGenerated(true)} //update this with valid function
-              className="h-12 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold rounded-lg transition-all text-sm mt-2"
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="h-12 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold rounded-lg transition-all text-sm mt-2 disabled:opacity-50"
             >
-              Generate Payment Link
+              {isGenerating ? "Generating..." : "Generate Payment Link"}
             </Button>
           </div>
         ) : (
@@ -102,7 +152,7 @@ const GeneratePaymentLink = () => {
 
               <div className="flex gap-2">
                 <div className="flex-1 bg-[#101010] border border-white/10 rounded-lg px-4 py-2.5 text-[#A1A1A1] text-xs lg:text-sm truncate">
-                  {paymentUrl}
+                  {paymentData.url}
                 </div>
                 <button
                   onClick={handleCopy}
@@ -113,14 +163,18 @@ const GeneratePaymentLink = () => {
               </div>
             </div>
 
-            <Button className="h-9 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-medium rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+            <Button
+              onClick={handleNotify}
+              disabled={isNotifying}
+              className="h-9 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-medium rounded-lg transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+            >
               <Mail size={18} />
-              Send via Email Or SMS
+              {isNotifying ? "Sending..." : "Send via Email Or SMS"}
             </Button>
 
             <div className="flex flex-col items-center gap-2">
               <button
-                onClick={() => setIsGenerated(false)}
+                onClick={() => setPaymentData(null)}
                 className="text-[#9F9FA9] text-sm hover:text-white transition-colors font-medium"
               >
                 Regenerate Link

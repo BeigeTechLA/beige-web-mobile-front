@@ -64,6 +64,7 @@ export default function LeadDetailPage() {
   const [usageType, setUsageType] = useState<"one_time" | "multi_use">("one_time");
   const [generatedCode, setGeneratedCode] = useState<string>("");
   const [activeCPIndex, setActiveCPIndex] = useState(0);
+  const [generatedDiscountId, setGeneratedDiscountId] = useState<number | undefined>(undefined);
 
 
   // Fetch real lead data
@@ -148,6 +149,7 @@ export default function LeadDetailPage() {
 
       if (response.success && response.data) {
         setGeneratedCode(response.data.code);
+        setGeneratedDiscountId(response.data.discount_code_id);
         setShowDiscountCode(true);
         toast.success("Discount code generated successfully!");
       }
@@ -603,7 +605,11 @@ export default function LeadDetailPage() {
               </div>
             </div>
 
-            <GeneratePaymentLink />
+            <GeneratePaymentLink
+              leadId={parseInt(leadId)}
+              bookingId={lead?.booking_id}
+              discountCodeId={generatedDiscountId}
+            />
 
             {/* Show only after booking is created? */}
             <div className="lg:text-right lg:mt-[82px]">
