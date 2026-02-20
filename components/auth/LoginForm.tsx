@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/hooks/useAuth"
+import { pushToDataLayer } from "@/lib/gtm"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -167,10 +168,19 @@ export function LoginForm() {
 
       </form>
 
+      {/* Signup Options */}
       <div className="space-y-6 pt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-4">
           <Link
             href="/signup/user"
+            onClick={() => {
+              pushToDataLayer("sign_up_started_user", {
+                type: "Action Tracking",
+                user_type: "client",
+                location_in_website: "login_page",
+                duration_on_page: performance.now() / 1000,
+              });
+            }}
             className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#E9D3A2] to-[#E4C48A] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300"
           >
             <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
@@ -193,7 +203,18 @@ export function LoginForm() {
               />
             </div> */}
           </Link>
-          <Link href="/creative-partner-signup" className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#101010] to-[#474343] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300">
+          <Link
+            href="/creative-partner-signup"
+            onClick={() => {
+              pushToDataLayer("sign_up_started_user", {
+                type: "Action Tracking",
+                user_type: "creative_partner",
+                location_in_website: "login_page",
+                duration_on_page: performance.now() / 1000,
+              });
+            }}
+            className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#101010] to-[#474343] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300"
+          >
             <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
               <h2 className="text-white text-sm font-semibold leading-tight">
                 Create New account as Creative Partner
