@@ -56,6 +56,7 @@ interface LeadData {
   bookingStatus: "Paid" | "In-Progress" | BookingStatus; //update with code change
   lastActivity: string;
   date: Date;
+  intent: string;
 }
 
 // Helper function to map lead status to UI format
@@ -263,6 +264,7 @@ export default function AdminSaleRepManagerPage() {
         bookingStatus: mapLeadStatusToUI(lead.payment_status),
         lastActivity: formatRelativeTime(lead.last_activity_at),
         date: new Date(lead.created_at),
+        intent: lead.intent || "Hot",
       }));
       setDisplayLeads(mapped);
     }

@@ -28,6 +28,7 @@ interface ApiResponse<T> {
   success: boolean;
   message?: string;
   data?: T;
+  errors?: string[];
 }
 
 export const salesApi = createApi({
@@ -237,6 +238,14 @@ export const salesApi = createApi({
       invalidatesTags: ['PaymentLink', 'Lead'],
     }),
 
+    notifyPaymentLink: builder.mutation<ApiResponse<void>, { payment_link_id: number }>({
+      query: (data) => ({
+        url: 'sales/payment-links/notify',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
     getSalesRepPaymentLinks: builder.query<{ links: PaymentLink[] }, { repId: number; status?: string }>({
       query: ({ repId, status = 'all' }) => ({
         url: `sales/payment-links/rep/${repId}`,
@@ -311,13 +320,33 @@ export const salesApi = createApi({
       }),
       invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
     }),
-    updateLeadBooking: builder.mutation<ApiResponse<any>, { lead_id: number; payload: any }>({
-      query: ({ lead_id, payload }) => ({
-        url: `sales/leads/${lead_id}/booking`,
+    updateLeadBooking: builder.mutation<ApiResponse<any>, { booking_id: number; payload: any; lead_id?: number }>({
+      query: ({ booking_id, payload }) => ({
+        url: `sales/leads/${booking_id}/booking`,
         method: 'PUT',
         body: payload,
       }),
-      invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }],
+      invalidatesTags: (result, error, { lead_id }) => lead_id ? [{ type: 'Lead', id: lead_id }] : ['Lead'],
+    }),
+
+    assignCrewFromLead: builder.mutation<ApiResponse<void>, { lead_id: number; crew_member_ids: number[] }>({
+      query: (data) => ({
+        url: 'admin/assign-crew-from-lead',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Lead'],
+    }),
+    getCrewForLead: builder.query<any[], { lead_id: number | string; role_type: string; search_query?: string }>({
+      query: (params) => ({
+        url: 'admin/get-crew-for-lead',
+        params,
+      }),
+      transformResponse: (response: ApiResponse<any[]>) => response.data || [],
+    }),
+    getClientFullDetails: builder.query<any, string | number>({
+      query: (userId) => `admin/get-client-details-with-shoots/${userId}`,
+      transformResponse: (response: ApiResponse<any>) => response.data,
     }),
   }),
 });
@@ -357,4 +386,9 @@ export const {
   useUpdateBookingCrewMutation,
   useRemoveAssignedCrewMutation,
   useUpdateLeadBookingMutation,
+  useAssignCrewFromLeadMutation,
+  useNotifyPaymentLinkMutation,
+  useGetCrewForLeadQuery,
+  useLazyGetCrewForLeadQuery,
+  useGetClientFullDetailsQuery,
 } = salesApi;

@@ -2,136 +2,191 @@
 
 import React, { useState } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Calendar, MapPin, Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
-import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent"; // Adjust path as needed
+import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
 import Link from "next/link";
 import Topbar from "@/components/admin/Topbar";
+import { useGetClientFullDetailsQuery } from "@/lib/redux/features/sales/salesApi";
+import { format } from "date-fns";
 
-export default function ClientDetailPage() {
+export default function ClientFullDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
-  const leadId = params.id as string;
+  const userId = params.id as string;
 
-  // Modal State Handling
+  const { data, isLoading } = useGetClientFullDetailsQuery(userId, {
+    skip: !userId
+  });
+
   const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
 
-  const handleSaveIntent = (intent: string, notes: string) => {
-    // Integrate with your API here
-    console.log("Saving Intent:", { leadId, intent, notes });
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-white">
+        <Loader2 className="w-10 h-10 animate-spin text-[#E8D1AB]" />
+        <p className="mt-4 text-white/40 font-medium">Loading full client details...</p>
+      </div>
+    );
+  }
 
-    toast.success(`Lead intent updated to ${intent}`);
-    setIsIntentModalOpen(false);
-  };
+  if (!data) return (
+    <div className="p-10 text-white text-center">
+      <Topbar pathname={pathname} />
+      <div className="mt-10">No client found.</div>
+    </div>
+  );
+
+  const { profile, stats, projects } = data;
+  const { user, affiliate } = profile;
+
+  // Combine projects for the list
+  const shootList = [...(projects.paid || []), ...(projects.unpaid_or_draft || [])];
+
+  const initials = user.name
+    ? user.name.split(" ").map((n: any) => n[0]).join("").toUpperCase()
+    : "??";
 
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans">
-      {/* Back Button */}
-      <Button
-        onClick={() => router.back()}
-        className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0"
-      >
-        <ArrowLeft size={24} />
-        <span className="text-sm font-medium">Back</span>
-      </Button>
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans max-w-7xl mx-auto">
 
-      <div className="">
-        {/* Client Informatio  */}
-        <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-          <div className="flex flex-col lg:flex-row gap-2 lg:justify-between lg:items-center pt-5 px-5 lg:pt-9 lg:px-9 pb-0">
-            <h2 className="lg:text-[22px] font-medium text-white">
-              Client Information
-            </h2>
-            <div className="flex gap-4">
-              <Button
-                className="h-12 w-full bg-[#202020] hover:bg-[#D4C3A3]/5 border border-white/20 text-[#E8D1AB] font-semibold py-3.5 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => setIsIntentModalOpen(true)}
-              >
-                Update Intent
-              </Button>
-              <Link
-               href={`/sales/client/${leadId}/create-booking`}
-                className="h-12 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed px-3 lg:px-5 whitespace-nowrap text-center"
-                // onClick={() => { console.log("Create Booking") }}
-              >
-                Create Booking
-              </Link>
+        <Button
+          onClick={() => router.back()}
+          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-6 p-0 bg-transparent border-none"
+        >
+          <ArrowLeft size={24} />
+          <span className="text-sm font-medium">Back</span>
+        </Button>
+
+        <div className="space-y-6">
+          {/* 1. PROFILE HEADER CARD */}
+          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl overflow-hidden">
+            <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center p-6 lg:p-9 pb-0">
+              <h2 className="text-xl font-medium text-white">Client Information</h2>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setIsIntentModalOpen(true)}
+                  className="h-11 bg-zinc-800 border border-white/10 text-[#E8D1AB] px-5 rounded-lg text-sm"
+                >
+                  Update Intent
+                </Button>
+                <Link
+                  href={`/sales/client/${userId}/create-booking`}
+                  className="h-11 bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black font-semibold flex items-center px-5 rounded-lg text-sm transition-all"
+                >
+                  Create Booking
+                </Link>
+              </div>
             </div>
-          </div>
 
-          <DottedDivider />
+            <DottedDivider />
 
-          <div className="flex flex-col gap-3 lg:gap-6 px-5 lg:px-9">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="px-6 lg:px-9 pb-8 space-y-6">
               <div className="flex items-center gap-5">
-                <div className="w-13 h-13 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#FFF6D9] text-[#000000] border border-[#FFF6D9] flex items-center justify-center text-xl lg:text-[30px] font-semibold shrink-0">
-                  {/* {initials} */}
-                  IN
+                <div className="w-20 h-20 rounded-2xl bg-[#E8D1AB] text-black flex items-center justify-center text-2xl font-bold">
+                  {initials}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex gap-2 items-center">
-                    <h1 className="lg:text-[22px] font-semibold">
-                      {/* {clientName} */}
-                      Client Name
-                    </h1>
-                    <IntentBadge intent={"Hot"} />
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h1 className="text-2xl font-bold">{user.name}</h1>
+                    <IntentBadge intent="Hot" />
                   </div>
-                  <div className="text-sm text-[#AAA7A7]">
-                    Description : <span className="text-[#D0D0D0]">{"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."}</span>
-                  </div>
+                  <p className="text-sm text-white/40">User ID: <span className="text-white">#{user.id}</span></p>
                 </div>
               </div>
 
-            </div>
-            <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
-              <p>
-                User ID : <span className="text-white">#12345</span>
-              </p>
-              <div className="w-[1px] h-4 bg-white hidden md:block" />
-              <p>
-                Email ID : <span className="text-white">email</span>
-              </p>
-              <div className="w-[1px] h-4 bg-white hidden md:block" />
-              <p>
-                Phone Number : <span className="text-white">phone</span>
-              </p>
-              <div className="w-[1px] h-4 bg-white hidden md:block" />
-              <p>
-                Signup Date : <span className="text-[#E8D1AB]">12 February, 2026</span>
-              </p>
-            </div>
-            <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
-              <p>
-                Location : <span className="text-white">{"1234 Mockingbird Lane Sample City, CA 90000 United States"}</span>
-              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Email</p>
+                  <p className="text-sm flex items-center gap-2"><Mail size={14} className="text-[#E8D1AB]" /> {user.email}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Phone</p>
+                  <p className="text-sm flex items-center gap-2"><Phone size={14} className="text-[#E8D1AB]" /> {user.phone_number || "N/A"}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Member Since</p>
+                  <p className="text-sm flex items-center gap-2"><Calendar size={14} className="text-[#E8D1AB]" /> {user.created_at ? format(new Date(user.created_at), "PPP") : "N/A"}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Referral Code</p>
+                  <p className="text-sm flex items-center gap-2 font-mono"><Wallet size={14} className="text-[#E8D1AB]" /> {affiliate?.referral_code || "None"}</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <DottedDivider />
+          {/* 2. STATS GRID */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {[
+              { label: "Active", val: stats.total_active },
+              { label: "Upcoming", val: stats.total_upcoming },
+              { label: "Completed", val: stats.total_completed },
+              { label: "Drafts", val: stats.total_draft },
+              { label: "Cancelled", val: stats.total_cancelled },
+            ].map((item) => (
+              <div key={item.label} className="bg-[#171717] border border-[#3D3D3D] p-5 rounded-2xl">
+                <p className="text-[10px] uppercase text-white/40 font-bold mb-1">{item.label}</p>
+                <p className="text-2xl font-bold">{item.val}</p>
+              </div>
+            ))}
+          </div>
 
-          <div className="flex flex-col gap-3 p-5 lg:p-9 !pt-0">
-            <p className="lg:text-lg font-semibold text-white">Notes</p>
-            <p className="text-sm text-[#A2A2A2] bg-[#101010] rounded-lg p-4">
-              Interested in corporate event photography. Mentioned budget of $5k. Follow up scheduled for next week.
-            </p>
+          {/* 3. BOOKINGS LIST */}
+          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-6 lg:p-9">
+            <h2 className="text-xl font-medium mb-6 text-white">Booking History</h2>
+            <div className="space-y-4">
+              {shootList.length === 0 ? (
+                <div className="text-center py-10 text-white/20 border-2 border-dashed border-white/5 rounded-2xl">
+                  No bookings found for this client.
+                </div>
+              ) : (
+                shootList.map((proj: any) => (
+                  <div key={proj.stream_project_booking_id} className="bg-[#101010] border border-white/5 p-5 rounded-xl flex flex-col lg:flex-row justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <p className="font-semibold text-lg text-white">{proj.project_name}</p>
+                        <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold ${proj.is_draft ? 'bg-zinc-800 text-zinc-500' : 'bg-[#E8D1AB]/10 text-[#E8D1AB]'}`}>
+                          {proj.is_draft ? "Draft" : "Confirmed"}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-sm text-white/50">
+                        <span className="flex items-center gap-2"><Calendar size={14} /> {proj.event_date ? format(new Date(proj.event_date), "PP") : 'No Date Set'}</span>
+                        <span className="flex items-center gap-2"><MapPin size={14} /> {proj.event_location || proj.event_location_formatted || 'No Location'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center lg:items-end flex-row lg:flex-col justify-between">
+                      <div className="text-right">
+                        <p className="text-[10px] uppercase text-white/40">Paid Amount</p>
+                        <p className="text-lg font-bold text-[#E8D1AB]">${proj.total_paid_amount || '0.00'}</p>
+                      </div>
+                      <Link
+                        href={`/sales/shoots/${proj.stream_project_booking_id}`}
+                        className="text-xs text-[#E8D1AB] hover:underline mt-1"
+                      >
+                        View Details
+                      </Link>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Modal Integration */}
-      <UpdateLeadIntentModal
-        isOpen={isIntentModalOpen}
-        onClose={() => setIsIntentModalOpen(false)}
-        onSave={handleSaveIntent}
-        currentIntent="Hot" // Pass the current intent from your data
-      />
-    </div>
+        <UpdateLeadIntentModal
+          isOpen={isIntentModalOpen}
+          onClose={() => setIsIntentModalOpen(false)}
+          onSave={() => setIsIntentModalOpen(false)}
+          currentIntent="Hot"
+        />
+      </div>
     </>
   );
 }

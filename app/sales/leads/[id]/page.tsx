@@ -48,16 +48,11 @@ import "swiper/css/effect-coverflow";
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
   if (status === "abandoned") return "Cancelled";
-  return "In-Progress";
+  if (status?.includes("in_progress")) return "In-Progress";
+  return status || "In-Progress";
 };
 
-// Mock CP data
-const initialCPs = [
-  { id: 1, name: "Ethan Cole", email: "ethan@example.com", image: "/images/crew/CREW(6).png", earnings: "$1,200.00", bgColor: "bg-blue-200" },
-  { id: 2, name: "Sarah Miller", email: "sarah@example.com", image: "/images/crew/CREW(5).png", earnings: "$2,450.00", bgColor: "bg-green-200" },
-  { id: 3, name: "David Chen", email: "david@example.com", image: "/images/crew/CREW(4).png", earnings: "$980.00", bgColor: "bg-orange-100" },
-  { id: 4, name: "Jessica V.", email: "jess@example.com", image: "/images/crew/CREW(3).png", earnings: "$3,100.00", bgColor: "bg-purple-200" },
-];
+const CP_COLORS = ["bg-blue-200", "bg-green-200", "bg-orange-100", "bg-purple-200"];
 
 export default function SalesLeadDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -70,20 +65,19 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
   const [discountValue, setDiscountValue] = useState("");
   const [showDiscountCode, setShowDiscountCode] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed_amount">("percentage");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [usageType, setUsageType] = useState<"one_time" | "multi_use">("one_time");
-  const [assignedCPs, setAssignedCPs] = useState(initialCPs);
-  const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
-
-  // UI States for custom dropdowns
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   const [isUsageDropdownOpen, setIsUsageDropdownOpen] = useState(false);
+  const [assignedCPs, setAssignedCPs] = useState<any[]>([]);
+  const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
+
+  const [usageType, setUsageType] = useState<"one_time" | "multi_use">("one_time");
 
   const [generatedCode, setGeneratedCode] = useState<string>("");
   const [activeCPIndex, setActiveCPIndex] = useState(0);
 
   const activePartner = assignedCPs[activeCPIndex % assignedCPs.length];
   const [generatedPaymentLink, setGeneratedPaymentLink] = useState<string>("Placeholder");
+  const [generatedDiscountId, setGeneratedDiscountId] = useState<number | undefined>(undefined);
 
   // Fetch real lead data
   const {
@@ -98,8 +92,23 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
   const [generateDiscountCode, { isLoading: isGenerating }] =
     useGenerateDiscountCodeMutation();
 
-  const lead = leadData;
+  const lead = leadData as any;
   const booking = lead?.booking;
+
+  // Update assigned CPs when lead data is loaded
+  React.useEffect(() => {
+    if (booking?.assigned_crews) {
+      const mappedCPs = booking.assigned_crews.map((crew: any, index: number) => ({
+        id: crew.crew_member_id,
+        name: `${crew.crew_member.first_name} ${crew.crew_member.last_name}`,
+        email: crew.crew_member.email || "No email",
+        image: `/images/crew/CREW(${(index % 6) + 1}).png`,
+        earnings: `$${crew.crew_member.hourly_rate}`,
+        bgColor: CP_COLORS[index % CP_COLORS.length],
+      }));
+      setAssignedCPs(mappedCPs);
+    }
+  }, [booking?.assigned_crews]);
 
   // Extract data with defaults
   const clientName = lead?.client_name || lead?.guest_email || "Unknown Client";
@@ -110,9 +119,9 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
     .toUpperCase()
     .slice(0, 2);
   const email = lead?.guest_email || "No email";
-  const phone = lead?.user?.phone_number || "N/A";
-  const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
-  const status = lead ? mapLeadStatusToUI(lead.lead_status) : "Unknown" as any;
+  const phone = lead?.user?.phone_number || lead?.phone || "N/A";
+  const leadType = lead ? (LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] || lead.lead_type) : "Unknown";
+  const status = lead ? mapLeadStatusToUI(lead.lead_status) as any : "Unknown";
 
   const bookingDate = booking?.event_date
     ? new Date(booking.event_date).toLocaleDateString("en-US", {
@@ -124,9 +133,11 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
   const location = booking?.event_location || "Not specified";
   const shootType = booking?.event_type || "Not specified";
 
-  const basePrice = booking?.budget ? (typeof booking.budget === 'string' ? parseFloat(booking.budget) || 0 : booking.budget) : 0;
-  const taxes = basePrice * 0.09; // 9% tax estimate
-  const total = basePrice + taxes;
+  const pricingBreakdown = lead?.pricing_breakdown;
+  const basePrice = pricingBreakdown ? (pricingBreakdown.shoot_cost + pricingBreakdown.editing_cost + pricingBreakdown.additional_creatives_cost) : (booking?.budget ? (typeof booking.budget === 'string' ? parseFloat(booking.budget) || 0 : booking.budget) : 0);
+  const taxes = pricingBreakdown ? 0 : basePrice * 0.09; // Use 0 if we have pricing breakdown as it might already include everything or be handled differently
+  const total = pricingBreakdown?.total || (basePrice + taxes);
+  const discount = pricingBreakdown?.discount || 0;
 
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
@@ -159,6 +170,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
 
       if (response.success && response.data) {
         setGeneratedCode(response.data.code);
+        setGeneratedDiscountId(response.data.discount_code_id);
         setShowDiscountCode(true);
         toast.success("Discount code generated successfully!");
       }
@@ -270,17 +282,17 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                       <h1 className="lg:text-[22px] font-semibold">{clientName}</h1>
                       <div className=" lg:hidden">
                         {/* <StatusBadge status={status} /> */}
-                        <LeadsStatusBadge status={"Booked"} />
+                        <LeadsStatusBadge status={(lead?.booking_status || status) as any} />
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2 items-center">
                     {/* update once data is available */}
-                    <IntentBadge intent={(lead.intent || "Hot") as any} />
+                    <IntentBadge intent={(lead?.intent || "Hot") as any} />
 
                     <div className="hidden lg:block">
                       {/* <StatusBadge status={status} /> */}
-                      <LeadsStatusBadge status={"Booked"} />
+                      <LeadsStatusBadge status={(lead?.booking_status || status) as any} />
                     </div>
                   </div>
                 </div>
@@ -299,15 +311,15 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                 </div>
                 <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
                   <p>
-                    Temporary Booking ID : <span className="text-[#E8D1AB]">{"TMP-2024-001"}</span>
+                    Booking ID : <span className="text-[#E8D1AB]">{lead?.booking_id || "N/A"}</span>
                   </p>
                   <div className="w-[1px] h-4 bg-white hidden md:block" />
                   <p>
-                    Lead Source : <span className="text-white">{"Website"}</span>
+                    Lead Source : <span className="text-white">{lead?.lead_source || "N/A"}</span>
                   </p>
                   <div className="w-[1px] h-4 bg-white hidden md:block" />
                   <p>
-                    Assigned Sales Rep : <span className="text-white">{"John Doe"}</span>
+                    Assigned Sales Rep : <span className="text-white">{lead?.assigned_sales_rep?.name || "N/A"}</span>
                   </p>
                 </div>
               </div>
@@ -463,7 +475,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
               </div>
               <DottedDivider />
               <div className="p-4 !pt-0 lg:p-9">
-                <BookingStatusStepper currentStep={1} />
+                <BookingStatusStepper currentStep={lead?.booking_step || 1} />
               </div>
             </div>
 
@@ -482,21 +494,47 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
               />
               <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
                 <div className="flex justify-between font-medium">
-                  <span className="text-[#71717B] text-xs">Base Price</span>
+                  <span className="text-[#71717B] text-xs">Shoot Cost</span>
                   <span className="text-sm lg:text-base text-white">
-                    ${basePrice.toLocaleString()}/-
+                    ${pricingBreakdown?.shoot_cost?.toLocaleString() || basePrice.toLocaleString()}/-
                   </span>
                 </div>
-                <div className="flex justify-between font-medium">
-                  <span className="text-[#71717B] text-xs">Taxes & Fees</span>
-                  <span className="text-sm lg:text-base text-white">${taxes.toFixed(2)}/-</span>
-                </div>
+                {pricingBreakdown?.editing_cost ? (
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Editing Cost</span>
+                    <span className="text-sm lg:text-base text-white">
+                      ${pricingBreakdown.editing_cost.toLocaleString()}/-
+                    </span>
+                  </div>
+                ) : null}
+                {pricingBreakdown?.additional_creatives_cost ? (
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Additional Creatives Cost</span>
+                    <span className="text-sm lg:text-base text-white">
+                      ${pricingBreakdown.additional_creatives_cost.toLocaleString()}/-
+                    </span>
+                  </div>
+                ) : null}
+                {discount > 0 && (
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Discount</span>
+                    <span className="text-sm lg:text-base text-red-400">
+                      -${discount.toLocaleString()}/-
+                    </span>
+                  </div>
+                )}
+                {taxes > 0 && (
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Taxes & Fees</span>
+                    <span className="text-sm lg:text-base text-white">${taxes.toFixed(2)}/-</span>
+                  </div>
+                )}
               </div>
               <div className="h-[1px] w-full bg-[#3D3D3D]" />
               <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
                 <span className="text-sm font-medium">Total Amount</span>
                 <span className="lg:text-lg font-semibold text-[#E8D1AB]">
-                  ${total.toFixed(2)}/-
+                  ${total.toLocaleString()}/-
                 </span>
               </div>
             </div>
@@ -636,7 +674,11 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
               </div>
             </div>
 
-            <GeneratePaymentLink />
+            <GeneratePaymentLink
+              leadId={parseInt(leadId)}
+              bookingId={lead?.booking_id}
+              discountCodeId={generatedDiscountId}
+            />
 
             {/* Show only after booking is created? */}
             <div className="lg:text-right lg:mt-[82px]">
