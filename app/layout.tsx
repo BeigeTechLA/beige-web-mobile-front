@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { ReduxProvider } from "@/lib/redux/ReduxProvider";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 import Script from "next/script";
 
@@ -100,7 +101,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* GTM Container Script */}
         <Script id="google-tag-manager" strategy="afterInteractive">
@@ -129,8 +130,15 @@ export default function RootLayout({
         </noscript>
 
         <ReduxProvider>
-          <Toaster position="top-center" richColors />
-          {children}
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem={false}
+            // disableTransitionOnChange
+          >
+            <Toaster position="top-center" richColors />
+            {children}
+          </ThemeProvider>
         </ReduxProvider>
       </body>
     </html>

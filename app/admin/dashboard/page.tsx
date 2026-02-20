@@ -1,6 +1,7 @@
 "use client";
-import React, { useState } from "react";
-import { useRouter } from "next/navigation"; // Import router for navigation
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes"; // [1] Import useTheme
 import { OverallShootsTable } from "@/components/admin/OverallShootsTable";
 import { LeadsShootsTable } from "@/components/admin/LeadsShootsTable";
 import OverviewChart from "@/components/admin/OverviewChart";
@@ -10,33 +11,41 @@ import ShootStatusChart from "@/components/admin/ShootStatusChart";
 import StackedDashboard from "@/components/admin/StatsModule";
 import { TopCreatives } from "@/components/admin/TopCreatives";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 
 export default function AdminDashboardPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const router = useRouter();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
-    if (date) {
-      console.log(date);
-    } else {
-      console.log("unfiltered");
-    }
   };
 
+  // Constant default to dark
+  const isDark = !mounted || theme === "dark";
+
   return (
-    <div className="overflow-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+    <div className="overflow-hidden no-scrollbar">
       <style jsx global>{`
         ::-webkit-scrollbar {
           display: none;
         }
       `}</style>
+
       <div className="flex justify-between items-center">
-        <div className="text-white">
-          <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">Welcome back, Admin !</h1>
-          <p className="text-xs lg:text-sm text-white/70">Monitor revenue, shoots, Users, and performance metrics in one centralized dashboard.</p>
+        <div>
+          <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
+            }`}>
+            Welcome back, Admin !
+          </h1>
+          <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"
+            }`}>
+            Monitor revenue, shoots, Users, and performance metrics in one centralized dashboard.
+          </p>
         </div>
         <SortDateButton
           selectedDate={selectedDate}
@@ -44,10 +53,11 @@ export default function AdminDashboardPage() {
         />
       </div>
 
+      {/* Dotted Divider for Mobile */}
       <div
-        className="lg:hidden h-[1px] w-full my-4 lg:my-9"
+        className="lg:hidden h-[1px] w-full my-4 lg:my-9 transition-opacity duration-100"
         style={{
-          backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
+          backgroundImage: `linear-gradient(to right, ${isDark ? "#3f3f46" : "#D8D8D8"} 50%, transparent 50%)`,
           backgroundSize: '30px 1px',
           backgroundRepeat: 'repeat-x'
         }}
@@ -64,9 +74,10 @@ export default function AdminDashboardPage() {
           <ShootByCategory />
         </div>
       </div>
+
       <OverallShootsTable />
 
-      <div className="flex flex-col lg:flex-row gap-4 mt-5 pb-20 lg:pb-0"> {/* Added padding-bottom for mobile to clear the floating button */}
+      <div className="flex flex-col lg:flex-row gap-4 mt-5 pb-20 lg:pb-0">
         <div className="lg:w-3/4">
           <ShootStatusChart />
         </div>
@@ -78,7 +89,8 @@ export default function AdminDashboardPage() {
       <LeadsShootsTable />
 
       {/* --- FLOATING MOBILE BUTTON --- */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+      <div className={`lg:hidden fixed bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-100 ${isDark ? "bg-[#0f0f0f]" : "bg-white/80 backdrop-blur-md"
+        }`}>
         <Button
           onClick={() => router.push("/book-a-shoot")}
           className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
@@ -87,5 +99,5 @@ export default function AdminDashboardPage() {
         </Button>
       </div>
     </div>
-  )
+  );
 }

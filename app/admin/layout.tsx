@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import Sidebar from "@/components/admin/Sidebar";
 import Topbar from '@/components/admin/Topbar';
@@ -11,9 +11,17 @@ import Topbar from '@/components/admin/Topbar';
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+  const isDark = !mounted || theme === "dark";
 
   return (
-    <div className="flex flex-col h-screen bg-[#0f0f0f] text-white overflow-hidden">
+    <div className={`
+      flex flex-col h-screen overflow-hidden transition-colors duration-100
+      ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-[#101010]"}
+    `}>
       <Topbar pathname={pathname} onMenuClick={() => setMobileOpen(true)} />
 
       <div className="flex flex-1 overflow-hidden relative">
