@@ -301,7 +301,8 @@ export default function LeadDetailPage() {
                 </h2>
                 <Button
                   className="h-12 w-fit bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 px-6 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => router.push("/admin/select-creatives")}
+                  // CHANGED: Passing leadId dynamically
+                  onClick={() => router.push(`/admin/select-creatives?id=${leadId}`)}
                 >
                   <Plus className="text-black" size={18} /> Add More CPs
                 </Button>
@@ -611,9 +612,12 @@ export default function LeadDetailPage() {
               discountCodeId={generatedDiscountId}
             />
 
-            {/* Show only after booking is created? */}
+            {/* CHANGED: Passing leadId dynamically */}
             <div className="lg:text-right lg:mt-[82px]">
-              <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+              <Button 
+                onClick={() => router.push(`/admin/select-creatives?id=${leadId}`)}
+                className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
+              >
                 Change CPs
               </Button>
             </div>

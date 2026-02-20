@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { useRouter, useParams, usePathname, useSearchParams } from "next/navigation";
 import { ArrowLeft, Camera, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { useAssignCrewFromLeadMutation } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
 import { toast } from "sonner";
@@ -14,15 +13,22 @@ import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSe
 export default function ClientDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useParams();
   const searchParams = useSearchParams();
-  const rawId = params?.id || searchParams.get('id') || '136'; // Default to 136 for testing
-  const leadId = Array.isArray(rawId) ? rawId[0] : rawId;
+
+  // CHANGED: Get the ID from URL Query Parameter (?id=xxx)
+  // Removed hardcoded '136'
+  const leadId = searchParams.get('id');
 
   const [selectedCreativeIds, setSelectedCreativeIds] = useState<number[]>([]);
   const [assignCrew, { isLoading }] = useAssignCrewFromLeadMutation();
 
   const handleAssign = async () => {
+    // Safety check: ensure leadId exists
+    if (!leadId) {
+        toast.error("Lead ID is missing. Cannot assign crew.");
+        return;
+    }
+
     if (selectedCreativeIds.length === 0) {
       toast.error("Please select at least one creative");
       return;
@@ -30,7 +36,7 @@ export default function ClientDetailPage() {
 
     try {
       const response = await assignCrew({
-        lead_id: Number(leadId),
+        lead_id: Number(leadId), // Use the dynamic ID
         crew_member_ids: selectedCreativeIds,
       }).unwrap();
 
@@ -46,7 +52,6 @@ export default function ClientDetailPage() {
       }
     } catch (error: any) {
       console.error("Failed to assign crew", error);
-      // specific error handling if the error object comes from the RTK Query failure
       if (error?.data?.errors && Array.isArray(error.data.errors)) {
         toast.error(error.data.errors.join(", "));
       } else if (error?.data?.message) {
@@ -94,6 +99,7 @@ export default function ClientDetailPage() {
           <span className="text-sm font-medium">Back</span>
         </Button>
 
+        {/* Pass the dynamic leadId here as well */}
         <CreativeProfileSelectorAdd
           leadId={leadId || undefined}
           selectedIds={selectedCreativeIds}
