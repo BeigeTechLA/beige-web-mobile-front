@@ -312,6 +312,14 @@ export default function EditBookingPage() {
         });
     };
 
+    const videographerTarget = useMemo(() => {
+    return formData.contentType.includes("videographer") ? (extraTeam["videographer"] || 0) + 1 : 0;
+}, [formData.contentType, extraTeam]);
+
+const photographerTarget = useMemo(() => {
+    return formData.contentType.includes("photographer") ? (extraTeam["photographer"] || 0) + 1 : 0;
+}, [formData.contentType, extraTeam]);
+
     const handleStartTimeChange = (timeKey: string) => {
         if (!timeKey) return;
         const [hours, minutes] = timeKey.split(":").map(Number);
@@ -577,6 +585,11 @@ export default function EditBookingPage() {
                     leadId={leadId}
                     selectedIds={formData.selectedCrewIds}
                     onChange={(ids) => updateData({ selectedCrewIds: ids })}
+                    currentLocation={formData.location}
+                    targets={{
+                        videographer: videographerTarget,
+                        photographer: photographerTarget
+                    }}
                 />
 
                 <div className="flex gap-6 items-center pt-10">

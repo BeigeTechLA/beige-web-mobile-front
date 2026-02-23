@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { salesApi, ROLE_MAP } from '@/lib/api';
 import { Search, SlidersHorizontal, Video, Camera, Calendar, Check } from 'lucide-react';
 import { CreativeFilterModal } from './CreativeFilterModal';
 import { Separator } from '@/src/components/landing/Separator';
 
-// Mock Data
+// Mock Data (Kept as per original code)
 const CREATIVES = [
     { id: 1, name: "Ethan Cole", status: "Active", shoots: 5, specialities: "Videography & Photography", availability: "16 February, 2026 Hours" },
     { id: 2, name: "Ethan Cole", status: "Active", shoots: 5, specialities: "Videography & Photography", availability: "16 February, 2026 Hours" },
@@ -16,11 +16,15 @@ const CREATIVES = [
 export const CreativeProfileSelectorAdd = ({
     selectedIds: externalSelectedIds,
     onChange,
-    leadId
+    leadId,
+    currentLocation, // NEW: passed from parent to react to location changes
+    targets          // NEW: passed from parent e.g. { videographer: 2, photographer: 1 }
 }: {
     selectedIds?: number[],
     onChange?: (ids: number[]) => void,
-    leadId?: number | string
+    leadId?: number | string,
+    currentLocation?: string,
+    targets?: { videographer: number, photographer: number }
 } = {}) => {
     const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -39,6 +43,7 @@ export const CreativeProfileSelectorAdd = ({
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
+    // Original stats fetcher (keeping it for metadata, though we use 'targets' for UI counts)
     useEffect(() => {
         const fetchStats = async () => {
             if (leadId) {
@@ -55,20 +60,21 @@ export const CreativeProfileSelectorAdd = ({
         fetchStats();
     }, [leadId]);
 
+    // FETCH CREW LOGIC - Now triggers on leadId, currentLocation, roleType, or search
     useEffect(() => {
         const fetchCreatives = async () => {
-            if (leadId && stats?.location) {
+            if (leadId) {
                 setIsLoading(true);
                 try {
-                    // Extract city from location (handles standard comma and Arabic comma)
-                    const location = stats.location || "";
+                    // Use currentLocation from props if it exists, otherwise fallback to stats location
+                    const location = currentLocation || stats?.location || "";
+                    
+                    // Extract city logic (handles standard comma and Arabic comma)
                     const locationParts = location.split(/[,،]/);
                     let city = location;
 
                     if (locationParts.length > 1) {
-                        // Usually the second part in "Street, City/Pincode City, State, Country"
                         let candidate = locationParts[1].trim();
-                        // Remove pincodes/numbers to isolate city
                         candidate = candidate.replace(/\d+/g, '').trim();
                         if (candidate) {
                             city = candidate;
@@ -80,9 +86,9 @@ export const CreativeProfileSelectorAdd = ({
                         role_type: roleType,
                         search_query: debouncedSearch || city
                     });
+
                     if (response && response.data) {
                         const formattedCreatives = response.data.map((item: any) => {
-                            // Use role from API if available, otherwise fallback to parsing primary_role
                             let role = item.role ? (item.role.charAt(0).toUpperCase() + item.role.slice(1)) : "Creative";
 
                             if (!item.role) {
@@ -101,7 +107,7 @@ export const CreativeProfileSelectorAdd = ({
                                 id: item.crew_member_id,
                                 name: `${item.first_name} ${item.last_name}`,
                                 status: item.is_active ? "Active" : "Inactive",
-                                shoots: item.years_of_experience, // Mapping to years of experience
+                                shoots: item.years_of_experience,
                                 specialities: role,
                                 availability: item.availability || "Not Available",
                                 ...item
@@ -120,9 +126,18 @@ export const CreativeProfileSelectorAdd = ({
             }
         };
         fetchCreatives();
-    }, [leadId, stats?.location, roleType, debouncedSearch]);
+    }, [leadId, stats?.location, currentLocation, roleType, debouncedSearch]);
 
     const selectedIds = externalSelectedIds || internalSelectedIds;
+
+    // Helper to count how many of the selected IDs belong to the current role type
+    // This looks at the 'creatives' currently loaded to check their roles
+    const currentSelectionCount = useMemo(() => {
+        return creatives.filter(c => 
+            selectedIds.includes(c.id) && 
+            c.specialities.toLowerCase().includes(roleType === 'videographer' ? 'video' : 'photo')
+        ).length;
+    }, [selectedIds, creatives, roleType]);
 
     const toggleSelection = (id: number) => {
         const nextIds = selectedIds.includes(id)
@@ -148,14 +163,18 @@ export const CreativeProfileSelectorAdd = ({
                         className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors ${roleType === 'videographer' ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#1A1A1A] border-white/10 text-white/70'}`}
                     >
                         <Video size={16} />
-                        <span>Videographer(s) : {stats?.fulfillment_stats?.videographer || '0/0'}</span>
+                        <span>
+                            Videographer(s) : {roleType === 'videographer' ? currentSelectionCount : (stats?.fulfillment_stats?.videographer?.split('/')[0] || 0)}/{targets?.videographer || stats?.fulfillment_stats?.videographer?.split('/')[1] || '0'}
+                        </span>
                     </div>
                     <div
                         onClick={() => setRoleType('photographer')}
                         className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors ${roleType === 'photographer' ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#1A1A1A] border-white/10 text-white/70'}`}
                     >
                         <Camera size={16} />
-                        <span>Photographers(s) : {stats?.fulfillment_stats?.photographer || '0/0'}</span>
+                        <span>
+                            Photographers(s) : {roleType === 'photographer' ? currentSelectionCount : (stats?.fulfillment_stats?.photographer?.split('/')[0] || 0)}/{targets?.photographer || stats?.fulfillment_stats?.photographer?.split('/')[1] || '0'}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -256,16 +275,8 @@ const CreativeCard = ({ creative, isSelected, onToggle }: any) => {
                         <p className="text-[#AAA7A7] mb-1">Specialities:</p>
                         <p className="text-white font-medium">{creative.specialities}</p>
                     </div>
-                    {/* <div className="md:pl-8">
-<p className="text-[#AAA7A7] mb-1">Availability:</p>
-<div className="flex items-center gap-2 text-[#E8D1AB] underline decoration-[#E8D1AB]/30 underline-offset-4">
-<span>{creative.availability}</span>
-<Calendar size={14} />
-</div>
-</div> */}
                 </div>
             </div>
-
         </div>
     );
 };

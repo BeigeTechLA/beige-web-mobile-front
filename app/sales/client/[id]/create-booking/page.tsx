@@ -14,6 +14,7 @@ import { MultiSelectDropdown } from "@/components/book-a-shoot";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 import {
   newshootTypes,
@@ -47,7 +48,7 @@ import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelec
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
 import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
-import { adminApi } from "@/lib/api";
+import { adminApi } from "@/lib/api"; // Added for fetching client profile
 
 const INITIAL_COUNT = 6;
 
@@ -76,6 +77,7 @@ export default function ClientDetailPage() {
     selectedCrewIds: []
   });
 
+  // --- NEW: Profile State ---
   const [clientProfile, setClientProfile] = useState<any>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
 
@@ -89,9 +91,9 @@ export default function ClientDetailPage() {
   const [isLoadingCrew, setIsLoadingCrew] = useState(false);
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
-  const { data: leadData } = useGetLeadByIdQuery(parseInt(leadId), { skip: !leadId });
+  // const { data: leadData } = useGetLeadByIdQuery(parseInt(leadId), { skip: !leadId });
 
-  // Fetch Client Profile
+  // 1. Fetch Client Profile to show name proper
   useEffect(() => {
     const fetchClientProfile = async () => {
       try {
@@ -99,6 +101,7 @@ export default function ClientDetailPage() {
         const res = await adminApi.getClientFullDetails(leadId);
         if (res && !res.error) {
           setClientProfile(res.data.profile);
+          // Sync with formData
           setFormData(prev => ({
             ...prev,
             fullName: res.data.profile.user.name,
@@ -115,31 +118,32 @@ export default function ClientDetailPage() {
     if (leadId) fetchClientProfile();
   }, [leadId]);
 
-  // Pre-populate from lead data if available
-  useEffect(() => {
-    if (leadData && leadData.booking) {
-      const b = leadData.booking;
-      setFormData((prev) => ({
-        ...prev,
-        bookingId: b.stream_project_booking_id || (b as any).booking_id,
-        contentType: (b.content_type?.split(",") as any) || [],
-        shootType: b.shoot_type || b.event_type || "",
-        startDate: b.event_date || b.start_time || "",
-        endDate: b.end_time || "",
-        editsNeeded: b.edits_needed ?? true,
-        videoEditTypes: b.video_edit_types || [],
-        photoEditTypes: b.photo_edit_types || [],
-        location: b.event_location || "",
-        crewCount: b.crew_size_needed || 0,
-      }));
-    }
-  }, [leadData]);
+  // Pre-populate form data when lead data is available
+  // useEffect(() => {
+  //   if (leadData && leadData.booking) {
+  //     const b = leadData.booking;
+  //     setFormData((prev) => ({
+  //       ...prev,
+  //       bookingId: b.stream_project_booking_id || b.booking_id,
+  //       contentType: (b.content_type?.split(",") as any) || [],
+  //       shootType: b.shoot_type || b.event_type || "",
+  //       startDate: b.event_date || b.start_time || "",
+  //       endDate: b.end_time || "",
+  //       editsNeeded: b.edits_needed ?? true,
+  //       videoEditTypes: b.video_edit_types || [],
+  //       photoEditTypes: b.photo_edit_types || [],
+  //       location: b.event_location || "",
+  //       crewCount: b.crew_size_needed || 0,
+  //     }));
+  //   }
+  // }, [leadData]);
 
+  // Dynamic Initials
   const initials = useMemo(() => {
-    const name = clientProfile?.user?.name || leadData?.client_name || "Client Name";
+    const name = clientProfile?.user?.name || "Client Name";
     if (!name) return "IN";
     return name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
-  }, [clientProfile, leadData]);
+  }, [clientProfile]);
 
   const includedRoles = formData.contentType.filter(t => t !== 'editing').map(t => {
     const role = TEAM_ROLES.find(r => r.id === t);
@@ -230,12 +234,15 @@ export default function ClientDetailPage() {
     }
   }, [formData.shootType]);
 
+  // Get city name for crew API
   const getCityName = useCallback(() => {
     if (formData.locationDetails?.context) {
       const placeComponent = formData.locationDetails.context.find(
         (component: any) => component.id && component.id.startsWith("place.")
       );
-      if (placeComponent) return placeComponent.text;
+      if (placeComponent) {
+        return placeComponent.text;
+      }
     }
     if (formData.location) {
       const parts = formData.location.split(",");
@@ -246,8 +253,11 @@ export default function ClientDetailPage() {
     return "";
   }, [formData.location, formData.locationDetails]);
 
+  // Fetch available crew
   const fetchAvailableCrew = useCallback(async () => {
-    if (!formData.startDate || formData.contentType.length === 0 || !formData.location) return;
+    if (!formData.startDate || formData.contentType.length === 0 || !formData.location) {
+      return;
+    }
 
     setIsLoadingCrew(true);
     try {
@@ -263,11 +273,15 @@ export default function ClientDetailPage() {
       }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/v1/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
+         `${API_BASE_URL}/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
       );
       const result = await response.json();
-      if (result.success) setCrewList(result.data);
-      else setCrewList([]);
+
+      if (result.success) {
+        setCrewList(result.data);
+      } else {
+        setCrewList([]);
+      }
     } catch (error) {
       console.error("Error fetching crew:", error);
     } finally {
@@ -275,6 +289,7 @@ export default function ClientDetailPage() {
     }
   }, [formData.startDate, formData.contentType, formData.location, getCityName]);
 
+  // Trigger crew fetch when inputs change
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchAvailableCrew();
@@ -282,6 +297,7 @@ export default function ClientDetailPage() {
     return () => clearTimeout(timer);
   }, [formData.startDate, formData.contentType, formData.location, fetchAvailableCrew]);
 
+  // Generate time options on mount
   useEffect(() => {
     const options = [];
     for (let i = 0; i < 24; i++) {
@@ -316,7 +332,7 @@ export default function ClientDetailPage() {
     if (nextContentType.length > 0) scrollToRef(shootTypeRef);
   };
 
-  const availableRolesToAdd = TEAM_ROLES.filter(role => formData.contentType.includes(role.id as any));
+  const availableRolesToAdd = TEAM_ROLES.filter(role => formData.contentType.includes(role.id));
 
   const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
     setTimeout(() => {
@@ -329,84 +345,90 @@ export default function ClientDetailPage() {
     }, 100);
   };
 
-  const handleDateChange = (date: Date | null) => {
-    if (!date) {
-      updateData({ startDate: "", endDate: "" });
-      return;
-    }
-    const now = new Date();
-    const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+const handleDateChange = (date: Date | null) => {
+  if (!date) {
+    updateData({ startDate: "", endDate: "" });
+    return;
+  }
 
-    let newStart: Date;
-    let newEnd: Date;
+  const now = new Date();
+  const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
 
-    if (isToday) {
-      newStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-      const mins = newStart.getMinutes();
-      if (mins > 0 && mins <= 30) newStart.setMinutes(30, 0, 0);
-      else if (mins > 30) newStart.setHours(newStart.getHours() + 1, 0, 0, 0);
-      else newStart.setMinutes(0, 0, 0);
-      newEnd = new Date(newStart.getTime() + 8 * 60 * 60 * 1000);
-    } else {
-      newStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-      newEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
-    }
+  let newStart: Date;
+  let newEnd: Date;
 
-    const finalStart = set(newStart, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
-    const finalEnd = set(newEnd, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
+  if (isToday) {
+    newStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    const mins = newStart.getMinutes();
+    if (mins > 0 && mins <= 30) newStart.setMinutes(30, 0, 0);
+    else if (mins > 30) newStart.setHours(newStart.getHours() + 1, 0, 0, 0);
+    else newStart.setMinutes(0, 0, 0);
+    newEnd = new Date(newStart.getTime() + 8 * 60 * 60 * 1000);
+  } else {
+    newStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+    newEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+  }
 
-    updateData({ startDate: finalStart.toISOString(), endDate: finalEnd.toISOString() });
-  };
+  const finalStart = set(newStart, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
+  const finalEnd = set(newEnd, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
 
-  const handleStartTimeChange = (timeKey: string) => {
-    if (!timeKey) {
-      updateData({ startDate: "" });
-      return;
-    }
-    const [hours, minutes] = timeKey.split(":").map(Number);
-    const currentDate = formData.startDate ? parseDate(formData.startDate) : new Date();
-    if (!currentDate) return;
-    const now = new Date();
-    const selectedTime = new Date(currentDate.setHours(hours, minutes));
-    if (selectedTime < now) {
-      toast.error("Selected time must be later than the current time.");
-      return;
-    }
-    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-    if (selectedTime < minimumTime) {
-      toast.error("You must select a start time at least 4 hours from now.");
-      return;
-    }
-    const newStart = set(currentDate, { hours, minutes });
-    updateData({ startDate: newStart.toISOString() });
-  };
+  // FIXED: Removed 'XXX' so the backend gets the exact local time selected
+  updateData({ 
+    startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss"), 
+    endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss") 
+  });
+};
 
-  const handleEndTimeChange = (timeKey: string) => {
-    if (!timeKey) {
-      updateData({ endDate: "" });
-      return;
-    }
-    const [hours, minutes] = timeKey.split(":").map(Number);
-    let currentDate = formData.endDate ? parseDate(formData.endDate) : formData.startDate ? parseDate(formData.startDate) : new Date();
-    if (!currentDate) return;
-    const newEnd = set(currentDate, { hours, minutes });
-    updateData({ endDate: newEnd.toISOString() });
-    scrollToRef(editsRef);
-  };
+ const handleStartTimeChange = (timeKey: string) => {
+  if (!timeKey) {
+    updateData({ startDate: "" });
+    return;
+  }
 
-  function getStartTimeKey() {
+  const [hours, minutes] = timeKey.split(":").map(Number);
+  const currentDate = formData.startDate ? parseDate(formData.startDate) : new Date();
+  if (!currentDate) return;
+
+  const newStart = set(currentDate, { hours, minutes, seconds: 0 });
+  
+  const now = new Date();
+  if (newStart < now) {
+    toast.error("Selected time must be later than the current time.");
+    return;
+  }
+
+  updateData({ startDate: format(newStart, "yyyy-MM-dd'T'HH:mm:ss") });
+};
+
+ const handleEndTimeChange = (timeKey: string) => {
+  if (!timeKey) {
+    updateData({ endDate: "" });
+    return;
+  }
+  const [hours, minutes] = timeKey.split(":").map(Number);
+  let currentDate = formData.endDate ? parseDate(formData.endDate) : formData.startDate ? parseDate(formData.startDate) : new Date();
+  if (!currentDate) return;
+
+  const newEnd = set(currentDate, { hours, minutes, seconds: 0 });
+  
+  // FIXED: Removed 'XXX'
+  updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss") });
+  scrollToRef(editsRef);
+};
+
+  const getStartTimeKey = () => {
     if (!formData.startDate) return "";
     const date = parseDate(formData.startDate);
     if (!date) return "";
     return format(date, "HH:mm");
-  }
+  };
 
-  function getEndTimeKey() {
+  const getEndTimeKey = () => {
     if (!formData.endDate) return "";
     const date = parseDate(formData.endDate);
     if (!date) return "";
     return format(date, "HH:mm");
-  }
+  };
 
   const filteredEndTimeOptions = useMemo(() => {
     if (!formData.startDate) return timeOptions;
@@ -431,12 +453,18 @@ export default function ClientDetailPage() {
     const next = Math.max(0, current + delta);
     nextExtra[id] = next;
     setExtraTeam(nextExtra);
-    const summary = Object.entries(nextExtra).filter(([_, count]) => count > 0).map(([roleId, count]) => `${TEAM_ROLES.find(r => r.id === roleId)?.label || roleId} x${count}`);
+
+    const summary = Object.entries(nextExtra)
+      .filter(([_, count]) => count > 0)
+      .map(([roleId, count]) => `${TEAM_ROLES.find(r => r.id === roleId)?.label || roleId} x${count}`);
+
     const baseCount = includedRoles.length;
-    const extraCount = Object.values(nextExtra).reduce((a, b) => (a as any) + b, 0);
-    updateData({ teamIncluded: summary, crewCount: baseCount + (extraCount as any) });
+    const extraCount = Object.values(nextExtra).reduce((a, b) => a + b, 0);
+
+    updateData({ teamIncluded: summary, crewCount: baseCount + extraCount });
   };
 
+  // Submit handler
   const handleSubmit = async () => {
     if (!formData.selectedCrewIds || formData.selectedCrewIds.length === 0) {
       toast.error("Please select at least one creative");
@@ -450,8 +478,14 @@ export default function ClientDetailPage() {
       const durationHours = startDate && endDate ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)) : 0;
 
       const crewRoles: Record<string, number> = {};
-      if (formData.contentType.includes("videographer")) crewRoles["videographer"] = 1 + (extraTeam["videographer"] || 0);
-      if (formData.contentType.includes("photographer")) crewRoles["photographer"] = 1 + (extraTeam["photographer"] || 0);
+      if (formData.contentType.includes("videographer")) {
+        crewRoles["videographer"] = 1 + (extraTeam["videographer"] || 0);
+      }
+      if (formData.contentType.includes("photographer")) {
+        crewRoles["photographer"] = 1 + (extraTeam["photographer"] || 0);
+      }
+
+      const crewSize = Object.values(crewRoles).reduce((a, b) => a + b, 0);
 
       const payload = {
         user_id: leadId,
@@ -462,7 +496,7 @@ export default function ClientDetailPage() {
         duration_hours: durationHours,
         location: formData.location,
         crew_roles: crewRoles,
-        crew_size: Object.values(crewRoles).reduce((a, b) => a + b, 0),
+        crew_size: crewSize,
         selected_crew_ids: formData.selectedCrewIds || [],
         edits_needed: formData.editsNeeded,
         video_edit_types: formData.videoEditTypes || [],
@@ -472,13 +506,14 @@ export default function ClientDetailPage() {
         skip_margin: true
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/v1/sales/deals/finalize`, {
+      const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const result = await response.json();
+
       if (result.success) {
         toast.success("Booking created successfully!");
         router.push("/sales/dashboard");
@@ -505,26 +540,34 @@ export default function ClientDetailPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans mb-20 bg-[#101010] min-h-screen">
-        <Button onClick={() => router.back()} className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-8 p-0">
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans mb-20">
+        {/* Back Button */}
+        <Button
+          onClick={() => router.back()}
+          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-8 p-0"
+        >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
 
+        {/* Dynamic Profile Header */}
         <div className="flex items-center gap-5 mb-8">
           <div className="w-16 h-16 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-[#101010] border border-[#E8D1AB] flex items-center justify-center text-xl lg:text-[30px] font-bold shrink-0">
             {initials}
           </div>
           <div className="flex flex-col gap-1">
             <div className="flex gap-3 items-center">
-              <h1 className="lg:text-[28px] text-xl font-bold">{clientProfile?.user?.name || leadData?.client_name || "Client Name"}</h1>
-              <IntentBadge intent={(leadData?.intent || "Hot") as any} />
+              <h1 className="lg:text-[28px] text-xl font-bold">
+                {clientProfile?.user?.name || "Client Name"}
+              </h1>
+              <IntentBadge intent={"Hot"} />
             </div>
-            <p className="text-sm text-white/40">{clientProfile?.user?.email || leadData?.guest_email}</p>
+            <p className="text-sm text-white/40">{clientProfile?.user?.email}</p>
           </div>
         </div>
         <DottedDivider />
 
+        {/* Content Type */}
         <div ref={contentTypeRef}>
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -549,10 +592,27 @@ export default function ClientDetailPage() {
               checked={formData.contentType.includes("photographer")}
               onChange={() => toggleContentType("photographer")}
             />
+            <ContentTypeCheckbox
+              label="AI Editing"
+              subLabel="Coming Soon"
+              icon={<Scissors size={20} />}
+              checked={false}
+              onChange={() => { }}
+              disabled={true}
+            />
+            <ContentTypeCheckbox
+              label="Livestream"
+              subLabel="Coming Soon"
+              icon={<Radio size={20} />}
+              checked={false}
+              onChange={() => { }}
+              disabled={true}
+            />
           </div>
         </div>
         <DottedDivider />
 
+        {/* Shoot Type */}
         <div ref={shootTypeRef}>
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
             {formData.contentType.length > 1 ? "Video and Photo Shoot Type" : formData.contentType.includes("videographer") ? "Video Shoot Type" : "Photo Shoot Type"}
@@ -569,8 +629,11 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
+        {/* Date & Time */}
         <div ref={dateTimeRef}>
-          <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">Shoot Date & Time</h3>
+          <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">
+            Shoot Date & Time
+          </h3>
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="flex-1">
               <DatePicker
@@ -584,17 +647,32 @@ export default function ClientDetailPage() {
               />
             </div>
             <div className="flex-1">
-              <DropdownSelect title="Start Time" options={filteredStartTimeOptions} value={getStartTimeKey()} onChange={handleStartTimeChange} bgColour="bg-[#101010]" />
+              <DropdownSelect
+                title="Start Time"
+                options={filteredStartTimeOptions}
+                value={getStartTimeKey()}
+                onChange={handleStartTimeChange}
+                bgColour="bg-[#101010]"
+              />
             </div>
             <div className="flex-1">
-              <DropdownSelect title="End Time" options={filteredEndTimeOptions} value={getEndTimeKey()} onChange={handleEndTimeChange} bgColour="bg-[#101010]" />
+              <DropdownSelect
+                title="End Time"
+                options={filteredEndTimeOptions}
+                value={getEndTimeKey()}
+                onChange={handleEndTimeChange}
+                bgColour="bg-[#101010]"
+              />
             </div>
           </div>
         </div>
         <DottedDivider />
 
+        {/* Edits Needed */}
         <div ref={editsRef}>
-          <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">Edits Needed?</h3>
+          <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">
+            Edits Needed?
+          </h3>
           <div className="flex gap-4">
             <button
               onClick={() => { updateData({ editsNeeded: true }); scrollToRef(navigationRef); }}
@@ -622,11 +700,23 @@ export default function ClientDetailPage() {
             <div className="animate-in slide-in-from-top-4 duration-300 mt-4 lg:mt-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {formData.contentType.includes("videographer") && videoEditTypeOptions.length > 0 && (
-                  <MultiSelectDropdown title="Video Edit Type" options={videoEditTypeOptions} value={formData.videoEditTypes} onChange={(values) => updateData({ videoEditTypes: values })} bgColour={"bg-[#101010]"} />
+                  <MultiSelectDropdown
+                    title="Video Edit Type"
+                    options={videoEditTypeOptions}
+                    value={formData.videoEditTypes}
+                    onChange={(values) => updateData({ videoEditTypes: values })}
+                    bgColour={"bg-[#101010]"}
+                  />
                 )}
                 {formData.contentType.includes("photographer") && photoEditTypeOptions.length > 0 && (
                   <div>
-                    <MultiSelectDropdown title="Photo Edit Type" options={photoEditTypeOptions} value={formData.photoEditTypes} onChange={(values) => updateData({ photoEditTypes: values })} bgColour={"bg-[#101010]"} />
+                    <MultiSelectDropdown
+                      title="Photo Edit Type"
+                      options={photoEditTypeOptions}
+                      value={formData.photoEditTypes}
+                      onChange={(values) => updateData({ photoEditTypes: values })}
+                      bgColour={"bg-[#101010]"}
+                    />
                     {photoEditNote && (
                       <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
                         <Info size={16} className="mt-0.5 flex-shrink-0" />
@@ -641,6 +731,7 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
+        {/* Additional Creatives */}
         <div ref={extraTeamRef}>
           <div className="flex flex-col gap-3 lg:gap-6">
             <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
@@ -678,7 +769,11 @@ export default function ClientDetailPage() {
                         </div>
                         <div className="text-lg font-medium text-white">{role.label}</div>
                       </div>
-                      <QuantityControl value={extraTeam[role.id] || 0} onIncrease={() => handleExtraTeamChange(role.id, 1)} onDecrease={() => handleExtraTeamChange(role.id, -1)} />
+                      <QuantityControl
+                        value={extraTeam[role.id] || 0}
+                        onIncrease={() => handleExtraTeamChange(role.id, 1)}
+                        onDecrease={() => handleExtraTeamChange(role.id, -1)}
+                      />
                     </div>
                   ))
                 ) : (
@@ -690,12 +785,19 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
+        {/* Location */}
         <div ref={locationRef}>
           <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
-          <LocationPicker value={formData.location} onChange={(address: string, details?: any) => updateData({ location: address, locationDetails: details })} placeholder="Search for a location" colors={darkThemeColors} />
+          <LocationPicker
+            value={formData.location}
+            onChange={(address: string, details?: any) => updateData({ location: address, locationDetails: details })}
+            placeholder="Search for a location"
+            colors={darkThemeColors}
+          />
         </div>
         <DottedDivider />
 
+        {/* Crew Selection */}
         <div ref={crewRef}>
           {!formData.startDate || !formData.location ? (
             <div className="p-10 border border-dashed border-white/20 rounded-2xl text-center text-white/40">
@@ -719,8 +821,8 @@ export default function ClientDetailPage() {
               }))}
               isLoading={isLoadingCrew}
               emptyMessage="No matching professionals found for this date/location."
-              videographerCount={formData.contentType.includes("videographer") ? 1 + (extraTeam["videographer"] || 0) : 0}
-              photographerCount={formData.contentType.includes("photographer") ? 1 + (extraTeam["photographer"] || 0) : 0}
+              videographerCount={formData.contentType.includes("videographer") ? 1 + (extraTeam["videographer"] as number || 0) : 0}
+              photographerCount={formData.contentType.includes("photographer") ? 1 + (extraTeam["photographer"] as number || 0) : 0}
             />
           )}
         </div>
@@ -728,9 +830,18 @@ export default function ClientDetailPage() {
         <DottedDivider />
 
         <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
-          <Button onClick={() => router.back()} className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]">Back</Button>
-          <Button disabled={formData.selectedCrewIds.length === 0 || isSubmitting} onClick={handleSubmit} className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed">
-            {isSubmitting ? "Creating..." : "Finalize Booking"}
+          <Button
+            onClick={() => router.back()}
+            className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+          >
+            Back
+          </Button>
+          <Button
+            disabled={formData.selectedCrewIds.length === 0 || isSubmitting}
+            onClick={handleSubmit}
+            className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "Creating..." : "Continue"}
           </Button>
         </div>
       </div>

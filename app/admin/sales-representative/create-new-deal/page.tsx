@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+import { API_BASE_URL } from "@/lib/apiConfig";
 import DottedDivider from "@/components/admin/DottedDivider";
 import { ContentTypeCheckbox } from "@/components/book-a-shoot/v3/components/ContentTypeCheckbox";
 import { MultiSelectDropdown } from "@/components/book-a-shoot";
@@ -109,7 +110,6 @@ export default function ClientDetailPage() {
   const getCityName = useCallback(() => {
     // 1️⃣ If Mapbox details exist (from context array)
     if (formData.locationDetails?.context) {
-      // Mapbox stores city in context with id starting with "place."
       const placeComponent = formData.locationDetails.context.find(
         (component: any) => component.id && component.id.startsWith("place.")
       );
@@ -142,7 +142,6 @@ export default function ClientDetailPage() {
       const dateStr = dateObj ? format(dateObj, "yyyy-MM-dd") : "";
       const roles = formData.contentType.filter(t => t !== 'editing').join(',');
 
-      // GET ONLY THE CITY NAME HERE
       const citySearch = getCityName();
 
       if (!citySearch) {
@@ -152,7 +151,7 @@ export default function ClientDetailPage() {
       }
 
       const response = await fetch(
-        `http://localhost:5001/v1/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
+        `${API_BASE_URL}/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
       );
       const result = await response.json();
 
@@ -172,7 +171,7 @@ export default function ClientDetailPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchAvailableCrew();
-    }, 800); // Debounce to prevent too many calls while typing location
+    }, 800);
     return () => clearTimeout(timer);
   }, [formData.startDate, formData.contentType, formData.location, fetchAvailableCrew]);
 
@@ -274,7 +273,7 @@ export default function ClientDetailPage() {
     }
   }, [formData.shootType]);
 
-  // --- HANDLERS ---
+  // --- HANDLERS (Timezone Fix Applied) ---
   const handleDateChange = (date: Date | null) => {
     if (!date) {
       updateData({ startDate: "", endDate: "" });
@@ -298,9 +297,10 @@ export default function ClientDetailPage() {
       finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
     }
 
+    // Use format to keep Local Time instead of UTC ISO String
     updateData({
-      startDate: finalStart.toISOString(),
-      endDate: finalEnd.toISOString(),
+      startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss"),
+      endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss"),
     });
   };
 
@@ -308,7 +308,17 @@ export default function ClientDetailPage() {
     if (!timeKey) return updateData({ startDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
     const currentDate = parseDate(formData.startDate) || new Date();
-    const selectedTime = set(currentDate, { hours, minutes });
+    
+    const selectedTime = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      currentDate.getDate(),
+      hours,
+      minutes,
+      0,
+      0
+    );
+    
     const now = new Date();
 
     if (selectedTime < now) {
@@ -320,15 +330,27 @@ export default function ClientDetailPage() {
       toast.error("You must select a start time at least 4 hours from now.");
       return;
     }
-    updateData({ startDate: selectedTime.toISOString() });
+    // Fixed to send local string
+    updateData({ startDate: format(selectedTime, "yyyy-MM-dd'T'HH:mm:ss") });
   };
 
   const handleEndTimeChange = (timeKey: string) => {
     if (!timeKey) return updateData({ endDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const baseDate = parseDate(formData.endDate) || parseDate(formData.startDate) || new Date();
-    const newEnd = set(baseDate, { hours, minutes });
-    updateData({ endDate: newEnd.toISOString() });
+    const baseDate = parseDate(formData.startDate) || new Date();
+    
+    const newEnd = new Date(
+      baseDate.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate(),
+      hours,
+      minutes,
+      0,
+      0
+    );
+    
+    // Fixed to send local string
+    updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss") });
     scrollToRef(editsRef);
   };
 
@@ -408,7 +430,6 @@ export default function ClientDetailPage() {
     <>
       <Topbar pathname={pathname} />
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans mb-20">
-        {/* Back Button */}
         <Button
           onClick={() => router.back()}
           className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0"
@@ -417,12 +438,8 @@ export default function ClientDetailPage() {
           <span className="text-sm font-medium">Back</span>
         </Button>
 
-        {/* Client Information */}
         <div className="space-y-6">
-          <h3 className="text-base lg:text-xl font-medium text-white/90">
-            Client Information
-          </h3>
-
+          <h3 className="text-base lg:text-xl font-medium text-white/90">Client Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
             <div className="relative space-y-2">
               <Label htmlFor="name" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Client Name</Label>
@@ -484,7 +501,6 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
-        {/* Content Type */}
         <div ref={contentTypeRef}>
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -515,7 +531,6 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
-        {/* Shoot Type */}
         <div ref={shootTypeRef}>
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
             {formData.contentType.length > 1 ? "Video and Photo Shoot Type" : "Shoot Type"}
@@ -535,7 +550,6 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
-        {/* Date & Time */}
         <div ref={dateTimeRef}>
           <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">Shoot Date & Time</h3>
           <div className="flex flex-col lg:flex-row gap-6">
@@ -572,7 +586,6 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
-        {/* Edits Needed Logic */}
         <div ref={editsRef}>
           <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">Edits Needed?</h3>
           <div className="flex gap-4">
@@ -633,7 +646,6 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
-        {/* Additional Creatives Logic */}
         <div ref={extraTeamRef}>
           <div className="flex flex-col gap-3 lg:gap-6">
             <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
@@ -685,7 +697,6 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
-        {/* Location Picker */}
         <div ref={locationRef}>
           <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
           <LocationPicker
@@ -702,7 +713,6 @@ export default function ClientDetailPage() {
         </div>
         <DottedDivider />
 
-        {/* --- CREW SELECTION USING CreativeProfileSelector --- */}
         <div ref={crewRef} className="space-y-6">
           {!formData.startDate || !formData.location ? (
             <div className="p-10 border border-dashed border-white/20 rounded-2xl text-center text-white/40">
@@ -742,7 +752,6 @@ export default function ClientDetailPage() {
 
         <DottedDivider />
 
-        {/* Navigation Buttons */}
         <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
           <Button
             onClick={() => router.back()}
@@ -760,14 +769,14 @@ export default function ClientDetailPage() {
 
               setIsSubmitting(true);
               try {
-                // Calculate duration in hours
+                // Parse correctly from local time strings
                 const startDate = parseDate(formData.startDate);
                 const endDate = parseDate(formData.endDate);
+                
                 const durationHours = startDate && endDate
-                  ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60))
+                  ? Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)))
                   : 0;
 
-                // Build crew_roles object
                 const crewRoles: Record<string, number> = {};
                 if (formData.contentType.includes("videographer")) {
                   crewRoles["videographer"] = 1 + (extraTeam["videographer"] || 0);
@@ -776,7 +785,6 @@ export default function ClientDetailPage() {
                   crewRoles["photographer"] = 1 + (extraTeam["photographer"] || 0);
                 }
 
-                // Calculate total crew size
                 const crewSize = Object.values(crewRoles).reduce((a, b) => a + b, 0);
 
                 const payload = {

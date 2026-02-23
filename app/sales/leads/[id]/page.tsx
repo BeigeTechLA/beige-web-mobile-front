@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, use } from "react";
+import React, { useState } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 
 import {
   Calendar,
@@ -17,14 +16,18 @@ import {
   Copy,
   Plus,
   X,
+  Edit2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useGetLeadByIdQuery,
-  useUpdateLeadStatusMutation,
+  useUpdateBookingCrewMutation,
   useRemoveAssignedCrewMutation,
   useGenerateDiscountCodeMutation,
+  useUpdateLeadIntentMutation
 } from "@/lib/redux/features/sales/salesApi";
+
+import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
 
 import { LEAD_TYPE_LABELS } from "@/types/sales";
 import { toast } from "sonner";
@@ -48,42 +51,33 @@ import "swiper/css/effect-coverflow";
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
   if (status === "abandoned") return "Cancelled";
-  if (status?.includes("in_progress")) return "In-Progress";
-  return status || "In-Progress";
+  return "In-Progress";
 };
 
-const CP_COLORS = ["bg-blue-200", "bg-green-200", "bg-orange-100", "bg-purple-200"];
-
-export default function SalesLeadDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+export default function SalesLeadDetailsPage() {
   const router = useRouter();
-
   const pathname = usePathname();
-  const params = use(paramsPromise);
-  const leadId = params.id;
+  const params = useParams();
+  const leadId = params.id as string;
 
-  // Discount States
-  const [discountValue, setDiscountValue] = useState("");
+
+  const [discount, setDiscount] = useState("");
+  const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
   const [showDiscountCode, setShowDiscountCode] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed_amount">("percentage");
-  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
-  const [isUsageDropdownOpen, setIsUsageDropdownOpen] = useState(false);
-  const [assignedCPs, setAssignedCPs] = useState<any[]>([]);
-  const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
-
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [usageType, setUsageType] = useState<"one_time" | "multi_use">("one_time");
-
   const [generatedCode, setGeneratedCode] = useState<string>("");
   const [activeCPIndex, setActiveCPIndex] = useState(0);
-
-  const activePartner = assignedCPs[activeCPIndex % assignedCPs.length];
-  const [generatedPaymentLink, setGeneratedPaymentLink] = useState<string>("Placeholder");
   const [generatedDiscountId, setGeneratedDiscountId] = useState<number | undefined>(undefined);
+
 
   // Fetch real lead data
   const {
     data: leadData,
     isLoading,
     error,
+    refetch
   } = useGetLeadByIdQuery(parseInt(leadId), {
     skip: !leadId,
   });
@@ -92,36 +86,35 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
   const [generateDiscountCode, { isLoading: isGenerating }] =
     useGenerateDiscountCodeMutation();
 
-  const lead = leadData as any;
+    const [updateLeadIntent] = useUpdateLeadIntentMutation();
+
+  const lead = leadData;
   const booking = lead?.booking;
 
-  // Update assigned CPs when lead data is loaded
-  React.useEffect(() => {
-    if (booking?.assigned_crews) {
-      const mappedCPs = booking.assigned_crews.map((crew: any, index: number) => ({
-        id: crew.crew_member_id,
-        name: `${crew.crew_member.first_name} ${crew.crew_member.last_name}`,
-        email: crew.crew_member.email || "No email",
-        image: `/images/crew/CREW(${(index % 6) + 1}).png`,
-        earnings: `$${crew.crew_member.hourly_rate}`,
-        bgColor: CP_COLORS[index % CP_COLORS.length],
-      }));
-      setAssignedCPs(mappedCPs);
-    }
-  }, [booking?.assigned_crews]);
+  // Extract CPs from assigned_crews
+  const assignedCPs = booking?.assigned_crews?.map((crew) => ({
+    id: crew.crew_member_id,
+    name: `${crew.crew_member.first_name} ${crew.crew_member.last_name}`,
+    email: crew.crew_member.first_name.toLowerCase() + "@example.com", // Fallback email
+    image: `/images/crew/CREW(${Math.floor(Math.random() * 6) + 1}).png`, // Random fallback image
+    earnings: `$${crew.crew_member.hourly_rate}`,
+    bgColor: "bg-blue-200"
+  })) || [];
+
+  const activePartner = assignedCPs[activeCPIndex % (assignedCPs.length || 1)];
 
   // Extract data with defaults
-  const clientName = lead?.client_name || lead?.guest_email || "Unknown Client";
+  const clientName = lead?.client_name || lead?.guest_email || "Unknown User";
   const initials = clientName
     .split(" ")
-    .map((n: string) => n[0])
+    .map((n) => n[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
   const email = lead?.guest_email || "No email";
-  const phone = lead?.user?.phone_number || lead?.phone || "N/A";
-  const leadType = lead ? (LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] || lead.lead_type) : "Unknown";
-  const status = lead ? mapLeadStatusToUI(lead.lead_status) as any : "Unknown";
+  const phone = lead?.user?.phone_number || "N/A";
+  const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
+  const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
 
   const bookingDate = booking?.event_date
     ? new Date(booking.event_date).toLocaleDateString("en-US", {
@@ -131,30 +124,24 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
     })
     : "Not set";
   const location = booking?.event_location || "Not specified";
-  const shootType = booking?.event_type || "Not specified";
+  const shootType = booking?.shoot_type || booking?.event_type || "Not specified";
 
-  const pricingBreakdown = lead?.pricing_breakdown;
-  const basePrice = pricingBreakdown ? (pricingBreakdown.shoot_cost + pricingBreakdown.editing_cost + pricingBreakdown.additional_creatives_cost) : (booking?.budget ? (typeof booking.budget === 'string' ? parseFloat(booking.budget) || 0 : booking.budget) : 0);
-  const taxes = pricingBreakdown ? 0 : basePrice * 0.09; // Use 0 if we have pricing breakdown as it might already include everything or be handled differently
-  const total = pricingBreakdown?.total || (basePrice + taxes);
-  const discount = pricingBreakdown?.discount || 0;
+  // Pricing from breakdown
+  const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
+  const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
+  const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
+  const total = lead?.pricing_breakdown?.total || 0;
+  const taxes = 0; // Taxes are now part of total/breakdown if needed
 
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
-    const val = parseFloat(discountValue);
-
-    if (!discountValue || val <= 0) {
+    if (!discount || parseFloat(discount) <= 0) {
       toast.error("Please enter a valid discount value");
       return;
     }
 
-    if (discountType === "percentage" && val > 100) {
+    if (discountType === "percentage" && parseFloat(discount) > 100) {
       toast.error("Discount cannot exceed 100%");
-      return;
-    }
-
-    if (discountType === "fixed_amount" && val > total) {
-      toast.error("Discount amount cannot exceed total price");
       return;
     }
 
@@ -163,9 +150,9 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
         lead_id: parseInt(leadId),
         booking_id: lead?.booking_id,
         discount_type: discountType,
-        discount_value: val,
+        discount_value: parseFloat(discount),
         usage_type: usageType,
-        max_uses: usageType === "multi_use" ? 10 : 1,
+        max_uses: usageType === "multi_use" ? 10 : undefined,
       }).unwrap();
 
       if (response.success && response.data) {
@@ -180,6 +167,25 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
     }
   };
 
+  const handleUpdateIntent = async (intent: string, notes: string) => {
+  try {
+    await updateLeadIntent({
+      lead_id: parseInt(leadId),
+      intent: intent,
+      notes: notes
+    }).unwrap();
+    
+    toast.success("Lead intent updated successfully");
+    setIsIntentModalOpen(false);
+    
+    // 1. Manually trigger a refresh of the lead data
+    refetch(); 
+    
+  } catch (err: any) {
+    toast.error(err?.data?.message || "Failed to update intent");
+  }
+};
+
   // Handle copy code
   const handleCopyCode = async () => {
     if (generatedCode) {
@@ -188,13 +194,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
     }
   };
 
-  // Handle copy payment link
-  const handleCopyPaymentLink = async () => {
-    if (generatedPaymentLink) {
-      await copyToClipboard(generatedPaymentLink);
-      toast.success("Link copied to clipboard!");
-    }
-  };
+  const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
 
   const handleRemoveCP = async (cpId: number) => {
     try {
@@ -203,11 +203,10 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
         crew_member_id: cpId,
       }).unwrap();
 
-      setAssignedCPs((current) => current.filter((cp) => cp.id !== cpId));
-      toast.success("CP removed successfully");
+      toast.success("Crew member unassigned successfully");
     } catch (error) {
-      console.error("Failed to remove CP:", error);
-      toast.error("Failed to remove CP");
+      console.error("Failed to unassign crew member:", error);
+      toast.error("Failed to unassign crew member");
     }
   };
 
@@ -248,22 +247,24 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
-        <div className="flex justify-between items-center mb-3 lg:mb-6">
-          <div className="text-white">
-            <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">Lead Details</h1>
-            <p className="text-xs lg:text-sm text-white/70">Manage lead information and generate payment resources</p>
-          </div>
-
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Main Content Area (Left/Middle) */}
           <div className="lg:col-span-8 space-y-3 lg:space-y-6">
             {/* Client Details Card */}
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-              <h2 className="lg:text-xl font-medium text-white p-5 lg:p-9">
-                Client Details
-              </h2>
+              <div className="flex justify-between items-center p-5 lg:px-9 lg:py-6">
+                <h2 className="lg:text-xl font-medium text-white">
+                  Client Details
+                </h2>
+                {/* 4. The "Update Intent" Button added here */}
+                <Button
+                  onClick={() => setIsIntentModalOpen(true)}
+                  className="h-10 bg-zinc-800 border border-white/10 text-[#E8D1AB] hover:bg-zinc-700 px-5 rounded-lg text-sm transition-all"
+                >
+                  Update Intent
+                </Button>
+              </div>
               <div
                 className="h-[1px] w-full"
                 style={{
@@ -282,19 +283,22 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                       <h1 className="lg:text-[22px] font-semibold">{clientName}</h1>
                       <div className=" lg:hidden">
                         {/* <StatusBadge status={status} /> */}
-                        <LeadsStatusBadge status={(lead?.booking_status || status) as any} />
+                        <LeadsStatusBadge status={status as any} />
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2 items-center">
                     {/* update once data is available */}
-                    <IntentBadge intent={(lead?.intent || "Hot") as any} />
+                    <IntentBadge intent={(lead.intent || "Hot") as any} />
 
                     <div className="hidden lg:block">
                       {/* <StatusBadge status={status} /> */}
-                      <LeadsStatusBadge status={(lead?.booking_status || status) as any} />
+                      <LeadsStatusBadge status={status as any} />
                     </div>
                   </div>
+                  {/* <div className="hidden lg:block">
+                  <LeadsStatusBadge status={"Booked"} />
+                </div> */}
                 </div>
                 <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
                   <p>
@@ -311,15 +315,15 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                 </div>
                 <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
                   <p>
-                    Booking ID : <span className="text-[#E8D1AB]">{lead?.booking_id || "N/A"}</span>
+                    Temporary Booking ID : <span className="text-[#E8D1AB]">{`TMP-${new Date(lead.created_at).getFullYear()}-${lead.booking_id?.toString().padStart(3, '0')}`}</span>
                   </p>
                   <div className="w-[1px] h-4 bg-white hidden md:block" />
                   <p>
-                    Lead Source : <span className="text-white">{lead?.lead_source || "N/A"}</span>
+                    Lead Source : <span className="text-white">{lead.intent_source || "Website"}</span>
                   </p>
                   <div className="w-[1px] h-4 bg-white hidden md:block" />
                   <p>
-                    Assigned Sales Rep : <span className="text-white">{lead?.assigned_sales_rep?.name || "N/A"}</span>
+                    Assigned Sales Rep : <span className="text-white">{lead.assigned_sales_rep?.name || "Unassigned"}</span>
                   </p>
                 </div>
               </div>
@@ -330,15 +334,14 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
               <div className="flex justify-between items-center  p-4 !pb-0 lg:p-9">
                 <h2 className="lg:text-xl font-medium text-white">
                   Assigned CPs ({assignedCPs.length.toString().padStart(2, '0')})
-                  {/* Number to be dynamic */}
                 </h2>
-                <Link
-                  href={"/sales/select-creatives"}
-                  className="flex gap-1 items-center h-12 w-fit bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 px-6 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                // onClick={handleGenerateDiscount}
+                <Button
+                  className="h-12 w-fit bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 px-6 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  // CHANGED: Passing leadId dynamically
+                  onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
                 >
                   <Plus className="text-black" size={18} /> Add More CPs
-                </Link>
+                </Button>
               </div>
               <DottedDivider />
               <div className="p-5 lg:p-9 space-y-6">
@@ -475,7 +478,7 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
               </div>
               <DottedDivider />
               <div className="p-4 !pt-0 lg:p-9">
-                <BookingStatusStepper currentStep={lead?.booking_step || 1} />
+                <BookingStatusStepper currentStep={lead.booking_step || 1} />
               </div>
             </div>
 
@@ -494,41 +497,19 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
               />
               <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
                 <div className="flex justify-between font-medium">
-                  <span className="text-[#71717B] text-xs">Shoot Cost</span>
+                  <span className="text-[#71717B] text-xs">Base Price</span>
                   <span className="text-sm lg:text-base text-white">
-                    ${pricingBreakdown?.shoot_cost?.toLocaleString() || basePrice.toLocaleString()}/-
+                    ${basePrice.toLocaleString()}/-
                   </span>
                 </div>
-                {pricingBreakdown?.editing_cost ? (
-                  <div className="flex justify-between font-medium">
-                    <span className="text-[#71717B] text-xs">Editing Cost</span>
-                    <span className="text-sm lg:text-base text-white">
-                      ${pricingBreakdown.editing_cost.toLocaleString()}/-
-                    </span>
-                  </div>
-                ) : null}
-                {pricingBreakdown?.additional_creatives_cost ? (
-                  <div className="flex justify-between font-medium">
-                    <span className="text-[#71717B] text-xs">Additional Creatives Cost</span>
-                    <span className="text-sm lg:text-base text-white">
-                      ${pricingBreakdown.additional_creatives_cost.toLocaleString()}/-
-                    </span>
-                  </div>
-                ) : null}
-                {discount > 0 && (
-                  <div className="flex justify-between font-medium">
-                    <span className="text-[#71717B] text-xs">Discount</span>
-                    <span className="text-sm lg:text-base text-red-400">
-                      -${discount.toLocaleString()}/-
-                    </span>
-                  </div>
-                )}
-                {taxes > 0 && (
-                  <div className="flex justify-between font-medium">
-                    <span className="text-[#71717B] text-xs">Taxes & Fees</span>
-                    <span className="text-sm lg:text-base text-white">${taxes.toFixed(2)}/-</span>
-                  </div>
-                )}
+                <div className="flex justify-between font-medium">
+                  <span className="text-[#71717B] text-xs">Editing Fee</span>
+                  <span className="text-sm lg:text-base text-white">${editingCost.toLocaleString()}/-</span>
+                </div>
+                <div className="flex justify-between font-medium">
+                  <span className="text-[#71717B] text-xs">Additional Creatives</span>
+                  <span className="text-sm lg:text-base text-white">${additionalCreatives.toLocaleString()}/-</span>
+                </div>
               </div>
               <div className="h-[1px] w-full bg-[#3D3D3D]" />
               <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
@@ -540,9 +521,8 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
             </div>
           </div>
 
-          {/* Right Sidebar */}
+          {/* Right Sidebar - Discount Generator */}
           <div className="lg:col-span-4 space-y-3 lg:space-y-6">
-            {/* Discount Generator */}
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
               <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
                 Generate Discount
@@ -565,37 +545,55 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
 
                   <div className="relative">
                     <button
-                      onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
-                      className={`flex items-center justify-between w-full border rounded-xl px-4 py-4 text-left text-base text-white transition-all ${isTypeDropdownOpen ? "border-white/80 ring-1 ring-white/20" : "border-white/50"
+                      type="button"
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className={`flex items-center justify-between w-full border rounded-xl px-4 py-4 text-left text-base text-white transition-all ${isDropdownOpen ? "border-white/80 ring-1 ring-white/20" : "border-white/50"
                         } hover:border-white/80`}
                     >
-                      {discountType === "percentage" ? "Percentage (%)" : "Fixed Amount ($)"}
+                      {discountType === "percentage" ? "Percentage" : "Fixed Amount"}
                       <ChevronDown
                         size={18}
-                        className={`transition-transform duration-300 ${isTypeDropdownOpen ? "rotate-180" : ""}`} />
+                        className={`transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`}
+                      />
                     </button>
-                    {isTypeDropdownOpen && (
-                      <div className="absolute top-full left-0 w-full mt-1 bg-[#18181B] border border-[#27272A] rounded-xl z-20 overflow-hidden">
+
+                    {/* Dropdown Menu */}
+                    {isDropdownOpen && (
+                      <>
+                        {/* Invisible backdrop to close dropdown when clicking outside */}
                         <div
-                          className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm"
-                          onClick={() => { setDiscountType("percentage"); setIsTypeDropdownOpen(false); }}
-                        >
-                          Percentage (%)
+                          className="fixed inset-0 z-30"
+                          onClick={() => setIsDropdownOpen(false)}
+                        ></div>
+
+                        <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0A0808] border border-white/20 rounded-xl overflow-hidden z-40 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                          <button
+                            onClick={() => {
+                              setDiscountType("percentage");
+                              setIsDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-4 text-white hover:bg-white/10 transition-colors border-b border-white/5"
+                          >
+                            Percentage
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDiscountType("fixed_amount");
+                              setIsDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-4 text-white hover:bg-white/10 transition-colors"
+                          >
+                            Fixed Amount
+                          </button>
                         </div>
-                        <div
-                          className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm"
-                          onClick={() => { setDiscountType("fixed_amount"); setIsTypeDropdownOpen(false); }}
-                        >
-                          Fixed Amount ($)
-                        </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>
 
-                {/* Value Input (Percentage or Amount) */}
+                {/* Discount Value Input */}
                 <div className="relative">
-                  <label className="absolute -top-2 lg:-top-2.5 left-4 bg-[#18181B] px-2 text-xs lg:text-sm text-white/60 capitalize tracking-widest z-10">
+                  <label className="absolute -top-2 lg:-top-2.5 left-4 bg-[#171717] px-2 text-xs lg:text-sm text-white/60 capitalize tracking-widest z-10">
                     {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
                   </label>
                   <div className="flex items-center border border-white/50 rounded-xl px-4 py-4 bg-transparent focus-within:border-[#E8D1AB]/50 transition-all">
@@ -603,8 +601,8 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                       type="number"
                       placeholder="0"
                       className="bg-transparent w-full outline-none text-white text-base"
-                      value={discountValue}
-                      onChange={(e) => setDiscountValue(e.target.value)}
+                      value={discount}
+                      onChange={(e) => setDiscount(e.target.value)}
                     />
                     {discountType === "percentage" ? (
                       <Percent size={20} className="text-white" />
@@ -614,41 +612,11 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                   </div>
                 </div>
 
-                {/* Usage Type Dropdown */}
-                {/* <div className="relative">
-                                <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-10">
-                                    Usage Type
-                                </label>
-                                <button 
-                                    onClick={() => setIsUsageDropdownOpen(!isUsageDropdownOpen)}
-                                    className="flex items-center justify-between w-full border border-white/50 rounded-xl px-4 py-4 text-left text-base text-white/60 hover:border-white/20"
-                                >
-                                    {usageType === "one_time" ? "Single Use" : "Multi Use"}
-                                    <ChevronDown size={18} />
-                                </button>
-                                {isUsageDropdownOpen && (
-                                    <div className="absolute top-full left-0 w-full mt-1 bg-[#171717] border border-[#27272A] rounded-xl z-20 overflow-hidden">
-                                        <div 
-                                            className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm"
-                                            onClick={() => { setUsageType("one_time"); setIsUsageDropdownOpen(false); }}
-                                        >
-                                            Single Use
-                                        </div>
-                                        <div 
-                                            className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm"
-                                            onClick={() => { setUsageType("multi_use"); setIsUsageDropdownOpen(false); }}
-                                        >
-                                            Multi Use
-                                        </div>
-                                    </div>
-                                )}
-                            </div> */}
-
                 {/* Action Button */}
                 <Button
                   className="h-12 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleGenerateDiscount}
-                  disabled={isGenerating || !discountValue}
+                  disabled={isGenerating || !discount}
                 >
                   {isGenerating ? "Generating..." : "Generate Code"}
                 </Button>
@@ -673,16 +641,25 @@ export default function SalesLeadDetailsPage({ params: paramsPromise }: { params
                 )}
               </div>
             </div>
-
+            <UpdateLeadIntentModal
+              isOpen={isIntentModalOpen}
+              onClose={() => setIsIntentModalOpen(false)}
+              onSave={handleUpdateIntent}
+              currentIntent={lead.intent}
+            />
             <GeneratePaymentLink
               leadId={parseInt(leadId)}
               bookingId={lead?.booking_id}
               discountCodeId={generatedDiscountId}
+              activeLink={lead?.active_payment_link}
             />
 
-            {/* Show only after booking is created? */}
+            {/* CHANGED: Passing leadId dynamically */}
             <div className="lg:text-right lg:mt-[82px]">
-              <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+              <Button 
+                onClick={() => router.push(`/admin/select-creatives?id=${leadId}`)}
+                className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
+              >
                 Change CPs
               </Button>
             </div>

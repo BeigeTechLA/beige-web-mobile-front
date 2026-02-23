@@ -341,7 +341,7 @@ export default function SalesLeadsPage() {
             <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
             </Button>
-            <Button onClick={() => router.push("/admin/sales-representative/create-new-deal")} className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
+            <Button onClick={() => router.push("/sales/create-new-deal")} className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
               Create new deal
             </Button>
           </>

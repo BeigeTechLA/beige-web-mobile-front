@@ -14,6 +14,7 @@ import { MultiSelectDropdown } from "@/components/book-a-shoot";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 import {
   newshootTypes,
@@ -90,7 +91,7 @@ export default function ClientDetailPage() {
   const [isLoadingCrew, setIsLoadingCrew] = useState(false);
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
-  const { data: leadData } = useGetLeadByIdQuery(parseInt(leadId), { skip: !leadId });
+  // const { data: leadData } = useGetLeadByIdQuery(parseInt(leadId), { skip: !leadId });
 
   // 1. Fetch Client Profile to show name proper
   useEffect(() => {
@@ -118,31 +119,31 @@ export default function ClientDetailPage() {
   }, [leadId]);
 
   // Pre-populate form data when lead data is available
-  useEffect(() => {
-    if (leadData && leadData.booking) {
-      const b = leadData.booking;
-      setFormData((prev) => ({
-        ...prev,
-        bookingId: b.stream_project_booking_id || b.booking_id,
-        contentType: (b.content_type?.split(",") as any) || [],
-        shootType: b.shoot_type || b.event_type || "",
-        startDate: b.event_date || b.start_time || "",
-        endDate: b.end_time || "",
-        editsNeeded: b.edits_needed ?? true,
-        videoEditTypes: b.video_edit_types || [],
-        photoEditTypes: b.photo_edit_types || [],
-        location: b.event_location || "",
-        crewCount: b.crew_size_needed || 0,
-      }));
-    }
-  }, [leadData]);
+  // useEffect(() => {
+  //   if (leadData && leadData.booking) {
+  //     const b = leadData.booking;
+  //     setFormData((prev) => ({
+  //       ...prev,
+  //       bookingId: b.stream_project_booking_id || b.booking_id,
+  //       contentType: (b.content_type?.split(",") as any) || [],
+  //       shootType: b.shoot_type || b.event_type || "",
+  //       startDate: b.event_date || b.start_time || "",
+  //       endDate: b.end_time || "",
+  //       editsNeeded: b.edits_needed ?? true,
+  //       videoEditTypes: b.video_edit_types || [],
+  //       photoEditTypes: b.photo_edit_types || [],
+  //       location: b.event_location || "",
+  //       crewCount: b.crew_size_needed || 0,
+  //     }));
+  //   }
+  // }, [leadData]);
 
   // Dynamic Initials
   const initials = useMemo(() => {
-    const name = clientProfile?.user?.name || leadData?.client_name || "Client Name";
+    const name = clientProfile?.user?.name || "Client Name";
     if (!name) return "IN";
     return name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
-  }, [clientProfile, leadData]);
+  }, [clientProfile]);
 
   const includedRoles = formData.contentType.filter(t => t !== 'editing').map(t => {
     const role = TEAM_ROLES.find(r => r.id === t);
@@ -272,7 +273,7 @@ export default function ClientDetailPage() {
       }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/v1/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
+         `${API_BASE_URL}/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
       );
       const result = await response.json();
 
@@ -344,77 +345,76 @@ export default function ClientDetailPage() {
     }, 100);
   };
 
-  const handleDateChange = (date: Date | null) => {
-    if (!date) {
-      updateData({ startDate: "", endDate: "" });
-      return;
-    }
+const handleDateChange = (date: Date | null) => {
+  if (!date) {
+    updateData({ startDate: "", endDate: "" });
+    return;
+  }
 
-    const now = new Date();
-    const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+  const now = new Date();
+  const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
 
-    let newStart: Date;
-    let newEnd: Date;
+  let newStart: Date;
+  let newEnd: Date;
 
-    if (isToday) {
-      newStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-      const mins = newStart.getMinutes();
-      if (mins > 0 && mins <= 30) newStart.setMinutes(30, 0, 0);
-      else if (mins > 30) newStart.setHours(newStart.getHours() + 1, 0, 0, 0);
-      else newStart.setMinutes(0, 0, 0);
-      newEnd = new Date(newStart.getTime() + 8 * 60 * 60 * 1000);
-    } else {
-      newStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-      newEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
-    }
+  if (isToday) {
+    newStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    const mins = newStart.getMinutes();
+    if (mins > 0 && mins <= 30) newStart.setMinutes(30, 0, 0);
+    else if (mins > 30) newStart.setHours(newStart.getHours() + 1, 0, 0, 0);
+    else newStart.setMinutes(0, 0, 0);
+    newEnd = new Date(newStart.getTime() + 8 * 60 * 60 * 1000);
+  } else {
+    newStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+    newEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+  }
 
-    const finalStart = set(newStart, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
-    const finalEnd = set(newEnd, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
+  const finalStart = set(newStart, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
+  const finalEnd = set(newEnd, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
 
-    updateData({ startDate: finalStart.toISOString(), endDate: finalEnd.toISOString() });
-  };
+  // FIXED: Removed 'XXX' so the backend gets the exact local time selected
+  updateData({ 
+    startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss"), 
+    endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss") 
+  });
+};
 
-  const handleStartTimeChange = (timeKey: string) => {
-    if (!timeKey) {
-      updateData({ startDate: "" });
-      return;
-    }
+ const handleStartTimeChange = (timeKey: string) => {
+  if (!timeKey) {
+    updateData({ startDate: "" });
+    return;
+  }
 
-    const [hours, minutes] = timeKey.split(":").map(Number);
-    const currentDate = formData.startDate ? parseDate(formData.startDate) : new Date();
-    if (!currentDate) return;
+  const [hours, minutes] = timeKey.split(":").map(Number);
+  const currentDate = formData.startDate ? parseDate(formData.startDate) : new Date();
+  if (!currentDate) return;
 
-    const now = new Date();
-    const selectedTime = new Date(currentDate.setHours(hours, minutes));
+  const newStart = set(currentDate, { hours, minutes, seconds: 0 });
+  
+  const now = new Date();
+  if (newStart < now) {
+    toast.error("Selected time must be later than the current time.");
+    return;
+  }
 
-    if (selectedTime < now) {
-      toast.error("Selected time must be later than the current time.");
-      return;
-    }
+  updateData({ startDate: format(newStart, "yyyy-MM-dd'T'HH:mm:ss") });
+};
 
-    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-    if (selectedTime < minimumTime) {
-      toast.error("You must select a start time at least 4 hours from now.");
-      return;
-    }
+ const handleEndTimeChange = (timeKey: string) => {
+  if (!timeKey) {
+    updateData({ endDate: "" });
+    return;
+  }
+  const [hours, minutes] = timeKey.split(":").map(Number);
+  let currentDate = formData.endDate ? parseDate(formData.endDate) : formData.startDate ? parseDate(formData.startDate) : new Date();
+  if (!currentDate) return;
 
-    const newStart = set(currentDate, { hours, minutes });
-    updateData({ startDate: newStart.toISOString() });
-  };
-
-  const handleEndTimeChange = (timeKey: string) => {
-    if (!timeKey) {
-      updateData({ endDate: "" });
-      return;
-    }
-    const [hours, minutes] = timeKey.split(":").map(Number);
-    let currentDate = formData.endDate ? parseDate(formData.endDate) : formData.startDate ? parseDate(formData.startDate) : new Date();
-    if (!currentDate) return;
-
-    const newEnd = set(currentDate, { hours, minutes });
-    updateData({ endDate: newEnd.toISOString() });
-    scrollToRef(editsRef);
-  };
+  const newEnd = set(currentDate, { hours, minutes, seconds: 0 });
+  
+  // FIXED: Removed 'XXX'
+  updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss") });
+  scrollToRef(editsRef);
+};
 
   const getStartTimeKey = () => {
     if (!formData.startDate) return "";
@@ -506,7 +506,7 @@ export default function ClientDetailPage() {
         skip_margin: true
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/v1/sales/deals/finalize`, {
+      const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -558,11 +558,11 @@ export default function ClientDetailPage() {
           <div className="flex flex-col gap-1">
             <div className="flex gap-3 items-center">
               <h1 className="lg:text-[28px] text-xl font-bold">
-                {clientProfile?.user?.name || leadData?.client_name || "Client Name"}
+                {clientProfile?.user?.name || "Client Name"}
               </h1>
-              <IntentBadge intent={(leadData?.intent || "Hot") as any} />
+              <IntentBadge intent={"Hot"} />
             </div>
-            <p className="text-sm text-white/40">{clientProfile?.user?.email || leadData?.guest_email}</p>
+            <p className="text-sm text-white/40">{clientProfile?.user?.email}</p>
           </div>
         </div>
         <DottedDivider />

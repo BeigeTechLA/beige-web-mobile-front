@@ -210,6 +210,22 @@ export const salesApi = createApi({
       transformResponse: (response: ApiResponse<PaymentLinkDetails>) => response.data!,
     }),
 
+    sendInvoice: builder.mutation({
+      query: (body: { booking_id: number }) => ({
+        url: 'sales/send-invoice',
+        method: 'POST',
+        body,
+      }),
+    }),
+    updateLeadIntent: builder.mutation<any, { lead_id: number; intent: string; notes?: string }>({
+      query: (body) => ({
+        url: `sales/leads/intent`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
+    }),
+
     validatePaymentLink: builder.query<{
       valid: boolean;
       success: boolean;
@@ -391,4 +407,6 @@ export const {
   useGetCrewForLeadQuery,
   useLazyGetCrewForLeadQuery,
   useGetClientFullDetailsQuery,
+  useSendInvoiceMutation,
+  useUpdateLeadIntentMutation
 } = salesApi;

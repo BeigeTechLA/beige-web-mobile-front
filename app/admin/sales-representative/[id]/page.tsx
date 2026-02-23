@@ -23,6 +23,7 @@ import {
   useUpdateBookingCrewMutation,
   useRemoveAssignedCrewMutation,
   useGenerateDiscountCodeMutation,
+  useUpdateLeadIntentMutation
 } from "@/lib/redux/features/sales/salesApi";
 
 import { LEAD_TYPE_LABELS } from "@/types/sales";
@@ -34,6 +35,7 @@ import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
 import Topbar from "@/components/admin/Topbar";
+import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -58,6 +60,7 @@ export default function LeadDetailPage() {
 
 
   const [discount, setDiscount] = useState("");
+  const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
   const [showDiscountCode, setShowDiscountCode] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed_amount">("percentage");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -72,6 +75,7 @@ export default function LeadDetailPage() {
     data: leadData,
     isLoading,
     error,
+    refetch
   } = useGetLeadByIdQuery(parseInt(leadId), {
     skip: !leadId,
   });
@@ -79,6 +83,8 @@ export default function LeadDetailPage() {
   // Discount code generation
   const [generateDiscountCode, { isLoading: isGenerating }] =
     useGenerateDiscountCodeMutation();
+
+  const [updateLeadIntent] = useUpdateLeadIntentMutation();
 
   const lead = leadData;
   const booking = lead?.booking;
@@ -159,6 +165,25 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleUpdateIntent = async (intent: string, notes: string) => {
+    try {
+      await updateLeadIntent({
+        lead_id: parseInt(leadId),
+        intent: intent,
+        notes: notes
+      }).unwrap();
+      
+      toast.success("Lead intent updated successfully");
+      setIsIntentModalOpen(false);
+      
+      // 1. Manually trigger a refresh of the lead data
+      refetch(); 
+      
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to update intent");
+    }
+  };
+
   // Handle copy code
   const handleCopyCode = async () => {
     if (generatedCode) {
@@ -226,9 +251,17 @@ export default function LeadDetailPage() {
           <div className="lg:col-span-8 space-y-3 lg:space-y-6">
             {/* Client Details Card */}
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-              <h2 className="lg:text-xl font-medium text-white p-5 lg:p-9">
-                Client Details
-              </h2>
+              <div className="flex justify-between items-center p-5 lg:px-9 lg:py-6">
+                <h2 className="lg:text-xl font-medium text-white">
+                  Client Details
+                </h2>
+                <Button
+                  onClick={() => setIsIntentModalOpen(true)}
+                  className="h-10 bg-zinc-800 border border-white/10 text-[#E8D1AB] hover:bg-zinc-700 px-5 rounded-lg text-sm transition-all"
+                >
+                  Update Intent
+                </Button>
+              </div>
               <div
                 className="h-[1px] w-full"
                 style={{
@@ -606,10 +639,18 @@ export default function LeadDetailPage() {
               </div>
             </div>
 
+            <UpdateLeadIntentModal
+              isOpen={isIntentModalOpen}
+              onClose={() => setIsIntentModalOpen(false)}
+              onSave={handleUpdateIntent}
+              currentIntent={lead.intent}
+            />
+
             <GeneratePaymentLink
               leadId={parseInt(leadId)}
               bookingId={lead?.booking_id}
               discountCodeId={generatedDiscountId}
+              activeLink={lead?.active_payment_link}
             />
 
             {/* CHANGED: Passing leadId dynamically */}
