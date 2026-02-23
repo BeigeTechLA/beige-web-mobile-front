@@ -810,7 +810,7 @@ export default function ClientDetailPage() {
                   skip_margin: true
                 };
 
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/v1/sales/deals/finalize`, {
+                const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
