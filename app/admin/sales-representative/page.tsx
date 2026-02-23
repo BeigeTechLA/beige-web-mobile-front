@@ -277,6 +277,18 @@ export default function AdminSaleRepManagerPage() {
     setSelectedDate(date);
   };
 
+  const handleUserRowClick = (user: UserData) => {
+  // Strip the '#' from the ID if it exists
+  const rawId = user.id.replace('#', '');
+  
+  // Determine path based on active tab
+  const basePath = activeTab === "Client" 
+    ? "/admin/sales-representative/client" 
+    : "/admin/sales-representative/creative-partner";
+    
+  router.push(`${basePath}/${rawId}`);
+};
+
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
     client: string,
@@ -451,6 +463,7 @@ export default function AdminSaleRepManagerPage() {
               <tr
                 key={user.id}
                 className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
+                onClick={() => handleUserRowClick(user)}
               >
                 {/* User ID */}
                 <td className="py-5 px-6 text-[#888] text-[14px]">{user.id}</td>

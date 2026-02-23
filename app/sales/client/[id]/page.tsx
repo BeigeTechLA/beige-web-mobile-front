@@ -70,12 +70,12 @@ export default function ClientFullDetailPage() {
             <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center p-6 lg:p-9 pb-0">
               <h2 className="text-xl font-medium text-white">Client Information</h2>
               <div className="flex gap-3">
-                <Button
+                {/* <Button
                   onClick={() => setIsIntentModalOpen(true)}
                   className="h-11 bg-zinc-800 border border-white/10 text-[#E8D1AB] px-5 rounded-lg text-sm"
                 >
                   Update Intent
-                </Button>
+                </Button> */}
                 <Link
                   href={`/sales/client/${userId}/create-booking`}
                   className="h-11 bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black font-semibold flex items-center px-5 rounded-lg text-sm transition-all"

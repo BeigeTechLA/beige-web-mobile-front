@@ -24,25 +24,44 @@ import { toast } from "sonner";
 
 // --- HELPERS ---
 const formatLocation = (locationInput: string) => {
-  if (!locationInput) return "Location TBD";
+  if (!locationInput || locationInput === '""' || locationInput === 'null') return "Location TBD";
+
   let addressStr = locationInput;
 
   try {
-    const parsed = JSON.parse(locationInput);
-    if (parsed && parsed.address) addressStr = parsed.address;
+
+    let decoded = locationInput;
+    while (typeof decoded === "string" && (decoded.startsWith('"') || decoded.includes('\\'))) {
+      const prev = decoded;
+      try {
+        decoded = JSON.parse(decoded);
+        if (decoded && typeof decoded === "object" && (decoded as any).address) {
+          decoded = (decoded as any).address;
+        }
+      } catch (e) {
+
+        decoded = decoded.replace(/^[\\"]+|[\\"]+$/g, '');
+        break; 
+      }
+      if (prev === decoded) break;
+    }
+    addressStr = decoded;
   } catch (e) {
-    /* Not JSON */
   }
+
+  addressStr = addressStr.replace(/\\+/g, '').replace(/"/g, '').trim();
 
   const parts = addressStr.split(",").map((p) => p.trim());
   if (parts.length >= 3) {
     const country = parts[parts.length - 1];
     const stateZip = parts[parts.length - 2];
     const city = parts[parts.length - 3];
+    
     const state = stateZip.replace(/\d+/g, "").trim();
     return `${city}, ${state}, ${country}`;
   }
-  return addressStr;
+  
+  return addressStr || "Location TBD";
 };
 
 // Helper for time formatting
@@ -62,6 +81,7 @@ interface CrewMember {
   first_name: string;
   last_name: string;
   email: string;
+  location?: string;
   role?: {
     role_name: string;
   };
@@ -310,7 +330,9 @@ export default function AvailabilityDetailsPage() {
     displayRole = member.role.role_name;
   }
 
-  const location = [member?.city, member?.state, member?.country].filter(Boolean).join(', ') || "Location Unknown";
+
+const rawLocation = member?.location || [member?.city, member?.state, member?.country].filter(Boolean).join(', ');
+const location = rawLocation ? formatLocation(rawLocation) : "Location Unknown";
 
   return (
     <>

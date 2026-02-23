@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { ChevronRight, Search, Check, X, AlertCircle, Users, User, Camera } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { ChevronRight, Search, Check, X, AlertCircle, Users, User, Camera, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -29,6 +29,12 @@ interface UserData {
     role?: string;
     imageUrl?: string | null;
 }
+
+// Configuration for sorting
+type SortConfig = {
+    key: keyof UserData;
+    direction: 'asc' | 'desc';
+} | null;
 
 const StatusBadge = ({ status }: { status: UserStatus }) => {
     const styles = {
@@ -58,8 +64,44 @@ export const UserManagementTabbed = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [sortConfig, setSortConfig] = useState<SortConfig>(null); // New Sort State
     const debouncedSearch = useDebounce(searchQuery, 500);
     const router = useRouter();
+
+    // Sorting Logic
+    const sortedUsers = useMemo(() => {
+        let sortableUsers = [...users];
+        if (sortConfig !== null) {
+            sortableUsers.sort((a, b) => {
+                const aValue = a[sortConfig.key] ?? "";
+                const bValue = b[sortConfig.key] ?? "";
+
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableUsers;
+    }, [users, sortConfig]);
+
+    const requestSort = (key: keyof UserData) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortIcon = (key: keyof UserData) => {
+        if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
+        return sortConfig.direction === 'asc' ? 
+            <ArrowUp size={14} className="ml-1 text-[#E5D5B8]" /> : 
+            <ArrowDown size={14} className="ml-1 text-[#E5D5B8]" />;
+    };
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -77,7 +119,6 @@ export const UserManagementTabbed = () => {
             if (activeTab === "Client" || activeTab === "All") {
                 const clientsRes = await adminApi.getClients(params);
                 if (clientsRes?.data) {
-                    console.log("Fetched clients:", clientsRes.data);
                     const mappedClients = (Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || [])).map((client: any) => ({
                         id: `#${client.client_id || client.id || client.user_id}`,
                         name: client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
@@ -140,15 +181,15 @@ export const UserManagementTabbed = () => {
         fetchUsers();
     }, [activeTab, currentPage, debouncedSearch, statusFilter]);
 
-   const handleRowClick = (user: UserData) => {
-    const cleanId = user.id.replace('#', '');
-    
-    if (user.type === "Client") {
-        router.push(`/admin/users/clients/${cleanId}`);
-    } else if (user.type === "Creative Partner") {
-        router.push(`/admin/users/creative-partners/${cleanId}`);
-    }
-};
+    const handleRowClick = (user: UserData) => {
+        const cleanId = user.id.replace('#', '');
+        if (user.type === "Client") {
+            router.push(`/admin/users/clients/${cleanId}`);
+        } else if (user.type === "Creative Partner") {
+            router.push(`/admin/users/creative-partners/${cleanId}`);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div>
@@ -164,6 +205,7 @@ export const UserManagementTabbed = () => {
                         onClick={() => {
                             setActiveTab(tab);
                             setCurrentPage(1);
+                            setSortConfig(null); // Reset sort when changing tabs
                         }}
                         className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab
                             ? "bg-[#E5D5B8] text-black shadow-lg"
@@ -209,11 +251,31 @@ export const UserManagementTabbed = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="text-[#888] text-sm font-normal border-b border-[#333]">
-                                <th className="py-5 px-6 font-medium">User ID</th>
-                                <th className="py-5 px-6 font-medium">User Info</th>
-                                <th className="py-5 px-6 font-medium">Type</th>
+                                <th 
+                                    className="py-5 px-6 font-medium cursor-pointer hover:text-white transition-colors"
+                                    onClick={() => requestSort('id')}
+                                >
+                                    <div className="flex items-center">User ID {getSortIcon('id')}</div>
+                                </th>
+                                <th 
+                                    className="py-5 px-6 font-medium cursor-pointer hover:text-white transition-colors"
+                                    onClick={() => requestSort('name')}
+                                >
+                                    <div className="flex items-center">User Name {getSortIcon('name')}</div>
+                                </th>
+                                <th 
+                                    className="py-5 px-6 font-medium cursor-pointer hover:text-white transition-colors"
+                                    onClick={() => requestSort('type')}
+                                >
+                                    <div className="flex items-center">Type {getSortIcon('type')}</div>
+                                </th>
                                 <th className="py-5 px-6 font-medium">Contact / Role</th>
-                                <th className="py-5 px-6 font-medium">Status</th>
+                                <th 
+                                    className="py-5 px-6 font-medium cursor-pointer hover:text-white transition-colors"
+                                    onClick={() => requestSort('status')}
+                                >
+                                    <div className="flex items-center">Status {getSortIcon('status')}</div>
+                                </th>
                                 <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
                         </thead>
@@ -227,14 +289,14 @@ export const UserManagementTabbed = () => {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : users.length === 0 ? (
+                            ) : sortedUsers.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="py-10 text-center text-[#888]">
                                         No users found.
                                     </td>
                                 </tr>
                             ) : (
-                                users.map((user, idx) => (
+                                sortedUsers.map((user, idx) => (
                                     <tr
                                         key={idx}
                                         onClick={() => handleRowClick(user)}
@@ -298,7 +360,7 @@ export const UserManagementTabbed = () => {
                 </div>
             </div>
 
-            {/* Pagination */}
+            {/* Pagination remains the same using original totalRecords */}
             {!loading && totalPages > 1 && (
                 <div className="flex justify-between items-center p-6 border-t border-[#333333]">
                     <div className="text-sm text-[#666666]">

@@ -985,13 +985,26 @@ export const adminApi = {
     }
   },
 
-  getapprovedCrewMembers: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
+  getapprovedCrewMembers: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    sort_by?: string;
+    sort_order?: string;
+    start_date?: string;
+    end_date?: string;
+  } = {}) => {
     try {
       const response = await api.post('admin/get-approved-crew-members', {
         page: params.page || 1,
         limit: params.limit || 50,
         search: params.search,
         status: params.status,
+        sort_by: params.sort_by,
+        sort_order: params.sort_order,
+        start_date: params.start_date,
+        end_date: params.end_date
       });
       return response.data;
     } catch (error: any) {

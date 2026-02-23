@@ -308,6 +308,16 @@ export default function SalesLeadsPage() {
     router.push(`/sales/leads/${leadId}`);
   };
 
+  const handleUserRowClick = (user: UserData) => {
+  const rawId = user.id.replace('#', '');
+  
+  const basePath = activeTab === "Client" 
+    ? "/sales/client" 
+    : "/sales/creative-partner";
+    
+  router.push(`${basePath}/${rawId}`);
+};
+
   const getGrowthLabel = () => {
     switch (range) {
       case 'week': return 'from last week';
@@ -480,6 +490,7 @@ export default function SalesLeadsPage() {
             <tr
               key={user.id}
               className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
+              onClick={() => handleUserRowClick(user)}
             >
               {/* User ID */}
               <td className="py-5 px-6 text-[#888] text-[14px]">{user.id}</td>
