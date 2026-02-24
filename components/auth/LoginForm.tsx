@@ -55,7 +55,6 @@ export function LoginForm() {
 
       toast.success(result.message || "Login successful!")
 
-
       // --- GA4 LOGIN TRACKING ---
       // Extract user data for tracking
       const user = result?.user

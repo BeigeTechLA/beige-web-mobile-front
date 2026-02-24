@@ -18,6 +18,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import Image from "next/image";
 import Link from "next/link";
 import { Separator } from "./Separator";
+import { pushToDataLayer } from "@/lib/gtm";
 
 const FOOTER_LINKS = [
   {
@@ -62,6 +63,8 @@ export const Footer = () => {
   const router = useRouter();
   const pathname = usePathname();
 
+  const pageName = pathname == "/" ? "Landing Page" : `${pathname.split(/[-\/]/).filter(Boolean).join(" ")} Page`;
+
   const handleLinkClick = (label: string, href: string) => {
     console.log(`Footer Navigation: ${label} clicked (href: ${href})`);
     if (href.startsWith("#")) {
@@ -80,6 +83,12 @@ export const Footer = () => {
 
   const handleStartProject = () => {
     console.log("Footer: Start Your Project clicked");
+    pushToDataLayer("book_shoot_started", {
+      type: "Action Tracking",
+      page_name: pageName,
+      location_in_website: "footer_component",
+      duration_on_page: performance.now() / 1000,
+    });
     router.push("/book-a-shoot");
   };
 

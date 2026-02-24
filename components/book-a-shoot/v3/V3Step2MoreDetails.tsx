@@ -6,11 +6,12 @@ import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
-import { Video, Camera, Scissors, Mic, User, Film, MonitorPlay } from "lucide-react";
-import { Check } from "lucide-react";
+import { Video, Camera } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { isValidUrl } from "@/lib/utils";
 import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
+import { pushToDataLayer } from "@/lib/gtm";
+import { useAuth } from "@/lib/hooks/useAuth";
 interface Props {
   data: BookingDataV3;
   updateData: (data: Partial<BookingDataV3>) => void;
@@ -27,7 +28,27 @@ const TEAM_ROLES = [
   // { id: "director", label: "Director", price: 275, icon: <Film size={28} /> },
 ];
 
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager"
+}
+
+interface FormFields {
+  additional_creative: boolean,
+  shoot_location: string,
+  additional_details: string,
+  supporting_url: string,
+  videographyCount?: string
+  photographyCount?: string
+}
+
 export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
+  const { user, isAuthenticated } = useAuth()
+
   // Local state for team members if not stored in main data yet
   // In a real app, we might want to store this in data.teamIncluded or similar structure
   // For now, let's derive initial state from data.contentType
@@ -74,6 +95,32 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       crewCount: baseCount + extraCount
     });
   };
+
+  // add GA event on initial load
+  useEffect(() => {
+    console.log(data);
+    const formFields = {
+      content_type: data.contentType.join(","),
+      shoot_type: data.shootType,
+      shoot_date_time: `${data.startDate} to ${data.endDate}`,
+      edits_needed: data.editsNeeded,
+      photo_edit_types: data.photoEditTypes.join(", "),
+      video_edit_types: data.videoEditTypes.join(", "),
+    };
+
+    pushToDataLayer("customize_details_viewed_step2", {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "book_a_shoot_step2",
+      duration_on_page: performance.now() / 1000,
+      user_id: isAuthenticated ? user?.id : "Unknown",
+      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+      email: isAuthenticated ? user?.email : "Unknown",
+      phone: isAuthenticated ? user?.phone_number : "Unknown",
+      booking_id: data?.bookingId,
+      booking_form_fields: formFields
+    });
+  }, [])
 
   // Ensure crewCount is accurate on mount/updates even if no extra team added
   useEffect(() => {
@@ -192,6 +239,32 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         videographyCount: vCount,
         photographyCount: pCount,
         crewCount: vCount + pCount
+      });
+
+      const formFields: FormFields = {
+        additional_creative: data.addTeamMembers,
+        shoot_location: data.location,
+        additional_details: data.specialInstructions,
+        supporting_url: data.referenceLinks
+      }
+
+      if (data.addTeamMembers) {
+        formFields.videographyCount = vCount
+        formFields.photographyCount = pCount
+      }
+
+      // add GA event on click of "Continue" in the first step
+      pushToDataLayer("customize_details_submitted_step2", {
+        type: "Action Tracking",
+        page_name: "Book-a-shoot Page",
+        location_in_website: "book_a_shoot_step2",
+        duration_on_page: performance.now() / 1000,
+        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+        email: isAuthenticated ? user?.email : data.email,
+        phone: isAuthenticated ? user?.phone_number : "Unknown",
+        booking_id: data.bookingId,
+        booking_form_fields: formFields,
       });
 
       onNext();
@@ -342,7 +415,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           placeholder="Search for a location"
           colors={darkThemeColors}
           // error
-          hasError = {errors.includes("locationError")}
+          hasError={errors.includes("locationError")}
         />
       </div>
 
