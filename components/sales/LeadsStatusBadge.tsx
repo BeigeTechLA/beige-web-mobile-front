@@ -5,6 +5,7 @@ import React from "react";
 
 export type BookingStatus =
   | "Signed Up - Lead Created"
+  | "Signed Up – Lead Created"
   | "Book a shoot - Lead Created"
   | "Manual - Lead Created"
   | "Booking In Progress"
@@ -16,13 +17,18 @@ export type BookingStatus =
   | "In-Progress"
   | "Paid"
   | "Cancelled"
-  | "Unknown";
+  | "Unknown"
+  | string;
 
 const BOOKING_STATUS_STYLES: Record<
-  BookingStatus,
+  string,
   { bg: string; text: string }
 > = {
   "Signed Up - Lead Created": {
+    bg: "bg-[#DBCFFF]",
+    text: "text-[#744EE6]",
+  },
+  "Signed Up – Lead Created": {
     bg: "bg-[#DBCFFF]",
     text: "text-[#744EE6]",
   },
@@ -77,7 +83,7 @@ const BOOKING_STATUS_STYLES: Record<
 };
 
 interface StatusBadgeProps {
-  status: BookingStatus;
+  status: BookingStatus | string;
 }
 
 export function LeadsStatusBadge({ status }: StatusBadgeProps) {

@@ -128,9 +128,7 @@ export default function LeadsTable({
                 <IntentBadge intent={(lead.intent || "Hot") as any} />
               </td>
               <td className="p-3 lg:py-5 border-b border-[#222] group-last:border-0 shrink-0">
-                {/* <StatusBadge status={lead.bookingStatus} /> */}
-                {/* using placeholder status until new statuses are available */}
-                <LeadsStatusBadge status={"Manual - Lead Created"} />
+                <LeadsStatusBadge status={lead.bookingStatus || "Unknown"} />
               </td>
               <td className="p-3 lg:py-5 text-white/80 text-sm lg:text-base border-b border-[#222] group-last:border-0">
                 {lead.lastActivity}

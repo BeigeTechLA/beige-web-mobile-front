@@ -55,9 +55,7 @@ export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
           <span className="text-sm font-medium text-white">{lead.clientName}</span>
         </div>
 
-        {/* <StatusBadge status={lead.bookingStatus} /> */}
-        {/* using placeholder status until new statuses are available */}
-        <LeadsStatusBadge status={"Signed Up - Lead Created"} />
+        <LeadsStatusBadge status={lead.bookingStatus || "Unknown"} />
       </div>
 
       {/* Expandable Details */}

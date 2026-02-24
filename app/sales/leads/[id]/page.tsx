@@ -86,20 +86,26 @@ export default function SalesLeadDetailsPage() {
   const [generateDiscountCode, { isLoading: isGenerating }] =
     useGenerateDiscountCodeMutation();
 
-    const [updateLeadIntent] = useUpdateLeadIntentMutation();
+  const [updateLeadIntent] = useUpdateLeadIntentMutation();
 
   const lead = leadData;
   const booking = lead?.booking;
 
   // Extract CPs from assigned_crews
-  const assignedCPs = booking?.assigned_crews?.map((crew) => ({
-    id: crew.crew_member_id,
-    name: `${crew.crew_member.first_name} ${crew.crew_member.last_name}`,
-    email: crew.crew_member.first_name.toLowerCase() + "@example.com", // Fallback email
-    image: `/images/crew/CREW(${Math.floor(Math.random() * 6) + 1}).png`, // Random fallback image
-    earnings: `$${crew.crew_member.hourly_rate}`,
-    bgColor: "bg-blue-200"
-  })) || [];
+  const assignedCPs = booking?.assigned_crews?.map((crew: any) => {
+    const profileFile = crew.crew_member?.crew_member_files?.[0];
+    const imageUrl = profileFile?.file_path
+      ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profileFile.file_path}`
+      : null;
+    return {
+      id: crew.crew_member_id,
+      name: `${crew.crew_member.first_name} ${crew.crew_member.last_name}`,
+      email: crew.crew_member.first_name.toLowerCase() + "@example.com",
+      image: imageUrl,
+      earnings: `$${crew.crew_member.hourly_rate}`,
+      bgColor: "bg-blue-200"
+    };
+  }) || [];
 
   const activePartner = assignedCPs[activeCPIndex % (assignedCPs.length || 1)];
 
@@ -168,23 +174,23 @@ export default function SalesLeadDetailsPage() {
   };
 
   const handleUpdateIntent = async (intent: string, notes: string) => {
-  try {
-    await updateLeadIntent({
-      lead_id: parseInt(leadId),
-      intent: intent,
-      notes: notes
-    }).unwrap();
-    
-    toast.success("Lead intent updated successfully");
-    setIsIntentModalOpen(false);
-    
-    // 1. Manually trigger a refresh of the lead data
-    refetch(); 
-    
-  } catch (err: any) {
-    toast.error(err?.data?.message || "Failed to update intent");
-  }
-};
+    try {
+      await updateLeadIntent({
+        lead_id: parseInt(leadId),
+        intent: intent,
+        notes: notes
+      }).unwrap();
+
+      toast.success("Lead intent updated successfully");
+      setIsIntentModalOpen(false);
+
+      // 1. Manually trigger a refresh of the lead data
+      refetch();
+
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to update intent");
+    }
+  };
 
   // Handle copy code
   const handleCopyCode = async () => {
@@ -380,12 +386,17 @@ export default function SalesLeadDetailsPage() {
                           <div
                             className={`relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] rounded-[20px] overflow-hidden transition-all duration-500 ${cp.bgColor}`}
                           >
-                            <Image
-                              src={cp.image}
-                              alt={cp.name}
-                              fill
-                              className="object-cover object-top"
-                            />
+                            {cp.image ? (
+                              <img
+                                src={cp.image}
+                                alt={cp.name}
+                                className="absolute inset-0 w-full h-full object-cover object-top"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#E8D1AB] text-black text-2xl md:text-4xl font-bold">
+                                {cp.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                              </div>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -656,7 +667,7 @@ export default function SalesLeadDetailsPage() {
 
             {/* CHANGED: Passing leadId dynamically */}
             <div className="lg:text-right lg:mt-[82px]">
-              <Button 
+              <Button
                 onClick={() => router.push(`/admin/select-creatives?id=${leadId}`)}
                 className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
               >
