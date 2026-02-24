@@ -63,6 +63,7 @@ export const initialDataV3: BookingDataV3 = {
   email: "",
   phone: "",
   paymentMethod: 'card',
+  extraRoleSelections: {},
   budgetMin: 100,
   budgetMax: 20000,
 };

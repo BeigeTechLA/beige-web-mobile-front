@@ -125,40 +125,37 @@ function StripePaymentFormMulti({
   const [appliedDiscount, setAppliedDiscount] = useState<any>(null);
   const [referralErrorMessage, setReferralErrorMessage] = useState("");
 
-  // AUTO-APPLY DISCOUNT FROM URL IF PRESENT
+  // AUTO-APPLY & REFRESH FIX LOGIC
   useEffect(() => {
+    // 1. PERSISTENCE CHECK: If quote already has a discount (on refresh), sync the UI
+    const existingDiscountTotal = parseFloat(quote?.discount_total || 0);
+    if (existingDiscountTotal > 0 && !appliedDiscount) {
+      setAppliedDiscount({
+        discount_amount: existingDiscountTotal,
+      });
+      setDiscountValid(true);
+      // If code is in URL, sync it to the input field
+      if (urlDiscount) {
+        setDiscountCode(urlDiscount.toUpperCase().replace(/[^A-Z0-9]/g, ""));
+      }
+    }
+
+    // 2. URL AUTO-APPLY: Only trigger if no discount is applied yet
     if (urlDiscount && !appliedDiscount && !discountCode) {
       const upperCode = urlDiscount.toUpperCase().replace(/[^A-Z0-9]/g, "");
       setDiscountCode(upperCode);
       validateDiscountCode(upperCode);
     }
-  }, [urlDiscount]);
+  }, [urlDiscount, quote]); // dependencies updated to watch quote
+
+  // 3. AUTO-TRIGGER APPLY: Once URL code is validated as true, apply it
+  useEffect(() => {
+    if (urlDiscount && discountValid === true && !appliedDiscount && !isValidatingDiscount) {
+        applyDiscountCode();
+    }
+  }, [discountValid, urlDiscount, appliedDiscount, isValidatingDiscount]);
 
   // Debounced referral code validation
-  // const validateReferralCode = React.useCallback(
-  //   debounce(async (code: string) => {
-  //     if (!code || code.length < 4) {
-  //       setReferralCodeValid(null);
-  //       setReferralAffiliateName("");
-  //       return;
-  //     }
-
-  //     setIsValidatingReferral(true);
-  //     try {
-  //       const response = await affiliateApi.validateCode(code);
-  //       setReferralCodeValid(response.valid);
-  //       setReferralAffiliateName(response.affiliate_name || "");
-  //     } catch (error) {
-  //       console.error("Error validating referral code:", error);
-  //       setReferralCodeValid(false);
-  //       setReferralAffiliateName("");
-  //     } finally {
-  //       setIsValidatingReferral(false);
-  //     }
-  //   }, 500),
-  //   [],
-  // );
-
   const validateReferralCode = React.useCallback(
   debounce(async (code: string) => {
     if (!code || code.length < 4) {
@@ -206,12 +203,19 @@ function StripePaymentFormMulti({
   }, 500),
   [],
 );
+
   // Debounced discount code validation
   const validateDiscountCode = React.useCallback(
     debounce(async (code: string) => {
       if (!code || code.length < 4) {
         setDiscountValid(null);
         setDiscountData(null);
+        return;
+      }
+
+      // If we are already showing an applied discount, don't re-validate
+      if (parseFloat(quote?.discount_total || 0) > 0) {
+        setDiscountValid(true);
         return;
       }
 
@@ -223,7 +227,6 @@ function StripePaymentFormMulti({
             "https://revure-api.beige.app/v1/"
           ).replace(/\/$/, "") + "/";
 
-        // Pass booking_id in query param for validation
         const response = await axios.get(
           `${API_BASE_URL}sales/discount-codes/${code}/validate?booking_id=${shootId}`,
         );
@@ -237,13 +240,20 @@ function StripePaymentFormMulti({
         }
       } catch (error: any) {
         console.error("Error validating discount code:", error);
-        setDiscountValid(false);
-        setDiscountData(null);
+        
+        // REFRESH FIX: If the code is already applied, your API returns 400.
+        // If there is already a discount total in the quote, treat this as valid.
+        if (parseFloat(quote?.discount_total || 0) > 0) {
+            setDiscountValid(true);
+        } else {
+            setDiscountValid(false);
+            setDiscountData(null);
+        }
       } finally {
         setIsValidatingDiscount(false);
       }
     }, 500),
-    [shootId],
+    [shootId, quote],
   );
 
   const handleReferralCodeChange = (value: string) => {
@@ -260,6 +270,9 @@ function StripePaymentFormMulti({
 
   const applyDiscountCode = async () => {
     if (!discountCode || !discountValid || !quote?.quote_id) return;
+
+    // Don't call API if already applied
+    if (appliedDiscount && parseFloat(quote?.discount_total || 0) > 0) return;
 
     setIsValidatingDiscount(true); // Ensure loading state is active
     try {
@@ -297,7 +310,10 @@ function StripePaymentFormMulti({
       }
     } catch (error: any) {
       console.error("Error applying discount:", error);
-      toast.error(error.response?.data?.message || "Failed to apply discount");
+      // Only show error if it's not "already applied"
+      if (!error.response?.data?.message?.toLowerCase().includes("already applied")) {
+        toast.error(error.response?.data?.message || "Failed to apply discount");
+      }
     } finally {
       setIsValidatingDiscount(false);
     }
@@ -494,10 +510,11 @@ function StripePaymentFormMulti({
             <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
               <Check className="w-4 h-4" />
               Discount applied: You Save $
-              {appliedDiscount.discount_amount.toFixed(2)}
+              {parseFloat(appliedDiscount.discount_amount).toFixed(2)}
             </p>
           )}
-          {discountValid === false && discountCode.length >= 4 && (
+          {/* IMPROVED CONDITION: Only show error if no discount is currently applied to the quote */}
+          {discountValid === false && discountCode.length >= 4 && !appliedDiscount && (
             <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
               <X className="w-4 h-4" />
               Invalid or expired discount code
