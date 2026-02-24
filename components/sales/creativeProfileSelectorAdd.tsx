@@ -17,8 +17,8 @@ export const CreativeProfileSelectorAdd = ({
     selectedIds: externalSelectedIds,
     onChange,
     leadId,
-    currentLocation, // NEW: passed from parent to react to location changes
-    targets          // NEW: passed from parent e.g. { videographer: 2, photographer: 1 }
+    currentLocation, 
+    targets          
 }: {
     selectedIds?: number[],
     onChange?: (ids: number[]) => void,
@@ -35,7 +35,7 @@ export const CreativeProfileSelectorAdd = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
 
-    // Debounce search query
+    // 1. Debounce search query
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchQuery);
@@ -43,7 +43,6 @@ export const CreativeProfileSelectorAdd = ({
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    // Original stats fetcher (keeping it for metadata, though we use 'targets' for UI counts)
     useEffect(() => {
         const fetchStats = async () => {
             if (leadId) {
@@ -60,71 +59,59 @@ export const CreativeProfileSelectorAdd = ({
         fetchStats();
     }, [leadId]);
 
-    // FETCH CREW LOGIC - Now triggers on leadId, currentLocation, roleType, or search
     useEffect(() => {
         const fetchCreatives = async () => {
-            if (leadId) {
-                setIsLoading(true);
-                try {
-                    // Use currentLocation from props if it exists, otherwise fallback to stats location
-                    const location = currentLocation || stats?.location || "";
-                    
-                    // Extract city logic (handles standard comma and Arabic comma)
-                    const locationParts = location.split(/[,،]/);
-                    let city = location;
+            const location = currentLocation || stats?.location;
 
+            if (!leadId || (!location && !debouncedSearch)) {
+                return;
+            }
+
+            setIsLoading(true);
+            try {
+                // Extract city logic
+                let city = "";
+                if (location) {
+                    const locationParts = location.split(/[,،]/);
+                    city = location;
                     if (locationParts.length > 1) {
                         let candidate = locationParts[1].trim();
                         candidate = candidate.replace(/\d+/g, '').trim();
-                        if (candidate) {
-                            city = candidate;
-                        }
+                        if (candidate) city = candidate;
                     }
-
-                    const response = await salesApi.getCrewForLead({
-                        lead_id: leadId,
-                        role_type: roleType,
-                        search_query: debouncedSearch || city
-                    });
-
-                    if (response && response.data) {
-                        const formattedCreatives = response.data.map((item: any) => {
-                            let role = item.role ? (item.role.charAt(0).toUpperCase() + item.role.slice(1)) : "Creative";
-
-                            if (!item.role) {
-                                try {
-                                    const parsedRoles = JSON.parse(item.primary_role);
-                                    if (Array.isArray(parsedRoles) && parsedRoles.length > 0) {
-                                        const roleId = parseInt(parsedRoles[0]);
-                                        role = ROLE_MAP[roleId] || "Creative";
-                                    }
-                                } catch (e) {
-                                    console.error("Error parsing role", e);
-                                }
-                            }
-
-                            return {
-                                id: item.crew_member_id,
-                                name: `${item.first_name} ${item.last_name}`,
-                                status: item.is_active ? "Active" : "Inactive",
-                                shoots: item.years_of_experience,
-                                specialities: role,
-                                availability: item.availability || "Not Available",
-                                ...item
-                            };
-                        });
-                        setCreatives(formattedCreatives);
-                    } else {
-                        setCreatives([]);
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch creatives", error);
-                    setCreatives([]);
-                } finally {
-                    setIsLoading(false);
                 }
+
+                const response = await salesApi.getCrewForLead({
+                    lead_id: leadId,
+                    role_type: roleType,
+                    search_query: debouncedSearch || city
+                });
+
+                if (response && response.data) {
+                    const formattedCreatives = response.data.map((item: any) => ({
+                        id: item.crew_member_id,
+                        name: `${item.first_name} ${item.last_name}`,
+                        status: item.is_active ? "Active" : "Inactive",
+                        shoots: item.years_of_experience || 0,
+                        // Use the mapped role from your API response
+                        specialities: item.role || "Creative",
+                        availability: item.availability || "Available",
+                        // Map the profile photo from API
+                        profile_photo: item.profile_photo, 
+                        ...item
+                    }));
+                    setCreatives(formattedCreatives);
+                } else {
+                    setCreatives([]);
+                }
+            } catch (error) {
+                console.error("Failed to fetch creatives", error);
+                setCreatives([]);
+            } finally {
+                setIsLoading(false);
             }
         };
+
         fetchCreatives();
     }, [leadId, stats?.location, currentLocation, roleType, debouncedSearch]);
 
