@@ -62,13 +62,12 @@ export function LoginForm() {
       const userTypeId = user?.user_type_id
       const userTypeName = userTypeId ? USER_TYPE[userTypeId as keyof typeof USER_TYPE] : "Unknown";
 
-      // Map user_type_id to a readable string if needed, 
-      // or pass the ID directly as per your requirement.
       pushToDataLayer("login", {
         custom_user_id: user?.id || null,
         email: data.email, // using form data
         user_type: userTypeName,
-        location: "login_page",
+        page_name: "Login Page",
+        location_in_website: "login_page",
         duration_on_page: performance.now() / 1000,
         // Phone might be in the result object depending on your API
         phone: user?.phone || null,
@@ -176,6 +175,14 @@ export function LoginForm() {
           </div>
           <Link
             href="/forgot-password"
+            onClick={() => {
+              pushToDataLayer("forgot_password", {
+                type: "Action Tracking",
+                page_name: "Login Page",
+                location_in_website: "login_page",
+                duration_on_page: performance.now() / 1000,
+              });
+            }}
             className="text-sm font-medium text-[#E8D1AB] hover:text-white underline underline-offset-4"
           >
             Forgot password?
@@ -207,6 +214,7 @@ export function LoginForm() {
                 type: "Action Tracking",
                 user_type: "client",
                 location_in_website: "login_page",
+                page_name: "Login Page",
                 duration_on_page: performance.now() / 1000,
               });
             }}
@@ -238,6 +246,7 @@ export function LoginForm() {
               pushToDataLayer("sign_up_started_cp", {
                 type: "Action Tracking",
                 user_type: "creative_partner",
+                page_name: "Login Page",
                 location_in_website: "login_page",
                 duration_on_page: performance.now() / 1000,
               });

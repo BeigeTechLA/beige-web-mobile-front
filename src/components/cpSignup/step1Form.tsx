@@ -23,8 +23,9 @@ import {
 import { distanceOptions } from "@/app/data/staticData";
 import Link from "next/link";
 import { useRegisterCreatorStep1Mutation } from "@/lib/redux/features/auth/authApi";
-import { toast } from "sonner"; 
+import { toast } from "sonner";
 import { compressImage } from "@/lib/utils";
+import { pushToDataLayer } from "@/lib/gtm";
 
 interface SelectedImageState {
   file: File;
@@ -45,7 +46,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    
+
     if (file) {
       // --- FILE SIZE VALIDATION (5MB) ---
       const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
@@ -89,13 +90,13 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
   const handleNext = async () => {
     if (
-      !data.firstName || 
-      !data.lastName || 
-      !data.email || 
-      !data.phoneNumber || 
-      !data.password || 
-      !data.location || 
-      !data.workingDistance || 
+      !data.firstName ||
+      !data.lastName ||
+      !data.email ||
+      !data.phoneNumber ||
+      !data.password ||
+      !data.location ||
+      !data.workingDistance ||
       !data.profileImage
     ) {
       toast.error("Please fill all required fields.");
@@ -127,8 +128,27 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
       setData({
         ...data,
         crew_member_id: response.crew_member_id,
-        user_id: response.user_id,
+        user_id: response?.user_id,
       });
+
+      // --- GA4 SIGNUP TRACKING ---
+      pushToDataLayer("sign_up_step1_submit", {
+        cp_id: response.crew_member_id,
+        user_type: "Creative Partner",
+        page_name: "Creative Partner Signup Page: Step 2",
+        location_in_website: "creative_partner_signup_step1",
+        duration_on_page: performance.now() / 1000,
+        email: data.email,
+        phone: data.phone || null,
+        cp_signup_form: {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          location: typeof data.location === 'object' ? JSON.stringify(data.location) : data.location,
+          shoot_radius: data.workingDistance,
+          profile_picture: data.profileImage ? true : false,
+        }
+      });
+      // ---------------------------
 
       toast.success("Step 1 completed!");
       nextStep();

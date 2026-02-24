@@ -11,6 +11,7 @@ import UploadResumePortfolio from "./UploadResumePortfolio";
 import { SOCIAL_ICONS } from "@/app/data/staticData";
 import { useRegisterCreatorStep3Mutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export default function Step3Form({ data, setData, nextStep, prevStep }) {
   const [registerStep3, { isLoading }] = useRegisterCreatorStep3Mutation();
@@ -35,21 +36,21 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
 
   const handleSubmit = async () => {
     if (!links || links.length === 0) {
-      toast.error("Required Field", { 
-        description: "Please add at least one Social or Professional Link." 
+      toast.error("Required Field", {
+        description: "Please add at least one Social or Professional Link."
       });
       return;
     }
     if (!featuredWork || featuredWork.length === 0) {
-      toast.error("Required Field", { 
-        description: "Please add at least one item to your Featured Work." 
+      toast.error("Required Field", {
+        description: "Please add at least one item to your Featured Work."
       });
       return;
     }
 
     if (!links || links.length === 0) {
-      toast.error("Required Field", { 
-        description: "Please add at least one social link." 
+      toast.error("Required Field", {
+        description: "Please add at least one social link."
       });
       return;
     }
@@ -64,17 +65,17 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
       formData.append("crew_member_id", String(data.crew_member_id));
 
       // Optional: Resume
-       const resumeFile = resume instanceof File ? resume : resume?.file;
-    if (resumeFile instanceof File) formData.append("resume", resumeFile);
+      const resumeFile = resume instanceof File ? resume : resume?.file;
+      if (resumeFile instanceof File) formData.append("resume", resumeFile);
 
-    if (Array.isArray(portfolio)) {
-      portfolio.forEach((p) => {
-        const file = p instanceof File ? p : p?.file;
-        if (file instanceof File) {
-          formData.append("portfolio", file); 
-        }
-      });
-    }
+      if (Array.isArray(portfolio)) {
+        portfolio.forEach((p) => {
+          const file = p instanceof File ? p : p?.file;
+          if (file instanceof File) {
+            formData.append("portfolio", file);
+          }
+        });
+      }
 
       // Optional: Certifications
       (data.certifications || []).forEach((item) => {
@@ -107,6 +108,25 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
 
       // API CALL
       await registerStep3(formData).unwrap();
+
+      // --- GA4 SIGNUP TRACKING ---
+      pushToDataLayer("sign_up_step3_submit", {
+        cp_id: data.crew_member_id,
+        user_type: "Creative Partner",
+        page_name: "Creative Partner Signup Page: Step 3",
+        location_in_website: "creative_partner_signup_step3",
+        duration_on_page: performance.now() / 1000,
+        email: data.email,
+        phone: data.phone || null,
+        cp_signup_form: {
+          social_professional_link: JSON.stringify(socialLinksPayload),
+          work_upload: JSON.stringify(workMetadata),
+          certifications: data?.certifications.length > 0 ? true : false,
+          documents: (resumeFile || Array.isArray(portfolio)) ? true : false
+        }
+      });
+      // ---------------------------
+
 
       toast.success("Profile Created Successfully!");
       nextStep();
