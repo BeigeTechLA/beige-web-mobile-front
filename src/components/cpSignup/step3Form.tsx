@@ -51,18 +51,6 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
       return;
     }
 
-    // Check for minimum 5 images across all featured work
-    const totalImages = featuredWork.reduce((acc, item) => {
-      const imagesCount = item.files?.length || 0;
-      return acc + imagesCount;
-    }, 0);
-
-    if (totalImages < 5) {
-      toast.error("Image Requirement", {
-        description: `Please upload at least 5 images of your work. Currently: ${totalImages}`
-      });
-      return;
-    }
 
     if (!links || links.length === 0) {
       toast.error("Required Field", {

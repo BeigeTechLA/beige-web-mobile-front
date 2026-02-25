@@ -244,7 +244,7 @@ const CreativeCard = ({ creative, isSelected, onToggle }: any) => {
             <div className="relative w-20 h-25 lg:w-[146px] lg:h-[156px] flex-shrink-0">
                 {creative.profile_photo ? (
                     <img
-                        src={`https://beigexmemehouse.s3.amazonaws.com/beige/${creative.profile_photo}`}
+                        src={`https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${creative.profile_photo}`}
                         alt={creative.name}
                         className="w-full h-full object-cover rounded-lg"
                     />

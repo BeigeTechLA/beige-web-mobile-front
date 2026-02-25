@@ -122,8 +122,10 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
       toast.error("Please enter a project title.");
       return;
     }
-    if (imagePreviews.length === 0) {
-      toast.error("Please upload at least one image.");
+    if (imagePreviews.length < 5) {
+      toast.error("Low Image Count", {
+        description: "Please upload at least 5 images for this project."
+      });
       return;
     }
 

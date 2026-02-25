@@ -11,9 +11,11 @@ interface TopbarProps {
   actions?: React.ReactNode;
   /** Optional override for the title (defaults to breadcrumb logic) */
   title?: string;
+  /** Optional overrides for specific breadcrumb path segments */
+  breadcrumbOverrides?: Record<string, string>;
 }
 
-export default function Topbar({ pathname, actions, title }: TopbarProps) {
+export default function Topbar({ pathname, actions, title, breadcrumbOverrides }: TopbarProps) {
   const { setIsOpen } = useSidebar();
 
   // Keep the breadcrumb logic for the left side
@@ -76,10 +78,11 @@ export default function Topbar({ pathname, actions, title }: TopbarProps) {
             <nav className="flex items-center gap-2 text-xs text-white/40 whitespace-nowrap">
               {paths.map((path, index) => {
                 const isLast = index === paths.length - 1;
+                const displayText = breadcrumbOverrides?.[path] || path.split("-").join(" ");
                 return (
                   <React.Fragment key={index}>
                     <span className={`capitalize ${isLast ? "text-white font-bold" : ""}`}>
-                      {path.split("-").join(" ")}
+                      {displayText}
                     </span>
                     {!isLast && <span className="mx-1">/</span>}
                   </React.Fragment>
@@ -102,10 +105,11 @@ export default function Topbar({ pathname, actions, title }: TopbarProps) {
             <nav className="flex items-center gap-4 text-sm text-white/40">
               {paths.map((path, index) => {
                 const isLast = index === paths.length - 1;
+                const displayText = breadcrumbOverrides?.[path] || path.split("-").join(" ");
                 return (
                   <React.Fragment key={index}>
                     <span className={`capitalize ${isLast ? "text-white font-bold" : ""}`}>
-                      {path.split("-").join(" ")}
+                      {displayText}
                     </span>
                     {!isLast && <span className="mx-2">/</span>}
                   </React.Fragment>

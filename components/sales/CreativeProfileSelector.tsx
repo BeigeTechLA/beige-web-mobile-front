@@ -20,6 +20,7 @@ export interface CreativeData {
   hourly_rate?: number | string;
   is_beige_member?: number;
   profile_image?: string;
+  profile_photo?: string;
 }
 
 export interface CreativeProfileSelectorProps {
@@ -30,6 +31,7 @@ export interface CreativeProfileSelectorProps {
   emptyMessage?: string;
   videographerCount?: number; // This is the Required count
   photographerCount?: number; // This is the Required count
+  onSelectionUpdate?: (counts: { videographer: number, photographer: number }) => void;
 }
 
 // Mock Data for backward compatibility
@@ -49,6 +51,7 @@ export const CreativeProfileSelector = ({
   emptyMessage = "No matching professionals found for this selection.",
   videographerCount = 0,
   photographerCount = 0,
+  onSelectionUpdate,
 }: CreativeProfileSelectorProps) => {
   const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -68,6 +71,13 @@ export const CreativeProfileSelector = ({
       total: currentSelectedIds.length
     };
   }, [currentSelectedIds, displayCreatives]);
+
+  // Notify parent of count updates
+  React.useEffect(() => {
+    if (onSelectionUpdate) {
+      onSelectionUpdate({ videographer: selectedDetails.v, photographer: selectedDetails.p });
+    }
+  }, [selectedDetails.v, selectedDetails.p, onSelectionUpdate]);
 
   const toggleSelection = (id: number) => {
     const nextIds = currentSelectedIds.includes(id)
@@ -101,7 +111,7 @@ export const CreativeProfileSelector = ({
         rating: creative.rating || '5.0',
         hourly_rate: creative.hourly_rate,
         is_beige_member: creative.is_beige_member,
-        profile_image: creative.profile_image,
+        profile_image: creative.profile_photo || creative.profile_image,
       };
     }
     return {
@@ -115,7 +125,7 @@ export const CreativeProfileSelector = ({
       rating: creative.rating || '5.0',
       hourly_rate: creative.hourly_rate,
       is_beige_member: creative.is_beige_member,
-      profile_image: creative.profile_image,
+      profile_image: creative.profile_photo || creative.profile_image,
     };
   };
 
@@ -225,7 +235,7 @@ const CreativeCard = ({ creative, isSelected, onToggle }: CreativeCardProps) => 
       <div className="relative w-20 h-25 lg:w-[146px] lg:h-[156px] flex-shrink-0">
         {creative.profile_image ? (
           <img
-            src={creative.profile_image.startsWith('http') ? creative.profile_image : `https://beigexmemehouse.s3.amazonaws.com/beige/${creative.profile_image}`}
+            src={creative.profile_image.startsWith('http') ? creative.profile_image : `https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${creative.profile_image}`}
             alt={creative.name}
             className={`w-full h-full object-cover rounded-lg transition-all ${!isSelected ? 'grayscale' : ''}`}
           />
