@@ -49,6 +49,7 @@ import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdow
 import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
 import { adminApi } from "@/lib/api"; // Added for fetching client profile
+import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 
 const INITIAL_COUNT = 6;
 
@@ -90,6 +91,8 @@ export default function ClientDetailPage() {
   const [crewList, setCrewList] = useState<any[]>([]);
   const [isLoadingCrew, setIsLoadingCrew] = useState(false);
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
+  const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0 });
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   // const { data: leadData } = useGetLeadByIdQuery(parseInt(leadId), { skip: !leadId });
 
@@ -135,8 +138,11 @@ export default function ClientDetailPage() {
   //       location: b.event_location || "",
   //       crewCount: b.crew_size_needed || 0,
   //     }));
-  //   }
-  // }, [leadData]);
+  // Calculate required counts
+  const reqCounts = useMemo(() => ({
+    videographer: formData.contentType.includes("videographer") ? 1 + (extraTeam["videographer"] || 0) : 0,
+    photographer: formData.contentType.includes("photographer") ? 1 + (extraTeam["photographer"] || 0) : 0,
+  }), [formData.contentType, extraTeam]);
 
   // Dynamic Initials
   const initials = useMemo(() => {
@@ -273,7 +279,7 @@ export default function ClientDetailPage() {
       }
 
       const response = await fetch(
-         `${API_BASE_URL}/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
+        `${API_BASE_URL}/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
       );
       const result = await response.json();
 
@@ -332,7 +338,7 @@ export default function ClientDetailPage() {
     if (nextContentType.length > 0) scrollToRef(shootTypeRef);
   };
 
-  const availableRolesToAdd = TEAM_ROLES.filter(role => formData.contentType.includes(role.id));
+  const availableRolesToAdd = TEAM_ROLES.filter(role => formData.contentType.includes(role.id as any));
 
   const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
     setTimeout(() => {
@@ -345,76 +351,76 @@ export default function ClientDetailPage() {
     }, 100);
   };
 
-const handleDateChange = (date: Date | null) => {
-  if (!date) {
-    updateData({ startDate: "", endDate: "" });
-    return;
-  }
+  const handleDateChange = (date: Date | null) => {
+    if (!date) {
+      updateData({ startDate: "", endDate: "" });
+      return;
+    }
 
-  const now = new Date();
-  const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    const now = new Date();
+    const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
 
-  let newStart: Date;
-  let newEnd: Date;
+    let newStart: Date;
+    let newEnd: Date;
 
-  if (isToday) {
-    newStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-    const mins = newStart.getMinutes();
-    if (mins > 0 && mins <= 30) newStart.setMinutes(30, 0, 0);
-    else if (mins > 30) newStart.setHours(newStart.getHours() + 1, 0, 0, 0);
-    else newStart.setMinutes(0, 0, 0);
-    newEnd = new Date(newStart.getTime() + 8 * 60 * 60 * 1000);
-  } else {
-    newStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-    newEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
-  }
+    if (isToday) {
+      newStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+      const mins = newStart.getMinutes();
+      if (mins > 0 && mins <= 30) newStart.setMinutes(30, 0, 0);
+      else if (mins > 30) newStart.setHours(newStart.getHours() + 1, 0, 0, 0);
+      else newStart.setMinutes(0, 0, 0);
+      newEnd = new Date(newStart.getTime() + 8 * 60 * 60 * 1000);
+    } else {
+      newStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+      newEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+    }
 
-  const finalStart = set(newStart, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
-  const finalEnd = set(newEnd, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
+    const finalStart = set(newStart, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
+    const finalEnd = set(newEnd, { year: date.getFullYear(), month: date.getMonth(), date: date.getDate() });
 
-  // FIXED: Removed 'XXX' so the backend gets the exact local time selected
-  updateData({ 
-    startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss"), 
-    endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss") 
-  });
-};
+    // FIXED: Removed 'XXX' so the backend gets the exact local time selected
+    updateData({
+      startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss"),
+      endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss")
+    });
+  };
 
- const handleStartTimeChange = (timeKey: string) => {
-  if (!timeKey) {
-    updateData({ startDate: "" });
-    return;
-  }
+  const handleStartTimeChange = (timeKey: string) => {
+    if (!timeKey) {
+      updateData({ startDate: "" });
+      return;
+    }
 
-  const [hours, minutes] = timeKey.split(":").map(Number);
-  const currentDate = formData.startDate ? parseDate(formData.startDate) : new Date();
-  if (!currentDate) return;
+    const [hours, minutes] = timeKey.split(":").map(Number);
+    const currentDate = formData.startDate ? parseDate(formData.startDate) : new Date();
+    if (!currentDate) return;
 
-  const newStart = set(currentDate, { hours, minutes, seconds: 0 });
-  
-  const now = new Date();
-  if (newStart < now) {
-    toast.error("Selected time must be later than the current time.");
-    return;
-  }
+    const newStart = set(currentDate, { hours, minutes, seconds: 0 });
 
-  updateData({ startDate: format(newStart, "yyyy-MM-dd'T'HH:mm:ss") });
-};
+    const now = new Date();
+    if (newStart < now) {
+      toast.error("Selected time must be later than the current time.");
+      return;
+    }
 
- const handleEndTimeChange = (timeKey: string) => {
-  if (!timeKey) {
-    updateData({ endDate: "" });
-    return;
-  }
-  const [hours, minutes] = timeKey.split(":").map(Number);
-  let currentDate = formData.endDate ? parseDate(formData.endDate) : formData.startDate ? parseDate(formData.startDate) : new Date();
-  if (!currentDate) return;
+    updateData({ startDate: format(newStart, "yyyy-MM-dd'T'HH:mm:ss") });
+  };
 
-  const newEnd = set(currentDate, { hours, minutes, seconds: 0 });
-  
-  // FIXED: Removed 'XXX'
-  updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss") });
-  scrollToRef(editsRef);
-};
+  const handleEndTimeChange = (timeKey: string) => {
+    if (!timeKey) {
+      updateData({ endDate: "" });
+      return;
+    }
+    const [hours, minutes] = timeKey.split(":").map(Number);
+    let currentDate = formData.endDate ? parseDate(formData.endDate) : formData.startDate ? parseDate(formData.startDate) : new Date();
+    if (!currentDate) return;
+
+    const newEnd = set(currentDate, { hours, minutes, seconds: 0 });
+
+    // FIXED: Removed 'XXX'
+    updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss") });
+    scrollToRef(editsRef);
+  };
 
   const getStartTimeKey = () => {
     if (!formData.startDate) return "";
@@ -465,12 +471,7 @@ const handleDateChange = (date: Date | null) => {
   };
 
   // Submit handler
-  const handleSubmit = async () => {
-    if (!formData.selectedCrewIds || formData.selectedCrewIds.length === 0) {
-      toast.error("Please select at least one creative");
-      return;
-    }
-
+  const executeFinalizeDeal = async () => {
     setIsSubmitting(true);
     try {
       const startDate = parseDate(formData.startDate);
@@ -525,6 +526,25 @@ const handleDateChange = (date: Date | null) => {
       toast.error("Failed to create booking");
     } finally {
       setIsSubmitting(false);
+      setIsConfirmModalOpen(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.selectedCrewIds || formData.selectedCrewIds.length === 0) {
+      toast.error("Please select at least one creative");
+      return;
+    }
+
+    // Check for over-selection
+    const isOverSelected =
+      (selectionCounts.videographer > reqCounts.videographer) ||
+      (selectionCounts.photographer > reqCounts.photographer);
+
+    if (isOverSelected) {
+      setIsConfirmModalOpen(true);
+    } else {
+      executeFinalizeDeal();
     }
   };
 
@@ -552,8 +572,16 @@ const handleDateChange = (date: Date | null) => {
 
         {/* Dynamic Profile Header */}
         <div className="flex items-center gap-5 mb-8">
-          <div className="w-16 h-16 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-[#101010] border border-[#E8D1AB] flex items-center justify-center text-xl lg:text-[30px] font-bold shrink-0">
-            {initials}
+          <div className="w-16 h-16 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-[#101010] border border-[#E8D1AB] flex items-center justify-center text-xl lg:text-[30px] font-bold shrink-0 overflow-hidden">
+            {clientProfile?.user?.profile_image || clientProfile?.profile_image ? (
+              <img
+                src={clientProfile?.user?.profile_image ? `https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${clientProfile.user.profile_image}` : `https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${clientProfile.profile_image}`}
+                alt={clientProfile?.user?.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              initials
+            )}
           </div>
           <div className="flex flex-col gap-1">
             <div className="flex gap-3 items-center">
@@ -807,6 +835,7 @@ const handleDateChange = (date: Date | null) => {
             <CreativeProfileSelector
               selectedIds={formData.selectedCrewIds || []}
               onChange={(ids) => updateData({ selectedCrewIds: ids })}
+              onSelectionUpdate={setSelectionCounts}
               creatives={crewList.map(cp => ({
                 id: cp.crew_member_id,
                 first_name: cp.first_name,
@@ -818,11 +847,12 @@ const handleDateChange = (date: Date | null) => {
                 is_beige_member: cp.is_beige_member,
                 assigned_shoots: cp.assigned_shoots,
                 status: cp.status,
+                profile_photo: cp.profile_photo,
               }))}
               isLoading={isLoadingCrew}
               emptyMessage="No matching professionals found for this date/location."
-              videographerCount={formData.contentType.includes("videographer") ? 1 + (extraTeam["videographer"] as number || 0) : 0}
-              photographerCount={formData.contentType.includes("photographer") ? 1 + (extraTeam["photographer"] as number || 0) : 0}
+              videographerCount={reqCounts.videographer}
+              photographerCount={reqCounts.photographer}
             />
           )}
         </div>
@@ -845,6 +875,14 @@ const handleDateChange = (date: Date | null) => {
           </Button>
         </div>
       </div>
+
+      <AssignmentConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={executeFinalizeDeal}
+        videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
+        photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
+      />
     </>
   );
 }

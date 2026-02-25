@@ -41,7 +41,7 @@ const formatLocation = (locationInput: string) => {
       } catch (e) {
 
         decoded = decoded.replace(/^[\\"]+|[\\"]+$/g, '');
-        break; 
+        break;
       }
       if (prev === decoded) break;
     }
@@ -56,11 +56,11 @@ const formatLocation = (locationInput: string) => {
     const country = parts[parts.length - 1];
     const stateZip = parts[parts.length - 2];
     const city = parts[parts.length - 3];
-    
+
     const state = stateZip.replace(/\d+/g, "").trim();
     return `${city}, ${state}, ${country}`;
   }
-  
+
   return addressStr || "Location TBD";
 };
 
@@ -331,12 +331,15 @@ export default function AvailabilityDetailsPage() {
   }
 
 
-const rawLocation = member?.location || [member?.city, member?.state, member?.country].filter(Boolean).join(', ');
-const location = rawLocation ? formatLocation(rawLocation) : "Location Unknown";
+  const rawLocation = member?.location || [member?.city, member?.state, member?.country].filter(Boolean).join(', ');
+  const location = rawLocation ? formatLocation(rawLocation) : "Location Unknown";
 
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar
+        pathname={pathname}
+        breadcrumbOverrides={{ [id]: fullName }}
+      />
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 relative min-h-screen">
         <div className="space-y-8 pb-12 bg-transparent text-white font-instrument-sans">
           {/* Header with Back Button */}

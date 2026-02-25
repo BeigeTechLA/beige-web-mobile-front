@@ -18,7 +18,7 @@ const SECTION_TITLE_STYLE = "lg:text-lg font-medium text-white px-5 pt-5 lg:px-8
 const LABEL_STYLE = "text-[#CFCCCC] text-sm font-medium mb-1 block";
 const VALUE_STYLE = "text-[#999696] text-sm block";
 
-import { Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Calendar } from "lucide-react";
+import { Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Calendar, Navigation } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
 
@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { StatCard } from "../StatCard";
 import { MobileShootRow } from "../shoot-details/MobileShootRow";
 import { AnimatePresence, motion } from "framer-motion";
+import { PORTFOLIO_ICONS } from "@/app/data/staticData";
 
 const PORTFOLIO_IMAGES = [
   "/images/crew/CREW(1).png",
@@ -570,7 +571,7 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
 
         {/* Tabs */}
         <div className="flex items-center w-full overflow-x-auto no-scrollbar gap-6 lg:gap-0 lg:justify-between lg:mt-2 px-2">
-          {['Overview', 'Featured Work', 'Availability', 'Shoots', 'Certificates', 'Resume'].map((tab) => (
+          {['Overview', 'Featured Work', 'Availability', 'Shoots', 'Certificates', 'Resume', 'Portfolio Links'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1181,14 +1182,14 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
           <h2 className={SECTION_TITLE_STYLE}>CP Certificates</h2>
 
           {/* divider */}
-            <div
-              className="h-[1px] w-full my-4 lg:my-9"
-              style={{
-                backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                backgroundSize: '30px 1px',
-                backgroundRepeat: 'repeat-x'
-              }}
-            />
+          <div
+            className="h-[1px] w-full my-4 lg:my-9"
+            style={{
+              backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
+              backgroundSize: '30px 1px',
+              backgroundRepeat: 'repeat-x'
+            }}
+          />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-5">
             {certificationFiles.length > 0 ? (
@@ -1235,14 +1236,14 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
           <h2 className={SECTION_TITLE_STYLE}>CP Resume</h2>
 
           {/* divider */}
-            <div
-              className="h-[1px] w-full my-4 lg:my-9"
-              style={{
-                backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                backgroundSize: '30px 1px',
-                backgroundRepeat: 'repeat-x'
-              }}
-            />
+          <div
+            className="h-[1px] w-full my-4 lg:my-9"
+            style={{
+              backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
+              backgroundSize: '30px 1px',
+              backgroundRepeat: 'repeat-x'
+            }}
+          />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8 w-full lg:w-[340px]">
             {resumeFile ? (
@@ -1278,6 +1279,89 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
                 <p>No resume uploaded.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT: Portfolio Links */}
+      {activeTab === 'Portfolio Links' && (
+        <div className="bg-[#101010] border border-[#333] rounded-2xl lg:min-h-[500px]">
+          <h2 className={SECTION_TITLE_STYLE}>Portfolio Links</h2>
+
+          {/* divider */}
+          <div
+            className="h-[1px] w-full my-4 lg:my-9"
+            style={{
+              backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
+              backgroundSize: '30px 1px',
+              backgroundRepeat: 'repeat-x'
+            }}
+          />
+
+          <div className="px-5 pb-5 lg:px-8 lg:pb-8">
+            {(() => {
+              const portfolioLinks = partner.crew_member_files?.filter(
+                (f: any) => f.file_type === "link"
+              ) || [];
+
+              if (portfolioLinks.length === 0) {
+                return (
+                  <div className="py-20 text-center text-[#666] border border-dashed border-[#333] rounded-xl w-full">
+                    <Globe size={48} className="mx-auto mb-4 opacity-20" />
+                    <p>No portfolio links added.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {portfolioLinks.map((link: any, index: number) => {
+                    const platform = PORTFOLIO_ICONS.find((p) => p.id === link.tag);
+                    const formatExternalUrl = (url: string) => {
+                      if (!url) return "#";
+                      if (url.startsWith("http://") || url.startsWith("https://")) {
+                        return url;
+                      }
+                      return `https://${url}`;
+                    };
+
+                    return (
+                      <div
+                        key={link.crew_files_id || index}
+                        className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col gap-4 group hover:border-white/20 transition-all shadow-xl"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
+                            {platform?.icon ? (
+                              <platform.icon size={24} className="text-[#E8D1AB]" />
+                            ) : (
+                              <Globe size={24} className="text-[#E8D1AB]" />
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-white uppercase tracking-wider">
+                            {platform?.label || "Portfolio Link"}
+                          </p>
+                          <p className="text-xs text-white/40 truncate">
+                            {link.file_path}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => window.open(formatExternalUrl(link.file_path), '_blank')}
+                          className="w-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
+                        >
+                          View Portfolio
+                          <Navigation size={14} className="group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

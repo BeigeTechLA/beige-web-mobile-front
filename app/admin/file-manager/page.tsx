@@ -192,23 +192,32 @@ export default function AdminFolderManagerPage() {
           />
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-2 justify-between items-center">
-          <div className="flex flex-nowrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit overflow-x-auto no-scrollbar">
+        {/* Tab Bar Container */}
+        <div className="flex flex-col lg:flex-row gap-4 justify-between items-center w-full">
+          <div className="flex flex-nowrap items-center gap-1.5 lg:gap-3 bg-[#171717] p-1.5 rounded-xl w-full lg:w-fit overflow-x-auto no-scrollbar scroll-smooth">
             {tabs.map((tab, index) => (
               <Button
                 key={`tab_${index}`}
                 onClick={() => onChange(tab.name)}
-                className={`flex gap-2 px-2 py-[2px] text-sm font-medium transition-all rounded-lg h-7 lg:h-10 ${selectedTab === tab.name ? "bg-white text-black " : "hover:bg-white/10"}
-          `}
+                className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${selectedTab === tab.name
+                    ? "bg-white text-black shadow-lg scale-[1.02]"
+                    : "text-white/60 hover:bg-white/10 hover:text-white"
+                  }`}
               >
-                <tab.icon size={20} />
-                {tab.name}
+                <tab.icon size={20} className="shrink-0" />
+                <span className="leading-none">{tab.name}</span>
               </Button>
             ))}
           </div>
 
-          <div className="w-full flex justify-between lg:justify-end gap-1 text-sm lg:text-base text-[#8F8F8F]">
-            <span>Storage Used:</span> <p><span className="text-[#E8D1AB]">{"24.5GB"}</span> / 100GB</p>
+          {/* Storage Info Section */}
+          <div className="w-full lg:w-auto flex justify-between lg:justify-end items-center gap-2 text-sm lg:text-base text-[#8F8F8F] bg-[#171717]/50 px-4 py-2 rounded-lg border border-white/5">
+            <span className="whitespace-nowrap">Storage Used:</span>
+            <p className="font-medium">
+              <span className="text-[#E8D1AB]">24.5GB</span>
+              <span className="mx-1">/</span>
+              100GB
+            </p>
           </div>
         </div>
 

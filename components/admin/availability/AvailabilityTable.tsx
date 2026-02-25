@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { useDebounce } from "@/hooks/use-debounce";
+import { format } from "date-fns"; 
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
@@ -102,9 +103,11 @@ export const AvailabilityTable = () => {
                 };
 
                 if (selectedDate) {
-                    params.start_date = selectedDate.toISOString().split('T')[0];
-                    params.end_date = selectedDate.toISOString().split('T')[0];
-                }
+
+                const dateStr = format(selectedDate, "yyyy-MM-dd");
+                params.start_date = dateStr;
+                params.end_date = dateStr;
+            }
 
                 const response = await adminApi.getapprovedCrewMembers(params);
                 if (response && response.data) {
@@ -186,7 +189,7 @@ export const AvailabilityTable = () => {
                                         Status
                                     </div>
                                 </th>
-                                <th className="py-5 px-6 font-medium text-center">View</th>
+                                <th className="py-5 px-6 font-medium text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody>

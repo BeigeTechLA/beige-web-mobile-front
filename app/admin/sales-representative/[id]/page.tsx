@@ -16,6 +16,7 @@ import {
   Copy,
   Plus,
   X,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -107,6 +108,23 @@ export default function LeadDetailPage() {
 
   const activePartner = assignedCPs[activeCPIndex % (assignedCPs.length || 1)];
 
+  const formatTime = (timeStr: string | undefined) => {
+  if (!timeStr) return null;
+  try {
+    const [hours, minutes] = timeStr.split(':');
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${minutes} ${ampm}`;
+  } catch (e) {
+    return timeStr;
+  }
+};
+
+const startTime = formatTime(booking?.start_time);
+const endTime = formatTime(booking?.end_time);
+const shootTimeDisplay = startTime && endTime ? `${startTime} - ${endTime}` : "Not set";
+
   // Extract data with defaults
   const clientName = lead?.client_name || lead?.guest_email || "Unknown User";
   const initials = clientName
@@ -116,7 +134,8 @@ export default function LeadDetailPage() {
     .toUpperCase()
     .slice(0, 2);
   const email = lead?.guest_email || "No email";
-  const phone = lead?.user?.phone_number || "N/A";
+  const phone = lead?.phone || "N/A";
+  // const phone = lead?.user?.phone_number || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
 
@@ -455,6 +474,17 @@ export default function LeadDetailPage() {
                       Shoot Date
                     </p>
                     <p className="text-xs lg:text-base font-medium">{bookingDate}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#71717B] font-medium mb-1">
+                      Shoot Time
+                    </p>
+                    <p className="text-xs lg:text-base font-medium">{shootTimeDisplay}</p>
                   </div>
                 </div>
                 {/* Location */}
