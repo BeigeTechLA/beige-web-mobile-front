@@ -256,21 +256,21 @@ export default function SalesLeadsPage() {
   //   date: new Date(lead.created_at),
   // }));
 
-   // Smooth transition effect for Leads
-    useEffect(() => {
-      if (leadsApiData?.leads) {
-        const mapped = (leadsApiData.leads || []).map((lead: any) => ({
-          lead_id: lead.lead_id,
-          clientName: lead.client_name || lead.guest_email || "Unknown User",
-          email: lead.guest_email || "No email",
-          leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
-          bookingStatus: mapLeadStatusToUI(lead.payment_status),
-          lastActivity: formatRelativeTime(lead.last_activity_at),
-          date: new Date(lead.created_at),
-        }));
-        setDisplayLeads(mapped);
-      }
-    }, [leadsApiData]);
+  // Smooth transition effect for Leads
+  useEffect(() => {
+    if (leadsApiData?.leads) {
+      const mapped = (leadsApiData.leads || []).map((lead: any) => ({
+        lead_id: lead.lead_id,
+        clientName: lead.client_name || lead.guest_email || "Unknown User",
+        email: lead.guest_email || "No email",
+        leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
+        bookingStatus: lead.booking_status || "Unknown",
+        lastActivity: formatRelativeTime(lead.last_activity_at),
+        date: new Date(lead.created_at),
+      }));
+      setDisplayLeads(mapped);
+    }
+  }, [leadsApiData]);
 
   const leadsTotalRecords = leadsApiData?.pagination?.total || 0;
   const leadsTotalPages = Math.ceil(leadsTotalRecords / leadsLimit);
@@ -309,14 +309,14 @@ export default function SalesLeadsPage() {
   };
 
   const handleUserRowClick = (user: UserData) => {
-  const rawId = user.id.replace('#', '');
-  
-  const basePath = activeTab === "Client" 
-    ? "/sales/client" 
-    : "/sales/creative-partner";
-    
-  router.push(`${basePath}/${rawId}`);
-};
+    const rawId = user.id.replace('#', '');
+
+    const basePath = activeTab === "Client"
+      ? "/sales/client"
+      : "/sales/creative-partner";
+
+    router.push(`${basePath}/${rawId}`);
+  };
 
   const getGrowthLabel = () => {
     switch (range) {
@@ -360,222 +360,222 @@ export default function SalesLeadsPage() {
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
         <div className="flex flex-col lg:flex-row gap-6 justify-between items-start w-full">
-        <div className="text-white">
-          <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">
-            Sales Leads Management
-          </h1>
-          <p className="text-xs lg:text-sm text-white/70">
-            View activity, manage assignments, and monitor performance across
-            your sales team.
-          </p>
+          <div className="text-white">
+            <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">
+              Sales Leads Management
+            </h1>
+            <p className="text-xs lg:text-sm text-white/70">
+              View activity, manage assignments, and monitor performance across
+              your sales team.
+            </p>
+          </div>
+
+          {/* Sort By Date component to be added */}
+          <div className="flex gap-2 ">
+            <SortDateButton
+              selectedDate={selectedDate}
+              onDateChange={handleDateSort}
+            />
+          </div>
         </div>
+        <DottedDivider />
 
-        {/* Sort By Date component to be added */}
-        <div className="flex gap-2 ">
-          <SortDateButton
-            selectedDate={selectedDate}
-            onDateChange={handleDateSort}
-          />
-        </div>
-      </div>
-      <DottedDivider />
+        <OverviewMetricCards
+          metrics={metrics}
+          activeId={activeMetric}
+          onSelect={setActiveMetric}
+          isLoading={isLoading}
+          getGrowthLabel={() => getGrowthLabel()}
+          dropdownLabel="Duration"
+          dropdownValue={range}
+          dropdownOptions={OverviewFilters}
+          onDropdownChange={setRange}
+        />
 
-      <OverviewMetricCards
-        metrics={metrics}
-        activeId={activeMetric}
-        onSelect={setActiveMetric}
-        isLoading={isLoading}
-        getGrowthLabel={() => getGrowthLabel()}
-        dropdownLabel="Duration"
-        dropdownValue={range}
-        dropdownOptions={OverviewFilters}
-        onDropdownChange={setRange}
-      />
+        <div className="flex flex-col gap-6 my-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 w-full md:flex-1">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+                <input
+                  type="text"
+                  placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+                />
+              </div>
+            </div>
+          </div>
 
-      <div className="flex flex-col gap-6 my-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4 w-full md:flex-1">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
-              <input
-                type="text"
-                placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+          <div className="flex flex-col lg:flex-row gap-2 justify-between">
+            <TabsSwitcher
+              tabs={tabs}
+              activeTab={activeTab}
+              onChange={(tab) => {
+                setActiveTab(tab);
+                setUsersCurrentPage(1);
+                // setLeadsCurrentPage(1);
+              }}
+            />
+
+            <div className="flex flex-wrap gap-2 lg:gap-4">
+              <BasicDropdown
+                label="Lead Type"
+                value={range} // Update state as required
+                options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                onChange={(val) => console.log("Lead Type:", val)}
+              />
+              {/* 2. Intent Type Dropdown */}
+              <BasicDropdown
+                label="Intent Type"
+                value={intentFilter}
+                options={["All", "Hot", "Warm", "Cold"]}
+                onChange={(val) => setIntentFilter(val as any)}
+              />
+              {/* 3. Booking Status Dropdown */}
+              <BasicDropdown
+                label="All Statuses"
+                value={statusFilter}
+                options={["All", ...BOOKING_STATUS_OPTIONS]}
+                onChange={(val) => setStatusFilter(val as any)}
+                openAlign={"right"}
               />
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-2 justify-between">
-          <TabsSwitcher
-            tabs={tabs}
-            activeTab={activeTab}
-            onChange={(tab) => {
-              setActiveTab(tab);
-              setUsersCurrentPage(1);
-              // setLeadsCurrentPage(1);
-            }}
-          />
+        <DottedDivider className="lg:hidden" />
 
-          <div className="flex flex-wrap gap-2 lg:gap-4">
-            <BasicDropdown
-              label="Lead Type"
-              value={range} // Update state as required
-              options={["All Leads", "Self-Serve", "Sales Assisted"]}
-              onChange={(val) => console.log("Lead Type:", val)}
-            />
-            {/* 2. Intent Type Dropdown */}
-            <BasicDropdown
-              label="Intent Type"
-              value={intentFilter}
-              options={["All", "Hot", "Warm", "Cold"]}
-              onChange={(val) => setIntentFilter(val as any)}
-            />
-            {/* 3. Booking Status Dropdown */}
-            <BasicDropdown
-              label="All Statuses"
-              value={statusFilter}
-              options={["All", ...BOOKING_STATUS_OPTIONS]}
-              onChange={(val) => setStatusFilter(val as any)}
-              openAlign={"right"}
-            />
-          </div>
-        </div>
-      </div>
-
-      <DottedDivider className="lg:hidden" />
-
-      {activeTab === "Booking" ? (
-        <div className="flex flex-col gap-4">
-          {/* Desktop View */}
-          <div className="hidden lg:block">
-            <LeadsTable
-              data={displayLeads}
-              loading={leadsIsLoading}
-              isFetching={leadsIsFetching}
-              currentPage={leadsCurrentPage}
-              totalPages={leadsTotalPages}
-              totalRecords={leadsTotalRecords}
-              limit={leadsLimit}
-              onPageChange={(page) => setLeadsCurrentPage(page)}
-              onRowClick={handleRowClick}
-              onOpenMenu={handleOpenMenu}
-            />
-          </div>
-
-          {/* Mobile View */}
-          <div className="lg:hidden flex flex-col gap-2">
-            {displayLeads.map((lead) => (
-              <MobileLeadRow
-                key={lead.lead_id}
-                lead={lead}
-                onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
+        {activeTab === "Booking" ? (
+          <div className="flex flex-col gap-4">
+            {/* Desktop View */}
+            <div className="hidden lg:block">
+              <LeadsTable
+                data={displayLeads}
+                loading={leadsIsLoading}
+                isFetching={leadsIsFetching}
+                currentPage={leadsCurrentPage}
+                totalPages={leadsTotalPages}
+                totalRecords={leadsTotalRecords}
+                limit={leadsLimit}
+                onPageChange={(page) => setLeadsCurrentPage(page)}
+                onRowClick={handleRowClick}
+                onOpenMenu={handleOpenMenu}
               />
-            ))}
+            </div>
+
+            {/* Mobile View */}
+            <div className="lg:hidden flex flex-col gap-2">
+              {displayLeads.map((lead) => (
+                <MobileLeadRow
+                  key={lead.lead_id}
+                  lead={lead}
+                  onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ) : (
-        <UsersTable<UserData>
-          data={users}
-          loading={usersLoading}
-          currentPage={usersCurrentPage}
-          totalPages={usersTotalPages}
-          totalRecords={usersTotalRecords}
-          limit={usersLimit}
-          headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
-          onPageChange={(page) => setUsersCurrentPage(page)}
-          renderRow={(user) => (
-            <tr
-              key={user.id}
-              className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
-              onClick={() => handleUserRowClick(user)}
-            >
-              {/* User ID */}
-              <td className="py-5 px-6 text-[#888] text-[14px]">{user.id}</td>
+        ) : (
+          <UsersTable<UserData>
+            data={users}
+            loading={usersLoading}
+            currentPage={usersCurrentPage}
+            totalPages={usersTotalPages}
+            totalRecords={usersTotalRecords}
+            limit={usersLimit}
+            headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
+            onPageChange={(page) => setUsersCurrentPage(page)}
+            renderRow={(user) => (
+              <tr
+                key={user.id}
+                className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
+                onClick={() => handleUserRowClick(user)}
+              >
+                {/* User ID */}
+                <td className="py-5 px-6 text-[#888] text-[14px]">{user.id}</td>
 
-              {/* User Info */}
-              <td className="py-5 px-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-sm">
-                    {user.imageUrl ? (
-                      <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover rounded-lg" />
-                    ) : (
-                      <span>{user.initials}</span>
-                    )}
+                {/* User Info */}
+                <td className="py-5 px-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-sm">
+                      {user.imageUrl ? (
+                        <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <span>{user.initials}</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
+                      <p className="text-[#666666] text-xs mt-0.5">{user.date}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                    <p className="text-[#666666] text-xs mt-0.5">{user.date}</p>
-                  </div>
-                </div>
-              </td>
+                </td>
 
-              {/* Type */}
-              <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">{user.type}</td>
+                {/* Type */}
+                <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">{user.type}</td>
 
-              {/* Intent */}
-              <td className="py-5 px-6">
-                {/* update once data is available */}
-                <IntentBadge intent={"Warm"} />
-              </td>
+                {/* Intent */}
+                <td className="py-5 px-6">
+                  {/* update once data is available */}
+                  <IntentBadge intent={"Warm"} />
+                </td>
 
-              {/* Status */}
-              <td className="py-5 px-6">
-                {/* <StatusBadge status={user.status} /> */}
-                <LeadsStatusBadge status={"Booking In Progress"} />
-              </td>
+                {/* Status */}
+                <td className="py-5 px-6">
+                  {/* <StatusBadge status={user.status} /> */}
+                  <LeadsStatusBadge status={"Booking In Progress"} />
+                </td>
 
-              {/* Contact Info */}
-              <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">
-                {user.phoneNumber}
-              </td>
+                {/* Contact Info */}
+                <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">
+                  {user.phoneNumber}
+                </td>
 
-              {/* Action */}
-              <td className="py-5 px-6 text-right">
-                {/* <button className="text-[#666] hover:text-white transition-colors p-1" onClick={(e) =>handleOpenMenu(e, lead.clientName, lead.lead_id)}>
+                {/* Action */}
+                <td className="py-5 px-6 text-right">
+                  {/* <button className="text-[#666] hover:text-white transition-colors p-1" onClick={(e) =>handleOpenMenu(e, lead.clientName, lead.lead_id)}>
                   <MoreVertical size={20} />
                 </button> */}
-                <button
-                  className="text-[#666] hover:text-white transition-colors p-1"
-                  onClick={(e) => {
-                    // Extract numeric/string ID without the '#' prefix
-                    const rawId = user.id.replace('#', '');
-                    handleOpenMenu(e, user.name, rawId as any);
-                  }}
-                >
-                  <MoreVertical size={20} />
-                </button>
-              </td>
-            </tr>
-          )}
-          renderMobileDetails={(user) => (
-            <div className="p-4 grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-white/40 text-[10px] uppercase">Email</p>
-                <p className="text-white text-sm truncate">{user.email}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-white/40 text-[10px] uppercase">Type</p>
-                <p className="text-white text-sm">{user.type}</p>
-              </div>
-              <div className="">
-                <p className="text-white/40 text-[10px] uppercase">Intent</p>
+                  <button
+                    className="text-[#666] hover:text-white transition-colors p-1"
+                    onClick={(e) => {
+                      // Extract numeric/string ID without the '#' prefix
+                      const rawId = user.id.replace('#', '');
+                      handleOpenMenu(e, user.name, rawId as any);
+                    }}
+                  >
+                    <MoreVertical size={20} />
+                  </button>
+                </td>
+              </tr>
+            )}
+            renderMobileDetails={(user) => (
+              <div className="p-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-white/40 text-[10px] uppercase">Email</p>
+                  <p className="text-white text-sm truncate">{user.email}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-white/40 text-[10px] uppercase">Type</p>
+                  <p className="text-white text-sm">{user.type}</p>
+                </div>
                 <div className="">
-                  <IntentBadge intent="Hot" size="sm" />
+                  <p className="text-white/40 text-[10px] uppercase">Intent</p>
+                  <div className="">
+                    <IntentBadge intent="Hot" size="sm" />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white/40 text-[10px] uppercase">Contact Info</p>
+                  <p className="text-white text-sm">{user.phoneNumber}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-white/40 text-[10px] uppercase">Contact Info</p>
-                <p className="text-white text-sm">{user.phoneNumber}</p>
-              </div>
-            </div>
-          )}
-        />
-      )}
+            )}
+          />
+        )}
 
-      {/* {menuAnchor && selectedLeadId && (
+        {/* {menuAnchor && selectedLeadId && (
         <ActionMenu
           client={selectedClient}
           leadId={selectedLeadId}
@@ -585,23 +585,23 @@ export default function SalesLeadsPage() {
         />
       )} */}
 
-      {menuAnchor && selectedLeadId && (
-        <ActionMenu
-          client={selectedClient}
-          leadId={selectedLeadId as number}
-          isOpen={true}
-          onClose={() => setMenuAnchor(null)}
-          anchor={menuAnchor as { x: number; y: number }}
-          // basePath="/sales/leads"
-          basePath={
-            activeTab === "Client"
-              ? "/sales/client"
-              : activeTab === "Creative Partner"
-                ? "/sales/creative-partner" // Adjust if CP has a different path
-                : "/sales/leads" // Defaults to current pathname in ActionMenu for "Booking" tab
-          }
-        />
-      )}
+        {menuAnchor && selectedLeadId && (
+          <ActionMenu
+            client={selectedClient}
+            leadId={selectedLeadId as number}
+            isOpen={true}
+            onClose={() => setMenuAnchor(null)}
+            anchor={menuAnchor as { x: number; y: number }}
+            // basePath="/sales/leads"
+            basePath={
+              activeTab === "Client"
+                ? "/sales/client"
+                : activeTab === "Creative Partner"
+                  ? "/sales/creative-partner" // Adjust if CP has a different path
+                  : "/sales/leads" // Defaults to current pathname in ActionMenu for "Booking" tab
+            }
+          />
+        )}
       </div>
     </>
   );

@@ -16,17 +16,20 @@ const CREATIVES = [
 export const CreativeProfileSelectorAdd = ({
     selectedIds: externalSelectedIds,
     onChange,
+    onSelectionUpdate,
     leadId,
-    currentLocation, 
-    targets          
+    currentLocation,
+    targets
 }: {
     selectedIds?: number[],
     onChange?: (ids: number[]) => void,
+    onSelectionUpdate?: (counts: { videographer: number, photographer: number }) => void,
     leadId?: number | string,
     currentLocation?: string,
     targets?: { videographer: number, photographer: number }
 } = {}) => {
     const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
+    const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({});
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [stats, setStats] = useState<any>(null);
     const [creatives, setCreatives] = useState<any[]>([]);
@@ -97,7 +100,7 @@ export const CreativeProfileSelectorAdd = ({
                         specialities: item.role || "Creative",
                         availability: item.availability || "Available",
                         // Map the profile photo from API
-                        profile_photo: item.profile_photo, 
+                        profile_photo: item.profile_photo,
                         ...item
                     }));
                     setCreatives(formattedCreatives);
@@ -117,16 +120,26 @@ export const CreativeProfileSelectorAdd = ({
 
     const selectedIds = externalSelectedIds || internalSelectedIds;
 
-    // Helper to count how many of the selected IDs belong to the current role type
-    // This looks at the 'creatives' currently loaded to check their roles
-    const currentSelectionCount = useMemo(() => {
-        return creatives.filter(c => 
-            selectedIds.includes(c.id) && 
-            c.specialities.toLowerCase().includes(roleType === 'videographer' ? 'video' : 'photo')
-        ).length;
-    }, [selectedIds, creatives, roleType]);
+    // Calculate counts for both roles
+    const counts = useMemo(() => {
+        const vCount = selectedIds.filter(id => selectedRoles[id]?.toLowerCase().includes('video')).length;
+        const pCount = selectedIds.filter(id => selectedRoles[id]?.toLowerCase().includes('photo')).length;
+        return { videographer: vCount, photographer: pCount };
+    }, [selectedIds, selectedRoles]);
+
+    // Notify parent of count updates
+    useEffect(() => {
+        if (onSelectionUpdate) {
+            onSelectionUpdate(counts);
+        }
+    }, [counts, onSelectionUpdate]);
 
     const toggleSelection = (id: number) => {
+        const creative = creatives.find(c => c.id === id);
+        if (!selectedIds.includes(id) && creative) {
+            setSelectedRoles(prev => ({ ...prev, [id]: creative.specialities }));
+        }
+
         const nextIds = selectedIds.includes(id)
             ? selectedIds.filter(item => item !== id)
             : [...selectedIds, id];
@@ -151,7 +164,7 @@ export const CreativeProfileSelectorAdd = ({
                     >
                         <Video size={16} />
                         <span>
-                            Videographer(s) : {roleType === 'videographer' ? currentSelectionCount : (stats?.fulfillment_stats?.videographer?.split('/')[0] || 0)}/{targets?.videographer || stats?.fulfillment_stats?.videographer?.split('/')[1] || '0'}
+                            Videographer(s) : {counts.videographer}/{targets?.videographer || stats?.fulfillment_stats?.videographer?.split('/')[1] || '0'}
                         </span>
                     </div>
                     <div
@@ -160,7 +173,7 @@ export const CreativeProfileSelectorAdd = ({
                     >
                         <Camera size={16} />
                         <span>
-                            Photographers(s) : {roleType === 'photographer' ? currentSelectionCount : (stats?.fulfillment_stats?.photographer?.split('/')[0] || 0)}/{targets?.photographer || stats?.fulfillment_stats?.photographer?.split('/')[1] || '0'}
+                            Photographers(s) : {counts.photographer}/{targets?.photographer || stats?.fulfillment_stats?.photographer?.split('/')[1] || '0'}
                         </span>
                     </div>
                 </div>
@@ -231,18 +244,17 @@ const CreativeCard = ({ creative, isSelected, onToggle }: any) => {
             }`}
         >
             {/* Profile Image */}
-            <div className="relative w-20 h-20 lg:w-[146px] lg:h-[156px] flex-shrink-0 transition-transform duration-300">
-                <img
-                    // Using the API profile photo if available, fallback to mock
-                    src={creative.profile_photo || "/images/crew/CREW(6).png"}
-                    alt={creative.name}
-                    className={`w-full h-full object-cover rounded-lg transition-all duration-500 ${
-                        !isSelected ? 'grayscale opacity-60' : 'grayscale-0 opacity-100'
-                    }`}
-                />
-                {/* Subtle inner ring on image when selected */}
-                {isSelected && (
-                    <div className="absolute inset-0 rounded-lg ring-2 ring-[#E8D1AB]/20" />
+            <div className="relative w-20 h-25 lg:w-[146px] lg:h-[156px] flex-shrink-0">
+                {creative.profile_photo ? (
+                    <img
+                        src={`https://beigexmemehouse.s3.amazonaws.com/beige/${creative.profile_photo}`}
+                        alt={creative.name}
+                        className="w-full h-full object-cover rounded-lg"
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-[#E8D1AB] rounded-lg text-black text-2xl lg:text-4xl font-bold">
+                        {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                    </div>
                 )}
             </div>
 

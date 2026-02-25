@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, Image as ImageIcon } from "lucide-react";
+import { Plus, X, Image as ImageIcon, Pencil } from "lucide-react";
 import FeaturedWorkModal from "./FeaturedWorkModal";
 import { toast } from "sonner";
 
@@ -24,6 +24,7 @@ export type FeaturedWorkItem = {
 type FeaturedWorkProps = {
   value?: FeaturedWorkItem[];
   onChange?: (items: FeaturedWorkItem[]) => void;
+  darkTheme?: boolean;
 };
 
 const MAX_PROJECTS = 5;
@@ -31,6 +32,7 @@ const MAX_PROJECTS = 5;
 const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
   const [items, setItems] = useState<FeaturedWorkItem[]>(Array.isArray(value) ? value : []);
   const [openModal, setOpenModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<FeaturedWorkItem | null>(null);
 
   useEffect(() => {
     setItems(Array.isArray(value) ? value : []);
@@ -41,13 +43,25 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
       toast.error(`You have reached the limit of ${MAX_PROJECTS} projects.`);
       return;
     }
+    setEditingItem(null);
     setOpenModal(true);
   };
 
-  const handleAdd = (item: FeaturedWorkItem) => {
-    const next = [...items, item];
+  const handleEdit = (item: FeaturedWorkItem) => {
+    setEditingItem(item);
+    setOpenModal(true);
+  };
+
+  const handleAddOrUpdate = (item: FeaturedWorkItem) => {
+    let next;
+    if (editingItem) {
+      next = items.map((it) => (it.id === item.id ? item : it));
+    } else {
+      next = [...items, item];
+    }
     setItems(next);
     onChange && onChange(next);
+    setEditingItem(null);
   };
 
   const handleRemove = (id: number) => {
@@ -150,17 +164,29 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
                     </div>
                   )}
 
-                  {/* Remove button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemove(it.id);
-                    }}
-                    className="absolute top-3 right-3 bg-black/60 hover:bg-red-500 text-white rounded-full p-2 z-50 transition-colors backdrop-blur-sm"
-                    aria-label="Remove"
-                  >
-                    <X size={16} />
-                  </button>
+                  {/* Action buttons */}
+                  <div className="absolute top-3 right-3 flex gap-2 z-50">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(it);
+                      }}
+                      className="bg-black/60 hover:bg-[#E8D1AB] hover:text-black text-white rounded-full p-2 transition-colors backdrop-blur-sm"
+                      aria-label="Edit"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemove(it.id);
+                      }}
+                      className="bg-black/60 hover:bg-red-500 text-white rounded-full p-2 transition-colors backdrop-blur-sm"
+                      aria-label="Remove"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Content section */}
@@ -188,8 +214,12 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
 
       <FeaturedWorkModal
         open={openModal}
-        onClose={() => setOpenModal(false)}
-        onAdd={handleAdd}
+        editItem={editingItem}
+        onClose={() => {
+          setOpenModal(false);
+          setEditingItem(null);
+        }}
+        onAdd={handleAddOrUpdate}
       />
     </div>
   );

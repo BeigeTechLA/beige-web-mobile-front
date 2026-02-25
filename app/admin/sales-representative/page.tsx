@@ -100,10 +100,10 @@ const initialMetrics = [
 ];
 
 const OverviewFilters = [
-  "All time",
+  "All Time",
   "Month",
   "Week",
-]
+];
 
 const tabs: { label: string; value: TabType }[] = [
   { label: "Booking Leads", value: "Booking" },
@@ -157,7 +157,8 @@ export default function AdminSaleRepManagerPage() {
   const [activeMetric, setActiveMetric] = useState('total_active');
   const [isLoading, setIsLoading] = useState(false);
 
-  const [range, setRange] = useState('all');
+  const [range, setRange] = useState('All Time');
+  const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
   const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
 
@@ -256,12 +257,12 @@ export default function AdminSaleRepManagerPage() {
   // Smooth transition effect for Leads
   useEffect(() => {
     if (leadsApiData?.leads) {
-      const mapped = (leadsApiData.leads || []).map((lead: any) => ({
+      const mapped: LeadData[] = (leadsApiData.leads || []).map((lead: any) => ({
         lead_id: lead.lead_id,
         clientName: lead.client_name || lead.guest_email || "Unknown User",
         email: lead.guest_email || "No email",
-        leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
-        bookingStatus: mapLeadStatusToUI(lead.payment_status),
+        leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
+        bookingStatus: lead.booking_status || "Unknown",
         lastActivity: formatRelativeTime(lead.last_activity_at),
         date: new Date(lead.created_at),
         intent: lead.intent || "Hot",
@@ -278,16 +279,16 @@ export default function AdminSaleRepManagerPage() {
   };
 
   const handleUserRowClick = (user: UserData) => {
-  // Strip the '#' from the ID if it exists
-  const rawId = user.id.replace('#', '');
-  
-  // Determine path based on active tab
-  const basePath = activeTab === "Client" 
-    ? "/admin/sales-representative/client" 
-    : "/admin/sales-representative/creative-partner";
-    
-  router.push(`${basePath}/${rawId}`);
-};
+    // Strip the '#' from the ID if it exists
+    const rawId = user.id.replace('#', '');
+
+    // Determine path based on active tab
+    const basePath = activeTab === "Client"
+      ? "/admin/sales-representative/client"
+      : "/admin/sales-representative/creative-partner";
+
+    router.push(`${basePath}/${rawId}`);
+  };
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -314,11 +315,11 @@ export default function AdminSaleRepManagerPage() {
 
   const getGrowthLabel = () => {
     switch (range) {
-      case 'week': return 'from last week';
-      case 'month': return 'from last month';
-      case 'all': return 'all time';
-      case 'custom': return 'in selected range';
-      default: return 'from last month';
+      case 'Week': return 'from last week';
+      case 'Month': return 'from last month';
+      case 'All Time': return 'all time';
+      case 'Custom': return 'in selected range';
+      default: return 'all time';
     }
   };
 
@@ -395,9 +396,9 @@ export default function AdminSaleRepManagerPage() {
             <div className="flex flex-wrap gap-2 lg:gap-4">
               <BasicDropdown
                 label="Lead Type"
-                value={range} // Update state as required
+                value={leadTypeFilter}
                 options={["All Leads", "Self-Serve", "Sales Assisted"]}
-                onChange={(val) => console.log("Lead Type:", val)}
+                onChange={(val) => setLeadTypeFilter(val)}
               />
               {/* 2. Intent Type Dropdown */}
               <BasicDropdown
@@ -480,7 +481,7 @@ export default function AdminSaleRepManagerPage() {
                     </div>
                     <div>
                       <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                      <p className="text-[#666666] text-xs mt-0.5">{user.date}</p>
+                      <p className="text-[#666666] text-xs mt-0.5">{user.joinDate}</p>
                     </div>
                   </div>
                 </td>
@@ -561,7 +562,7 @@ export default function AdminSaleRepManagerPage() {
         {menuAnchor && selectedLeadId && (
           <ActionMenu
             client={selectedClient}
-            leadId={selectedLeadId}
+            leadId={selectedLeadId as number}
             isOpen={true}
             onClose={() => setMenuAnchor(null)}
             anchor={menuAnchor}
