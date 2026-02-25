@@ -2,22 +2,34 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import {
+  Search,
+  Filter,
+  Star,
+  Clock,
   MapPin,
-  Linkedin,
-  Globe,
+  Calendar,
+  ChevronRight,
+  ChevronLeft,
+  Edit,
   Edit3,
-  Image as ImageIcon,
+  Camera,
   Play,
-  Plus,
-  X,
-  Eye,
   FileText,
+  Plus,
   Trash2,
+  X,
+  PlusCircle,
+  Video,
+  ExternalLink,
+  Navigation,
+  Globe,
+  Settings,
+  Pencil,
+  Image as ImageIcon,
+  Linkedin,
+  Eye,
   CheckCircle,
   Phone,
-  Navigation,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
   EyeOff
 } from "lucide-react";
@@ -31,9 +43,10 @@ import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";
 import PersonalInfoForm from "@/src/components/cpSignup/PersonalInfoForm";
 import ProfessionalInfoForm from "@/src/components/cpSignup/ProfessionalInfoForm";
 import SkillsForm from "@/src/components/cpSignup/SkillsForm";
-import { GetMyProfile, EditMyProfile, UploadProfileFile, DeleteProfileFile } from "@/lib/api";
-import { SOCIAL_ICONS } from "@/app/data/staticData";
+import { GetMyProfile, EditMyProfile, UploadProfileFile, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink } from "@/lib/api";
+import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DeleteConfirmationModal from "@/src/components/cpSignup/DeleteConfirmationModal";
+import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
 
 // --- CONSTANTS ---
 const S3_BASE_URL = "https://beigexmemehouse.s3.amazonaws.com/beige/";
@@ -140,6 +153,8 @@ export default function ProfilePage() {
   const [isPageLoading, setIsPageLoading] = useState(false);
 
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false);
+  const [isPortfolioLinksModalOpen, setIsPortfolioLinksModalOpen] = useState(false);
+  const [editingPortfolioLinks, setEditingPortfolioLinks] = useState<any[]>([]);
   // const [socialLinks, setSocialLinks] = useState([]);
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
   const [isEditingSkills, setIsEditingSkills] = useState(false);
@@ -186,7 +201,7 @@ export default function ProfilePage() {
     crew_member_files: []
   });
 
-  const tabs = ["Overview", "Featured Work", "Certificates", "Resume"];
+  const tabs = ["Overview", "Featured Work", "Certificates", "Resume", "Portfolio Links"];
 
   useEffect(() => {
     const userStr = localStorage.getItem("revure_user");
@@ -274,49 +289,49 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-  if (profile.social_media_links) {
-    try {
-      let linksObj = profile.social_media_links;
+    if (profile.social_media_links) {
+      try {
+        let linksObj = profile.social_media_links;
 
-      if (typeof linksObj === 'string') {
-        linksObj = JSON.parse(linksObj);
         if (typeof linksObj === 'string') {
           linksObj = JSON.parse(linksObj);
+          if (typeof linksObj === 'string') {
+            linksObj = JSON.parse(linksObj);
+          }
         }
-      }
 
-      if (linksObj && typeof linksObj === 'object') {
-        const formattedLinks = Object.entries(linksObj)
-          .filter(([_, url]) => url && String(url).trim() !== "")
-          .map(([platform, url], index) => {
-            const platformInfo = SOCIAL_ICONS.find(i => i.id === platform.toLowerCase());
-            return {
-              id: index,
-              platform: platform,
-              url: url as string,
-              name: platformInfo?.label || platform
-            };
-          });
-        setSocialLinks(formattedLinks);
-      } else {
+        if (linksObj && typeof linksObj === 'object') {
+          const formattedLinks = Object.entries(linksObj)
+            .filter(([_, url]) => url && String(url).trim() !== "")
+            .map(([platform, url], index) => {
+              const platformInfo = SOCIAL_ICONS.find(i => i.id === platform.toLowerCase());
+              return {
+                id: index,
+                platform: platform,
+                url: url as string,
+                name: platformInfo?.label || platform
+              };
+            });
+          setSocialLinks(formattedLinks);
+        } else {
+          setSocialLinks([]);
+        }
+      } catch (e) {
+        console.error("Error parsing social links:", e);
         setSocialLinks([]);
       }
-    } catch (e) {
-      console.error("Error parsing social links:", e);
+    } else {
       setSocialLinks([]);
     }
-  } else {
-    setSocialLinks([]);
-  }
-}, [profile.social_media_links]);
+  }, [profile.social_media_links]);
 
-const formatExternalUrl = (url: string) => {
-  if (!url) return "#";
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    return url;
-  }
-  return `https://${url}`;
-};
+  const formatExternalUrl = (url: string) => {
+    if (!url) return "#";
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    return `https://${url}`;
+  };
 
 
   const handleSaveProfessionalInfo = async () => {
@@ -398,7 +413,7 @@ const formatExternalUrl = (url: string) => {
     };
 
     try {
-      const response = await EditMyProfile(payload);
+      const response: any = await EditMyProfile(payload);
       if (response.data && response.data.error === false) {
         setSocialLinks(updatedLinksArray);
         setIsSocialLinksModalOpen(false);
@@ -423,7 +438,7 @@ const formatExternalUrl = (url: string) => {
     try {
       setIsPageLoading(true);
       // Calling API with "resume" file_type
-      const response = await UploadProfileFile(
+      const response: any = await UploadProfileFile(
         "resume",
         [file], // Send as array
         crewMemberId
@@ -538,7 +553,7 @@ const formatExternalUrl = (url: string) => {
 
       const filesArray = Array.from(selectedFiles);
 
-      const response = await UploadProfileFile(
+      const response: any = await UploadProfileFile(
         "certifications",
         filesArray,
         crewMemberId
@@ -614,6 +629,72 @@ const formatExternalUrl = (url: string) => {
       }
       return acc;
     }, []);
+
+  const handleAddPortfolioLinks = async (updatedLinks: any[]) => {
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
+
+    if (!crewMemberId) return;
+
+    try {
+      setIsPageLoading(true);
+
+      // We need to identify which links are new and which are updated
+      // Existing links have crew_files_id (passed as id in the modal)
+      // New links have a temporary id (Date.now())
+
+      const existingLinks = profile.crew_member_files?.filter(
+        (f: any) => f.file_type === "link"
+      ) || [];
+
+      const newLinks = updatedLinks.filter(l => !existingLinks.find(ex => ex.crew_files_id === l.id));
+      const updatedExistingLinks = updatedLinks.filter(l => existingLinks.find(ex => ex.crew_files_id === l.id));
+
+      const editPromises = updatedExistingLinks.map(async (l) => {
+        const existing = existingLinks.find(ex => ex.crew_files_id === l.id);
+        if (existing && (existing.file_path !== l.url || existing.tag !== l.platform)) {
+          return EditPortfolioLink(existing.crew_files_id, {
+            crew_member_id: parseInt(crewMemberId),
+            url: l.url,
+            platform: l.platform,
+            title: l.name || "Portfolio Link"
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      // Handle bulk add for new links
+      let addPromise = Promise.resolve(null);
+      if (newLinks.length > 0) {
+        addPromise = AddPortfolioLinks({
+          crew_member_id: parseInt(crewMemberId),
+          portfolio_links: newLinks.map(l => ({
+            url: l.url,
+            platform: l.platform
+          }))
+        }) as any;
+      }
+
+      // Also handle deletions if any links were removed IN THE MODAL
+      const deletedPromises = existingLinks
+        .filter(ex => !updatedLinks.find(l => l.id === ex.crew_files_id))
+        .map(ex => DeleteProfileFile(ex.crew_files_id, { crew_member_id: parseInt(crewMemberId) }));
+
+      await Promise.all([...editPromises, addPromise, ...deletedPromises]);
+
+      setIsPortfolioLinksModalOpen(false);
+      // Refresh profile
+      const updatedProfile = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
+      if (updatedProfile.data) {
+        setProfile(updatedProfile.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to update portfolio links:", err);
+    } finally {
+      setIsPageLoading(false);
+    }
+  };
 
   // State for Lightbox Viewer
   const [lightboxData, setLightboxData] = useState<{ isOpen: boolean; project: any; index: number }>({
@@ -1149,6 +1230,122 @@ const formatExternalUrl = (url: string) => {
               })()}
             </div>
           )}
+
+          {/* PORTFOLIO TAB */}
+          {activeTab === "Portfolio Links" && (
+            <div className="animate-in fade-in duration-500">
+              {(() => {
+                const portfolioLinks = profile.crew_member_files?.filter(
+                  (f: any) => f.file_type === "link"
+                ) || [];
+
+                if (portfolioLinks.length === 0) {
+                  return (
+                    <TabEmptyState
+                      title="Showcase your portfolio links"
+                      description="Add your YouTube, Vimeo, or Google Drive links to showcase your work."
+                      buttonText="Add Portfolio Link"
+                      footerText="Links will be displayed on your public profile."
+                      onClick={() => {
+                        setEditingPortfolioLinks([]);
+                        setIsPortfolioLinksModalOpen(true);
+                      }}
+                    />
+                  );
+                }
+
+                return (
+                  <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl p-4 lg:p-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* ADD CARD */}
+                      <div
+                        onClick={() => {
+                          // Prepare existing links for the modal
+                          const mappedLinks = portfolioLinks.map((l: any) => ({
+                            id: l.crew_files_id,
+                            url: l.file_path,
+                            platform: l.tag,
+                            name: PORTFOLIO_ICONS.find(p => p.id === l.tag)?.label || l.tag
+                          }));
+                          setEditingPortfolioLinks(mappedLinks);
+                          setIsPortfolioLinksModalOpen(true);
+                        }}
+                        className="border-2 border-dashed border-white/10 rounded-lg lg:rounded-2xl h-[220px] lg:h-auto min-h-[220px] flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] hover:border-[#E8D1AB]/40 cursor-pointer transition-all group"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                          <Plus size={20} className="text-[#E8D1AB]" />
+                        </div>
+                        <p className="text-sm font-bold text-white mb-1">Add Portfolio Link</p>
+                        <p className="text-[10px] text-white/40 text-center px-6">Share your external work links here.</p>
+                      </div>
+
+                      {portfolioLinks.map((link: any, index: number) => {
+                        const platform = PORTFOLIO_ICONS.find((p) => p.id === link.tag);
+                        return (
+                          <div
+                            key={link.crew_files_id || index}
+                            className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-4 group hover:border-white/20 transition-all shadow-xl"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
+                                {platform?.icon ? (
+                                  <platform.icon size={24} className="text-[#E8D1AB]" />
+                                ) : (
+                                  <Globe size={24} className="text-[#E8D1AB]" />
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    const mappedLinks = portfolioLinks.map((l: any) => ({
+                                      id: l.crew_files_id,
+                                      url: l.file_path,
+                                      platform: l.tag,
+                                      name: PORTFOLIO_ICONS.find(p => p.id === l.tag)?.label || l.tag
+                                    }));
+                                    setEditingPortfolioLinks(mappedLinks);
+                                    setIsPortfolioLinksModalOpen(true);
+                                  }}
+                                  className="p-2 text-white/20 hover:text-[#E8D1AB] hover:bg-white/5 rounded-lg transition-all"
+                                  title="Edit Link"
+                                >
+                                  <Pencil size={18} />
+                                </button>
+                                <button
+                                  onClick={() => confirmDelete('file', link)}
+                                  className="p-2 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                  title="Delete Link"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <p className="text-sm font-bold text-white uppercase tracking-wider">
+                                {platform?.label || "Portfolio Link"}
+                              </p>
+                              <p className="text-xs text-white/40 truncate">
+                                {link.file_path}
+                              </p>
+                            </div>
+
+                            <button
+                              onClick={() => window.open(formatExternalUrl(link.file_path), '_blank')}
+                              className="w-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
+                            >
+                              View Portfolio
+                              <Navigation size={14} className="group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
           {/* EQUIPMENTS TAB */}
           {activeTab === "Equipments" && (
             <div className="animate-in fade-in duration-500">
@@ -1286,6 +1483,12 @@ const formatExternalUrl = (url: string) => {
         onClose={() => setIsSocialLinksModalOpen(false)}
         links={socialLinks}
         onChange={handleSaveSocialLinks} // Pass the API handler here
+      />
+      <PortfolioLinksModal
+        open={isPortfolioLinksModalOpen}
+        onClose={() => setIsPortfolioLinksModalOpen(false)}
+        links={editingPortfolioLinks}
+        onChange={handleAddPortfolioLinks}
       />
       <DeleteConfirmationModal
         isOpen={deleteModal.isOpen}

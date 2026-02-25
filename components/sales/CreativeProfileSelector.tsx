@@ -223,11 +223,17 @@ const CreativeCard = ({ creative, isSelected, onToggle }: CreativeCardProps) => 
         }`}
     >
       <div className="relative w-20 h-25 lg:w-[146px] lg:h-[156px] flex-shrink-0">
-        <img
-          src={creative.profile_image || "/images/crew/CREW(6).png"}
-          alt={creative.name}
-          className={`w-full h-full object-cover rounded-lg transition-all ${!isSelected ? 'grayscale' : ''}`}
-        />
+        {creative.profile_image ? (
+          <img
+            src={creative.profile_image.startsWith('http') ? creative.profile_image : `https://beigexmemehouse.s3.amazonaws.com/beige/${creative.profile_image}`}
+            alt={creative.name}
+            className={`w-full h-full object-cover rounded-lg transition-all ${!isSelected ? 'grayscale' : ''}`}
+          />
+        ) : (
+          <div className={`w-full h-full flex items-center justify-center bg-[#E8D1AB] rounded-lg text-black text-2xl lg:text-4xl font-bold transition-all ${!isSelected ? 'grayscale' : ''}`}>
+            {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 w-full">

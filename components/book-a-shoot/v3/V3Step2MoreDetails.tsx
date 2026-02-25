@@ -68,7 +68,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     return role ? { ...role, count: 1 } : null;
   }).filter(Boolean);
 
-  const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
+  // const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
+  const [extraTeam, setExtraTeam] = useState<Record<string, number>>(data.extraRoleSelections || {});
   const [errors, setErrors] = useState<string[]>([]);
 
   const [updateBookingCrew] = useUpdateBookingCrewMutation();
@@ -91,6 +92,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     const extraCount = Object.values(nextExtra).reduce((a, b) => a + b, 0);
 
     updateData({
+      extraRoleSelections: nextExtra,
       teamIncluded: summary,
       crewCount: baseCount + extraCount
     });
@@ -121,6 +123,16 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       booking_form_fields: formFields
     });
   }, [])
+    
+  const handleRemoveAllExtra = () => {
+    updateData({ 
+        addTeamMembers: false,
+        extraRoleSelections: {}, // Clear persisted counts
+        teamIncluded: [] 
+    });
+    setExtraTeam({}); // Clear local UI state
+    scrollToRef(locationRef);
+  };
 
   // Ensure crewCount is accurate on mount/updates even if no extra team added
   useEffect(() => {
@@ -351,6 +363,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
             </button>
             <button
               onClick={() => {
+                {handleRemoveAllExtra}
                 updateData({ addTeamMembers: false });
                 setExtraTeam({});
                 updateData({ teamIncluded: [] });

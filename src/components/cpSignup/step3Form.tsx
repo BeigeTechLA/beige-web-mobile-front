@@ -8,17 +8,20 @@ import AddCertification from "./AddCertification";
 import FeaturedWork from "./FeaturedWork";
 import SocialLinksModal from "./SocialLinksModal";
 import UploadResumePortfolio from "./UploadResumePortfolio";
-import { SOCIAL_ICONS } from "@/app/data/staticData";
+import PortfolioLinksModal from "./PortfolioLinksModal";
+import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import { useRegisterCreatorStep3Mutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
 import { pushToDataLayer } from "@/lib/gtm";
 
-export default function Step3Form({ data, setData, nextStep, prevStep }) {
+export default function Step3Form({ data, setData, nextStep, prevStep }: { data: any, setData: any, nextStep: () => void, prevStep: () => void }) {
   const [registerStep3, { isLoading }] = useRegisterCreatorStep3Mutation();
 
   const [featuredWork, setFeaturedWork] = useState(data.featuredWork || []);
   const [links, setLinks] = useState(data.links || []);
+  const [portfolioLinks, setPortfolioLinks] = useState(data.portfolioLinks || []);
   const [socialModalOpen, setSocialModalOpen] = useState(false);
+  const [portfolioModalOpen, setPortfolioModalOpen] = useState(false);
   const [resume, setResume] = useState(data.resume || null);
   const [portfolio, setPortfolio] = useState(data.portfolio || null);
 
@@ -29,10 +32,11 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
       ...prev,
       featuredWork,
       links,
+      portfolioLinks,
       resume,
       portfolio,
     }));
-  }, [featuredWork, links, resume, portfolio, setData]);
+  }, [featuredWork, links, portfolioLinks, resume, portfolio, setData]);
 
   const handleSubmit = async () => {
     if (!links || links.length === 0) {
@@ -44,6 +48,19 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
     if (!featuredWork || featuredWork.length === 0) {
       toast.error("Required Field", {
         description: "Please add at least one item to your Featured Work."
+      });
+      return;
+    }
+
+    // Check for minimum 5 images across all featured work
+    const totalImages = featuredWork.reduce((acc, item) => {
+      const imagesCount = item.files?.length || 0;
+      return acc + imagesCount;
+    }, 0);
+
+    if (totalImages < 5) {
+      toast.error("Image Requirement", {
+        description: `Please upload at least 5 images of your work. Currently: ${totalImages}`
       });
       return;
     }
@@ -94,17 +111,23 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
         }
       });
 
-      const workMetadata = featuredWork.map(item => ({
+      const workMetadata = featuredWork.map((item: any) => ({
         title: item.title,
         tags: item.tags || []
       }));
       formData.append("work_details", JSON.stringify(workMetadata));
 
-      const socialLinksPayload = {};
-      links.forEach((l) => {
+      const socialLinksPayload: any = {};
+      links.forEach((l: any) => {
         if (l.platform && l.url) socialLinksPayload[l.platform] = l.url;
       });
       formData.append("social_media_links", JSON.stringify(socialLinksPayload));
+
+      const portfolioLinksPayload = portfolioLinks.map((l: any) => ({
+        url: l.url,
+        platform: l.platform
+      }));
+      formData.append("portfolio_links", JSON.stringify(portfolioLinksPayload));
 
       // API CALL
       await registerStep3(formData).unwrap();
@@ -140,6 +163,10 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
     setLinks((prev) => prev.filter((l) => l.id !== id));
   };
 
+  const deletePortfolioLink = (id) => {
+    setPortfolioLinks((prev) => prev.filter((l) => l.id !== id));
+  };
+
   return (
     <div className="space-y-8 bg-[#101010] text-white pt-4 lg:p-2 relative z-10">
       <form className="space-y-6 lg:space-y-9 lg:mt-14" onSubmit={(e) => e.preventDefault()}>
@@ -171,6 +198,32 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
             {links.length === 0 && (
               <p className="text-xs mt-1">At least one link is required to proceed.</p>
             )}
+          </div>
+        </div>
+
+        {/* Portfolio Links (Optional) */}
+        <div className={sectionClasses}>
+          <div>
+            <h2 className="text-base font-semibold text-white">
+              Portfolio Links (Optional)
+            </h2>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {portfolioLinks.map((link) => (
+              <PortfolioLinkItem key={link.id} item={link} deleteLink={deletePortfolioLink} />
+            ))}
+
+            <button
+              type="button"
+              className="flex gap-3 items-center text-[#E8D1AB] hover:text-[#DCD1BE] transition-colors mt-2 group"
+              onClick={() => setPortfolioModalOpen(true)}
+            >
+              <div className="p-2 rounded-full border border-[#E8D1AB]/30 group-hover:bg-[#E8D1AB]/10">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="text-sm font-medium">Add {portfolioLinks.length > 0 ? "another" : "a"} link</span>
+            </button>
           </div>
         </div>
 
@@ -247,11 +300,46 @@ export default function Step3Form({ data, setData, nextStep, prevStep }) {
         links={links}
         onChange={setLinks}
       />
+
+      <PortfolioLinksModal
+        open={portfolioModalOpen}
+        onClose={() => setPortfolioModalOpen(false)}
+        links={portfolioLinks}
+        onChange={setPortfolioLinks}
+      />
     </div>
   );
 }
 
-const SocMedLink = ({ socmedItem, deleteLink }) => {
+const PortfolioLinkItem = ({ item, deleteLink }: { item: any, deleteLink: (id: any) => void }) => {
+  const platform = PORTFOLIO_ICONS.find((p) => p.id === item.platform);
+  return (
+    <div className="w-full flex items-center justify-between bg-white/5 border border-white/10 px-4 py-3 rounded-[12px] hover:border-white/30 transition-all">
+      <div className="flex items-center gap-4">
+        <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[#1A1A1A] border border-white/10">
+          {platform?.icon ? (
+            <platform.icon className="w-5 h-5 text-[#E8D1AB]" />
+          ) : (
+            <Globe className="w-5 h-5 text-[#E8D1AB]" />
+          )}
+        </div>
+        <div className="flex flex-col">
+          <span className="text-white text-sm font-medium">{item.name}</span>
+          <span className="text-white/40 text-xs truncate max-w-[200px] lg:max-w-xs">{item.url}</span>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => deleteLink(item.id)}
+        className="p-2 rounded-lg hover:bg-red-500/10 group transition-colors"
+      >
+        <Trash2 size={18} className="text-white/40 group-hover:text-red-500" />
+      </button>
+    </div>
+  );
+};
+
+const SocMedLink = ({ socmedItem, deleteLink }: { socmedItem: any, deleteLink: (id: any) => void }) => {
   const platform = SOCIAL_ICONS.find((p) => p.id === socmedItem.platform);
   return (
     <div className="w-full flex items-center justify-between bg-white/5 border border-white/10 px-4 py-3 rounded-[12px] hover:border-white/30 transition-all">
