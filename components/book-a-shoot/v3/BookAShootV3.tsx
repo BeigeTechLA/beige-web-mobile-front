@@ -430,6 +430,23 @@ export const BookAShootV3 = () => {
         submissionResult = await createGuestBooking(finalBookingData).unwrap();
       }
 
+      // add GA event on payment submit in step4
+      pushToDataLayer("booking_payment_confirm_submit", {
+        type: "Action Tracking",
+        page_name: "Book-a-shoot Page",
+        location_in_website: "book_a_shoot_review_confirm",
+        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+        email: isAuthenticated ? user?.email : formData.email,
+        phone: isAuthenticated ? user?.phone_number : formData.phone,
+        duration_on_page: performance.now() / 1000,
+        booking_id: formData?.bookingId,
+        booking_form_fields: {
+          full_name: formData.fullName,
+          phone: formData.phone,
+        }
+      });
+
       toast.success("Booking Secured!", {
         description: "Redirecting to secure payment gateway...",
       });
