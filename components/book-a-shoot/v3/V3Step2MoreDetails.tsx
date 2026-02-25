@@ -98,16 +98,6 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     });
   };
 
-  const handleRemoveAllExtra = () => {
-    updateData({ 
-        addTeamMembers: false,
-        extraRoleSelections: {}, // Clear persisted counts
-        teamIncluded: [] 
-    });
-    setExtraTeam({}); // Clear local UI state
-    scrollToRef(locationRef);
-  };
-
   // add GA event on initial load
   useEffect(() => {
     console.log(data);
@@ -133,6 +123,16 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       booking_form_fields: formFields
     });
   }, [])
+    
+  const handleRemoveAllExtra = () => {
+    updateData({ 
+        addTeamMembers: false,
+        extraRoleSelections: {}, // Clear persisted counts
+        teamIncluded: [] 
+    });
+    setExtraTeam({}); // Clear local UI state
+    scrollToRef(locationRef);
+  };
 
   // Ensure crewCount is accurate on mount/updates even if no extra team added
   useEffect(() => {
