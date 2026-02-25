@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
 import { Button } from "@/src/components/landing/ui/button";
 import { Stats } from "./Stats";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export const About = () => {
   const router = useRouter();
@@ -73,7 +74,15 @@ export const About = () => {
             {/* View More Button */}
             <div className="flex justify-center lg:justify-start">
               <Button
-                onClick={() => router.push('/book-a-shoot')}
+                onClick={() => {
+                  pushToDataLayer("book_shoot_started", {
+                    type: "Action Tracking",
+                    page_name: "Landing Page",
+                    location_in_website: "about_landing_page",
+                    duration_on_page: performance.now() / 1000,
+                  });
+                  router.push('/book-a-shoot')
+                }}
                 className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 md:h-[56px] pl-4  pr-1 lg:pr-2 rounded-[5px] lg:rounded-[10px] text-sm md:text-xl font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] transition-all md:min-w-[240px]"
               >
                 <span className="lg:pr-4">Book a shoot</span>

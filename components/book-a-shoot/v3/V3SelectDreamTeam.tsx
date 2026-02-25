@@ -29,6 +29,7 @@ import type { Swiper as SwiperType } from "swiper";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 import "swiper/css/navigation";
+import { pushToDataLayer } from "@/lib/gtm";
 
 interface Props {
   data: BookingDataV3;
@@ -38,7 +39,14 @@ interface Props {
   bookingId?: number;
 }
 
-
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager"
+}
 
 export const V3SelectDreamTeam: React.FC<Props> = ({
   data,
@@ -48,7 +56,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   bookingId,
 }) => {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const swiperRef = useRef<SwiperType | null>(null);
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(0);
   const [showSalesModal, setShowSalesModal] = useState(false);
@@ -85,8 +93,38 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   const { data: randomCrewResponse } = useGetRandomCrewQuery();
   const additionalCreators: Creator[] = randomCrewResponse || [];
 
-
   const [showEmptyWarning, setShowEmptyWarning] = useState(false);
+
+  useEffect(() => {
+    const formFields = {
+      content_type: data.contentType.join(","),
+      shoot_type: data.shootType,
+      shoot_date_time: `${data.startDate} to ${data.endDate}`,
+      edits_needed: data.editsNeeded,
+      photo_edit_types: data.photoEditTypes.join(", "),
+      video_edit_types: data.videoEditTypes.join(", "),
+      additional_creative: data.addTeamMembers,
+      shoot_location: data.location,
+      additional_details: data.specialInstructions,
+      supporting_url: data.referenceLinks,
+      videographyCount: data?.videographyCount,
+      photographyCount: data?.photographyCount,
+    };
+
+    const dlEvent = (creators.length > 0) ? "cp_selection_found" : "cp_selection_not_found"
+    pushToDataLayer(dlEvent, {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "book_a_shoot_dream_team",
+      duration_on_page: performance.now() / 1000,
+      user_id: isAuthenticated ? user?.id : "Unknown",
+      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+      email: isAuthenticated ? user?.email : "Unknown",
+      phone: isAuthenticated ? user?.phone_number : "Unknown",
+      booking_id: data?.bookingId,
+      booking_form_fields: formFields
+    });
+  }, [creators])
 
   // Helper to determine capabilities (User Request: "if any crew have two ability like video and photo")
   const getCreatorCapabilities = (creator: Creator) => {
@@ -247,9 +285,53 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     if (selectedIds.length === 0) {
       setShowEmptyWarning(true);
     } else {
+      pushToDataLayer("cp_selection_found_submit", {
+        type: "Action Tracking",
+        page_name: "Book-a-shoot Page",
+        location_in_website: "book_a_shoot_dream_team",
+        duration_on_page: performance.now() / 1000,
+        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+        email: isAuthenticated ? user?.email : "Unknown",
+        phone: isAuthenticated ? user?.phone_number : "Unknown",
+        booking_id: data?.bookingId,
+        booking_form_fields: { cp_id: selectedIds }
+      });
       onNext();
     }
   };
+
+  const noCpHandleNext = () => {
+    pushToDataLayer("cp_selection_not_found_submit", {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "book_a_shoot_dream_team",
+      duration_on_page: performance.now() / 1000,
+      user_id: isAuthenticated ? user?.id : "Unknown",
+      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+      email: isAuthenticated ? user?.email : "Unknown",
+      phone: isAuthenticated ? user?.phone_number : "Unknown",
+      booking_id: data?.bookingId,
+      booking_form_fields: { cp_id: "Not Found" }
+    });
+    onNext()
+  }
+
+  const noCpHandleSales = () => {
+    pushToDataLayer("cp_selection_not_found_sales", {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "book_a_shoot_dream_team",
+      duration_on_page: performance.now() / 1000,
+      user_id: isAuthenticated ? user?.id : "Unknown",
+      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+      email: isAuthenticated ? user?.email : "Unknown",
+      phone: isAuthenticated ? user?.phone_number : "Unknown",
+      booking_id: data?.bookingId,
+      booking_form_fields: { cp_id: "Not Found" }
+    });
+    setShowSalesPopup(true)
+  }
 
   if (isLoading) {
     return (
@@ -293,13 +375,14 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
         <div className="flex gap-3 lg:gap-6 justify-center items-center pt-6 lg:pt-10">
           <Button
-            onClick={onNext}
+            // onClick={onNext}
+            onClick={noCpHandleNext}
             className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[200px]"
           >
             Complete Your Shoot
           </Button>
           <Button
-            onClick={() => setShowSalesPopup(true)}
+            onClick={noCpHandleSales}
             className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
           >
             Connect with Sales
@@ -501,6 +584,18 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
                 <Button
                   onClick={() => {
                     setShowEmptyWarning(false);
+                    pushToDataLayer("cp_selection_found_submit", {
+                      type: "Action Tracking",
+                      page_name: "Book-a-shoot Page",
+                      location_in_website: "book_a_shoot_dream_team",
+                      duration_on_page: performance.now() / 1000,
+                      user_id: isAuthenticated ? user?.id : "Unknown",
+                      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+                      email: isAuthenticated ? user?.email : "Unknown",
+                      phone: isAuthenticated ? user?.phone_number : "Unknown",
+                      booking_id: data?.bookingId,
+                      booking_form_fields: { cp_id: "Not Selected" }
+                    });
                     onNext();
                   }}
                   className="flex-1 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-bold h-14 rounded-xl"
