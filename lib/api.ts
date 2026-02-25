@@ -718,6 +718,34 @@ export const UploadProfileFile = async (fileType: string, files: File | File[], 
   }
 };
 
+export const AddPortfolioLinks = async (payload: { crew_member_id: number; portfolio_links: { url: string; platform: string }[] }) => {
+  try {
+    const response = await api.post("creator/profile/add-portfolio-links", payload);
+    return response;
+  } catch (error) {
+    console.error("Add Portfolio Links Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to add portfolio links",
+    };
+  }
+};
+
+export const EditPortfolioLink = async (crewFilesId: string | number, payload: { crew_member_id: number; url: string; title?: string; platform: string }) => {
+  try {
+    const response = await api.post(`creator/profile/edit-portfolio-link/${crewFilesId}`, payload);
+    return response;
+  } catch (error) {
+    console.error("Edit Portfolio Link Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to edit portfolio link",
+    };
+  }
+};
+
 export const DeleteProfileFile = async (crewFilesId: string | number, payload: any) => {
   try {
     // Note: We use api.delete and pass the ID in the URL string
@@ -760,7 +788,7 @@ export const adminApi = {
       };
     }
   },
-   getClientFullDetails: async (userId: string | number) => {
+  getClientFullDetails: async (userId: string | number) => {
     try {
       const response = await api.get(`admin/get-client-details-with-shoots/${userId}`);
       return response.data;

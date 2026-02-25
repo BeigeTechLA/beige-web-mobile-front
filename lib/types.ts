@@ -101,6 +101,7 @@ export interface CreatorRegistrationStep3Data {
     linkedin?: string;
     website?: string;
   };
+  portfolio_links?: { url: string; platform: string }[];
 }
 
 // Investor Types
