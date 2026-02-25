@@ -299,19 +299,19 @@ export default function EditBookingPage() {
     };
 
     const handleDateChange = (date: Date | null) => {
-        if (!date) {
-            updateData({ startDate: "", endDate: "" });
-            return;
-        }
-        const finalStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-        const finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+    if (!date) {
+        updateData({ startDate: "", endDate: "" });
+        return;
+    }
+    // Set default times to 9 AM and 5 PM on the selected date
+    const finalStart = set(new Date(date), { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+    const finalEnd = set(new Date(date), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
 
-        updateData({
-            startDate: finalStart.toISOString(),
-            endDate: finalEnd.toISOString(),
-        });
-    };
-
+    updateData({
+        startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss.SSS"),
+        endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS"),
+    });
+};
     const videographerTarget = useMemo(() => {
     return formData.contentType.includes("videographer") ? (extraTeam["videographer"] || 0) + 1 : 0;
 }, [formData.contentType, extraTeam]);
@@ -321,22 +321,39 @@ const photographerTarget = useMemo(() => {
 }, [formData.contentType, extraTeam]);
 
     const handleStartTimeChange = (timeKey: string) => {
-        if (!timeKey) return;
-        const [hours, minutes] = timeKey.split(":").map(Number);
-        const currentDate = formData.startDate ? parseDate(formData.startDate) : new Date();
-        if (!currentDate) return;
-        const newStart = set(currentDate, { hours, minutes });
-        updateData({ startDate: newStart.toISOString() });
-    };
+    if (!timeKey) return;
+    const [hours, minutes] = timeKey.split(":").map(Number);
+    
+    // Use existing startDate as base or default to today
+    const currentBase = formData.startDate ? parseDate(formData.startDate) : new Date();
+    if (!currentBase) return;
 
-    const handleEndTimeChange = (timeKey: string) => {
-        if (!timeKey) return;
-        const [hours, minutes] = timeKey.split(":").map(Number);
-        let baseDate = formData.startDate ? parseDate(formData.startDate) : new Date();
-        if (!baseDate) return;
-        const newEnd = set(new Date(baseDate), { hours, minutes, seconds: 0 });
-        updateData({ endDate: newEnd.toISOString() });
-    };
+    const newStart = set(new Date(currentBase), { 
+        hours, 
+        minutes, 
+        seconds: 0, 
+        milliseconds: 0 
+    });
+
+    updateData({ startDate: format(newStart, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
+};
+
+   const handleEndTimeChange = (timeKey: string) => {
+    if (!timeKey) return;
+    const [hours, minutes] = timeKey.split(":").map(Number);
+    
+    let baseDate = formData.startDate ? parseDate(formData.startDate) : new Date();
+    if (!baseDate) return;
+
+    const newEnd = set(new Date(baseDate), { 
+        hours, 
+        minutes, 
+        seconds: 0, 
+        milliseconds: 0 
+    });
+
+    updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
+};
 
     const getStartTimeKey = () => formData.startDate ? format(parseDate(formData.startDate)!, "HH:mm") : "";
     const getEndTimeKey = () => formData.endDate ? format(parseDate(formData.endDate)!, "HH:mm") : "";

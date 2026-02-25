@@ -125,35 +125,41 @@ function StripePaymentFormMulti({
   const [appliedDiscount, setAppliedDiscount] = useState<any>(null);
   const [referralErrorMessage, setReferralErrorMessage] = useState("");
 
-  // AUTO-APPLY & REFRESH FIX LOGIC
+  // AUTO-APPLY & REFRESH FIX LOGIC - UPDATED TO HANDLE OVERRIDE
   useEffect(() => {
-    // 1. PERSISTENCE CHECK: If quote already has a discount (on refresh), sync the UI
     const existingDiscountTotal = parseFloat(quote?.discount_total || 0);
-    if (existingDiscountTotal > 0 && !appliedDiscount) {
-      setAppliedDiscount({
-        discount_amount: existingDiscountTotal,
-      });
-      setDiscountValid(true);
-      // If code is in URL, sync it to the input field
-      if (urlDiscount) {
-        setDiscountCode(urlDiscount.toUpperCase().replace(/[^A-Z0-9]/g, ""));
-      }
-    }
+    const savedCode = quote?.applied_discount_code?.toUpperCase();
+    const urlCode = urlDiscount?.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
-    // 2. URL AUTO-APPLY: Only trigger if no discount is applied yet
-    if (urlDiscount && !appliedDiscount && !discountCode) {
-      const upperCode = urlDiscount.toUpperCase().replace(/[^A-Z0-9]/g, "");
-      setDiscountCode(upperCode);
-      validateDiscountCode(upperCode);
+    // Logic: If URL code is different from saved code, prioritize the URL code
+    if (urlCode && urlCode !== savedCode && !discountCode) {
+        setDiscountCode(urlCode);
+        validateDiscountCode(urlCode);
+    } 
+    // Otherwise, fallback to the saved code if it exists
+    else if (existingDiscountTotal > 0 && !discountCode) {
+        setDiscountValid(true);
+        if (savedCode) {
+            setDiscountCode(savedCode);
+        }
     }
-  }, [urlDiscount, quote]); // dependencies updated to watch quote
+  }, [urlDiscount, quote?.applied_discount_code, quote?.discount_total]); 
 
-  // 3. AUTO-TRIGGER APPLY: Once URL code is validated as true, apply it
+  // TRIGGER APPLICATION: Trigger when discount is valid and differs from what is active
   useEffect(() => {
-    if (urlDiscount && discountValid === true && !appliedDiscount && !isValidatingDiscount) {
-        applyDiscountCode();
+    const urlCode = urlDiscount?.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const savedCode = quote?.applied_discount_code?.toUpperCase();
+
+    // Condition to apply: It's valid AND (nothing is applied OR it's a different code than what's saved)
+    if (urlCode && discountValid === true && !isValidatingDiscount) {
+        if (parseFloat(quote?.discount_total || 0) === 0 || urlCode !== savedCode) {
+            // Prevent infinite loop: Only apply if the current input matches the urlCode
+            if (discountCode === urlCode) {
+                applyDiscountCode();
+            }
+        }
     }
-  }, [discountValid, urlDiscount, appliedDiscount, isValidatingDiscount]);
+  }, [discountValid, urlDiscount, quote?.applied_discount_code]);
 
   // Debounced referral code validation
   const validateReferralCode = React.useCallback(
@@ -181,19 +187,16 @@ function StripePaymentFormMulti({
       const response = await affiliateApi.validateCode(code, userId);
       
       if (response.valid) {
-        // CASE: Code is good
         setReferralCodeValid(true);
         setReferralAffiliateName(response.affiliate_name || "");
         setReferralErrorMessage(""); 
       } else {
-        // CASE: Code is bad (API returned 404 or 400)
         setReferralCodeValid(false);
         setReferralAffiliateName("");
         setReferralErrorMessage(response.message || "Invalid referral code");
       }
 
     } catch (error) {
-      // This will only run if there is a network crash
       console.error("Network Error:", error);
       setReferralCodeValid(false);
       setReferralErrorMessage("Check your internet connection");
@@ -213,8 +216,8 @@ function StripePaymentFormMulti({
         return;
       }
 
-      // If we are already showing an applied discount, don't re-validate
-      if (parseFloat(quote?.discount_total || 0) > 0) {
+      // If typed matches active exactly, it's valid
+      if (quote?.applied_discount_code?.toUpperCase() === code.toUpperCase()) {
         setDiscountValid(true);
         return;
       }
@@ -239,11 +242,7 @@ function StripePaymentFormMulti({
           setDiscountData(null);
         }
       } catch (error: any) {
-        console.error("Error validating discount code:", error);
-        
-        // REFRESH FIX: If the code is already applied, your API returns 400.
-        // If there is already a discount total in the quote, treat this as valid.
-        if (parseFloat(quote?.discount_total || 0) > 0) {
+        if (quote?.applied_discount_code?.toUpperCase() === code.toUpperCase()) {
             setDiscountValid(true);
         } else {
             setDiscountValid(false);
@@ -253,7 +252,7 @@ function StripePaymentFormMulti({
         setIsValidatingDiscount(false);
       }
     }, 500),
-    [shootId, quote],
+    [shootId, quote?.applied_discount_code],
   );
 
   const handleReferralCodeChange = (value: string) => {
@@ -271,10 +270,10 @@ function StripePaymentFormMulti({
   const applyDiscountCode = async () => {
     if (!discountCode || !discountValid || !quote?.quote_id) return;
 
-    // Don't call API if already applied
-    if (appliedDiscount && parseFloat(quote?.discount_total || 0) > 0) return;
+    // Check if it is already applied
+    if (quote?.applied_discount_code?.toUpperCase() === discountCode.toUpperCase()) return;
 
-    setIsValidatingDiscount(true); // Ensure loading state is active
+    setIsValidatingDiscount(true); 
     try {
       const API_BASE_URL =
         (
@@ -300,20 +299,13 @@ function StripePaymentFormMulti({
         );
 
         if (detailsRes.data.success) {
-          // 1. Update the Summary text
           setPaymentDetails(detailsRes.data.data);
-
-          // 2. Refresh the Stripe secret WITHOUT setting it to ""
-          // This keeps the CardElement mounted and prevents the page refresh
           await refreshPaymentIntent(detailsRes.data.data);
         }
       }
     } catch (error: any) {
       console.error("Error applying discount:", error);
-      // Only show error if it's not "already applied"
-      if (!error.response?.data?.message?.toLowerCase().includes("already applied")) {
-        toast.error(error.response?.data?.message || "Failed to apply discount");
-      }
+      toast.error(error.response?.data?.message || "Failed to apply discount");
     } finally {
       setIsValidatingDiscount(false);
     }
@@ -451,12 +443,11 @@ function StripePaymentFormMulti({
             </p>
           )}
           {referralCodeValid === false && referralCode.length >= 4 && (
-  <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
-    <X className="w-4 h-4" />
-    {/* Use the dynamic message from the API state here */}
-    {referralErrorMessage || "Invalid referral code"}
-  </p>
-)}
+            <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
+                <X className="w-4 h-4" />
+                {referralErrorMessage || "Invalid referral code"}
+            </p>
+          )}
         </div>
 
         {/* Discount Code */}
@@ -478,12 +469,11 @@ function StripePaymentFormMulti({
                 }`}
               placeholder="Enter discount code"
               maxLength={20}
-              disabled={!!appliedDiscount}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isValidatingDiscount ? (
                 <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
-              ) : discountValid === true && !appliedDiscount ? (
+              ) : discountValid === true && discountCode.toUpperCase() !== quote?.applied_discount_code?.toUpperCase() ? (
                 <button
                   type="button"
                   onClick={applyDiscountCode}
@@ -491,30 +481,25 @@ function StripePaymentFormMulti({
                 >
                   Apply
                 </button>
-              ) : discountValid === true && appliedDiscount ? (
+              ) : discountValid === true && discountCode.toUpperCase() === quote?.applied_discount_code?.toUpperCase() ? (
                 <Check className="w-5 h-5 text-green-500" />
               ) : discountValid === false ? (
                 <X className="w-5 h-5 text-red-500" />
               ) : null}
             </div>
           </div>
-          {discountValid === true && discountData && !appliedDiscount && (
+          {discountValid === true && discountCode.toUpperCase() === quote?.applied_discount_code?.toUpperCase() && (
             <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
               <Check className="w-4 h-4" />
-              {discountData.discount_type === "percentage"
-                ? `${discountData.discount_value}% off`
-                : `$${discountData.discount_value} off`}
+              Discount applied: You Save {formatCurrency(quote.discount_total)}
             </p>
           )}
-          {appliedDiscount && (
-            <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
-              <Check className="w-4 h-4" />
-              Discount applied: You Save $
-              {parseFloat(appliedDiscount.discount_amount).toFixed(2)}
+          {discountValid === true && discountData && discountCode.toUpperCase() !== quote?.applied_discount_code?.toUpperCase() && (
+            <p className="text-blue-400 text-sm mt-2">
+               Click &apos;Apply&apos; to update your total with this code.
             </p>
           )}
-          {/* IMPROVED CONDITION: Only show error if no discount is currently applied to the quote */}
-          {discountValid === false && discountCode.length >= 4 && !appliedDiscount && (
+          {discountValid === false && discountCode.length >= 4 && (
             <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
               <X className="w-4 h-4" />
               Invalid or expired discount code
@@ -540,19 +525,17 @@ function StripePaymentFormMulti({
 function MultiCreatorPaymentContent() {
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId");
-
   const router = useRouter();
 
   // State
-  const [step, setStep] = useState<"loading" | "payment" | "success">(
-    "loading",
-  );
+  const [step, setStep] = useState<"loading" | "payment" | "success">("loading");
   const [isLoading, setIsLoading] = useState(true);
-  const [isUpdatingIntent, setIsUpdatingIntent] = useState(false); // NEW STATE: for background loading
+  const [isUpdatingIntent, setIsUpdatingIntent] = useState(false); 
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string>("");
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showBackDialog, setShowBackDialog] = useState(false);
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -571,15 +554,11 @@ function MultiCreatorPaymentContent() {
     editingFees: 0,
   });
 
-  // Inside MultiCreatorPaymentContent function
-  const [showBackDialog, setShowBackDialog] = useState(false);
-
   const handleBackClick = (e?: React.MouseEvent) => {
-    if (e) e.preventDefault(); // Stop internal Link from navigating immediately
+    if (e) e.preventDefault(); 
     if (step !== "success") {
       setShowBackDialog(true);
     } else {
-      // If successful, just go back normally
       window.history.back();
     }
   };
@@ -587,11 +566,9 @@ function MultiCreatorPaymentContent() {
   useEffect(() => {
     if (step === "success") return;
 
-    // Push a dummy state so we can catch the first pop
     window.history.pushState(null, "", window.location.href);
 
     const handlePopState = () => {
-      // Re-push state to keep the user on the page and show dialog
       window.history.pushState(null, "", window.location.href);
       setShowBackDialog(true);
     };
@@ -602,11 +579,10 @@ function MultiCreatorPaymentContent() {
 
   const handleConfirmBack = () => {
     setShowBackDialog(false);
-    // Actually go back (two steps: the one we added + the intended back)
     window.history.go(-2);
   };
 
-  // Logic to update categorized pricing groups whenever paymentDetails changes
+  // CATEGORIZED PRICING CALCULATION
   useEffect(() => {
     if (!paymentDetails?.quote?.lineItems) return;
 
@@ -615,7 +591,7 @@ function MultiCreatorPaymentContent() {
     let addVideoCount = 0;
     let addPhotoCount = 0;
     let addCPTotalCost = 0;
-    let editingFeesSum = 0; // NEW: tracking editing total
+    let editingFeesSum = 0; 
     const mandatoryAddonItems: Array<{ role: string; cost: number }> = [];
 
     lineItems.forEach((item: any) => {
@@ -624,7 +600,6 @@ function MultiCreatorPaymentContent() {
       const total = parseFloat(item.line_total || 0);
       const unitPrice = total / quantity;
       
-      // IMPROVED DETECTION: Check slug, category name, or keywords in item name
       const categorySlug = item.pricing_item?.category?.slug?.toLowerCase();
       const categoryName = item.pricing_item?.category?.name?.toLowerCase();
       const lowerName = name.toLowerCase();
@@ -636,11 +611,9 @@ function MultiCreatorPaymentContent() {
         lowerName.includes("highlight") || 
         lowerName.includes("edited photos");
 
-      // 1. Base Fees (Pre-prod, Rush)
       if (name.includes("Pre-Production") || lowerName.includes("rush")) {
         shootCostSum += total;
       } 
-      // 2. Primary Crew (1st Unit to Shoot Cost, others to Additional aggregated)
       else if (name === "Videographer" || name === "Photographer") {
         shootCostSum += unitPrice;
         if (quantity > 1) {
@@ -650,24 +623,20 @@ function MultiCreatorPaymentContent() {
           if (name === "Photographer") addPhotoCount += extraQty;
         }
       } 
-      // 3. EDITING FEES (New logic based on category/keywords)
       else if (isEditingItem) {
         editingFeesSum += total;
       }
-      // 4. Mandatory Items
       else if (item.is_mandatory) {
         mandatoryAddonItems.push({
           role: name,
           cost: total,
         });
       } 
-      // 5. Other extras (leaks here if not caught by above blocks)
       else {
         addCPTotalCost += total;
       }
     });
 
-    // CRITICAL: Ensure all fields are updated in the state
     setPricingGroups({
       shootCost: shootCostSum,
       additionalCP: {
@@ -676,11 +645,10 @@ function MultiCreatorPaymentContent() {
           photoCount: addPhotoCount
       },
       mandatoryAddons: mandatoryAddonItems,
-      editingFees: editingFeesSum, // Update the editing total
+      editingFees: editingFeesSum,
     });
   }, [paymentDetails]);
 
-  // Reusable function to fetch/update intent
   const fetchIntent = async (details: any) => {
     if (!details || !shootId) return;
     const { booking, quote } = details;
@@ -689,7 +657,7 @@ function MultiCreatorPaymentContent() {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
       const response = await axios.post(`${API_BASE_URL}payments/create-intent-multi`, {
         booking_id: shootId,
-        amount: parseFloat(quote.total), // ENSURE NUMBER
+        amount: parseFloat(quote.total), 
         guest_email: booking.guest_email,
       });
 
@@ -702,14 +670,12 @@ function MultiCreatorPaymentContent() {
     }
   };
 
-  // Helper passed to child
   const refreshPaymentIntent = async (updatedDetails: any) => {
     setIsUpdatingIntent(true);
     await fetchIntent(updatedDetails);
     setIsUpdatingIntent(false);
   };
 
-  // Initial Data Fetch
   useEffect(() => {
     const fetchPaymentDetails = async () => {
       if (!shootId) {
@@ -729,10 +695,7 @@ function MultiCreatorPaymentContent() {
 
         const data = response.data.data;
         setPaymentDetails(data);
-
-        // Initial Intent Fetch
         await fetchIntent(data);
-
         setStep("payment");
         setIsLoading(false);
       } catch (err: any) {
@@ -745,41 +708,29 @@ function MultiCreatorPaymentContent() {
     fetchPaymentDetails();
   }, [shootId]);
 
-  // Handle payment success
   const handlePaymentSuccess = async (paymentIntentId: string) => {
     try {
-      const API_BASE_URL =
-        (
-          process.env.NEXT_PUBLIC_API_ENDPOINT ||
-          "https://revure-api.beige.app/v1/"
-        ).replace(/\/$/, "") + "/";
-
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
       await axios.post(`${API_BASE_URL}payments/confirm-multi`, {
         paymentIntentId,
         booking_id: shootId,
       });
-
       setStep("success");
       toast.success("Payment successful!");
     } catch (error) {
       console.error("Error confirming payment:", error);
-      toast.error(
-        "Payment succeeded but failed to save booking. Please contact support.",
-      );
+      toast.error("Payment succeeded but failed to save booking. Please contact support.");
     }
   };
 
-  // Handle payment error
   const handlePaymentError = (error: string) => {
     toast.error(error);
   };
 
-  // Get fallback image for creator
   const getFallbackImage = (creatorId: string) => {
     return crewImages[parseInt(creatorId) % 10];
   };
 
-  // Loading state
   if (isLoading || step === "loading") {
     return (
       <div className="pt-32 pb-20 flex items-center justify-center min-h-screen">
@@ -791,24 +742,15 @@ function MultiCreatorPaymentContent() {
     );
   }
 
-  // Error state
   if (error || !paymentDetails) {
     return (
       <div className="pt-32 pb-20 flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-6 text-center max-w-md">
           <div className="text-6xl">😔</div>
-          <h2 className="text-3xl font-bold text-white">
-            Payment Details Not Found
-          </h2>
-          <p className="text-white/60 text-lg">
-            {error || "Unable to load payment information for this booking."}
-          </p>
-          <button
-            onClick={handleBackClick}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Search Results
+          <h2 className="text-3xl font-bold text-white">Payment Details Not Found</h2>
+          <p className="text-white/60 text-lg">{error || "Unable to load payment information for this booking."}</p>
+          <button onClick={handleBackClick} className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Search Results
           </button>
         </div>
       </div>
@@ -816,8 +758,6 @@ function MultiCreatorPaymentContent() {
   }
 
   const { booking, creators, quote } = paymentDetails;
-
-  // Additional safety check - UPDATED to handle String totals
   const quoteTotal = quote?.total ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
 
@@ -827,16 +767,9 @@ function MultiCreatorPaymentContent() {
         <div className="container mx-auto px-4 md:px-0 flex items-center justify-center min-h-[60vh]">
           <div className="flex flex-col items-center gap-6 text-center max-w-md">
             <div className="text-6xl">⚠️</div>
-            <h2 className="text-3xl font-bold text-white">
-              Quote Data Missing
-            </h2>
-            <p className="text-white/60 text-lg">
-              The pricing information for this booking is missing.
-            </p>
-            <Link
-              href="/book-a-shoot"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors"
-            >
+            <h2 className="text-3xl font-bold text-white">Quote Data Missing</h2>
+            <p className="text-white/60 text-lg">The pricing information for this booking is missing.</p>
+            <Link href="/book-a-shoot" className="inline-flex items-center gap-2 px-6 py-3 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium rounded-lg transition-colors">
               Create New Booking
             </Link>
           </div>
@@ -845,7 +778,6 @@ function MultiCreatorPaymentContent() {
     );
   }
 
-  // Success View
   if (step === "success") {
     const getFormUrl = () => {
       const weddingFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSdg9VNPGWzS0-48TtYCfejktfl2j3Hl4sAD4HSkUoQIMP9WQA/viewform";
@@ -879,25 +811,13 @@ function MultiCreatorPaymentContent() {
     );
   }
 
-  // Payment View
   return (
     <div className="pt-20 md:pt-32 pb-20 min-h-screen">
       <div className="container mx-auto px-4 xl:px-0">
-        {/* Leave Confirmation Modal */}
-        <LeaveConfirmationModal
-          isOpen={showLeaveModal}
-          onConfirm={() => {
-            router.push("/book-a-shoot");
-          }}
-          onCancel={() => setShowLeaveModal(false)}
-        />
+        <LeaveConfirmationModal isOpen={showLeaveModal} onConfirm={() => router.push("/book-a-shoot")} onCancel={() => setShowLeaveModal(false)} />
 
-        <button
-          onClick={() => setShowLeaveModal(true)}
-          className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
+        <button onClick={() => setShowLeaveModal(true)} className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back
         </button>
 
         <div className="text-center mb-8 lg:mb-12">
@@ -908,7 +828,6 @@ function MultiCreatorPaymentContent() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-          {/* Left Column: Payment Form */}
           <div className="xl:col-span-7 space-y-5">
             {!clientSecret ? (
               <div className="bg-[#171717] rounded-[20px] p-6 lg:p-10 flex flex-col items-center justify-center min-h-[400px]">
@@ -917,15 +836,9 @@ function MultiCreatorPaymentContent() {
               </div>
             ) : (
               <div className="relative">
-                {/* Loader Overlay when updating the price/intent so the form doesn't disappear */}
                 <AnimatePresence>
                   {isUpdatingIntent && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 z-50 bg-[#171717]/60 backdrop-blur-[2px] rounded-[20px] flex flex-col items-center justify-center"
-                    >
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-50 bg-[#171717]/60 backdrop-blur-[2px] rounded-[20px] flex flex-col items-center justify-center">
                       <Loader2 className="w-10 h-10 text-[#E8D1AB] animate-spin mb-2" />
                       <p className="text-[#E8D1AB] font-medium">Updating Price...</p>
                     </motion.div>
@@ -949,25 +862,16 @@ function MultiCreatorPaymentContent() {
             )}
           </div>
 
-          {/* Right Column: Summary */}
           <div className="xl:col-span-5 space-y-6">
             <div className="bg-[#171717] rounded-[24px] p-6 lg:p-10">
               <h3 className="font-bold mb-7 text-base lg:text-2xl">Booking Summary</h3>
               <div className="bg-white rounded-[20px] text-black py-3 lg:py-5">
                 <div className="p-3 lg:p-5 border-b border-black/20">
-                  <h4 className="font-bold text-lg mb-3">
-                    {toTitleCase(booking.shoot_name || "Unnamed Shoot")}
-                  </h4>
+                  <h4 className="font-bold text-lg mb-3">{toTitleCase(booking.shoot_name || "Unnamed Shoot")}</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-[#626467]">Event Type:</span>
-                      <span className="">
-                        {toTitleCase(
-                          (booking.project_name || booking.shoot_name || "")
-                            .split("-")[0]
-                            .trim(),
-                        )}
-                      </span>
+                      <span>{toTitleCase((booking.project_name || booking.shoot_name || "").split("-")[0].trim())}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#626467]">Duration:</span>
@@ -975,11 +879,7 @@ function MultiCreatorPaymentContent() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#626467]">Location:</span>
-                      <span className="truncate ml-2">
-                        {booking.event_location
-                          ? formatLocationForDisplay(booking.event_location)
-                          : "N/A"}
-                      </span>
+                      <span className="truncate ml-2">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
                     </div>
                   </div>
                 </div>
@@ -992,29 +892,15 @@ function MultiCreatorPaymentContent() {
                     </h4>
                     <div className="space-y-2">
                       {creators.slice(0, 3).map((creator: any) => {
-                        const imageUrl =
-                          creator.profile_image ||
-                          getFallbackImage(creator.crew_member_id);
+                        const imageUrl = creator.profile_image || getFallbackImage(creator.crew_member_id);
                         return (
-                          <div
-                            key={creator.crew_member_id}
-                            className="flex items-center gap-2"
-                          >
+                          <div key={creator.crew_member_id} className="flex items-center gap-2">
                             <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
-                              <Image
-                                src={imageUrl}
-                                alt={creator.name}
-                                fill
-                                className="object-cover"
-                              />
+                              <Image src={imageUrl} alt={creator.name} fill className="object-cover" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">
-                                {creator.name}
-                              </p>
-                              <p className="text-xs text-[#626467] truncate">
-                                {creator.role_name}
-                              </p>
+                              <p className="text-sm font-medium truncate">{creator.name}</p>
+                              <p className="text-xs text-[#626467] truncate">{creator.role_name}</p>
                             </div>
                           </div>
                         );
@@ -1025,143 +911,86 @@ function MultiCreatorPaymentContent() {
 
                 {quote && (
                   <div className="">
-                    {/* NEW AGGREGATED PRICING DISPLAY */}
-                    
-                    {/* 1. SHOOT COST */}
                     <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20">
                       <div className="flex flex-col gap-1">
                         <span className="font-bold text-[#212122]">Shoot Cost</span>
-                        <span className="text-[11px] text-[#626467] max-w-[200px]">
-                          {/* Includes base fees and 1st unit of crew. */}
-                        </span>
                       </div>
-                      <span className="font-bold">
-                        {formatCurrency(pricingGroups.shootCost || 0)}
-                      </span>
+                      <span className="font-bold">{formatCurrency(pricingGroups.shootCost || 0)}</span>
                     </div>
 
-                    {/* 2. AGGREGATED ADDITIONAL CP FEES */}
                     {pricingGroups.additionalCP.totalCost > 0 && (
                       <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20">
                         <div className="flex flex-col gap-1">
                             <span className="font-medium text-[#212122]">Additional Creative Partner Fees</span>
                             <div className="text-[11px] text-[#626467] space-y-0.5">
-                                {pricingGroups.additionalCP.videoCount > 0 && (
-                                    <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
-                                )}
-                                {pricingGroups.additionalCP.photoCount > 0 && (
-                                    <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
-                                )}
+                                {pricingGroups.additionalCP.videoCount > 0 && <div>videographer x {pricingGroups.additionalCP.videoCount}</div>}
+                                {pricingGroups.additionalCP.photoCount > 0 && <div>photographer x {pricingGroups.additionalCP.photoCount}</div>}
                             </div>
                         </div>
-                        <span className="font-medium">
-                          {formatCurrency(pricingGroups.additionalCP.totalCost || 0)}
-                        </span>
+                        <span className="font-medium">{formatCurrency(pricingGroups.additionalCP.totalCost || 0)}</span>
                       </div>
                     )}
 
-                    {/* 3. EDITING FEES (NEW SECTION) */}
                     {pricingGroups.editingFees > 0 && (
                       <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#f8f8f8]">
                         <div className="flex flex-col gap-1">
                           <span className="font-medium text-[#212122]">Editing Cost</span>
-                          <span className="text-[11px] text-[#626467]">
-                            Includes professional editing and content delivery
-                          </span>
+                          <span className="text-[11px] text-[#626467]">Includes professional editing</span>
                         </div>
-                        <span className="font-medium">
-                          {formatCurrency(pricingGroups.editingFees)}
-                        </span>
+                        <span className="font-medium">{formatCurrency(pricingGroups.editingFees)}</span>
                       </div>
                     )}
 
-                    {/* 4. MANDATORY ADD-ONS */}
                     {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((item, idx) => (
                       <div key={`addon-${idx}`} className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#E8D1AB]/5">
                         <span className="text-[#626467] font-medium">{item.role}</span>
-                        <span className="font-bold">
-                          {formatCurrency(item.cost || 0)}
-                        </span>
+                        <span className="font-bold">{formatCurrency(item.cost || 0)}</span>
                       </div>
                     ))}
 
                     <div className="p-3 lg:p-5 border-b border-black/20">
-      <div className="flex justify-between mb-1">
-        <span className="text-[#626467]">Subtotal</span>
-        <span className="font-medium">
-          {formatCurrency(quote.subtotal || 0)}
-        </span>
-      </div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-[#626467]">Subtotal</span>
+                        <span className="font-medium">{formatCurrency(quote.subtotal || 0)}</span>
+                      </div>
 
-      {/* NEW: DISCOUNT BREAKDOWN ROW */}
-      {parseFloat(quote.discount_total || 0) > 0 && (
-        <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
-          <div className="flex flex-col">
-            <span className="text-green-600 font-bold flex items-center gap-1">
-              <Tag className="w-3 h-3" />
-              Discount
-            </span>
-            {/* Show percentage if available in the quote object */}
-            {quote.discount_percentage && (
-               <span className="text-[10px] text-green-600/80">
-                 ({quote.discount_percentage}% off)
-               </span>
-            )}
-          </div>
-          <span className="text-green-600 font-bold">
-            -{formatCurrency(quote.discount_total)}
-          </span>
-        </div>
-      )}
-    </div>
+                      {parseFloat(quote.discount_total || 0) > 0 && (
+                        <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                          <div className="flex flex-col">
+                            <span className="text-green-600 font-bold flex items-center gap-1">
+                              <Tag className="w-3 h-3" /> Discount
+                            </span>
+                            {quote.discount_percentage && <span className="text-[10px] text-green-600/80">({quote.discount_percentage}% off)</span>}
+                          </div>
+                          <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total)}</span>
+                        </div>
+                      )}
+                    </div>
 
-    <div className="flex justify-between items-start p-3 lg:p-5 bg-[#fcf8f1] rounded-b-[20px]">
-      <div className="flex flex-col gap-2 text-sm">
-        <span className="font-bold">Total</span>
-        <span className="text-[#212122]">Amount Due</span>
-      </div>
-      <span className="text-xl font-bold">{formatCurrency(quoteTotal || 0)}</span>
-    </div>
-  </div>
-)}
+                    <div className="flex justify-between items-start p-3 lg:p-5 bg-[#fcf8f1] rounded-b-[20px]">
+                      <div className="flex flex-col gap-2 text-sm">
+                        <span className="font-bold">Total</span>
+                        <span className="text-[#212122]">Amount Due</span>
+                      </div>
+                      <span className="text-xl font-bold">{formatCurrency(quoteTotal || 0)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Back Button Disclaimer Popup */}
       <AnimatePresence>
         {showBackDialog && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#1a1a1a] border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl"
-            >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#1a1a1a] border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl">
               <h3 className="text-2xl font-semibold text-white mb-4">Cancel Payment?</h3>
-              <p className="text-white/60 mb-8 leading-relaxed">
-                Your booking progress will be lost. If you have already clicked pay, please wait to avoid duplicate charges.
-              </p>
+              <p className="text-white/60 mb-8 leading-relaxed">Your booking progress will be lost. If you have already clicked pay, please wait to avoid duplicate charges.</p>
               <div className="flex gap-4">
-                <Button
-                  onClick={() => setShowBackDialog(false)}
-                  className="flex-1 py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all font-medium"
-                >
-                  Continue Payment
-                </Button>
-                <Button
-                  onClick={handleConfirmBack}
-                  className="flex-1 py-3 px-6 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all font-medium"
-                >
-                  Leave Page
-                </Button>
+                <Button onClick={() => setShowBackDialog(false)} className="flex-1 py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all font-medium">Continue Payment</Button>
+                <Button onClick={handleConfirmBack} className="flex-1 py-3 px-6 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all font-medium">Leave Page</Button>
               </div>
             </motion.div>
           </motion.div>
@@ -1171,37 +1000,16 @@ function MultiCreatorPaymentContent() {
   );
 }
 
-const LeaveConfirmationModal = ({
-  isOpen,
-  onConfirm,
-  onCancel
-}: {
-  isOpen: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) => {
+const LeaveConfirmationModal = ({ isOpen, onConfirm, onCancel }: { isOpen: boolean; onConfirm: () => void; onCancel: () => void; }) => {
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
       <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl">
         <h3 className="text-2xl font-semibold text-white mb-4">Cancel Payment?</h3>
-        <p className="text-white/60 mb-8 leading-relaxed">
-          Your booking progress will be lost. If you have already clicked pay, please wait to avoid duplicate charges.
-        </p>
+        <p className="text-white/60 mb-8 leading-relaxed">Your booking progress will be lost. If you have already clicked pay, please wait to avoid duplicate charges.</p>
         <div className="flex gap-4">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all font-medium"
-          >
-            Continue Payment
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 py-3 px-6 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all font-medium"
-          >
-            Leave Page
-          </button>
+          <button onClick={onCancel} className="flex-1 py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all font-medium">Continue Payment</button>
+          <button onClick={onConfirm} className="flex-1 py-3 px-6 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all font-medium">Leave Page</button>
         </div>
       </div>
     </div>
