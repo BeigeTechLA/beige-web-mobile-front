@@ -237,17 +237,14 @@ const CreativeCard = ({ creative, isSelected, onToggle }: any) => {
     return (
         <div
             onClick={onToggle}
-            className={`relative group flex flex-col md:flex-row items-center md:items-start gap-6 rounded-2xl cursor-pointer transition-all duration-300 border p-4 ${
-                isSelected 
-                    ? 'bg-white/[0.06] border-[#E8D1AB] scale-[1.02] shadow-[0_0_25px_rgba(232,209,171,0.15)]' 
-                    : 'bg-transparent border-transparent hover:border-white/10'
-            }`}
+            className={`relative group flex flex-col md:flex-row items-center md:items-start gap-6 rounded-2xl cursor-pointer transition-all border ${isSelected ? 'bg-white/[0.02] border-white/10' : 'bg-transparent border-transparent'
+                }`}
         >
             {/* Profile Image */}
             <div className="relative w-20 h-25 lg:w-[146px] lg:h-[156px] flex-shrink-0">
                 {creative.profile_photo ? (
                     <img
-                        src={`https://beigexmemehouse.s3.amazonaws.com/beige/${creative.profile_photo}`}
+                        src={`https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${creative.profile_photo}`}
                         alt={creative.name}
                         className="w-full h-full object-cover rounded-lg"
                     />
@@ -262,24 +259,15 @@ const CreativeCard = ({ creative, isSelected, onToggle }: any) => {
             <div className="flex-1 w-full">
                 <div className="flex justify-between items-center mb-3 lg:mb-5">
                     <div className="flex items-center gap-3">
-                        <h3 className={`lg:text-[22px] font-medium transition-colors duration-300 ${
-                            isSelected ? 'text-[#E8D1AB]' : 'text-white'
-                        }`}>
-                            {creative.name}
-                        </h3>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg capitalize transition-colors ${
-                            isSelected ? 'bg-[#E8D1AB] text-black' : 'bg-[#16A34A] text-white'
-                        }`}>
+                        <h3 className="lg:text-[22px]">{creative.name}</h3>
+                        <span className="bg-[#16A34A] text-[#fff] text-xs font-semibold px-2 py-0.5 rounded-lg capitalize">
                             {creative.status}
                         </span>
                     </div>
 
-                    {/* Custom Checkbox with Glow */}
-                    <div className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all duration-300 ${
-                        isSelected 
-                            ? 'bg-[#E8D1AB] border-[#E8D1AB] shadow-[0_0_10px_rgba(232,209,171,0.5)]' 
-                            : 'bg-transparent border-white/20'
-                    }`}>
+                    {/* Custom Checkbox */}
+                    <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : 'bg-transparent border-white/20'
+                        }`}>
                         {isSelected && <Check size={16} className="text-black stroke-[3px]" />}
                     </div>
                 </div>
@@ -287,33 +275,14 @@ const CreativeCard = ({ creative, isSelected, onToggle }: any) => {
                 <div className="flex flex-col lg:flex-row gap-4 md:gap-8 text-sm border-t border-white/5 pt-3 lg:pt-5">
                     <div>
                         <p className="text-[#AAA7A7] mb-1">Experience:</p>
-                        <p className={`font-medium transition-colors ${isSelected ? 'text-white' : 'text-white/80'}`}>
-                            {(creative.shoots || 0)} Years
-                        </p>
+                        <p className="text-white font-medium">{(creative.shoots || 0)} Years</p>
                     </div>
-                    <div className="md:border-x border-white/10 md:px-8">
+                    <div className="md:border-x-2 border-[#E0E0E0] md:px-8">
                         <p className="text-[#AAA7A7] mb-1">Specialities:</p>
-                        <p className={`font-medium capitalize transition-colors ${isSelected ? 'text-white' : 'text-white/80'}`}>
-                            {creative.specialities}
-                        </p>
-                    </div>
-                    <div className="md:pl-2">
-                        <p className="text-[#AAA7A7] mb-1">Availability:</p>
-                        <div className={`flex items-center gap-2 underline decoration-[#E8D1AB]/30 underline-offset-4 transition-colors ${
-                            isSelected ? 'text-[#E8D1AB]' : 'text-[#E8D1AB]/70'
-                        }`}>
-                            <span>{creative.availability || 'Available'}</span>
-                            <Calendar size={14} />
-                        </div>
+                        <p className="text-white font-medium">{creative.specialities}</p>
                     </div>
                 </div>
             </div>
-
-            {creative.is_beige_member === 1 && (
-                <div className="absolute top-4 right-12 bg-[#E8D1AB] text-black text-[10px] px-2 py-0.5 rounded-full font-bold shadow-lg">
-                    PRO
-                </div>
-            )}
         </div>
     );
 };

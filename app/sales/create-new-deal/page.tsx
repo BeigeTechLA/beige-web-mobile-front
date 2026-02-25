@@ -9,6 +9,7 @@ import { set, format } from "date-fns";
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
 import DottedDivider from "@/components/admin/DottedDivider";
@@ -308,7 +309,7 @@ export default function ClientDetailPage() {
     if (!timeKey) return updateData({ startDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
     const currentDate = parseDate(formData.startDate) || new Date();
-    
+
     const selectedTime = new Date(
       currentDate.getFullYear(),
       currentDate.getMonth(),
@@ -318,7 +319,7 @@ export default function ClientDetailPage() {
       0,
       0
     );
-    
+
     const now = new Date();
 
     if (selectedTime < now) {
@@ -338,7 +339,7 @@ export default function ClientDetailPage() {
     if (!timeKey) return updateData({ endDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
     const baseDate = parseDate(formData.startDate) || new Date();
-    
+
     const newEnd = new Date(
       baseDate.getFullYear(),
       baseDate.getMonth(),
@@ -348,7 +349,7 @@ export default function ClientDetailPage() {
       0,
       0
     );
-    
+
     // Fixed to send local string
     updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss") });
     scrollToRef(editsRef);
@@ -424,11 +425,116 @@ export default function ClientDetailPage() {
     }, 100);
   };
 
-  const availableRolesToAdd = TEAM_ROLES.filter(role => formData.contentType.includes(role.id));
+  const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0 });
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+
+  const reqCounts = useMemo(() => {
+    return {
+      videographer: formData.contentType.includes("videographer") ? 1 + (extraTeam["videographer"] || 0) : 0,
+      photographer: formData.contentType.includes("photographer") ? 1 + (extraTeam["photographer"] || 0) : 0
+    };
+  }, [formData.contentType, extraTeam]);
+
+  const handleContinueClick = async () => {
+    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent) {
+      toast.error("Please fill in all client information fields");
+      return;
+    }
+
+    // Check if over-selecting
+    const isOverVideographers = selectionCounts.videographer > reqCounts.videographer;
+    const isOverPhotographers = selectionCounts.photographer > reqCounts.photographer;
+
+    if (isOverVideographers || isOverPhotographers) {
+      setIsConfirmModalOpen(true);
+      return;
+    }
+
+    executeFinalizeDeal();
+  };
+
+  const executeFinalizeDeal = async () => {
+    setIsConfirmModalOpen(false);
+    setIsSubmitting(true);
+    try {
+      // Parse correctly from local time strings
+      const startDate = parseDate(formData.startDate);
+      const endDate = parseDate(formData.endDate);
+
+      const durationHours = startDate && endDate
+        ? Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)))
+        : 0;
+
+      const crewRoles: Record<string, number> = {};
+      if (formData.contentType.includes("videographer")) {
+        crewRoles["videographer"] = 1 + (extraTeam["videographer"] || 0);
+      }
+      if (formData.contentType.includes("photographer")) {
+        crewRoles["photographer"] = 1 + (extraTeam["photographer"] || 0);
+      }
+
+      const crewSize = Object.values(crewRoles).reduce((a, b) => a + b, 0);
+
+      const payload = {
+        client_name: clientName,
+        guest_email: clientEmail,
+        phone: clientPhone,
+        intent: intent,
+        lead_source: thumbtack,
+        content_type: formData.contentType.filter(t => t !== 'editing').join(','),
+        shoot_type: formData.shootType,
+        start_date_time: formData.startDate,
+        end_time: formData.endDate,
+        duration_hours: durationHours,
+        location: formData.location,
+        crew_roles: crewRoles,
+        crew_size: crewSize,
+        selected_crew_ids: formData.selectedCrewIds || [],
+        edits_needed: formData.editsNeeded,
+        video_edit_types: formData.videoEditTypes || [],
+        photo_edit_types: formData.photoEditTypes || [],
+        is_draft: false,
+        skip_discount: true,
+        skip_margin: true
+      };
+
+      const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success("Deal created successfully!");
+        router.push("/sales/leads");
+      } else {
+        toast.error(result.message || "Failed to create deal");
+      }
+    } catch (error) {
+      console.error("Error creating deal:", error);
+      toast.error("Failed to create deal");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const availableRolesToAdd = TEAM_ROLES.filter(role => formData.contentType.includes(role.id as any));
 
   return (
     <>
       <Topbar pathname={pathname} />
+
+      <AssignmentConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={executeFinalizeDeal}
+        videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
+        photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
+      />
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans mb-20">
         <Button
           onClick={() => router.back()}
@@ -525,8 +631,8 @@ export default function ClientDetailPage() {
               checked={formData.contentType.includes("photographer")}
               onChange={() => toggleContentType("photographer")}
             />
-            <ContentTypeCheckbox label="AI Editing" subLabel="Coming Soon" icon={<Scissors size={20} />} disabled={true} />
-            <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} disabled={true} />
+            <ContentTypeCheckbox label="AI Editing" subLabel="Coming Soon" icon={<Scissors size={20} />} checked={false} onChange={() => { }} disabled={true} />
+            <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} checked={false} onChange={() => { }} disabled={true} />
           </div>
         </div>
         <DottedDivider />
@@ -722,6 +828,7 @@ export default function ClientDetailPage() {
             <CreativeProfileSelector
               selectedIds={formData.selectedCrewIds || []}
               onChange={(ids) => updateData({ selectedCrewIds: ids })}
+              onSelectionUpdate={setSelectionCounts}
               creatives={crewList.map(cp => ({
                 id: cp.crew_member_id,
                 first_name: cp.first_name,
@@ -733,19 +840,12 @@ export default function ClientDetailPage() {
                 is_beige_member: cp.is_beige_member,
                 assigned_shoots: cp.assigned_shoots,
                 status: cp.status,
+                profile_photo: cp.profile_photo,
               }))}
               isLoading={isLoadingCrew}
               emptyMessage="No matching professionals found for this date/location."
-              videographerCount={
-                formData.contentType.includes("videographer")
-                  ? 1 + (extraTeam["videographer"] as number || 0)
-                  : 0
-              }
-              photographerCount={
-                formData.contentType.includes("photographer")
-                  ? 1 + (extraTeam["photographer"] as number || 0)
-                  : 0
-              }
+              videographerCount={reqCounts.videographer}
+              photographerCount={reqCounts.photographer}
             />
           )}
         </div>
@@ -761,78 +861,7 @@ export default function ClientDetailPage() {
           </Button>
           <Button
             disabled={formData.selectedCrewIds.length === 0 || isSubmitting}
-            onClick={async () => {
-              if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent) {
-                toast.error("Please fill in all client information fields");
-                return;
-              }
-
-              setIsSubmitting(true);
-              try {
-                // Parse correctly from local time strings
-                const startDate = parseDate(formData.startDate);
-                const endDate = parseDate(formData.endDate);
-                
-                const durationHours = startDate && endDate
-                  ? Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)))
-                  : 0;
-
-                const crewRoles: Record<string, number> = {};
-                if (formData.contentType.includes("videographer")) {
-                  crewRoles["videographer"] = 1 + (extraTeam["videographer"] || 0);
-                }
-                if (formData.contentType.includes("photographer")) {
-                  crewRoles["photographer"] = 1 + (extraTeam["photographer"] || 0);
-                }
-
-                const crewSize = Object.values(crewRoles).reduce((a, b) => a + b, 0);
-
-                const payload = {
-                  client_name: clientName,
-                  guest_email: clientEmail,
-                  phone: clientPhone,
-                  intent: intent,
-                  lead_source: thumbtack,
-                  content_type: formData.contentType.filter(t => t !== 'editing').join(','),
-                  shoot_type: formData.shootType,
-                  start_date_time: formData.startDate,
-                  end_time: formData.endDate,
-                  duration_hours: durationHours,
-                  location: formData.location,
-                  crew_roles: crewRoles,
-                  crew_size: crewSize,
-                  selected_crew_ids: formData.selectedCrewIds || [],
-                  edits_needed: formData.editsNeeded,
-                  video_edit_types: formData.videoEditTypes || [],
-                  photo_edit_types: formData.photoEditTypes || [],
-                  is_draft: false,
-                  skip_discount: true,
-                  skip_margin: true
-                };
-
-                const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify(payload),
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                  toast.success("Deal created successfully!");
-                  router.push("/sales/dashboard");
-                } else {
-                  toast.error(result.message || "Failed to create deal");
-                }
-              } catch (error) {
-                console.error("Error creating deal:", error);
-                toast.error("Failed to create deal");
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
+            onClick={handleContinueClick}
             className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Creating..." : "Continue"}

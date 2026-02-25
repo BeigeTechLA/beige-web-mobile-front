@@ -20,6 +20,7 @@ export interface CreativeData {
   hourly_rate?: number | string;
   is_beige_member?: number;
   profile_image?: string;
+  profile_photo?: string;
 }
 
 export interface CreativeProfileSelectorProps {
@@ -30,6 +31,7 @@ export interface CreativeProfileSelectorProps {
   emptyMessage?: string;
   videographerCount?: number; // This is the Required count
   photographerCount?: number; // This is the Required count
+  onSelectionUpdate?: (counts: { videographer: number, photographer: number }) => void;
 }
 
 // Mock Data for backward compatibility
@@ -49,6 +51,7 @@ export const CreativeProfileSelector = ({
   emptyMessage = "No matching professionals found for this selection.",
   videographerCount = 0,
   photographerCount = 0,
+  onSelectionUpdate,
 }: CreativeProfileSelectorProps) => {
   const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -68,6 +71,13 @@ export const CreativeProfileSelector = ({
       total: currentSelectedIds.length
     };
   }, [currentSelectedIds, displayCreatives]);
+
+  // Notify parent of count updates
+  React.useEffect(() => {
+    if (onSelectionUpdate) {
+      onSelectionUpdate({ videographer: selectedDetails.v, photographer: selectedDetails.p });
+    }
+  }, [selectedDetails.v, selectedDetails.p, onSelectionUpdate]);
 
   const toggleSelection = (id: number) => {
     const nextIds = currentSelectedIds.includes(id)
@@ -101,7 +111,7 @@ export const CreativeProfileSelector = ({
         rating: creative.rating || '5.0',
         hourly_rate: creative.hourly_rate,
         is_beige_member: creative.is_beige_member,
-        profile_image: creative.profile_image,
+        profile_image: creative.profile_photo || creative.profile_image,
       };
     }
     return {
@@ -115,7 +125,7 @@ export const CreativeProfileSelector = ({
       rating: creative.rating || '5.0',
       hourly_rate: creative.hourly_rate,
       is_beige_member: creative.is_beige_member,
-      profile_image: creative.profile_image,
+      profile_image: creative.profile_photo || creative.profile_image,
     };
   };
 
@@ -219,16 +229,13 @@ const CreativeCard = ({ creative, isSelected, onToggle }: CreativeCardProps) => 
   return (
     <div
       onClick={onToggle}
-      className={`relative group flex flex-col md:flex-row items-center md:items-start gap-6 rounded-2xl cursor-pointer transition-all duration-300 border p-4 ${
-        isSelected 
-          ? 'bg-white/[0.06] border-[#E8D1AB] scale-[1.02] shadow-[0_0_25px_rgba(232,209,171,0.15)]' 
-          : 'bg-transparent border-transparent hover:border-white/10'
-      }`}
+      className={`relative group flex flex-col md:flex-row items-center md:items-start gap-6 rounded-2xl cursor-pointer transition-all border p-2 ${isSelected ? 'bg-white/[0.04] border-white/10' : 'bg-transparent border-transparent'
+        }`}
     >
       <div className="relative w-20 h-25 lg:w-[146px] lg:h-[156px] flex-shrink-0">
         {creative.profile_image ? (
           <img
-            src={creative.profile_image.startsWith('http') ? creative.profile_image : `https://beigexmemehouse.s3.amazonaws.com/beige/${creative.profile_image}`}
+            src={creative.profile_image.startsWith('http') ? creative.profile_image : `https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${creative.profile_image}`}
             alt={creative.name}
             className={`w-full h-full object-cover rounded-lg transition-all ${!isSelected ? 'grayscale' : ''}`}
           />
@@ -242,22 +249,14 @@ const CreativeCard = ({ creative, isSelected, onToggle }: CreativeCardProps) => 
       <div className="flex-1 w-full">
         <div className="flex justify-between items-center mb-3 lg:mb-5">
           <div className="flex items-center gap-3">
-            <h3 className={`lg:text-[22px] font-medium transition-colors ${isSelected ? 'text-[#E8D1AB]' : 'text-white'}`}>
-              {creative.name}
-            </h3>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg capitalize transition-colors ${
-              isSelected ? 'bg-[#E8D1AB] text-black' : 'bg-[#16A34A] text-white'
-            }`}>
+            <h3 className="lg:text-[22px] font-medium">{creative.name}</h3>
+            <span className="bg-[#16A34A] text-[#fff] text-xs font-semibold px-2 py-0.5 rounded-lg capitalize">
               {creative.status}
             </span>
           </div>
 
-          {/* Checkbox Box */}
-          <div className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all duration-300 ${
-            isSelected 
-              ? 'bg-[#E8D1AB] border-[#E8D1AB] shadow-[0_0_10px_rgba(232,209,171,0.5)]' 
-              : 'bg-transparent border-white/20'
-          }`}>
+          <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : 'bg-transparent border-white/20'
+            }`}>
             {isSelected && <Check size={16} className="text-black stroke-[3px]" />}
           </div>
         </div>
@@ -265,21 +264,15 @@ const CreativeCard = ({ creative, isSelected, onToggle }: CreativeCardProps) => 
         <div className="flex flex-col lg:flex-row gap-4 md:gap-8 text-sm border-t border-white/5 pt-3 lg:pt-5">
           <div>
             <p className="text-[#AAA7A7] mb-1">Assigned Shoots:</p>
-            <p className={`font-medium transition-colors ${isSelected ? 'text-white' : 'text-white/80'}`}>
-              {creative.shoots.toString().padStart(2, '0')} Shoots
-            </p>
+            <p className="text-white font-medium">{creative.shoots.toString().padStart(2, '0')} Shoots</p>
           </div>
-          <div className="md:border-x border-white/10 md:px-8">
+          <div className="md:border-x-2 border-white/5 md:px-8">
             <p className="text-[#AAA7A7] mb-1">Specialities:</p>
-            <p className={`font-medium capitalize transition-colors ${isSelected ? 'text-white' : 'text-white/80'}`}>
-              {creative.specialities}
-            </p>
+            <p className="text-white font-medium capitalize">{creative.specialities}</p>
           </div>
           <div className="md:pl-8">
             <p className="text-[#AAA7A7] mb-1">Availability:</p>
-            <div className={`flex items-center gap-2 underline decoration-[#E8D1AB]/30 underline-offset-4 transition-colors ${
-              isSelected ? 'text-[#E8D1AB]' : 'text-[#E8D1AB]/70'
-            }`}>
+            <div className="flex items-center gap-2 text-[#E8D1AB] underline decoration-[#E8D1AB]/30 underline-offset-4">
               <span>{creative.availability}</span>
               <Calendar size={14} />
             </div>
@@ -287,14 +280,14 @@ const CreativeCard = ({ creative, isSelected, onToggle }: CreativeCardProps) => 
         </div>
 
         {creative.location && (
-          <div className="flex items-center gap-2 text-sm text-white/40 mt-3">
+          <div className="flex items-center gap-2 text-sm text-white/60 mt-3">
             <span className="truncate">{creative.location}</span>
           </div>
         )}
       </div>
 
       {creative.is_beige_member === 1 && (
-        <div className="absolute top-4 right-12 bg-[#E8D1AB] text-black text-[10px] px-2 py-0.5 rounded-full font-bold shadow-lg">
+        <div className="absolute top-2 right-2 bg-[#E8D1AB] text-black text-[10px] px-2 py-0.5 rounded-full font-bold">
           PRO
         </div>
       )}
