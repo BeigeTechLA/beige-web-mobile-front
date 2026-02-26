@@ -186,20 +186,20 @@ const CreatorCarousel = ({
                             e.preventDefault();
                             toggleSelection(creatorId);
                           }}
-                          className={`flex-1 py-2 lg:py-4 rounded-lg text-sm lg:text-base font-medium flex items-center justify-center transition-colors ${isSelected ? "bg-red-500/10 text-red-400 border border-red-500/30" : "bg-[#E8D1AB] text-black"
+                          className={`flex-1 py-2 lg:py-4 rounded-lg text-sm lg:text-base font-medium flex items-center justify-center transition-colors ${isSelected ? "bg-[#FFC9C9] text-[#C31717] border border-[#C31717]" : "bg-[#E8D1AB] text-black"
                             }`}
                         >
                           {isSelected ? <><X size={16} className="mr-1" /> Remove</> : <><Plus size={16} className="mr-1" /> Add</>}
                         </button>
-                        {/* <Link
-                          href={`/creatives/${creatorId}`}
+                        <Link
+                          href={`/creatives/${creatorId}?from=booking_flow`}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           className="text-center flex-1 border border-white/30 text-white py-2 lg:py-4 rounded-lg text-sm lg:text-base font-medium transition-all hover:bg-white/10"
                         >
                           View Profile
-                        </Link> */}
+                        </Link>
                       </div>
                     </div>
                   </div>

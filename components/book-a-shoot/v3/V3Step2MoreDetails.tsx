@@ -100,7 +100,6 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   // add GA event on initial load
   useEffect(() => {
-    console.log(data);
     const formFields = {
       content_type: data.contentType.join(","),
       shoot_type: data.shootType,

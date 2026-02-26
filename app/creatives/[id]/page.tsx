@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, Suspense, useRef } from "react";
+import React, { useState, Suspense, useRef, useEffect } from "react";
 import { useSearchParams, useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
+import Link from "next/link";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 
-import { ArrowLeft, Loader2, Check, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { ArrowLeft, Loader2, Check, ArrowUpRight, ArrowDownLeft, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -28,29 +29,64 @@ import {
   selectSelectedCreatorIds,
 } from "@/lib/redux/features/booking/bookingSlice";
 import "swiper/css";
+import StackedVideoScroll from "../components/VideoSlide";
+import { ProjectSwitcher } from "../components/ProjectSwitcher";
 
 const tabs = ["Portfolios"];  //"Work History", "FAQs", "Reviews"
 
-// DummyImage List: To be removed later
-const crewImages = [
-  "/images/crew/CREW(1).png",
-  "/images/crew/CREW(2).png",
-  "/images/crew/CREW(3).png",
-  "/images/crew/CREW(4).png",
-  "/images/crew/CREW(5).png",
-  "/images/crew/CREW(7).png",
-  "/images/crew/CREW(6).png",
-  "/images/crew/CREW(8).png",
-  "/images/crew/CREW(9).png",
-  "/images/crew/CREW(10).png",
+// Fallback portfolio Images
+const fallbackImages = ["https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/wedding.jpg",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/private.jpg",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/commercial.jpg",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/podcast.jpg",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/social_content.jpg",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/music.jpg",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/short_film.jpg",
+  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/Brands&Products.jpg",
+]
+
+const videos = [
+  {
+    url: "https://youtu.be/5FrhtahQiRc?si=Ub2wKKHeid3HWayt",
+    thumbnail: "https://img.youtube.com/vi/5FrhtahQiRc/maxresdefault.jpg"
+
+  },
+  {
+    url: "https://vimeo.com/1067901829",
+  },
+  {
+    url: "https://youtu.be/ug-dxCgd9Jc?si=zKVXROHg3dIOC9g6",
+    thumbnail: "https://img.youtube.com/vi/ug-dxCgd9Jc/maxresdefault.jpg"
+  },
+  {
+    url: "https://vimeo.com/952121987"
+  },
+  {
+    url: "https://vimeo.com/1056604264",
+  },
+  {
+    url: "https://vimeo.com/1056043823",
+  },
+  {
+    url: "https://vimeo.com/1067856067",
+  },
+];
+
+
+const sampleProjects: string[] = [
+  "Commercial Projects",
+  "Weddings",
+  "Brand Campaigns"
 ];
 
 function CreatorProfileContent() {
   const swiperRef = useRef<SwiperType | null>(null);
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState("Portfolios");
+  const [activeProject, setActiveProject] = useState(sampleProjects[1]);
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(0);
+
+  const [isFromBookingPage, setIsFromBookingPage] = useState(false);
 
   const searchParams = useSearchParams();
   const params = useParams();
@@ -64,6 +100,13 @@ function CreatorProfileContent() {
   const creatorIdNumber = Number(creatorId);
 
   const isSelected = selectedCreatorIds.includes(creatorId);
+
+  useEffect(() => {
+    const fromPage = searchParams.get('from');
+    if (fromPage === 'booking_flow') {
+      setIsFromBookingPage(true);
+    }
+  }, [])
 
   // Fetch creator profile data
   const {
@@ -88,11 +131,6 @@ function CreatorProfileContent() {
     page: 1,
     limit: 4
   });
-
-  // Get fallback image
-  const getFallbackImage = (id: string) => {
-    return crewImages[parseInt(id) % 10];
-  };
 
   const handleBack = () => {
     router.back();
@@ -133,7 +171,8 @@ function CreatorProfileContent() {
   }
 
   // Prepare portfolio images
-  const portfolioImages = portfolioData?.data?.map(item => item.image_url || item.video_url).filter(Boolean) || [];
+  // const portfolioImages = portfolioData?.data?.map(item => item.image_url || item.video_url).filter(Boolean) || [];
+  const portfolioImages = portfolioData?.data?.map(item => item.image_url || item.video_url).filter(Boolean) || fallbackImages
 
   // Prepare recommended creators
   const recommendedCreators = recommendedData?.data?.slice(0, 4).map(creator => ({
@@ -149,159 +188,204 @@ function CreatorProfileContent() {
   return (
     <div className="pt-20 lg:pt-32 pb-20">
       <div className="px-4 md:px-0">
-        <section className="mx-auto mt-12 container">
-          {/* Back Button */}
-          <Button
-            onClick={handleBack}
-            className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
+        <section className="mx-auto my-12 container">
+          <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
+            {/* Back Button */}
+            <Button
+              onClick={handleBack}
+              className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
 
-          {/* CP Info Section */}
-          <div className="flex flex-col lg:flex-row gap-12">
-            {/* Left: Gallery */}
-            <div className="lg:w-1/2">
-              <CreatorGallery
-                mockCreator={{
-                  images: portfolioImages.slice(0, 7),
-                  name: profile.name,
-                  rating: profile.rating || 0,
-                  reviews: profile.total_reviews || 0
-                }}
-              />
-            </div>
-
-            {/* Right: Info */}
-            <div className="flex-1 lg:w-1/2 flex flex-col gap-3 lg:gap-[30px]">
-              {/* Header Info */}
-              <div className="flex items-start justify-between">
-                <div className="flex flex-col gap-3">
-                  <h1 className="text-lg lg:text-3xl font-medium text-white">
-                    {profile.name}
-                  </h1>
-                  <p className="text-[#E8D1AB] text-sm lg:text-[22px]">
-                    {profile.role_name || "Content Creator"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {isSelected && (
-                    <div className="flex items-center gap-1 bg-green-500/90 px-3 py-2 rounded-full">
-                      <Check className="w-4 h-4 text-white" />
-                      <span className="text-sm text-white font-medium">In Crew</span>
-                    </div>
-                  )}
-                  {profile.is_available && (
-                    <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50] lg:leading-[20px]">
-                      Available
-                    </p>
-                  )}
-                </div>
+            {/* CP Info Section */}
+            <div className="flex flex-col lg:flex-row gap-12">
+              {/* Left: Gallery */}
+              <div className="lg:w-1/2">
+                <CreatorGallery
+                  mockCreator={{
+                    // images: portfolioImages.slice(0, 7),
+                    images: profile?.image,
+                    name: profile.name,
+                    rating: profile.rating || 0,
+                    reviews: profile.total_reviews || 0
+                  }}
+                />
               </div>
-              <Separator />
 
-              {/* About */}
-              {profile.bio && (
-                <>
-                  <div className="flex flex-col gap-3.5">
-                    <h3 className="text-base lg:text-xl font-bold text-white">About Creator</h3>
-                    <p className="text-white/60 leading-relaxed text-sm lg:text-lg font-normal">
-                      {profile.bio}
+              {/* Right: Info */}
+              <div className="flex-1 lg:w-1/2 flex flex-col gap-3 lg:gap-[30px]">
+                {/* Header Info */}
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-3">
+                    <h1 className="text-lg lg:text-3xl font-medium text-white">
+                      {profile.name}
+                    </h1>
+                    <p className="text-[#E8D1AB] text-sm lg:text-[22px]">
+                      {profile.role_name || "Content Creator"}
                     </p>
                   </div>
-                  <Separator />
-                </>
-              )}
-
-              {/* Skills */}
-              {profile.skills && (
-                <>
-                  <div className="flex flex-col gap-3.5">
-                    <h3 className="text-base lg:text-xl font-bold text-white">Skills</h3>
-                    <div className="flex flex-wrap gap-2.5">
-                      {(Array.isArray(profile.skills)
-                        ? profile.skills
-                        : profile.skills.split(',').map(s => s.trim())
-                      ).map((skill, index) => (
-                        <span
-                          key={`${skill}-${index}`}
-                          className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    {isSelected && (
+                      <div className="flex items-center gap-1 bg-green-500/90 px-3 py-2 rounded-full">
+                        <Check className="w-4 h-4 text-white" />
+                        <span className="text-sm text-white font-medium">In Crew</span>
+                      </div>
+                    )}
+                    {profile.is_available && (
+                      <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50] lg:leading-[20px]">
+                        Available
+                      </p>
+                    )}
                   </div>
-                  <Separator />
-                </>
-              )}
+                </div>
+                <Separator />
 
-              {/* Equipment */}
-              {profile.equipment && (
-                <>
-                  <div className="flex flex-col gap-3.5">
-                    <h3 className="text-base lg:text-xl font-bold text-white">Equipment&apos;s</h3>
-                    <div className="flex flex-wrap gap-2.5">
-                      {(Array.isArray(profile.equipment)
-                        ? profile.equipment
-                        : profile.equipment.split(',').map(s => s.trim())
-                      ).map((item, index) => (
-                        <span
-                          key={`${item}-${index}`}
-                          className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
-                        >
-                          {item}
-                        </span>
-                      ))}
+                {/* About */}
+                {profile.bio && (
+                  <>
+                    <div className="flex flex-col gap-3.5">
+                      <h3 className="text-base lg:text-xl font-bold text-white">About Creator</h3>
+                      <p className="text-white/60 leading-relaxed text-sm lg:text-lg font-normal">
+                        {profile.bio}
+                      </p>
                     </div>
-                  </div>
-                  <Separator />
-                </>
-              )}
-
-
-            </div>
-          </div>
-        </section>
-
-        {/* Tabs Section */}
-        <section className="my-10 lg:my-20">
-          <div className="flex justify-center border-b border-t border-white/10 mb-8 w-full gap-20">
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 md:flex-none px-8 py-4 lg:py-10 text-base lg:text-2xl font-medium transition-colors relative ${activeTab === tab
-                  ? "text-[#E8D1AB]"
-                  : "text-white/40 hover:text-white"
-                  }`}
-              >
-                {tab}
-                {activeTab === tab && (
-                  <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#E8D1AB]" />
+                    <Separator />
+                  </>
                 )}
-              </button>
-            ))}
-          </div>
 
-          {activeTab === "Portfolios" && (
-            portfolioImages.length > 0 ? (
-              <ImageWheel images={portfolioImages} />
-            ) : (
-              <div className="py-10 text-center text-white/40">
-                No portfolio items available yet.
+                {/* Skills */}
+                {profile.skills && (
+                  <>
+                    <div className="flex flex-col gap-3.5">
+                      <h3 className="text-base lg:text-xl font-bold text-white">Skills</h3>
+                      <div className="flex flex-wrap gap-2.5">
+                        {(Array.isArray(profile.skills)
+                          ? profile.skills
+                          : profile.skills.split(',').map(s => s.trim())
+                        ).map((skill, index) => (
+                          <span
+                            key={`${skill}-${index}`}
+                            className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
+                {/* Equipment */}
+                {profile.equipment && (
+                  <>
+                    <div className="flex flex-col gap-3.5">
+                      <h3 className="text-base lg:text-xl font-bold text-white">Equipment&apos;s</h3>
+                      <div className="flex flex-wrap gap-2.5">
+                        {(Array.isArray(profile.equipment)
+                          ? profile.equipment
+                          : profile.equipment.split(',').map(s => s.trim())
+                        ).map((item, index) => (
+                          <span
+                            key={`${item}-${index}`}
+                            className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
+                {/* If landed on Profile from Booking flow, show following */}
+                {isFromBookingPage &&
+                  <div className="rounded-[20px] bg-[#171717] p-4 lg:p-[30px]">
+                    <div className="flex justify-between mb-4 lg:mb-[30px]">
+                      <div>
+                        <p className="text-lg lg:text-2xl font-semibold">Your Crew</p>
+                        {/* Depends on the required crew size. to be dynamic */}
+                        <p className="text-xs lg:text-sm">1 of 1 selected</p>
+                      </div>
+                      <div className="flex gap-2 flex-end items-center text-[#4CAF50] lg:text-[20px]">
+                        <Check />
+                        {/* Depends on where required crew size is met. to be dynamic */}
+                        <span>Completed</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent Swiper from intercepting this as a drag/slide
+                          e.preventDefault();
+                        }}
+                        className={`flex-1 py-2 lg:py-4 rounded-lg text-sm lg:text-[20px] font-medium flex items-center justify-center transition-colors ${isSelected ? "bg-[#FFC9C9] text-[#C31717] border border-[#C31717] hover:bg-[#FFC9C9]/70" : "border border-white/30 text-white hover:bg-white/10"
+                          }`}
+                      >
+                        {isSelected ? <><X size={16} className="mr-1" /> Remove From Crew</> : <><Plus size={16} className="mr-1" /> Add to the Crew</>}
+                      </button>
+                      <Link
+                        href={`/payment`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-center flex-1 bg-[#E8D1AB] hover:bg-[#E8D1AB]/80 text-black py-2 lg:py-4 rounded-lg text-sm lg:text-[20px] font-medium transition-all "
+                      >
+                        Proceed to Payment
+                      </Link>
+                    </div>
+                  </div>
+                }
+
               </div>
-            )
-          )}
-
-          {/* Content based on active tab */}
-          {activeTab !== "Portfolios" && (
-            <div className="py-10 text-center text-white/40">
-              Content for {activeTab} coming soon...
             </div>
-          )}
+          </div>
         </section>
+
+        <CenteredSeparator />
+
+        {/* Featured Works */}
+        <section className="mt-14 lg:my-20 overflow-hidden">
+          <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
+            {/* Header */}
+            <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
+              <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
+                Featured Works
+              </h2>
+            </div>
+
+            <ProjectSwitcher
+              projects={sampleProjects}
+              active={activeProject}
+              onChange={(tab) => {
+                setActiveProject(tab);
+              }}
+              className="mx-auto mb-10"
+            />
+
+            {
+              portfolioImages.length > 0 ? (
+                <ImageWheel images={portfolioImages} />
+              ) : (
+                <div className="py-10 text-center text-white/40">
+                  No portfolio items available yet.
+                </div>
+              )
+            }
+          </div>
+        </section>
+
+        <CenteredSeparator />
+
+        {/* Video Portfolio Section */}
+        <section id="video-portfolio" className="relative w-full">
+          <StackedVideoScroll videos={videos} />
+        </section>
+
         <CenteredSeparator />
 
         <section className="mt-14 lg:mt-20 overflow-hidden">
