@@ -17,14 +17,15 @@ import {
 import { roleOptions, videographerSkills, photographerSkills, editorSkills } from "@/app/data/staticData";
 import { useRegisterCreatorStep2Mutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export default function Step2Form({ data, setData, nextStep, prevStep }) {
   const [registerStep2, { isLoading }] = useRegisterCreatorStep2Mutation();
 
   const inputClasses = "h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white placeholder:text-white/40 outline-none focus:border-[#E8D1AB] focus-visible:ring-0 focus-visible:ring-offset-0 bg-[#101010] text-sm lg:text-base";
-  
+
   const noSpinners = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
-  
+
   const labelClasses = "absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none";
   const sectionClasses = "rounded-[12px] border border-white/30 bg-[#101010] p-6 space-y-4";
 
@@ -90,12 +91,34 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
         primary_role: data.roles,
         years_of_experience: Number(data.yoe),
         hourly_rate: Number(data.hourlyRate),
-        bio: data.bio || "", 
+        bio: data.bio || "",
         skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
-        equipment_ownership: data.equipments || [], 
+        equipment_ownership: data.equipments || [],
       };
 
       await registerStep2(payload).unwrap();
+
+      // --- GA4 SIGNUP TRACKING ---
+      pushToDataLayer("sign_up_step2_submit", {
+        cp_id: data.crew_member_id,
+        user_type: "Creative Partner",
+        page_name: "Creative Partner Signup Page: Step 2",
+        location_in_website: "creative_partner_signup_step2",
+        duration_on_page: performance.now() / 1000,
+        email: data.email,
+        phone: data.phone || null,
+        cp_signup_form: {
+          primary_role: data.roles,
+          years_of_experience: Number(data.yoe),
+          hourly_rate: Number(data.hourlyRate),
+          bio: data.bio || "",
+          skills: (data.skills || []).map((s) => typeof s === "string" ? s : s.label || s.value),
+          equipment_ownership: data.equipments || []
+        }
+      });
+      // ---------------------------
+
+
       toast.success("Step 2 Completed");
       nextStep();
     } catch (err: any) {
@@ -136,8 +159,8 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
                   type="button"
                   onClick={() => toggleRole(opt.value)}
                   className={`px-4 py-2 lg:px-6 lg:py-3 rounded-full border text-sm lg:text-base transition-all flex items-center gap-2 ${isSelected
-                      ? "bg-[#E8D1AB] border-[#E8D1AB] text-black font-semibold shadow-[0_0_15px_rgba(232,209,171,0.3)]"
-                      : "bg-transparent border-white/20 text-white hover:border-white/50"
+                    ? "bg-[#E8D1AB] border-[#E8D1AB] text-black font-semibold shadow-[0_0_15px_rgba(232,209,171,0.3)]"
+                    : "bg-transparent border-white/20 text-white hover:border-white/50"
                     }`}
                 >
                   {isSelected && <Check className="w-4 h-4" />}

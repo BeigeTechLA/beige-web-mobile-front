@@ -12,6 +12,7 @@ import PortfolioLinksModal from "./PortfolioLinksModal";
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import { useRegisterCreatorStep3Mutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export default function Step3Form({ data, setData, nextStep, prevStep }: { data: any, setData: any, nextStep: () => void, prevStep: () => void }) {
   const [registerStep3, { isLoading }] = useRegisterCreatorStep3Mutation();
@@ -118,6 +119,25 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
 
       // API CALL
       await registerStep3(formData).unwrap();
+
+      // --- GA4 SIGNUP TRACKING ---
+      pushToDataLayer("sign_up_step3_submit", {
+        cp_id: data.crew_member_id,
+        user_type: "Creative Partner",
+        page_name: "Creative Partner Signup Page: Step 3",
+        location_in_website: "creative_partner_signup_step3",
+        duration_on_page: performance.now() / 1000,
+        email: data.email,
+        phone: data.phone || null,
+        cp_signup_form: {
+          social_professional_link: JSON.stringify(socialLinksPayload),
+          work_upload: JSON.stringify(workMetadata),
+          certifications: data?.certifications.length > 0 ? true : false,
+          documents: (resumeFile || Array.isArray(portfolio)) ? true : false
+        }
+      });
+      // ---------------------------
+
 
       toast.success("Profile Created Successfully!");
       nextStep();

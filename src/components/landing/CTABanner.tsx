@@ -5,10 +5,17 @@ import { useRouter } from "next/navigation";
 import { Container } from "@/src/components/landing/ui/container";
 import { Button } from "@/src/components/landing/ui/button";
 import { ArrowRight } from "lucide-react";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export const CTABanner = () => {
   const router = useRouter();
   const handleGetStarted = () => {
+    pushToDataLayer("book_shoot_started", {
+      type: "Action Tracking",
+      page_name: "Landing Page",
+      location_in_website: "cta_banner_landing_page",
+      duration_on_page: performance.now() / 1000,
+    });
     router.push('/book-a-shoot')
   };
 

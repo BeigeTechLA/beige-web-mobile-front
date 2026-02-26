@@ -39,12 +39,22 @@ import { parseDate } from "@/src/components/landing/lib/utils";
 import DatePicker from "@/components/ui/Datepicker";
 import { set, format } from "date-fns";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
+import { pushToDataLayer } from "@/lib/gtm";
 
 interface Props {
   data: BookingDataV3;
   updateData: (data: Partial<BookingDataV3>) => void;
   onNext: () => void;
   onBack: () => void;
+}
+
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager"
 }
 
 const datePickerColours = {
@@ -168,6 +178,18 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       }
     }
     setTimeOptions(options);
+
+    // add GA event on initial load
+    pushToDataLayer("booking_page_viewed_step1", {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "book_a_shoot_step1",
+      user_id: isAuthenticated ? user?.id : "Unknown",
+      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      email: isAuthenticated ? user?.email : "Unknown",
+      phone: isAuthenticated ? user?.phone_number : "Unknown",
+      duration_on_page: performance.now() / 1000,
+    });
   }, []);
 
   // --- Move these helpers up here ---
@@ -306,12 +328,12 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const [hours, minutes] = timeKey.split(":").map(Number);
   const baseDate = data.startDate ? parseDate(data.startDate) : new Date();
 
-  const newEnd = set(new Date(baseDate), { 
-    hours, 
-    minutes, 
-    seconds: 0, 
-    milliseconds: 0 
-  });
+    const newEnd = set(new Date(baseDate), {
+      hours,
+      minutes,
+      seconds: 0,
+      milliseconds: 0
+    });
 
   // Use format instead of toISOString
   updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
@@ -535,7 +557,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const handleNext = async () => {
     if (!validate()) return;
-
     // try {
     //   const res = await trackEarlyInterest({
     //     guest_email: data.email,
@@ -554,6 +575,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     //   toast.error("Failed to start booking. Please try again.");
     // }
   };
+
   const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
     setTimeout(() => {
       if (ref && ref.current) {
@@ -570,6 +592,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       }
     }, 100);
   };
+
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
       {/* Header */}

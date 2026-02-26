@@ -25,6 +25,17 @@ import { debounce } from "@/lib/utils";
 import { affiliateApi } from "@/lib/api";
 import axios from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
+import { pushToDataLayer } from "@/lib/gtm";
+import { useAuth } from "@/lib/hooks/useAuth";
+
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager"
+}
 
 // Initialize Stripe
 const stripePromise = loadStripe(
@@ -101,6 +112,7 @@ function StripePaymentFormMulti({
   setPaymentDetails: (details: any) => void;
   refreshPaymentIntent: (updatedDetails: any) => Promise<void>; // NEW TYPE
 }) {
+  const { user, isAuthenticated } = useAuth()
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -163,26 +175,26 @@ function StripePaymentFormMulti({
 
   // Debounced referral code validation
   const validateReferralCode = React.useCallback(
-  debounce(async (code: string) => {
-    if (!code || code.length < 4) {
-      setReferralCodeValid(null);
-      setReferralAffiliateName("");
-      setReferralErrorMessage(""); 
-      return;
-    }
-
-    setIsValidatingReferral(true);
-    try {
-      let userId = null;
-      try {
-        const storedUser = localStorage.getItem("revure_user");
-        if (storedUser) {
-          const userObj = JSON.parse(storedUser);
-          userId = userObj.id;
-        }
-      } catch (e) {
-        console.error("Error parsing user", e);
+    debounce(async (code: string) => {
+      if (!code || code.length < 4) {
+        setReferralCodeValid(null);
+        setReferralAffiliateName("");
+        setReferralErrorMessage("");
+        return;
       }
+
+      setIsValidatingReferral(true);
+      try {
+        let userId = null;
+        try {
+          const storedUser = localStorage.getItem("revure_user");
+          if (storedUser) {
+            const userObj = JSON.parse(storedUser);
+            userId = userObj.id;
+          }
+        } catch (e) {
+          console.error("Error parsing user", e);
+        }
 
       const response = await affiliateApi.validateCode(code, userId);
       
@@ -196,16 +208,17 @@ function StripePaymentFormMulti({
         setReferralErrorMessage(response.message || "Invalid referral code");
       }
 
-    } catch (error) {
-      console.error("Network Error:", error);
-      setReferralCodeValid(false);
-      setReferralErrorMessage("Check your internet connection");
-    } finally {
-      setIsValidatingReferral(false); 
-    }
-  }, 500),
-  [],
-);
+      } catch (error) {
+        // This will only run if there is a network crash
+        console.error("Network Error:", error);
+        setReferralCodeValid(false);
+        setReferralErrorMessage("Check your internet connection");
+      } finally {
+        setIsValidatingReferral(false);
+      }
+    }, 500),
+    [],
+  );
 
   // Debounced discount code validation
   const validateDiscountCode = React.useCallback(
@@ -245,8 +258,8 @@ function StripePaymentFormMulti({
         if (quote?.applied_discount_code?.toUpperCase() === code.toUpperCase()) {
             setDiscountValid(true);
         } else {
-            setDiscountValid(false);
-            setDiscountData(null);
+          setDiscountValid(false);
+          setDiscountData(null);
         }
       } finally {
         setIsValidatingDiscount(false);
@@ -330,6 +343,22 @@ function StripePaymentFormMulti({
       return;
     }
 
+    // add GA event when payment is initiated
+    pushToDataLayer("booking_payment_initiated ", {
+      type: "Action Tracking",
+      page_name: "Payment Page",
+      location_in_website: "book_a_shoot_payment_page",
+      user_id: isAuthenticated ? user?.id : "Unknown",
+      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      email: isAuthenticated ? user?.email : booking.email,
+      phone: isAuthenticated ? user?.phone_number : booking.phone,
+      duration_on_page: performance.now() / 1000,
+      booking_id: booking?.bookingId,
+      booking_form_fields: {
+        full_name: booking.fullName,
+        phone: booking.phone,
+      }
+    });
     setIsProcessing(true);
 
     try {
@@ -345,12 +374,54 @@ function StripePaymentFormMulti({
 
       if (paymentError) {
         console.error("Payment error:", paymentError);
+        // add GA event when payment fails
+        pushToDataLayer("payment_success", {
+          type: "Action Tracking",
+          page_name: "Payment Page",
+          location_in_website: "book_a_shoot_payment_page",
+          user_id: isAuthenticated ? user?.id : "Unknown",
+          user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+          email: isAuthenticated ? user?.email : booking.email,
+          phone: isAuthenticated ? user?.phone_number : booking.phone,
+          duration_on_page: performance.now() / 1000,
+          booking_id: booking?.bookingId,
+          payment_status: `Fail: ${paymentError.message || "Payment failed"}`
+        });
+
         onError(paymentError.message || "Payment failed");
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
+        // add GA event when payment succeeds
+        pushToDataLayer("payment_success", {
+          type: "Action Tracking",
+          page_name: "Payment Page",
+          location_in_website: "book_a_shoot_payment_page",
+          user_id: isAuthenticated ? user?.id : "Unknown",
+          user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+          email: isAuthenticated ? user?.email : booking.email,
+          phone: isAuthenticated ? user?.phone_number : booking.phone,
+          duration_on_page: performance.now() / 1000,
+          booking_id: booking?.bookingId,
+          payment_status: "Success"
+        });
+
         onSuccess(paymentIntent.id);
       }
     } catch (err) {
       console.error("Unexpected payment error:", err);
+      // add GA event when payment fails
+      pushToDataLayer("payment_success", {
+        type: "Action Tracking",
+        page_name: "Payment Page",
+        location_in_website: "book_a_shoot_payment_page",
+        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+        email: isAuthenticated ? user?.email : booking.email,
+        phone: isAuthenticated ? user?.phone_number : booking.phone,
+        duration_on_page: performance.now() / 1000,
+        booking_id: booking?.bookingId,
+        payment_status: `Fail: ${err instanceof Error ? err.message : "An unexpected error occurred"}`
+      });
+
       onError(
         err instanceof Error ? err.message : "An unexpected error occurred",
       );
@@ -546,7 +617,7 @@ function MultiCreatorPaymentContent() {
       photoCount: number;
     };
     mandatoryAddons: Array<{ role: string; cost: number }>;
-    editingFees: number; 
+    editingFees: number;
   }>({
     shootCost: 0,
     additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
@@ -599,21 +670,23 @@ function MultiCreatorPaymentContent() {
       const quantity = parseInt(item.quantity || 1);
       const total = parseFloat(item.line_total || 0);
       const unitPrice = total / quantity;
-      
+
+      // IMPROVED DETECTION: Check slug, category name, or keywords in item name
       const categorySlug = item.pricing_item?.category?.slug?.toLowerCase();
       const categoryName = item.pricing_item?.category?.name?.toLowerCase();
       const lowerName = name.toLowerCase();
 
-      const isEditingItem = 
-        categorySlug === "editing" || 
-        categoryName === "editing" || 
-        lowerName.includes("reel") || 
-        lowerName.includes("highlight") || 
+      const isEditingItem =
+        categorySlug === "editing" ||
+        categoryName === "editing" ||
+        lowerName.includes("reel") ||
+        lowerName.includes("highlight") ||
         lowerName.includes("edited photos");
 
       if (name.includes("Pre-Production") || lowerName.includes("rush")) {
         shootCostSum += total;
-      } 
+      }
+      // 2. Primary Crew (1st Unit to Shoot Cost, others to Additional aggregated)
       else if (name === "Videographer" || name === "Photographer") {
         shootCostSum += unitPrice;
         if (quantity > 1) {
@@ -640,9 +713,9 @@ function MultiCreatorPaymentContent() {
     setPricingGroups({
       shootCost: shootCostSum,
       additionalCP: {
-          totalCost: addCPTotalCost,
-          videoCount: addVideoCount,
-          photoCount: addPhotoCount
+        totalCost: addCPTotalCost,
+        videoCount: addVideoCount,
+        photoCount: addPhotoCount
       },
       mandatoryAddons: mandatoryAddonItems,
       editingFees: editingFeesSum,
@@ -911,6 +984,9 @@ function MultiCreatorPaymentContent() {
 
                 {quote && (
                   <div className="">
+                    {/* NEW AGGREGATED PRICING DISPLAY */}
+
+                    {/* 1. SHOOT COST */}
                     <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20">
                       <div className="flex flex-col gap-1">
                         <span className="font-bold text-[#212122]">Shoot Cost</span>
@@ -921,11 +997,15 @@ function MultiCreatorPaymentContent() {
                     {pricingGroups.additionalCP.totalCost > 0 && (
                       <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20">
                         <div className="flex flex-col gap-1">
-                            <span className="font-medium text-[#212122]">Additional Creative Partner Fees</span>
-                            <div className="text-[11px] text-[#626467] space-y-0.5">
-                                {pricingGroups.additionalCP.videoCount > 0 && <div>videographer x {pricingGroups.additionalCP.videoCount}</div>}
-                                {pricingGroups.additionalCP.photoCount > 0 && <div>photographer x {pricingGroups.additionalCP.photoCount}</div>}
-                            </div>
+                          <span className="font-medium text-[#212122]">Additional Creative Partner Fees</span>
+                          <div className="text-[11px] text-[#626467] space-y-0.5">
+                            {pricingGroups.additionalCP.videoCount > 0 && (
+                              <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
+                            )}
+                            {pricingGroups.additionalCP.photoCount > 0 && (
+                              <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
+                            )}
+                          </div>
                         </div>
                         <span className="font-medium">{formatCurrency(pricingGroups.additionalCP.totalCost || 0)}</span>
                       </div>
@@ -1019,7 +1099,7 @@ const LeaveConfirmationModal = ({ isOpen, onConfirm, onCancel }: { isOpen: boole
 export default function MultiCreatorPaymentPage() {
   return (
     <main className="bg-[#101010] min-h-screen text-white relative">
-      <img src="/svg/HeroBanner.svg" alt="Decorative Overlay" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0" />
+      {/* <img src="/svg/HeroBanner.svg" alt="Decorative Overlay" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0" /> */}
       <div className="relative z-10">
         <Navbar />
         <Suspense fallback={<div className="min-h-screen bg-[#101010] flex items-center justify-center"><Loader2 className="w-12 h-12 text-[#E8D1AB] animate-spin" /></div>}>

@@ -3,7 +3,7 @@ export const pushToDataLayer = (eventName: string, properties: Record<string, an
     (window as any).dataLayer.push({
       event: eventName,
       ...properties,
-      page_name: document.title,
+      // page_name: document.title,
       page_url: window.location.href,
       timestamp: new Date().toISOString(),
     });

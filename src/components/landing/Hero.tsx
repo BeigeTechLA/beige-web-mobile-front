@@ -7,6 +7,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import RotatingInput from "./RotatingInput";
 import { HeroSwiper } from "./HeroImageSwiper";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export const Hero = () => {
   const heroRef = useRef<HTMLElement | null>(null);
@@ -56,7 +57,15 @@ export const Hero = () => {
             >
               <Button
                 className="h-7 lg:h-15 px-5 lg:px-8 rounded-full bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
-                onClick={() => router.push('/book-a-shoot')}
+                onClick={() => {
+                  pushToDataLayer("book_shoot_started", {
+                    type: "Action Tracking",
+                    page_name: "Landing Page",
+                    location_in_website: "hero_landing_page",
+                    duration_on_page: performance.now() / 1000,
+                  });
+                  router.push('/book-a-shoot')
+                }}
               >
                 Start Your Shoot
               </Button>
