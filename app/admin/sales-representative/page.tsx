@@ -53,7 +53,7 @@ interface LeadData {
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
-  bookingStatus: "Paid" | "In-Progress" | BookingStatus; //update with code change
+  bookingStatus: "Paid" | "In-Progress" | BookingStatus; 
   lastActivity: string;
   date: Date;
   intent: string;
@@ -69,6 +69,7 @@ const mapLeadStatusToUI = (
 
 // Helper function to format relative time
 const formatRelativeTime = (dateString: string): string => {
+  if (!dateString) return "N/A";
   const date = new Date(dateString);
   const now = new Date();
   const diffInMs = now.getTime() - date.getTime();
@@ -91,7 +92,6 @@ const formatRelativeTime = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
-// Placeholder values:update values on integration
 const initialMetrics = [
   { id: 'total_active', label: 'Total Active Leads', value: '10', growth: 0, icon: Users, color: 'bg-[#E5D5B8]' },
   { id: 'sales_assisted', label: 'Sales Assisted Leads', value: '5', growth: 0, icon: Target, color: 'bg-zinc-800' },
@@ -99,11 +99,7 @@ const initialMetrics = [
   { id: 'total_bookings', label: 'Total Bookings', value: '25', growth: 0, icon: Calendar, color: 'bg-zinc-800' },
 ];
 
-const OverviewFilters = [
-  "All Time",
-  "Month",
-  "Week",
-];
+const OverviewFilters = ["All Time", "Month", "Week"];
 
 const tabs: { label: string; value: TabType }[] = [
   { label: "Booking Leads", value: "Booking" },
@@ -129,9 +125,7 @@ export default function AdminSaleRepManagerPage() {
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sortBy, setSortBy] = React.useState("");
-  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(
-    null,
-  );
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -143,6 +137,11 @@ export default function AdminSaleRepManagerPage() {
   const leadsLimit = 10;
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
+  // Filters state
+  const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
+  const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
+
   // --- USERS STATE (Client/CP Tabs) ---
   const [users, setUsers] = useState<UserData[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -152,20 +151,28 @@ export default function AdminSaleRepManagerPage() {
   const [usersLimit] = useState(50);
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
 
-  // Metrics State
   const [metrics, setMetrics] = useState<any[]>(initialMetrics);
   const [activeMetric, setActiveMetric] = useState('total_active');
   const [isLoading, setIsLoading] = useState(false);
-
   const [range, setRange] = useState('All Time');
-  const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
-  const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
 
-  // const filteredLeads =
-  //   statusFilter === "All"
-  //     ? leads
-  //     : leads.filter((lead) => lead.bookingStatus === statusFilter);
+  // --- FILTER CHANGE LOGIC ---
+  // Reset pagination when any lead filter changes
+  useEffect(() => {
+    setLeadsCurrentPage(1);
+  }, [leadTypeFilter, statusFilter, intentFilter, debouncedSearch]);
+
+  // --- LEADS API CALL WITH FILTERS ---
+  const { data: leadsApiData, isLoading: leadsIsLoading, isFetching: leadsIsFetching } = useGetLeadsQuery({
+    page: leadsCurrentPage,
+    limit: leadsLimit,
+    search: debouncedSearch || undefined,
+    // Mapping the filters to API keys
+    lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
+    status: statusFilter === "All" ? undefined : statusFilter,
+    // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
+    intent: intentFilter === "All" ? undefined : intentFilter, 
+  });
 
   // Fetch users for Client and Creative Partner tabs
   const fetchUsers = async () => {
@@ -247,14 +254,7 @@ export default function AdminSaleRepManagerPage() {
     }
   }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter]);
 
-  // --- LEADS API CALL ---
-  const { data: leadsApiData, isLoading: leadsIsLoading, isFetching: leadsIsFetching } = useGetLeadsQuery({
-    page: leadsCurrentPage,
-    limit: leadsLimit,
-    search: debouncedSearch || undefined,
-  });
-
-  // Smooth transition effect for Leads
+  // Smooth transition effect for Leads mapping
   useEffect(() => {
     if (leadsApiData?.leads) {
       const mapped: LeadData[] = (leadsApiData.leads || []).map((lead: any) => ({
@@ -268,6 +268,8 @@ export default function AdminSaleRepManagerPage() {
         intent: lead.intent || "Hot",
       }));
       setDisplayLeads(mapped);
+    } else if (leadsApiData) {
+        setDisplayLeads([]); // Clear if no leads found
     }
   }, [leadsApiData]);
 
@@ -279,25 +281,21 @@ export default function AdminSaleRepManagerPage() {
   };
 
   const handleUserRowClick = (user: UserData) => {
-    // Strip the '#' from the ID if it exists
     const rawId = user.id.replace('#', '');
-
-    // Determine path based on active tab
     const basePath = activeTab === "Client"
       ? "/admin/sales-representative/client"
       : "/admin/sales-representative/creative-partner";
-
     router.push(`${basePath}/${rawId}`);
   };
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
     client: string,
-    id: number | string, // Change leadId: number to id: number | string
+    id: number | string,
   ) => {
     e.stopPropagation();
     setSelectedClient(client);
-    setSelectedLeadId(id); // Now correctly stores the string ID
+    setSelectedLeadId(id);
 
     const rect = e.currentTarget.getBoundingClientRect();
     const isNearRightEdge = window.innerWidth - rect.right < 250;
@@ -318,7 +316,6 @@ export default function AdminSaleRepManagerPage() {
       case 'Week': return 'from last week';
       case 'Month': return 'from last month';
       case 'All Time': return 'all time';
-      case 'Custom': return 'in selected range';
       default: return 'all time';
     }
   };
@@ -328,7 +325,6 @@ export default function AdminSaleRepManagerPage() {
       <Topbar pathname={pathname}
         actions={
           <>
-            {/* Add other filters */}
             <div className="relative flex-1 max-w-lg">
               <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
               <input
@@ -349,7 +345,7 @@ export default function AdminSaleRepManagerPage() {
         }
       />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
+      <div className="min-h-screen pb-40 p-4 lg:p-6 lg:px-10 lg:py-9">
         <div className="flex flex-col lg:flex-row gap-6 justify-between items-start w-full">
           <div className="text-white">
             <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">
@@ -376,12 +372,6 @@ export default function AdminSaleRepManagerPage() {
         />
 
         <div className="flex flex-col gap-6 my-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4 w-full md:flex-1">
-
-            </div>
-          </div>
-
           <div className="flex flex-col lg:flex-row gap-2 justify-between">
             <TabsSwitcher
               tabs={tabs}
@@ -393,29 +383,29 @@ export default function AdminSaleRepManagerPage() {
               }}
             />
 
-            <div className="flex flex-wrap gap-2 lg:gap-4">
-              <BasicDropdown
-                label="Lead Type"
-                value={leadTypeFilter}
-                options={["All Leads", "Self-Serve", "Sales Assisted"]}
-                onChange={(val) => setLeadTypeFilter(val)}
-              />
-              {/* 2. Intent Type Dropdown */}
-              <BasicDropdown
-                label="Intent Type"
-                value={intentFilter}
-                options={["All", "Hot", "Warm", "Cold"]}
-                onChange={(val) => setIntentFilter(val as any)}
-              />
-              {/* 3. Booking Status Dropdown */}
-              <BasicDropdown
-                label="All Statuses"
-                value={statusFilter}
-                options={["All", ...BOOKING_STATUS_OPTIONS]}
-                onChange={(val) => setStatusFilter(val as any)}
-                openAlign={"right"}
-              />
-            </div>
+           {activeTab === "Booking" && (
+              <div className="flex flex-wrap gap-2 lg:gap-4">
+                <BasicDropdown
+                  label="Lead Type"
+                  value={leadTypeFilter}
+                  options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                  onChange={(val) => setLeadTypeFilter(val)}
+                />
+                <BasicDropdown
+                  label="Intent Type"
+                  value={intentFilter}
+                  options={["All", "Hot", "Warm", "Cold"]}
+                  onChange={(val) => setIntentFilter(val as any)}
+                />
+                <BasicDropdown
+                  label="All Statuses"
+                  value={statusFilter}
+                  options={["All", ...BOOKING_STATUS_OPTIONS]}
+                  onChange={(val) => setStatusFilter(val as any)}
+                  openAlign={"right"}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -423,7 +413,6 @@ export default function AdminSaleRepManagerPage() {
 
         {activeTab === "Booking" ? (
           <div className="flex flex-col gap-4">
-            {/* Desktop View */}
             <div className="hidden lg:block">
               <LeadsTable
                 data={displayLeads}
@@ -439,7 +428,6 @@ export default function AdminSaleRepManagerPage() {
               />
             </div>
 
-            {/* Mobile View */}
             <div className="lg:hidden flex flex-col gap-2">
               {displayLeads.map((lead) => (
                 <MobileLeadRow
@@ -466,10 +454,7 @@ export default function AdminSaleRepManagerPage() {
                 className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
                 onClick={() => handleUserRowClick(user)}
               >
-                {/* User ID */}
                 <td className="py-5 px-6 text-[#888] text-[14px]">{user.id}</td>
-
-                {/* User Info */}
                 <td className="py-5 px-6">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-sm">
@@ -485,36 +470,20 @@ export default function AdminSaleRepManagerPage() {
                     </div>
                   </div>
                 </td>
-
-                {/* Type */}
                 <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">{user.type}</td>
-
-                {/* Intent */}
                 <td className="py-5 px-6">
-                  {/* update once data is available */}
                   <IntentBadge intent={"Warm"} />
                 </td>
-
-                {/* Status */}
                 <td className="py-5 px-6">
-                  {/* <StatusBadge status={user.status} /> */}
                   <LeadsStatusBadge status={"Booking In Progress"} />
                 </td>
-
-                {/* Contact Info */}
                 <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">
                   {user.phoneNumber}
                 </td>
-
-                {/* Action */}
                 <td className="py-5 px-6 text-right">
-                  {/* <button className="text-[#666] hover:text-white transition-colors p-1" onClick={(e) =>handleOpenMenu(e, lead.clientName, lead.lead_id)}>
-                  <MoreVertical size={20} />
-                </button> */}
                   <button
                     className="text-[#666] hover:text-white transition-colors p-1"
                     onClick={(e) => {
-                      // Extract numeric/string ID without the '#' prefix
                       const rawId = user.id.replace('#', '');
                       handleOpenMenu(e, user.name, rawId as any);
                     }}
@@ -549,16 +518,6 @@ export default function AdminSaleRepManagerPage() {
           />
         )}
 
-        {/* {menuAnchor && selectedLeadId && (
-        <ActionMenu
-          client={selectedClient}
-          leadId={selectedLeadId}
-          isOpen={true}
-          onClose={() => setMenuAnchor(null)}
-          anchor={menuAnchor}
-        />
-      )} */}
-
         {menuAnchor && selectedLeadId && (
           <ActionMenu
             client={selectedClient}
@@ -566,13 +525,12 @@ export default function AdminSaleRepManagerPage() {
             isOpen={true}
             onClose={() => setMenuAnchor(null)}
             anchor={menuAnchor}
-            // Dynamically set basePath based on active tab
             basePath={
               activeTab === "Client"
                 ? "/admin/sales-representative/client"
                 : activeTab === "Creative Partner"
-                  ? "/admin/sales-representative/creative-partner" // Adjust if CP has a different path
-                  : undefined // Defaults to current pathname in ActionMenu for "Booking" tab
+                  ? "/admin/sales-representative/creative-partner"
+                  : undefined
             }
           />
         )}

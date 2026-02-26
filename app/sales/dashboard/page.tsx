@@ -6,16 +6,22 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { MoreVertical, Search, ChevronDown, ChevronUp, ChevronRight, User, Camera, ChartLine, Calendar, Users, Target, ArrowUpToLine } from "lucide-react";
+import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, ArrowUpRight, User, Camera, Users, Check, X, ArrowUpToLine } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { adminApi } from "@/lib/api";
 import { toast } from "sonner";
-
+import { adminApi } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import DottedDivider from "@/components/admin/DottedDivider";
 import MetricCards from "@/components/admin/OverviewMetricCards";
 import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
@@ -47,22 +53,23 @@ interface LeadData {
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
-  bookingStatus: "Booked" | "Cancelled" | "In-Progress" | BookingStatus; //update with code change
+  bookingStatus: "Paid" | "In-Progress" | BookingStatus; 
   lastActivity: string;
   date: Date;
+  intent: string;
 }
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (
-  status: LeadStatus,
-): "Booked" | "Cancelled" | "In-Progress" => {
-  if (status === "booked") return "Booked";
-  if (status === "abandoned") return "Cancelled";
+  paymentStatus: string,
+): "Paid" | "In-Progress" => {
+  if (paymentStatus === "paid") return "Paid";
   return "In-Progress";
 };
 
 // Helper function to format relative time
 const formatRelativeTime = (dateString: string): string => {
+  if (!dateString) return "N/A";
   const date = new Date(dateString);
   const now = new Date();
   const diffInMs = now.getTime() - date.getTime();
@@ -85,7 +92,6 @@ const formatRelativeTime = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
-// Placeholder values:update values on integration
 const initialMetrics = [
   { id: 'total_active', label: 'Total Active Leads', value: '10', growth: 0, icon: Users, color: 'bg-[#E5D5B8]' },
   { id: 'sales_assisted', label: 'Sales Assisted Leads', value: '5', growth: 0, icon: Target, color: 'bg-zinc-800' },
@@ -93,11 +99,7 @@ const initialMetrics = [
   { id: 'total_bookings', label: 'Total Bookings', value: '25', growth: 0, icon: Calendar, color: 'bg-zinc-800' },
 ];
 
-const OverviewFilters = [
-  "All time",
-  "Month",
-  "Week",
-]
+const OverviewFilters = ["All Time", "Month", "Week"];
 
 const tabs: { label: string; value: TabType }[] = [
   { label: "Booking Leads", value: "Booking" },
@@ -116,20 +118,18 @@ const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
   "Booked",
   "Closed – Lost",
 ];
+
 export default function SalesLeadsPage() {
   const router = useRouter();
   const pathname = usePathname();
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(
-    null,
-  );
+  const [sortBy, setSortBy] = React.useState("");
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
-  const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
-
-  const [expandedId, setExpandedId] = useState<string | null>(null); // For mobile accordion
   const [activeTab, setActiveTab] = useState<TabType>("Booking");
 
   // --- LEADS STATE (Booking Tab) ---
@@ -137,7 +137,12 @@ export default function SalesLeadsPage() {
   const leadsLimit = 10;
   const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
-  // Users state for Client and Creative Partner tabs
+  // Filters state
+  const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
+  const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
+
+  // --- USERS STATE (Client/CP Tabs) ---
   const [users, setUsers] = useState<UserData[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersCurrentPage, setUsersCurrentPage] = useState(1);
@@ -145,15 +150,29 @@ export default function SalesLeadsPage() {
   const [usersTotalRecords, setUsersTotalRecords] = useState(0);
   const [usersLimit] = useState(50);
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
-  // Metrics State
+
   const [metrics, setMetrics] = useState<any[]>(initialMetrics);
   const [activeMetric, setActiveMetric] = useState('total_active');
   const [isLoading, setIsLoading] = useState(false);
+  const [range, setRange] = useState('All Time');
 
-  const [range, setRange] = useState('all');
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
-  const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
+  // --- FILTER CHANGE LOGIC ---
+  // Reset pagination when any lead filter changes
+  useEffect(() => {
+    setLeadsCurrentPage(1);
+  }, [leadTypeFilter, statusFilter, intentFilter, debouncedSearch]);
 
+  // --- LEADS API CALL WITH FILTERS ---
+  const { data: leadsApiData, isLoading: leadsIsLoading, isFetching: leadsIsFetching } = useGetLeadsQuery({
+    page: leadsCurrentPage,
+    limit: leadsLimit,
+    search: debouncedSearch || undefined,
+    // Mapping the filters to API keys
+    lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
+    status: statusFilter === "All" ? undefined : statusFilter,
+    // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
+    intent: intentFilter === "All" ? undefined : intentFilter, 
+  });
 
   // Fetch users for Client and Creative Partner tabs
   const fetchUsers = async () => {
@@ -235,40 +254,22 @@ export default function SalesLeadsPage() {
     }
   }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter]);
 
-  // Fetch real leads from API
-  // const { data, isLoading, isFetching } = useGetLeadsQuery({
-  const { data: leadsApiData, isLoading: leadsIsLoading, isFetching: leadsIsFetching } = useGetLeadsQuery({
-    page: 1,
-    limit: 50,
-    search: debouncedSearch || undefined,
-    start_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
-    end_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
-  });
-
-  // Map backend data to UI format
-  // const leadsData: LeadData[] = (data?.leads || []).map((lead: SalesLead) => ({
-  //   lead_id: lead.lead_id,
-  //   clientName: lead.client_name || lead.guest_email || "Unknown User",
-  //   email: lead.guest_email || "No email",
-  //   leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
-  //   bookingStatus: mapLeadStatusToUI(lead.lead_status),
-  //   lastActivity: formatRelativeTime(lead.last_activity_at),
-  //   date: new Date(lead.created_at),
-  // }));
-
-  // Smooth transition effect for Leads
+  // Smooth transition effect for Leads mapping
   useEffect(() => {
     if (leadsApiData?.leads) {
-      const mapped = (leadsApiData.leads || []).map((lead: any) => ({
+      const mapped: LeadData[] = (leadsApiData.leads || []).map((lead: any) => ({
         lead_id: lead.lead_id,
         clientName: lead.client_name || lead.guest_email || "Unknown User",
         email: lead.guest_email || "No email",
-        leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
+        leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
         bookingStatus: lead.booking_status || "Unknown",
         lastActivity: formatRelativeTime(lead.last_activity_at),
         date: new Date(lead.created_at),
+        intent: lead.intent || "Hot",
       }));
       setDisplayLeads(mapped);
+    } else if (leadsApiData) {
+        setDisplayLeads([]); // Clear if no leads found
     }
   }, [leadsApiData]);
 
@@ -277,23 +278,27 @@ export default function SalesLeadsPage() {
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
-    if (date) {
-      console.log(date);
-    } else {
-      console.log("unfiltered");
-    }
+  };
+
+  const handleUserRowClick = (user: UserData) => {
+    const rawId = user.id.replace('#', '');
+    const basePath = activeTab === "Client"
+      ? "/sales/client"
+      : "/sales/creative-partner";
+      
+    router.push(`${basePath}/${rawId}`);
   };
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
     client: string,
-    leadId: number,
+    id: number | string,
   ) => {
     e.stopPropagation();
     setSelectedClient(client);
-    setSelectedLeadId(leadId);
-    const rect = e.currentTarget.getBoundingClientRect();
+    setSelectedLeadId(id);
 
+    const rect = e.currentTarget.getBoundingClientRect();
     const isNearRightEdge = window.innerWidth - rect.right < 250;
     const isNearBottomEdge = window.innerHeight - rect.bottom < 150;
 
@@ -304,32 +309,16 @@ export default function SalesLeadsPage() {
   };
 
   const handleRowClick = (leadId: number) => {
-    // Navigate to lead detail page in sales portal
     router.push(`/sales/leads/${leadId}`);
-  };
-
-  const handleUserRowClick = (user: UserData) => {
-    const rawId = user.id.replace('#', '');
-
-    const basePath = activeTab === "Client"
-      ? "/sales/client"
-      : "/sales/creative-partner";
-
-    router.push(`${basePath}/${rawId}`);
   };
 
   const getGrowthLabel = () => {
     switch (range) {
-      case 'week': return 'from last week';
-      case 'month': return 'from last month';
-      case 'all': return 'all time';
-      case 'custom': return 'in selected range';
-      default: return 'from last month';
+      case 'Week': return 'from last week';
+      case 'Month': return 'from last month';
+      case 'All Time': return 'all time';
+      default: return 'all time';
     }
-  };
-
-  const toggleExpand = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
   };
 
   return (
@@ -337,7 +326,6 @@ export default function SalesLeadsPage() {
       <Topbar pathname={pathname}
         actions={
           <>
-            {/* Add other filters */}
             <div className="relative flex-1 max-w-lg">
               <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
               <input
@@ -358,7 +346,7 @@ export default function SalesLeadsPage() {
         }
       />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
+      <div className="min-h-screen pb-40 p-4 lg:p-6 lg:px-10 lg:py-9">
         <div className="flex flex-col lg:flex-row gap-6 justify-between items-start w-full">
           <div className="text-white">
             <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">
@@ -368,14 +356,6 @@ export default function SalesLeadsPage() {
               View activity, manage assignments, and monitor performance across
               your sales team.
             </p>
-          </div>
-
-          {/* Sort By Date component to be added */}
-          <div className="flex gap-2 ">
-            <SortDateButton
-              selectedDate={selectedDate}
-              onDateChange={handleDateSort}
-            />
           </div>
         </div>
         <DottedDivider />
@@ -393,21 +373,6 @@ export default function SalesLeadsPage() {
         />
 
         <div className="flex flex-col gap-6 my-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4 w-full md:flex-1">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
-                <input
-                  type="text"
-                  placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
           <div className="flex flex-col lg:flex-row gap-2 justify-between">
             <TabsSwitcher
               tabs={tabs}
@@ -415,33 +380,33 @@ export default function SalesLeadsPage() {
               onChange={(tab) => {
                 setActiveTab(tab);
                 setUsersCurrentPage(1);
-                // setLeadsCurrentPage(1);
+                setLeadsCurrentPage(1);
               }}
             />
 
-            <div className="flex flex-wrap gap-2 lg:gap-4">
-              <BasicDropdown
-                label="Lead Type"
-                value={range} // Update state as required
-                options={["All Leads", "Self-Serve", "Sales Assisted"]}
-                onChange={(val) => console.log("Lead Type:", val)}
-              />
-              {/* 2. Intent Type Dropdown */}
-              <BasicDropdown
-                label="Intent Type"
-                value={intentFilter}
-                options={["All", "Hot", "Warm", "Cold"]}
-                onChange={(val) => setIntentFilter(val as any)}
-              />
-              {/* 3. Booking Status Dropdown */}
-              <BasicDropdown
-                label="All Statuses"
-                value={statusFilter}
-                options={["All", ...BOOKING_STATUS_OPTIONS]}
-                onChange={(val) => setStatusFilter(val as any)}
-                openAlign={"right"}
-              />
-            </div>
+           {activeTab === "Booking" && (
+              <div className="flex flex-wrap gap-2 lg:gap-4">
+                <BasicDropdown
+                  label="Lead Type"
+                  value={leadTypeFilter}
+                  options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                  onChange={(val) => setLeadTypeFilter(val)}
+                />
+                <BasicDropdown
+                  label="Intent Type"
+                  value={intentFilter}
+                  options={["All", "Hot", "Warm", "Cold"]}
+                  onChange={(val) => setIntentFilter(val as any)}
+                />
+                <BasicDropdown
+                  label="All Statuses"
+                  value={statusFilter}
+                  options={["All", ...BOOKING_STATUS_OPTIONS]}
+                  onChange={(val) => setStatusFilter(val as any)}
+                  openAlign={"right"}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -449,7 +414,6 @@ export default function SalesLeadsPage() {
 
         {activeTab === "Booking" ? (
           <div className="flex flex-col gap-4">
-            {/* Desktop View */}
             <div className="hidden lg:block">
               <LeadsTable
                 data={displayLeads}
@@ -465,7 +429,6 @@ export default function SalesLeadsPage() {
               />
             </div>
 
-            {/* Mobile View */}
             <div className="lg:hidden flex flex-col gap-2">
               {displayLeads.map((lead) => (
                 <MobileLeadRow
@@ -492,10 +455,7 @@ export default function SalesLeadsPage() {
                 className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
                 onClick={() => handleUserRowClick(user)}
               >
-                {/* User ID */}
                 <td className="py-5 px-6 text-[#888] text-[14px]">{user.id}</td>
-
-                {/* User Info */}
                 <td className="py-5 px-6">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-sm">
@@ -507,40 +467,24 @@ export default function SalesLeadsPage() {
                     </div>
                     <div>
                       <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                      <p className="text-[#666666] text-xs mt-0.5">{user.date}</p>
+                      <p className="text-[#666666] text-xs mt-0.5">{user.joinDate}</p>
                     </div>
                   </div>
                 </td>
-
-                {/* Type */}
                 <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">{user.type}</td>
-
-                {/* Intent */}
                 <td className="py-5 px-6">
-                  {/* update once data is available */}
                   <IntentBadge intent={"Warm"} />
                 </td>
-
-                {/* Status */}
                 <td className="py-5 px-6">
-                  {/* <StatusBadge status={user.status} /> */}
                   <LeadsStatusBadge status={"Booking In Progress"} />
                 </td>
-
-                {/* Contact Info */}
                 <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">
                   {user.phoneNumber}
                 </td>
-
-                {/* Action */}
                 <td className="py-5 px-6 text-right">
-                  {/* <button className="text-[#666] hover:text-white transition-colors p-1" onClick={(e) =>handleOpenMenu(e, lead.clientName, lead.lead_id)}>
-                  <MoreVertical size={20} />
-                </button> */}
                   <button
                     className="text-[#666] hover:text-white transition-colors p-1"
                     onClick={(e) => {
-                      // Extract numeric/string ID without the '#' prefix
                       const rawId = user.id.replace('#', '');
                       handleOpenMenu(e, user.name, rawId as any);
                     }}
@@ -575,30 +519,19 @@ export default function SalesLeadsPage() {
           />
         )}
 
-        {/* {menuAnchor && selectedLeadId && (
-        <ActionMenu
-          client={selectedClient}
-          leadId={selectedLeadId}
-          isOpen={true}
-          onClose={() => setMenuAnchor(null)}
-          anchor={menuAnchor}
-        />
-      )} */}
-
         {menuAnchor && selectedLeadId && (
           <ActionMenu
             client={selectedClient}
             leadId={selectedLeadId as number}
             isOpen={true}
             onClose={() => setMenuAnchor(null)}
-            anchor={menuAnchor as { x: number; y: number }}
-            // basePath="/sales/leads"
+            anchor={menuAnchor}
             basePath={
               activeTab === "Client"
                 ? "/sales/client"
                 : activeTab === "Creative Partner"
-                  ? "/sales/creative-partner" // Adjust if CP has a different path
-                  : "/sales/leads" // Defaults to current pathname in ActionMenu for "Booking" tab
+                  ? "/sales/creative-partner"
+                  : undefined
             }
           />
         )}
