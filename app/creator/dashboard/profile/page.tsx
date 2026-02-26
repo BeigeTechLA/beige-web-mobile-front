@@ -31,7 +31,8 @@ import {
   CheckCircle,
   Phone,
   Loader2,
-  EyeOff
+  EyeOff,
+  Pause, Volume2, VolumeX
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -78,6 +79,23 @@ const InfoField = ({ label, value, placeholder }: { label: string, value?: any, 
   </div>
 );
 
+const getEmbedUrl = (url: string) => {
+  if (!url) return null;
+
+  // YouTube - controls=0 hides the bottom bar, disablekb stops keyboard shortcuts
+  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/);
+  if (ytMatch) {
+    return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&enablejsapi=1`;
+  }
+
+  // Vimeo - background=1 is the "Secret" mode that hides all UI, but we must use controls=0
+  const vimeoMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
+  if (vimeoMatch) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&controls=0&title=0&byline=0&portrait=0&badge=0&autopause=0`;
+  }
+
+  return url;
+};
 const getRoleLabel = (roleData: any) => {
   if (!roleData) return "Not Specified";
   try {
@@ -155,6 +173,9 @@ export default function ProfilePage() {
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false);
   const [isPortfolioLinksModalOpen, setIsPortfolioLinksModalOpen] = useState(false);
   const [editingPortfolioLinks, setEditingPortfolioLinks] = useState<any[]>([]);
+  const [playingVideo, setPlayingVideo] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+const [isMuted, setIsMuted] = useState(false);
   // const [socialLinks, setSocialLinks] = useState([]);
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
   const [isEditingSkills, setIsEditingSkills] = useState(false);
@@ -1232,13 +1253,10 @@ export default function ProfilePage() {
           )}
 
           {/* PORTFOLIO TAB */}
-          {activeTab === "Portfolio Links" && (
+         {activeTab === "Portfolio Links" && (
             <div className="animate-in fade-in duration-500">
               {(() => {
-                const portfolioLinks = profile.crew_member_files?.filter(
-                  (f: any) => f.file_type === "link"
-                ) || [];
-
+                const portfolioLinks = profile.crew_member_files?.filter((f: any) => f.file_type === "link") || [];
                 if (portfolioLinks.length === 0) {
                   return (
                     <TabEmptyState
@@ -1260,7 +1278,6 @@ export default function ProfilePage() {
                       {/* ADD CARD */}
                       <div
                         onClick={() => {
-                          // Prepare existing links for the modal
                           const mappedLinks = portfolioLinks.map((l: any) => ({
                             id: l.crew_files_id,
                             url: l.file_path,
@@ -1288,11 +1305,7 @@ export default function ProfilePage() {
                           >
                             <div className="flex items-center justify-between">
                               <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
-                                {platform?.icon ? (
-                                  <platform.icon size={24} className="text-[#E8D1AB]" />
-                                ) : (
-                                  <Globe size={24} className="text-[#E8D1AB]" />
-                                )}
+                                {platform?.icon ? <platform.icon size={24} className="text-[#E8D1AB]" /> : <Globe size={24} className="text-[#E8D1AB]" />}
                               </div>
                               <div className="flex items-center gap-2">
                                 <button
@@ -1307,35 +1320,26 @@ export default function ProfilePage() {
                                     setIsPortfolioLinksModalOpen(true);
                                   }}
                                   className="p-2 text-white/20 hover:text-[#E8D1AB] hover:bg-white/5 rounded-lg transition-all"
-                                  title="Edit Link"
                                 >
                                   <Pencil size={18} />
                                 </button>
-                                <button
-                                  onClick={() => confirmDelete('file', link)}
-                                  className="p-2 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                                  title="Delete Link"
-                                >
+                                <button onClick={() => confirmDelete('file', link)} className="p-2 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
                                   <Trash2 size={18} />
                                 </button>
                               </div>
                             </div>
 
                             <div className="space-y-1">
-                              <p className="text-sm font-bold text-white uppercase tracking-wider">
-                                {platform?.label || "Portfolio Link"}
-                              </p>
-                              <p className="text-xs text-white/40 truncate">
-                                {link.file_path}
-                              </p>
+                              <p className="text-sm font-bold text-white uppercase tracking-wider">{platform?.label || "Portfolio Link"}</p>
+                              <p className="text-xs text-white/40 truncate">{link.file_path}</p>
                             </div>
 
                             <button
-                              onClick={() => window.open(formatExternalUrl(link.file_path), '_blank')}
+                              onClick={() => setPlayingVideo(link.file_path)}
                               className="w-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
                             >
-                              View Portfolio
-                              <Navigation size={14} className="group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                              Play Portfolio
+                              <Play size={14} className="fill-current group-hover/btn:scale-110 transition-transform" />
                             </button>
                           </div>
                         );
@@ -1468,6 +1472,71 @@ export default function ProfilePage() {
                   />
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+{/* VIDEO PLAYER MODAL */}
+      {playingVideo && (
+        <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto outline-none animate-in fade-in duration-500">
+
+          <div className="sticky top-0 z-50 flex items-center justify-between p-6 lg:p-10 bg-gradient-to-b from-black to-transparent">
+            <div className="space-y-1">
+              <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">Secure Portfolio Player</h3>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-[#E8D1AB] rounded-full animate-pulse" />
+                <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Encrypted Stream</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setPlayingVideo(null)}
+              className="p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="flex min-h-[calc(100vh-150px)] items-center justify-center p-4 lg:p-12">
+
+            <div className="w-full max-w-5xl aspect-video bg-black rounded-2xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 relative">
+
+              <div className="absolute inset-0 w-full h-full">
+                <iframe
+                  src={`${getEmbedUrl(playingVideo)?.replace('controls=0', 'controls=1')}`}
+                  style={{
+                    height: '118%',
+                    width: '100%',
+                    top: '-9%',
+                    position: 'absolute'
+                  }}
+                  className="border-none"
+                  allow="autoplay; fullscreen"
+                  title="Video Player"
+                />
+              </div>
+
+
+              <div className="absolute top-0 left-0 w-full h-[15%] z-20 bg-transparent cursor-default" />
+
+              <div className="absolute bottom-0 right-0 w-[15%] h-[15%] z-20 bg-transparent cursor-default" />
+
+              <div className="absolute top-0 right-0 w-[20%] h-[20%] z-20 bg-transparent cursor-default" />
+            </div>
+          </div>
+
+          {/* Footer Info */}
+          <div className="p-12 text-center">
+            <p className="text-white/20 text-[10px] uppercase tracking-[0.4em] mb-4">Beige Media Proprietary Player</p>
+            <div className="flex flex-wrap justify-center gap-6 opacity-40">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-1 bg-white/40 rounded-full" />
+                <span className="text-[8px] text-white uppercase font-bold tracking-widest">No-Redirect Mode</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-1 bg-white/40 rounded-full" />
+                <span className="text-[8px] text-white uppercase font-bold tracking-widest">Scrubbing Enabled</span>
+              </div>
             </div>
           </div>
         </div>

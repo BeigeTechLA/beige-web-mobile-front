@@ -191,7 +191,7 @@ const CreatorCarousel = ({
                         >
                           {isSelected ? <><X size={16} className="mr-1" /> Remove</> : <><Plus size={16} className="mr-1" /> Add</>}
                         </button>
-                        {/* <Link
+                        <Link
                           href={`/creatives/${creatorId}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -199,7 +199,7 @@ const CreatorCarousel = ({
                           className="text-center flex-1 border border-white/30 text-white py-2 lg:py-4 rounded-lg text-sm lg:text-base font-medium transition-all hover:bg-white/10"
                         >
                           View Profile
-                        </Link> */}
+                        </Link>
                       </div>
                     </div>
                   </div>
