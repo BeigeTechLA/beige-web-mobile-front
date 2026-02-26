@@ -352,7 +352,7 @@ export default function SalesLeadsPage() {
               <ArrowUpToLine /> Export
             </Button>
             <Button onClick={() => router.push("/sales/create-new-deal")} className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
-              Create new deal
+              Create new lead
             </Button>
           </>
         }

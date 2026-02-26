@@ -111,21 +111,21 @@ export default function SalesLeadDetailsPage() {
   const activePartner = assignedCPs[activeCPIndex % (assignedCPs.length || 1)];
 
   const formatTime = (timeStr: string | undefined) => {
-  if (!timeStr) return null;
-  try {
-    const [hours, minutes] = timeStr.split(':');
-    const h = parseInt(hours);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const h12 = h % 12 || 12;
-    return `${h12}:${minutes} ${ampm}`;
-  } catch (e) {
-    return timeStr;
-  }
-};
+    if (!timeStr) return null;
+    try {
+      const [hours, minutes] = timeStr.split(':');
+      const h = parseInt(hours);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${minutes} ${ampm}`;
+    } catch (e) {
+      return timeStr;
+    }
+  };
 
-const startTime = formatTime(booking?.start_time);
-const endTime = formatTime(booking?.end_time);
-const shootTimeDisplay = startTime && endTime ? `${startTime} - ${endTime}` : "Not set";
+  const startTime = formatTime(booking?.start_time);
+  const endTime = formatTime(booking?.end_time);
+  const shootTimeDisplay = startTime && endTime ? `${startTime} - ${endTime}` : "Not set";
 
   // Extract data with defaults
   const clientName = lead?.client_name || lead?.guest_email || "Unknown User";
@@ -136,7 +136,7 @@ const shootTimeDisplay = startTime && endTime ? `${startTime} - ${endTime}` : "N
     .toUpperCase()
     .slice(0, 2);
   const email = lead?.guest_email || "No email";
-   const phone = lead?.phone || "N/A";
+  const phone = lead?.phone || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
 
@@ -154,6 +154,7 @@ const shootTimeDisplay = startTime && endTime ? `${startTime} - ${endTime}` : "N
   const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
+  const discountAmount = lead?.pricing_breakdown?.discount || 0;
   const total = lead?.pricing_breakdown?.total || 0;
   const taxes = 0; // Taxes are now part of total/breakdown if needed
 
@@ -386,7 +387,7 @@ const shootTimeDisplay = startTime && endTime ? `${startTime} - ${endTime}` : "N
                         1024: { slidesPerView: 3 }
                       }}
                       initialSlide={0}
-                      loop={assignedCPs.length >= 3}
+                      loop={assignedCPs.length > 6}
                       spaceBetween={20}
                       coverflowEffect={{
                         rotate: 40,
@@ -550,6 +551,12 @@ const shootTimeDisplay = startTime && endTime ? `${startTime} - ${endTime}` : "N
                   <span className="text-[#71717B] text-xs">Additional Creatives</span>
                   <span className="text-sm lg:text-base text-white">${additionalCreatives.toLocaleString()}/-</span>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Discount</span>
+                    <span className="text-sm lg:text-base text-red-400">-${discountAmount.toLocaleString()}/-</span>
+                  </div>
+                )}
               </div>
               <div className="h-[1px] w-full bg-[#3D3D3D]" />
               <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
