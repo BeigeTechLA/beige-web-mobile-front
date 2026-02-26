@@ -56,12 +56,6 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Mobile Theme Mockup (from screenshot) */}
-            {/* <div className="flex items-center bg-black rounded-full p-1 border border-zinc-800">
-              <div className="p-1 rounded-full bg-[#E5D5B8] text-black">
-                <Moon size={14} />
-              </div>
-            </div> */}
             <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
               <Image width={32} height={32} src="/images/avatar.png" alt="User" />
             </div>
@@ -78,7 +72,10 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
             <nav className="flex items-center gap-2 text-xs text-white/40 whitespace-nowrap">
               {paths.map((path, index) => {
                 const isLast = index === paths.length - 1;
-                const displayText = breadcrumbOverrides?.[path] || path.split("-").join(" ");
+                // CHANGED: Specific check for create-new-deal to show as "create new lead"
+                const displayText = breadcrumbOverrides?.[path] || 
+                                   (path === "create-new-deal" ? "create new lead" : path.split("-").join(" "));
+                
                 return (
                   <React.Fragment key={index}>
                     <span className={`capitalize ${isLast ? "text-white font-bold" : ""}`}>
@@ -105,7 +102,10 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
             <nav className="flex items-center gap-4 text-sm text-white/40">
               {paths.map((path, index) => {
                 const isLast = index === paths.length - 1;
-                const displayText = breadcrumbOverrides?.[path] || path.split("-").join(" ");
+                // CHANGED: Specific check for create-new-deal to show as "create new lead"
+                const displayText = breadcrumbOverrides?.[path] || 
+                                   (path === "create-new-deal" ? "create new lead" : path.split("-").join(" "));
+                
                 return (
                   <React.Fragment key={index}>
                     <span className={`capitalize ${isLast ? "text-white font-bold" : ""}`}>
@@ -118,19 +118,6 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
             </nav>
           )}
         </div>
-
-        {/* Center: Search Bar (Desktop only) */}
-        {/* {isShootsPage && (
-          <div className="flex-1 max-w-xl ml-auto mr-8">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
-              <Input
-                placeholder="Search shoots, Clients, or IDs..."
-                className="bg-[#1A1A1A] border-zinc-800 pl-10 text-white placeholder:text-zinc-500 rounded-lg h-10 w-full focus-visible:ring-offset-0 focus-visible:ring-zinc-700"
-              />
-            </div>
-          </div>
-        )} */}
 
         {/* Right: Desktop Actions */}
         <div className="flex items-center gap-3 shrink-0">
