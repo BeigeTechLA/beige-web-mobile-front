@@ -81,21 +81,34 @@ const InfoField = ({ label, value, placeholder }: { label: string, value?: any, 
 
 const getEmbedUrl = (url: string) => {
   if (!url) return null;
+  
+  let fullUrl = url;
+  if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
+    fullUrl = `https://${fullUrl}`;
+  }
 
-  // YouTube - controls=0 hides the bottom bar, disablekb stops keyboard shortcuts
-  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/);
+  // YouTube
+  const ytMatch = fullUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/);
   if (ytMatch) {
-    return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&enablejsapi=1`;
+    // Standard embed with controls enabled
+    return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=1&rel=0`;
   }
 
-  // Vimeo - background=1 is the "Secret" mode that hides all UI, but we must use controls=0
-  const vimeoMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
+  // Vimeo
+  const vimeoMatch = fullUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
   if (vimeoMatch) {
-    return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&controls=0&title=0&byline=0&portrait=0&badge=0&autopause=0`;
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&controls=1`;
   }
 
-  return url;
+  // Google Drive
+  const driveMatch = fullUrl.match(/\/d\/(.*?)\//);
+  if (driveMatch) {
+    return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+  }
+
+  return fullUrl;
 };
+
 const getRoleLabel = (roleData: any) => {
   if (!roleData) return "Not Specified";
   try {
@@ -1477,71 +1490,46 @@ const [isMuted, setIsMuted] = useState(false);
         </div>
       )}
 
-{/* VIDEO PLAYER MODAL */}
+     {/* VIDEO PLAYER MODAL */}
       {playingVideo && (
-        <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto outline-none animate-in fade-in duration-500">
-
-          <div className="sticky top-0 z-50 flex items-center justify-between p-6 lg:p-10 bg-gradient-to-b from-black to-transparent">
-            <div className="space-y-1">
-              <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">Secure Portfolio Player</h3>
+        <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
+          
+          {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
+          <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
+            <div className="space-y-1 pointer-events-auto">
+              <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">
+                Portfolio Player
+              </h3>
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-[#E8D1AB] rounded-full animate-pulse" />
-                <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Encrypted Stream</p>
+                <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
+                  Now Playing
+                </p>
               </div>
             </div>
             <button
               onClick={() => setPlayingVideo(null)}
-              className="p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90"
+              className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90 shadow-lg pointer-events-auto"
             >
-              <X size={24} />
+              <X size={20} className="lg:w-6 lg:h-6" />
             </button>
           </div>
 
-          <div className="flex min-h-[calc(100vh-150px)] items-center justify-center p-4 lg:p-12">
-
-            <div className="w-full max-w-5xl aspect-video bg-black rounded-2xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 relative">
-
-              <div className="absolute inset-0 w-full h-full">
-                <iframe
-                  src={`${getEmbedUrl(playingVideo)?.replace('controls=0', 'controls=1')}`}
-                  style={{
-                    height: '118%',
-                    width: '100%',
-                    top: '-9%',
-                    position: 'absolute'
-                  }}
-                  className="border-none"
-                  allow="autoplay; fullscreen"
-                  title="Video Player"
-                />
-              </div>
-
-
-              <div className="absolute top-0 left-0 w-full h-[15%] z-20 bg-transparent cursor-default" />
-
-              <div className="absolute bottom-0 right-0 w-[15%] h-[15%] z-20 bg-transparent cursor-default" />
-
-              <div className="absolute top-0 right-0 w-[20%] h-[20%] z-20 bg-transparent cursor-default" />
+          {/* Video Container - Changed layout to allow perfect scrolling without clipping */}
+          <div className="w-full max-w-6xl mx-auto px-4 pb-24 pt-2 lg:pt-10">
+            <div className="w-full aspect-video bg-black rounded-xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/10 relative">
+              <iframe
+                src={getEmbedUrl(playingVideo) || ""}
+                className="w-full h-full absolute inset-0 border-none"
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                allowFullScreen
+                title="Portfolio Video"
+              />
             </div>
           </div>
 
-          {/* Footer Info */}
-          <div className="p-12 text-center">
-            <p className="text-white/20 text-[10px] uppercase tracking-[0.4em] mb-4">Beige Media Proprietary Player</p>
-            <div className="flex flex-wrap justify-center gap-6 opacity-40">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-1 bg-white/40 rounded-full" />
-                <span className="text-[8px] text-white uppercase font-bold tracking-widest">No-Redirect Mode</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-1 bg-white/40 rounded-full" />
-                <span className="text-[8px] text-white uppercase font-bold tracking-widest">Scrubbing Enabled</span>
-              </div>
-            </div>
-          </div>
         </div>
       )}
-
       <FeaturedWorkModal
         open={isFeaturedModalOpen}
         onClose={() => setIsFeaturedModalOpen(false)}

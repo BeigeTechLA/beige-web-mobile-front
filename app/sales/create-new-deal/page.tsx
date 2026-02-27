@@ -510,7 +510,7 @@ export default function ClientDetailPage() {
 
       if (result.success) {
         toast.success("Deal created successfully!");
-        router.push("/sales/leads");
+        router.push("/sales/dashboard");
       } else {
         toast.error(result.message || "Failed to create deal");
       }

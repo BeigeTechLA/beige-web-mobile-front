@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -119,6 +119,7 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
   const [allShoots, setAllShoots] = useState<any[]>([]);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [summaryData, setSummaryData] = useState({
     availableDays: 0,
     bookedShoots: 0,
@@ -131,6 +132,26 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
   const toggleRow = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
   };
+
+  const getEmbedUrl = (url: string) => {
+  if (!url) return null;
+  
+  let fullUrl = url;
+  if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
+    fullUrl = `https://${fullUrl}`;
+  }
+
+  const ytMatch = fullUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=1&rel=0`;
+
+  const vimeoMatch = fullUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&controls=1`;
+
+  const driveMatch = fullUrl.match(/\/d\/(.*?)\//);
+  if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+
+  return fullUrl;
+};
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1350,11 +1371,11 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
                         </div>
 
                         <button
-                          onClick={() => window.open(formatExternalUrl(link.file_path), '_blank')}
+                          onClick={() => setPlayingVideo(link.file_path)}
                           className="w-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
                         >
-                          View Portfolio
-                          <Navigation size={14} className="group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                          Play Portfolio
+                          <Play size={14} className="fill-current group-hover/btn:scale-110 transition-transform" />
                         </button>
                       </div>
                     );
@@ -1363,6 +1384,47 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
               );
             })()}
           </div>
+        </div>
+      )}
+      {/* VIDEO PLAYER MODAL */}
+      {playingVideo && (
+        <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
+          
+          {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
+          <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
+            <div className="space-y-1 pointer-events-auto">
+              <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">
+                Portfolio Player
+              </h3>
+              <div className="flex items-center gap-2">
+                {/* Accent color matched to this specific page's theme */}
+                <span className="w-1.5 h-1.5 bg-[#E5D5B8] rounded-full animate-pulse" />
+                <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
+                  Now Playing
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setPlayingVideo(null)}
+              className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90 shadow-lg pointer-events-auto"
+            >
+              <X size={20} className="lg:w-6 lg:h-6" />
+            </button>
+          </div>
+
+          {/* Video Container - Beautifully centers and allows scroll */}
+          <div className="w-full max-w-6xl mx-auto px-4 pb-24 pt-2 lg:pt-10">
+            <div className="w-full aspect-video bg-black rounded-xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/10 relative">
+              <iframe
+                src={getEmbedUrl(playingVideo) || ""}
+                className="w-full h-full absolute inset-0 border-none"
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                allowFullScreen
+                title="Portfolio Video"
+              />
+            </div>
+          </div>
+
         </div>
       )}
     </div >

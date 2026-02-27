@@ -540,21 +540,27 @@ export default function SalesLeadDetailsPage() {
                 <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Base Price</span>
                   <span className="text-sm lg:text-base text-white">
-                    ${basePrice.toLocaleString()}/-
+                    ${basePrice.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Editing Fee</span>
-                  <span className="text-sm lg:text-base text-white">${editingCost.toLocaleString()}/-</span>
+                  <span className="text-sm lg:text-base text-white">
+                    ${editingCost.toLocaleString()}
+                  </span>
                 </div>
                 <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Additional Creatives</span>
-                  <span className="text-sm lg:text-base text-white">${additionalCreatives.toLocaleString()}/-</span>
+                  <span className="text-sm lg:text-base text-white">
+                    ${additionalCreatives.toLocaleString()}
+                  </span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">Discount</span>
-                    <span className="text-sm lg:text-base text-red-400">-${discountAmount.toLocaleString()}/-</span>
+                    <span className="text-sm lg:text-base text-red-400">
+                      -${discountAmount.toLocaleString()}
+                    </span>
                   </div>
                 )}
               </div>
@@ -562,7 +568,7 @@ export default function SalesLeadDetailsPage() {
               <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
                 <span className="text-sm font-medium">Total Amount</span>
                 <span className="lg:text-lg font-semibold text-[#E8D1AB]">
-                  ${total.toLocaleString()}/-
+                  ${total.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -639,7 +645,7 @@ export default function SalesLeadDetailsPage() {
                 </div>
 
                 {/* Discount Value Input */}
-                <div className="relative">
+                 <div className="relative">
                   <label className="absolute -top-2 lg:-top-2.5 left-4 bg-[#171717] px-2 text-xs lg:text-sm text-white/60 capitalize tracking-widest z-10">
                     {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
                   </label>
@@ -649,7 +655,18 @@ export default function SalesLeadDetailsPage() {
                       placeholder="0"
                       className="bg-transparent w-full outline-none text-white text-base"
                       value={discount}
-                      onChange={(e) => setDiscount(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Prevent invalid discount inputs for fixed amount (greater than 100)
+                        if (discountType === "fixed_amount") {
+                          setDiscount(value);
+                        } else if (discountType === "percentage" && value >= 0 && value <= 100) {
+                          setDiscount(value);
+                        }
+                      }}
+                      min="0"
+                      max={discountType === "fixed_amount" ? "100" : ""}
+                      onWheel={(e) => e.preventDefault()} // Prevent mouse scroll change
                     />
                     {discountType === "percentage" ? (
                       <Percent size={20} className="text-white" />

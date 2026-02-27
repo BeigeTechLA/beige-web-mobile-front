@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform, MotionValue } from "framer-motion";
 import { useRef } from "react";
 
 interface ImageWheelProps {
@@ -9,7 +9,6 @@ interface ImageWheelProps {
 
 export default function ImageWheel({ images }: ImageWheelProps) {
   const total = images.length;
-  // This defines the constant spread between each page
   const angleStep = 360 / total;
 
   const rotation = useMotionValue(0);
@@ -53,36 +52,64 @@ export default function ImageWheel({ images }: ImageWheelProps) {
         className="absolute left-1/2 top-1/2 -translate-y-1/2 w-[180px] h-[320px] lg:w-[550px] lg:h-[420px]"
         style={{ transformStyle: "preserve-3d" }}
       >
-        {images.map((src, i) => {
-          // This ensures that on load, the array is fanned out in a "V" centered around the spine.
-          const baseAngle = (i - (total - 1) / 2) * angleStep;
-
-          return (
-            <motion.div
-              key={i}
-              className="absolute inset-0"
-              style={{
-                transformOrigin: "left center",
-                transformStyle: "preserve-3d",
-                rotateY: useTransform(smoothRotation, (v) => v + baseAngle),
-                backfaceVisibility: "visible",
-                zIndex: useTransform(smoothRotation, (v) =>
-                  Math.round(100 - Math.abs(((v + baseAngle + 180) % 360) - 180))
-                ),
-              }}
-            >
-              <div className="relative w-full h-full shadow-2xl rounded-2xl overflow-hidden border-l border-white/20">
-                <img
-                  src={src}
-                  alt=""
-                  draggable={false}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </motion.div>
-          );
-        })}
+        {images.map((src, i) => (
+          <WheelItem 
+            key={`${src}-${i}`} 
+            src={src} 
+            index={i} 
+            total={total} 
+            angleStep={angleStep} 
+            smoothRotation={smoothRotation} 
+          />
+        ))}
       </div>
     </div>
+  );
+}
+
+// Sub-component to handle hooks correctly for each image
+function WheelItem({ 
+  src, 
+  index, 
+  total, 
+  angleStep, 
+  smoothRotation 
+}: { 
+  src: string | undefined, 
+  index: number, 
+  total: number, 
+  angleStep: number, 
+  smoothRotation: MotionValue<number> 
+}) {
+  const baseAngle = (index - (total - 1) / 2) * angleStep;
+
+  // Hooks are now called inside a component, not a loop!
+  const rotateY = useTransform(smoothRotation, (v) => v + baseAngle);
+  const zIndex = useTransform(smoothRotation, (v) =>
+    Math.round(100 - Math.abs(((v + baseAngle + 180) % 360) - 180))
+  );
+
+  return (
+    <motion.div
+      className="absolute inset-0"
+      style={{
+        transformOrigin: "left center",
+        transformStyle: "preserve-3d",
+        rotateY: rotateY,
+        backfaceVisibility: "visible",
+        zIndex: zIndex,
+      }}
+    >
+      <div className="relative w-full h-full shadow-2xl rounded-2xl overflow-hidden border-l border-white/20 bg-[#171717]">
+        {src && (
+          <img
+            src={src}
+            alt=""
+            draggable={false}
+            className="w-full h-full object-cover object-top"
+          />
+        )}
+      </div>
+    </motion.div>
   );
 }
