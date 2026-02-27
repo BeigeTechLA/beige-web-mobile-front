@@ -58,7 +58,7 @@ export default function AdminDashboardPage() {
           />
         </div>
 
-        <DottedDivider className="lg:hidden " />
+        <DottedDivider />
         <OverviewChart externalSelectedDate={selectedDate} />
 
         <div className="flex flex-col lg:flex-row gap-4 mt-5">
