@@ -53,6 +53,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
+import { pushToDataLayer } from "@/lib/gtm";
+import { useAuth } from "@/lib/hooks/useAuth";
+
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager"
+}
 
 interface Props {
   data: BookingDataV3;
@@ -85,6 +96,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   onConfirm,
   isSubmitting,
 }) => {
+  const { user, isAuthenticated } = useAuth()
+
   const [calculateQuoteFromCreators, { isLoading: isCalculating }] =
     useCalculateQuoteFromCreatorsMutation();
   const [quoteTotal, setQuoteTotal] = useState<number | null>(null);
@@ -131,6 +144,38 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     // Trigger submission
     onConfirm();
   };
+
+  useEffect(() => {
+    const formFields = {
+      content_type: data.contentType.join(","),
+      shoot_type: data.shootType,
+      shoot_date_time: `${data.startDate} to ${data.endDate}`,
+      edits_needed: data.editsNeeded,
+      photo_edit_types: data.photoEditTypes.join(", "),
+      video_edit_types: data.videoEditTypes.join(", "),
+      additional_creative: data.addTeamMembers,
+      shoot_location: data.location,
+      additional_details: data.specialInstructions,
+      supporting_url: data.referenceLinks,
+      videographyCount: data?.videographyCount,
+      photographyCount: data?.photographyCount,
+      cp_ids: data?.selectedCrewIds,
+    };
+
+    // add GA event on initial page load
+    pushToDataLayer("booking_payment_confirm_view", {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "book_a_shoot_review_confirm",
+      user_id: isAuthenticated ? user?.id : "Unknown",
+      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      email: isAuthenticated ? user?.email : data.email,
+      phone: isAuthenticated ? user?.phone_number : "Unknown",
+      duration_on_page: performance.now() / 1000,
+      booking_id: data?.bookingId,
+      booking_form_fields: formFields
+    });
+  }, [])
 
   // Calculate duration in hours
   useEffect(() => {
@@ -353,6 +398,27 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       return match ? match.value : key;
     });
   };
+
+  const handleConnectSales = () => {
+    // add GA event on connect to sales click
+    pushToDataLayer("booking_payment_confirm_sales", {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "book_a_shoot_review_confirm",
+      user_id: isAuthenticated ? user?.id : "Unknown",
+      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      email: isAuthenticated ? user?.email : data.email,
+      phone: isAuthenticated ? user?.phone_number : data.phone,
+      duration_on_page: performance.now() / 1000,
+      booking_id: data?.bookingId,
+      booking_form_fields: {
+        full_name: data.fullName,
+        phone: data.phone,
+      }
+    })
+
+    setShowSalesPopup(true)
+  }
 
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
@@ -778,7 +844,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 </Button>
 
                 <p
-                  onClick={() => setShowSalesPopup(true)}
+                  // onClick={() => setShowSalesPopup(true)}
+                  onClick={handleConnectSales}
                   className="cursor-pointer text-center text-base font-medium mt-5 opacity-60 hover:opacity-100 transition flex items-center justify-center gap-1"
                 >
                   <Phone size={24} /> Connect with Beige Team

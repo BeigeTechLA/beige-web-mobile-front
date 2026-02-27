@@ -29,7 +29,7 @@ api.interceptors.request.use(
 
 
 // Role mapping
-const ROLE_MAP: Record<number, string> = {
+export const ROLE_MAP: Record<number, string> = {
   1: 'Videographer',
   2: 'Photographer',
   3: 'Editor',
@@ -718,6 +718,34 @@ export const UploadProfileFile = async (fileType: string, files: File | File[], 
   }
 };
 
+export const AddPortfolioLinks = async (payload: { crew_member_id: number; portfolio_links: { url: string; platform: string }[] }) => {
+  try {
+    const response = await api.post("creator/profile/add-portfolio-links", payload);
+    return response;
+  } catch (error) {
+    console.error("Add Portfolio Links Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to add portfolio links",
+    };
+  }
+};
+
+export const EditPortfolioLink = async (crewFilesId: string | number, payload: { crew_member_id: number; url: string; title?: string; platform: string }) => {
+  try {
+    const response = await api.post(`creator/profile/edit-portfolio-link/${crewFilesId}`, payload);
+    return response;
+  } catch (error) {
+    console.error("Edit Portfolio Link Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to edit portfolio link",
+    };
+  }
+};
+
 export const DeleteProfileFile = async (crewFilesId: string | number, payload: any) => {
   try {
     // Note: We use api.delete and pass the ID in the URL string
@@ -757,6 +785,19 @@ export const adminApi = {
         success: false,
         data: null,
         error: 'Failed to fetch total revenue',
+      };
+    }
+  },
+  getClientFullDetails: async (userId: string | number) => {
+    try {
+      const response = await api.get(`admin/get-client-details-with-shoots/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Client Full Details Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch client profile and shoots',
       };
     }
   },
@@ -972,13 +1013,26 @@ export const adminApi = {
     }
   },
 
-  getapprovedCrewMembers: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
+  getapprovedCrewMembers: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    sort_by?: string;
+    sort_order?: string;
+    start_date?: string;
+    end_date?: string;
+  } = {}) => {
     try {
       const response = await api.post('admin/get-approved-crew-members', {
         page: params.page || 1,
         limit: params.limit || 50,
         search: params.search,
         status: params.status,
+        sort_by: params.sort_by,
+        sort_order: params.sort_order,
+        start_date: params.start_date,
+        end_date: params.end_date
       });
       return response.data;
     } catch (error: any) {
@@ -1234,4 +1288,33 @@ export const CheckVerificationStatus = async (payload: { crew_member_id: any }) 
       error: error.response?.data?.message || 'Failed to fetch verification status',
     };
   }
+};
+
+export const salesApi = {
+  getLeadStats: async (leadId: number | string) => {
+    try {
+      const response = await api.get(`/sales/get-lead-stats/${leadId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get Lead Stats Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch lead stats',
+      };
+    }
+  },
+  getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string }) => {
+    try {
+      const response = await api.get('admin/get-crew-for-lead/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Get Crew For Lead Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch crew for lead',
+      };
+    }
+  },
 };

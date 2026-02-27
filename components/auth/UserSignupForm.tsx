@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/hooks/useAuth"
+import { pushToDataLayer } from "@/lib/gtm"
 
 const userSignupSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -64,6 +65,20 @@ export function UserSignupForm() {
         email: data.email,
         password: data.password
       }));
+
+      // --- GA4 SIGNUP TRACKING ---
+      const userTypeName = "Client";
+
+      pushToDataLayer("sign_up_completed_user", {
+        custom_user_id: result?.userId || null,
+        email: data.email, // using form data
+        user_type: userTypeName,
+        page_name: "User Signup Page",
+        location_in_website: "signup_user_page",
+        duration_on_page: performance.now() / 1000,
+        phone:  data.phone || null,
+      });
+      // ---------------------------
 
       // Redirect to verify email page
       router.push(`/verify-email?email=${encodeURIComponent(data.email)}`)

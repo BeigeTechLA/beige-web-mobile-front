@@ -28,6 +28,7 @@ interface ApiResponse<T> {
   success: boolean;
   message?: string;
   data?: T;
+  errors?: string[];
 }
 
 export const salesApi = createApi({
@@ -209,6 +210,22 @@ export const salesApi = createApi({
       transformResponse: (response: ApiResponse<PaymentLinkDetails>) => response.data!,
     }),
 
+    sendInvoice: builder.mutation({
+      query: (body: { booking_id: number }) => ({
+        url: 'sales/send-invoice',
+        method: 'POST',
+        body,
+      }),
+    }),
+    updateLeadIntent: builder.mutation<any, { lead_id: number; intent: string; notes?: string }>({
+      query: (body) => ({
+        url: `sales/leads/intent`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
+    }),
+
     validatePaymentLink: builder.query<{
       valid: boolean;
       success: boolean;
@@ -235,6 +252,14 @@ export const salesApi = createApi({
         method: 'POST',
       }),
       invalidatesTags: ['PaymentLink', 'Lead'],
+    }),
+
+    notifyPaymentLink: builder.mutation<ApiResponse<void>, { payment_link_id: number }>({
+      query: (data) => ({
+        url: 'sales/payment-links/notify',
+        method: 'POST',
+        body: data,
+      }),
     }),
 
     getSalesRepPaymentLinks: builder.query<{ links: PaymentLink[] }, { repId: number; status?: string }>({
@@ -287,22 +312,58 @@ export const salesApi = createApi({
       }),
       transformResponse: (response: ApiResponse<FunnelData>) => response.data!,
     }),
-   updateBookingCrew: builder.mutation<
-  ApiResponse<any>, // Changed to any so you can access response.data
-  { 
-    booking_id: number; 
-    crew_roles: Record<string, number>;
-    location?: string;           // Added
-    description?: string;        // Added
-    reference_links?: string;    // Added
-  }
->({
-  query: ({ booking_id, ...payload }) => ({ // Use spread to get everything except id
-    url: `sales/bookings/${booking_id}/crew`,
-    method: "PATCH",
-    body: payload, // This now sends crew_roles, location, description, and reference_links
-  }),
-}),
+    updateBookingCrew: builder.mutation<
+      ApiResponse<any>, // Changed to any so you can access response.data
+      {
+        booking_id: number;
+        crew_roles: Record<string, number>;
+        location?: string;           // Added
+        description?: string;        // Added
+        reference_links?: string;    // Added
+      }
+    >({
+      query: ({ booking_id, ...payload }) => ({ // Use spread to get everything except id
+        url: `sales/bookings/${booking_id}/crew`,
+        method: "PATCH",
+        body: payload, // This now sends crew_roles, location, description, and reference_links
+      }),
+    }),
+    removeAssignedCrew: builder.mutation<ApiResponse<void>, { lead_id: number; crew_member_id: number }>({
+      query: (data) => ({
+        url: 'admin/remove-assigned-crew',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
+    }),
+    updateLeadBooking: builder.mutation<ApiResponse<any>, { booking_id: number; payload: any; lead_id?: number }>({
+      query: ({ booking_id, payload }) => ({
+        url: `sales/leads/${booking_id}/booking`,
+        method: 'PUT',
+        body: payload,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => lead_id ? [{ type: 'Lead', id: lead_id }] : ['Lead'],
+    }),
+
+    assignCrewFromLead: builder.mutation<ApiResponse<void>, { lead_id: number; crew_member_ids: number[] }>({
+      query: (data) => ({
+        url: 'admin/assign-crew-from-lead',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Lead'],
+    }),
+    getCrewForLead: builder.query<any[], { lead_id: number | string; role_type: string; search_query?: string }>({
+      query: (params) => ({
+        url: 'admin/get-crew-for-lead',
+        params,
+      }),
+      transformResponse: (response: ApiResponse<any[]>) => response.data || [],
+    }),
+    getClientFullDetails: builder.query<any, string | number>({
+      query: (userId) => `admin/get-client-details-with-shoots/${userId}`,
+      transformResponse: (response: ApiResponse<any>) => response.data,
+    }),
   }),
 });
 
@@ -339,4 +400,13 @@ export const {
   useGetRecentActivitiesQuery,
   useGetLeadsFunnelDataQuery,
   useUpdateBookingCrewMutation,
+  useRemoveAssignedCrewMutation,
+  useUpdateLeadBookingMutation,
+  useAssignCrewFromLeadMutation,
+  useNotifyPaymentLinkMutation,
+  useGetCrewForLeadQuery,
+  useLazyGetCrewForLeadQuery,
+  useGetClientFullDetailsQuery,
+  useSendInvoiceMutation,
+  useUpdateLeadIntentMutation
 } = salesApi;

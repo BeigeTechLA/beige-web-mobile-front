@@ -18,7 +18,7 @@ const menuItems = [
     icon: Users,
     children: [
       { name: 'All Users', link: '/admin/users/all' },
-      { name: 'Users', link: '/admin/users/clients' },
+      { name: 'Clients', link: '/admin/users/clients' },
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
@@ -90,7 +90,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       }
     `}>
       {/* Mobile Header with Logo and Close Button */}
-      <div className="flex lg:hidden items-center justify-between mb-8">
+      {/* <div className="flex lg:hidden items-center justify-between mb-8"> */}
+      <div className="flex items-center justify-between lg:justify-center mb-8">
         <Link href="/" className="relative flex items-center">
           <Image
             src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
@@ -105,7 +106,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
           </span>
         </Link>
-        <button onClick={onClose} className={`p-2 rounded-full ${isDark ? "bg-zinc-900 text-white" : "bg-zinc-100 text-black"}`}>
+        <button onClick={onClose} className={`lg:hidden p-2 rounded-full ${isDark ? "bg-zinc-900 text-white" : "bg-zinc-100 text-black"}`}>
           <X size={20} />
         </button>
       </div>
@@ -192,10 +193,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center w-full gap-2 px-3 py-2 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors text-sm font-medium"
+          className={`flex items-center w-full gap-2 px-3 py-2 rounded-lg ${isDark ? "text-[#171717] bg-[#FFFFFF]" : "text-[#FFFFFF] bg-[#171717]"} transition-colors text-sm font-medium`}
         >
           <LogOut size={16} />
-          <span>Sign Out</span>
+          <span>Logout</span>
         </button>
       </div>
     </aside>

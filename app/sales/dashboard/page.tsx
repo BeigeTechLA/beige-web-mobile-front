@@ -1,31 +1,38 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import {
-  MoreVertical,
-  Search,
-  ChevronDown,
-  ChevronUp,
-  ChevronRight,
-  User,
-  Camera,
-} from "lucide-react";
+import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, ArrowUpRight, User, Camera, Users, Check, X, ArrowUpToLine } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
-import { useRouter } from "next/navigation";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
-import { SalesLead, LeadStatus } from "@/types/sales";
+import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 import { useDebounce } from "@/hooks/use-debounce";
+import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { adminApi } from "@/lib/api";
 import { toast } from "sonner";
+import { adminApi } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import DottedDivider from "@/components/admin/DottedDivider";
+import MetricCards from "@/components/admin/OverviewMetricCards";
+import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
+import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
+import { BookingStatus, LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
+import UsersTable from "@/components/sales/UsersTable";
+import LeadsTable from "@/components/sales/BookingLeadsTable";
+import { IntentBadge } from "@/components/sales/IntentBadge";
+import Topbar from "@/components/admin/Topbar";
 
-// placeholder data
-
-type TabType = "booking_leads" | "client_signup" | "creative_partner_signup";
+type TabType = "Booking" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 
 interface UserData {
@@ -46,22 +53,23 @@ interface LeadData {
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
-  bookingStatus: "Booked" | "Cancelled" | "In-Progress";
+  bookingStatus: "Paid" | "In-Progress" | BookingStatus; 
   lastActivity: string;
   date: Date;
+  intent: string;
 }
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (
-  status: LeadStatus,
-): "Booked" | "Cancelled" | "In-Progress" => {
-  if (status === "booked") return "Booked";
-  if (status === "abandoned") return "Cancelled";
+  paymentStatus: string,
+): "Paid" | "In-Progress" => {
+  if (paymentStatus === "paid") return "Paid";
   return "In-Progress";
 };
 
 // Helper function to format relative time
 const formatRelativeTime = (dateString: string): string => {
+  if (!dateString) return "N/A";
   const date = new Date(dateString);
   const now = new Date();
   const diffInMs = now.getTime() - date.getTime();
@@ -84,21 +92,57 @@ const formatRelativeTime = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
+const initialMetrics = [
+  { id: 'total_active', label: 'Total Active Leads', value: '10', growth: 0, icon: Users, color: 'bg-[#E5D5B8]' },
+  { id: 'sales_assisted', label: 'Sales Assisted Leads', value: '5', growth: 0, icon: Target, color: 'bg-zinc-800' },
+  { id: 'total_conversion', label: 'Total Conversion Rate', value: '15.4', growth: 0, icon: ChartLine, color: 'bg-zinc-800' },
+  { id: 'total_bookings', label: 'Total Bookings', value: '25', growth: 0, icon: Calendar, color: 'bg-zinc-800' },
+];
+
+const OverviewFilters = ["All Time", "Month", "Week"];
+
+const tabs: { label: string; value: TabType }[] = [
+  { label: "Booking Leads", value: "Booking" },
+  { label: "Client Signup", value: "Client" },
+  { label: "Creative Partner Signup", value: "Creative Partner" },
+];
+
+const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
+  "Signed Up - Lead Created",
+  "Book a shoot - Lead Created",
+  "Manual - Lead Created",
+  "Booking In Progress",
+  "Proposal Sent",
+  "Ready for Payment",
+  "Payment Sent",
+  "Booked",
+  "Closed – Lost",
+];
+
 export default function SalesLeadsPage() {
   const router = useRouter();
+  const pathname = usePathname();
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(
-    null,
-  );
+  const [sortBy, setSortBy] = React.useState("");
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
-  const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const [activeTab, setActiveTab] = useState<TabType>("Booking");
 
-  const [expandedId, setExpandedId] = useState<string | null>(null); // For mobile accordion
-  const [activeTab, setActiveTab] = useState<TabType>("booking_leads");
+  // --- LEADS STATE (Booking Tab) ---
+  const [leadsCurrentPage, setLeadsCurrentPage] = useState(1);
+  const leadsLimit = 10;
+  const [displayLeads, setDisplayLeads] = useState<LeadData[]>([]);
 
-  // Users state for Client and Creative Partner tabs
+  // Filters state
+  const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
+  const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
+
+  // --- USERS STATE (Client/CP Tabs) ---
   const [users, setUsers] = useState<UserData[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersCurrentPage, setUsersCurrentPage] = useState(1);
@@ -107,9 +151,32 @@ export default function SalesLeadsPage() {
   const [usersLimit] = useState(50);
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
 
+  const [metrics, setMetrics] = useState<any[]>(initialMetrics);
+  const [activeMetric, setActiveMetric] = useState('total_active');
+  const [isLoading, setIsLoading] = useState(false);
+  const [range, setRange] = useState('All Time');
+
+  // --- FILTER CHANGE LOGIC ---
+  // Reset pagination when any lead filter changes
+  useEffect(() => {
+    setLeadsCurrentPage(1);
+  }, [leadTypeFilter, statusFilter, intentFilter, debouncedSearch]);
+
+  // --- LEADS API CALL WITH FILTERS ---
+  const { data: leadsApiData, isLoading: leadsIsLoading, isFetching: leadsIsFetching } = useGetLeadsQuery({
+    page: leadsCurrentPage,
+    limit: leadsLimit,
+    search: debouncedSearch || undefined,
+    // Mapping the filters to API keys
+    lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
+    status: statusFilter === "All" ? undefined : statusFilter,
+    // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
+    intent: intentFilter === "All" ? undefined : intentFilter, 
+  });
+
   // Fetch users for Client and Creative Partner tabs
   const fetchUsers = async () => {
-    if (activeTab === "booking_leads") return;
+    if (activeTab === "Booking") return;
     setUsersLoading(true);
     try {
       const params: any = {
@@ -122,7 +189,7 @@ export default function SalesLeadsPage() {
       let allUsers: UserData[] = [];
       let pagination: any = null;
 
-      if (activeTab === "client_signup") {
+      if (activeTab === "Client") {
         const clientsRes = await adminApi.getClients(params);
         if (clientsRes?.data) {
           const mappedClients = (Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || [])).map((client: any) => ({
@@ -140,7 +207,7 @@ export default function SalesLeadsPage() {
           allUsers = mappedClients;
           pagination = clientsRes.pagination;
         }
-      } else if (activeTab === "creative_partner_signup") {
+      } else if (activeTab === "Creative Partner") {
         const creativeRes = await adminApi.getPendingCP(params);
         if (creativeRes?.data) {
           const mappedCreatives = (Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || [])).map((member: any) => {
@@ -181,51 +248,57 @@ export default function SalesLeadsPage() {
     }
   };
 
-  React.useEffect(() => {
-    if (activeTab !== "booking_leads") {
+  useEffect(() => {
+    if (activeTab !== "Booking") {
       fetchUsers();
     }
   }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter]);
 
-  // Fetch real leads from API
-  const { data, isLoading, isFetching } = useGetLeadsQuery({
-    page: 1,
-    limit: 50,
-    search: debouncedSearch || undefined,
-    start_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
-    end_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
-  });
+  // Smooth transition effect for Leads mapping
+  useEffect(() => {
+    if (leadsApiData?.leads) {
+      const mapped: LeadData[] = (leadsApiData.leads || []).map((lead: any) => ({
+        lead_id: lead.lead_id,
+        clientName: lead.client_name || lead.guest_email || "Unknown User",
+        email: lead.guest_email || "No email",
+        leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
+        bookingStatus: lead.booking_status || "Unknown",
+        lastActivity: formatRelativeTime(lead.last_activity_at),
+        date: new Date(lead.created_at),
+        intent: lead.intent || "Hot",
+      }));
+      setDisplayLeads(mapped);
+    } else if (leadsApiData) {
+        setDisplayLeads([]); // Clear if no leads found
+    }
+  }, [leadsApiData]);
 
-  // Map backend data to UI format
-  const leadsData: LeadData[] = (data?.leads || []).map((lead: SalesLead) => ({
-    lead_id: lead.lead_id,
-    clientName: lead.client_name || lead.guest_email || "Unknown User",
-    email: lead.guest_email || "No email",
-    leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
-    bookingStatus: mapLeadStatusToUI(lead.lead_status),
-    lastActivity: formatRelativeTime(lead.last_activity_at),
-    date: new Date(lead.created_at),
-  }));
+  const leadsTotalRecords = leadsApiData?.pagination?.total || 0;
+  const leadsTotalPages = Math.ceil(leadsTotalRecords / leadsLimit);
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
-    if (date) {
-      console.log(date);
-    } else {
-      console.log("unfiltered");
-    }
+  };
+
+  const handleUserRowClick = (user: UserData) => {
+    const rawId = user.id.replace('#', '');
+    const basePath = activeTab === "Client"
+      ? "/sales/client"
+      : "/sales/creative-partner";
+      
+    router.push(`${basePath}/${rawId}`);
   };
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
     client: string,
-    leadId: number,
+    id: number | string,
   ) => {
     e.stopPropagation();
     setSelectedClient(client);
-    setSelectedLeadId(leadId);
-    const rect = e.currentTarget.getBoundingClientRect();
+    setSelectedLeadId(id);
 
+    const rect = e.currentTarget.getBoundingClientRect();
     const isNearRightEdge = window.innerWidth - rect.right < 250;
     const isNearBottomEdge = window.innerHeight - rect.bottom < 150;
 
@@ -236,412 +309,233 @@ export default function SalesLeadsPage() {
   };
 
   const handleRowClick = (leadId: number) => {
-    // Navigate to lead detail page in sales portal
     router.push(`/sales/leads/${leadId}`);
   };
 
-
-  const toggleExpand = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
+  const getGrowthLabel = () => {
+    switch (range) {
+      case 'Week': return 'from last week';
+      case 'Month': return 'from last month';
+      case 'All Time': return 'all time';
+      default: return 'all time';
+    }
   };
 
   return (
     <>
-      <div className="flex justify-between items-center mb-3 lg:mb-6">
-        <div className="text-white">
-          <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">
-            Sales Leads Management
-          </h1>
-          <p className="text-xs lg:text-sm text-white/70">
-            View activity, manage assignments, and monitor performance across
-            your sales team.
-          </p>
-        </div>
+      <Topbar pathname={pathname}
+        actions={
+          <>
+            <div className="relative flex-1 max-w-lg">
+              <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+              <input
+                type="text"
+                placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-12 w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+              />
+            </div>
+            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+              <ArrowUpToLine /> Export
+            </Button>
+            <Button onClick={() => router.push("/sales/create-new-deal")} className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
+              Create new lead
+            </Button>
+          </>
+        }
+      />
 
-        {/* Sort By Date component to be added */}
-        <div className="flex gap-2 ">
-          <SortDateButton
-            selectedDate={selectedDate}
-            onDateChange={handleDateSort}
-          />
+      <div className="min-h-screen pb-40 p-4 lg:p-6 lg:px-10 lg:py-9">
+        <div className="flex flex-col lg:flex-row gap-6 justify-between items-start w-full">
+          <div className="text-white">
+            <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">
+              Sales Leads Management
+            </h1>
+            <p className="text-xs lg:text-sm text-white/70">
+              View activity, manage assignments, and monitor performance across
+              your sales team.
+            </p>
+          </div>
         </div>
-      </div>
+        <DottedDivider />
 
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
-          <input
-            type="text"
-            placeholder={activeTab === "booking_leads" ? "Search leads..." : "Search users..."}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
-          />
-        </div>
+        <OverviewMetricCards
+          metrics={metrics}
+          activeId={activeMetric}
+          onSelect={setActiveMetric}
+          isLoading={isLoading}
+          getGrowthLabel={() => getGrowthLabel()}
+          dropdownLabel="Duration"
+          dropdownValue={range}
+          dropdownOptions={OverviewFilters}
+          onDropdownChange={setRange}
+        />
 
-        <div className="flex items-center gap-1 bg-[#111] p-1 rounded-xl w-fit border border-[#333]">
-          {(["booking_leads", "client_signup", "creative_partner_signup"] as TabType[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
+        <div className="flex flex-col gap-6 my-6">
+          <div className="flex flex-col lg:flex-row gap-2 justify-between">
+            <TabsSwitcher
+              tabs={tabs}
+              activeTab={activeTab}
+              onChange={(tab) => {
                 setActiveTab(tab);
                 setUsersCurrentPage(1);
+                setLeadsCurrentPage(1);
               }}
-              className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all ${activeTab === tab
-                ? "bg-[#E5D5B8] text-black shadow-lg"
-                : "text-[#777] hover:text-white"
-                }`}
-            >
-              {tab === "creative_partner_signup" ? "CreativePartner_Signup" : tab === "booking_leads" ? "Booking_Leads" : "User_Signup"}
-            </button>
-          ))}
-        </div>
-      </div>
+            />
 
-      <div className="w-full overflow-hidden rounded-lg lg:rounded-2xl border border-[#3D3D3D] bg-[#171717]">
-        {activeTab === "booking_leads" ? (
-          <>
-            {isLoading || isFetching ? (
-              <div className="flex items-center justify-center py-10 lg:py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB]"></div>
-              </div>
-            ) : leadsData.length === 0 ? (
-              <div className="flex items-center justify-center py-10 lg:py-20 text-white/60">
-                <p>No leads found</p>
-              </div>
-            ) : (
-              <>
-                {/* --- MOBILE VIEW (Collapsible Cards) --- */}
-                <div className="lg:hidden space-y-1">
-                  <div className="flex justify-between text-[#E8D1AB] text-sm font-medium p-4 bg-[#101010] rounded-b-2xl border-b border-b-white/5">
-                    <span>User Name</span>
-                    <span>Booking Status</span>
-                  </div>
-                  {leadsData.map((lead) => {
-                    const isExpanded = String(expandedId) === String(lead.lead_id);
-
-                    return (
-                      <div
-                        key={lead.lead_id}
-                        className="bg-[#101010] rounded-lg border border-white/5 overflow-hidden"
-                      >
-                        {/* Header: Always Visible */}
-                        <div
-                          className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors"
-                          onClick={() => toggleExpand(String(lead.lead_id))}
-                        >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            {/* Chevron Indicator */}
-                            <div className={`w-6 h-6 flex items-center justify-center rounded-full border shrink-0 transition-colors ${isExpanded ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'}`}>
-                              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            </div>
-
-                            {/* Avatar */}
-                            <div className="w-10 h-10 rounded-lg bg-[#FFF6D9] shrink-0 flex items-center justify-center text-black font-medium text-sm">
-                              {lead.clientName.split(" ").map((n) => n[0]).join("")}
-                            </div>
-
-                            {/* Client Info - min-w-0 and truncate prevents layout overflow */}
-                            <div className="min-w-0">
-                              <p className="text-white text-sm font-medium truncate">{lead.clientName}</p>
-                              <p className="text-white/40 text-[10px]">{format(lead.date, "MMM dd, yyyy")}</p>
-                            </div>
-                          </div>
-
-                          {/* Status on the Right */}
-                          <div className="shrink-0 ml-2">
-                            <StatusBadge status={lead.bookingStatus} mobile />
-                          </div>
-                        </div>
-
-                        {/* Collapsible Content */}
-                        {isExpanded && (
-                          <div className="px-4 pb-5 pt-2 border-t border-white/5 grid grid-cols-2 gap-y-4">
-                            <div>
-                              <p className="text-white/40 text-[10px] uppercase tracking-wider">Email ID</p>
-                              <p className="text-white text-sm truncate pr-2">{lead.email}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-white/40 text-[10px] uppercase tracking-wider">Lead Type</p>
-                              <p className="text-white text-sm">{lead.leadType}</p>
-                            </div>
-                            <div>
-                              <p className="text-white/40 text-[10px] uppercase tracking-wider">Last Activity</p>
-                              <p className="text-white text-sm">{lead.lastActivity}</p>
-                            </div>
-                            <div className="text-right flex flex-col justify-end">
-                              <p className="text-white/40 text-[10px] uppercase tracking-wider">ACTION</p>
-                              <button
-                                // onClick={() => handleRowClick(lead.lead_id)}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenMenu(e, lead.clientName, lead.lead_id);
-                                }}
-                                className="text-[#E8D1AB] text-sm font-medium hover:underline text-right"
-                              >
-                                {/* View Profile */}
-                                <MoreVertical className="ml-auto" size={18} />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* --- DESKTOP VIEW (Your Original Table) --- */}
-                <div className="hidden lg:block w-full overflow-x-auto">
-                  <table className="w-full text-left border-separate border-spacing-0">
-                    <thead>
-                      <tr className="bg-[#101010] text-[#E8D1AB] text-sm font-medium">
-                        <th className="rounded-l-2xl py-5 px-6 font-medium border-l border-b border-b-[#333333] border-l-[#333333]">
-                          User Name
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Email ID
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Lead Type
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Booking Status
-                        </th>
-                        <th className="py-5 px-6 font-medium border-b border-[#333333]">
-                          Last Activity
-                        </th>
-                        <th className="py-5 px-6 font-medium text-right rounded-r-2xl border-r border-b border-b-[#333333] border-r-[#333333]">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leadsData.map((lead) => (
-                        <tr
-                          key={lead.lead_id}
-                          onClick={() => handleRowClick(lead.lead_id)}
-                          className=" hover:bg-white/[0.02] transition-colors cursor-pointer"
-                        >
-                          {/* Client Name & Date */}
-                          <td className="py-5 px-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-[50px] h-[50px] rounded-lg bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-xl">
-                                {lead.clientName
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
-                              </div>
-                              <div>
-                                <p className="text-white font-medium text-base">
-                                  {lead.clientName}
-                                </p>
-                                <p className="text-white/40 text-sm mt-1.5">
-                                  {format(lead.date, "MMM dd, yyyy")}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Email */}
-                          <td className="py-5 px-6 text-white text-base">
-                            {lead.email}
-                          </td>
-
-                          {/* Lead Type */}
-                          <td className="py-5 px-6">
-                            <span className="text-white text-base">
-                              {lead.leadType}
-                            </span>
-                          </td>
-
-                          {/* Booking Status */}
-                          <td className="py-5 px-6 whitespace-nowrap w-px">
-                            <div className="flex items-center min-w-max">
-                              <StatusBadge status={lead.bookingStatus} />
-                            </div>
-                          </td>
-
-                          {/* Last Activity */}
-                          <td className="py-5 px-6 text-white text-base">
-                            {lead.lastActivity}
-                          </td>
-
-                          {/* Action */}
-                          <td className="py-5 px-6 text-right">
-                            <Button
-                              className="text-white hover:text-white/80 transition-colors"
-                              onClick={(e) =>
-                                handleOpenMenu(e, lead.clientName, lead.lead_id)
-                              }
-                            >
-                              <MoreVertical size={20} />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </>
-        ) : (
-          <div className="space-y-6">
-            <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">
-              <div className="w-full overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="text-[#888] text-sm font-normal border-b border-[#333]">
-                      <th className="py-5 px-6 font-medium">User ID</th>
-                      <th className="py-5 px-6 font-medium">User Info</th>
-                      <th className="py-5 px-6 font-medium">Type</th>
-                      <th className="py-5 px-6 font-medium">Contact / Role</th>
-                      <th className="py-5 px-6 font-medium text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {usersLoading ? (
-                      <tr>
-                        <td colSpan={5} className="py-10 text-center text-[#888]">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-6 h-6 border-2 border-[#E8D1AB] border-t-transparent rounded-full animate-spin" />
-                            <span>Loading users...</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : users.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-10 text-center text-[#888]">
-                          No users found.
-                        </td>
-                      </tr>
-                    ) : (
-                      users.map((user, idx) => (
-                        <tr
-                          key={idx}
-                          onClick={() => {
-                            const cleanId = user.id.replace('#', '');
-                            if (user.type === "Client") {
-                              router.push(`/sales/users/clients/${cleanId}`);
-                            } else {
-                              router.push(`/sales/users/creative-partners/${cleanId}`);
-                            }
-                          }}
-                          className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
-                        >
-                          <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
-                          <td className="py-5 px-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] overflow-hidden flex items-center justify-center text-[#E5D5B8] font-semibold text-sm border border-white/5 relative">
-                                {user.imageUrl ? (
-                                  <img
-                                    src={user.imageUrl}
-                                    alt={user.name}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.style.display = 'none';
-                                      if (target.parentElement) {
-                                        target.parentElement.textContent = user.initials;
-                                      }
-                                    }}
-                                  />
-                                ) : (
-                                  <span className="text-zinc-400">{user.initials}</span>
-                                )}
-                              </div>
-                              <div>
-                                <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                                <p className="text-[#666666] text-xs mt-0.5">{user.email}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-5 px-6">
-                            <div className="flex items-center gap-2 text-sm text-[#888]">
-                              {user.type === "Client" ? <User size={14} /> : <Camera size={14} />}
-                              <span>{user.type}</span>
-                            </div>
-                          </td>
-                          <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">
-                            <div className="flex flex-col gap-1">
-                              {user.phoneNumber && user.phoneNumber !== "N/A" && (
-                                <span className="text-zinc-500">{user.phoneNumber}</span>
-                              )}
-                              {user.type === "Creative Partner" && (
-                                <span className="w-fit px-2 py-0.5 bg-[#E5D5B8]/10 text-[#E5D5B8] rounded text-xs">
-                                  {user.role}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-5 px-6 text-right">
-                            <button className="text-[#666] hover:text-white transition-colors">
-                              <ChevronRight size={20} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Pagination for Users */}
-            {!usersLoading && usersTotalPages > 1 && (
-              <div className="flex justify-between items-center p-6 border-t border-[#333333]">
-                <div className="text-sm text-[#666666]">
-                  Showing {((usersCurrentPage - 1) * usersLimit) + 1} to {Math.min(usersCurrentPage * usersLimit, usersTotalRecords)} of {usersTotalRecords} results
-                </div>
-                <div className="flex gap-2 items-center">
-                  <button
-                    onClick={() => setUsersCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={usersCurrentPage === 1}
-                    className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                  >
-                    Previous
-                  </button>
-                  <div className="flex gap-1">
-                    {Array.from({ length: Math.min(5, usersTotalPages) }, (_, i) => {
-                      const pageNum = i + 1;
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setUsersCurrentPage(pageNum)}
-                          className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${usersCurrentPage === pageNum
-                            ? "bg-[#E5D5B8] text-black"
-                            : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
-                            }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    onClick={() => setUsersCurrentPage(prev => Math.min(usersTotalPages, prev + 1))}
-                    disabled={usersCurrentPage === usersTotalPages}
-                    className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                  >
-                    Next
-                  </button>
-                </div>
+           {activeTab === "Booking" && (
+              <div className="flex flex-wrap gap-2 lg:gap-4">
+                <BasicDropdown
+                  label="Lead Type"
+                  value={leadTypeFilter}
+                  options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                  onChange={(val) => setLeadTypeFilter(val)}
+                />
+                <BasicDropdown
+                  label="Intent Type"
+                  value={intentFilter}
+                  options={["All", "Hot", "Warm", "Cold"]}
+                  onChange={(val) => setIntentFilter(val as any)}
+                />
+                <BasicDropdown
+                  label="All Statuses"
+                  value={statusFilter}
+                  options={["All", ...BOOKING_STATUS_OPTIONS]}
+                  onChange={(val) => setStatusFilter(val as any)}
+                  openAlign={"right"}
+                />
               </div>
             )}
           </div>
+        </div>
+
+        <DottedDivider className="lg:hidden" />
+
+        {activeTab === "Booking" ? (
+          <div className="flex flex-col gap-4">
+            <div className="hidden lg:block">
+              <LeadsTable
+                data={displayLeads}
+                loading={leadsIsLoading}
+                isFetching={leadsIsFetching}
+                currentPage={leadsCurrentPage}
+                totalPages={leadsTotalPages}
+                totalRecords={leadsTotalRecords}
+                limit={leadsLimit}
+                onPageChange={(page) => setLeadsCurrentPage(page)}
+                onRowClick={handleRowClick}
+                onOpenMenu={handleOpenMenu}
+              />
+            </div>
+
+            <div className="lg:hidden flex flex-col gap-2">
+              {displayLeads.map((lead) => (
+                <MobileLeadRow
+                  key={lead.lead_id}
+                  lead={lead}
+                  onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <UsersTable<UserData>
+            data={users}
+            loading={usersLoading}
+            currentPage={usersCurrentPage}
+            totalPages={usersTotalPages}
+            totalRecords={usersTotalRecords}
+            limit={usersLimit}
+            headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
+            onPageChange={(page) => setUsersCurrentPage(page)}
+            renderRow={(user) => (
+              <tr
+                key={user.id}
+                className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
+                onClick={() => handleUserRowClick(user)}
+              >
+                <td className="py-5 px-6 text-[#888] text-[14px]">{user.id}</td>
+                <td className="py-5 px-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-sm">
+                      {user.imageUrl ? (
+                        <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <span>{user.initials}</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
+                      <p className="text-[#666666] text-xs mt-0.5">{user.joinDate}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">{user.type}</td>
+                <td className="py-5 px-6">
+                  <IntentBadge intent={"Warm"} />
+                </td>
+                <td className="py-5 px-6">
+                  <LeadsStatusBadge status={"Booking In Progress"} />
+                </td>
+                <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">
+                  {user.phoneNumber}
+                </td>
+                <td className="py-5 px-6 text-right">
+                  <button
+                    className="text-[#666] hover:text-white transition-colors p-1"
+                    onClick={(e) => {
+                      const rawId = user.id.replace('#', '');
+                      handleOpenMenu(e, user.name, rawId as any);
+                    }}
+                  >
+                    <MoreVertical size={20} />
+                  </button>
+                </td>
+              </tr>
+            )}
+            renderMobileDetails={(user) => (
+              <div className="p-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-white/40 text-[10px] uppercase">Email</p>
+                  <p className="text-white text-sm truncate">{user.email}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-white/40 text-[10px] uppercase">Type</p>
+                  <p className="text-white text-sm">{user.type}</p>
+                </div>
+                <div className="">
+                  <p className="text-white/40 text-[10px] uppercase">Intent</p>
+                  <div className="">
+                    <IntentBadge intent="Hot" size="sm" />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white/40 text-[10px] uppercase">Contact Info</p>
+                  <p className="text-white text-sm">{user.phoneNumber}</p>
+                </div>
+              </div>
+            )}
+          />
+        )}
+
+        {menuAnchor && selectedLeadId && (
+          <ActionMenu
+            client={selectedClient}
+            leadId={selectedLeadId as number}
+            isOpen={true}
+            onClose={() => setMenuAnchor(null)}
+            anchor={menuAnchor}
+            basePath={
+              activeTab === "Client"
+                ? "/sales/client"
+                : activeTab === "Creative Partner"
+                  ? "/sales/creative-partner"
+                  : undefined
+            }
+          />
         )}
       </div>
-
-      {menuAnchor && selectedLeadId && (
-        <ActionMenu
-          client={selectedClient}
-          leadId={selectedLeadId as number}
-          isOpen={true}
-          onClose={() => setMenuAnchor(null)}
-          anchor={menuAnchor as { x: number; y: number }}
-          basePath="/sales/leads"
-        />
-      )}
     </>
   );
 }

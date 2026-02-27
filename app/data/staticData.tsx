@@ -1,4 +1,4 @@
-import { Linkedin, Globe } from "lucide-react";
+import { Linkedin, Globe, Youtube, Video, HardDrive } from "lucide-react";
 
 export const roleOptions = [
   // { value: "1", label: "Director" },
@@ -212,6 +212,12 @@ export const SOCIAL_ICONS = [
   { id: "linkedin", label: "LinkedIn", icon: Linkedin },
   { id: "twitter", label: "Twitter / X", src: "/images/socmed/Twitter.svg" },
   { id: "custom", label: "Other / Custom URL", icon: Globe },
+];
+
+export const PORTFOLIO_ICONS = [
+  { id: "google_drive", label: "Google Drive", icon: HardDrive },
+  { id: "youtube", label: "YouTube", icon: Youtube },
+  { id: "vimeo", label: "Vimeo", icon: Video },
 ];
 
 export const platformNames = {

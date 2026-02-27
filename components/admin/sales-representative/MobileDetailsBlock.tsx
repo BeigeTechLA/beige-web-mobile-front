@@ -3,13 +3,14 @@
 import React, { useState } from "react";
 import { ChevronDown, MoreHorizontal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { BookingStatus, LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 
 interface LeadData {
   lead_id: number;
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
-  bookingStatus: "Paid" | "In-Progress";
+  bookingStatus: "Paid" | "In-Progress" | BookingStatus; //update with code change
   lastActivity: string;
   date: Date;
 }
@@ -19,20 +20,20 @@ interface MobileLeadRowProps {
   onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
-  const styles = {
-    Paid: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
-    "In-Progress": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]",
-  };
+// const StatusBadge = ({ status }: { status: LeadData["bookingStatus"] }) => {
+//   const styles = {
+//     Paid: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
+//     "In-Progress": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]",
+//   };
 
-  return (
-    <span
-      className={`text-nowrap p-2 lg:px-4 lg:py-3 rounded-full text-xs lg:text-base font-medium border ${styles[status]}`}
-    >
-      {status}
-    </span>
-  );
-};
+//   return (
+//     <span
+//       className={`text-nowrap p-2 lg:px-4 lg:py-3 rounded-full text-xs lg:text-base font-medium border ${styles[status]}`}
+//     >
+//       {status}
+//     </span>
+//   );
+// };
 
 export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -41,7 +42,7 @@ export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
     <div className="bg-[#171717] overflow-hidden mb-3">
       {/* Header - Always Visible */}
       <div
-        className="flex items-center justify-between p-4 cursor-pointer"
+        className="flex flex-wrap gap-2 items-center justify-between p-4 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
@@ -54,7 +55,7 @@ export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
           <span className="text-sm font-medium text-white">{lead.clientName}</span>
         </div>
 
-        <StatusBadge status={lead.bookingStatus} />
+        <LeadsStatusBadge status={lead.bookingStatus || "Unknown"} />
       </div>
 
       {/* Expandable Details */}

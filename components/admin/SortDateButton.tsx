@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { useTheme } from "next-themes";
+
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DesktopDatePicker } from "@mui/x-date-pickers/DesktopDatePicker";
 import { Calendar } from "lucide-react";
@@ -19,7 +21,11 @@ export const SortDateButton: React.FC<SortDateButtonProps> = ({
   selectedDate,
   width
 }) => {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  const isDark = !mounted || theme === "dark";
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>

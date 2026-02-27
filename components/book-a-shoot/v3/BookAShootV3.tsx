@@ -25,12 +25,33 @@ import {
   V3SelectDreamTeam,
   V3Step4BookConfirm,
 } from "./index";
+import { pushToDataLayer } from "@/lib/gtm";
 
 const V3_STEPS = [
   { label: "Choose Service" },
   { label: "Customized Details" },
   { label: "Book & Confirm" },
 ];
+
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager"
+}
+
+interface FormFields {
+  email: string;
+  user_id: number | undefined;
+  content_type: string;
+  shoot_type: string;
+  shoot_date_time: string;
+  edits_needed: boolean;
+  video_edit_types?: string;
+  photo_edit_types?: string;
+}
 
 export const BookAShootV3 = () => {
   const router = useRouter();
@@ -42,6 +63,7 @@ export const BookAShootV3 = () => {
   const [draftBookingId, setDraftBookingId] = useState<number | null>(null);
   const [leadId, setLeadId] = useState<number | null>(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [userTypeName, setUserTypeName] = useState("Unknown");
 
   const allowNavigation = useRef(false)
 
@@ -84,6 +106,10 @@ export const BookAShootV3 = () => {
       }
     };
 
+    if (isAuthenticated && user?.email) {
+      setUserTypeName(USER_TYPE[user?.user_type_id])
+    }
+
     // trackLoggedInUser();
   }, [
     isAuthenticated,
@@ -115,30 +141,30 @@ export const BookAShootV3 = () => {
     //   }
     // }
 
-  //    if (internalStep === 1 && !leadTracked && formData.email) {
-  //   try {
-  //     // Show a loading toast if you want
-  //     const result = await trackEarlyInterest({
-  //       guest_email: formData.email,
-  //       user_id: user?.id,
-  //       content_type: formData.contentType.join(","),
-  //       shoot_type: formData.shootType,
-  //       client_name: user?.name || formData.fullName,
-  //     }).unwrap();
+    //    if (internalStep === 1 && !leadTracked && formData.email) {
+    //   try {
+    //     // Show a loading toast if you want
+    //     const result = await trackEarlyInterest({
+    //       guest_email: formData.email,
+    //       user_id: user?.id,
+    //       content_type: formData.contentType.join(","),
+    //       shoot_type: formData.shootType,
+    //       client_name: user?.name || formData.fullName,
+    //     }).unwrap();
 
-  //     // IMPORTANT: Update all states at once
-  //     const bId = result.data.booking_id;
-  //     setDraftBookingId(bId);
-  //     setLeadId(result.data.lead_id);
-  //     setLeadTracked(true);
+    //     // IMPORTANT: Update all states at once
+    //     const bId = result.data.booking_id;
+    //     setDraftBookingId(bId);
+    //     setLeadId(result.data.lead_id);
+    //     setLeadTracked(true);
 
-  //     updateData({ bookingId: bId });
+    //     updateData({ bookingId: bId });
 
-  //     console.log("Lead tracked successfully:", result.data);
-  //   } catch (error) {
-  //     console.error("Failed to track lead:", error);
-  //   }
-  // }
+    //     console.log("Lead tracked successfully:", result.data);
+    //   } catch (error) {
+    //     console.error("Failed to track lead:", error);
+    //   }
+    // }
     if (internalStep === 1) {
       try {
         const result = await trackEarlyInterest({
@@ -156,16 +182,72 @@ export const BookAShootV3 = () => {
           photo_edit_types: formData.photoEditTypes
         }).unwrap();
 
-        setDraftBookingId(result.data.booking_id);
-        updateData({ bookingId: result.data.booking_id });
-        setLeadTracked(true);
+        setDraftBookingId(result?.data?.booking_id);
+        updateData({ bookingId: result?.data?.booking_id });
 
+        const formFields: FormFields = {
+          content_type: formData.contentType.join(","),
+          shoot_type: formData.shootType,
+          shoot_date_time: `${formData.startDate} to ${formData.endDate}`,
+          edits_needed: formData.editsNeeded
+        };
+
+        if (formData.editsNeeded) {
+          formFields.photo_edit_types = formData.photoEditTypes.join(", ");
+          formFields.video_edit_types = formData.videoEditTypes.join(", ");
+        }
+
+        // add GA event on click of "Continue" in the first step
+        pushToDataLayer("service_details_submitted_step1", {
+          type: "Action Tracking",
+          page_name: "Book-a-shoot Page",
+          location_in_website: "book_a_shoot_step1",
+          duration_on_page: performance.now() / 1000,
+          phone: user?.phone_number,
+          user_id: user?.id,
+          user_type: userTypeName,
+          booking_id: result?.data?.booking_id,
+          booking_form_fields: formFields,
+          email: formData.email,
+        });
+
+        setLeadTracked(true);
       } catch (error) {
         console.error("Failed to save Step 1:", error);
         toast.error("Progress not saved, but you can continue.");
       }
     }
     if (internalStep === 3) {
+      // add GA event on initial load
+
+      const formFields = {
+        content_type: formData.contentType.join(","),
+        shoot_type: formData.shootType,
+        shoot_date_time: `${formData.startDate} to ${formData.endDate}`,
+        edits_needed: formData.editsNeeded,
+        photo_edit_types: formData.photoEditTypes.join(", "),
+        video_edit_types: formData.videoEditTypes.join(", "),
+        additional_creative: formData.addTeamMembers,
+        shoot_location: formData.location,
+        additional_details: formData.specialInstructions,
+        supporting_url: formData.referenceLinks,
+        videographyCount: formData?.videographyCount,
+        photographyCount: formData?.photographyCount,
+      };
+
+      pushToDataLayer("crew_size_matching", {
+        type: "Action Tracking",
+        page_name: "Book-a-shoot Page",
+        location_in_website: "book_a_shoot_step3",
+        duration_on_page: performance.now() / 1000,
+        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : formData.email,
+        email: isAuthenticated ? user?.email : "Unknown",
+        phone: isAuthenticated ? user?.phone_number : "Unknown",
+        booking_id: formData?.bookingId,
+        booking_form_fields: formFields
+      });
+
       // Step 3 -> Loading -> Crew Selection
       setInternalStep(4); // Loading
       setTimeout(() => {
@@ -214,155 +296,172 @@ export const BookAShootV3 = () => {
   };
 
   const handleBookingSubmission = async () => {
-  try {
-    // 1. Calculate Shoot Duration in Hours
-    const calculateDurationHours = () => {
-      if (!formData.startDate || !formData.endDate) return 3; // Default fallback
-      const start = new Date(formData.startDate);
-      const end = new Date(formData.endDate);
-      const diffMs = end.getTime() - start.getTime();
-      // Round to nearest hour, minimum 1
-      return Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
-    };
+    try {
+      // 1. Calculate Shoot Duration in Hours
+      const calculateDurationHours = () => {
+        if (!formData.startDate || !formData.endDate) return 3; // Default fallback
+        const start = new Date(formData.startDate);
+        const end = new Date(formData.endDate);
+        const diffMs = end.getTime() - start.getTime();
+        // Round to nearest hour, minimum 1
+        return Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+      };
 
-    const shootHours = calculateDurationHours();
+      const shootHours = calculateDurationHours();
 
-    // 2. Map Database Item IDs based on your SQL structure
-    const ITEM_IDS = {
-      videographer: 11,
-      photographer: 10,
-      cinematographer: 12,
-      additionalCamera: 50, // Flat rate additional camera
-      productionAssistant: 45, // Crew PA
-      soundEngineer: 46, // Crew Sound
-      director: 47, // Crew Director
-      gaffer: 48, // Crew Gaffer
-    };
+      // 2. Map Database Item IDs based on your SQL structure
+      const ITEM_IDS = {
+        videographer: 11,
+        photographer: 10,
+        cinematographer: 12,
+        additionalCamera: 50, // Flat rate additional camera
+        productionAssistant: 45, // Crew PA
+        soundEngineer: 46, // Crew Sound
+        director: 47, // Crew Director
+        gaffer: 48, // Crew Gaffer
+      };
 
-    let quoteItems: Array<{ item_id: number; quantity: number }> = [];
+      let quoteItems: Array<{ item_id: number; quantity: number }> = [];
 
-    // 3. Add Base Crew (Calculated in Step 2 from roleCounts)
-    if (formData.roleCounts) {
-      Object.entries(formData.roleCounts).forEach(([role, count]) => {
-        // Map "videographer" string to ID 11, etc.
-        const itemId = ITEM_IDS[role as keyof typeof ITEM_IDS];
-        const quantity = Number(count);
+      // 3. Add Base Crew (Calculated in Step 2 from roleCounts)
+      if (formData.roleCounts) {
+        Object.entries(formData.roleCounts).forEach(([role, count]) => {
+          // Map "videographer" string to ID 11, etc.
+          const itemId = ITEM_IDS[role as keyof typeof ITEM_IDS];
+          const quantity = Number(count);
 
-        if (itemId && quantity > 0) {
-          quoteItems.push({
-            item_id: itemId,
-            quantity: quantity,
-          });
+          if (itemId && quantity > 0) {
+            quoteItems.push({
+              item_id: itemId,
+              quantity: quantity,
+            });
+          }
+        });
+      }
+
+      // 4. INJECT MANDATORY ADD-ONS BASED ON SHOOT TYPE
+
+      // Rule: Podcast & Shows -> Additional 2 Cameras
+      if (formData.shootType === "podcast") {
+        quoteItems.push({
+          item_id: ITEM_IDS.additionalCamera,
+          quantity: 2,
+        });
+      }
+
+      // Rule: Short Films & Narratives -> Mandatory Crew Stack
+      // Includes PA, Sound Engineer, Director, and Gaffer
+      if (formData.shootType === "short_film" || formData.shootType === "movie") {
+        quoteItems.push({ item_id: ITEM_IDS.productionAssistant, quantity: 1 });
+        quoteItems.push({ item_id: ITEM_IDS.soundEngineer, quantity: 1 });
+        quoteItems.push({ item_id: ITEM_IDS.director, quantity: 1 });
+        quoteItems.push({ item_id: ITEM_IDS.gaffer, quantity: 1 });
+      }
+
+      // 5. SAVE QUOTE (API Call)
+      // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
+      let savedQuoteId: number | null = null;
+
+      if (quoteItems.length > 0) {
+        try {
+          const quotePayload = {
+            items: quoteItems,
+            shootHours: shootHours,
+            eventType: formData.shootType || "general",
+            guestEmail: formData.email,
+            shoot_start_date: formData.startDate, // Backend uses this for Same/Next Day fees
+            notes: formData.specialInstructions || undefined,
+            video_edit_types: formData.editsNeeded ? formData.videoEditTypes : [],
+            photo_edit_types: formData.editsNeeded ? formData.photoEditTypes : [],
+          };
+
+          const savedQuote = await saveQuote(quotePayload).unwrap();
+          savedQuoteId = savedQuote.quote_id;
+          console.log("Pricing Quote Generated:", savedQuoteId);
+        } catch (quoteError) {
+          console.error("Pricing Calculation Error:", quoteError);
+          toast.error("Error calculating final price, but proceeding with booking...");
+        }
+      }
+
+      // 6. PREPARE FINAL BOOKING PAYLOAD
+      const finalBookingData: any = {
+        order_name: `${formData.shootType.toUpperCase()} Shoot - ${formData.fullName}`,
+        guest_email: formData.email,
+        content_type: formData.contentType.join(","),
+        shoot_type: formData.shootType,
+        // start_date_time: formData.startDate,
+        // end_time: formData.endDate,
+        duration_hours: shootHours,
+        location: formData.location,
+        quote_id: savedQuoteId, // Attach the calculated price
+
+        // User Profile Details
+        full_name: formData.fullName,
+        phone: formData.phone,
+
+        // Editing Preferences
+        edits_needed: formData.editsNeeded,
+        video_edit_types: formData.videoEditTypes,
+        photo_edit_types: formData.photoEditTypes,
+
+        // Team Logic
+        crew_size: String(formData.crewCount || 1),
+        matching_method: formData.matchingMethod || "ai_matchmaker",
+        selected_crew_ids: formData.selectedCrewIds || [],
+
+        // Project Scope
+        // special_instructions: formData.specialInstructions,
+        reference_links: formData.referenceLinks,
+        is_draft: false, // Marking as final booking
+      };
+
+      // 7. SUBMIT TO BACKEND
+      let submissionResult;
+
+      if (draftBookingId) {
+        // If we have a Lead/Draft ID from Step 1, update it
+        submissionResult = await updateGuestBooking({
+          id: draftBookingId,
+          data: finalBookingData,
+        }).unwrap();
+      } else {
+        // Fallback: Create fresh booking
+        submissionResult = await createGuestBooking(finalBookingData).unwrap();
+      }
+
+      // add GA event on payment submit in step4
+      pushToDataLayer("booking_payment_confirm_submit", {
+        type: "Action Tracking",
+        page_name: "Book-a-shoot Page",
+        location_in_website: "book_a_shoot_review_confirm",
+        user_id: isAuthenticated ? user?.id : "Unknown",
+        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+        email: isAuthenticated ? user?.email : formData.email,
+        phone: isAuthenticated ? user?.phone_number : formData.phone,
+        duration_on_page: performance.now() / 1000,
+        booking_id: formData?.bookingId,
+        booking_form_fields: {
+          full_name: formData.fullName,
+          phone: formData.phone,
         }
       });
-    }
 
-    // 4. INJECT MANDATORY ADD-ONS BASED ON SHOOT TYPE
-    
-    // Rule: Podcast & Shows -> Additional 2 Cameras
-    if (formData.shootType === "podcast") {
-      quoteItems.push({
-        item_id: ITEM_IDS.additionalCamera,
-        quantity: 2,
+      toast.success("Booking Secured!", {
+        description: "Redirecting to secure payment gateway...",
+      });
+
+      // 8. REDIRECT TO PAYMENT
+      const paymentUrl = `/search-results/payment?shootId=${submissionResult.booking_id}`;
+      router.push(paymentUrl);
+
+    } catch (error: any) {
+      console.error("Final Booking Submission Failed:", error);
+      toast.error("Submission Failed", {
+        description: error?.data?.message || "Could not complete booking. Please check your connection.",
       });
     }
-
-    // Rule: Short Films & Narratives -> Mandatory Crew Stack
-    // Includes PA, Sound Engineer, Director, and Gaffer
-    if (formData.shootType === "short_film" || formData.shootType === "movie") {
-      quoteItems.push({ item_id: ITEM_IDS.productionAssistant, quantity: 1 });
-      quoteItems.push({ item_id: ITEM_IDS.soundEngineer, quantity: 1 });
-      quoteItems.push({ item_id: ITEM_IDS.director, quantity: 1 });
-      quoteItems.push({ item_id: ITEM_IDS.gaffer, quantity: 1 });
-    }
-
-    // 5. SAVE QUOTE (API Call)
-    // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
-    let savedQuoteId: number | null = null;
-
-    if (quoteItems.length > 0) {
-      try {
-        const quotePayload = {
-          items: quoteItems,
-          shootHours: shootHours,
-          eventType: formData.shootType || "general",
-          guestEmail: formData.email,
-          shoot_start_date: formData.startDate, // Backend uses this for Same/Next Day fees
-          notes: formData.specialInstructions || undefined,
-          video_edit_types: formData.editsNeeded ? formData.videoEditTypes : [],
-          photo_edit_types: formData.editsNeeded ? formData.photoEditTypes : [],
-        };
-
-        const savedQuote = await saveQuote(quotePayload).unwrap();
-        savedQuoteId = savedQuote.quote_id;
-        console.log("Pricing Quote Generated:", savedQuoteId);
-      } catch (quoteError) {
-        console.error("Pricing Calculation Error:", quoteError);
-        toast.error("Error calculating final price, but proceeding with booking...");
-      }
-    }
-
-    // 6. PREPARE FINAL BOOKING PAYLOAD
-    const finalBookingData: any = {
-      order_name: `${formData.shootType.toUpperCase()} Shoot - ${formData.fullName}`,
-      guest_email: formData.email,
-      content_type: formData.contentType.join(","),
-      shoot_type: formData.shootType,
-      // start_date_time: formData.startDate,
-      // end_time: formData.endDate,
-      duration_hours: shootHours,
-      location: formData.location,
-      quote_id: savedQuoteId, // Attach the calculated price
-      
-      // User Profile Details
-      full_name: formData.fullName,
-      phone: formData.phone,
-      
-      // Editing Preferences
-      edits_needed: formData.editsNeeded,
-      video_edit_types: formData.videoEditTypes,
-      photo_edit_types: formData.photoEditTypes,
-      
-      // Team Logic
-      crew_size: String(formData.crewCount || 1),
-      matching_method: formData.matchingMethod || "ai_matchmaker",
-      selected_crew_ids: formData.selectedCrewIds || [],
-      
-      // Project Scope
-      // special_instructions: formData.specialInstructions,
-      reference_links: formData.referenceLinks,
-      is_draft: false, // Marking as final booking
-    };
-
-    // 7. SUBMIT TO BACKEND
-    let submissionResult;
-
-    if (draftBookingId) {
-      // If we have a Lead/Draft ID from Step 1, update it
-      submissionResult = await updateGuestBooking({
-        id: draftBookingId,
-        data: finalBookingData,
-      }).unwrap();
-    } else {
-      // Fallback: Create fresh booking
-      submissionResult = await createGuestBooking(finalBookingData).unwrap();
-    }
-
-    toast.success("Booking Secured!", {
-      description: "Redirecting to secure payment gateway...",
-    });
-
-    // 8. REDIRECT TO PAYMENT
-    const paymentUrl = `/search-results/payment?shootId=${submissionResult.booking_id}`;
-    router.push(paymentUrl);
-
-  } catch (error: any) {
-    console.error("Final Booking Submission Failed:", error);
-    toast.error("Submission Failed", {
-      description: error?.data?.message || "Could not complete booking. Please check your connection.",
-    });
-  }
-};
+  };
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });

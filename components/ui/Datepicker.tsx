@@ -8,6 +8,35 @@ import {
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { Box, Typography } from "@mui/material";
 
+export const datePickerColours = {
+  inputBackground: "#101010",
+  inputText: "#FFFFFF",
+  inputBorder: "#ffffff4d",
+  inputBorderHover: "#E8D1AB",
+  inputBorderFocus: "#E8D1AB",
+  labelText: "#ffffff99",
+  iconColor: "#FFFFFF",
+  accent: "#E8D1AB",
+  accentText: "#101010",
+  hoverAccent: "#E8D1AB",
+  paperBackground: "#101010",
+  mobileCalendarBackground: "#101010",
+  calendarHeaderText: "#FFFFFF",
+  weekdayLabelText: "#ffffff99",
+  dayNumberText: "#FFFFFF",
+  navigationIconColor: "#E8D1AB",
+  desktopTimeAccent: "#E8D1AB",
+  mobileSelectedText: "#101010",
+  toolbarText: "#FFFFFF",
+  selectedHeaderDateTime: "#E8D1AB",
+  clockNumberColor: "#FFFFFF",
+  tabIconColor: "#ffffff99",
+  tabIconSelected: "#E8D1AB",
+  inputDisabled: "#ffffff33",
+  mutedText: "#ffffff66",
+  desktopCalendarText: "#FFFFFF",
+};
+
 export interface DatePickerColors {
   inputBackground: string;
   inputText: string;
@@ -57,6 +86,8 @@ interface Props {
   disabled?: boolean;
   format?: string;
   sx?: any;
+  floating?: boolean;
+  labelSx?: any;
 }
 
 export const DatePicker: React.FC<Props> = ({
@@ -68,6 +99,8 @@ export const DatePicker: React.FC<Props> = ({
   disabled = false,
   format = "MM/dd/yyyy",
   sx,
+  labelSx,
+  floating = false, // Default to your original top-label style
 }) => {
   const colors = { ...defaultColors, ...customColors };
   const [open, setOpen] = useState(false);
@@ -78,16 +111,8 @@ export const DatePicker: React.FC<Props> = ({
       scrollbarWidth: "none", // Firefox
       "&::-webkit-scrollbar": { display: "none" }, // Chrome/Safari
     },
-
-    // --- NEW: Fix Mobile Toolbar Selected Date Text Color ---
-    "& .MuiDatePickerToolbar-title": {
-      color: "#FFFFFF !important", // Main Date Text
-    },
-    "& .MuiDatePickerToolbar-typography": {
-      color: "#FFFFFF !important", // "SELECT DATE" label
-    },
-
-    // Month/Year Header Text and Arrow
+    "& .MuiDatePickerToolbar-title": { color: "#FFFFFF !important" },
+    "& .MuiDatePickerToolbar-typography": { color: "#FFFFFF !important" },
     "& .MuiPickersCalendarHeader-label": { color: colors.calendarHeaderText },
     "& .MuiPickersCalendarHeader-switchViewIcon": { color: `${colors.navigationIconColor} !important` },
     "& .MuiPickersArrowSwitcher-button": { color: `${colors.navigationIconColor} !important` },
@@ -96,12 +121,10 @@ export const DatePicker: React.FC<Props> = ({
     "& .MuiPickersYear-yearButton": {
       color: "#FFFFFF !important", // Makes year text white
       "&.Mui-selected": {
-        backgroundColor: `${colors.accent} !important`, // Replaces blue bubble with Gold
+        backgroundColor: `${colors.accent} !important`,
         color: `${colors.accentText} !important`,
       },
-      "&:hover": {
-        backgroundColor: "rgba(255, 255, 255, 0.1) !important",
-      }
+      "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1) !important" }
     },
 
     // Calendar Days
@@ -122,18 +145,14 @@ export const DatePicker: React.FC<Props> = ({
         opacity: 0.4,
       },
     },
-
-    // Mobile Action Buttons (OK/Cancel)
-    "& .MuiDialogActions-root button": {
-      color: colors.accent,
-      fontWeight: "bold",
-    }
+    "& .MuiDialogActions-root button": { color: colors.accent, fontWeight: "bold" }
   };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ width: "100%" }}>
-        {label && (
+      <Box sx={{ width: "100%", position: "relative" }}>
+        {/* Render traditional top label only if NOT floating */}
+        {label && !floating && (
           <Typography
             variant="body2"
             sx={{
@@ -142,7 +161,8 @@ export const DatePicker: React.FC<Props> = ({
               mb: 1,
               fontSize: "10px",
               textTransform: "uppercase",
-              letterSpacing: "0.1em"
+              letterSpacing: "0.1em",
+              ...labelSx,
             }}
           >
             {label}
@@ -150,6 +170,7 @@ export const DatePicker: React.FC<Props> = ({
         )}
 
         <MuiDatePicker
+          label={floating ? label : undefined} // Pass label to MUI if floating
           value={value}
           onChange={onChange}
           format={format}
@@ -161,8 +182,27 @@ export const DatePicker: React.FC<Props> = ({
           slotProps={{
             textField: {
               fullWidth: true,
-              placeholder: format.toUpperCase(),
+              placeholder: floating ? "" : format.toUpperCase(),
               onClick: () => setOpen(true),
+              // Force label to stay floating even without value if desired, 
+              // or let it animate naturally.
+              InputLabelProps: {
+                shrink: floating ? (open || !!value) : undefined,
+                sx: {
+                  color: colors.labelText,
+                  fontSize: "14px",
+                  "&.Mui-focused": { color: colors.accent },
+                  // Adjusting position for the notched look
+                  "&.MuiInputLabel-shrink": {
+                    transform: "translate(14px, -10px) scale(1)",
+                    fontSize: "14px !important",
+                    color: "#FFFFFF66 !important", // Force white color
+                    backgroundColor: colors.inputBackground,
+                    padding: "0 8px", // Slightly more padding for the 14px text notch
+                    zIndex: 1,
+                  }
+                }
+              },
               sx: {
                 "& .MuiOutlinedInput-root": {
                   height: "100%",
@@ -176,7 +216,7 @@ export const DatePicker: React.FC<Props> = ({
                 "& .MuiInputBase-input": {
                   color: colors.inputText,
                   fontSize: "14px",
-                  padding: "16px 14px",
+                  padding: floating ? "16.5px 14px" : "16px 14px", // Tiny tweak for alignment
                   height: "100%",
                 },
                 "& .MuiSvgIcon-root": { color: colors.iconColor, fontSize: "20px" },

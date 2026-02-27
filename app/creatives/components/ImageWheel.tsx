@@ -4,7 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useRef } from "react";
 
 interface ImageWheelProps {
-  images: string[];
+  images: (string | undefined)[];
 }
 
 export default function ImageWheel({ images }: ImageWheelProps) {

@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+
   eslint: {
     // Ignore ESLint errors during build for UI-only migration
     ignoreDuringBuilds: true,

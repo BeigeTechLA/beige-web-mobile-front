@@ -13,7 +13,7 @@ const steps = [
 
 export default function ProjectTimeline() {
     return (
-        <div className="bg-[#111111] border-l border-[#222222] h-full p-6 w-80 shrink-0">
+        <div className="bg-[#111111] border-l border-[#222222] h-full p-6 w-80 shrink-0 mt-1">
             <h3 className="text-white text-lg font-bold mb-8">Project Timeline</h3>
 
             <div className="flex flex-col gap-0.5">

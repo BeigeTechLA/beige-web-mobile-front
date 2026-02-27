@@ -7,6 +7,26 @@ import { MapPin, Search, X } from 'lucide-react';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
+export const darkThemeColors = {
+  inputBg: "#101010",
+  inputBorder: "#ffffff4d",
+  inputBorderHover: "#ffffff99",
+  labelText: "#ffffff99",
+  primaryText: "#FFFFFF",
+  secondaryText: "#ffffff99",
+  paperBg: "#1A1A1A",
+  divider: "#ffffff1a",
+  accent: "#E8D1AB",
+  accentHover: "#dcb98a",
+  buttonPrimaryText: "#1A1A1A",
+  buttonPrimaryBg: "#E8D1AB",
+  buttonPrimaryBgHover: "#dcb98a",
+  buttonSecondaryText: "#fff",
+  buttonSecondaryBg: "#ffffff4d",
+  buttonSecondaryBgHover: "#ffffff4d",
+};
+
+
 export interface LocationPickerColors {
   inputBg: string;
   inputBorder: string;
@@ -73,7 +93,7 @@ interface LocationData {
 
 interface LocationPickerProps {
   value: string;
-  onChange: (address: string) => void;
+  onChange: (address: string, details?: any) => void;
   placeholder?: string;
   colors?: Partial<LocationPickerColors>;
   hasError?: boolean;
@@ -191,6 +211,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             const address = data.features[0].place_name;
             const updatedLocation = { ...newLocation, address };
             setMarker(updatedLocation);
+            setSelectedFeature(data.features[0]); // Store the feature for context
           }
         })
         .catch(() => { });
@@ -206,6 +227,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     };
 
     setMarker(newLocation);
+    setSelectedFeature(result); // Store the full feature for context data
     setViewState(prev => ({
       ...prev,
       latitude: lat,
@@ -222,12 +244,15 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     onChange('');
   }, [onChange]);
 
+  // Store the selected feature for passing details
+  const [selectedFeature, setSelectedFeature] = useState<any>(null);
+
   const confirmLocation = useCallback(() => {
     if (marker) {
-      onChange(marker.address);
+      onChange(marker.address, selectedFeature);
       setIsExpanded(false);
     }
-  }, [marker, onChange]);
+  }, [marker, onChange, selectedFeature]);
 
   if (!isExpanded) {
     return (

@@ -10,6 +10,7 @@ interface FeaturedWorkModalProps {
   open: boolean;
   onClose: () => void;
   onAdd: (item: any) => void;
+  editItem?: any | null;
 }
 
 const MAX_FILE_SIZE_MB = 5;
@@ -19,7 +20,7 @@ const MAX_TOTAL_PROJECT_MB = 50;
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const ALLOWED_EXT_TEXT = "png, jpg, jpeg, webp";
 
-const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => {
+const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModalProps) => {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [addTagsOpen, setAddTagsOpen] = useState(false);
@@ -34,15 +35,22 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
   const modalBg = "bg-[#101010] border border-white/10 shadow-2xl rounded-[20px]";
 
   useEffect(() => {
-    if (!open) {
-      setTitle("");
-      setTags([]);
-      setTagInput("");
-      setImagePreviews([]);
-      setRawFiles([]);
+    if (open) {
+      if (editItem) {
+        setTitle(editItem.title || "");
+        setTags(editItem.tags || []);
+        setImagePreviews(editItem.previews || (editItem.image ? [editItem.image] : []));
+        setRawFiles(editItem.files || []);
+      } else {
+        setTitle("");
+        setTags([]);
+        setTagInput("");
+        setImagePreviews([]);
+        setRawFiles([]);
+      }
       setAddTagsOpen(false);
     }
-  }, [open]);
+  }, [open, editItem]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -84,7 +92,9 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = reject;
-          reader.readAsDataURL(processedFile); 
+          reader.readAsDataURL(processedFile);
+          // Note: if editing, some files might already be blobs/strings from previous upload, 
+          // but handleFileChange is only for NEW files.
         });
 
         newPreviews.push(base64);
@@ -112,17 +122,19 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
       toast.error("Please enter a project title.");
       return;
     }
-    if (rawFiles.length === 0) {
-      toast.error("Please upload at least one image.");
+    if (imagePreviews.length < 5) {
+      toast.error("Low Image Count", {
+        description: "Please upload at least 5 images for this project."
+      });
       return;
     }
 
     onAdd({
-      id: Date.now(),
+      id: editItem ? editItem.id : Date.now(),
       title,
       tags,
-      previews: imagePreviews, 
-      files: rawFiles,        
+      previews: imagePreviews,
+      files: rawFiles,
     });
 
     onClose();
@@ -137,8 +149,8 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
 
           <div className="flex items-center justify-between px-8 pt-6 pb-2">
             <div>
-              <h3 className="text-xl font-bold text-white">Add Featured Work</h3>
-              <p className="text-sm text-white/40">Upload a project to showcase on your profile</p>
+              <h3 className="text-xl font-bold text-white">{editItem ? "Edit Featured Work" : "Add Featured Work"}</h3>
+              <p className="text-sm text-white/40">{editItem ? "Update your project details" : "Upload a project to showcase on your profile"}</p>
             </div>
             <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors">
               <X size={24} />
@@ -155,7 +167,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
               <div className="flex justify-between items-center ml-1">
                 <label className="text-sm font-medium text-white/60">Thumbnail / Media</label>
                 <span className="text-[10px] text-white/30 tracking-widest uppercase">
-                    {ALLOWED_EXT_TEXT} only • Max {MAX_FILE_SIZE_MB}MB
+                  {ALLOWED_EXT_TEXT} only • Max {MAX_FILE_SIZE_MB}MB
                 </span>
               </div>
 
@@ -202,13 +214,13 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
               )}
 
               {/* Updated accept attribute */}
-              <input 
-                ref={fileRef} 
-                type="file" 
-                multiple 
-                onChange={handleFileChange} 
-                className="hidden" 
-                accept=".png,.jpg,.jpeg,.webp" 
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".png,.jpg,.jpeg,.webp"
               />
             </div>
 
@@ -232,7 +244,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd }: FeaturedWorkModalProps) => 
               disabled={!title || imagePreviews.length === 0 || isCompressing}
               className="rounded-[12px] h-12 px-10 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] font-bold disabled:opacity-50"
             >
-              {isCompressing ? "Processing..." : "Add Project"}
+              {isCompressing ? "Processing..." : editItem ? "Save Changes" : "Add Project"}
             </Button>
           </div>
 

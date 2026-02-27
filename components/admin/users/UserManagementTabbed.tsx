@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { ChevronRight, Search, Check, X, AlertCircle, Users, User, Camera } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { ChevronRight, Search, User, Camera, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -30,6 +30,11 @@ interface UserData {
     imageUrl?: string | null;
 }
 
+type SortConfig = {
+    key: keyof UserData;
+    direction: 'asc' | 'desc';
+} | null;
+
 const StatusBadge = ({ status }: { status: UserStatus }) => {
     const styles = {
         Active: "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20",
@@ -38,11 +43,8 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
         Inactive: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
         Rejected: "bg-[#FFEBEB] text-[#EF4444] border-[#EF4444]/20",
     };
-
-    const displayStatus = styles[status] ? status : "Pending";
-
     return (
-        <span className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${styles[displayStatus as keyof typeof styles]}`}>
+        <span className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${styles[status] || styles.Pending}`}>
             {status}
         </span>
     );
@@ -58,78 +60,116 @@ export const UserManagementTabbed = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     const debouncedSearch = useDebounce(searchQuery, 500);
     const router = useRouter();
+
+    const sortedUsers = useMemo(() => {
+        let sortableUsers = [...users];
+        if (sortConfig !== null) {
+            sortableUsers.sort((a, b) => {
+                const aValue = a[sortConfig.key] ?? "";
+                const bValue = b[sortConfig.key] ?? "";
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return sortableUsers;
+    }, [users, sortConfig]);
+
+    const requestSort = (key: keyof UserData) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortIcon = (key: keyof UserData) => {
+        if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
+        return sortConfig.direction === 'asc' ? 
+            <ArrowUp size={14} className="ml-1 text-[#E5D5B8]" /> : 
+            <ArrowDown size={14} className="ml-1 text-[#E5D5B8]" />;
+    };
 
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const params: any = {
-                page: currentPage,
-                limit: limit,
-            };
+            const params: any = { page: currentPage, limit: limit };
             if (debouncedSearch) params.search = debouncedSearch;
-            if (statusFilter !== "all") params.status = statusFilter;
+
+            // Filter logic based on requirements
+            const isCreativeStatus = ["approved", "pending", "rejected"].includes(statusFilter);
+            const isActiveFilter = statusFilter === "active";
+
+            // Determine if we should call the Client API
+            const shouldFetchClients = 
+                activeTab === "Client" || 
+                (activeTab === "All" && !isCreativeStatus);
+
+            // Determine if we should call the Creative Partner API
+            const shouldFetchCreatives = 
+                activeTab === "Creative Partner" || 
+                (activeTab === "All" && !isActiveFilter);
 
             let allUsers: UserData[] = [];
-            let pagination: any = null;
+            let paginationData: any = null;
 
-            if (activeTab === "Client" || activeTab === "All") {
+            if (shouldFetchClients) {
                 const clientsRes = await adminApi.getClients(params);
                 if (clientsRes?.data) {
-                    console.log("Fetched clients:", clientsRes.data);
-                    const mappedClients = (Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || [])).map((client: any) => ({
-                        id: `#${client.client_id || client.id || client.user_id}`,
-                        name: client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
+                    const items = Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || []);
+                    const mapped = items.map((client: any) => ({
+                        id: `#${client.client_id || client.id}`,
+                        name: client.name || "Unknown",
                         email: client.email || "No Email",
                         type: "Client" as UserType,
-                        status: (client.status === 1 || client.status === "Active" || client.status === "approved" ? "Active" :
-                            client.status === 0 || client.status === "Inactive" || client.status === "rejected" ? "Inactive" : "Pending") as UserStatus,
-                        joinDate: client.created_at ? new Date(client.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
-                        initials: (client.name || "Unknown").split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
+                        status: (client.is_active === 1 || client.is_active === true ? "Active" : "Inactive") as UserStatus,
+                        joinDate: client.created_at ? new Date(client.created_at).toLocaleDateString() : "N/A",
+                        initials: (client.name || "U").split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
                         phoneNumber: client.phone_number || "N/A",
-                        imageUrl: client.profile_image || client.image || null,
+                        imageUrl: client.profile_image || null,
                     }));
-                    allUsers = [...allUsers, ...mappedClients];
-                    if (!pagination) pagination = clientsRes.pagination;
+                    allUsers = [...allUsers, ...mapped];
+                    paginationData = clientsRes.pagination;
                 }
             }
 
-            if (activeTab === "Creative Partner" || activeTab === "All") {
-                const creativeRes = await adminApi.getCrewMembers(params);
+            if (shouldFetchCreatives) {
+                const creativeParams = { ...params };
+                // If we are in the Creative Tab or All Tab with a specific creative status, pass the status
+                if (isCreativeStatus) creativeParams.status = statusFilter;
+
+                const creativeRes = await adminApi.getCrewMembers(creativeParams);
                 if (creativeRes?.data) {
-                    const mappedCreatives = (Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || [])).map((member: any) => {
+                    const items = Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || []);
+                    const mapped = items.map((member: any) => {
                         const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
-                        const profilePhoto = member.crew_member_files?.find((file: any) => file.file_type === 'profile_photo');
+                        const profilePhoto = member.crew_member_files?.find((f: any) => f.file_type === 'profile_photo');
                         return {
                             id: `#${member.crew_member_id || member.id}`,
                             name: fullName,
                             email: member.email || "No Email",
                             type: "Creative Partner" as UserType,
                             status: (member.status?.toLowerCase() === "approved" ? "Approved" :
-                                member.status?.toLowerCase() === "rejected" ? "Rejected" : "Pending") as UserStatus,
-                            joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
+                                    member.status?.toLowerCase() === "rejected" ? "Rejected" : "Pending") as UserStatus,
+                            joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString() : "N/A",
                             initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
                             role: member.role?.role_name || "N/A",
                             imageUrl: profilePhoto ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}` : null,
                         };
                     });
-                    allUsers = [...allUsers, ...mappedCreatives];
-                    if (!pagination) pagination = creativeRes.pagination;
+                    allUsers = [...allUsers, ...mapped];
+                    if (!paginationData) paginationData = creativeRes.pagination;
                 }
             }
 
             setUsers(allUsers);
-            if (pagination) {
-                setTotalRecords(pagination.total_records || allUsers.length);
-                setTotalPages(pagination.total_pages || 1);
-            } else {
-                setTotalRecords(allUsers.length);
-                setTotalPages(1);
-            }
-
+            setTotalRecords(paginationData?.total_records || allUsers.length);
+            setTotalPages(paginationData?.total_pages || 1);
         } catch (error) {
-            console.error("Failed to fetch users:", error);
+            console.error("Fetch error:", error);
             toast.error("Failed to load users");
         } finally {
             setLoading(false);
@@ -140,15 +180,11 @@ export const UserManagementTabbed = () => {
         fetchUsers();
     }, [activeTab, currentPage, debouncedSearch, statusFilter]);
 
-   const handleRowClick = (user: UserData) => {
-    const cleanId = user.id.replace('#', '');
-    
-    if (user.type === "Client") {
-        router.push(`/admin/users/clients/${cleanId}`);
-    } else if (user.type === "Creative Partner") {
-        router.push(`/admin/users/creative-partners/${cleanId}`);
-    }
-};
+    const handleRowClick = (user: UserData) => {
+        const cleanId = user.id.replace('#', '');
+        router.push(`/admin/users/${user.type === "Client" ? "clients" : "creative-partners"}/${cleanId}`);
+    };
+
     return (
         <div className="space-y-6">
             <div>
@@ -156,19 +192,17 @@ export const UserManagementTabbed = () => {
                 <p className="text-[#888]">Manage and review all registered users in one place.</p>
             </div>
 
-            {/* Custom Tabs */}
+            {/* Tabs */}
             <div className="flex items-center gap-1 bg-[#111] p-1 rounded-xl w-fit border border-[#333]">
                 {(["All", "Client", "Creative Partner"] as UserType[]).map((tab) => (
                     <button
                         key={tab}
-                        onClick={() => {
-                            setActiveTab(tab);
-                            setCurrentPage(1);
+                        onClick={() => { 
+                            setActiveTab(tab); 
+                            setCurrentPage(1); 
+                            setStatusFilter("all"); 
                         }}
-                        className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab
-                            ? "bg-[#E5D5B8] text-black shadow-lg"
-                            : "text-[#777] hover:text-white"
-                            }`}
+                        className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab ? "bg-[#E5D5B8] text-black shadow-lg" : "text-[#777] hover:text-white"}`}
                     >
                         {tab === "Creative Partner" ? "Creative Partners" : tab === "Client" ? "Users" : "All Users"}
                     </button>
@@ -185,111 +219,86 @@ export const UserManagementTabbed = () => {
                             placeholder="Search users..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-[#555] transition-colors"
+                            className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none"
                         />
                     </div>
 
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[140px] bg-[#111] border-[#333] text-white rounded-lg h-[46px] focus:ring-0 capitalize">
-                            <SelectValue placeholder="All Status" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#111] border-[#333] text-white">
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="approved">Approved</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="rejected">Rejected</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    {/* Conditional Select Rendering */}
+                    {activeTab !== "Client" && (
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-[180px] bg-[#111] border-[#333] text-white rounded-lg h-[46px] capitalize">
+                                <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#111] border-[#333] text-white">
+                                <SelectItem value="all">All Status</SelectItem>
+                                
+                                {/* Show Active only on the "All" tab */}
+                                {activeTab === "All" && (
+                                    <SelectItem value="active">Active (Clients)</SelectItem>
+                                )}
+                                
+                                {/* Statuses for Creative Partners */}
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    )}
                 </div>
             </div>
 
-            {/* Table */}
             <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">
                 <div className="w-full overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="text-[#888] text-sm font-normal border-b border-[#333]">
-                                <th className="py-5 px-6 font-medium">User ID</th>
-                                <th className="py-5 px-6 font-medium">User Info</th>
-                                <th className="py-5 px-6 font-medium">Type</th>
+                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('id')}>
+                                    <div className="flex items-center">User ID {getSortIcon('id')}</div>
+                                </th>
+                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('name')}>
+                                    <div className="flex items-center">User Name {getSortIcon('name')}</div>
+                                </th>
+                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('type')}>
+                                    <div className="flex items-center">Type {getSortIcon('type')}</div>
+                                </th>
                                 <th className="py-5 px-6 font-medium">Contact / Role</th>
-                                <th className="py-5 px-6 font-medium">Status</th>
+                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('status')}>
+                                    <div className="flex items-center">Status {getSortIcon('status')}</div>
+                                </th>
                                 <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr>
-                                    <td colSpan={6} className="py-10 text-center text-[#888]">
-                                        <div className="flex flex-col items-center gap-2">
-                                            <div className="w-6 h-6 border-2 border-[#E5D5B8] border-t-transparent rounded-full animate-spin" />
-                                            <span>Loading users...</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : users.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="py-10 text-center text-[#888]">
-                                        No users found.
-                                    </td>
-                                </tr>
+                                <tr><td colSpan={6} className="py-10 text-center text-[#888]">Loading...</td></tr>
+                            ) : sortedUsers.length === 0 ? (
+                                <tr><td colSpan={6} className="py-10 text-center text-[#888]">No users found.</td></tr>
                             ) : (
-                                users.map((user, idx) => (
-                                    <tr
-                                        key={idx}
-                                        onClick={() => handleRowClick(user)}
-                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
-                                    >
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
+                                sortedUsers.map((user, idx) => (
+                                    <tr key={idx} onClick={() => handleRowClick(user)} className="border-b border-[#222] hover:bg-white/[0.02] cursor-pointer transition-colors">
+                                        <td className="py-5 px-6 text-[#E0E0E0]">{user.id}</td>
                                         <td className="py-5 px-6">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] overflow-hidden flex items-center justify-center text-[#E5D5B8] font-semibold text-sm border border-white/5 relative">
-                                                    {user.imageUrl ? (
-                                                        <img
-                                                            src={user.imageUrl}
-                                                            alt={user.name}
-                                                            className="w-full h-full object-cover"
-                                                            onError={(e) => {
-                                                                const target = e.target as HTMLImageElement;
-                                                                target.style.display = 'none';
-                                                                if (target.parentElement) {
-                                                                    target.parentElement.textContent = user.initials;
-                                                                }
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <span className="text-zinc-400">{user.initials}</span>
-                                                    )}
+                                                <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] flex items-center justify-center text-[#E5D5B8] font-semibold border border-white/5 overflow-hidden">
+                                                    {user.imageUrl ? <img src={user.imageUrl} className="w-full h-full object-cover" alt="" /> : <span>{user.initials}</span>}
                                                 </div>
                                                 <div>
-                                                    <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                                                    <p className="text-[#666666] text-xs mt-0.5">{user.email}</p>
+                                                    <p className="text-[#E0E0E0] font-medium">{user.name}</p>
+                                                    <p className="text-[#666] text-xs">{user.email}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="py-5 px-6">
-                                            <div className="flex items-center gap-2 text-sm text-[#888]">
+                                        <td className="py-5 px-6 text-[#888] text-sm">
+                                            <div className="flex items-center gap-2">
                                                 {user.type === "Client" ? <User size={14} /> : <Camera size={14} />}
-                                                <span>{user.type}</span>
+                                                {user.type}
                                             </div>
                                         </td>
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">
-                                            {user.type === "Client" ? (
-                                                <span className="text-zinc-500">{user.phoneNumber}</span>
-                                            ) : (
-                                                <span className="px-2 py-0.5 bg-[#E5D5B8]/10 text-[#E5D5B8] rounded text-xs">
-                                                    {user.role}
-                                                </span>
-                                            )}
+                                        <td className="py-5 px-6 text-[#E0E0E0]">
+                                            {user.type === "Client" ? user.phoneNumber : <span className="px-2 py-0.5 bg-[#E5D5B8]/10 text-[#E5D5B8] rounded text-xs">{user.role}</span>}
                                         </td>
-                                        <td className="py-5 px-6">
-                                            <StatusBadge status={user.status} />
-                                        </td>
-                                        <td className="py-5 px-6 text-right">
-                                            <button className="text-[#666] hover:text-white transition-colors">
-                                                <ChevronRight size={20} />
-                                            </button>
-                                        </td>
+                                        <td className="py-5 px-6"><StatusBadge status={user.status} /></td>
+                                        <td className="py-5 px-6 text-right"><ChevronRight size={20} className="text-[#666]" /></td>
                                     </tr>
                                 ))
                             )}
@@ -298,7 +307,7 @@ export const UserManagementTabbed = () => {
                 </div>
             </div>
 
-            {/* Pagination */}
+            {/* Pagination remains the same using original totalRecords */}
             {!loading && totalPages > 1 && (
                 <div className="flex justify-between items-center p-6 border-t border-[#333333]">
                     <div className="text-sm text-[#666666]">
