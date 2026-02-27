@@ -9,49 +9,49 @@ type Option = {
 
 export const videoShootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
   {
-    key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/corporate.jpg", stats: [
+    key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
       { label: "People", value: "50-2K" },
       { label: "Duration", value: "3-8 hrs" }
     ]
   },
   {
-    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/wedding.jpg", stats: [
+    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/wedding.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "private", title: "Private Event", details: "Parties, celebrations", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/private.jpg", stats: [
+    key: "private", title: "Private Event", details: "Parties, celebrations", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
       { label: "People", value: "10-100" },
       { label: "Duration", value: "2-5 hrs" }
     ]
   },
   {
-    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/commercial.jpg", stats: [
+    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/social_content.jpg", stats: [
+    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/social_content.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "podcast", title: "Podcasts & Shows", details: "Video podcasts, livestreams", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/podcast.jpg", stats: [
+    key: "podcast", title: "Podcasts & Shows", details: "Video podcasts, livestreams", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/podcast.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "music", title: "Music Videos", details: "Artists-led productions", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/music.jpg", stats: [
+    key: "music", title: "Music Videos", details: "Artists-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "short_film", title: "Short Films & Narrative", details: "Scripted, cinematic stories", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/short_film.jpg", stats: [
+    key: "short_film", title: "Short Films & Narrative", details: "Scripted, cinematic stories", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/short_film.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
@@ -60,43 +60,43 @@ export const videoShootTypes: { key: string; title: string; details: string; ima
 
 export const photoShootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
   {
-    key: "corporate", title: "Corporate Events", details: "Conferences, summits, company offsites", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/corporate.jpg", stats: [
+    key: "corporate", title: "Corporate Events", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
       { label: "People", value: "50-2K" },
       { label: "Duration", value: "3-8 hrs" }
     ]
   },
   {
-    key: "wedding", title: "Weddings", details: "Ceremony and reception", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/wedding.jpg", stats: [
+    key: "wedding", title: "Weddings", details: "Ceremony and reception", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/wedding.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "private", title: "Private Events", details: "Parties, celebrations", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/private.jpg", stats: [
+    key: "private", title: "Private Events", details: "Parties, celebrations", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
       { label: "People", value: "10-100" },
       { label: "Duration", value: "2-5 hrs" }
     ]
   },
   {
-    key: "brand_product", title: "Brand & Product", details: "Product photography, campaigns", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/Brands&Products.jpg", stats: [
+    key: "brand_product", title: "Brand & Product", details: "Product photography, campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg", stats: [
       { label: "People", value: "N/A" },
       { label: "Duration", value: "3-8 hrs" }
     ]
   },
   {
-    key: "social_content", title: "Social Content", details: "Instagram, LinkedIn, etc.", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/social_content.jpg", stats: [
+    key: "social_content", title: "Social Content", details: "Instagram, LinkedIn, etc.", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/social_content.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "people_teams", title: "People & Teams", details: "Headshots, team photos", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/people_teams.jpg", stats: [
+    key: "people_teams", title: "People & Teams", details: "Headshots, team photos", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/people_teams.jpg", stats: [
       { label: "People", value: "10-100" },
       { label: "Duration", value: "2-5 hrs" }
     ]
   },
   {
-    key: "behind_scenes", title: "Behind-the-Scenes", details: "Candid shots, process", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/behind_scenes.jpg", stats: [
+    key: "behind_scenes", title: "Behind-the-Scenes", details: "Candid shots, process", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/behind_scenes.jpg", stats: [
       { label: "People", value: "10-100" },
       { label: "Duration", value: "2-5 hrs" }
     ]
@@ -105,49 +105,49 @@ export const photoShootTypes: { key: string; title: string; details: string; ima
 
 export const hybridShootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
   {
-    key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/corporate.jpg", stats: [
+    key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
       { label: "People", value: "50-2K" },
       { label: "Duration", value: "3-8 hrs" }
     ]
   },
   {
-    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/wedding.jpg", stats: [
+    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/wedding.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "private", title: "Private Event", details: "Parties, celebrations", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/private.jpg", stats: [
+    key: "private", title: "Private Event", details: "Parties, celebrations", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
       { label: "People", value: "10-100" },
       { label: "Duration", value: "2-5 hrs" }
     ]
   },
   {
-    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/social_content.jpg", stats: [
+    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/social_content.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "music", title: "Music Videos", details: "Artists-led productions", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/music.jpg", stats: [
+    key: "music", title: "Music Videos", details: "Artists-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "brand_product", title: "Brand & Product", details: "Product photography, campaigns", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/commercial.jpg", stats: [
+    key: "brand_product", title: "Brand & Product", details: "Product photography, campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
       { label: "People", value: "N/A" },
       { label: "Duration", value: "3-8 hrs" }
     ]
   },
   {
-    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/commercial.jpg", stats: [
+    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Duration", value: "6-10 hrs" }
     ]
   },
   {
-    key: "behind_scenes", title: "Behind-the-Scenes", details: "Candid shots, process", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/behind_scenes.jpg", stats: [
+    key: "behind_scenes", title: "Behind-the-Scenes", details: "Candid shots, process", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/behind_scenes.jpg", stats: [
       { label: "People", value: "10-100" },
       { label: "Duration", value: "2-5 hrs" }
     ]
@@ -156,7 +156,7 @@ export const hybridShootTypes: { key: string; title: string; details: string; im
 
 export const newshootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
   {
-    key: "music", title: "Music Video", details: "Artists-led productions", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/music.jpg", stats: [
+    key: "music", title: "Music Video", details: "Artists-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -164,7 +164,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/wedding.jpg", stats: [
+    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/wedding.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -172,7 +172,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/commercial.jpg", stats: [
+    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -180,7 +180,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/social_content.jpg", stats: [
+    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/social_content.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -188,7 +188,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "podcast", title: "Podcasts & Shows", details: "Video podcasts, livestreams", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/podcast.jpg", stats: [
+    key: "podcast", title: "Podcasts & Shows", details: "Video podcasts, livestreams", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/podcast.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -196,7 +196,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "short_film", title: "Short Films & Narrative", details: "Scripted, cinematic stories", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/short_film.jpg", stats: [
+    key: "short_film", title: "Short Films & Narrative", details: "Scripted, cinematic stories", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/short_film.jpg", stats: [
       { label: "People", value: "50-300" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -204,7 +204,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "corporate", title: "Corporate Events", details: "Conferences, summits, company offsites", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/corporate.jpg", stats: [
+    key: "corporate", title: "Corporate Events", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
       { label: "People", value: "50-2K" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -212,7 +212,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "private", title: "Private Events", details: "Parties, celebrations", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/private.jpg", stats: [
+    key: "private", title: "Private Events", details: "Parties, celebrations", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
       { label: "People", value: "10-100" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },

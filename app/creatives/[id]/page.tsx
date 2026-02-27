@@ -35,14 +35,14 @@ import { ProjectSwitcher } from "../components/ProjectSwitcher";
 const tabs = ["Portfolios"];  //"Work History", "FAQs", "Reviews"
 
 // Fallback portfolio Images
-const fallbackImages = ["https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/wedding.jpg",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/private.jpg",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/commercial.jpg",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/podcast.jpg",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/social_content.jpg",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/music.jpg",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/short_film.jpg",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/Brands&Products.jpg",
+const fallbackImages = ["https://d2jhn32fsulyac.cloudfront.net/assets/categories/wedding.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/podcast.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/social_content.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/short_film.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg",
 ]
 
 const videos = [
