@@ -32,7 +32,7 @@ import "swiper/css";
 import StackedVideoScroll from "../components/VideoSlide";
 import { ProjectSwitcher } from "../components/ProjectSwitcher";
 
-const S3_PREFIX = "https://beigexmemehouse.s3.amazonaws.com/beige/";
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beigexmemehouse.s3.amazonaws.com/beige/";
 
 const tabs = ["Portfolios"];  //"Work History", "FAQs", "Reviews"
 
