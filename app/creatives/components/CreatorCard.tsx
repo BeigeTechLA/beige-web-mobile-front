@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Star, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Plus, Star, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 // DummyImage List: To be removed later
 const crewImages = [
@@ -78,6 +79,9 @@ const CreatorCard = ({
     : image;
   const currentVariant = isExpanded ? "hover" : "rest";
 
+  // Change this as required during integration
+  const [isSelected, setIsSelected] = useState(false);
+
   const InfoContent = () => (
     <div className="rounded-b-[20px] lg:rounded-none flex flex-col gap-2 gap-3">
       <div className="flex items-center justify-between">
@@ -89,6 +93,9 @@ const CreatorCard = ({
             <ThumbsDown className="text-white w-5 h-5" />
           </button>
         </div>
+        <button className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/10 hover:bg-white/20">
+          <Plus className="text-white w-5 h-5" />
+        </button>
       </div>
 
       <div className="flex items-center justify-between">
@@ -104,16 +111,22 @@ const CreatorCard = ({
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent Swiper from intercepting this as a drag/slide
+            e.preventDefault();
+          }}
+          className={`px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium flex items-center justify-center transition-colors ${isSelected ? "bg-[#FFC9C9] text-[#C31717] border border-[#C31717]" : "bg-[#E8D1AB] text-black"
+            }`}
+        >
+          {isSelected ? <><X size={16} className="mr-1" /> Remove from Crew</> : <><Plus size={16} className="mr-1" /> Add to Crew</>}
+        </button>
         <Link
           href={`/creatives/${creatorId}`}
           onClick={(e) => e.stopPropagation()}
+          className="text-center  border border-white/30 text-white px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium transition-all hover:bg-white/10"
         >
-          <Button
-            variant="outline"
-            className="border-white/30 hover:border-white/50 text-white hover:text-white hover:bg-white/10 px-3 py-2 lg:px-6 lg:py-4 rounded-lg text-sm lg:text-base font-medium"
-          >
-            View Profile
-          </Button>
+          View Profile
         </Link>
       </div>
     </div>
