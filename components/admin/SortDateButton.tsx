@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { useTheme } from "next-themes";
 
@@ -25,6 +25,9 @@ export const SortDateButton: React.FC<SortDateButtonProps> = ({
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
+  // Default to dark mode logic
+  useEffect(() => setMounted(true), []);
+
   const isDark = !mounted || theme === "dark";
 
   return (
@@ -33,12 +36,20 @@ export const SortDateButton: React.FC<SortDateButtonProps> = ({
         {/* Styled Trigger Button */}
         <button
           onClick={() => setIsOpen(true)}
-          className={`shrink-0 flex items-center justify-between gap-1 lg:gap-3 px-3 py-1.5 lg:px-6 lg:py-3.5 bg-[#1A1A1A] border border-white/10 rounded-full text-[#C4C4C4] hover:text-white hover:border-white/30 transition-all text-xs lg:text-base lg:font-medium shadow-sm whitespace-nowrap ${width ? width : "w-fit"}`}
+          className={`shrink-0 flex items-center justify-between gap-1 lg:gap-3 px-3 py-1.5 lg:px-6 lg:py-3.5 transition-all text-xs lg:text-base lg:font-medium shadow-sm whitespace-nowrap rounded-full border ${
+            width ? width : "w-fit"
+          } ${
+            isDark
+              ? "bg-[#1A1A1A] border-white/10 text-[#C4C4C4] hover:text-white hover:border-white/30"
+              : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232] hover:opacity-80"
+          }`}
         >
           <span className="whitespace-nowrap">
             {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Sort by Date"}
           </span>
-          <Calendar className="w-4 h-4 lg:w-6 lg:h-6 text-[#C4C4C4] shrink-0" />
+          <Calendar className={`w-4 h-4 lg:w-6 lg:h-6 shrink-0 ${
+            isDark ? "text-[#C4C4C4]" : "text-[#323232]"
+          }`} />
         </button>
 
         {/* Hidden MUI DatePicker */}
@@ -50,25 +61,29 @@ export const SortDateButton: React.FC<SortDateButtonProps> = ({
             value={selectedDate}
             onChange={(newValue) => {
               onDateChange(newValue);
-              setIsOpen(false); // Close after selection
+              setIsOpen(false);
             }}
             slotProps={{
               desktopPaper: {
                 sx: {
-                  backgroundColor: "#171717",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  backgroundColor: isDark ? "#171717" : "#E8E8E8",
+                  border: isDark ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid #E3E3E3",
                   borderRadius: "16px",
-                  color: "#fff",
+                  color: isDark ? "#fff" : "#323232",
                   "& .MuiPickersDay-root": {
-                    color: "#fff",
+                    color: isDark ? "#fff" : "#323232",
                     "&.Mui-selected": {
                       backgroundColor: "#E8D1AB",
                       color: "#000",
                       "&:hover": { backgroundColor: "#D4C3A3" },
                     },
                   },
-                  "& .MuiTypography-root": { color: "rgba(255,255,255,0.6)" },
-                  "& .MuiSvgIcon-root": { color: "#E8D1AB" },
+                  "& .MuiTypography-root": { 
+                    color: isDark ? "rgba(255,255,255,0.6)" : "#323232CC" 
+                  },
+                  "& .MuiSvgIcon-root": { 
+                    color: isDark ? "#E8D1AB" : "#323232CC"
+                  },
                 },
               },
             }}
