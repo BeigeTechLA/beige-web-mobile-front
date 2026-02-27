@@ -7,7 +7,6 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { Separator } from "./Separator";
-// import { CartIcon } from "@/components/ui/CartIcon";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 const portfolioConfig = {
@@ -312,7 +311,7 @@ export const Navbar = () => {
             className="relative flex items-center"
           >
             <Image
-              src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
+              src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png"
               alt="BEIGE"
               width={158}
               height={32}
@@ -597,7 +596,7 @@ export const Navbar = () => {
             >
               <div className="flex items-center justify-between px-5 py-8">
                 <Image
-                  src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
+                  src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png"
                   alt="BEIGE"
                   width={120}
                   height={24}

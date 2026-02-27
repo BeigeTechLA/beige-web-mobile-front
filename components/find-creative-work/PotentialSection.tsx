@@ -19,9 +19,9 @@ export const Potential = () => {
   const router = useRouter();
 
   const cards = [
-    { id: 1, title: "Private", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/private.jpg" },
-    { id: 2, title: "Short Film", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/short_film.jpg" },
-    { id: 3, title: "Social Content", image: "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/categories/social_content.jpg" },
+    { id: 1, title: "Private", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg" },
+    { id: 2, title: "Short Film", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/short_film.jpg" },
+    { id: 3, title: "Social Content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/social_content.jpg" },
   ];
 
   return (

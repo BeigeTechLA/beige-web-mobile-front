@@ -1,33 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Container } from "@/src/components/landing/ui/container";
 import { DollarSign, Video, Users, Play } from "lucide-react";
 
 export const HowItWorks = () => {
-  // const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  // const videoFileName = "How It Works.mp4";
-
-  // useEffect(() => {
-  //   const fetchSignedUrl = async () => {
-  //     try {
-  //       const response = await fetch(`/api/video/${videoFileName}`);
-
-  //       if (!response.ok) {
-  //         throw new Error("Failed to fetch signed URL.");
-  //       }
-
-  //       const data = await response.json();
-  //       setVideoUrl(data.url);
-  //     } catch (error) {
-  //       console.error("Error fetching video URL:", error);
-  //     }
-  //   };
-
-  //   fetchSignedUrl();
-  // }, [videoFileName]);
-
-  const videoUrl = "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/videos/NewBookingFlow.mp4";
+  const videoUrl = "https://d2jhn32fsulyac.cloudfront.net/assets/videos/NewBookingFlow.mp4";
 
   return (
     <section

@@ -31,7 +31,7 @@ export function AuthSplitLayout({
 }: AuthSplitLayoutProps) {
 
   // const [cardIndex, setCardIndex] = React.useState(0);
-  const videoUrl = "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/videos/BeigeLogin.mp4"
+  const videoUrl = "https://d2jhn32fsulyac.cloudfront.net/assets/videos/BeigeLogin.mp4"
 
   // Switching logic for the 3rd cell
   // React.useEffect(() => {
@@ -63,7 +63,7 @@ export function AuthSplitLayout({
                 className="relative flex items-center"
               >
                 <Image
-                  src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
+                  src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png"
                   alt="BEIGE"
                   width={100}
                   height={30}
