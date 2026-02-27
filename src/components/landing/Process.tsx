@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
 import { Brain, Clapperboard, Video, Film } from "lucide-react";
@@ -35,37 +35,11 @@ const STEPS = [
 ];
 
 export const Process = () => {
-  // const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  // const videoFileName = "Camera Operator Filmmaker Video.mp4";
-
-  // useEffect(() => {
-  //   const fetchSignedUrl = async () => {
-  //     try {
-  //       const response = await fetch(`/api/video/${videoFileName}`);
-
-  //       if (!response.ok) {
-  //         throw new Error("Failed to fetch signed URL.");
-  //       }
-
-  //       const data = await response.json();
-  //       setVideoUrl(data.url);
-  //     } catch (error) {
-  //       console.error("Error fetching video URL in Process section:", error);
-  //     }
-  //   };
-
-  //   fetchSignedUrl();
-  // }, [videoFileName]);
-  const videoUrl = "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/videos/Camera_Operator_Filmmaker.mp4";
-
+  const videoUrl = "https://d2jhn32fsulyac.cloudfront.net/assets/videos/Camera_Operator_Filmmaker.mp4";
 
   return (
     <section className="py-10 md:py-20 lg:py-32 bg-[#010101] relative overflow-hidden">
       <Container>
-        {/* <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
-          <p className="text-xs md:text-base text-white">Our Process</p>
-        </div> */}
-
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-24">
           {/* Left */}
           <div className="w-full lg:w-1/2 flex flex-col gap-10 md:gap-12">

@@ -32,7 +32,7 @@ export const About = () => {
                 muted
                 playsInline
                 className="absolute inset-0 w-full h-full object-cover opacity-80"
-                src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/videos/videosnap.mp4"
+                src="https://d2jhn32fsulyac.cloudfront.net/assets/videos/videosnap.mp4"
               />
 
               <div className="flex flex-col justify-end h-full p-5 lg:px-12 lg:py-6">
