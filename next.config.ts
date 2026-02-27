@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+
   eslint: {
     // Ignore ESLint errors during build for UI-only migration
     ignoreDuringBuilds: true,
@@ -36,6 +38,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'beige-web-prod.s3.us-east-1.amazonaws.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'd2jhn32fsulyac.cloudfront.net',
         port: '',
         pathname: '/**',
       },

@@ -4,11 +4,12 @@ import React, { useState, Suspense, useRef, useEffect } from "react";
 import { useSearchParams, useParams, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import Image from "next/image";
+import Link from "next/link";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 
-import { ArrowLeft, Loader2, Check, ArrowUpRight, ArrowDownLeft, Star, X } from "lucide-react";
+import { ArrowLeft, Loader2, Check, ArrowUpRight, ArrowDownLeft, X, Plus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -28,16 +29,65 @@ import {
   selectSelectedCreatorIds,
 } from "@/lib/redux/features/booking/bookingSlice";
 import "swiper/css";
+import StackedVideoScroll from "../components/VideoSlide";
+import { ProjectSwitcher } from "../components/ProjectSwitcher";
 
-const tabs = ["Portfolios"];
+const tabs = ["Portfolios"];  //"Work History", "FAQs", "Reviews"
+
+// Fallback portfolio Images
+const fallbackImages = ["https://d2jhn32fsulyac.cloudfront.net/assets/categories/wedding.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/podcast.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/social_content.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/short_film.jpg",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg",
+]
+
+const videos = [
+  {
+    url: "https://youtu.be/5FrhtahQiRc?si=Ub2wKKHeid3HWayt",
+    thumbnail: "https://img.youtube.com/vi/5FrhtahQiRc/maxresdefault.jpg"
+
+  },
+  {
+    url: "https://vimeo.com/1067901829",
+  },
+  {
+    url: "https://youtu.be/ug-dxCgd9Jc?si=zKVXROHg3dIOC9g6",
+    thumbnail: "https://img.youtube.com/vi/ug-dxCgd9Jc/maxresdefault.jpg"
+  },
+  {
+    url: "https://vimeo.com/952121987"
+  },
+  {
+    url: "https://vimeo.com/1056604264",
+  },
+  {
+    url: "https://vimeo.com/1056043823",
+  },
+  {
+    url: "https://vimeo.com/1067856067",
+  },
+];
+
+
+const sampleProjects: string[] = [
+  "Commercial Projects",
+  "Weddings",
+  "Brand Campaigns"
+];
 
 function CreatorProfileContent() {
   const swiperRef = useRef<SwiperType | null>(null);
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const [activeTab, setActiveTab] = useState("Portfolios");
+  const [activeProject, setActiveProject] = useState(sampleProjects[1]);
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(0);
+
+  const [isFromBookingPage, setIsFromBookingPage] = useState(false);
 
   const searchParams = useSearchParams();
   const params = useParams();
@@ -48,6 +98,13 @@ function CreatorProfileContent() {
   // Redux selectors
   const selectedCreatorIds = useSelector(selectSelectedCreatorIds);
   const isSelected = selectedCreatorIds.includes(creatorId);
+
+  useEffect(() => {
+    const fromPage = searchParams.get('from');
+    if (fromPage === 'booking_flow') {
+      setIsFromBookingPage(true);
+    }
+  }, [])
 
   // Fetch creator profile data
   const {
@@ -116,7 +173,9 @@ function CreatorProfileContent() {
     );
   }
 
-  const portfolioImages = portfolioData?.data?.map((item: any) => item.image_url || item.video_url).filter(Boolean) || [];
+  // Prepare portfolio images
+  // const portfolioImages = portfolioData?.data?.map(item => item.image_url || item.video_url).filter(Boolean) || [];
+  const portfolioImages = portfolioData?.data?.map(item => item.image_url || item.video_url).filter(Boolean) || fallbackImages
 
   const recommendedCreators = recommendedData?.data?.slice(0, 4).map((creator: any) => ({
     id: creator.crew_member_id.toString(),
@@ -129,151 +188,204 @@ function CreatorProfileContent() {
   })) || [];
 
   return (
-    <div className="pt-20 lg:pt-28 pb-20">
-      {/* Constrained Container for spacing on both sides */}
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-16 xl:px-20">
-        <section className="mt-12">
-          {/* Back Button */}
-          {/* <Button
-            onClick={handleBack}
-            className="inline-flex items-center text-white/60 hover:text-white mb-10 transition-colors p-0 bg-transparent hover:bg-transparent"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button> */}
+    <div className="pt-20 lg:pt-32 pb-20">
+      <div className="px-4 md:px-0">
+        <section className="mx-auto my-12 container">
+          <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
+            {/* Back Button */}
+            <Button
+              onClick={handleBack}
+              className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
 
-          {/* MAIN PROFILE SECTION - items-stretch makes left and right same height */}
-          <div className="flex flex-col lg:flex-row gap-10 xl:gap-16 items-stretch">
-            
-            {/* Left Image Section */}
-            <div className="lg:w-[48%] relative rounded-[24px] overflow-hidden border border-white/5 bg-[#161616]">
-               <Image 
-                  src={profileImageUrl} 
-                  alt={profile.name} 
-                  fill 
-                  className="object-cover"
-                  priority
-               />
-               <div className="absolute top-6 right-6 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-white/10">
-                  <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-                  <span className="text-white text-xs font-medium">
-                    {profile.rating || "0.0"} <span className="text-white/40">({profile.files?.filter((f:any)=>f.file_type==='recent_work').length || "0"})</span>
-                  </span>
-               </div>
-            </div>
-
-            {/* Right Side Content */}
-            <div className="flex-1 flex flex-col justify-between py-2">
-              <div className="flex flex-col gap-8">
-                {/* Header Info */}
-                <div className="flex items-start justify-between">
-                  <div className="flex flex-col gap-1.5">
-                    <h1 className="text-3xl lg:text-[42px] font-medium text-white tracking-tight">
-                      {profile.name}
-                    </h1>
-                    <p className="text-[#E8D1AB] text-lg lg:text-[20px]">
-                      {getRoleLabel(profile.role)}
-                    </p>
-                  </div>
-                  {profile.isAvailable && (
-                    <p className="bg-[#EDF7EE]/10 text-[#4CAF50] text-xs lg:text-sm px-4 py-2 rounded-full border border-[#4CAF50]/30">
-                      Available
-                    </p>
-                  )}
-                </div>
-
-                {/* About Section */}
-                <div className="pt-6 border-t border-white/5">
-                  <h3 className="text-lg font-bold text-white mb-3">About Creator</h3>
-                  <p className="text-white/50 leading-relaxed text-sm lg:text-base font-normal">
-                    {profile.bio || "No bio available."}
-                  </p>
-                </div>
-
-                {/* Skills Section */}
-                {profile.skills && profile.skills.length > 0 && (
-                  <div className="pt-6 border-t border-white/5">
-                    <h3 className="text-lg font-bold text-white mb-4">Skills</h3>
-                    <div className="flex flex-wrap gap-2.5">
-                      {profile.skills.map((skill: any) => (
-                        <span key={skill.id} className="px-4 py-2 bg-[#161616] border border-white/5 rounded-[8px] text-xs font-medium text-white/50">
-                          {skill.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Equipment Section */}
-                {profile.equipment && profile.equipment.length > 0 && (
-                  <div className="pt-6 border-t border-white/5">
-                    <h3 className="text-lg font-bold text-white mb-4">Equipment&apos;s</h3>
-                    <div className="flex flex-wrap gap-2.5">
-                      {profile.equipment.map((eq: any) => (
-                        <span key={eq.equipment_id} className="px-4 py-2 bg-[#161616] border border-white/5 rounded-[8px] text-xs font-medium text-white/50">
-                          {eq.equipment_name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            {/* CP Info Section */}
+            <div className="flex flex-col lg:flex-row gap-12">
+              {/* Left: Gallery */}
+              <div className="lg:w-1/2">
+                <CreatorGallery
+                  mockCreator={{
+                    // images: portfolioImages.slice(0, 7),
+                    images: profile?.image,
+                    name: profile.name,
+                    rating: profile.rating || 0,
+                    reviews: profile.total_reviews || 0
+                  }}
+                />
               </div>
 
-              {/* ACTION BOX (YOUR CREW) */}
-              <div className="mt-10 bg-[#111111] rounded-[24px] p-6 lg:p-8 border border-white/5">
-                <div className="flex justify-between items-center mb-8">
-                  <div>
-                    <h2 className="text-white text-xl font-semibold">Your Crew</h2>
-                    <p className="text-white/40 text-xs mt-1">1 of 1 Selected</p>
+              {/* Right: Info */}
+              <div className="flex-1 lg:w-1/2 flex flex-col gap-3 lg:gap-[30px]">
+                {/* Header Info */}
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-3">
+                    <h1 className="text-lg lg:text-3xl font-medium text-white">
+                      {profile.name}
+                    </h1>
+                    <p className="text-[#E8D1AB] text-sm lg:text-[22px]">
+                      {profile.role_name || "Content Creator"}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 text-[#4CAF50]">
-                    <Check className="w-5 h-5" />
-                    <span className="font-medium text-sm">Completed</span>
+                  <div className="flex items-center gap-2">
+                    {isSelected && (
+                      <div className="flex items-center gap-1 bg-green-500/90 px-3 py-2 rounded-full">
+                        <Check className="w-4 h-4 text-white" />
+                        <span className="text-sm text-white font-medium">In Crew</span>
+                      </div>
+                    )}
+                    {profile.is_available && (
+                      <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50] lg:leading-[20px]">
+                        Available
+                      </p>
+                    )}
                   </div>
                 </div>
+                <Separator />
 
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Button
-                    variant="destructive"
-                    className="flex-1 h-14 bg-[#FFD1D1] hover:bg-[#ffc6c6] text-[#FF4D4D] border-none rounded-[12px] text-sm font-semibold"
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Remove From Crew
-                  </Button>
-                  <Button
-                    onClick={() => router.push("/checkout")}
-                    className="flex-1 h-14 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black border-none rounded-[12px] text-sm font-semibold"
-                  >
-                    Proceed to Payment
-                  </Button>
-                </div>
+                {/* About */}
+                {profile.bio && (
+                  <>
+                    <div className="flex flex-col gap-3.5">
+                      <h3 className="text-base lg:text-xl font-bold text-white">About Creator</h3>
+                      <p className="text-white/60 leading-relaxed text-sm lg:text-lg font-normal">
+                        {profile.bio}
+                      </p>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
+                {/* Skills */}
+                {profile.skills && (
+                  <>
+                    <div className="flex flex-col gap-3.5">
+                      <h3 className="text-base lg:text-xl font-bold text-white">Skills</h3>
+                      <div className="flex flex-wrap gap-2.5">
+                        {(Array.isArray(profile.skills)
+                          ? profile.skills
+                          : profile.skills.split(',').map(s => s.trim())
+                        ).map((skill, index) => (
+                          <span
+                            key={`${skill}-${index}`}
+                            className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
+                {/* Equipment */}
+                {profile.equipment && (
+                  <>
+                    <div className="flex flex-col gap-3.5">
+                      <h3 className="text-base lg:text-xl font-bold text-white">Equipment&apos;s</h3>
+                      <div className="flex flex-wrap gap-2.5">
+                        {(Array.isArray(profile.equipment)
+                          ? profile.equipment
+                          : profile.equipment.split(',').map(s => s.trim())
+                        ).map((item, index) => (
+                          <span
+                            key={`${item}-${index}`}
+                            className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
+                {/* If landed on Profile from Booking flow, show following */}
+                {isFromBookingPage &&
+                  <div className="rounded-[20px] bg-[#171717] p-4 lg:p-[30px]">
+                    <div className="flex justify-between mb-4 lg:mb-[30px]">
+                      <div>
+                        <p className="text-lg lg:text-2xl font-semibold">Your Crew</p>
+                        {/* Depends on the required crew size. to be dynamic */}
+                        <p className="text-xs lg:text-sm">1 of 1 selected</p>
+                      </div>
+                      <div className="flex gap-2 flex-end items-center text-[#4CAF50] lg:text-[20px]">
+                        <Check />
+                        {/* Depends on where required crew size is met. to be dynamic */}
+                        <span>Completed</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent Swiper from intercepting this as a drag/slide
+                          e.preventDefault();
+                        }}
+                        className={`flex-1 py-2 lg:py-4 rounded-lg text-sm lg:text-[20px] font-medium flex items-center justify-center transition-colors ${isSelected ? "bg-[#FFC9C9] text-[#C31717] border border-[#C31717] hover:bg-[#FFC9C9]/70" : "border border-white/30 text-white hover:bg-white/10"
+                          }`}
+                      >
+                        {isSelected ? <><X size={16} className="mr-1" /> Remove From Crew</> : <><Plus size={16} className="mr-1" /> Add to the Crew</>}
+                      </button>
+                      <Link
+                        href={`/payment`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-center flex-1 bg-[#E8D1AB] hover:bg-[#E8D1AB]/80 text-black py-2 lg:py-4 rounded-lg text-sm lg:text-[20px] font-medium transition-all "
+                      >
+                        Proceed to Payment
+                      </Link>
+                    </div>
+                  </div>
+                }
+
               </div>
             </div>
           </div>
         </section>
 
-        {/* TABS SECTION */}
-        <section className="my-16 lg:my-24">
-          <div className="flex justify-center border-b border-t border-white/10 mb-8 w-full">
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-12 py-6 lg:py-10 text-lg lg:text-2xl font-medium transition-colors relative ${activeTab === tab ? "text-[#E8D1AB]" : "text-white/40 hover:text-white"}`}
-              >
-                {tab}
-                {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#E8D1AB]" />}
-              </button>
-            ))}
-          </div>
+        <CenteredSeparator />
 
-          {activeTab === "Portfolios" && (
-            portfolioImages.length > 0 ? (
-              <ImageWheel images={portfolioImages} />
-            ) : (
-              <div className="py-10 text-center text-white/40">No portfolio items available yet.</div>
-            )
-          )}
+        {/* Featured Works */}
+        <section className="mt-14 lg:my-20 overflow-hidden">
+          <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
+            {/* Header */}
+            <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
+              <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
+                Featured Works
+              </h2>
+            </div>
+
+            <ProjectSwitcher
+              projects={sampleProjects}
+              active={activeProject}
+              onChange={(tab) => {
+                setActiveProject(tab);
+              }}
+              className="mx-auto mb-10"
+            />
+
+            {
+              portfolioImages.length > 0 ? (
+                <ImageWheel images={portfolioImages} />
+              ) : (
+                <div className="py-10 text-center text-white/40">
+                  No portfolio items available yet.
+                </div>
+              )
+            }
+          </div>
+        </section>
+
+        <CenteredSeparator />
+
+        {/* Video Portfolio Section */}
+        <section id="video-portfolio" className="relative w-full">
+          <StackedVideoScroll videos={videos} />
         </section>
 
         <CenteredSeparator />

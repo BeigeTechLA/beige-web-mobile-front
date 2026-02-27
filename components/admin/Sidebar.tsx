@@ -79,11 +79,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside className="w-full lg:w-64 border-r border-zinc-800 flex flex-col justify-between py-6 lg:py-9 px-5 bg-[#0A0A0A] h-full overflow-hidden">
       {/* Mobile Header with Logo and Close Button */}
-      {/* <div className="flex lg:hidden items-center justify-between mb-8"> */}
       <div className="flex items-center justify-between lg:justify-center mb-8">
         <Link href="/" className="relative flex items-center">
           <Image
-            src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
+            src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png"
             alt="BEIGE"
             width={100}
             height={20}

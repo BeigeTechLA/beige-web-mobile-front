@@ -24,7 +24,7 @@ interface Creator {
   about: string;
   skills: string[];
   equipment: string[];
-  images: string[];
+  images: string[] | string;
   portfolio: string[];
 }
 
@@ -35,16 +35,36 @@ interface CreatorGalleryProps {
 export default function CreatorGallery({
   mockCreator,
 }: CreatorGalleryProps) {
-  const galleryImages = mockCreator.images.length === 0 ? tempImages : mockCreator.images
+  const galleryImages = (mockCreator.images !== undefined && mockCreator.images.length > 0) ? mockCreator.images : ["/images/crew/CREW74.png"]
+  const hasSingleImage = galleryImages.length === 1
+
   const [activeImage, setActiveImage] = useState<string>(
     galleryImages[0]
   );
 
   return (
     <div className="flex flex-col lg:flex-row w-full gap-5 max-h-[880px]">
-      {/* SIDE / THUMBNAILS */}
-      <div
-        className="
+      {
+        hasSingleImage ? (
+          <div className="order-1 relative rounded-[20px] overflow-hidden aspect-[4/5] w-full lg:order-2 lg:w-3/4 xl:w-[604px]">
+            <Image
+              src={activeImage}
+              alt={mockCreator.name}
+              fill
+              className="object-cover"
+              priority
+            />
+
+            {/* Rating badge */}
+            <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1 text-white text-sm">
+              ⭐ 4.5 <span className="opacity-70">(120)</span>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* SIDE / THUMBNAILS */}
+            <div
+              className="
           order-2
           flex gap-4
           overflow-x-auto no-scrollbar
@@ -53,52 +73,55 @@ export default function CreatorGallery({
           lg:w-1/4
           pr-1
         "
-      >
-        {galleryImages.map((img, i) => (
-          <button
-            key={i}
-            onClick={() => setActiveImage(img)}
-            className={`
+            >
+              {galleryImages.map((img, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveImage(img)}
+                  className={`
               relative shrink-0
               w-[120px] h-[120px]
               lg:w-full lg:h-[205px] lg:max-w-[225px]
               rounded-[20px] overflow-hidden transition
               ${activeImage === img ? "" : "opacity-70 hover:opacity-100"}
             `}
-          >
-            <Image
-              src={img}
-              alt={`Thumbnail ${i + 1}`}
-              fill
-              className="object-cover"
-            />
-          </button>
-        ))}
-      </div>
+                >
+                  <Image
+                    src={img}
+                    alt={`Thumbnail ${i + 1}`}
+                    fill
+                    className="object-cover"
+                  />
+                </button>
+              ))}
+            </div>
 
-      {/* MAIN IMAGE */}
-      <div
-        className="
+            {/* MAIN IMAGE */}
+            <div
+              className="
           order-1
           relative rounded-[20px] overflow-hidden
           aspect-[4/5]
           w-full
           lg:order-2 lg:w-3/4 xl:w-[604px]
         "
-      >
-        <Image
-          src={activeImage}
-          alt={mockCreator.name}
-          fill
-          className="object-cover"
-          priority
-        />
+            >
+              <Image
+                src={activeImage}
+                alt={mockCreator.name}
+                fill
+                className="object-cover"
+                priority
+              />
 
-        {/* Rating badge */}
-        <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1 text-white text-sm">
-          ⭐ 4.5 <span className="opacity-70">(120)</span>
-        </div>
-      </div>
-    </div>
+              {/* Rating badge */}
+              <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1 text-white text-sm">
+                ⭐ 4.5 <span className="opacity-70">(120)</span>
+              </div>
+            </div>
+          </>
+        )
+      }
+    </div >
   );
 }

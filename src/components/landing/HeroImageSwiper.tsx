@@ -4,18 +4,18 @@ import { motion, useAnimationFrame } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 
 const IMAGES = [
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos1.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos2.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos3.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos4.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos5.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos6.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos7.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos8.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos9.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos10.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos11.png",
-  "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/landingHero/HeroBannerPhotos12.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos1.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos2.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos3.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos4.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos5.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos6.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos7.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos8.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos9.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos10.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos11.png",
+  "https://d2jhn32fsulyac.cloudfront.net/assets/landingHero/HeroBannerPhotos12.png",
 ];
 
 export const HeroSwiper = () => {

@@ -42,19 +42,12 @@ function CpAuthLayout({
       {/* TOP LOGO - Fixed position */}
       <div className="fixed left-1/2 -translate-x-1/2 top-4 md:top-8 z-[100]">
         <div className="bg-white/5 backdrop-blur-md px-4 py-2 md:px-6 md:py-3 rounded-full border border-white/10 shadow-2xl">
-          {/* <Image
-            src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
-            alt="BEIGE"
-            width={120}
-            height={40}
-            className="object-contain w-[80px] md:w-[120px] h-auto"
-          /> */}
           <Link
             href="/"
             className="relative flex items-center"
           >
             <Image
-              src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png"
+              src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png"
               alt="BEIGE"
               width={100}
               height={30}

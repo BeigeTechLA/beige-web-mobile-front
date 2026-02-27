@@ -31,7 +31,7 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
 
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-[#111] border-b border-white/10 px-4 h-16 flex items-center justify-between">
         <Link href="/" className="relative flex items-center">
-          <Image src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png" alt="BEIGE" width={100} height={20} />
+          <Image src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png" alt="BEIGE" width={100} height={20} />
           <span className="absolute right-0 -bottom-3 text-[8px] font-medium tracking-wide py-[1px] px-1 rounded-full text-white border border-white/40">Beta</span>
         </Link>
         <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-white">
@@ -120,7 +120,7 @@ function Sidebar({ pathname, onClose }: { pathname: string; onClose?: () => void
     <div className="flex flex-col h-full bg-[#111] border-r border-white/10 w-64">
       <div className="p-6 border-b border-white/10">
         <Link href="/" className="relative flex items-center w-fit">
-          <Image src="https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/assets/logos/beige_logo_vb.png" alt="BEIGE" width={158} height={32} />
+          <Image src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png" alt="BEIGE" width={158} height={32} />
         </Link>
       </div>
 
