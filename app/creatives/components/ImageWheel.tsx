@@ -81,7 +81,7 @@ function WheelItem({
   angleStep: number, 
   smoothRotation: MotionValue<number> 
 }) {
-  const baseAngle = (index - (total - 1) / 2) * angleStep;
+  const baseAngle = (index - (total - 2) / 2) * angleStep;
 
   // Hooks are now called inside a component, not a loop!
   const rotateY = useTransform(smoothRotation, (v) => v + baseAngle);

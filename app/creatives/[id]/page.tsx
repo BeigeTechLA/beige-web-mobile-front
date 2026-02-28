@@ -32,7 +32,7 @@ import "swiper/css";
 import StackedVideoScroll from "../components/VideoSlide";
 import { ProjectSwitcher } from "../components/ProjectSwitcher";
 
-const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beigexmemehouse.s3.amazonaws.com/beige/";
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 const tabs = ["Portfolios"];  //"Work History", "FAQs", "Reviews"
 
@@ -198,15 +198,15 @@ function CreatorProfileContent() {
   }
 
   // Prepare recommended creators
-  const recommendedCreators = recommendedData?.data?.slice(0, 4).map(creator => ({
-    id: creator.crew_member_id.toString(),
-    name: creator.name,
-    role: creator.role_name || "Content Creator",
-    hourlyRate: creator.hourly_rate || 0,
-    rating: creator.rating || 0,
-    reviews: creator.total_reviews || 0,
-    image: creator.profile_image ? `${S3_PREFIX}${creator.profile_image}` : '/images/influencer/default.png',
-  })) || [];
+  const recommendedCreators = recommendedData?.data?.map((creator) => ({
+  id: creator.crew_member_id.toString(),
+  name: creator.name,
+  role: creator.role_name || "Content Creator",
+  hourlyRate: creator.hourly_rate || 0,
+  rating: creator.rating || 0,
+  reviews: creator.total_reviews || 0,
+  image: creator.profile_photo ? `${S3_PREFIX}${creator.profile_photo}` : '/images/influencer/default.png',
+})) || [];
 
   return (
     <div className="pt-20 lg:pt-32 pb-20">
@@ -303,6 +303,7 @@ function CreatorProfileContent() {
                 )}
 
                 {/* Equipment */}
+                {/* Equipment */}
                 {profile.equipment && profile.equipment.length > 0 && (
                   <>
                     <div className="flex flex-col gap-3.5">
@@ -310,10 +311,10 @@ function CreatorProfileContent() {
                       <div className="flex flex-wrap gap-2.5">
                         {profile.equipment.map((item: any, index: number) => (
                           <span
-                            key={item.id || index}
+                            key={item.equipment_id || index}
                             className="p-3 lg:px-5 lg:py-4 bg-[#101010] border border-white/20 rounded-[10px] text-sm font-medium text-white/80"
                           >
-                            {typeof item === 'object' ? item.name : item}
+                            {item.equipment_name} {/* Display equipment name */}
                           </span>
                         ))}
                       </div>
@@ -321,9 +322,8 @@ function CreatorProfileContent() {
                     <Separator />
                   </>
                 )}
-
                 {/* If landed on Profile from Booking flow, show following */}
-                {isFromBookingPage && (
+                {/* {isFromBookingPage && (
                   <div className="rounded-[20px] bg-[#171717] p-4 lg:p-[30px]">
                     <div className="flex justify-between mb-4 lg:mb-[30px]">
                       <div>
@@ -355,7 +355,7 @@ function CreatorProfileContent() {
                       </Link>
                     </div>
                   </div>
-                )}
+                )} */}
 
               </div>
             </div>

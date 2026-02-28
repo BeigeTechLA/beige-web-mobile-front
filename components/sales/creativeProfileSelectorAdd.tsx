@@ -46,6 +46,18 @@ export const CreativeProfileSelectorAdd = ({
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
+     useEffect(() => {
+        if (creatives.length > 0) {
+            setSelectedRoles((prev) => {
+                const updatedRoles = { ...prev };
+                creatives.forEach((c) => {
+                    updatedRoles[c.id] = c.specialities || "Creative";
+                });
+                return updatedRoles;
+            });
+        }
+    }, [creatives]);
+
     useEffect(() => {
         const fetchStats = async () => {
             if (leadId) {
@@ -120,12 +132,47 @@ export const CreativeProfileSelectorAdd = ({
 
     const selectedIds = externalSelectedIds || internalSelectedIds;
 
-    // Calculate counts for both roles
     const counts = useMemo(() => {
-        const vCount = selectedIds.filter(id => selectedRoles[id]?.toLowerCase().includes('video')).length;
-        const pCount = selectedIds.filter(id => selectedRoles[id]?.toLowerCase().includes('photo')).length;
+        let vCount = 0;
+        let pCount = 0;
+        let bothCount = 0;
+
+        selectedIds.forEach(id => {
+            const role = (selectedRoles[id] || '').toLowerCase();
+            const isVideo = role.includes('video');
+            const isPhoto = role.includes('photo');
+
+            if (isVideo && isPhoto) {
+                bothCount++;
+            } else if (isVideo) {
+                vCount++;
+            } else if (isPhoto) {
+                pCount++;
+            }
+        });
+
+        const targetV = targets?.videographer || parseInt(stats?.fulfillment_stats?.videographer?.split('/')[1] || '0') || 0;
+        const targetP = targets?.photographer || parseInt(stats?.fulfillment_stats?.photographer?.split('/')[1] || '0') || 0;
+
+        for (let i = 0; i < bothCount; i++) {
+            const deficitV = targetV - vCount;
+            const deficitP = targetP - pCount;
+
+            if (deficitV > deficitP) {
+                vCount++;
+            } else if (deficitP > deficitV) {
+                pCount++;
+            } else {
+                if (vCount <= pCount) {
+                    vCount++;
+                } else {
+                    pCount++;
+                }
+            }
+        }
+
         return { videographer: vCount, photographer: pCount };
-    }, [selectedIds, selectedRoles]);
+    }, [selectedIds, selectedRoles, targets, stats]);
 
     // Notify parent of count updates
     useEffect(() => {

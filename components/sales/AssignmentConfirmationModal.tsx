@@ -1,91 +1,105 @@
-"use client";
-
 import React from "react";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog";
+import { X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
 
-interface AssignmentConfirmationModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: () => void;
-    videographerCount: { selected: number; required: number };
-    photographerCount: { selected: number; required: number };
+interface CountProps {
+  selected: number;
+  required: number;
 }
 
-export const AssignmentConfirmationModal = ({
-    isOpen,
-    onClose,
-    onConfirm,
-    videographerCount,
-    photographerCount,
-}: AssignmentConfirmationModalProps) => {
-    const overVideographers = videographerCount.selected > videographerCount.required;
-    const overPhotographers = photographerCount.selected > photographerCount.required;
+interface AssignmentConfirmationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  videographerCount: CountProps;
+  photographerCount: CountProps;
+}
 
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="bg-[#101010] border-white/10 text-white sm:max-w-md">
-                <DialogHeader>
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 rounded-full bg-yellow-500/10 text-yellow-500">
-                            <AlertCircle size={24} />
-                        </div>
-                        <DialogTitle className="text-xl font-semibold">Confirm Assignment</DialogTitle>
-                    </div>
-                </DialogHeader>
+export const AssignmentConfirmationModal: React.FC<AssignmentConfirmationModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  videographerCount,
+  photographerCount,
+}) => {
+  if (!isOpen) return null;
 
-                <div className="space-y-4 py-4">
-                    <p className="text-white/70">
-                        You have selected more creative partners than requested for this lead.
-                    </p>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md bg-[#101010] border border-white/10 rounded-2xl p-6 shadow-xl relative">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors"
+        >
+          <X size={20} />
+        </button>
 
-                    <div className="space-y-2 bg-white/5 p-4 rounded-lg border border-white/5">
-                        {overVideographers && (
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-white/60">Videographers:</span>
-                                <span className="font-medium text-yellow-500">
-                                    {videographerCount.selected} selected (Required: {videographerCount.required})
-                                </span>
-                            </div>
-                        )}
-                        {overPhotographers && (
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-white/60">Photographers:</span>
-                                <span className="font-medium text-yellow-500">
-                                    {photographerCount.selected} selected (Required: {photographerCount.required})
-                                </span>
-                            </div>
-                        )}
-                    </div>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <AlertCircle className="text-[#E8D1AB]" size={24} />
+          <h2 className="text-lg font-semibold text-white">Confirm Assignment</h2>
+        </div>
 
-                    <p className="text-sm text-white/50 italic">
-                        CPs who accept the request first will be assigned to the shoot.
-                    </p>
-                </div>
+        {/* Body */}
+        <p className="text-sm text-white/70 mb-6">
+          You have selected more creative partners than requested for this lead.
+        </p>
 
-                <DialogFooter className="gap-3 sm:gap-0">
-                    <Button
-                        variant="ghost"
-                        onClick={onClose}
-                        className="text-white hover:bg-white/5 border border-white/10"
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={onConfirm}
-                        className="bg-[#E5D5B8] text-black hover:bg-[#dcb98a]"
-                    >
-                        Confirm & Assign
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
+        {/* Counts Box */}
+        <div className="bg-[#1A1A1A] border border-white/5 rounded-xl p-4 space-y-4 mb-6">
+          
+          {/* Videographers Row */}
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-white/70">Videographers:</span>
+            <span
+              className={`font-medium ${
+                videographerCount.selected > videographerCount.required
+                  ? "text-[#E8D1AB]" // Highlight in gold if over limit
+                  : "text-white"
+              }`}
+            >
+              {videographerCount.selected} selected (Required: {videographerCount.required})
+            </span>
+          </div>
+
+          {/* Photographers Row */}
+          <div className="flex justify-between items-center text-sm pt-4 border-t border-white/5">
+            <span className="text-white/70">Photographers:</span>
+            <span
+              className={`font-medium ${
+                photographerCount.selected > photographerCount.required
+                  ? "text-[#E8D1AB]" // Highlight in gold if over limit
+                  : "text-white"
+              }`}
+            >
+              {photographerCount.selected} selected (Required: {photographerCount.required})
+            </span>
+          </div>
+
+        </div>
+
+        <p className="text-xs text-white/40 italic mb-6">
+          CPs who accept the request first will be assigned to the shoot.
+        </p>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="bg-transparent border-white/10 text-white hover:bg-white/5"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
+          >
+            Confirm & Assign
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 };

@@ -721,7 +721,7 @@ export default function SalesLeadDetailsPage() {
             {/* CHANGED: Passing leadId dynamically */}
             <div className="lg:text-right lg:mt-[82px]">
               <Button
-                onClick={() => router.push(`/admin/select-creatives?id=${leadId}`)}
+                onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
                 className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
               >
                 Change CPs

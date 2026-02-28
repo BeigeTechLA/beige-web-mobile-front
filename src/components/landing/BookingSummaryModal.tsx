@@ -25,26 +25,75 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
 
   return (
     <div 
-      className="fixed inset-0 z-[100] overflow-y-auto bg-black/90 backdrop-blur-xl flex justify-center items-start py-8 sm:py-12 px-4 print:p-0 print:bg-white print:block"
+      id="booking-summary-modal"
+      // Added print:overflow-hidden to stop the wrapper from generating a scrollbar track
+      className="fixed inset-0 z-[100] overflow-y-auto bg-black/90 backdrop-blur-xl flex justify-center items-start py-8 sm:py-12 px-4 print:absolute print:inset-0 print:p-0 print:bg-white print:block print:overflow-hidden"
       onClick={onClose}
     >
-      {/* Print-specific Styles */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          @page { size: auto; margin: 10mm; }
-          body { 
-            background: white !important; 
-            color: black !important; 
-            overflow: hidden !important; /* Hide scrollbar in print */
+          /* 1. Force completely hide ALL scrollbars */
+          ::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
           }
+          * {
+            scrollbar-width: none !important; /* Firefox */
+            -ms-overflow-style: none !important; /* IE/Edge */
+          }
+
+          /* 2. Remove default browser margins */
+          @page { 
+            size: portrait; 
+            margin: 0 !important; 
+          }
+          
+          /* 3. Strictly lock the entire document */
+          html, body { 
+            width: 100% !important;
+            height: 100vh !important; 
+            max-height: 100vh !important;
+            min-height: 0 !important;
+            overflow: hidden !important; 
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important; 
+            box-sizing: border-box !important;
+          }
+
+          body > * {
+            max-height: 100vh !important;
+            overflow: hidden !important;
+          }
+          
+          /* 4. Hide all background website content */
+          body * {
+            visibility: hidden;
+          }
+          
+          /* 5. Make ONLY the modal and its children visible */
+          #booking-summary-modal, #booking-summary-modal * {
+            visibility: visible;
+          }
+          
+          /* 6. Position modal perfectly */
+          #booking-summary-modal {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100vh !important;
+            margin: 0 !important;
+            padding: 15mm !important; 
+            box-sizing: border-box !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            overflow: hidden !important;
+          }
+          
+          /* Helpers */
           .no-print { display: none !important; }
-          .print-border { border: 1px solid #e5e7eb !important; }
-          .print-shadow-none { box-shadow: none !important; }
-          .print-text-black { color: black !important; }
-          .print-text-gray { color: #4b5563 !important; }
-          .print-bg-gray { background-color: #f9fafb !important; }
-          .print-m-0 { margin: 0 !important; }
-          .print-p-0 { padding: 0 !important; }
         }
       `}} />
       
@@ -54,39 +103,37 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
         className="bg-[#171717] border border-white/10 w-full max-w-3xl rounded-[32px] overflow-hidden shadow-2xl relative print:border-none print:shadow-none print:bg-white print:rounded-none print:max-w-none print:m-0"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Decorative Gradient Bar - Hidden on print */}
-        {/* <div className="h-1.5 w-full bg-gradient-to-r from-[#E8D1AB] via-[#dcb98a] to-[#E8D1AB] sticky top-0 z-20 no-print" /> */}
 
         {/* Header */}
-       <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#1c1c1c] sticky top-1.5 z-10 print:static print:bg-white print:border-gray-200 print:px-0">
-  <div className="flex items-center gap-4">
-    {/* Green check circle */}
-    <div className="bg-green-500/20 p-2.5 rounded-full print:bg-green-100">
-      <CheckCircle2 className="text-green-500 w-6 h-6 sm:w-7 sm:h-7 print:text-green-600" />
-    </div>
-    <div>
-      <h3 className="text-lg sm:text-xl font-bold text-white leading-tight print:text-black">
-        Booking Confirmation
-      </h3>
-      <p className="text-[10px] sm:text-xs text-green-500/80 font-medium uppercase tracking-wide print:text-green-600">
-        Payment Received
-      </p>
-    </div>
-  </div>
-  <button
-    onClick={onClose}
-    className="p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-all no-print"
-  >
-    <X size={24} />
-  </button>
+       <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#1c1c1c] sticky top-1.5 z-10 print:static print:bg-white print:border-gray-200 print:px-0 print:pb-6">
+          <div className="flex items-center gap-4">
+            <div className="bg-green-500/20 p-2.5 rounded-full print:bg-green-100">
+              <CheckCircle2 className="text-green-500 w-6 h-6 sm:w-7 sm:h-7 print:text-green-600" />
+            </div>
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold text-white leading-tight print:text-black">
+                Booking Confirmation
+              </h3>
+              <p className="text-[10px] sm:text-xs text-green-500/80 font-medium uppercase tracking-wide print:text-green-600">
+                Payment Received
+              </p>
+            </div>
+          </div>
+          
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-all no-print"
+          >
+            <X size={24} />
+          </button>
 
-  {/* Logo - Only visible in print */}
-  <img
-    src="https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/beige_logo_vb.png"
-    alt="Beige Logo"
-    className="hidden print:block print:w-24 print:absolute print:right-4 print:top-7" // Logo positioned at the top-right of the print view
-  />
-</div>
+          {/* Logo */}
+          <img
+            src="https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/beige_logo_vb.png"
+            alt="Beige Logo"
+            className="hidden print:block print:w-24 print:h-auto" 
+          />
+       </div>
 
         {/* Modal Content */}
         <div className="p-6 lg:p-10 space-y-8 print:p-0 print:pt-6">
