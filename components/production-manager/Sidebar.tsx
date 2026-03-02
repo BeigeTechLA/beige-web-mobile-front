@@ -8,6 +8,7 @@ import Image from "next/image";
 
 const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard, link: '/production-manager/dashboard' },
+    { name: 'Creative Partners', icon: Users, link: '/production-manager/creative-partners' },
     { name: 'Shoots', icon: Camera, link: '/production-manager/shoots' },
     { name: 'File Manager', icon: FolderOpen, link: '/production-manager/file-manager' },
     { name: 'Messages', icon: MessageCircle, link: '/production-manager/messages' },
