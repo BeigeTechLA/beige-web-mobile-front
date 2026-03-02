@@ -21,6 +21,8 @@ import { adminApi, getCrewAvailability } from "@/lib/api";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 // --- HELPERS ---
 const formatLocation = (locationInput: string) => {
     if (!locationInput) return "Location TBD";
@@ -298,7 +300,7 @@ export default function AvailabilityDetailsPage() {
         (file: any) => file.file_type === 'profile_photo'
     );
     const imageUrl = profilePhoto
-        ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}`
+        ? `${S3_PREFIX}${profilePhoto.file_path}`
         : null;
 
     const fullName = `${member?.first_name || ''} ${member?.last_name || ''}`.trim() || "Unknown";

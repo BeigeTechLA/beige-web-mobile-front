@@ -15,6 +15,8 @@ import "swiper/css/effect-coverflow";
 import { affiliateApi, adminApi } from "@/lib/api";
 import Cookies from "js-cookie";
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 export const AffiliateTopCreatives = () => {
     const [activeIndex, setActiveIndex] = useState(1); // Default to center
     const [partners, setPartners] = useState<any[]>([]);
@@ -39,7 +41,7 @@ export const AffiliateTopCreatives = () => {
                             ? `$${parseFloat(partner.total_earnings).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             : "$0.00",
                         image: partner.avatar
-                            ? `https://beigexmemehouse.s3.amazonaws.com/beige/${partner.avatar}`
+                            ? `${S3_PREFIX}${partner.avatar}`
                             : "/images/placeholder-user.png",
                         bgColor: index % 3 === 0 ? "bg-blue-200" : index % 3 === 1 ? "bg-green-200" : "bg-orange-100",
                     }));

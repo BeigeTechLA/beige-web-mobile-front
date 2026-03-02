@@ -55,6 +55,8 @@ const mapLeadStatusToUI = (status: string): string => {
   return "In-Progress";
 };
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 export default function SalesLeadDetailsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -96,7 +98,7 @@ export default function SalesLeadDetailsPage() {
   const assignedCPs = booking?.assigned_crews?.map((crew: any) => {
     const profileFile = crew.crew_member?.crew_member_files?.[0];
     const imageUrl = profileFile?.file_path
-      ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profileFile.file_path}`
+      ? `${S3_PREFIX}${profileFile.file_path}`
       : null;
     return {
       id: crew.crew_member_id,

@@ -534,10 +534,10 @@ export default function ClientDetailPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.selectedCrewIds || formData.selectedCrewIds.length === 0) {
-      toast.error("Please select at least one creative");
-      return;
-    }
+    // if (!formData.selectedCrewIds || formData.selectedCrewIds.length === 0) {
+    //   toast.error("Please select at least one creative");
+    //   return;
+    // }
 
     // Check for over-selection
     const isOverSelected =
@@ -870,7 +870,7 @@ export default function ClientDetailPage() {
             Back
           </Button>
           <Button
-            disabled={formData.selectedCrewIds.length === 0 || isSubmitting}
+            disabled={isSubmitting}
             onClick={handleSubmit}
             className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
           >

@@ -13,7 +13,7 @@ interface FeaturedWorkModalProps {
   editItem?: any | null;
 }
 
-const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_MB = 30;
 const MAX_TOTAL_PROJECT_MB = 50;
 
 // NEW: Allowed types constants

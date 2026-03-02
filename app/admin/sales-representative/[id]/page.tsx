@@ -46,6 +46,8 @@ import { EffectCoverflow } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
@@ -94,7 +96,7 @@ export default function LeadDetailPage() {
   const assignedCPs = booking?.assigned_crews?.map((crew: any) => {
     const profileFile = crew.crew_member?.crew_member_files?.[0];
     const imageUrl = profileFile?.file_path
-      ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profileFile.file_path}`
+      ? `${S3_PREFIX}${profileFile.file_path}`
       : null;
     return {
       id: crew.crew_member_id,

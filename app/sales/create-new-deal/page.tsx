@@ -436,8 +436,8 @@ export default function ClientDetailPage() {
   }, [formData.contentType, extraTeam]);
 
   const handleContinueClick = async () => {
-    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent) {
-      toast.error("Please fill in all client information fields");
+    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent ||!formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
+      toast.error("Please fill in all Booking information fields");
       return;
     }
 
@@ -584,9 +584,14 @@ export default function ClientDetailPage() {
               label="Select Source"
               value={thumbtack}
               options={[
+                { value: "thumbtack", label: "Thumbtack" },
+                { value: "referral", label: "Referral" },
                 { value: "instagram", label: "Instagram" },
                 { value: "facebook", label: "Facebook" },
-                { value: "referral", label: "Referral" }
+                { value: "event", label: "Event" },
+                { value: "government_contract", label: "Government Contract" },
+                { value: "email", label: "Email" },
+                { value: "sms", label: "SMS" }
               ]}
               onChange={(val) => setThumbtack(val)}
               placeholder=""
@@ -860,7 +865,7 @@ export default function ClientDetailPage() {
             Back
           </Button>
           <Button
-            disabled={formData.selectedCrewIds.length === 0 || isSubmitting}
+            disabled={isSubmitting}
             onClick={handleContinueClick}
             className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
           >

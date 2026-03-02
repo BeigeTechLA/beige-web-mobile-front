@@ -59,6 +59,9 @@ interface LeadData {
   intent: string;
 }
 
+
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (
   paymentStatus: string,
@@ -224,7 +227,7 @@ export default function AdminSaleRepManagerPage() {
               initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
               role: member.role?.role_name || member.category_name || "N/A",
               phoneNumber: member.phone_number || "N/A",
-              imageUrl: profilePhoto ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}` : null,
+              imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
             };
           });
           allUsers = mappedCreatives;

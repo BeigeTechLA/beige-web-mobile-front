@@ -50,6 +50,8 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
     );
 };
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 export const UserManagementTabbed = () => {
     const [activeTab, setActiveTab] = useState<UserType>("All");
     const [users, setUsers] = useState<UserData[]>([]);
@@ -157,7 +159,7 @@ export const UserManagementTabbed = () => {
                             joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString() : "N/A",
                             initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
                             role: member.role?.role_name || "N/A",
-                            imageUrl: profilePhoto ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}` : null,
+                            imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
                         };
                     });
                     allUsers = [...allUsers, ...mapped];

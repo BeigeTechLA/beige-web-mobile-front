@@ -50,7 +50,7 @@ import DeleteConfirmationModal from "@/src/components/cpSignup/DeleteConfirmatio
 import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
 
 // --- CONSTANTS ---
-const S3_BASE_URL = "https://beigexmemehouse.s3.amazonaws.com/beige/";
+const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
 // --- REUSABLE SUB-COMPONENTS ---
 const StatBox = ({ value, sublabel }: { value: string, sublabel: string }) => (
