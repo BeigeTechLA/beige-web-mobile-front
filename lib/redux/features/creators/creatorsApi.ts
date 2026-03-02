@@ -60,7 +60,7 @@ export const creatorsApi = createApi({
       }),
       transformResponse: (response: ApiResponse<RawCreator[]>) => {
         const rawCreators = response.data || [];
-        const S3_BASE_URL = "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/";
+        const S3_BASE_URL =  process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";;
 
         return rawCreators.map((raw) => {
           let profileImage = "";

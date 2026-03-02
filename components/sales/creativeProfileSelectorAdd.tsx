@@ -13,6 +13,8 @@ const CREATIVES = [
     { id: 5, name: "Ethan Cole", status: "Active", shoots: 5, specialities: "Videography & Photography", availability: "16 February, 2026 Hours" },
 ];
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 export const CreativeProfileSelectorAdd = ({
     selectedIds: externalSelectedIds,
     onChange,
@@ -262,6 +264,7 @@ export const CreativeProfileSelectorAdd = ({
                                 creative={creative}
                                 isSelected={selectedIds.includes(creative.id)}
                                 onToggle={() => toggleSelection(creative.id)}
+                                onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
                             />
                             {index !== creatives.length - 1 && <Separator />}
                         </div>
@@ -280,7 +283,7 @@ export const CreativeProfileSelectorAdd = ({
     );
 };
 
-const CreativeCard = ({ creative, isSelected, onToggle }: any) => {
+const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile }: any) => {
     return (
         <div
             onClick={onToggle}
@@ -291,7 +294,7 @@ const CreativeCard = ({ creative, isSelected, onToggle }: any) => {
             <div className="relative w-20 h-25 lg:w-[146px] lg:h-[156px] flex-shrink-0">
                 {creative.profile_photo ? (
                     <img
-                        src={`https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${creative.profile_photo}`}
+                        src={`${S3_PREFIX}${creative.profile_photo}`}
                         alt={creative.name}
                         className="w-full h-full object-cover rounded-lg"
                     />
@@ -312,10 +315,12 @@ const CreativeCard = ({ creative, isSelected, onToggle }: any) => {
                         </span>
                     </div>
 
-                    {/* Custom Checkbox */}
-                    <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : 'bg-transparent border-white/20'
-                        }`}>
-                        {isSelected && <Check size={16} className="text-black stroke-[3px]" />}
+                    <div className="flex items-center">
+                        {/* Custom Checkbox */}
+                        <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : 'bg-transparent border-white/20'
+                            }`}>
+                            {isSelected && <Check size={16} className="text-black stroke-[3px]" />}
+                        </div>
                     </div>
                 </div>
 
@@ -328,6 +333,19 @@ const CreativeCard = ({ creative, isSelected, onToggle }: any) => {
                         <p className="text-[#AAA7A7] mb-1">Specialities:</p>
                         <p className="text-white font-medium">{creative.specialities}</p>
                     </div>
+                </div>
+
+                <div className="flex justify-end mt-4 lg:mt-6">
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onViewProfile();
+                        }}
+                        className="text-sm font-semibold bg-[#E8D1AB] text-black px-5 py-2.5 rounded-lg hover:bg-[#d9bc90] transition-colors"
+                    >
+                        View Profile
+                    </button>
                 </div>
             </div>
         </div>

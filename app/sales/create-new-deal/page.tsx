@@ -89,6 +89,7 @@ export default function ClientDetailPage() {
   const [videoEditTypeOptions, setVideoEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
+  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
   const [thumbtack, setThumbtack] = useState<string>("");
   const [intent, setIntent] = useState<string>("");
@@ -194,6 +195,21 @@ export default function ClientDetailPage() {
     setTimeOptions(options);
   }, []);
 
+  useEffect(() => {
+    const primaryDate = formData.startDate || formData.endDate;
+    if (!primaryDate) {
+      setSelectedShootDate(null);
+      return;
+    }
+
+    const parsed = parseDate(primaryDate);
+    if (!parsed) return;
+
+    setSelectedShootDate(
+      set(new Date(parsed), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+    );
+  }, [formData.startDate, formData.endDate]);
+
   // 2. Filter Shoot Types based on Content Type
   useEffect(() => {
     const isVideo = formData.contentType.includes("videographer");
@@ -277,9 +293,13 @@ export default function ClientDetailPage() {
   // --- HANDLERS (Timezone Fix Applied) ---
   const handleDateChange = (date: Date | null) => {
     if (!date) {
+      setSelectedShootDate(null);
       updateData({ startDate: "", endDate: "" });
       return;
     }
+    setSelectedShootDate(
+      set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+    );
     const now = new Date();
     const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
 
@@ -308,7 +328,11 @@ export default function ClientDetailPage() {
   const handleStartTimeChange = (timeKey: string) => {
     if (!timeKey) return updateData({ startDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const currentDate = parseDate(formData.startDate) || new Date();
+    const currentDate =
+      parseDate(formData.startDate) ||
+      parseDate(formData.endDate) ||
+      selectedShootDate ||
+      new Date();
 
     const selectedTime = new Date(
       currentDate.getFullYear(),
@@ -338,7 +362,11 @@ export default function ClientDetailPage() {
   const handleEndTimeChange = (timeKey: string) => {
     if (!timeKey) return updateData({ endDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const baseDate = parseDate(formData.startDate) || new Date();
+    const baseDate =
+      parseDate(formData.startDate) ||
+      parseDate(formData.endDate) ||
+      selectedShootDate ||
+      new Date();
 
     const newEnd = new Date(
       baseDate.getFullYear(),
@@ -368,14 +396,14 @@ export default function ClientDetailPage() {
   };
 
   const filteredStartTimeOptions = useMemo(() => {
-    if (!formData.startDate) return timeOptions;
-    const selectedDate = parseDate(formData.startDate);
+    if (!selectedShootDate) return timeOptions;
+    const selectedDate = selectedShootDate;
     const now = new Date();
     const isToday = selectedDate?.toDateString() === now.toDateString();
     if (!isToday) return timeOptions;
     const minKey = format(new Date(now.getTime() + 4 * 60 * 60 * 1000), "HH:mm");
     return timeOptions.filter((opt) => opt.key >= minKey);
-  }, [formData.startDate, timeOptions]);
+  }, [selectedShootDate, timeOptions]);
 
   const filteredEndTimeOptions = useMemo(() => {
     if (!formData.startDate) return timeOptions;
@@ -667,7 +695,7 @@ export default function ClientDetailPage() {
             <div className="flex-1">
               <DatePicker
                 label="Select Date"
-                value={formData.startDate ? parseDate(formData.startDate) : null}
+                value={selectedShootDate}
                 onChange={handleDateChange}
                 minDate={new Date()}
                 colors={datePickerColours}

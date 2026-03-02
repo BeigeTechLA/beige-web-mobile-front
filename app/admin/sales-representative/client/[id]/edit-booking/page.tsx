@@ -77,6 +77,7 @@ export default function EditBookingPage() {
     const [photoEditNote, setPhotoEditNote] = useState<string>("");
 
     const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
+    const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
     const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
     // Fetch lead data for pre-population
@@ -101,6 +102,21 @@ export default function EditBookingPage() {
         }
         setTimeOptions(options);
     }, []);
+
+    useEffect(() => {
+        const primaryDate = formData.startDate || formData.endDate;
+        if (!primaryDate) {
+            setSelectedShootDate(null);
+            return;
+        }
+
+        const parsed = parseDate(primaryDate);
+        if (!parsed) return;
+
+        setSelectedShootDate(
+            set(new Date(parsed), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+        );
+    }, [formData.startDate, formData.endDate]);
 
     // 2. Determine available shoot types based on content type selection
     useEffect(() => {
@@ -300,9 +316,13 @@ export default function EditBookingPage() {
 
     const handleDateChange = (date: Date | null) => {
     if (!date) {
+        setSelectedShootDate(null);
         updateData({ startDate: "", endDate: "" });
         return;
     }
+    setSelectedShootDate(
+        set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+    );
     // Set default times to 9 AM and 5 PM on the selected date
     const finalStart = set(new Date(date), { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
     const finalEnd = set(new Date(date), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
@@ -321,11 +341,15 @@ const photographerTarget = useMemo(() => {
 }, [formData.contentType, extraTeam]);
 
     const handleStartTimeChange = (timeKey: string) => {
-    if (!timeKey) return;
+    if (!timeKey) return updateData({ startDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
     
-    // Use existing startDate as base or default to today
-    const currentBase = formData.startDate ? parseDate(formData.startDate) : new Date();
+    // Use existing selected date (start/end/date picker) as base
+    const currentBase =
+        (formData.startDate ? parseDate(formData.startDate) : null) ||
+        (formData.endDate ? parseDate(formData.endDate) : null) ||
+        selectedShootDate ||
+        new Date();
     if (!currentBase) return;
 
     const newStart = set(new Date(currentBase), { 
@@ -339,10 +363,14 @@ const photographerTarget = useMemo(() => {
 };
 
    const handleEndTimeChange = (timeKey: string) => {
-    if (!timeKey) return;
+    if (!timeKey) return updateData({ endDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
     
-    let baseDate = formData.startDate ? parseDate(formData.startDate) : new Date();
+    let baseDate =
+        (formData.startDate ? parseDate(formData.startDate) : null) ||
+        (formData.endDate ? parseDate(formData.endDate) : null) ||
+        selectedShootDate ||
+        new Date();
     if (!baseDate) return;
 
     const newEnd = set(new Date(baseDate), { 
@@ -490,7 +518,7 @@ const photographerTarget = useMemo(() => {
                     <div className="flex flex-col lg:flex-row gap-6">
                         <DatePicker
                             label="Select Date"
-                            value={formData.startDate ? parseDate(formData.startDate) : null}
+                            value={selectedShootDate}
                             onChange={handleDateChange}
                             minDate={new Date()}
                             colors={datePickerColours}

@@ -13,7 +13,7 @@ import 'swiper/css/navigation';
 import { Button } from '@/components/ui/button';
 
 const S3_BASE_URL =
-  "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/";
+   process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
 
 // Fallback images for creators without profile photos

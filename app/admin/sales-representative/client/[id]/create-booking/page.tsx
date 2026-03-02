@@ -53,6 +53,8 @@ import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfir
 
 const INITIAL_COUNT = 6;
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 const TEAM_ROLES = [
   { id: "videographer", label: "Videographer", price: 250, icon: <Video size={28} /> },
   { id: "photographer", label: "Photographer", price: 250, icon: <Camera size={28} /> },
@@ -86,6 +88,7 @@ export default function ClientDetailPage() {
   const [videoEditTypeOptions, setVideoEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
+  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [crewList, setCrewList] = useState<any[]>([]);
@@ -320,6 +323,21 @@ export default function ClientDetailPage() {
     setTimeOptions(options);
   }, []);
 
+  useEffect(() => {
+    const primaryDate = formData.startDate || formData.endDate;
+    if (!primaryDate) {
+      setSelectedShootDate(null);
+      return;
+    }
+
+    const parsed = parseDate(primaryDate);
+    if (!parsed) return;
+
+    setSelectedShootDate(
+      set(new Date(parsed), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+    );
+  }, [formData.startDate, formData.endDate]);
+
   const toggleContentType = (type: "videographer" | "photographer" | "editing") => {
     const current = [...formData.contentType];
     const isCurrentlySelected = current.includes(type);
@@ -353,9 +371,13 @@ export default function ClientDetailPage() {
 
   const handleDateChange = (date: Date | null) => {
     if (!date) {
+      setSelectedShootDate(null);
       updateData({ startDate: "", endDate: "" });
       return;
     }
+    setSelectedShootDate(
+      set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+    );
 
     const now = new Date();
     const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
@@ -392,7 +414,11 @@ export default function ClientDetailPage() {
     }
 
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const currentDate = formData.startDate ? parseDate(formData.startDate) : new Date();
+    const currentDate =
+      (formData.startDate ? parseDate(formData.startDate) : null) ||
+      (formData.endDate ? parseDate(formData.endDate) : null) ||
+      selectedShootDate ||
+      new Date();
     if (!currentDate) return;
 
     const newStart = set(currentDate, { hours, minutes, seconds: 0 });
@@ -412,7 +438,11 @@ export default function ClientDetailPage() {
       return;
     }
     const [hours, minutes] = timeKey.split(":").map(Number);
-    let currentDate = formData.endDate ? parseDate(formData.endDate) : formData.startDate ? parseDate(formData.startDate) : new Date();
+    let currentDate =
+      (formData.startDate ? parseDate(formData.startDate) : null) ||
+      (formData.endDate ? parseDate(formData.endDate) : null) ||
+      selectedShootDate ||
+      new Date();
     if (!currentDate) return;
 
     const newEnd = set(currentDate, { hours, minutes, seconds: 0 });
@@ -443,15 +473,15 @@ export default function ClientDetailPage() {
   }, [formData.startDate, timeOptions]);
 
   const filteredStartTimeOptions = useMemo(() => {
-    if (!formData.startDate) return timeOptions;
-    const selectedDate = parseDate(formData.startDate);
+    if (!selectedShootDate) return timeOptions;
+    const selectedDate = selectedShootDate;
     const now = new Date();
     const isToday = selectedDate?.toDateString() === now.toDateString();
     if (!isToday) return timeOptions;
     const minTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
     const minKey = format(minTime, "HH:mm");
     return timeOptions.filter((opt) => opt.key >= minKey);
-  }, [formData.startDate, timeOptions]);
+  }, [selectedShootDate, timeOptions]);
 
   const handleExtraTeamChange = (id: string, delta: number) => {
     const nextExtra = { ...extraTeam };
@@ -575,7 +605,7 @@ export default function ClientDetailPage() {
           <div className="w-16 h-16 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-[#101010] border border-[#E8D1AB] flex items-center justify-center text-xl lg:text-[30px] font-bold shrink-0 overflow-hidden">
             {clientProfile?.user?.profile_image || clientProfile?.profile_image ? (
               <img
-                src={clientProfile?.user?.profile_image ? `https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${clientProfile.user.profile_image}` : `https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${clientProfile.profile_image}`}
+                src={clientProfile?.user?.profile_image ? `${clientProfile.user.profile_image}` : `${S3_PREFIX}${clientProfile.profile_image}`}
                 alt={clientProfile?.user?.name}
                 className="w-full h-full object-cover"
               />
@@ -666,7 +696,7 @@ export default function ClientDetailPage() {
             <div className="flex-1">
               <DatePicker
                 label="Select Date"
-                value={formData.startDate ? parseDate(formData.startDate) : null}
+                value={selectedShootDate}
                 onChange={handleDateChange}
                 minDate={new Date()}
                 colors={datePickerColours}
