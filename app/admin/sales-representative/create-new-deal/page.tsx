@@ -547,7 +547,7 @@ export default function ClientDetailPage() {
           <span className="text-sm font-medium">Back</span>
         </Button>
 
-        <div className="space-y-6">
+        <div className="space-y-6 my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90">Client Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
             <div className="relative space-y-2">
@@ -608,9 +608,9 @@ export default function ClientDetailPage() {
             />
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={contentTypeRef}>
+        <div ref={contentTypeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ContentTypeCheckbox
@@ -638,9 +638,9 @@ export default function ClientDetailPage() {
             <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} checked={false} onChange={() => { }} disabled={true} />
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={shootTypeRef}>
+        <div ref={shootTypeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
             {formData.contentType.length > 1 ? "Video and Photo Shoot Type" : "Shoot Type"}
           </h3>
@@ -657,9 +657,9 @@ export default function ClientDetailPage() {
             required
           />
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={dateTimeRef}>
+        <div ref={dateTimeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">Shoot Date & Time</h3>
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="flex-1">
@@ -693,9 +693,9 @@ export default function ClientDetailPage() {
             </div>
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={editsRef}>
+        <div ref={editsRef} className="my-4 lg:my-9">
           <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">Edits Needed?</h3>
           <div className="flex gap-4">
             <button
@@ -753,9 +753,9 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={extraTeamRef}>
+        <div ref={extraTeamRef} className="my-4 lg:my-9">
           <div className="flex flex-col gap-3 lg:gap-6">
             <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
             <div className="flex gap-2 lg:gap-6">
@@ -804,9 +804,9 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={locationRef}>
+        <div ref={locationRef} className="my-4 lg:my-9">
           <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
           <LocationPicker
             value={formData.location}
@@ -820,9 +820,9 @@ export default function ClientDetailPage() {
             colors={darkThemeColors}
           />
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={crewRef} className="space-y-6">
+        <div ref={crewRef} className="my-4 lg:my-9 space-y-6">
           {!formData.startDate || !formData.location ? (
             <div className="p-10 border border-dashed border-white/20 rounded-2xl text-center text-white/40">
               Please select a shoot date and location to view available creatives.
@@ -861,7 +861,7 @@ export default function ClientDetailPage() {
           )}
         </div>
 
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
           <Button

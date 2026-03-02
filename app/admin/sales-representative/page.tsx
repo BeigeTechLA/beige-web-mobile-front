@@ -357,7 +357,7 @@ export default function AdminSaleRepManagerPage() {
             </p>
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <OverviewMetricCards
           metrics={metrics}

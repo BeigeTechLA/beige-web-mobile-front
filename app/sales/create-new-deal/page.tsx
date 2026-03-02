@@ -544,7 +544,7 @@ export default function ClientDetailPage() {
           <span className="text-sm font-medium">Back</span>
         </Button>
 
-        <div className="space-y-6">
+        <div className="space-y-6 my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90">Client Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
             <div className="relative space-y-2">
@@ -607,8 +607,8 @@ export default function ClientDetailPage() {
         </div>
         {/* <DottedDivider /> */}
 
-        <div ref={contentTypeRef}>
-          <h3 className="text-base lg:text-xl font-medium text-white/90 my-3 lg:my-6">Content Type</h3>
+        <div ref={contentTypeRef} className="my-4 lg:my-9">
+          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ContentTypeCheckbox
               label="Select All"
@@ -637,8 +637,8 @@ export default function ClientDetailPage() {
         </div>
         {/* <DottedDivider /> */}
 
-        <div ref={shootTypeRef}>
-          <h3 className="text-base lg:text-xl font-medium text-white/90 my-3 lg:my-6">
+        <div ref={shootTypeRef} className="my-4 lg:my-9">
+          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
             {formData.contentType.length > 1 ? "Video and Photo Shoot Type" : "Shoot Type"}
           </h3>
           <FloatingLabelDropdown
@@ -656,8 +656,8 @@ export default function ClientDetailPage() {
         </div>
         {/* <DottedDivider /> */}
 
-        <div ref={dateTimeRef}>
-          <h3 className="text-base lg:text-xl font-medium my-3 lg:my-6 text-white/90">Shoot Date & Time</h3>
+        <div ref={dateTimeRef} className="my-4 lg:my-9">
+          <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">Shoot Date & Time</h3>
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="flex-1">
               <DatePicker
@@ -692,8 +692,8 @@ export default function ClientDetailPage() {
         </div>
         {/* <DottedDivider /> */}
 
-        <div ref={editsRef}>
-          <h3 className="text-lg lg:text-[28px] font-medium my-3 lg:my-6 text-white/90">Edits Needed?</h3>
+        <div ref={editsRef} className="my-4 lg:my-9">
+          <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">Edits Needed?</h3>
           <div className="flex gap-4">
             <button
               onClick={() => { updateData({ editsNeeded: true }); }}
@@ -752,7 +752,7 @@ export default function ClientDetailPage() {
         </div>
         {/* <DottedDivider /> */}
 
-        <div ref={extraTeamRef}>
+        <div ref={extraTeamRef} className="my-4 lg:my-9">
           <div className="flex flex-col gap-3 lg:gap-6">
             <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
             <div className="flex gap-2 lg:gap-6">
@@ -803,8 +803,8 @@ export default function ClientDetailPage() {
         </div>
         {/* <DottedDivider /> */}
 
-        <div ref={locationRef}>
-          <h3 className="text-xl font-medium text-white/90 my-6">Select Location</h3>
+        <div ref={locationRef} className="my-4 lg:my-9">
+          <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
           <LocationPicker
             value={formData.location}
             onChange={(address, details) => {
@@ -819,7 +819,7 @@ export default function ClientDetailPage() {
         </div>
         {/* <DottedDivider /> */}
 
-        <div ref={crewRef} className="space-y-6 mt-4 md:mt-6">
+        <div ref={crewRef} className="my-4 lg:my-9 space-y-6">
           {!formData.startDate || !formData.location ? (
             <div className="p-10 border border-dashed border-white/20 rounded-2xl text-center text-white/40">
               Please select a shoot date and location to view available creatives.
