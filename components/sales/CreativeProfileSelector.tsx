@@ -138,11 +138,11 @@ export const CreativeProfileSelector = ({
         <div className="flex gap-3">
           <div className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-lg text-sm text-white/70">
             <Video size={16} className={selectedDetails.v >= videographerCount && videographerCount > 0 ? "text-green-500" : "text-white/70"} />
-            <span>Videographer(s) : {selectedDetails.v.toString().padStart(2, '0')}/{videographerCount.toString().padStart(2, '0')}</span>
+            <span>Videographer(s) : {selectedDetails.v.toString()}/{videographerCount.toString()}</span>
           </div>
           <div className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-lg text-sm text-white/70">
             <Camera size={16} className={selectedDetails.p >= photographerCount && photographerCount > 0 ? "text-green-500" : "text-white/70"} />
-            <span>Photographers(s) : {selectedDetails.p.toString().padStart(2, '0')}/{photographerCount.toString().padStart(2, '0')}</span>
+            <span>Photographers(s) : {selectedDetails.p.toString()}/{photographerCount.toString()}</span>
           </div>
         </div>
       </div>
@@ -264,7 +264,7 @@ const CreativeCard = ({ creative, isSelected, onToggle }: CreativeCardProps) => 
         <div className="flex flex-col lg:flex-row gap-4 md:gap-8 text-sm border-t border-white/5 pt-3 lg:pt-5">
           <div>
             <p className="text-[#AAA7A7] mb-1">Assigned Shoots:</p>
-            <p className="text-white font-medium">{creative.shoots.toString().padStart(2, '0')} Shoots</p>
+            <p className="text-white font-medium">{creative.shoots.toString()} Shoots</p>
           </div>
           <div className="md:border-x-2 border-white/5 md:px-8">
             <p className="text-[#AAA7A7] mb-1">Specialities:</p>

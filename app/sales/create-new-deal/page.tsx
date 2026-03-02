@@ -559,7 +559,7 @@ export default function ClientDetailPage() {
             </div>
 
             <div className="relative space-y-2">
-              <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email Id</Label>
+              <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -605,10 +605,10 @@ export default function ClientDetailPage() {
             />
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={contentTypeRef}>
-          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
+          <h3 className="text-base lg:text-xl font-medium text-white/90 my-3 lg:my-6">Content Type</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ContentTypeCheckbox
               label="Select All"
@@ -635,10 +635,10 @@ export default function ClientDetailPage() {
             <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} checked={false} onChange={() => { }} disabled={true} />
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={shootTypeRef}>
-          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
+          <h3 className="text-base lg:text-xl font-medium text-white/90 my-3 lg:my-6">
             {formData.contentType.length > 1 ? "Video and Photo Shoot Type" : "Shoot Type"}
           </h3>
           <FloatingLabelDropdown
@@ -654,10 +654,10 @@ export default function ClientDetailPage() {
             required
           />
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={dateTimeRef}>
-          <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">Shoot Date & Time</h3>
+          <h3 className="text-base lg:text-xl font-medium my-3 lg:my-6 text-white/90">Shoot Date & Time</h3>
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="flex-1">
               <DatePicker
@@ -690,10 +690,10 @@ export default function ClientDetailPage() {
             </div>
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={editsRef}>
-          <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">Edits Needed?</h3>
+          <h3 className="text-lg lg:text-[28px] font-medium my-3 lg:my-6 text-white/90">Edits Needed?</h3>
           <div className="flex gap-4">
             <button
               onClick={() => { updateData({ editsNeeded: true }); }}
@@ -750,7 +750,7 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={extraTeamRef}>
           <div className="flex flex-col gap-3 lg:gap-6">
@@ -801,10 +801,10 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={locationRef}>
-          <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
+          <h3 className="text-xl font-medium text-white/90 my-6">Select Location</h3>
           <LocationPicker
             value={formData.location}
             onChange={(address, details) => {
@@ -817,9 +817,9 @@ export default function ClientDetailPage() {
             colors={darkThemeColors}
           />
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={crewRef} className="space-y-6">
+        <div ref={crewRef} className="space-y-6 mt-4 md:mt-6">
           {!formData.startDate || !formData.location ? (
             <div className="p-10 border border-dashed border-white/20 rounded-2xl text-center text-white/40">
               Please select a shoot date and location to view available creatives.
@@ -850,7 +850,7 @@ export default function ClientDetailPage() {
           )}
         </div>
 
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
           <Button

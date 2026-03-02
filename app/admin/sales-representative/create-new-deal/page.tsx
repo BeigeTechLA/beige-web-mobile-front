@@ -562,7 +562,7 @@ export default function ClientDetailPage() {
             </div>
 
             <div className="relative space-y-2">
-              <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email Id</Label>
+              <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email</Label>
               <Input
                 id="email"
                 type="email"
