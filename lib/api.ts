@@ -1062,7 +1062,11 @@ export const adminApi = {
       const response = await api.post('admin/dashboard-detail', payload);
       return response.data;
     } catch (error: any) {
-      console.error('Get Admin Dashboard Detail Error:', error.response?.data || error.message);
+      // Suppress error logging for 401/403 as this happens when non-admins (e.g. Sales Reps) view CP profiles
+      const status = error.response?.status;
+      if (status !== 401 && status !== 403) {
+        console.error('Get Admin Dashboard Detail Error:', error.response?.data || error.message);
+      }
       return {
         success: false,
         data: null,

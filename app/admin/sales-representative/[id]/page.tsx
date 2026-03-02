@@ -37,6 +37,12 @@ import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
 import Topbar from "@/components/admin/Topbar";
 import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CreativePartnerProfile } from "@/components/admin/users/CreativePartnerProfile";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -71,6 +77,8 @@ export default function LeadDetailPage() {
   const [generatedCode, setGeneratedCode] = useState<string>("");
   const [activeCPIndex, setActiveCPIndex] = useState(0);
   const [generatedDiscountId, setGeneratedDiscountId] = useState<number | undefined>(undefined);
+  const [isCPModalOpen, setIsCPModalOpen] = useState(false);
+  const [selectedCPId, setSelectedCPId] = useState<string | null>(null);
 
 
   // Fetch real lead data
@@ -234,6 +242,11 @@ export default function LeadDetailPage() {
       console.error("Failed to unassign crew member:", error);
       toast.error("Failed to unassign crew member");
     }
+  };
+
+  const handleCPClick = (cpId: number) => {
+    setSelectedCPId(cpId.toString());
+    setIsCPModalOpen(true);
   };
 
   if (isLoading) {
@@ -403,7 +416,8 @@ export default function LeadDetailPage() {
                       {assignedCPs.map((cp, index) => (
                         <SwiperSlide key={cp.id} className="flex items-center justify-center">
                           <div
-                            className={`relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] rounded-[20px] overflow-hidden transition-all duration-500 ${cp.bgColor}`}
+                            onClick={() => handleCPClick(cp.id)}
+                            className={`relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] rounded-[20px] overflow-hidden transition-all duration-500 cursor-pointer hover:ring-2 hover:ring-[#E8D1AB]/50 ${cp.bgColor}`}
                           >
                             {cp.image ? (
                               <img
@@ -726,6 +740,19 @@ export default function LeadDetailPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={isCPModalOpen} onOpenChange={setIsCPModalOpen}>
+        <DialogContent className="max-w-5xl bg-[#101010] border-[#333] text-white overflow-y-auto max-h-[90vh] no-scrollbar p-0">
+          <div className="sr-only">
+            <DialogTitle>Creative Partner Profile</DialogTitle>
+          </div>
+          <div className="p-6">
+            {selectedCPId && (
+              <CreativePartnerProfile id={selectedCPId} hideActions={true} />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
