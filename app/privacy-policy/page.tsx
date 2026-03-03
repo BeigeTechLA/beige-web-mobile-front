@@ -266,8 +266,7 @@ export default function PrivacyPage() {
             <h2 className="text-lg lg:text-2xl font-bold text-[#E8D1AB] mb-3 lg:mb-5">8. Cookies & Tracking Technologies</h2>
             <div className="space-y-3 lg:space-y-5">
               <p className="text-white/70 text-sm lg:text-base lg:leading-[28px] font-light">
-                We use cookies and similar tracking technologies (e.g., Google Analytics, Facebook Pixel) to analyse website traffic and enhance user experience. By using our Site, you consent to our cookie practices. For more details, refer to our <span className="text-white font-normal">Cookie Policy.</span>
-                {/* Cookie Policy Link ti be added once avilable */}
+                We use cookies and similar tracking technologies (e.g., Google Analytics, Facebook Pixel) to analyze website traffic and enhance user experience. By using our Site, you consent to our cookie practices.
               </p>
             </div>
           </div>
