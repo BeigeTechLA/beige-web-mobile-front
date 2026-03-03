@@ -55,6 +55,34 @@ import "swiper/css/effect-coverflow";
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
+/** 
+ * UPDATED ROLE MAPPING LOGIC
+ * 1 or 9 -> Videographer
+ * 2 or 10 -> Photographer
+ * 3 or 11 -> Editor
+ */
+const getRoleLabel = (roleData: any): string => {
+  try {
+    let roles: string[] = [];
+    if (typeof roleData === 'string') {
+      if (roleData.startsWith('[')) {
+        roles = JSON.parse(roleData);
+      } else {
+        roles = [roleData];
+      }
+    } else if (Array.isArray(roleData)) {
+      roles = roleData.map(r => r.toString());
+    }
+
+    if (roles.some(r => r === "1" || r === "9")) return "Videographer";
+    if (roles.some(r => r === "2" || r === "10")) return "Photographer";
+    if (roles.some(r => r === "3" || r === "11")) return "Editor";
+    return "Creative Partner";
+  } catch (e) {
+    return "Creative Partner";
+  }
+};
+
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
@@ -121,18 +149,14 @@ export default function LeadDetailPage() {
         ? `${S3_PREFIX}${profileFile.file_path}`
         : null;
       
-      // Determine role label (based on primary_role ID from your JSON)
-      const roleLabel = crew.crew_member.primary_role.includes("1") ? "Videographer" : "Photographer";
-
       return {
         id: crew.crew_member_id,
         name: `${crew.crew_member.first_name} ${crew.crew_member.last_name}`,
         image: imageUrl,
         status: crew.acceptance_status || "pending",
-        role: roleLabel,
+        role: getRoleLabel(crew.crew_member.primary_role),
         inviteSentAt: formatDateUI(crew.created_at),
         respondedAt: formatDateUI(crew.responded_at),
-        bgColor: "bg-blue-200"
       };
     });
 
@@ -281,7 +305,7 @@ export default function LeadDetailPage() {
       <div className="text-white font-sans">
         <Button
           onClick={() => router.back()}
-          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0"
+          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none"
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
@@ -300,7 +324,7 @@ export default function LeadDetailPage() {
         {/* Back Button */}
         <Button
           onClick={() => router.back()}
-          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0"
+          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none"
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
@@ -374,7 +398,7 @@ export default function LeadDetailPage() {
               </div>
             </div>
 
-            {/* Assigned CPs Section */}
+            {/* Assigned CPs Section - FLOATING UI & HOVER PILL & ACTIVE METADATA */}
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-[32px] overflow-hidden">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 lg:p-9 !pb-0 gap-4">
                 <h2 className="text-xl lg:text-2xl font-medium text-white">
@@ -434,36 +458,37 @@ export default function LeadDetailPage() {
                       slidesPerView={1.2}
                       breakpoints={{
                         768: { slidesPerView: 2.2 },
-                        1024: { slidesPerView: 2.5 }
+                        1024: { slidesPerView: 2.6 }
                       }}
                       coverflowEffect={{
-                        rotate: 0,
+                        rotate: 15,
                         stretch: 0,
                         depth: 100,
-                        modifier: 2.5,
+                        modifier: 1,
                         slideShadows: false,
                       }}
                       modules={[EffectCoverflow]}
                       onSlideChange={(swiper) => setActiveCPIndex(swiper.realIndex)}
                       className="w-full py-8"
                     >
-                      {filteredCPs.map((cp) => (
+                      {filteredCPs.map((cp, index) => (
                         <SwiperSlide key={cp.id}>
-                          <div 
-                            onClick={() => handleCPClick(cp.id)}
-                            className="bg-[#111111] border border-[#3D3D3D] rounded-[32px] p-4 flex flex-col gap-4 cursor-pointer hover:border-[#E8D1AB]/50 transition-all"
-                          >
-                            {/* Image with Invite Sent Overlay */}
-                            <div className="relative aspect-[4/3] rounded-[24px] overflow-hidden bg-zinc-800">
+                          <div className="group relative transition-all duration-300">
+                            {/* FLOATING IMAGE AREA */}
+                            <div 
+                              onClick={() => handleCPClick(cp.id)}
+                              className="relative aspect-[1.1/1] rounded-[32px] overflow-hidden bg-zinc-800 shadow-2xl mb-4 cursor-pointer"
+                            >
                               {cp.image ? (
-                                <img src={cp.image} alt={cp.name} className="w-full h-full object-cover object-top" />
+                                <img src={cp.image} alt={cp.name} className="w-full h-full object-cover" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-3xl font-bold">
-                                  {cp.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                                  {cp.name.split(" ").map((n: string) => n[0]).join("")}
                                 </div>
                               )}
                               
-                              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#3D4857]/80 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-[10px] lg:text-xs text-white/90 whitespace-nowrap">
+                              {/* PILL ON HOVER ONLY */}
+                              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-lg px-5 py-2.5 rounded-full border border-white/10 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-10">
                                 Invite Sent: {cp.inviteSentAt}
                               </div>
 
@@ -472,24 +497,24 @@ export default function LeadDetailPage() {
                                   e.stopPropagation();
                                   handleRemoveCP(cp.id);
                                 }}
-                                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 hover:bg-black flex items-center justify-center text-white backdrop-blur-sm transition-all"
+                                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all z-20"
                               >
-                                <X size={20} />
+                                <X size={18} />
                               </button>
                             </div>
 
-                            {/* Info Section */}
-                            <div className="px-2 pb-2">
-                              <div className="flex justify-between items-center mb-4">
+                            {/* METADATA - ONLY SHOW FOR ACTIVE CARD */}
+                            <div className={`px-2 transition-all duration-500 transform ${index === activeCPIndex ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"}`}>
+                              <div className="flex justify-between items-start mb-4">
                                 <div className="min-w-0">
-                                  <h3 className="text-xl font-semibold text-white truncate">{cp.name}</h3>
-                                  <p className="text-[#8E8E8E] text-sm">{cp.role}</p>
+                                  <h3 className="text-xl font-bold text-white truncate leading-tight">{cp.name}</h3>
+                                  <p className="text-[#8E8E8E] text-sm mt-0.5">{cp.role}</p>
                                 </div>
                                 
-                                <div className={`px-4 py-1.5 rounded-lg text-sm font-medium capitalize
-                                  ${cp.status === 'accepted' ? 'bg-[#12B76A]/20 text-[#12B76A]' : 
-                                    cp.status === 'rejected' ? 'bg-red-500/20 text-red-500' : 
-                                    'bg-yellow-500/20 text-yellow-500'}`}
+                                <div className={`px-5 py-2 rounded-xl text-xs font-bold capitalize
+                                  ${cp.status === 'accepted' ? 'bg-[#12B76A] text-white' : 
+                                    cp.status === 'rejected' ? 'bg-red-500 text-white' : 
+                                    'bg-zinc-700 text-white'}`}
                                 >
                                   {cp.status}
                                 </div>
@@ -497,10 +522,10 @@ export default function LeadDetailPage() {
 
                               <hr className="border-t border-[#3D3D3D] mb-4" />
                               
-                              <div className="flex items-center gap-2 text-[#8E8E8E] text-xs">
-                                <Circle size={6} className={`fill-current ${cp.status === 'accepted' ? 'text-[#12B76A]' : 'text-zinc-500'}`} />
+                              <div className="flex items-center gap-2 text-[#8E8E8E] text-[11px] font-medium">
+                                <div className={`w-1.5 h-1.5 rounded-full ${cp.status === 'accepted' ? 'bg-[#12B76A]' : 'bg-zinc-500'}`} />
                                 <span className="capitalize">{cp.status}</span>
-                                <span>—</span>
+                                <span className="mx-0.5">—</span>
                                 <span>{cp.respondedAt || "Awaiting response"}</span>
                               </div>
                             </div>
@@ -611,7 +636,7 @@ export default function LeadDetailPage() {
             </div>
           </div>
 
-          {/* Right Sidebar - Discount Generator */}
+          {/* Right Sidebar - Restored Discount Input Validation Logic */}
           <div className="lg:col-span-4 space-y-3 lg:space-y-6">
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
               <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9 !pb-0">
