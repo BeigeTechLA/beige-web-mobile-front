@@ -23,7 +23,7 @@ import "swiper/css/effect-coverflow";
 
 import { adminApi } from "@/lib/api";
 
-const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";s
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 export const TopCreatives = () => {
   const [activeIndex, setActiveIndex] = useState(1); // Default to center

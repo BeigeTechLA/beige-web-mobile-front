@@ -909,17 +909,18 @@ export const adminApi = {
     try {
       const response = await api.get('admin/get-projects', {
         params,
-        headers: {
-          'Content-Type': 'application/json',
-        }
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Projects Error:', error.response?.data || error.message);
+      console.error('Get Projects Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch projects',
+        error: error.response?.data?.message || error.message || 'Failed to fetch projects',
       };
     }
   },
