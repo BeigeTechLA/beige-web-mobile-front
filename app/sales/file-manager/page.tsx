@@ -192,8 +192,8 @@ export default function SalesFolderManagerPage() {
           />
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-2 justify-between items-center">
-          <div className="flex flex-nowrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit overflow-x-auto no-scrollbar">
+        <div className="flex flex-col lg:flex-row gap-2 justify-between items-center mb-4 lg:mb-9">
+          <div className="shrink-0 flex flex-nowrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit overflow-x-auto no-scrollbar">
             {tabs.map((tab, index) => (
               <Button
                 key={`tab_${index}`}
@@ -212,14 +212,7 @@ export default function SalesFolderManagerPage() {
           </div>
         </div>
 
-        <div
-          className="h-[1px] w-full my-4 lg:my-9"
-          style={{
-            backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-            backgroundSize: '30px 1px', // 30px is the total dash + gap width
-            backgroundRepeat: 'repeat-x'
-          }}
-        />
+        {/* <DottedDivider /> */}
 
         <div className="pb-20 lg:pb-0">
           <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">

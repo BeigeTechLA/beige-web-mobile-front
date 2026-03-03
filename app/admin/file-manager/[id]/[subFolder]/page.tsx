@@ -12,6 +12,7 @@ import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import Topbar from "@/components/admin/Topbar";
+import DottedDivider from "@/components/admin/DottedDivider";
 
 const data = {
   id: "1",
@@ -124,7 +125,7 @@ export default function AdminFileDetailsPage() {
           <span className="text-sm font-medium">Back</span>
         </Button>
         <div>
-          <div className="flex items-center gap-5 mb-2 lg:mb-0">
+          <div className="flex items-center gap-5 mb-2 lg:mb-6">
             <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
               {data.userInitials}
             </div>
@@ -141,9 +142,9 @@ export default function AdminFileDetailsPage() {
           <p className="lg:hidden text-xs text-[#D0D0D0]"><span className="text-[#AAA7A7]">Description: </span>{data.description}</p>
         </div>
 
-        <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+        {/* <DottedDivider /> */}
 
-        <div className="flex flex-col gap-2 lg:gap-5">
+        <div className="flex flex-col gap-2 lg:gap-5 mb-2 lg:mb-6">
           <div className="flex flex-wrap gap-2 lg:gap-5 text-[#AAA7A7] text-sm capitalize divide-x divide-white/10">
             <p className="pr-5">Shoot Date: <span className="text-white">{data.shootDate}</span></p>
             <p className="pr-5">Time: <span className="text-white">{data.time}</span></p>
@@ -157,7 +158,7 @@ export default function AdminFileDetailsPage() {
           <p className="text-[#AAA7A7] text-sm capitalize">Location: <span className="text-white">{data.location}</span></p>
         </div>
 
-        <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+        {/* <DottedDivider /> */}
 
         <div className="pb-20 lg:pb-0">
           <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">

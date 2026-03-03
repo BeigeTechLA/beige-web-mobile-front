@@ -31,6 +31,7 @@ import { StatCard } from "../StatCard";
 import { MobileShootRow } from "../shoot-details/MobileShootRow";
 import { AnimatePresence, motion } from "framer-motion";
 import { PORTFOLIO_ICONS } from "@/app/data/staticData";
+import DottedDivider from "../DottedDivider";
 
 const PORTFOLIO_IMAGES = [
   "/images/crew/CREW(1).png",
@@ -585,15 +586,8 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
         </div>
 
         {/* Divider */}
-        <div
-          className="h-[1px] w-full my-4 lg:my-9"
-
-          style={{
-            backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-            backgroundSize: '30px 1px',
-            backgroundRepeat: 'repeat-x'
-          }}
-        />
+        <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+        {/* <DottedDivider /> */}
 
         {/* Tabs */}
         <div className="flex items-center w-full overflow-x-auto no-scrollbar gap-6 lg:gap-0 lg:justify-between lg:mt-2 px-2">
@@ -620,14 +614,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
             <h2 className={`${SECTION_TITLE_STYLE}`}>Personal Information</h2>
 
             {/* divider */}
-            <div
-              className="h-[1px] w-full my-4 lg:my-9"
-              style={{
-                backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                backgroundSize: '30px 1px',
-                backgroundRepeat: 'repeat-x'
-              }}
-            />
+            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            {/* <DottedDivider /> */}
+
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
               <div>
                 <span className={LABEL_STYLE}>First Name</span>
@@ -663,14 +652,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           <div className="bg-[##101010] border border-[#333] rounded-2xl">
             <h2 className={SECTION_TITLE_STYLE}>Professional Details</h2>
             {/* divider */}
-            <div
-              className="h-[1px] w-full my-4 lg:my-9"
-              style={{
-                backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                backgroundSize: '30px 1px',
-                backgroundRepeat: 'repeat-x'
-              }}
-            />
+            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            {/* <DottedDivider /> */}
+
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
               <div>
                 <span className={LABEL_STYLE}>Primary Role</span>
@@ -699,14 +683,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               Skills <span className="text-[#E5D5B8]">({skillNames.length})</span>
             </h2>
             {/* divider */}
-            <div
-              className="h-[1px] w-full my-4 lg:my-9"
-              style={{
-                backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                backgroundSize: '30px 1px',
-                backgroundRepeat: 'repeat-x'
-              }}
-            />
+            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            {/* <DottedDivider /> */}
+
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-2 lg:gap-3">
               {skillNames.length > 0 ? (
                 skillNames.map(skill => (
@@ -782,14 +761,10 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           ) : (
             <>
               <h2 className={SECTION_TITLE_STYLE}>CP Featured Work</h2>
-              <div
-                className="h-[1px] w-full my-4 lg:my-9"
-                style={{
-                  backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                  backgroundSize: '30px 1px',
-                  backgroundRepeat: 'repeat-x'
-                }}
-              />
+
+              {/* <DottedDivider /> */}
+              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+
               {/* Toolbar */}
               <div className="flex items-center justify-between gap-2 px-5 pb-5 lg:px-8 lg:pb-8">
                 <div className="relative w-full lg:w-[500px]">
@@ -1208,14 +1183,8 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           <h2 className={SECTION_TITLE_STYLE}>CP Certificates</h2>
 
           {/* divider */}
-          <div
-            className="h-[1px] w-full my-4 lg:my-9"
-            style={{
-              backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-              backgroundSize: '30px 1px',
-              backgroundRepeat: 'repeat-x'
-            }}
-          />
+          {/* <DottedDivider /> */}
+          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-5">
             {certificationFiles.length > 0 ? (
@@ -1262,14 +1231,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           <h2 className={SECTION_TITLE_STYLE}>CP Resume</h2>
 
           {/* divider */}
-          <div
-            className="h-[1px] w-full my-4 lg:my-9"
-            style={{
-              backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-              backgroundSize: '30px 1px',
-              backgroundRepeat: 'repeat-x'
-            }}
-          />
+          {/* <DottedDivider /> */}
+          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8 w-full lg:w-[340px]">
             {resumeFile ? (
@@ -1315,14 +1279,8 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           <h2 className={SECTION_TITLE_STYLE}>Portfolio Links</h2>
 
           {/* divider */}
-          <div
-            className="h-[1px] w-full my-4 lg:my-9"
-            style={{
-              backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-              backgroundSize: '30px 1px',
-              backgroundRepeat: 'repeat-x'
-            }}
-          />
+          {/* <DottedDivider /> */}
+          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8">
             {(() => {

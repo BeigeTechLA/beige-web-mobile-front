@@ -11,6 +11,7 @@ import LinkToShootModal from "@/components/production-manager/file-manager/LinkT
 import UploadModal from "@/components/production-manager/file-manager/UploadFilesModal";
 import { MobileFolderRow } from "@/components/production-manager/file-manager/MobileFolderRow";
 import { FileCard } from "@/components/production-manager/file-manager/FileCard";
+import DottedDivider from "@/components/admin/DottedDivider";
 
 // Mock Data for Level 1 (Project View) - Matches Admin [id]/page.tsx
 const projectViewData = {
@@ -162,7 +163,7 @@ export default function ProductionManagerFolderDetailsPage() {
 
             {/* Header Section */}
             <div>
-                <div className="flex items-center gap-5 mb-2 lg:mb-0">
+          <div className="flex items-center gap-5 mb-2 lg:mb-6">
                     <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
                         {currentData.userInitials}
                     </div>
@@ -199,12 +200,12 @@ export default function ProductionManagerFolderDetailsPage() {
                 <p className=" lg:hidden text-xs text-[#D0D0D0]"><span className="text-[#AAA7A7]">Description: </span>{currentData.description}</p>
             </div>
 
-            <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+        {/* <DottedDivider /> */}
 
             {/* Level 2 Info Bar */}
             {isLevel2 && (
                 <>
-                    <div className="flex flex-col gap-2 lg:gap-5">
+                    <div className="flex flex-col gap-2 lg:gap-5 mb-2 lg:mb-6">
                         <div className="flex flex-wrap gap-2 lg:gap-5 text-[#AAA7A7] text-sm capitalize divide-x divide-white/10">
                             {/* @ts-ignore - accessing phaseViewData specific fields */}
                             <p className="pr-5">Shoot Date: <span className="text-white">{currentData.shootDate}</span></p>
@@ -224,7 +225,7 @@ export default function ProductionManagerFolderDetailsPage() {
                         {/* @ts-ignore */}
                         <p className="text-[#AAA7A7] text-sm capitalize">Location: <span className="text-white">{currentData.location}</span></p>
                     </div>
-                    <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+                    {/* <DottedDivider /> */}
                 </>
             )}
 

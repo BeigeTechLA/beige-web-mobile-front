@@ -163,7 +163,7 @@ export const AvailabilityTable = () => {
                 </div>
             </div>
 
-            <div className="w-full h-px bg-[#333] my-6 border-dashed border-b border-white/10" />
+            {/* <div className="w-full h-px bg-[#333] my-6 border-dashed border-b border-white/10" /> */}
 
             {/* Table */}
             <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">

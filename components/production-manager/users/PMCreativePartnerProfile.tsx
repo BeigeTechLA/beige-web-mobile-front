@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/admin/StatCard";
 import { AnimatePresence, motion } from "framer-motion";
 import { PORTFOLIO_ICONS } from "@/app/data/staticData";
+import DottedDivider from "@/components/admin/DottedDivider";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
 
@@ -336,7 +337,9 @@ export const PMCreativePartnerProfile = ({ id }: ProfileProps) => {
                     </div>
                 </div>
 
-                <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+                {/* Divider */}
+                <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+                {/* <DottedDivider /> */}
 
                 <div className="flex items-center w-full overflow-x-auto no-scrollbar gap-6 lg:gap-0 lg:justify-between lg:mt-2 px-2">
                     {['Overview', 'Featured Work', 'Availability', 'Shoots', 'Certificates', 'Resume', 'Portfolio Links'].map((tab) => (
@@ -349,7 +352,9 @@ export const PMCreativePartnerProfile = ({ id }: ProfileProps) => {
                 <>
                     <div className="bg-[#101010] border border-[#333] rounded-2xl">
                         <h2 className={SECTION_TITLE_STYLE}>Personal Information</h2>
-                        <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+                        {/* divider */}
+                        <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+                        {/* <DottedDivider /> */}
                         <div className="px-5 pb-5 lg:px-8 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
                             <div><span className={LABEL_STYLE}>First Name</span><span className={VALUE_STYLE}>{partner.first_name || "N/A"}</span></div>
                             <div><span className={LABEL_STYLE}>Last Name</span><span className={VALUE_STYLE}>{partner.last_name || "N/A"}</span></div>
@@ -360,7 +365,9 @@ export const PMCreativePartnerProfile = ({ id }: ProfileProps) => {
                     </div>
                     <div className="bg-[#101010] border border-[#333] rounded-2xl">
                         <h2 className={SECTION_TITLE_STYLE}>Professional Details</h2>
-                        <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+                        {/* divider */}
+                        <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+                        {/* <DottedDivider /> */}
                         <div className="px-5 pb-5 lg:px-8 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
                             <div><span className={LABEL_STYLE}>Primary Role</span><span className={VALUE_STYLE}>{primaryRole}</span></div>
                             <div><span className={LABEL_STYLE}>Years of Experience</span><span className={VALUE_STYLE}>{partner.years_of_experience || "0"} Years</span></div>
@@ -369,7 +376,9 @@ export const PMCreativePartnerProfile = ({ id }: ProfileProps) => {
                     </div>
                     <div className="bg-[#101010] border border-[#333] rounded-2xl">
                         <h2 className={SECTION_TITLE_STYLE}>Skills <span className="text-[#E5D5B8]">({skillNames.length})</span></h2>
-                        <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+                        {/* divider */}
+                        <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+                        {/* <DottedDivider /> */}
                         <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-2 lg:gap-3">
                             {skillNames.length > 0 ? skillNames.map(skill => (
                                 <div key={skill} className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] rounded-lg text-[#E0E0E0] text-xs lg:text-sm"><span>{skill}</span></div>
@@ -397,7 +406,7 @@ export const PMCreativePartnerProfile = ({ id }: ProfileProps) => {
                     ) : (
                         <>
                             <h2 className={SECTION_TITLE_STYLE}>Featured Work</h2>
-                            <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+                            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-5 pb-5 lg:px-8 lg:pb-8">
                                 {Object.keys(featuredWorkGroups).length > 0 ? Object.entries(featuredWorkGroups).map(([key, group]) => (
                                     <div key={key} onClick={() => { setOpenFolder(`${group.title} (${group.tag})`); setActiveImages(group.images); }} className="bg-[#1A1A1A] border border-[#333] rounded-xl hover:border-[#444] transition-colors group cursor-pointer p-5">
@@ -477,7 +486,9 @@ export const PMCreativePartnerProfile = ({ id }: ProfileProps) => {
             {activeTab === 'Certificates' && (
                 <div className="bg-[#101010] border border-[#333] rounded-2xl">
                     <h2 className={SECTION_TITLE_STYLE}>Certificates</h2>
-                    <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+                    {/* divider */}
+                    {/* <DottedDivider /> */}
+                    <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
                     <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-5">
                         {certificationFiles.length > 0 ? certificationFiles.map((file: any, index: number) => (
                             <div key={index} className="bg-[#0D0D0D] border border-[#222] rounded-2xl p-4 w-full lg:w-[340px] hover:border-[#444] transition-all group">
@@ -493,7 +504,9 @@ export const PMCreativePartnerProfile = ({ id }: ProfileProps) => {
             {activeTab === 'Resume' && (
                 <div className="bg-[#101010] border border-[#333] rounded-2xl lg:min-h-[500px]">
                     <h2 className={SECTION_TITLE_STYLE}>Resume</h2>
-                    <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+
+                    {/* <DottedDivider /> */}
+                    <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
                     <div className="px-5 pb-5 lg:px-8 lg:pb-8 w-full lg:w-[340px]">
                         {resumeFile ? (
                             <div className="bg-[#0D0D0D] border border-[#222] rounded-2xl p-4 hover:border-[#444] transition-all">
@@ -509,7 +522,8 @@ export const PMCreativePartnerProfile = ({ id }: ProfileProps) => {
             {activeTab === 'Portfolio Links' && (
                 <div className="bg-[#101010] border border-[#333] rounded-2xl lg:min-h-[500px]">
                     <h2 className={SECTION_TITLE_STYLE}>Portfolio Links</h2>
-                    <div className="h-[1px] w-full my-4 lg:my-9" style={{ backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`, backgroundSize: '30px 1px', backgroundRepeat: 'repeat-x' }} />
+                    {/* <DottedDivider /> */}
+                    <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
                     <div className="px-5 pb-5 lg:px-8 lg:pb-8">
                         {(() => {
                             const portfolioLinks = partner.crew_member_files?.filter((f: any) => f.file_type === "link") || [];
