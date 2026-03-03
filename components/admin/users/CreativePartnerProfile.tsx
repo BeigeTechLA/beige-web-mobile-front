@@ -12,6 +12,7 @@ import { Loader2 } from "lucide-react";
 
 interface ProfileProps {
   id: string;
+  hideActions?: boolean;
 }
 
 const SECTION_TITLE_STYLE = "lg:text-lg font-medium text-white px-5 pt-5 lg:px-8 lg:pt-8";
@@ -99,7 +100,7 @@ function EventDot({ color, label }: any) {
   );
 }
 
-export const CreativePartnerProfile = ({ id }: ProfileProps) => {
+export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
@@ -134,24 +135,24 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
   };
 
   const getEmbedUrl = (url: string) => {
-  if (!url) return null;
-  
-  let fullUrl = url;
-  if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
-    fullUrl = `https://${fullUrl}`;
-  }
+    if (!url) return null;
 
-  const ytMatch = fullUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/);
-  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=1&rel=0`;
+    let fullUrl = url;
+    if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
+      fullUrl = `https://${fullUrl}`;
+    }
 
-  const vimeoMatch = fullUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
-  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&controls=1`;
+    const ytMatch = fullUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=1&rel=0`;
 
-  const driveMatch = fullUrl.match(/\/d\/(.*?)\//);
-  if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+    const vimeoMatch = fullUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
+    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&controls=1`;
 
-  return fullUrl;
-};
+    const driveMatch = fullUrl.match(/\/d\/(.*?)\//);
+    if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+
+    return fullUrl;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -493,12 +494,14 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
       </div> */}
 
       {/* Top Navigation */}
-      <div className="flex items-center gap-2 text-sm text-[#666] mb-6">
-        <button onClick={() => router.back()} className="flex items-center gap-2 text-[#E0E0E0] hover:text-white transition-colors">
-          <ArrowLeft size={20} />
-          <span>Back</span>
-        </button>
-      </div>
+      {!hideActions && (
+        <div className="flex items-center gap-2 text-sm text-[#666] mb-6">
+          <button onClick={() => router.back()} className="flex items-center gap-2 text-[#E0E0E0] hover:text-white transition-colors">
+            <ArrowLeft size={20} />
+            <span>Back</span>
+          </button>
+        </div>
+      )}
 
       {/* Profile Header Card */}
       <div className="bg-[#101010] border border-[#333] rounded-2xl">
@@ -560,29 +563,31 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
             </div>
           </div>
 
-          {/* Status Badge Only */}
-          <div className="flex flex-col items-end">
-            <span className={`px-4 py-1 lg:px-5 lg:py-2 rounded-full text-xs lg:text-sm font-semibold border h-fit ${status === "Approved" ? "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20" :
-              status === "Pending" ? "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20" :
-                "bg-[#FFF5F5] text-[#FF4D4D] border-[#FF4D4D]/20"
-              }`}>
-              {status}
-            </span>
-            {(status === "Approved" || status === "Rejected") && (
-              <button
-                onClick={() => handleVerifyStatus(status === "Approved" ? 2 : 1)}
-                disabled={isVerifying}
-                className="text-[#666] hover:text-[#E0E0E0] text-xs underline underline-offset-4 disabled:opacity-50 mt-2"
-              >
-                Change to {status === "Approved" ? "Rejected" : "Approved"}
-              </button>
-            )}
-          </div>
+          {!hideActions && (
+            <div className="flex flex-col items-end">
+              <span className={`px-4 py-1 lg:px-5 lg:py-2 rounded-full text-xs lg:text-sm font-semibold border h-fit ${status === "Approved" ? "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20" :
+                status === "Pending" ? "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20" :
+                  "bg-[#FFF5F5] text-[#FF4D4D] border-[#FF4D4D]/20"
+                }`}>
+                {status}
+              </span>
+              {(status === "Approved" || status === "Rejected") && (
+                <button
+                  onClick={() => handleVerifyStatus(status === "Approved" ? 2 : 1)}
+                  disabled={isVerifying}
+                  className="text-[#666] hover:text-[#E0E0E0] text-xs underline underline-offset-4 disabled:opacity-50 mt-2"
+                >
+                  Change to {status === "Approved" ? "Rejected" : "Approved"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Divider */}
         <div
           className="h-[1px] w-full my-4 lg:my-9"
+
           style={{
             backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
             backgroundSize: '30px 1px',
@@ -1389,7 +1394,7 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
       {/* VIDEO PLAYER MODAL */}
       {playingVideo && (
         <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
-          
+
           {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
           <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
             <div className="space-y-1 pointer-events-auto">

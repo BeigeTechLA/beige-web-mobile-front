@@ -44,8 +44,8 @@ export function AuthSplitLayout({
   return (
     <div className="flex min-h-screen w-full bg-[#101010] text-white">
       {/* Left Column - Content */}
-      <div className="flex w-full flex-col pt-10 lg:pt-0 lg:justify-center px-8 lg:w-2/5 lg:px-15">
-        <div className="mx-auto w-full max-w-[520px] lg:py-12">
+      <div className="flex w-full h-full flex-col pt-10 lg:pt-0 lg:justify-center px-8 lg:w-2/5 lg:px-15">
+        <div className="mx-auto my-auto w-full max-w-[520px] lg:py-12">
           {/* Header Navigation */}
           <div className="mb-4 lg:mb-8 flex items-center justify-between">
             {backLink ? (

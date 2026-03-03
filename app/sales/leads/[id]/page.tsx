@@ -39,6 +39,12 @@ import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
 import Topbar from "@/components/admin/Topbar";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CreativePartnerProfile } from "@/components/admin/users/CreativePartnerProfile";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -73,6 +79,8 @@ export default function SalesLeadDetailsPage() {
   const [generatedCode, setGeneratedCode] = useState<string>("");
   const [activeCPIndex, setActiveCPIndex] = useState(0);
   const [generatedDiscountId, setGeneratedDiscountId] = useState<number | undefined>(undefined);
+  const [isCPModalOpen, setIsCPModalOpen] = useState(false);
+  const [selectedCPId, setSelectedCPId] = useState<string | null>(null);
 
 
   // Fetch real lead data
@@ -237,6 +245,11 @@ export default function SalesLeadDetailsPage() {
     }
   };
 
+  const handleCPClick = (cpId: number) => {
+    setSelectedCPId(cpId.toString());
+    setIsCPModalOpen(true);
+  };
+
   if (isLoading) {
     return (
       <div className="text-white font-sans flex items-center justify-center py-20">
@@ -280,7 +293,7 @@ export default function SalesLeadDetailsPage() {
           <div className="lg:col-span-8 space-y-3 lg:space-y-6">
             {/* Client Details Card */}
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-              <div className="flex justify-between items-center p-5 lg:px-9 lg:py-6">
+              <div className="flex justify-between items-center p-5 lg:px-9 lg:py-6 !pb-0">
                 <h2 className="lg:text-xl font-medium text-white">
                   Client Details
                 </h2>
@@ -292,15 +305,11 @@ export default function SalesLeadDetailsPage() {
                   Update Intent
                 </Button>
               </div>
-              <div
-                className="h-[1px] w-full"
-                style={{
-                  backgroundImage: `linear-gradient(to right, #ffffff66 50%, transparent 50%)`,
-                  backgroundSize: "30px 1px",
-                  backgroundRepeat: "repeat-x",
-                }}
-              />
-              <div className="flex flex-col gap-3 lg:gap-6 p-5 lg:p-9">
+
+              {/* <DottedDivider /> */}
+              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+
+              <div className="flex flex-col gap-3 lg:gap-6 p-5 lg:p-9 !pt-0">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-5">
                     <div className="w-13 h-13 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#FFF6D9] text-[#000000] border border-[#FFF6D9] flex items-center justify-center text-xl lg:text-[30px] font-semibold shrink-0">
@@ -370,7 +379,9 @@ export default function SalesLeadDetailsPage() {
                   <Plus className="text-black" size={18} /> Add More CPs
                 </Button>
               </div>
-              <DottedDivider />
+              {/* <DottedDivider /> */}
+              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+
               <div className="p-5 lg:p-9 space-y-6">
                 {/* Slider Section */}
                 <div className="relative pb-4">
@@ -405,7 +416,8 @@ export default function SalesLeadDetailsPage() {
                       {assignedCPs.map((cp, index) => (
                         <SwiperSlide key={cp.id} className="flex items-center justify-center">
                           <div
-                            className={`relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] rounded-[20px] overflow-hidden transition-all duration-500 ${cp.bgColor}`}
+                            onClick={() => handleCPClick(cp.id)}
+                            className={`relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] rounded-[20px] overflow-hidden transition-all duration-500 cursor-pointer hover:ring-2 hover:ring-[#E8D1AB]/50 ${cp.bgColor}`}
                           >
                             {cp.image ? (
                               <img
@@ -467,8 +479,10 @@ export default function SalesLeadDetailsPage() {
                   Edit Details
                 </Button>
               </div>
-              <DottedDivider />
-              <div className="flex flex-col gap-3 lg:gap-5 px-4 lg:px-9 !pt-0">
+              {/* <DottedDivider /> */}
+              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+
+              <div className="flex flex-col gap-3 lg:gap-5 px-4 lg:px-9">
                 {/* Date */}
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
@@ -519,7 +533,9 @@ export default function SalesLeadDetailsPage() {
                   </div>
                 </div>
               </div>
-              <DottedDivider />
+              {/* <DottedDivider /> */}
+              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+
               <div className="p-4 !pt-0 lg:p-9">
                 <BookingStatusStepper currentStep={lead.booking_step || 1} />
               </div>
@@ -527,17 +543,13 @@ export default function SalesLeadDetailsPage() {
 
             {/* Pricing Breakdown Card */}
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-              <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
+              <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9 !pb-0">
                 Pricing Breakdown
               </h2>
-              <div
-                className="h-[1px] w-full"
-                style={{
-                  backgroundImage: `linear-gradient(to right, #ffffff66 50%, transparent 50%)`,
-                  backgroundSize: "30px 1px",
-                  backgroundRepeat: "repeat-x",
-                }}
-              />
+              {/* <DottedDivider /> */}
+              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+
+
               <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
                 <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Base Price</span>
@@ -579,17 +591,12 @@ export default function SalesLeadDetailsPage() {
           {/* Right Sidebar - Discount Generator */}
           <div className="lg:col-span-4 space-y-3 lg:space-y-6">
             <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-              <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9">
+              <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9 !pb-0">
                 Generate Discount
               </h2>
-              <div
-                className="h-[1px] w-full"
-                style={{
-                  backgroundImage: `linear-gradient(to right, #ffffff66 50%, transparent 50%)`,
-                  backgroundSize: "30px 1px",
-                  backgroundRepeat: "repeat-x",
-                }}
-              />
+              {/* <DottedDivider /> */}
+              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+
               <div className="flex flex-col gap-6 p-5 pt-6 lg:p-9">
                 {/* Discount Type Dropdown */}
                 <div className="relative w-full">
@@ -647,7 +654,7 @@ export default function SalesLeadDetailsPage() {
                 </div>
 
                 {/* Discount Value Input */}
-                 <div className="relative">
+                <div className="relative">
                   <label className="absolute -top-2 lg:-top-2.5 left-4 bg-[#171717] px-2 text-xs lg:text-sm text-white/60 capitalize tracking-widest z-10">
                     {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
                   </label>
@@ -732,6 +739,19 @@ export default function SalesLeadDetailsPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={isCPModalOpen} onOpenChange={setIsCPModalOpen}>
+        <DialogContent className="max-w-5xl bg-[#101010] border-[#333] text-white overflow-y-auto max-h-[90vh] no-scrollbar p-0">
+          <div className="sr-only">
+            <DialogTitle>Creative Partner Profile</DialogTitle>
+          </div>
+          <div className="p-6">
+            {selectedCPId && (
+              <CreativePartnerProfile id={selectedCPId} hideActions={true} />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

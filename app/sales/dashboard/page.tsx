@@ -360,7 +360,7 @@ export default function SalesLeadsPage() {
             </p>
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <OverviewMetricCards
           metrics={metrics}
