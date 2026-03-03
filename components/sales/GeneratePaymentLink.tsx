@@ -106,7 +106,7 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, activeLink }: 
   };
 
   return (
-    <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl w-full max-w-[500px] overflow-hidden">
+    <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl w-full max-w-[500px] lg:max-w-6xl overflow-hidden">
       <div className="flex items-center justify-between px-5 lg:px-9 pt-5 lg:pt-8">
         <h2 className="lg:text-xl font-medium text-white">Payment Link</h2>
         {paymentData && !paymentData.isExpired && (
@@ -124,8 +124,9 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, activeLink }: 
           </Button>
         )}
       </div>
+              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
 
-      <DottedDivider />
+      {/* <DottedDivider /> */}
 
       <div className="px-5 pb-6 lg:pb-9 lg:px-9">
         {!paymentData || (paymentData.isExpired && !activeLink) ? (

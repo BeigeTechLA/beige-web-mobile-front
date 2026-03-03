@@ -93,7 +93,7 @@ export default function ClientFullDetailPage() {
               </div>
             </div>
 
-            <DottedDivider />
+            {/* <DottedDivider /> */}
 
             <div className="px-6 lg:px-9 pb-8 space-y-6">
               <div className="flex items-center gap-5">

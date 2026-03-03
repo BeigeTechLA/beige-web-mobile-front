@@ -31,6 +31,7 @@ import {
 import "swiper/css";
 import StackedVideoScroll from "../components/VideoSlide";
 import { ProjectSwitcher } from "../components/ProjectSwitcher";
+import { FeaturedWork } from "../components/FeaturedWork";
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
@@ -146,7 +147,7 @@ function CreatorProfileContent() {
     if (!profile?.files) return { dynamicCategories: ["All"], dynamicPortfolioImages: [] };
 
     const recentWorks = profile.files.filter((file: any) => file.file_type === "recent_work");
-    
+
     // Extract unique titles (e.g., "Wedding", "Recent") from the API
     const titles = Array.from(new Set(recentWorks.map((f: any) => f.title || "Recent")));
     const categories = titles.length > 0 ? ["All", ...titles] : ["All"];
@@ -199,14 +200,14 @@ function CreatorProfileContent() {
 
   // Prepare recommended creators
   const recommendedCreators = recommendedData?.data?.map((creator) => ({
-  id: creator.crew_member_id.toString(),
-  name: creator.name,
-  role: creator.role_name || "Content Creator",
-  hourlyRate: creator.hourly_rate || 0,
-  rating: creator.rating || 0,
-  reviews: creator.total_reviews || 0,
-  image: creator.profile_photo ? `${S3_PREFIX}${creator.profile_photo}` : '/images/influencer/default.png',
-})) || [];
+    id: creator.crew_member_id.toString(),
+    name: creator.name,
+    role: creator.role_name || "Content Creator",
+    hourlyRate: creator.hourly_rate || 0,
+    rating: creator.rating || 0,
+    reviews: creator.total_reviews || 0,
+    image: creator.profile_photo ? `${S3_PREFIX}${creator.profile_photo}` : '/images/influencer/default.png',
+  })) || [];
 
   return (
     <div className="pt-20 lg:pt-32 pb-20">
@@ -241,33 +242,33 @@ function CreatorProfileContent() {
               <div className="flex-1 lg:w-1/2 flex flex-col gap-3 lg:gap-[30px]">
                 {/* Header Info */}
                 {/* Header Info */}
-<div className="flex flex-col gap-3">
-  {/* Grouping Name and Status Tags together */}
-  <div className="flex items-center justify-between lg:justify-start lg:gap-6 flex-wrap">
-    <h1 className="text-lg lg:text-3xl font-medium text-white whitespace-nowrap">
-      {profile.name}
-    </h1>
-    
-    <div className="flex items-center gap-2">
-      {isSelected && (
-        <div className="flex items-center gap-1 bg-green-500/90 px-3 py-1.5 lg:px-4 lg:py-2 rounded-full">
-          <Check className="w-3 h-3 lg:w-4 lg:h-4 text-white" />
-          <span className="text-[10px] lg:text-sm text-white font-medium">In Crew</span>
-        </div>
-      )}
-      {profile.isAvailable && (
-        <p className="bg-[#EDF7EE] text-[#4CAF50] text-[10px] lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50] lg:leading-[20px]">
-          Available
-        </p>
-      )}
-    </div>
-  </div>
+                <div className="flex flex-col gap-3">
+                  {/* Grouping Name and Status Tags together */}
+                  <div className="flex items-center justify-between lg:justify-start lg:gap-6 flex-wrap">
+                    <h1 className="text-lg lg:text-3xl font-medium text-white whitespace-nowrap">
+                      {profile.name}
+                    </h1>
 
-  <p className="text-[#E8D1AB] text-sm lg:text-[22px]">
-    {profile.role_name || (profile.role === '["2"]' ? "Videographer" : "Content Creator")}
-  </p>
-</div>
-<Separator />
+                    <div className="flex items-center gap-2">
+                      {isSelected && (
+                        <div className="flex items-center gap-1 bg-green-500/90 px-3 py-1.5 lg:px-4 lg:py-2 rounded-full">
+                          <Check className="w-3 h-3 lg:w-4 lg:h-4 text-white" />
+                          <span className="text-[10px] lg:text-sm text-white font-medium">In Crew</span>
+                        </div>
+                      )}
+                      {profile.isAvailable && (
+                        <p className="bg-[#EDF7EE] text-[#4CAF50] text-[10px] lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50] lg:leading-[20px]">
+                          Available
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-[#E8D1AB] text-sm lg:text-[22px]">
+                    {profile.role_name || (profile.role === '["2"]' ? "Videographer" : "Content Creator")}
+                  </p>
+                </div>
+                <Separator />
 
                 {/* About */}
                 {profile.bio && (
@@ -302,7 +303,6 @@ function CreatorProfileContent() {
                   </>
                 )}
 
-                {/* Equipment */}
                 {/* Equipment */}
                 {profile.equipment && profile.equipment.length > 0 && (
                   <>
@@ -365,36 +365,35 @@ function CreatorProfileContent() {
         <CenteredSeparator />
 
         {/* Featured Works - DYNAMIC */}
-        {/* Featured Works - DYNAMIC */}
-<section className="mt-14 lg:my-20 overflow-hidden">
-  <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
-    <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
-      <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
-        Featured Works
-      </h2>
-    </div>
+        <section className="mt-14 lg:my-20 overflow-hidden">
+          <div className=" mx-auto relative overflow-hidden px-5 lg:px-0">
+            <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
+              <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight">
+                Featured Works
+              </h2>
+            </div>
 
-    {dynamicCategories.length > 1 && (
-      <ProjectSwitcher
-        projects={dynamicCategories}
-        active={activeProject}
-        onChange={(tab) => {
-          setActiveProject(tab);
-        }}
-        className="mx-auto mb-10"
-      />
-    )}
+            {dynamicCategories.length > 1 && (
+              <ProjectSwitcher
+                projects={dynamicCategories}
+                active={activeProject}
+                onChange={(tab) => {
+                  setActiveProject(tab);
+                }}
+                className="mx-auto mb-10"
+              />
+            )}
 
-    {dynamicPortfolioImages.length > 0 ? (
-      /* ADD A KEY HERE BASED ON activeProject */
-      <ImageWheel key={activeProject} images={dynamicPortfolioImages} />
-    ) : (
-      <div className="py-20 text-center text-white/40">
-        No portfolio items available for this category.
-      </div>
-    )}
-  </div>
-</section>
+            {dynamicPortfolioImages.length > 0 ? (
+              /* ADD A KEY HERE BASED ON activeProject */
+              <FeaturedWork key={activeProject} items={dynamicPortfolioImages} />
+            ) : (
+              <div className="py-20 text-center text-white/40">
+                No portfolio items available for this category.
+              </div>
+            )}
+          </div>
+        </section>
 
         <CenteredSeparator />
 
@@ -477,7 +476,6 @@ function CreatorProfileContent() {
                 </div>
               )}
             </div>
-
           </div>
         </section>
       </div>

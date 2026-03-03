@@ -6,6 +6,7 @@ import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
+import DottedDivider from '@/components/admin/DottedDivider';
 
 export default function SalesShootsPage() {
   const router = useRouter()
@@ -50,15 +51,7 @@ export default function SalesShootsPage() {
           />
         </div>
 
-        {/* Divider */}
-        <div
-          className="h-[1px] w-full my-4 lg:my-9"
-          style={{
-            backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-            backgroundSize: '30px 1px',
-            backgroundRepeat: 'repeat-x'
-          }}
-        />
+        {/* <DottedDivider /> */}
 
         <SalesShootsTable externalSelectedDate={selectedDate} />
 

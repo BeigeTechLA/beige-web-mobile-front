@@ -54,7 +54,7 @@ export default function ClientFullDetailPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans max-w-7xl mx-auto">
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans mx-auto">
 
         <Button
           onClick={() => router.back()}
@@ -85,7 +85,7 @@ export default function ClientFullDetailPage() {
               </div>
             </div>
 
-            <DottedDivider />
+            {/* <DottedDivider /> */}
 
             <div className="px-6 lg:px-9 pb-8 space-y-6">
               <div className="flex items-center gap-5">
