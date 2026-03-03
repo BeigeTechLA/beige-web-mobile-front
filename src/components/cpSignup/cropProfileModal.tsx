@@ -26,18 +26,20 @@ export default function CropProfileModal({ image, onClose, onSave }) {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
+      if (!ctx || !croppedPixels) return;
+
       canvas.width = croppedPixels.width;
       canvas.height = croppedPixels.height;
 
-      ctx.beginPath();
-      ctx.arc(
-        croppedPixels.width / 2,
-        croppedPixels.height / 2,
-        croppedPixels.width / 2,
-        0,
-        Math.PI * 2
-      );
-      ctx.clip();
+      // ctx.beginPath();
+      // ctx.arc(
+      //   croppedPixels.width / 2,
+      //   croppedPixels.height / 2,
+      //   croppedPixels.width / 2,
+      //   0,
+      //   Math.PI * 2
+      // );
+      // ctx.clip();
 
       ctx.drawImage(
         img,
@@ -77,7 +79,7 @@ export default function CropProfileModal({ image, onClose, onSave }) {
               crop={crop}
               zoom={zoom}
               aspect={1}
-              cropShape="round"
+              cropShape="rect"
               showGrid={false}
               onCropChange={setCrop}
               onZoomChange={setZoom}

@@ -108,11 +108,11 @@ export default function ClientDetailPage() {
             <div className="flex gap-3">
               <div className="h-12 flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-lg text-sm text-white/70">
                 <Video size={16} />
-                <span>Videographer(s) : {selectionCounts.videographer}/{reqCounts.videographer}</span>
+                <span>Videographer(s) : {selectionCounts.videographer.toString()}/{reqCounts.videographer.toString()}</span>
               </div>
               <div className="h-12 flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-lg text-sm text-white/70">
                 <Camera size={16} />
-                <span>Photographers(s) : {selectionCounts.photographer}/{reqCounts.photographer}</span>
+                <span>Photographers(s) : {selectionCounts.photographer.toString()}/{reqCounts.photographer.toString()}</span>
               </div>
             </div>
 
