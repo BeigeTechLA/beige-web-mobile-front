@@ -8,7 +8,9 @@ export default function ForgotPasswordPage() {
       imageAlt="Forgot Password"
       backLink="/login"
     >
-      <ForgotPasswordForm />
+      <div className="my-50">
+        <ForgotPasswordForm />
+      </div>
     </AuthSplitLayout>
   )
 }

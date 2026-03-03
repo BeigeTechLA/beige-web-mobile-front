@@ -623,10 +623,10 @@ export default function ClientDetailPage() {
             <p className="text-sm text-white/40">{clientProfile?.user?.email}</p>
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Content Type */}
-        <div ref={contentTypeRef}>
+        <div ref={contentTypeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ContentTypeCheckbox
@@ -668,10 +668,10 @@ export default function ClientDetailPage() {
             />
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Shoot Type */}
-        <div ref={shootTypeRef}>
+        <div ref={shootTypeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
             {formData.contentType.length > 1 ? "Video and Photo Shoot Type" : formData.contentType.includes("videographer") ? "Video Shoot Type" : "Photo Shoot Type"}
           </h3>
@@ -685,10 +685,10 @@ export default function ClientDetailPage() {
             required
           />
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Date & Time */}
-        <div ref={dateTimeRef}>
+        <div ref={dateTimeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">
             Shoot Date & Time
           </h3>
@@ -724,10 +724,10 @@ export default function ClientDetailPage() {
             </div>
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Edits Needed */}
-        <div ref={editsRef}>
+        <div ref={editsRef} className="my-4 lg:my-9">
           <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">
             Edits Needed?
           </h3>
@@ -787,10 +787,10 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Additional Creatives */}
-        <div ref={extraTeamRef}>
+        <div ref={extraTeamRef} className="my-4 lg:my-9">
           <div className="flex flex-col gap-3 lg:gap-6">
             <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
             <div className="flex gap-2 lg:gap-6">
@@ -841,10 +841,10 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Location */}
-        <div ref={locationRef}>
+        <div ref={locationRef} className="my-4 lg:my-9">
           <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
           <LocationPicker
             value={formData.location}
@@ -853,10 +853,10 @@ export default function ClientDetailPage() {
             colors={darkThemeColors}
           />
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Crew Selection */}
-        <div ref={crewRef}>
+        <div ref={crewRef} className="my-4 lg:my-9">
           {!formData.startDate || !formData.location ? (
             <div className="p-10 border border-dashed border-white/20 rounded-2xl text-center text-white/40">
               Please select a shoot date and location to view available creatives.
@@ -887,7 +887,7 @@ export default function ClientDetailPage() {
           )}
         </div>
 
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
           <Button
