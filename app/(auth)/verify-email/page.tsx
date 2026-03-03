@@ -22,6 +22,20 @@ function VerifyEmailContent() {
   } = useAuth()
 
   const [isResending, setIsResending] = React.useState(false)
+  
+  // --- Timer State (60 seconds) ---
+  const [timer, setTimer] = React.useState(60)
+
+  // --- Countdown Logic ---
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1)
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [timer])
 
   const handleVerify = async (code: string) => {
     if (!email) {
@@ -37,14 +51,12 @@ function VerifyEmailContent() {
 
       toast.success(result.message || "Email verified successfully!")
 
-      // Check for stored credentials to perform auto-login
       const storedCreds = sessionStorage.getItem('temp_login_credentials');
 
       if (storedCreds) {
         try {
           const { email: storedEmail, password } = JSON.parse(storedCreds);
 
-          // Verify emails match to avoid security issues
           if (storedEmail === email) {
             await login({ email, password });
             sessionStorage.removeItem('temp_login_credentials');
@@ -56,8 +68,6 @@ function VerifyEmailContent() {
         }
       }
 
-      // If user was auto-logged in via token or manual login failed, redirect to affiliate dashboard
-      // Otherwise redirect to login
       setTimeout(() => {
         if (result.token) {
           router.push('/affiliate/dashboard')
@@ -77,10 +87,15 @@ function VerifyEmailContent() {
       return
     }
 
+    // Prevent clicking if timer is still running
+    if (timer > 0) return
+
     setIsResending(true)
     try {
       const result = await resendOTP(email)
       toast.success(result.message || "Verification code sent!")
+      // Reset timer to 60 seconds on success
+      setTimer(60)
     } catch (error: any) {
       const errorMessage = error?.data?.message || error?.message || "Failed to resend code. Please try again."
 
@@ -102,13 +117,14 @@ function VerifyEmailContent() {
       onResend={handleResend}
       isVerifying={isVerifyEmailLoading || isLoginLoading}
       isResending={isResending || isResendOTPLoading}
+      timer={timer} // Passing timer to UI
     />
   )
 }
 
 export default function VerifyEmailPage() {
   return (
-    <React.Suspense fallback={<div className="text-white">Loading...</div>}>
+    <React.Suspense fallback={<div className="text-white min-h-screen flex items-center justify-center bg-[#101010]">Loading...</div>}>
       <VerifyEmailContent />
     </React.Suspense>
   )

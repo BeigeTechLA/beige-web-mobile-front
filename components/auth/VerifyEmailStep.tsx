@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { ShieldCheck } from "lucide-react"
 import Image from "next/image"
 
 interface VerifyEmailStepProps {
@@ -11,9 +10,17 @@ interface VerifyEmailStepProps {
   onResend: () => void
   isVerifying?: boolean
   isResending?: boolean
+  timer: number // Added timer prop
 }
 
-export function VerifyEmailStep({ email, onVerify, onResend, isVerifying = false, isResending = false }: VerifyEmailStepProps) {
+export function VerifyEmailStep({ 
+  email, 
+  onVerify, 
+  onResend, 
+  isVerifying = false, 
+  isResending = false,
+  timer 
+}: VerifyEmailStepProps) {
   const [otp, setOtp] = React.useState(["", "", "", "", "", ""])
   const inputRefs = React.useRef<(HTMLInputElement | null)[]>([])
 
@@ -24,7 +31,6 @@ export function VerifyEmailStep({ email, onVerify, onResend, isVerifying = false
     newOtp[index] = value.substring(value.length - 1)
     setOtp(newOtp)
 
-    // Move to next input
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus()
     }
@@ -50,27 +56,28 @@ export function VerifyEmailStep({ email, onVerify, onResend, isVerifying = false
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center w-full bg-[#101010] text-white">
-      <div className="flex flex-col items-center text-center space-y-6 mx-auto">
+    <div className="flex min-h-screen items-center justify-center w-full bg-[#101010] text-white p-4">
+      <div className="flex flex-col items-center text-center space-y-6 mx-auto max-w-md w-full">
         <div className="mb-6 lg:mb-15">
           <div className="flex-shrink-0 w-20 h-18 lg:w-[290px] lg:h-[247px]">
             <Image
               src={"/images/loginsignup/verifyEmail.svg"}
               alt={"Verify Email"}
-              width={82}
-              height={82}
-              className="w-full h-full object-cover"
+              width={290}
+              height={247}
+              className="w-full h-full object-contain"
               priority
             />
           </div>
         </div>
 
-        <div className="space-y-6">
-          <h1 className="text-lg lg:text-4xl font-semibold tracking-tight text-white">
+        <div className="space-y-4">
+          <h1 className="text-2xl lg:text-4xl font-semibold tracking-tight text-white">
             Verify Email Address
           </h1>
-          <p className="text-sm lg:text-base text-[#9E9696] mx-auto">
-            We've sent a 6-digit verification code to your email address {email}
+          <p className="text-sm lg:text-base text-[#9E9696] px-4">
+            We've sent a 6-digit verification code to your email address: <br />
+            <span className="text-white font-medium">{email}</span>
           </p>
         </div>
 
@@ -92,11 +99,24 @@ export function VerifyEmailStep({ email, onVerify, onResend, isVerifying = false
 
         <div className="space-y-4 lg:space-y-8 w-full">
           <p className="text-sm text-[#969696]">
-            Didn't received any code ? <button onClick={onResend} disabled={isResending} className="text-[#E8D1AB] hover:underline disabled:opacity-50">{isResending ? "Sending..." : "Resend OTP"}</button>
+            Didn't receive any code?{" "}
+            <button 
+              onClick={onResend} 
+              disabled={isResending || timer > 0} 
+              className="text-[#E8D1AB] hover:underline disabled:opacity-50 disabled:no-underline font-medium"
+            >
+              {isResending 
+                ? "Sending..." 
+                : timer > 0 
+                  ? `Resend OTP in ${timer}s` 
+                  : "Resend OTP"
+              }
+            </button>
           </p>
+          
           <Button
             onClick={() => onVerify(otp.join(""))}
-            className="w-5/6 lg:w-full bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-9 lg:h-[76px] text-sm md:text-xl font-medium mt-1"
+            className="w-full bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-12 lg:h-[76px] text-sm md:text-xl font-medium"
             disabled={otp.some(d => !d) || isVerifying}
           >
             {isVerifying ? "Verifying..." : "Verify Email"}
@@ -106,4 +126,3 @@ export function VerifyEmailStep({ email, onVerify, onResend, isVerifying = false
     </div>
   )
 }
-
