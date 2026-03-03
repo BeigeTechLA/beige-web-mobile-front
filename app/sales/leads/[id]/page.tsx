@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
 import Image from "next/image";
 
@@ -54,6 +54,36 @@ import { EffectCoverflow } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
+/** 
+ * UPDATED ROLE MAPPING LOGIC
+ * 1 or 9 -> Videographer
+ * 2 or 10 -> Photographer
+ * 3 or 11 -> Editor
+ */
+const getRoleLabel = (roleData: any): string => {
+  try {
+    let roles: string[] = [];
+    if (typeof roleData === 'string') {
+      if (roleData.startsWith('[')) {
+        roles = JSON.parse(roleData);
+      } else {
+        roles = [roleData];
+      }
+    } else if (Array.isArray(roleData)) {
+      roles = roleData.map(r => r.toString());
+    }
+
+    if (roles.some(r => r === "1" || r === "9")) return "Videographer";
+    if (roles.some(r => r === "2" || r === "10")) return "Photographer";
+    if (roles.some(r => r === "3" || r === "11")) return "Editor";
+    return "Creative Partner";
+  } catch (e) {
+    return "Creative Partner";
+  }
+};
+
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
@@ -61,7 +91,16 @@ const mapLeadStatusToUI = (status: string): string => {
   return "In-Progress";
 };
 
-const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+// Helper to format date for the UI (e.g., 12 Mar 2026)
+const formatDateUI = (dateStr: string | null | undefined) => {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
 
 export default function SalesLeadDetailsPage() {
   const router = useRouter();
@@ -75,6 +114,8 @@ export default function SalesLeadDetailsPage() {
   const [showDiscountCode, setShowDiscountCode] = useState(false);
   const [discountType, setDiscountType] = useState<"percentage" | "fixed_amount">("percentage");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
   const [usageType, setUsageType] = useState<"one_time" | "multi_use">("one_time");
   const [generatedCode, setGeneratedCode] = useState<string>("");
   const [activeCPIndex, setActiveCPIndex] = useState(0);
@@ -102,23 +143,31 @@ export default function SalesLeadDetailsPage() {
   const lead = leadData;
   const booking = lead?.booking;
 
-  // Extract CPs from assigned_crews
-  const assignedCPs = booking?.assigned_crews?.map((crew: any) => {
-    const profileFile = crew.crew_member?.crew_member_files?.[0];
-    const imageUrl = profileFile?.file_path
-      ? `${S3_PREFIX}${profileFile.file_path}`
-      : null;
-    return {
-      id: crew.crew_member_id,
-      name: `${crew.crew_member.first_name} ${crew.crew_member.last_name}`,
-      email: crew.crew_member.first_name.toLowerCase() + "@example.com",
-      image: imageUrl,
-      earnings: `$${crew.crew_member.hourly_rate}`,
-      bgColor: "bg-blue-200"
-    };
-  }) || [];
+  // Filtered and Mapped CPs
+  const filteredCPs = useMemo(() => {
+    const crews = booking?.assigned_crews || [];
+    const mapped = crews.map((crew: any) => {
+      const profileFile = crew.crew_member?.crew_member_files?.[0];
+      const imageUrl = profileFile?.file_path
+        ? `${S3_PREFIX}${profileFile.file_path}`
+        : null;
 
-  const activePartner = assignedCPs[activeCPIndex % (assignedCPs.length || 1)];
+      return {
+        id: crew.crew_member_id,
+        name: `${crew.crew_member.first_name} ${crew.crew_member.last_name}`,
+        image: imageUrl,
+        status: crew.acceptance_status || "pending",
+        role: getRoleLabel(crew.crew_member.primary_role),
+        inviteSentAt: formatDateUI(crew.created_at),
+        respondedAt: formatDateUI(crew.responded_at),
+      };
+    });
+
+    if (statusFilter === "all") return mapped;
+    return mapped.filter((cp: any) => cp.status === statusFilter);
+  }, [booking, statusFilter]);
+
+  const activePartner = filteredCPs[activeCPIndex % (filteredCPs.length || 1)];
 
   const formatTime = (timeStr: string | undefined) => {
     if (!timeStr) return null;
@@ -365,45 +414,70 @@ export default function SalesLeadDetailsPage() {
               </div>
             </div>
 
-            {/* Assigned CPs */}
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-              <div className="flex justify-between items-center  p-4 !pb-0 lg:p-9">
-                <h2 className="lg:text-xl font-medium text-white">
-                  Assigned CPs ({assignedCPs.length.toString().padStart(2, '0')})
+            {/* Assigned CPs Section - Synchronized with Admin UI */}
+            <div className="bg-[#171717] border border-[#3D3D3D] rounded-[32px] overflow-hidden">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 lg:p-9 !pb-0 gap-4">
+                <h2 className="text-xl lg:text-2xl font-medium text-white">
+                  Assigned CPs ({filteredCPs.length.toString().padStart(2, '0')})
                 </h2>
-                <Button
-                  className="h-12 w-fit bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 px-6 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  // CHANGED: Passing leadId dynamically
-                  onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
-                >
-                  <Plus className="text-black" size={18} /> Add More CPs
-                </Button>
-              </div>
-              {/* <DottedDivider /> */}
-              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
 
-              <div className="p-5 lg:p-9 space-y-6">
-                {/* Slider Section */}
-                <div className="relative pb-4">
-                  {isLoading ? (
-                    <div className="h-[200px] flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]" />
-                    </div>
-                  ) : assignedCPs.length > 0 ? (
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                  {/* Status Dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                      className="flex items-center justify-between min-w-[140px] bg-[#1a1a1a] border border-[#3D3D3D] rounded-xl px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252525] transition-all"
+                    >
+                      <span className="capitalize">{statusFilter === "all" ? "All Status" : statusFilter}</span>
+                      <ChevronDown size={16} className={`ml-2 transition-transform ${isStatusDropdownOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {isStatusDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setIsStatusDropdownOpen(false)}></div>
+                        <div className="absolute top-full right-0 mt-2 w-44 bg-[#1a1a1a] border border-[#3D3D3D] rounded-xl shadow-2xl z-40 overflow-hidden">
+                          {['all', 'pending', 'accepted', 'rejected'].map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => {
+                                setStatusFilter(s as any);
+                                setIsStatusDropdownOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-3 text-sm text-white hover:bg-[#E8D1AB] hover:text-black transition-colors capitalize"
+                            >
+                              {s} Status
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <Button
+                    className="h-11 bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black font-semibold px-6 rounded-xl flex items-center gap-2"
+                    onClick={() => router.push(`/sales/select-creatives?id=${leadId}`)}
+                  >
+                    <Plus size={18} /> Add More CPs
+                  </Button>
+                </div>
+              </div>
+
+              <hr className="border-t border-[#3D3D3D] border-dashed my-6 lg:my-9 mx-6 lg:mx-9" />
+
+              <div className="p-6 lg:p-9 !pt-0">
+                <div className="relative">
+                  {filteredCPs.length > 0 ? (
                     <Swiper
+                      key={statusFilter}
                       effect={"coverflow"}
                       grabCursor={true}
                       centeredSlides={true}
-                      slidesPerView={1.5} // Better fit for the 8-column span on desktop
+                      slidesPerView={1.2}
                       breakpoints={{
-                        640: { slidesPerView: 2 },
-                        1024: { slidesPerView: 3 }
+                        768: { slidesPerView: 2.2 },
+                        1024: { slidesPerView: 2.6 }
                       }}
-                      initialSlide={0}
-                      loop={assignedCPs.length > 6}
-                      spaceBetween={20}
                       coverflowEffect={{
-                        rotate: 40,
+                        rotate: 15,
                         stretch: 0,
                         depth: 100,
                         modifier: 1,
@@ -411,58 +485,76 @@ export default function SalesLeadDetailsPage() {
                       }}
                       modules={[EffectCoverflow]}
                       onSlideChange={(swiper) => setActiveCPIndex(swiper.realIndex)}
-                      className="w-full"
+                      className="w-full py-8"
                     >
-                      {assignedCPs.map((cp, index) => (
-                        <SwiperSlide key={cp.id} className="flex items-center justify-center">
-                          <div
-                            onClick={() => handleCPClick(cp.id)}
-                            className={`relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] rounded-[20px] overflow-hidden transition-all duration-500 cursor-pointer hover:ring-2 hover:ring-[#E8D1AB]/50 ${cp.bgColor}`}
-                          >
-                            {cp.image ? (
-                              <img
-                                src={cp.image}
-                                alt={cp.name}
-                                className="absolute inset-0 w-full h-full object-cover object-top"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#E8D1AB] text-black text-2xl md:text-4xl font-bold">
-                                {cp.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
-                              </div>
-                            )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveCP(cp.id);
-                              }}
-                              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black flex items-center justify-center text-white hover:bg-black/80 transition-all z-10"
+                      {filteredCPs.map((cp: any, index: number) => (
+                        <SwiperSlide key={cp.id}>
+                          <div className="group relative transition-all duration-300">
+                            {/* FLOATING IMAGE AREA */}
+                            <div
+                              onClick={() => handleCPClick(cp.id)}
+                              className="relative aspect-[1.1/1] rounded-[32px] overflow-hidden bg-zinc-800 shadow-2xl mb-4 cursor-pointer"
                             >
-                              <X size={16} />
-                            </button>
+                              {cp.image ? (
+                                <img src={cp.image} alt={cp.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-3xl font-bold">
+                                  {cp.name.split(" ").map((n: string) => n[0]).join("")}
+                                </div>
+                              )}
+
+                              {/* PILL ON HOVER ONLY */}
+                              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-lg px-5 py-2.5 rounded-full border border-white/10 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-10">
+                                Invite Sent: {cp.inviteSentAt}
+                              </div>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveCP(cp.id);
+                                }}
+                                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all z-20"
+                              >
+                                <X size={18} />
+                              </button>
+                            </div>
+
+                            {/* METADATA - ONLY SHOW FOR ACTIVE CARD */}
+                            <div className={`px-2 transition-all duration-500 transform ${index === activeCPIndex ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"}`}>
+                              <div className="flex justify-between items-start mb-4">
+                                <div className="min-w-0">
+                                  <h3 className="text-xl font-bold text-white truncate leading-tight">{cp.name}</h3>
+                                  <p className="text-[#8E8E8E] text-sm mt-0.5">{cp.role}</p>
+                                </div>
+
+                                <div className={`px-5 py-2 rounded-xl text-xs font-bold capitalize
+                                  ${cp.status === 'accepted' ? 'bg-[#12B76A] text-white' :
+                                    cp.status === 'rejected' ? 'bg-[#D92D20] text-white' :
+                                      'bg-[#9D6E2A] text-white'}`}
+                                >
+                                  {cp.status}
+                                </div>
+                              </div>
+
+                              <hr className="border-t border-[#3D3D3D] mb-4" />
+
+                              <div className="flex items-center gap-2 text-[#E8D1AB] text-[11px] font-medium">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
+                                <span className="capitalize">{cp.status}</span>
+                                <span className="mx-0.5">—</span>
+                                <span>{cp.respondedAt || "Awaiting response"}</span>
+                              </div>
+                            </div>
                           </div>
                         </SwiperSlide>
                       ))}
                     </Swiper>
                   ) : (
-                    <div className="h-[200px] flex items-center justify-center text-white/50">
-                      No partners found.
+                    <div className="h-[300px] flex items-center justify-center text-white/40 border border-[#3D3D3D] border-dashed rounded-[32px]">
+                      No partners found matching this status.
                     </div>
                   )}
                 </div>
-
-                {/* Active Partner Info - Centered Design */}
-                {activePartner && (
-                  <div className="flex flex-col items-center text-center space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <div className="space-y-1">
-                      <h3 className="text-xl font-semibold text-white">
-                        {activePartner.name}
-                      </h3>
-                      <p className="text-white/40 text-sm tracking-wide">
-                        {activePartner.email}
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -666,10 +758,9 @@ export default function SalesLeadDetailsPage() {
                       value={discount}
                       onChange={(e) => {
                         const value = e.target.value;
-                        // Prevent invalid discount inputs for fixed amount (greater than 100)
                         if (discountType === "fixed_amount") {
                           setDiscount(value);
-                        } else if (discountType === "percentage" && value >= 0 && value <= 100) {
+                        } else if (discountType === "percentage" && (value === "" || (parseFloat(value) >= 0 && parseFloat(value) <= 100))) {
                           setDiscount(value);
                         }
                       }}

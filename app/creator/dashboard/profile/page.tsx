@@ -44,7 +44,8 @@ import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";
 import PersonalInfoForm from "@/src/components/cpSignup/PersonalInfoForm";
 import ProfessionalInfoForm from "@/src/components/cpSignup/ProfessionalInfoForm";
 import SkillsForm from "@/src/components/cpSignup/SkillsForm";
-import { GetMyProfile, EditMyProfile, UploadProfileFile, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink } from "@/lib/api";
+import { toast } from "sonner";
+import { GetMyProfile, EditMyProfile, UploadProfileFile, UploadProfilePhoto, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink } from "@/lib/api";
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DeleteConfirmationModal from "@/src/components/cpSignup/DeleteConfirmationModal";
 import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
@@ -81,7 +82,7 @@ const InfoField = ({ label, value, placeholder }: { label: string, value?: any, 
 
 const getEmbedUrl = (url: string) => {
   if (!url) return null;
-  
+
   let fullUrl = url;
   if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
     fullUrl = `https://${fullUrl}`;
@@ -188,7 +189,7 @@ export default function ProfilePage() {
   const [editingPortfolioLinks, setEditingPortfolioLinks] = useState<any[]>([]);
   const [playingVideo, setPlayingVideo] = useState(null);
   const [isPlaying, setIsPlaying] = useState(true);
-const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   // const [socialLinks, setSocialLinks] = useState([]);
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
   const [isEditingSkills, setIsEditingSkills] = useState(false);
@@ -201,6 +202,7 @@ const [isMuted, setIsMuted] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const profilePhotoInputRef = useRef<HTMLInputElement>(null);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -609,6 +611,40 @@ const [isMuted, setIsMuted] = useState(false);
     }
   };
 
+  const handleUploadProfilePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
+
+    if (!crewMemberId) {
+      toast.error("User ID not found");
+      return;
+    }
+
+    try {
+      setIsPageLoading(true);
+      const response: any = await UploadProfilePhoto(file, crewMemberId);
+
+      if (response.data && response.data.error === false) {
+        toast.success("Profile photo updated successfully");
+        const updatedProfile = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
+        if (updatedProfile.data) {
+          setProfile(updatedProfile.data.data);
+        }
+      } else {
+        toast.error(response.data?.message || "Upload failed");
+      }
+    } catch (err) {
+      console.error("Failed to upload profile photo:", err);
+      toast.error("An error occurred during upload");
+    } finally {
+      setIsPageLoading(false);
+    }
+  };
+
 
   const handleExecuteDelete = async () => {
     const crewMemberId = getCrewId();
@@ -754,8 +790,23 @@ const [isMuted, setIsMuted] = useState(false);
           <div className="flex-1 space-y-4 lg:space-y-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-15 h-15 lg:w-20 lg:h-20 rounded-full bg-zinc-800 overflow-hidden border-2 border-[#E8D1AB] shrink-0">
-                  <img src={profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
+                <div className="group relative w-15 h-15 lg:w-20 lg:h-20 rounded-full bg-zinc-800 border-2 border-[#E8D1AB] shrink-0">
+                  <div className="w-full h-full rounded-full overflow-hidden">
+                    <img src={profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
+                  </div>
+                  <input
+                    type="file"
+                    ref={profilePhotoInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleUploadProfilePhoto}
+                  />
+                  <button
+                    onClick={() => profilePhotoInputRef.current?.click()}
+                    className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  >
+                    <Camera size={20} className="text-white" />
+                  </button>
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -1266,7 +1317,7 @@ const [isMuted, setIsMuted] = useState(false);
           )}
 
           {/* PORTFOLIO TAB */}
-         {activeTab === "Portfolio Links" && (
+          {activeTab === "Portfolio Links" && (
             <div className="animate-in fade-in duration-500">
               {(() => {
                 const portfolioLinks = profile.crew_member_files?.filter((f: any) => f.file_type === "link") || [];
@@ -1490,10 +1541,10 @@ const [isMuted, setIsMuted] = useState(false);
         </div>
       )}
 
-     {/* VIDEO PLAYER MODAL */}
+      {/* VIDEO PLAYER MODAL */}
       {playingVideo && (
         <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
-          
+
           {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
           <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
             <div className="space-y-1 pointer-events-auto">

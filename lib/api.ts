@@ -689,6 +689,30 @@ export const EditMyProfile = async (payload: any) => {
   }
 };
 
+export const UploadProfilePhoto = async (file: File, crewMemberId: string | number) => {
+  try {
+    const formData = new FormData();
+    // Backend expects 'profile_photo'
+    formData.append("profile_photo", file);
+    formData.append("crew_member_id", crewMemberId.toString());
+
+    // Send as multipart/form-data
+    const response = await api.post(`creator/profile/upload-profile-photo`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response;
+  } catch (error: any) {
+    console.error(`Upload Profile Photo Error:`, error.response?.data || error.message);
+    // Return a consistent error structure that the frontend expects (response.data.error)
+    return {
+      data: {
+        error: true,
+        message: error.response?.data?.message || "Upload failed"
+      }
+    };
+  }
+};
+
 export const UploadProfileFile = async (fileType: string, files: File | File[], crewMemberId: string | number, metadata: any = {}) => {
   try {
     const formData = new FormData();
