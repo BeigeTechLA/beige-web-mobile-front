@@ -682,7 +682,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               </div>
               <div>
                 <span className={LABEL_STYLE}>Hourly Rate</span>
-                <span className={VALUE_STYLE}>${partner.hourly_rate || "0.00"}/-</span>
+                <span className={VALUE_STYLE}>${partner.hourly_rate || "0.00"}</span>
               </div>
               <div className="col-span-2">
                 <span className={LABEL_STYLE}>Bio / About</span>
