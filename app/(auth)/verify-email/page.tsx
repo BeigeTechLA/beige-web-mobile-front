@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { VerifyEmailStep } from "@/components/auth/VerifyEmailStep"
 import { useAuth } from "@/lib/hooks/useAuth"
+import { formatTime } from "@/lib/utils"
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
@@ -85,7 +86,7 @@ function VerifyEmailContent() {
 
       // Check for rate limiting error
       if (error?.data?.remainingTime) {
-        toast.error(`Please wait ${error.data.remainingTime} seconds before requesting another code.`)
+        toast.error(`Please wait ${formatTime(error.data.remainingTime)} before requesting another code.`);
       } else {
         toast.error(errorMessage)
       }

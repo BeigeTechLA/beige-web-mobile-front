@@ -161,3 +161,9 @@ export const isValidUrl = (urlString: string) => {
     return false;
   }
 }
+
+export const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return mins > 0 ? `${mins}:${secs.toString().padStart(2, "0")} minute(s)` : `${secs} second(s)`;
+};
