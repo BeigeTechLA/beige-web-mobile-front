@@ -172,12 +172,12 @@ export const Footer = () => {
               <h4 className="text-[#E8D1AB] text-xs lg:text-base uppercase tracking-widest mb-4 lg:mb-8">
                 Legal
               </h4>
-              <ul className="space-y-2 lg:space-y-4 pointer-events-none">
+              <ul className="space-y-2 lg:space-y-4 ">
                 <li>
                   <button
-                    // onClick={() =>
-                    //   handleLinkClick("Terms of Service", "/terms")
-                    // }
+                    onClick={() =>
+                      handleLinkClick("Terms & Conditions", "/terms-and-conditions")
+                    }
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
                   >
                     Terms of Service
@@ -185,9 +185,9 @@ export const Footer = () => {
                 </li>
                 <li>
                   <button
-                    // onClick={() =>
-                    //   handleLinkClick("Privacy Policy", "/privacy")
-                    // }
+                    onClick={() =>
+                      handleLinkClick("Privacy Policy", "/privacy-policy")
+                    }
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium"
                   >
                     Privacy Policy
