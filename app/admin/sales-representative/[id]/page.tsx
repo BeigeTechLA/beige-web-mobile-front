@@ -148,7 +148,7 @@ export default function LeadDetailPage() {
       const imageUrl = profileFile?.file_path
         ? `${S3_PREFIX}${profileFile.file_path}`
         : null;
-      
+
       return {
         id: crew.crew_member_id,
         name: `${crew.crew_member.first_name} ${crew.crew_member.last_name}`,
@@ -404,7 +404,7 @@ export default function LeadDetailPage() {
                 <h2 className="text-xl lg:text-2xl font-medium text-white">
                   Assigned CPs ({filteredCPs.length.toString().padStart(2, '0')})
                 </h2>
-                
+
                 <div className="flex items-center gap-3 w-full md:w-auto">
                   {/* Status Dropdown */}
                   <div className="relative">
@@ -475,7 +475,7 @@ export default function LeadDetailPage() {
                         <SwiperSlide key={cp.id}>
                           <div className="group relative transition-all duration-300">
                             {/* FLOATING IMAGE AREA */}
-                            <div 
+                            <div
                               onClick={() => handleCPClick(cp.id)}
                               className="relative aspect-[1.1/1] rounded-[32px] overflow-hidden bg-zinc-800 shadow-2xl mb-4 cursor-pointer"
                             >
@@ -486,7 +486,7 @@ export default function LeadDetailPage() {
                                   {cp.name.split(" ").map((n: string) => n[0]).join("")}
                                 </div>
                               )}
-                              
+
                               {/* PILL ON HOVER ONLY */}
                               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-lg px-5 py-2.5 rounded-full border border-white/10 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-10">
                                 Invite Sent: {cp.inviteSentAt}
@@ -510,20 +510,20 @@ export default function LeadDetailPage() {
                                   <h3 className="text-xl font-bold text-white truncate leading-tight">{cp.name}</h3>
                                   <p className="text-[#8E8E8E] text-sm mt-0.5">{cp.role}</p>
                                 </div>
-                                
+
                                 <div className={`px-5 py-2 rounded-xl text-xs font-bold capitalize
-                                  ${cp.status === 'accepted' ? 'bg-[#12B76A] text-white' : 
-                                    cp.status === 'rejected' ? 'bg-red-500 text-white' : 
-                                    'bg-zinc-700 text-white'}`}
+                                  ${cp.status === 'accepted' ? 'bg-[#12B76A] text-white' :
+                                    cp.status === 'rejected' ? 'bg-[#D92D20] text-white' :
+                                      'bg-[#9D6E2A] text-white'}`}
                                 >
                                   {cp.status}
                                 </div>
                               </div>
 
                               <hr className="border-t border-[#3D3D3D] mb-4" />
-                              
-                              <div className="flex items-center gap-2 text-[#8E8E8E] text-[11px] font-medium">
-                                <div className={`w-1.5 h-1.5 rounded-full ${cp.status === 'accepted' ? 'bg-[#12B76A]' : 'bg-zinc-500'}`} />
+
+                              <div className="flex items-center gap-2 text-[#E8D1AB] text-[11px] font-medium">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
                                 <span className="capitalize">{cp.status}</span>
                                 <span className="mx-0.5">—</span>
                                 <span>{cp.respondedAt || "Awaiting response"}</span>
