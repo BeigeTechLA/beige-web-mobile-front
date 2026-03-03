@@ -285,19 +285,19 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
               <div className="flex justify-between font-medium">
                 <span className="text-[#71717B] text-xs">Base Price</span>
                 <span className="text-sm lg:text-base text-white">
-                  ${basePrice.toLocaleString()}/-
+                  ${basePrice.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between font-medium">
                 <span className="text-[#71717B] text-xs">Taxes & Fees</span>
-                <span className="text-sm lg:text-base text-white">${taxes.toFixed(2)}/-</span>
+                <span className="text-sm lg:text-base text-white">${taxes.toFixed(2)}</span>
               </div>
             </div>
             <div className="h-[1px] w-full bg-[#3D3D3D]" />
             <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
               <span className="text-sm font-medium">Total Amount</span>
               <span className="lg:text-lg font-semibold text-[#E8D1AB]">
-                ${total.toFixed(2)}/-
+                ${total.toFixed(2)}
               </span>
             </div>
           </div>
