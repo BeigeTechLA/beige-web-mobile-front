@@ -59,6 +59,8 @@ interface LeadData {
   intent: string;
 }
 
+
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (
   paymentStatus: string,
@@ -224,7 +226,7 @@ export default function SalesLeadsPage() {
               initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
               role: member.role?.role_name || member.category_name || "N/A",
               phoneNumber: member.phone_number || "N/A",
-              imageUrl: profilePhoto ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}` : null,
+              imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
             };
           });
           allUsers = mappedCreatives;
@@ -336,9 +338,9 @@ export default function SalesLeadsPage() {
                 className="h-12 w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
               />
             </div>
-            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+            {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
-            </Button>
+            </Button> */}
             <Button onClick={() => router.push("/sales/create-new-deal")} className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
               Create new lead
             </Button>
@@ -358,7 +360,7 @@ export default function SalesLeadsPage() {
             </p>
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <OverviewMetricCards
           metrics={metrics}

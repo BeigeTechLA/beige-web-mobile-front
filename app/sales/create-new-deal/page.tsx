@@ -89,6 +89,7 @@ export default function ClientDetailPage() {
   const [videoEditTypeOptions, setVideoEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
+  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
   const [thumbtack, setThumbtack] = useState<string>("");
   const [intent, setIntent] = useState<string>("");
@@ -194,6 +195,21 @@ export default function ClientDetailPage() {
     setTimeOptions(options);
   }, []);
 
+  useEffect(() => {
+    const primaryDate = formData.startDate || formData.endDate;
+    if (!primaryDate) {
+      setSelectedShootDate(null);
+      return;
+    }
+
+    const parsed = parseDate(primaryDate);
+    if (!parsed) return;
+
+    setSelectedShootDate(
+      set(new Date(parsed), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+    );
+  }, [formData.startDate, formData.endDate]);
+
   // 2. Filter Shoot Types based on Content Type
   useEffect(() => {
     const isVideo = formData.contentType.includes("videographer");
@@ -277,9 +293,13 @@ export default function ClientDetailPage() {
   // --- HANDLERS (Timezone Fix Applied) ---
   const handleDateChange = (date: Date | null) => {
     if (!date) {
+      setSelectedShootDate(null);
       updateData({ startDate: "", endDate: "" });
       return;
     }
+    setSelectedShootDate(
+      set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+    );
     const now = new Date();
     const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
 
@@ -308,7 +328,11 @@ export default function ClientDetailPage() {
   const handleStartTimeChange = (timeKey: string) => {
     if (!timeKey) return updateData({ startDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const currentDate = parseDate(formData.startDate) || new Date();
+    const currentDate =
+      parseDate(formData.startDate) ||
+      parseDate(formData.endDate) ||
+      selectedShootDate ||
+      new Date();
 
     const selectedTime = new Date(
       currentDate.getFullYear(),
@@ -338,7 +362,11 @@ export default function ClientDetailPage() {
   const handleEndTimeChange = (timeKey: string) => {
     if (!timeKey) return updateData({ endDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const baseDate = parseDate(formData.startDate) || new Date();
+    const baseDate =
+      parseDate(formData.startDate) ||
+      parseDate(formData.endDate) ||
+      selectedShootDate ||
+      new Date();
 
     const newEnd = new Date(
       baseDate.getFullYear(),
@@ -368,14 +396,14 @@ export default function ClientDetailPage() {
   };
 
   const filteredStartTimeOptions = useMemo(() => {
-    if (!formData.startDate) return timeOptions;
-    const selectedDate = parseDate(formData.startDate);
+    if (!selectedShootDate) return timeOptions;
+    const selectedDate = selectedShootDate;
     const now = new Date();
     const isToday = selectedDate?.toDateString() === now.toDateString();
     if (!isToday) return timeOptions;
     const minKey = format(new Date(now.getTime() + 4 * 60 * 60 * 1000), "HH:mm");
     return timeOptions.filter((opt) => opt.key >= minKey);
-  }, [formData.startDate, timeOptions]);
+  }, [selectedShootDate, timeOptions]);
 
   const filteredEndTimeOptions = useMemo(() => {
     if (!formData.startDate) return timeOptions;
@@ -436,8 +464,8 @@ export default function ClientDetailPage() {
   }, [formData.contentType, extraTeam]);
 
   const handleContinueClick = async () => {
-    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent) {
-      toast.error("Please fill in all client information fields");
+    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent ||!formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
+      toast.error("Please fill in all Booking information fields");
       return;
     }
 
@@ -510,7 +538,7 @@ export default function ClientDetailPage() {
 
       if (result.success) {
         toast.success("Deal created successfully!");
-        router.push("/sales/leads");
+        router.push("/sales/dashboard");
       } else {
         toast.error(result.message || "Failed to create deal");
       }
@@ -544,7 +572,7 @@ export default function ClientDetailPage() {
           <span className="text-sm font-medium">Back</span>
         </Button>
 
-        <div className="space-y-6">
+        <div className="space-y-6 my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90">Client Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
             <div className="relative space-y-2">
@@ -559,7 +587,7 @@ export default function ClientDetailPage() {
             </div>
 
             <div className="relative space-y-2">
-              <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email Id</Label>
+              <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -584,9 +612,14 @@ export default function ClientDetailPage() {
               label="Select Source"
               value={thumbtack}
               options={[
+                { value: "thumbtack", label: "Thumbtack" },
+                { value: "referral", label: "Referral" },
                 { value: "instagram", label: "Instagram" },
                 { value: "facebook", label: "Facebook" },
-                { value: "referral", label: "Referral" }
+                { value: "event", label: "Event" },
+                { value: "government_contract", label: "Government Contract" },
+                { value: "email", label: "Email" },
+                { value: "sms", label: "SMS" }
               ]}
               onChange={(val) => setThumbtack(val)}
               placeholder=""
@@ -605,9 +638,9 @@ export default function ClientDetailPage() {
             />
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={contentTypeRef}>
+        <div ref={contentTypeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ContentTypeCheckbox
@@ -635,9 +668,9 @@ export default function ClientDetailPage() {
             <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} checked={false} onChange={() => { }} disabled={true} />
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={shootTypeRef}>
+        <div ref={shootTypeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
             {formData.contentType.length > 1 ? "Video and Photo Shoot Type" : "Shoot Type"}
           </h3>
@@ -654,15 +687,15 @@ export default function ClientDetailPage() {
             required
           />
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={dateTimeRef}>
+        <div ref={dateTimeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">Shoot Date & Time</h3>
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="flex-1">
               <DatePicker
                 label="Select Date"
-                value={formData.startDate ? parseDate(formData.startDate) : null}
+                value={selectedShootDate}
                 onChange={handleDateChange}
                 minDate={new Date()}
                 colors={datePickerColours}
@@ -690,9 +723,9 @@ export default function ClientDetailPage() {
             </div>
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={editsRef}>
+        <div ref={editsRef} className="my-4 lg:my-9">
           <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">Edits Needed?</h3>
           <div className="flex gap-4">
             <button
@@ -750,9 +783,9 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={extraTeamRef}>
+        <div ref={extraTeamRef} className="my-4 lg:my-9">
           <div className="flex flex-col gap-3 lg:gap-6">
             <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
             <div className="flex gap-2 lg:gap-6">
@@ -801,9 +834,9 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={locationRef}>
+        <div ref={locationRef} className="my-4 lg:my-9">
           <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
           <LocationPicker
             value={formData.location}
@@ -817,9 +850,9 @@ export default function ClientDetailPage() {
             colors={darkThemeColors}
           />
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
-        <div ref={crewRef} className="space-y-6">
+        <div ref={crewRef} className="my-4 lg:my-9 space-y-6">
           {!formData.startDate || !formData.location ? (
             <div className="p-10 border border-dashed border-white/20 rounded-2xl text-center text-white/40">
               Please select a shoot date and location to view available creatives.
@@ -850,7 +883,7 @@ export default function ClientDetailPage() {
           )}
         </div>
 
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
           <Button
@@ -860,7 +893,7 @@ export default function ClientDetailPage() {
             Back
           </Button>
           <Button
-            disabled={formData.selectedCrewIds.length === 0 || isSubmitting}
+            disabled={isSubmitting}
             onClick={handleContinueClick}
             className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
           >

@@ -56,9 +56,9 @@ export default function CreatorGallery({
             />
 
             {/* Rating badge */}
-            <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1 text-white text-sm">
+            {/* <div className="absolute top-4 right-4 bg-black/70 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1 text-white text-sm">
               ⭐ 4.5 <span className="opacity-70">(120)</span>
-            </div>
+            </div> */}
           </div>
         ) : (
           <>

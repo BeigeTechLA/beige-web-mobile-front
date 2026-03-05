@@ -56,6 +56,8 @@ const StatusBadge = ({ status, mobile }: { status: UserStatus; mobile?: boolean 
   );
 };
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 export const CreativePartnersTable = () => {
   const [users, setUsers] = useState<CreativePartner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +153,7 @@ export const CreativePartnersTable = () => {
               (file: any) => file.file_type === 'profile_photo'
             );
             const imageUrl = profilePhoto
-              ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}`
+              ? `${S3_PREFIX}${profilePhoto.file_path}`
               : null;
 
             // Normalize status

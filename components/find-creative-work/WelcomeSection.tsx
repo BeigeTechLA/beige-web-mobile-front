@@ -93,7 +93,7 @@ export const WelcomeSection = () => {
             transition={{ duration: 0.8 }}
             className="text-2xl md:text-4xl lg:text-[58px] leading-tight font-bold text-gradient-white mb-2"
           >
-            Welcome to the Beige<br />Creative Partners Ambassador Program
+           Welcome to the Future of Content<br />Apply To Become A Creative Partner
           </motion.h1>
 
           <motion.h4
@@ -115,7 +115,7 @@ export const WelcomeSection = () => {
               onClick={handleJoinUs}
               className="h-7 lg:h-15 px-5 lg:px-8 rounded-lg bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
             >
-              Join Us
+              Apply
             </Button>
             <Link
               href="#howItWorks"

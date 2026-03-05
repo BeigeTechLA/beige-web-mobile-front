@@ -689,6 +689,30 @@ export const EditMyProfile = async (payload: any) => {
   }
 };
 
+export const UploadProfilePhoto = async (file: File, crewMemberId: string | number) => {
+  try {
+    const formData = new FormData();
+    // Backend expects 'profile_photo'
+    formData.append("profile_photo", file);
+    formData.append("crew_member_id", crewMemberId.toString());
+
+    // Send as multipart/form-data
+    const response = await api.post(`creator/profile/upload-profile-photo`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response;
+  } catch (error: any) {
+    console.error(`Upload Profile Photo Error:`, error.response?.data || error.message);
+    // Return a consistent error structure that the frontend expects (response.data.error)
+    return {
+      data: {
+        error: true,
+        message: error.response?.data?.message || "Upload failed"
+      }
+    };
+  }
+};
+
 export const UploadProfileFile = async (fileType: string, files: File | File[], crewMemberId: string | number, metadata: any = {}) => {
   try {
     const formData = new FormData();
@@ -909,17 +933,18 @@ export const adminApi = {
     try {
       const response = await api.get('admin/get-projects', {
         params,
-        headers: {
-          'Content-Type': 'application/json',
-        }
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Projects Error:', error.response?.data || error.message);
+      console.error('Get Projects Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch projects',
+        error: error.response?.data?.message || error.message || 'Failed to fetch projects',
       };
     }
   },
@@ -1062,7 +1087,11 @@ export const adminApi = {
       const response = await api.post('admin/dashboard-detail', payload);
       return response.data;
     } catch (error: any) {
-      console.error('Get Admin Dashboard Detail Error:', error.response?.data || error.message);
+      // Suppress error logging for 401/403 as this happens when non-admins (e.g. Sales Reps) view CP profiles
+      const status = error.response?.status;
+      if (status !== 401 && status !== 403) {
+        console.error('Get Admin Dashboard Detail Error:', error.response?.data || error.message);
+      }
       return {
         success: false,
         data: null,

@@ -77,6 +77,7 @@ export default function EditBookingPage() {
     const [photoEditNote, setPhotoEditNote] = useState<string>("");
 
     const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
+    const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
     const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
 
     // Fetch lead data for pre-population
@@ -101,6 +102,21 @@ export default function EditBookingPage() {
         }
         setTimeOptions(options);
     }, []);
+
+    useEffect(() => {
+        const primaryDate = formData.startDate || formData.endDate;
+        if (!primaryDate) {
+            setSelectedShootDate(null);
+            return;
+        }
+
+        const parsed = parseDate(primaryDate);
+        if (!parsed) return;
+
+        setSelectedShootDate(
+            set(new Date(parsed), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+        );
+    }, [formData.startDate, formData.endDate]);
 
     // 2. Determine available shoot types based on content type selection
     useEffect(() => {
@@ -300,9 +316,13 @@ export default function EditBookingPage() {
 
     const handleDateChange = (date: Date | null) => {
         if (!date) {
+            setSelectedShootDate(null);
             updateData({ startDate: "", endDate: "" });
             return;
         }
+        setSelectedShootDate(
+            set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+        );
         const finalStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
         const finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
 
@@ -321,18 +341,26 @@ const photographerTarget = useMemo(() => {
 }, [formData.contentType, extraTeam]);
 
     const handleStartTimeChange = (timeKey: string) => {
-        if (!timeKey) return;
+        if (!timeKey) return updateData({ startDate: "" });
         const [hours, minutes] = timeKey.split(":").map(Number);
-        const currentDate = formData.startDate ? parseDate(formData.startDate) : new Date();
+        const currentDate =
+            (formData.startDate ? parseDate(formData.startDate) : null) ||
+            (formData.endDate ? parseDate(formData.endDate) : null) ||
+            selectedShootDate ||
+            new Date();
         if (!currentDate) return;
         const newStart = set(currentDate, { hours, minutes });
         updateData({ startDate: newStart.toISOString() });
     };
 
     const handleEndTimeChange = (timeKey: string) => {
-        if (!timeKey) return;
+        if (!timeKey) return updateData({ endDate: "" });
         const [hours, minutes] = timeKey.split(":").map(Number);
-        let baseDate = formData.startDate ? parseDate(formData.startDate) : new Date();
+        let baseDate =
+            (formData.startDate ? parseDate(formData.startDate) : null) ||
+            (formData.endDate ? parseDate(formData.endDate) : null) ||
+            selectedShootDate ||
+            new Date();
         if (!baseDate) return;
         const newEnd = set(new Date(baseDate), { hours, minutes, seconds: 0 });
         updateData({ endDate: newEnd.toISOString() });
@@ -415,7 +443,7 @@ const photographerTarget = useMemo(() => {
                     <span className="text-sm font-medium">Back</span>
                 </Button>
 
-                <div className="flex items-center gap-5">
+                <div className="flex items-center gap-5 my-4 lg:my-9">
                     <div className="w-13 h-13 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#FFF6D9] text-[#000000] flex items-center justify-center text-xl lg:text-[30px] font-semibold shrink-0">
                         {formData.fullName ? formData.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "IN"}
                     </div>
@@ -424,9 +452,9 @@ const photographerTarget = useMemo(() => {
                         <IntentBadge intent={(leadData?.intent || "Hot") as any} />
                     </div>
                 </div>
-                <DottedDivider />
+                {/* <DottedDivider /> */}
 
-                <div ref={contentTypeRef}>
+                <div ref={contentTypeRef} className="my-4 lg:my-9">
                     <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <ContentTypeCheckbox
@@ -449,9 +477,9 @@ const photographerTarget = useMemo(() => {
                         />
                     </div>
                 </div>
-                <DottedDivider />
+                {/* <DottedDivider /> */}
 
-                <div ref={shootTypeRef}>
+                <div ref={shootTypeRef} className="my-4 lg:my-9">
                     <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Shoot Type</h3>
                     <FloatingLabelDropdown
                         label="Shoot Type"
@@ -466,14 +494,14 @@ const photographerTarget = useMemo(() => {
                         required
                     />
                 </div>
-                <DottedDivider />
+                {/* <DottedDivider /> */}
 
-                <div ref={dateTimeRef}>
+                <div ref={dateTimeRef} className="my-4 lg:my-9">
                     <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">Shoot Date & Time</h3>
                     <div className="flex flex-col lg:flex-row gap-6">
                         <DatePicker
                             label="Select Date"
-                            value={formData.startDate ? parseDate(formData.startDate) : null}
+                            value={selectedShootDate}
                             onChange={handleDateChange}
                             minDate={new Date()}
                             colors={datePickerColours}
@@ -496,9 +524,9 @@ const photographerTarget = useMemo(() => {
                         />
                     </div>
                 </div>
-                <DottedDivider />
+                {/* <DottedDivider /> */}
 
-                <div ref={editsRef}>
+                <div ref={editsRef} className="my-4 lg:my-9">
                     <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">Edits Needed?</h3>
                     <div className="flex gap-4">
                         {["Yes", "No"].map((choice) => {
@@ -547,9 +575,9 @@ const photographerTarget = useMemo(() => {
                         </div>
                     )}
                 </div>
-                <DottedDivider />
+                {/* <DottedDivider /> */}
 
-                <div ref={extraTeamRef}>
+                <div ref={extraTeamRef} className="my-4 lg:my-9">
                     <h3 className="text-base lg:text-xl font-medium text-white mb-6">Additional Creatives</h3>
                     <div className="space-y-4">
                         {availableRolesToAdd.map((role) => (
@@ -567,9 +595,9 @@ const photographerTarget = useMemo(() => {
                         ))}
                     </div>
                 </div>
-                <DottedDivider />
+                {/* <DottedDivider /> */}
 
-                <div ref={locationRef}>
+                <div ref={locationRef} className="my-4 lg:my-9">
                     <h3 className="text-xl font-medium text-white/90 mb-6">Location</h3>
                     <LocationPicker
                         value={formData.location}
@@ -579,7 +607,7 @@ const photographerTarget = useMemo(() => {
                     />
                 </div>
 
-                <DottedDivider />
+                {/* <DottedDivider /> */}
 
                 <CreativeProfileSelectorAdd
                     leadId={leadId}
@@ -592,7 +620,7 @@ const photographerTarget = useMemo(() => {
                     }}
                 />
 
-                <div className="flex gap-6 items-center pt-10">
+                <div className="flex gap-6 items-center pt-10 max-w-md">
                     <Button onClick={() => router.back()} className="h-14 lg:h-[72px] border border-[#8E8E8E] text-white font-medium text-lg rounded-xl flex-1">
                         Back
                     </Button>

@@ -50,6 +50,8 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
     );
 };
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 export const UserManagementTabbed = () => {
     const [activeTab, setActiveTab] = useState<UserType>("All");
     const [users, setUsers] = useState<UserData[]>([]);
@@ -70,6 +72,16 @@ export const UserManagementTabbed = () => {
             sortableUsers.sort((a, b) => {
                 const aValue = a[sortConfig.key] ?? "";
                 const bValue = b[sortConfig.key] ?? "";
+
+                if (sortConfig.key === 'id') {
+                    const aNum = parseInt(String(aValue).replace('#', ''), 10);
+                    const bNum = parseInt(String(bValue).replace('#', ''), 10);
+
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+                    }
+                }
+
                 if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
@@ -88,8 +100,8 @@ export const UserManagementTabbed = () => {
 
     const getSortIcon = (key: keyof UserData) => {
         if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
-        return sortConfig.direction === 'asc' ? 
-            <ArrowUp size={14} className="ml-1 text-[#E5D5B8]" /> : 
+        return sortConfig.direction === 'asc' ?
+            <ArrowUp size={14} className="ml-1 text-[#E5D5B8]" /> :
             <ArrowDown size={14} className="ml-1 text-[#E5D5B8]" />;
     };
 
@@ -104,13 +116,13 @@ export const UserManagementTabbed = () => {
             const isActiveFilter = statusFilter === "active";
 
             // Determine if we should call the Client API
-            const shouldFetchClients = 
-                activeTab === "Client" || 
+            const shouldFetchClients =
+                activeTab === "Client" ||
                 (activeTab === "All" && !isCreativeStatus);
 
             // Determine if we should call the Creative Partner API
-            const shouldFetchCreatives = 
-                activeTab === "Creative Partner" || 
+            const shouldFetchCreatives =
+                activeTab === "Creative Partner" ||
                 (activeTab === "All" && !isActiveFilter);
 
             let allUsers: UserData[] = [];
@@ -153,11 +165,11 @@ export const UserManagementTabbed = () => {
                             email: member.email || "No Email",
                             type: "Creative Partner" as UserType,
                             status: (member.status?.toLowerCase() === "approved" ? "Approved" :
-                                    member.status?.toLowerCase() === "rejected" ? "Rejected" : "Pending") as UserStatus,
+                                member.status?.toLowerCase() === "rejected" ? "Rejected" : "Pending") as UserStatus,
                             joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString() : "N/A",
                             initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
                             role: member.role?.role_name || "N/A",
-                            imageUrl: profilePhoto ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}` : null,
+                            imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
                         };
                     });
                     allUsers = [...allUsers, ...mapped];
@@ -197,10 +209,10 @@ export const UserManagementTabbed = () => {
                 {(["All", "Client", "Creative Partner"] as UserType[]).map((tab) => (
                     <button
                         key={tab}
-                        onClick={() => { 
-                            setActiveTab(tab); 
-                            setCurrentPage(1); 
-                            setStatusFilter("all"); 
+                        onClick={() => {
+                            setActiveTab(tab);
+                            setCurrentPage(1);
+                            setStatusFilter("all");
                         }}
                         className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab ? "bg-[#E5D5B8] text-black shadow-lg" : "text-[#777] hover:text-white"}`}
                     >
@@ -231,12 +243,12 @@ export const UserManagementTabbed = () => {
                             </SelectTrigger>
                             <SelectContent className="bg-[#111] border-[#333] text-white">
                                 <SelectItem value="all">All Status</SelectItem>
-                                
+
                                 {/* Show Active only on the "All" tab */}
                                 {activeTab === "All" && (
                                     <SelectItem value="active">Active (Clients)</SelectItem>
                                 )}
-                                
+
                                 {/* Statuses for Creative Partners */}
                                 <SelectItem value="pending">Pending</SelectItem>
                                 <SelectItem value="approved">Approved</SelectItem>

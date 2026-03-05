@@ -34,6 +34,8 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
     );
 };
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 export const AvailabilityTable = () => {
     const [users, setUsers] = useState<CreativePartner[]>([]);
     const [loading, setLoading] = useState(true);
@@ -135,7 +137,7 @@ export const AvailabilityTable = () => {
                             status: displayStatus,
                             joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
                             initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
-                            imageUrl: profilePhoto ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}` : null,
+                            imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
                         };
                     });
                     setUsers(mappedUsers);

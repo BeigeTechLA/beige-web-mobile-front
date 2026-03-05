@@ -193,7 +193,7 @@ export default function AdminFolderManagerPage() {
         </div>
 
         {/* Tab Bar Container */}
-        <div className="flex flex-col lg:flex-row gap-4 justify-between items-center w-full">
+        <div className="flex flex-col lg:flex-row gap-4 justify-between items-center w-full mb-4 lg:mb-9">
           <div className="flex flex-nowrap items-center gap-1.5 lg:gap-3 bg-[#171717] p-1.5 rounded-xl w-full lg:w-fit overflow-x-auto no-scrollbar scroll-smooth">
             {tabs.map((tab, index) => (
               <Button
@@ -221,7 +221,7 @@ export default function AdminFolderManagerPage() {
           </div>
         </div>
 
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div className="pb-20 lg:pb-0">
           <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">

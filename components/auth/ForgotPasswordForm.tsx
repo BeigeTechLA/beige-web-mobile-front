@@ -1,8 +1,7 @@
 "use client"
 
-import * as React from "react"
+import React, { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -13,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/hooks/useAuth"
+import CheckEmail from "./CheckEmail"
 
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -22,8 +22,7 @@ type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>
 
 export function ForgotPasswordForm() {
   const { forgotPassword, isForgotPasswordLoading } = useAuth()
-  const router = useRouter()
-  const [emailSent, setEmailSent] = React.useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const form = useForm<ForgotPasswordFormValues>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -36,55 +35,11 @@ export function ForgotPasswordForm() {
     try {
       const result = await forgotPassword(data.email)
       toast.success(result.message || "Password reset email sent!")
-      setEmailSent(true)
+      setIsModalOpen(true)
     } catch (error: any) {
       const errorMessage = error?.data?.message || error?.message || "Failed to send reset email. Please try again."
       toast.error(errorMessage)
     }
-  }
-
-  if (emailSent) {
-    return (
-      <div className="space-y-8">
-        <div className="space-y-2">
-          <div className="flex items-center justify-center mb-6">
-            <div className="w-16 h-16 rounded-full bg-[#E8D1AB]/10 flex items-center justify-center">
-              <Mail className="w-8 h-8 text-[#E8D1AB]" />
-            </div>
-          </div>
-          <h1 className="text-lg lg:text-[28px] font-semibold tracking-tight text-white text-center">
-            Check Your Email
-          </h1>
-          <p className="lg:text-lg text-white/60 text-center">
-            We've sent password reset instructions to <span className="text-white font-medium">{form.watch("email")}</span>
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <p className="text-sm text-white/60 text-center">
-            Didn't receive the email? Check your spam folder or try again in a few moments.
-          </p>
-
-          <Button
-            onClick={() => setEmailSent(false)}
-            variant="outline"
-            className="w-full border-white/30 text-white hover:bg-white/10 h-9 lg:h-[76px] text-sm md:text-xl"
-          >
-            Try Another Email
-          </Button>
-
-          <Link href="/login" className="block">
-            <Button
-              variant="ghost"
-              className="w-full text-[#E8D1AB] hover:text-white hover:bg-transparent h-9 lg:h-12 text-sm md:text-base"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Login
-            </Button>
-          </Link>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -135,6 +90,13 @@ export function ForgotPasswordForm() {
           </Link>
         </p>
       </form>
+
+      <CheckEmail
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        email={form.getValues("email")}
+        onResend={() => onSubmit(form.getValues())}
+      />
     </div>
   )
 }

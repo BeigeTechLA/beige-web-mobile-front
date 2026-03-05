@@ -12,7 +12,7 @@ const steps: Step[] = [
   { id: 1, label: "In Progress" },
   { id: 2, label: "Payment Link Sent" },
   { id: 3, label: "Discount Applied" },
-  { id: 4, label: "Booked" },
+  { id: 4, label: "Paid" },
 ];
 
 interface Props {

@@ -84,7 +84,7 @@ const CreatorCard = ({
 
   const InfoContent = () => (
     <div className="rounded-b-[20px] lg:rounded-none flex flex-col gap-2 gap-3">
-      <div className="flex items-center justify-between">
+      {/* <div className="flex items-center justify-between">
         <div className="flex gap-2.5">
           <button className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/10 hover:bg-white/20">
             <ThumbsUp className="text-white w-5 h-5" />
@@ -96,7 +96,7 @@ const CreatorCard = ({
         <button className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/10 hover:bg-white/20">
           <Plus className="text-white w-5 h-5" />
         </button>
-      </div>
+      </div> */}
 
       <div className="flex items-center justify-between">
         <div>
@@ -111,7 +111,7 @@ const CreatorCard = ({
       </div>
 
       <div className="flex items-center gap-2">
-        <button
+        {/* <button
           onClick={(e) => {
             e.stopPropagation(); // Prevent Swiper from intercepting this as a drag/slide
             e.preventDefault();
@@ -120,7 +120,7 @@ const CreatorCard = ({
             }`}
         >
           {isSelected ? <><X size={16} className="mr-1" /> Remove from Crew</> : <><Plus size={16} className="mr-1" /> Add to Crew</>}
-        </button>
+        </button> */}
         <Link
           href={`/creatives/${creatorId}`}
           onClick={(e) => e.stopPropagation()}
@@ -158,12 +158,12 @@ const CreatorCard = ({
 
             <div className="flex items-center gap-2 rounded-full">
               {/* Rating */}
-              <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-white/10 relative">
+              {/* <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-white/10 relative">
                 <Star className="w-3 h-3 lg:w-[18px] lg:h-[18px] text-[#E8D1AB] fill-[#E4CC17]" />
                 <span className="text-white text-sm lg:text-lg font-medium">
                   {rating} ({reviews})
                 </span>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

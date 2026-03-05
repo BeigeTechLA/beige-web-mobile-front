@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -12,6 +12,7 @@ import { Loader2 } from "lucide-react";
 
 interface ProfileProps {
   id: string;
+  hideActions?: boolean;
 }
 
 const SECTION_TITLE_STYLE = "lg:text-lg font-medium text-white px-5 pt-5 lg:px-8 lg:pt-8";
@@ -30,6 +31,7 @@ import { StatCard } from "../StatCard";
 import { MobileShootRow } from "../shoot-details/MobileShootRow";
 import { AnimatePresence, motion } from "framer-motion";
 import { PORTFOLIO_ICONS } from "@/app/data/staticData";
+import DottedDivider from "../DottedDivider";
 
 const PORTFOLIO_IMAGES = [
   "/images/crew/CREW(1).png",
@@ -99,7 +101,7 @@ function EventDot({ color, label }: any) {
   );
 }
 
-export const CreativePartnerProfile = ({ id }: ProfileProps) => {
+export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
@@ -119,6 +121,7 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
   const [allShoots, setAllShoots] = useState<any[]>([]);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [summaryData, setSummaryData] = useState({
     availableDays: 0,
     bookedShoots: 0,
@@ -130,6 +133,26 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
 
   const toggleRow = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const getEmbedUrl = (url: string) => {
+    if (!url) return null;
+
+    let fullUrl = url;
+    if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
+      fullUrl = `https://${fullUrl}`;
+    }
+
+    const ytMatch = fullUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=1&rel=0`;
+
+    const vimeoMatch = fullUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
+    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&controls=1`;
+
+    const driveMatch = fullUrl.match(/\/d\/(.*?)\//);
+    if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+
+    return fullUrl;
   };
 
   useEffect(() => {
@@ -284,7 +307,7 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
 
   // Base URL for uploads
   // const S3_BASE_URL = "https://beigexmemehouse.s3.amazonaws.com/beige/";
-  const S3_BASE_URL = "https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/";
+  const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
   // Get profile photo
   const profilePhoto = partner.crew_member_files?.find(
@@ -472,12 +495,14 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
       </div> */}
 
       {/* Top Navigation */}
-      <div className="flex items-center gap-2 text-sm text-[#666] mb-6">
-        <button onClick={() => router.back()} className="flex items-center gap-2 text-[#E0E0E0] hover:text-white transition-colors">
-          <ArrowLeft size={20} />
-          <span>Back</span>
-        </button>
-      </div>
+      {!hideActions && (
+        <div className="flex items-center gap-2 text-sm text-[#666] mb-6">
+          <button onClick={() => router.back()} className="flex items-center gap-2 text-[#E0E0E0] hover:text-white transition-colors">
+            <ArrowLeft size={20} />
+            <span>Back</span>
+          </button>
+        </div>
+      )}
 
       {/* Profile Header Card */}
       <div className="bg-[#101010] border border-[#333] rounded-2xl">
@@ -539,35 +564,30 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
             </div>
           </div>
 
-          {/* Status Badge Only */}
-          <div className="flex flex-col items-end">
-            <span className={`px-4 py-1 lg:px-5 lg:py-2 rounded-full text-xs lg:text-sm font-semibold border h-fit ${status === "Approved" ? "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20" :
-              status === "Pending" ? "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20" :
-                "bg-[#FFF5F5] text-[#FF4D4D] border-[#FF4D4D]/20"
-              }`}>
-              {status}
-            </span>
-            {(status === "Approved" || status === "Rejected") && (
-              <button
-                onClick={() => handleVerifyStatus(status === "Approved" ? 2 : 1)}
-                disabled={isVerifying}
-                className="text-[#666] hover:text-[#E0E0E0] text-xs underline underline-offset-4 disabled:opacity-50 mt-2"
-              >
-                Change to {status === "Approved" ? "Rejected" : "Approved"}
-              </button>
-            )}
-          </div>
+          {!hideActions && (
+            <div className="flex flex-col items-end">
+              <span className={`px-4 py-1 lg:px-5 lg:py-2 rounded-full text-xs lg:text-sm font-semibold border h-fit ${status === "Approved" ? "bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20" :
+                status === "Pending" ? "bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20" :
+                  "bg-[#FFF5F5] text-[#FF4D4D] border-[#FF4D4D]/20"
+                }`}>
+                {status}
+              </span>
+              {(status === "Approved" || status === "Rejected") && (
+                <button
+                  onClick={() => handleVerifyStatus(status === "Approved" ? 2 : 1)}
+                  disabled={isVerifying}
+                  className="text-[#666] hover:text-[#E0E0E0] text-xs underline underline-offset-4 disabled:opacity-50 mt-2"
+                >
+                  Change to {status === "Approved" ? "Rejected" : "Approved"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Divider */}
-        <div
-          className="h-[1px] w-full my-4 lg:my-9"
-          style={{
-            backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-            backgroundSize: '30px 1px',
-            backgroundRepeat: 'repeat-x'
-          }}
-        />
+        <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+        {/* <DottedDivider /> */}
 
         {/* Tabs */}
         <div className="flex items-center w-full overflow-x-auto no-scrollbar gap-6 lg:gap-0 lg:justify-between lg:mt-2 px-2">
@@ -594,14 +614,9 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
             <h2 className={`${SECTION_TITLE_STYLE}`}>Personal Information</h2>
 
             {/* divider */}
-            <div
-              className="h-[1px] w-full my-4 lg:my-9"
-              style={{
-                backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                backgroundSize: '30px 1px',
-                backgroundRepeat: 'repeat-x'
-              }}
-            />
+            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            {/* <DottedDivider /> */}
+
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
               <div>
                 <span className={LABEL_STYLE}>First Name</span>
@@ -637,14 +652,9 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
           <div className="bg-[##101010] border border-[#333] rounded-2xl">
             <h2 className={SECTION_TITLE_STYLE}>Professional Details</h2>
             {/* divider */}
-            <div
-              className="h-[1px] w-full my-4 lg:my-9"
-              style={{
-                backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                backgroundSize: '30px 1px',
-                backgroundRepeat: 'repeat-x'
-              }}
-            />
+            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            {/* <DottedDivider /> */}
+
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
               <div>
                 <span className={LABEL_STYLE}>Primary Role</span>
@@ -656,7 +666,7 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
               </div>
               <div>
                 <span className={LABEL_STYLE}>Hourly Rate</span>
-                <span className={VALUE_STYLE}>${partner.hourly_rate || "0.00"}/-</span>
+                <span className={VALUE_STYLE}>${partner.hourly_rate || "0.00"}</span>
               </div>
               <div className="col-span-2">
                 <span className={LABEL_STYLE}>Bio / About</span>
@@ -673,14 +683,9 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
               Skills <span className="text-[#E5D5B8]">({skillNames.length})</span>
             </h2>
             {/* divider */}
-            <div
-              className="h-[1px] w-full my-4 lg:my-9"
-              style={{
-                backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                backgroundSize: '30px 1px',
-                backgroundRepeat: 'repeat-x'
-              }}
-            />
+            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            {/* <DottedDivider /> */}
+
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-2 lg:gap-3">
               {skillNames.length > 0 ? (
                 skillNames.map(skill => (
@@ -756,14 +761,10 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
           ) : (
             <>
               <h2 className={SECTION_TITLE_STYLE}>CP Featured Work</h2>
-              <div
-                className="h-[1px] w-full my-4 lg:my-9"
-                style={{
-                  backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                  backgroundSize: '30px 1px',
-                  backgroundRepeat: 'repeat-x'
-                }}
-              />
+
+              {/* <DottedDivider /> */}
+              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+
               {/* Toolbar */}
               <div className="flex items-center justify-between gap-2 px-5 pb-5 lg:px-8 lg:pb-8">
                 <div className="relative w-full lg:w-[500px]">
@@ -1182,14 +1183,8 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
           <h2 className={SECTION_TITLE_STYLE}>CP Certificates</h2>
 
           {/* divider */}
-          <div
-            className="h-[1px] w-full my-4 lg:my-9"
-            style={{
-              backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-              backgroundSize: '30px 1px',
-              backgroundRepeat: 'repeat-x'
-            }}
-          />
+          {/* <DottedDivider /> */}
+          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-5">
             {certificationFiles.length > 0 ? (
@@ -1236,14 +1231,9 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
           <h2 className={SECTION_TITLE_STYLE}>CP Resume</h2>
 
           {/* divider */}
-          <div
-            className="h-[1px] w-full my-4 lg:my-9"
-            style={{
-              backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-              backgroundSize: '30px 1px',
-              backgroundRepeat: 'repeat-x'
-            }}
-          />
+          {/* <DottedDivider /> */}
+          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8 w-full lg:w-[340px]">
             {resumeFile ? (
@@ -1289,14 +1279,8 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
           <h2 className={SECTION_TITLE_STYLE}>Portfolio Links</h2>
 
           {/* divider */}
-          <div
-            className="h-[1px] w-full my-4 lg:my-9"
-            style={{
-              backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-              backgroundSize: '30px 1px',
-              backgroundRepeat: 'repeat-x'
-            }}
-          />
+          {/* <DottedDivider /> */}
+          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8">
             {(() => {
@@ -1350,11 +1334,11 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
                         </div>
 
                         <button
-                          onClick={() => window.open(formatExternalUrl(link.file_path), '_blank')}
+                          onClick={() => setPlayingVideo(link.file_path)}
                           className="w-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
                         >
-                          View Portfolio
-                          <Navigation size={14} className="group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                          Play Portfolio
+                          <Play size={14} className="fill-current group-hover/btn:scale-110 transition-transform" />
                         </button>
                       </div>
                     );
@@ -1363,6 +1347,47 @@ export const CreativePartnerProfile = ({ id }: ProfileProps) => {
               );
             })()}
           </div>
+        </div>
+      )}
+      {/* VIDEO PLAYER MODAL */}
+      {playingVideo && (
+        <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
+
+          {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
+          <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
+            <div className="space-y-1 pointer-events-auto">
+              <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">
+                Portfolio Player
+              </h3>
+              <div className="flex items-center gap-2">
+                {/* Accent color matched to this specific page's theme */}
+                <span className="w-1.5 h-1.5 bg-[#E5D5B8] rounded-full animate-pulse" />
+                <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
+                  Now Playing
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setPlayingVideo(null)}
+              className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90 shadow-lg pointer-events-auto"
+            >
+              <X size={20} className="lg:w-6 lg:h-6" />
+            </button>
+          </div>
+
+          {/* Video Container - Beautifully centers and allows scroll */}
+          <div className="w-full max-w-6xl mx-auto px-4 pb-24 pt-2 lg:pt-10">
+            <div className="w-full aspect-video bg-black rounded-xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/10 relative">
+              <iframe
+                src={getEmbedUrl(playingVideo) || ""}
+                className="w-full h-full absolute inset-0 border-none"
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                allowFullScreen
+                title="Portfolio Video"
+              />
+            </div>
+          </div>
+
         </div>
       )}
     </div >

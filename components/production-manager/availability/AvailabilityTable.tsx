@@ -32,6 +32,8 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
     );
 };
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 export const AvailabilityTable = () => {
     const [users, setUsers] = useState<CreativePartner[]>([]);
     const [loading, setLoading] = useState(true);
@@ -108,7 +110,7 @@ export const AvailabilityTable = () => {
                             (file: any) => file.file_type === 'profile_photo'
                         );
                         const imageUrl = profilePhoto
-                            ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}`
+                            ? `${S3_PREFIX}${profilePhoto.file_path}`
                             : null;
 
                         const apiStatus = member.status?.toLowerCase() || "";
@@ -161,7 +163,7 @@ export const AvailabilityTable = () => {
                 </div>
             </div>
 
-            <div className="w-full h-px bg-[#333] my-6 border-dashed border-b border-white/10" />
+            {/* <div className="w-full h-px bg-[#333] my-6 border-dashed border-b border-white/10" /> */}
 
             {/* Table */}
             <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">

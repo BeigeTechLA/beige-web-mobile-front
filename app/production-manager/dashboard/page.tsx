@@ -11,6 +11,7 @@ import StackedDashboard from "@/components/production-manager/StatsModule";
 import { TopCreatives } from "@/components/production-manager/TopCreatives";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/production-manager/SortDateButton";
+import DottedDivider from "@/components/admin/DottedDivider";
 
 export default function ProductionManagerDashboardPage() {
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -43,14 +44,7 @@ export default function ProductionManagerDashboardPage() {
                 />
             </div>
 
-            <div
-                className="lg:hidden h-[1px] w-full my-4 lg:my-9"
-                style={{
-                    backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-                    backgroundSize: '30px 1px',
-                    backgroundRepeat: 'repeat-x'
-                }}
-            />
+            {/* <DottedDivider className="lg:hidden" /> */}
 
             <OverviewChart externalSelectedDate={selectedDate} />
 

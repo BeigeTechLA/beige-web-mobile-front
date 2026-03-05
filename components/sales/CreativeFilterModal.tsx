@@ -69,7 +69,7 @@ export const CreativeFilterModal = ({ isOpen, onClose }: FilterProps) => {
         <div className="flex-1 overflow-y-auto p-6 pt-10 space-y-10">
 
           {/* Shoot Types Dropdown */}
-          <div className="relative group">
+          {/* <div className="relative group">
             <label className="absolute -top-2.5 left-4 bg-[#0A0A0A] z-10 px-1 text-sm text-white/40 group-focus-within:text-[#E8D1AB] transition-colors">
               Shoot Types
             </label>
@@ -81,7 +81,7 @@ export const CreativeFilterModal = ({ isOpen, onClose }: FilterProps) => {
               width="w-full"
               styles="text-white text-sm bg-transparent h-14 lg:h-[82px] border-white/20 hover:border-white/40"
             />
-          </div>
+          </div> */}
 
           {/* Specialities Dropdown */}
           <div className="relative group">
@@ -99,7 +99,7 @@ export const CreativeFilterModal = ({ isOpen, onClose }: FilterProps) => {
           </div>
 
           {/* Availability DatePicker */}
-          <div className="relative group">
+          {/* <div className="relative group">
             <DatePicker
               label="Select Availability"
               value={selectedDate}
@@ -120,7 +120,7 @@ export const CreativeFilterModal = ({ isOpen, onClose }: FilterProps) => {
               }}
               floating
             />
-          </div>
+          </div> */}
 
           {/* DUAL Location Radius Slider */}
           <div className="relative border border-white/20 rounded-xl p-6 pt-8">

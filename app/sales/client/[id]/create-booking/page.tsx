@@ -52,6 +52,7 @@ import { adminApi } from "@/lib/api"; // Added for fetching client profile
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 
 const INITIAL_COUNT = 6;
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 const TEAM_ROLES = [
   { id: "videographer", label: "Videographer", price: 250, icon: <Video size={28} /> },
@@ -86,6 +87,7 @@ export default function ClientDetailPage() {
   const [videoEditTypeOptions, setVideoEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
+  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [crewList, setCrewList] = useState<any[]>([]);
@@ -323,6 +325,21 @@ export default function ClientDetailPage() {
     setTimeOptions(options);
   }, []);
 
+  useEffect(() => {
+    const primaryDate = formData.startDate || formData.endDate;
+    if (!primaryDate) {
+      setSelectedShootDate(null);
+      return;
+    }
+
+    const parsed = parseDate(primaryDate);
+    if (!parsed) return;
+
+    setSelectedShootDate(
+      set(new Date(parsed), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+    );
+  }, [formData.startDate, formData.endDate]);
+
   const toggleContentType = (type: "videographer" | "photographer" | "editing") => {
     const current = [...formData.contentType];
     const isCurrentlySelected = current.includes(type);
@@ -356,9 +373,13 @@ export default function ClientDetailPage() {
 
   const handleDateChange = (date: Date | null) => {
     if (!date) {
+      setSelectedShootDate(null);
       updateData({ startDate: "", endDate: "" });
       return;
     }
+    setSelectedShootDate(
+      set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+    );
 
     const now = new Date();
     const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
@@ -395,7 +416,11 @@ export default function ClientDetailPage() {
     }
 
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const currentDate = formData.startDate ? parseDate(formData.startDate) : new Date();
+    const currentDate =
+      (formData.startDate ? parseDate(formData.startDate) : null) ||
+      (formData.endDate ? parseDate(formData.endDate) : null) ||
+      selectedShootDate ||
+      new Date();
     if (!currentDate) return;
 
     const newStart = set(currentDate, { hours, minutes, seconds: 0 });
@@ -415,7 +440,11 @@ export default function ClientDetailPage() {
       return;
     }
     const [hours, minutes] = timeKey.split(":").map(Number);
-    let currentDate = formData.endDate ? parseDate(formData.endDate) : formData.startDate ? parseDate(formData.startDate) : new Date();
+    let currentDate =
+      (formData.startDate ? parseDate(formData.startDate) : null) ||
+      (formData.endDate ? parseDate(formData.endDate) : null) ||
+      selectedShootDate ||
+      new Date();
     if (!currentDate) return;
 
     const newEnd = set(currentDate, { hours, minutes, seconds: 0 });
@@ -446,15 +475,15 @@ export default function ClientDetailPage() {
   }, [formData.startDate, timeOptions]);
 
   const filteredStartTimeOptions = useMemo(() => {
-    if (!formData.startDate) return timeOptions;
-    const selectedDate = parseDate(formData.startDate);
+    if (!selectedShootDate) return timeOptions;
+    const selectedDate = selectedShootDate;
     const now = new Date();
     const isToday = selectedDate?.toDateString() === now.toDateString();
     if (!isToday) return timeOptions;
     const minTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
     const minKey = format(minTime, "HH:mm");
     return timeOptions.filter((opt) => opt.key >= minKey);
-  }, [formData.startDate, timeOptions]);
+  }, [selectedShootDate, timeOptions]);
 
   const handleExtraTeamChange = (id: string, delta: number) => {
     const nextExtra = { ...extraTeam };
@@ -534,10 +563,10 @@ export default function ClientDetailPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.selectedCrewIds || formData.selectedCrewIds.length === 0) {
-      toast.error("Please select at least one creative");
-      return;
-    }
+    // if (!formData.selectedCrewIds || formData.selectedCrewIds.length === 0) {
+    //   toast.error("Please select at least one creative");
+    //   return;
+    // }
 
     // Check for over-selection
     const isOverSelected =
@@ -578,7 +607,7 @@ export default function ClientDetailPage() {
           <div className="w-16 h-16 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-[#101010] border border-[#E8D1AB] flex items-center justify-center text-xl lg:text-[30px] font-bold shrink-0 overflow-hidden">
             {clientProfile?.user?.profile_image || clientProfile?.profile_image ? (
               <img
-                src={clientProfile?.user?.profile_image ? `https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${clientProfile.user.profile_image}` : `https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/${clientProfile.profile_image}`}
+                src={clientProfile?.user?.profile_image ? `${S3_PREFIX}${clientProfile.user.profile_image}` : `${S3_PREFIX}${clientProfile.profile_image}`}
                 alt={clientProfile?.user?.name}
                 className="w-full h-full object-cover"
               />
@@ -596,10 +625,10 @@ export default function ClientDetailPage() {
             <p className="text-sm text-white/40">{clientProfile?.user?.email}</p>
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Content Type */}
-        <div ref={contentTypeRef}>
+        <div ref={contentTypeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ContentTypeCheckbox
@@ -641,10 +670,10 @@ export default function ClientDetailPage() {
             />
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Shoot Type */}
-        <div ref={shootTypeRef}>
+        <div ref={shootTypeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
             {formData.contentType.length > 1 ? "Video and Photo Shoot Type" : formData.contentType.includes("videographer") ? "Video Shoot Type" : "Photo Shoot Type"}
           </h3>
@@ -658,10 +687,10 @@ export default function ClientDetailPage() {
             required
           />
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Date & Time */}
-        <div ref={dateTimeRef}>
+        <div ref={dateTimeRef} className="my-4 lg:my-9">
           <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">
             Shoot Date & Time
           </h3>
@@ -669,7 +698,7 @@ export default function ClientDetailPage() {
             <div className="flex-1">
               <DatePicker
                 label="Select Date"
-                value={formData.startDate ? parseDate(formData.startDate) : null}
+                value={selectedShootDate}
                 onChange={handleDateChange}
                 minDate={new Date()}
                 colors={datePickerColours}
@@ -697,10 +726,10 @@ export default function ClientDetailPage() {
             </div>
           </div>
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Edits Needed */}
-        <div ref={editsRef}>
+        <div ref={editsRef} className="my-4 lg:my-9">
           <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">
             Edits Needed?
           </h3>
@@ -760,10 +789,10 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Additional Creatives */}
-        <div ref={extraTeamRef}>
+        <div ref={extraTeamRef} className="my-4 lg:my-9">
           <div className="flex flex-col gap-3 lg:gap-6">
             <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
             <div className="flex gap-2 lg:gap-6">
@@ -814,10 +843,10 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Location */}
-        <div ref={locationRef}>
+        <div ref={locationRef} className="my-4 lg:my-9">
           <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
           <LocationPicker
             value={formData.location}
@@ -826,10 +855,10 @@ export default function ClientDetailPage() {
             colors={darkThemeColors}
           />
         </div>
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         {/* Crew Selection */}
-        <div ref={crewRef}>
+        <div ref={crewRef} className="my-4 lg:my-9">
           {!formData.startDate || !formData.location ? (
             <div className="p-10 border border-dashed border-white/20 rounded-2xl text-center text-white/40">
               Please select a shoot date and location to view available creatives.
@@ -860,7 +889,7 @@ export default function ClientDetailPage() {
           )}
         </div>
 
-        <DottedDivider />
+        {/* <DottedDivider /> */}
 
         <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
           <Button
@@ -870,7 +899,7 @@ export default function ClientDetailPage() {
             Back
           </Button>
           <Button
-            disabled={formData.selectedCrewIds.length === 0 || isSubmitting}
+            disabled={isSubmitting}
             onClick={handleSubmit}
             className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -878,6 +907,7 @@ export default function ClientDetailPage() {
           </Button>
         </div>
       </div>
+
       <AssignmentConfirmationModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}

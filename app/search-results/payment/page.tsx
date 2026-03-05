@@ -27,6 +27,7 @@ import axios from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
 import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { BookingSummaryModal } from "@/src/components/landing/BookingSummaryModal";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -136,6 +137,8 @@ function StripePaymentFormMulti({
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [appliedDiscount, setAppliedDiscount] = useState<any>(null);
   const [referralErrorMessage, setReferralErrorMessage] = useState("");
+
+  const isFree = amount === 0;
 
   // AUTO-APPLY & REFRESH FIX LOGIC - UPDATED TO HANDLE OVERRIDE
   useEffect(() => {
@@ -327,22 +330,6 @@ function StripePaymentFormMulti({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stripe || !elements) {
-      onError("Payment system not initialized");
-      return;
-    }
-
-    if (!clientSecret) {
-      onError("Payment not initialized. Please refresh the page.");
-      return;
-    }
-
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      onError("Card information not found");
-      return;
-    }
-
     // add GA event when payment is initiated
     pushToDataLayer("booking_payment_initiated ", {
       type: "Action Tracking",
@@ -359,6 +346,49 @@ function StripePaymentFormMulti({
         phone: booking.phone,
       }
     });
+
+    // 100% DISCOUNT CASE: Bypass Stripe
+    if (isFree) {
+      setIsProcessing(true);
+      try {
+        // We pass the clientSecret which is the mock ID from backend
+        onSuccess(clientSecret);
+        pushToDataLayer("payment_success", {
+          type: "Action Tracking",
+          page_name: "Payment Page",
+          location_in_website: "book_a_shoot_payment_page",
+          user_id: isAuthenticated ? user?.id : "Unknown",
+          user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+          email: isAuthenticated ? user?.email : booking.email,
+          phone: isAuthenticated ? user?.phone_number : booking.phone,
+          duration_on_page: performance.now() / 1000,
+          booking_id: booking?.bookingId,
+          payment_status: "Success (100% Discount)"
+        });
+      } catch (err) {
+        onError("Failed to process free booking");
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
+    if (!stripe || !elements) {
+      onError("Payment system not initialized");
+      return;
+    }
+
+    if (!clientSecret) {
+      onError("Payment not initialized. Please refresh the page.");
+      return;
+    }
+
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) {
+      onError("Card information not found");
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -433,49 +463,56 @@ function StripePaymentFormMulti({
   return (
     <div className="bg-[#171717] rounded-[20px] p-6 lg:p-10">
       <h3 className="font-bold mb-7 text-base lg:text-2xl">
-        Add Payment Method
+        {isFree ? "Confirm Free Booking" : "Add Payment Method"}
       </h3>
 
-      <div className="bg-white rounded-[10px] p-4 lg:p-5 flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3 text-[#212122]">
-          <CreditCard className="w-5 h-5 lg:w-9 lg:h-9" />
-          <div className="flex flex-col">
-            <span className="text-base font-medium">Stripe Secure Payment</span>
-            <span className="text-sm">
-              Your payment is protected with Stripe&apos;s secure encryption.
-            </span>
+      {!isFree && (
+        <div className="bg-white rounded-[10px] p-4 lg:p-5 flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3 text-[#212122]">
+            <CreditCard className="w-5 h-5 lg:w-9 lg:h-9" />
+            <div className="flex flex-col">
+              <span className="text-base font-medium">Stripe Secure Payment</span>
+              <span className="text-sm">
+                Your payment is protected with Stripe&apos;s secure encryption.
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
         className="bg-[#272626] rounded-[20px] p-4 lg:p-10 flex flex-col gap-5 lg:gap-9"
       >
-        {/* Card Element */}
-        <div className="relative w-full">
-          <label className="absolute -top-3 left-4 bg-[#272626] px-2 text-sm lg:text-base text-white/60 z-10">
-            Card Details
-          </label>
-          <div className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 flex items-center outline-none focus-within:border-white/50 bg-[#272626]">
-            <CardElement options={CARD_ELEMENT_OPTIONS} className="w-full" />
-          </div>
-        </div>
+        {/* Only show card fields if it's NOT a free booking */}
+        {!isFree && (
+          <>
+            {/* Card Element */}
+            <div className="relative w-full">
+              <label className="absolute -top-3 left-4 bg-[#272626] px-2 text-sm lg:text-base text-white/60 z-10">
+                Card Details
+              </label>
+              <div className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 flex items-center outline-none focus-within:border-white/50 bg-[#272626]">
+                <CardElement options={CARD_ELEMENT_OPTIONS} className="w-full" />
+              </div>
+            </div>
 
-        {/* Cardholder Name */}
-        <div className="relative w-full">
-          <label className="absolute -top-3 left-4 bg-[#272626] px-2 text-sm lg:text-base text-white/60">
-            Card Holder Name
-          </label>
-          <input
-            type="text"
-            value={cardholderName}
-            onChange={(e) => setCardholderName(e.target.value)}
-            className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-white/50 bg-[#272626]"
-            placeholder="Ex. John Doe"
-            required
-          />
-        </div>
+            {/* Cardholder Name */}
+            <div className="relative w-full">
+              <label className="absolute -top-3 left-4 bg-[#272626] px-2 text-sm lg:text-base text-white/60">
+                Card Holder Name
+              </label>
+              <input
+                type="text"
+                value={cardholderName}
+                onChange={(e) => setCardholderName(e.target.value)}
+                className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-white/50 bg-[#272626]"
+                placeholder="Ex. John Doe"
+                required={!isFree}
+              />
+            </div>
+          </>
+        )}
 
         {/* Referral Code */}
         <div className="relative w-full">
@@ -581,12 +618,14 @@ function StripePaymentFormMulti({
         {/* Submit Button */}
         <Button
           type="submit"
-          disabled={isProcessing || !stripe}
+          disabled={isProcessing || (!isFree && !stripe)}
           className="w-fit h-14 lg:h-[96px] px-5 lg:px-12 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium rounded-[10px] lg:rounded-[20px] shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] disabled:opacity-50"
         >
           {isProcessing
             ? "Processing..."
-            : `Confirm & Pay ${formatCurrency(amount)}`}
+            : isFree 
+              ? "Confirm Booking (Free)" 
+              : `Confirm & Pay ${formatCurrency(amount)}`}
         </Button>
       </form>
     </div>
@@ -607,6 +646,8 @@ function MultiCreatorPaymentContent() {
   const [clientSecret, setClientSecret] = useState<string>("");
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showBackDialog, setShowBackDialog] = useState(false);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -633,6 +674,20 @@ function MultiCreatorPaymentContent() {
       window.history.back();
     }
   };
+
+  const handleViewSummary = async () => {
+  try {
+    const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
+    const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`); // Your new API endpoint
+    
+    if (response.data.success) {
+      setSummaryData(response.data.data);
+      setIsSummaryModalOpen(true);
+    }
+  } catch (err) {
+    toast.error("Failed to load summary details");
+  }
+};
 
   useEffect(() => {
     if (step === "success") return;
@@ -789,10 +844,10 @@ function MultiCreatorPaymentContent() {
         booking_id: shootId,
       });
       setStep("success");
-      toast.success("Payment successful!");
+      toast.success("Booking confirmed successfully!");
     } catch (error) {
       console.error("Error confirming payment:", error);
-      toast.error("Payment succeeded but failed to save booking. Please contact support.");
+      toast.error("Booking succeeded but failed to update status. Please contact support.");
     }
   };
 
@@ -831,7 +886,7 @@ function MultiCreatorPaymentContent() {
   }
 
   const { booking, creators, quote } = paymentDetails;
-  const quoteTotal = quote?.total ? parseFloat(quote.total) : null;
+  const quoteTotal = (quote && typeof quote.total !== 'undefined') ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
 
   if (!isQuoteValid) {
@@ -868,18 +923,26 @@ function MultiCreatorPaymentContent() {
                 <Image src="/images/misc/PaymentDone.png" alt="Payment Done" fill className="object-contain" priority />
               </div>
             </div>
-            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Payment Success</h2>
+            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Booking Confirmed</h2>
             <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(quoteTotal)}</p>
             <div className="w-full max-w-2xl mb-6">
               <button onClick={() => window.open(getFormUrl(), "_blank")} className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center">
                 Complete All The Details For Your Shoot
               </button>
             </div>
-            <Link href={`/search-results${shootId ? `?shootId=${shootId}` : ""}`} className="h-12 lg:h-24 px-6 py-5 lg:px-20 lg:py-10 bg-white/10 hover:bg-white/20 text-white text-lg lg:text-2xl font-medium rounded-xl inline-flex items-center justify-center border border-white/20">
+            <button
+              onClick={handleViewSummary}
+              className="h-12 lg:h-24 px-6 py-5 lg:px-20 lg:py-10 bg-white/10 hover:bg-white/20 text-white text-lg lg:text-2xl font-medium rounded-xl inline-flex items-center justify-center border border-white/20"
+            >
               View Booking Summary
-            </Link>
+            </button>
           </motion.div>
         </div>
+        <BookingSummaryModal 
+          isOpen={isSummaryModalOpen} 
+          onClose={() => setIsSummaryModalOpen(false)} 
+          data={summaryData} 
+        />
       </div>
     );
   }
@@ -895,8 +958,8 @@ function MultiCreatorPaymentContent() {
 
         <div className="text-center mb-8 lg:mb-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <h2 className="text-lg lg:text-[64px] lg:leading-[76px] font-bold text-gradient-white mb-3 lg:mb-5">Confirm and Pay</h2>
-            <p className="text-white/70 mx-auto text-xs lg:text-base">Review your crew selection and complete your payment</p>
+            <h2 className="text-lg lg:text-[64px] lg:leading-[76px] font-bold text-gradient-white mb-3 lg:mb-5">Confirm and Book</h2>
+            <p className="text-white/70 mx-auto text-xs lg:text-base">Review your crew selection and complete your booking</p>
           </motion.div>
         </div>
 
@@ -905,7 +968,7 @@ function MultiCreatorPaymentContent() {
             {!clientSecret ? (
               <div className="bg-[#171717] rounded-[20px] p-6 lg:p-10 flex flex-col items-center justify-center min-h-[400px]">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB] mb-4"></div>
-                <p className="text-white/60">Initializing payment...</p>
+                <p className="text-white/60">Initializing payment details...</p>
               </div>
             ) : (
               <div className="relative">
@@ -1085,10 +1148,10 @@ const LeaveConfirmationModal = ({ isOpen, onConfirm, onCancel }: { isOpen: boole
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
       <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl">
-        <h3 className="text-2xl font-semibold text-white mb-4">Cancel Payment?</h3>
-        <p className="text-white/60 mb-8 leading-relaxed">Your booking progress will be lost. If you have already clicked pay, please wait to avoid duplicate charges.</p>
+        <h3 className="text-2xl font-semibold text-white mb-4">Cancel Booking?</h3>
+        <p className="text-white/60 mb-8 leading-relaxed">Your booking progress will be lost. If you have already clicked confirm, please wait to avoid duplicate submissions.</p>
         <div className="flex gap-4">
-          <button onClick={onCancel} className="flex-1 py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all font-medium">Continue Payment</button>
+          <button onClick={onCancel} className="flex-1 py-3 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all font-medium">Continue Booking</button>
           <button onClick={onConfirm} className="flex-1 py-3 px-6 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all font-medium">Leave Page</button>
         </div>
       </div>

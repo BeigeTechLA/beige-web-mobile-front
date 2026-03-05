@@ -20,6 +20,9 @@ import { Button } from "@/components/ui/button";
 import { adminApi, getCrewAvailability } from "@/lib/api";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
+import DottedDivider from "@/components/admin/DottedDivider";
+
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 // --- HELPERS ---
 const formatLocation = (locationInput: string) => {
@@ -298,7 +301,7 @@ export default function AvailabilityDetailsPage() {
         (file: any) => file.file_type === 'profile_photo'
     );
     const imageUrl = profilePhoto
-        ? `https://beigexmemehouse.s3.amazonaws.com/beige/${profilePhoto.file_path}`
+        ? `${S3_PREFIX}${profilePhoto.file_path}`
         : null;
 
     const fullName = `${member?.first_name || ''} ${member?.last_name || ''}`.trim() || "Unknown";
@@ -389,7 +392,7 @@ export default function AvailabilityDetailsPage() {
 
                 <div>
                     <h2 className="text-xl font-bold text-white mb-6">Availability</h2>
-                    <div className="w-full h-px bg-[#333] border-dashed border-b border-white/10 mb-8" />
+            {/* <DottedDivider /> */}
 
                     <div className="grid grid-cols-12 gap-6">
                         {/* Main Calendar Section */}

@@ -31,7 +31,8 @@ import {
   CheckCircle,
   Phone,
   Loader2,
-  EyeOff
+  EyeOff,
+  Pause, Volume2, VolumeX
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -43,13 +44,14 @@ import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";
 import PersonalInfoForm from "@/src/components/cpSignup/PersonalInfoForm";
 import ProfessionalInfoForm from "@/src/components/cpSignup/ProfessionalInfoForm";
 import SkillsForm from "@/src/components/cpSignup/SkillsForm";
-import { GetMyProfile, EditMyProfile, UploadProfileFile, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink } from "@/lib/api";
+import { toast } from "sonner";
+import { GetMyProfile, EditMyProfile, UploadProfileFile, UploadProfilePhoto, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink } from "@/lib/api";
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DeleteConfirmationModal from "@/src/components/cpSignup/DeleteConfirmationModal";
 import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
 
 // --- CONSTANTS ---
-const S3_BASE_URL = "https://beigexmemehouse.s3.amazonaws.com/beige/";
+const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
 // --- REUSABLE SUB-COMPONENTS ---
 const StatBox = ({ value, sublabel }: { value: string, sublabel: string }) => (
@@ -77,6 +79,36 @@ const InfoField = ({ label, value, placeholder }: { label: string, value?: any, 
     </p>
   </div>
 );
+
+const getEmbedUrl = (url: string) => {
+  if (!url) return null;
+
+  let fullUrl = url;
+  if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
+    fullUrl = `https://${fullUrl}`;
+  }
+
+  // YouTube
+  const ytMatch = fullUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/);
+  if (ytMatch) {
+    // Standard embed with controls enabled
+    return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=1&rel=0`;
+  }
+
+  // Vimeo
+  const vimeoMatch = fullUrl.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
+  if (vimeoMatch) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&controls=1`;
+  }
+
+  // Google Drive
+  const driveMatch = fullUrl.match(/\/d\/(.*?)\//);
+  if (driveMatch) {
+    return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+  }
+
+  return fullUrl;
+};
 
 const getRoleLabel = (roleData: any) => {
   if (!roleData) return "Not Specified";
@@ -155,6 +187,9 @@ export default function ProfilePage() {
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false);
   const [isPortfolioLinksModalOpen, setIsPortfolioLinksModalOpen] = useState(false);
   const [editingPortfolioLinks, setEditingPortfolioLinks] = useState<any[]>([]);
+  const [playingVideo, setPlayingVideo] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   // const [socialLinks, setSocialLinks] = useState([]);
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
   const [isEditingSkills, setIsEditingSkills] = useState(false);
@@ -167,6 +202,7 @@ export default function ProfilePage() {
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const profilePhotoInputRef = useRef<HTMLInputElement>(null);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -575,6 +611,40 @@ export default function ProfilePage() {
     }
   };
 
+  const handleUploadProfilePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
+
+    if (!crewMemberId) {
+      toast.error("User ID not found");
+      return;
+    }
+
+    try {
+      setIsPageLoading(true);
+      const response: any = await UploadProfilePhoto(file, crewMemberId);
+
+      if (response.data && response.data.error === false) {
+        toast.success("Profile photo updated successfully");
+        const updatedProfile = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
+        if (updatedProfile.data) {
+          setProfile(updatedProfile.data.data);
+        }
+      } else {
+        toast.error(response.data?.message || "Upload failed");
+      }
+    } catch (err) {
+      console.error("Failed to upload profile photo:", err);
+      toast.error("An error occurred during upload");
+    } finally {
+      setIsPageLoading(false);
+    }
+  };
+
 
   const handleExecuteDelete = async () => {
     const crewMemberId = getCrewId();
@@ -720,8 +790,23 @@ export default function ProfilePage() {
           <div className="flex-1 space-y-4 lg:space-y-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-15 h-15 lg:w-20 lg:h-20 rounded-full bg-zinc-800 overflow-hidden border-2 border-[#E8D1AB] shrink-0">
-                  <img src={profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
+                <div className="group relative w-15 h-15 lg:w-20 lg:h-20 rounded-full bg-zinc-800 border-2 border-[#E8D1AB] shrink-0">
+                  <div className="w-full h-full rounded-full overflow-hidden">
+                    <img src={profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
+                  </div>
+                  <input
+                    type="file"
+                    ref={profilePhotoInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleUploadProfilePhoto}
+                  />
+                  <button
+                    onClick={() => profilePhotoInputRef.current?.click()}
+                    className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  >
+                    <Camera size={20} className="text-white" />
+                  </button>
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -1235,10 +1320,7 @@ export default function ProfilePage() {
           {activeTab === "Portfolio Links" && (
             <div className="animate-in fade-in duration-500">
               {(() => {
-                const portfolioLinks = profile.crew_member_files?.filter(
-                  (f: any) => f.file_type === "link"
-                ) || [];
-
+                const portfolioLinks = profile.crew_member_files?.filter((f: any) => f.file_type === "link") || [];
                 if (portfolioLinks.length === 0) {
                   return (
                     <TabEmptyState
@@ -1260,7 +1342,6 @@ export default function ProfilePage() {
                       {/* ADD CARD */}
                       <div
                         onClick={() => {
-                          // Prepare existing links for the modal
                           const mappedLinks = portfolioLinks.map((l: any) => ({
                             id: l.crew_files_id,
                             url: l.file_path,
@@ -1288,11 +1369,7 @@ export default function ProfilePage() {
                           >
                             <div className="flex items-center justify-between">
                               <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
-                                {platform?.icon ? (
-                                  <platform.icon size={24} className="text-[#E8D1AB]" />
-                                ) : (
-                                  <Globe size={24} className="text-[#E8D1AB]" />
-                                )}
+                                {platform?.icon ? <platform.icon size={24} className="text-[#E8D1AB]" /> : <Globe size={24} className="text-[#E8D1AB]" />}
                               </div>
                               <div className="flex items-center gap-2">
                                 <button
@@ -1307,35 +1384,26 @@ export default function ProfilePage() {
                                     setIsPortfolioLinksModalOpen(true);
                                   }}
                                   className="p-2 text-white/20 hover:text-[#E8D1AB] hover:bg-white/5 rounded-lg transition-all"
-                                  title="Edit Link"
                                 >
                                   <Pencil size={18} />
                                 </button>
-                                <button
-                                  onClick={() => confirmDelete('file', link)}
-                                  className="p-2 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                                  title="Delete Link"
-                                >
+                                <button onClick={() => confirmDelete('file', link)} className="p-2 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
                                   <Trash2 size={18} />
                                 </button>
                               </div>
                             </div>
 
                             <div className="space-y-1">
-                              <p className="text-sm font-bold text-white uppercase tracking-wider">
-                                {platform?.label || "Portfolio Link"}
-                              </p>
-                              <p className="text-xs text-white/40 truncate">
-                                {link.file_path}
-                              </p>
+                              <p className="text-sm font-bold text-white uppercase tracking-wider">{platform?.label || "Portfolio Link"}</p>
+                              <p className="text-xs text-white/40 truncate">{link.file_path}</p>
                             </div>
 
                             <button
-                              onClick={() => window.open(formatExternalUrl(link.file_path), '_blank')}
+                              onClick={() => setPlayingVideo(link.file_path)}
                               className="w-full bg-[#1A1A1A] text-white border border-white/10 hover:bg-white hover:text-black py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group/btn"
                             >
-                              View Portfolio
-                              <Navigation size={14} className="group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                              Play Portfolio
+                              <Play size={14} className="fill-current group-hover/btn:scale-110 transition-transform" />
                             </button>
                           </div>
                         );
@@ -1473,6 +1541,46 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* VIDEO PLAYER MODAL */}
+      {playingVideo && (
+        <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
+
+          {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
+          <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
+            <div className="space-y-1 pointer-events-auto">
+              <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">
+                Portfolio Player
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-[#E8D1AB] rounded-full animate-pulse" />
+                <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
+                  Now Playing
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setPlayingVideo(null)}
+              className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90 shadow-lg pointer-events-auto"
+            >
+              <X size={20} className="lg:w-6 lg:h-6" />
+            </button>
+          </div>
+
+          {/* Video Container - Changed layout to allow perfect scrolling without clipping */}
+          <div className="w-full max-w-6xl mx-auto px-4 pb-24 pt-2 lg:pt-10">
+            <div className="w-full aspect-video bg-black rounded-xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/10 relative">
+              <iframe
+                src={getEmbedUrl(playingVideo) || ""}
+                className="w-full h-full absolute inset-0 border-none"
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                allowFullScreen
+                title="Portfolio Video"
+              />
+            </div>
+          </div>
+
+        </div>
+      )}
       <FeaturedWorkModal
         open={isFeaturedModalOpen}
         onClose={() => setIsFeaturedModalOpen(false)}

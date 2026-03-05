@@ -80,7 +80,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   const itemsPerPage = 10;
 
   // Filtering states
-  const [range, setRange] = useState<string>("month");
+  const [range, setRange] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
