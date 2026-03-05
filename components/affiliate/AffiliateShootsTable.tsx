@@ -7,6 +7,7 @@ import Cookies from "js-cookie";
 import { affiliateApi, adminApi } from "@/lib/api";
 import { format } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useRouter } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -20,12 +21,14 @@ type Status = "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "C
 
 interface ShootRecord {
   id: string;
+  bookingId: string;
   customerName: string;
   initials: string;
   date: string;
   category: string;
   price: string;
   status: Status;
+  paymentStatus: "paid" | "pending";
 }
 
 const STATUS_LABEL_MAP: Record<number, string> = {
@@ -73,6 +76,7 @@ interface AffiliateShootsTableProps {
 }
 
 export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onShootClick, externalSelectedDate }) => {
+  const router = useRouter();
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -139,15 +143,20 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
           const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as any;
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+          const quoteTotal = project.quote_total;
+          const budgetTotal = project.budget;
+          const displayAmount = quoteTotal !== null && quoteTotal !== undefined ? quoteTotal : budgetTotal;
 
           return {
             id: `#${project.stream_project_booking_id}`,
+            bookingId: String(project.stream_project_booking_id),
             customerName,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
             category: parseSkills(project.skills_needed, skillMap),
-            price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
+            price: displayAmount ? `$${parseFloat(displayAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
             status: statusLabel,
+            paymentStatus: project.payment_id ? "paid" : "pending",
           };
         });
         setShoots(mappedShoots);
@@ -180,6 +189,11 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   const toggleExpand = (e: React.MouseEvent, id: string) => {
     e.stopPropagation(); // Prevents triggering handleRowClick if they overlap
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const handleProceedPayment = (e: React.MouseEvent, bookingId: string) => {
+    e.stopPropagation();
+    router.push(`/search-results/payment?shootId=${bookingId}`);
   };
 
   return (
@@ -272,7 +286,21 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                       <p className="text-[#666666] text-[10px] uppercase tracking-wider">Category</p>
                       <p className="text-white text-sm truncate pr-2">{shoot.category}</p>
                     </div>
+                    <div>
+                      <p className="text-[#666666] text-[10px] uppercase tracking-wider">Payment</p>
+                      <p className={`text-sm font-medium ${shoot.paymentStatus === "paid" ? "text-green-400" : "text-yellow-400"}`}>
+                        {shoot.paymentStatus === "paid" ? "Done" : "Pending"}
+                      </p>
+                    </div>
                     <div className="col-span-2 pt-2">
+                      {shoot.paymentStatus === "pending" && (
+                        <button
+                          onClick={(e) => handleProceedPayment(e, shoot.bookingId)}
+                          className="w-full mb-2 py-2 bg-[#E8D1AB] hover:bg-[#dcb98a] rounded-lg text-black text-sm font-semibold"
+                        >
+                          Proceed to Payment
+                        </button>
+                      )}
                       <button
                         onClick={() => handleRowClick(shoot.id)}
                         className="w-full py-2 bg-white/5 border border-white/10 rounded-lg text-[#E8D1AB] text-sm font-medium"
@@ -302,6 +330,8 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                border-b border-b-[#3D3D3D]">Price</th>
                 <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
                border-b border-b-[#3D3D3D]">Status</th>
+                <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
+               border-b border-b-[#3D3D3D]">Payment</th>
                 <th className="pb-4 px-4 text-right bg-[#101010] py-4 px-4 
                border-b border-b-[#3D3D3D]">Action</th>
               </tr>
@@ -309,7 +339,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
             <tbody className="p-5">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-10">
+                  <td colSpan={7} className="text-center py-10">
                     <div className="flex justify-center items-center">
                       <Loader2 className="animate-spin text-[#E8D1AB]" size={32} />
                     </div>
@@ -349,17 +379,34 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                       <StatusBadge status={shoot.status} />
                     </td>
 
+                    {/* Payment */}
+                    <td className="py-5 px-6">
+                      <span className={`text-xs px-2 py-1 rounded-full font-semibold ${shoot.paymentStatus === "paid" ? "text-green-400 bg-green-400/10" : "text-yellow-400 bg-yellow-400/10"}`}>
+                        {shoot.paymentStatus === "paid" ? "Done" : "Pending"}
+                      </span>
+                    </td>
+
                     {/* Action */}
                     <td className="py-5 px-6 text-right">
-                      <button className="p-2 text-white/40 hover:text-white transition-colors">
-                        <ChevronRight size={24} />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {shoot.paymentStatus === "pending" && (
+                          <button
+                            onClick={(e) => handleProceedPayment(e, shoot.bookingId)}
+                            className="px-3 py-1.5 rounded-lg bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-xs font-semibold"
+                          >
+                            Proceed to Payment
+                          </button>
+                        )}
+                        <button className="p-2 text-white/40 hover:text-white transition-colors">
+                          <ChevronRight size={24} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-white/50">
+                  <td colSpan={7} className="text-center py-10 text-white/50">
                     No shoots found.
                   </td>
                 </tr>
