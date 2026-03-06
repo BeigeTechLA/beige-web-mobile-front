@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronRight, Search, ChevronDown, Check, X, AlertCircle, Mail, Briefcase, Calendar, Hash } from "lucide-react";
+import { ChevronRight, Search, ChevronDown, Check, X, AlertCircle, Mail, Briefcase, Calendar, Hash, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/use-debounce";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
@@ -71,6 +79,13 @@ export const CreativePartnersTable = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [expandedRows, setExpandedRows] = useState(new Set());
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteActionType, setDeleteActionType] = useState<"hard_delete" | "soft_delete" | "blocked" | null>(null);
+  const [deleteMessage, setDeleteMessage] = useState<string>("");
+  const [deleteBlockedData, setDeleteBlockedData] = useState<any[]>([]);
 
   const router = useRouter();
 
@@ -277,6 +292,62 @@ export const CreativePartnersTable = () => {
     setExpandedRows(newExpanded);
   };
 
+  const handleDeleteClick = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    const cleanId = id.replace('#', '');
+    setIsDeleting(true); // Re-use isDeleting state for the loading spinner or just to prevent multiple clicks
+
+    try {
+      const response = await adminApi.checkCpDeleteStatus(cleanId);
+      if (response && response.success !== false) {
+        // If API is successful, THEN open the modal and set the ID
+        setSelectedDeleteId(id);
+        setDeleteActionType(response.action_type || "hard_delete");
+        setDeleteMessage(response.message || "Are you sure you want to delete this creative partner?");
+        setDeleteBlockedData(response.data || []);
+        setDeleteModalOpen(true);
+      } else {
+        toast.error(response?.error || response?.message || "Failed to check delete status");
+      }
+    } catch (error) {
+      console.error("Delete check error", error);
+      toast.error("An error occurred while checking delete status");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedDeleteId) return;
+
+    // If it's blocked, we shouldn't be able to delete, but just in case
+    if (deleteActionType === 'blocked') {
+      setDeleteModalOpen(false);
+      return;
+    }
+
+    const cleanId = selectedDeleteId.replace('#', '');
+    setIsDeleting(true);
+    try {
+      const response = await adminApi.deleteCp(cleanId);
+      if (response && response.success !== false) {
+        toast.success(response.message || "Creative partner deleted successfully");
+        setUsers(users.filter(u => u.id !== selectedDeleteId));
+        setDeleteModalOpen(false);
+        setSelectedDeleteId(null);
+      } else {
+        toast.error(response?.error || response?.message || "Failed to delete creative partner");
+      }
+    } catch (error) {
+      console.error("Delete error", error);
+      toast.error("An error occurred");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -414,12 +485,12 @@ export const CreativePartnersTable = () => {
                       <div className="flex items-center justify-end gap-3">
                         {user.status === 'Approved' && (
                           <>
-                            {/* <button className="text-[#E0E0E0] hover:text-white transition-colors">
-                                                            <Pencil size={18} />
-                                                        </button> */}
-                            {/* <button className="text-[#E0E0E0] hover:text-red-500 transition-colors">
-                                                            <Trash2 size={18} />
-                                                        </button> */}
+                            <button
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              className="text-[#E0E0E0] hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                             <button className="text-[#666] hover:text-white transition-colors">
                               <ChevronRight size={20} />
                             </button>
@@ -427,6 +498,12 @@ export const CreativePartnersTable = () => {
                         )}
                         {user.status === 'Pending' && (
                           <>
+                            <button
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              className="text-[#E0E0E0] hover:text-red-500 transition-colors mr-2"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                             <button
                               onClick={(e) => handleApprove(user.id, e)}
                               className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors"
@@ -446,9 +523,12 @@ export const CreativePartnersTable = () => {
                         )}
                         {user.status === 'Rejected' && (
                           <>
-                            {/* <button className="text-[#E0E0E0] hover:text-white transition-colors">
-                                                            <AlertCircle size={20} />
-                                                        </button> */}
+                            <button
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              className="text-[#E0E0E0] hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                             <button className="text-[#666] hover:text-white transition-colors">
                               <ChevronRight size={20} />
                             </button>
@@ -537,6 +617,12 @@ export const CreativePartnersTable = () => {
                         {/* Action Buttons */}
                         <div className="flex items-end justify-between gap-3">
                           <div className="flex gap-2">
+                            <button
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors border border-[#EF4444]/20"
+                            >
+                              Delete
+                            </button>
                             {user.status === 'Pending' && (
                               <>
                                 <button
@@ -628,6 +714,57 @@ export const CreativePartnersTable = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Modal */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="bg-[#111] border-[#333] text-white">
+          <DialogHeader>
+            <DialogTitle>
+              {deleteActionType === 'blocked' ? "Action Blocked" : "Delete Creative Partner"}
+            </DialogTitle>
+            <DialogDescription className="text-[#888]">
+              {deleteMessage}
+            </DialogDescription>
+            {deleteActionType === 'blocked' && (
+              <DialogDescription className="text-[#E8D1AB] mt-2 font-medium">
+                To delete this creative partner, you must first reassign their upcoming shoots to another professional.
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          {deleteActionType === 'blocked' && deleteBlockedData && deleteBlockedData.length > 0 && (
+            <div className="mt-4 space-y-3">
+              <h4 className="text-sm font-medium text-white">Assigned Shoots:</h4>
+              <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2">
+                {deleteBlockedData.map((shoot: any, index: number) => (
+                  <div key={index} className="bg-[#1A1A1A] p-3 rounded-lg border border-[#333] flex justify-between items-center">
+                    <span className="text-sm text-white">{shoot.name}</span>
+                    <span className="text-xs text-[#888]">{shoot.date}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-6 flex gap-2 sm:justify-end">
+            <button
+              onClick={() => setDeleteModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1A1A1A] text-white border border-[#333] hover:bg-white/10 transition-all"
+            >
+              {deleteActionType === 'blocked' ? "Close" : "Cancel"}
+            </button>
+            {deleteActionType !== 'blocked' && (
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-50"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
