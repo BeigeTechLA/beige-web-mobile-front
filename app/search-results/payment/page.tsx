@@ -105,7 +105,7 @@ function StripePaymentFormMulti({
 }: {
   clientSecret: string;
   amount: number;
-  onSuccess: (paymentIntentId: string) => void;
+  onSuccess: (paymentIntentId: string, referralCode?: string) => void;
   onError: (error: string) => void;
   shootId: string | null;
   booking: any;
@@ -272,6 +272,10 @@ function StripePaymentFormMulti({
   );
 
   const handleReferralCodeChange = (value: string) => {
+    if (!isAuthenticated) {
+      toast.info("Please login or signup if you want to add a referral code.");
+      return;
+    }
     const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setReferralCode(upperCode);
     validateReferralCode(upperCode);
@@ -352,7 +356,10 @@ function StripePaymentFormMulti({
       setIsProcessing(true);
       try {
         // We pass the clientSecret which is the mock ID from backend
-        onSuccess(clientSecret);
+        onSuccess(
+          clientSecret,
+          referralCodeValid ? referralCode : undefined,
+        );
         pushToDataLayer("payment_success", {
           type: "Action Tracking",
           page_name: "Payment Page",
@@ -434,7 +441,10 @@ function StripePaymentFormMulti({
           payment_status: "Success"
         });
 
-        onSuccess(paymentIntent.id);
+        onSuccess(
+          paymentIntent.id,
+          referralCodeValid ? referralCode : undefined,
+        );
       }
     } catch (err) {
       console.error("Unexpected payment error:", err);
@@ -525,13 +535,19 @@ function StripePaymentFormMulti({
               type="text"
               value={referralCode}
               onChange={(e) => handleReferralCodeChange(e.target.value)}
+              onFocus={() => {
+                if (!isAuthenticated) {
+                  toast.info("Please login or signup if you want to add a referral code.");
+                }
+              }}
+              disabled={!isAuthenticated}
               className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-12 text-white outline-none bg-[#272626] uppercase tracking-wider ${referralCodeValid === true
                 ? "border-green-500 focus:border-green-400"
                 : referralCodeValid === false
                   ? "border-red-500 focus:border-red-400"
                   : "border-white/30 focus:border-white/50"
                 }`}
-              placeholder="Enter code"
+              placeholder={isAuthenticated ? "Enter code" : "Login/Signup to use referral code"}
               maxLength={10}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -554,6 +570,11 @@ function StripePaymentFormMulti({
             <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
                 <X className="w-4 h-4" />
                 {referralErrorMessage || "Invalid referral code"}
+            </p>
+          )}
+          {!isAuthenticated && (
+            <p className="text-yellow-300 text-sm mt-2">
+              Please login or signup if you want to add a referral code.
             </p>
           )}
         </div>
@@ -836,12 +857,16 @@ function MultiCreatorPaymentContent() {
     fetchPaymentDetails();
   }, [shootId]);
 
-  const handlePaymentSuccess = async (paymentIntentId: string) => {
+  const handlePaymentSuccess = async (
+    paymentIntentId: string,
+    referralCode?: string,
+  ) => {
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
       await axios.post(`${API_BASE_URL}payments/confirm-multi`, {
         paymentIntentId,
         booking_id: shootId,
+        referral_code: referralCode || null,
       });
       setStep("success");
       toast.success("Booking confirmed successfully!");
