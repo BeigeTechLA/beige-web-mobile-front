@@ -67,27 +67,59 @@ export const UserManagementTabbed = () => {
     const router = useRouter();
 
     const sortedUsers = useMemo(() => {
-        let sortableUsers = [...users];
-        if (sortConfig !== null) {
-            sortableUsers.sort((a, b) => {
-                const aValue = a[sortConfig.key] ?? "";
-                const bValue = b[sortConfig.key] ?? "";
+        if (!sortConfig) return users;
 
-                if (sortConfig.key === 'id') {
-                    const aNum = parseInt(String(aValue).replace('#', ''), 10);
-                    const bNum = parseInt(String(bValue).replace('#', ''), 10);
+        const directionMultiplier = sortConfig.direction === "asc" ? 1 : -1;
+        const statusRank: Record<UserStatus, number> = {
+            Active: 1,
+            Approved: 2,
+            Pending: 3,
+            Inactive: 4,
+            Rejected: 5,
+        };
+        const typeRank: Record<UserType, number> = {
+            All: 0,
+            Client: 1,
+            "Creative Partner": 2,
+        };
 
-                    if (!isNaN(aNum) && !isNaN(bNum)) {
-                        return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
-                    }
+        const normalizeText = (value: unknown) => String(value ?? "").trim().toLowerCase();
+
+        return users
+            .map((user, index) => ({ user, index }))
+            .sort((aItem, bItem) => {
+                const a = aItem.user;
+                const b = bItem.user;
+                const key = sortConfig.key;
+                let compareResult = 0;
+
+                if (key === "id") {
+                    const aNum = parseInt(String(a.id).replace("#", ""), 10);
+                    const bNum = parseInt(String(b.id).replace("#", ""), 10);
+                    compareResult = (isNaN(aNum) ? 0 : aNum) - (isNaN(bNum) ? 0 : bNum);
+                } else if (key === "status") {
+                    compareResult = (statusRank[a.status] ?? 999) - (statusRank[b.status] ?? 999);
+                } else if (key === "type") {
+                    compareResult = (typeRank[a.type] ?? 999) - (typeRank[b.type] ?? 999);
+                } else if (key === "joinDate") {
+                    const aTime = new Date(a.joinDate).getTime() || 0;
+                    const bTime = new Date(b.joinDate).getTime() || 0;
+                    compareResult = aTime - bTime;
+                } else {
+                    const aText = normalizeText(a[key]);
+                    const bText = normalizeText(b[key]);
+                    compareResult = aText.localeCompare(bText, undefined, {
+                        sensitivity: "base",
+                        numeric: true,
+                    });
                 }
 
-                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
-            });
-        }
-        return sortableUsers;
+                if (compareResult === 0) {
+                    return aItem.index - bItem.index;
+                }
+                return compareResult * directionMultiplier;
+            })
+            .map((item) => item.user);
     }, [users, sortConfig]);
 
     const requestSort = (key: keyof UserData) => {
