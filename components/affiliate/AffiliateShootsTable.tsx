@@ -197,6 +197,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   const handleActionClick = (e: React.MouseEvent, bookingId: string, hasQuote: boolean) => {
     e.stopPropagation();
     if (!hasQuote) {
+      router.push(`/affiliate/dashboard/${bookingId}/edit-booking`);
       return;
     }
     router.push(`/search-results/payment?shootId=${bookingId}`);
