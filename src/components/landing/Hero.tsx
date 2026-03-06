@@ -26,40 +26,41 @@ export const Hero = () => {
         <div className="relative z-[3] w-full pt-28 md:pt-40 md:pb-44">
           <div className=" px-4 flex flex-col items-center text-center">
             {/* Headline */}
-            {/* <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="text-2xl md:text-[58px] leading-tight font-bold text-gradient-white mb-2"
-            >
-              Create Content Instantly.
-            </motion.h1> */}
-
             <motion.h1
               initial={{
                 opacity: 0,
-                y: 30,
-                clipPath: "inset(0 100% 0 0)" // Completely hidden to the right
+                y: 20,
+                clipPath: "inset(0 100% 0 0)"
               }}
               animate={{
                 opacity: 1,
                 y: 0,
-                clipPath: "inset(0 0% 0 0)" // Paints in toward the left
+                clipPath: "inset(0 0% 0 0)"
               }}
               transition={{
-                duration: 1.5, // Slightly longer for the "painting" feel
-                ease: [0.45, 0, 0.55, 1], // Custom cubic-bezier for a smooth stroke motion
-                opacity: { duration: 0.9 },
-                y: { duration: 0.9, delay: 0.3 },
+                duration: 5,
+                delay: 0.8,
+                ease: [0.33, 1, 0.68, 1],
+
+                opacity: {
+                  duration: 1.2,
+                  delay: 0.8
+                },
+                y: {
+                  duration: 1.2,
+                  delay: 0.8
+                },
               }}
-              className="text-2xl md:text-[58px] leading-tight font-bold mb-2 bg-clip-text text-transparent"
+              className="text-3xl md:text-[64px] leading-tight font-bold mb-4 bg-clip-text text-transparent"
               style={{
                 backgroundImage: "linear-gradient(135deg, #E8D1AB 0%, #C8A97E 100%)",
                 WebkitBackgroundClip: "text",
+                paddingBottom: "4px"
               }}
             >
               Create Content Instantly.
             </motion.h1>
+
 
             {/* Sub-headline */}
             <motion.h4
