@@ -320,8 +320,8 @@ export default function ClientDetailPage() {
 
     // Use format to keep Local Time instead of UTC ISO String
     updateData({
-      startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss"),
-      endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss"),
+      startDate: format(finalStart, "yyyy-MM-dd HH:mm:ss"),
+      endDate: format(finalEnd, "yyyy-MM-dd HH:mm:ss"),
     });
   };
 
@@ -356,7 +356,7 @@ export default function ClientDetailPage() {
       return;
     }
     // Fixed to send local string
-    updateData({ startDate: format(selectedTime, "yyyy-MM-dd'T'HH:mm:ss") });
+    updateData({ startDate: format(selectedTime, "yyyy-MM-dd HH:mm:ss") });
   };
 
   const handleEndTimeChange = (timeKey: string) => {
@@ -379,7 +379,7 @@ export default function ClientDetailPage() {
     );
 
     // Fixed to send local string
-    updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss") });
+    updateData({ endDate: format(newEnd, "yyyy-MM-dd HH:mm:ss") });
     scrollToRef(editsRef);
   };
 

@@ -1333,7 +1333,7 @@ export const salesApi = {
       };
     }
   },
-  getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string }) => {
+getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string, radius?: number }) => {
     try {
       const response = await api.get('admin/get-crew-for-lead/', { params });
       return response.data;
@@ -1345,5 +1345,5 @@ export const salesApi = {
         error: 'Failed to fetch crew for lead',
       };
     }
-  },
+},
 };
