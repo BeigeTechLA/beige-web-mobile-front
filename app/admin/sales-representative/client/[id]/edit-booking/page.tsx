@@ -223,8 +223,8 @@ export default function EditBookingPage() {
                 bookingId: b.stream_project_booking_id,
                 contentType: (b.content_type?.split(",") as any) || [],
                 shootType: b.shoot_type || "",
-                startDate: (start && !isNaN(start.getTime())) ? start.toISOString() : "",
-                endDate: (end && !isNaN(end.getTime())) ? end.toISOString() : "",
+                startDate: (start && !isNaN(start.getTime())) ? format(start, "yyyy-MM-dd HH:mm:ss") : "",
+                endDate: (end && !isNaN(end.getTime())) ? format(end, "yyyy-MM-dd HH:mm:ss") : "",
                 editsNeeded: b.edits_needed ?? true,
                 videoEditTypes: b.video_edit_types || [],
                 photoEditTypes: b.photo_edit_types || [],
@@ -323,13 +323,13 @@ export default function EditBookingPage() {
     setSelectedShootDate(
         set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
     );
-    // Set default times to 9 AM and 5 PM on the selected date
+
     const finalStart = set(new Date(date), { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
     const finalEnd = set(new Date(date), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
 
     updateData({
-        startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss.SSS"),
-        endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS"),
+        startDate: format(finalStart, "yyyy-MM-dd HH:mm:ss"),
+        endDate: format(finalEnd, "yyyy-MM-dd HH:mm:ss"),
     });
 };
     const videographerTarget = useMemo(() => {
@@ -340,11 +340,10 @@ const photographerTarget = useMemo(() => {
     return formData.contentType.includes("photographer") ? (extraTeam["photographer"] || 0) + 1 : 0;
 }, [formData.contentType, extraTeam]);
 
-    const handleStartTimeChange = (timeKey: string) => {
+   const handleStartTimeChange = (timeKey: string) => {
     if (!timeKey) return updateData({ startDate: "" });
     const [hours, minutes] = timeKey.split(":").map(Number);
     
-    // Use existing selected date (start/end/date picker) as base
     const currentBase =
         (formData.startDate ? parseDate(formData.startDate) : null) ||
         (formData.endDate ? parseDate(formData.endDate) : null) ||
@@ -359,7 +358,7 @@ const photographerTarget = useMemo(() => {
         milliseconds: 0 
     });
 
-    updateData({ startDate: format(newStart, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
+    updateData({ startDate: format(newStart, "yyyy-MM-dd HH:mm:ss") });
 };
 
    const handleEndTimeChange = (timeKey: string) => {
@@ -380,9 +379,8 @@ const photographerTarget = useMemo(() => {
         milliseconds: 0 
     });
 
-    updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
+    updateData({ endDate: format(newEnd, "yyyy-MM-dd HH:mm:ss") });
 };
-
     const getStartTimeKey = () => formData.startDate ? format(parseDate(formData.startDate)!, "HH:mm") : "";
     const getEndTimeKey = () => formData.endDate ? format(parseDate(formData.endDate)!, "HH:mm") : "";
 

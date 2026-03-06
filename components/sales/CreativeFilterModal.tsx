@@ -8,9 +8,10 @@ import { BasicDropdown } from "../admin/BasicDropdown";
 interface FilterProps {
   isOpen: boolean;
   onClose: () => void;
+  onApply: (filters: { radius: number }) => void; 
 }
 
-export const CreativeFilterModal = ({ isOpen, onClose }: FilterProps) => {
+export const CreativeFilterModal = ({ isOpen, onClose, onApply }: FilterProps) => {
   // --- Local Filter State ---
   const [minRadius, setMinRadius] = useState(10);
   const [maxRadius, setMaxRadius] = useState(200);
@@ -31,6 +32,11 @@ export const CreativeFilterModal = ({ isOpen, onClose }: FilterProps) => {
     document.body.style.overflow = isOpen ? "hidden" : "unset";
     return () => { document.body.style.overflow = "unset"; };
   }, [isOpen]);
+
+  const handleApplyClick = () => {
+    onApply({ radius: maxRadius }); // Send the max radius to the parent
+    onClose();
+  };
 
   const handleReset = () => {
     setMinRadius(10);
@@ -182,9 +188,12 @@ export const CreativeFilterModal = ({ isOpen, onClose }: FilterProps) => {
           <button onClick={handleReset} className="h-12 border border-white/20 text-white hover:bg-white/5 rounded-lg font-medium transition-colors">
             Reset
           </button>
-          <button onClick={onClose} className="h-12 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-semibold rounded-lg transition-colors">
-            Apply Filters
-          </button>
+           <button 
+        onClick={handleApplyClick} // 3. Connect the function here
+        className="h-12 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-semibold rounded-lg transition-colors"
+      >
+        Apply Filters
+      </button>
         </div>
       </div>
     </>
