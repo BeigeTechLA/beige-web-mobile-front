@@ -85,7 +85,7 @@ export default function AffiliateEditBookingPage() {
     useEffect(() => {
         const options = [];
         for (let i = 0; i < 24; i++) {
-            for (let j = 0; j < 60; j += 30) {
+            for (let j = 0; j < 60; j += 15) {
                 const h = i.toString().padStart(2, '0');
                 const m = j.toString().padStart(2, '0');
                 const date = new Date();

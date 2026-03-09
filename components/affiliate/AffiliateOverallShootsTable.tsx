@@ -116,16 +116,25 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
-          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as any;
+          const hasQuote = project.quote_id !== null && project.quote_id !== undefined;
+          const statusLabel = hasQuote ? (STATUS_LABEL_MAP[project.status] || "Unknown") : "Pending";
+
+          // Use quote total if available, otherwise budget
+          const quoteTotal = project.quote_total;
+          const budgetTotal = project.budget;
+          const displayAmount = quoteTotal !== null && quoteTotal !== undefined ? quoteTotal : budgetTotal;
+
+          // Categorization
+          const category = project.event_type_labels || project.event_type || "N/A";
 
           return {
             id: `#${project.stream_project_booking_id}`,
             customerName: project.project_name || "Untitled Project",
             customerImage: project.user_image || "/images/avatar.png",
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-            category: project.event_type_labels || "N/A",
-            price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
-            status: statusLabel,
+            category: category,
+            price: displayAmount ? `$${parseFloat(displayAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
+            status: statusLabel as Status,
           };
         });
         setShoots(mappedShoots);
@@ -227,7 +236,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={() => toggleExpand(shoot.id)}
+                      onClick={(e) => toggleExpand(e, shoot.id)}
                       className={`w-6 h-6 flex items-center justify-center rounded-full border ${expandedId === shoot.id ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'border-white/10 text-white/60'} shrink-0`}
                     >
                       <ChevronDown size={16} className="" />

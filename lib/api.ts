@@ -828,6 +828,32 @@ export const adminApi = {
       };
     }
   },
+  getProjectFulfillmentStats: async (projectId: string | number) => {
+    try {
+      const response = await api.post(`admin/get-project-fullfillment-stats/${projectId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Project Fulfillment Stats Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch project fulfillment stats',
+      };
+    }
+  },
+  getCrewForShoot: async (params: { project_id: number | string, role_type: string, search_query: string, radius?: number }) => {
+    try {
+      const response = await api.get('admin/get-crew-for-shoot/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Get Crew For Shoot Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch crew for shoot',
+      };
+    }
+  },
   getMonthlyRevenue: async () => {
     try {
       const response = await api.get('admin/dashboard/revenue/monthly');
@@ -1368,7 +1394,7 @@ export const salesApi = {
       };
     }
   },
-getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string, radius?: number }) => {
+  getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string, radius?: number }) => {
     try {
       const response = await api.get('admin/get-crew-for-lead/', { params });
       return response.data;
@@ -1380,5 +1406,5 @@ getCrewForLead: async (params: { lead_id: number | string, role_type: string, se
         error: 'Failed to fetch crew for lead',
       };
     }
-},
+  },
 };

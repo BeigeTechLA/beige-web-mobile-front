@@ -23,12 +23,25 @@ interface TeamMember {
 
 const BG_COLORS = ["bg-[#FFFAC2]", "bg-[#F3E8FF]", "bg-[#E0F2FE]", "bg-[#FCE7F3]", "bg-[#DCFCE7]"];
 
-export default function ProjectTeam({ projectId }: { projectId: string }) {
+export default function ProjectTeam({ projectId, assignedMembers }: { projectId: string; assignedMembers?: any[] }) {
     const router = useRouter();
     const [activeIndex, setActiveIndex] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!assignedMembers);
     const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+    const mapMembers = (members: any[]) => {
+        return members.map((m: any, idx: number) => {
+            const profile = m.post_production_member || {};
+            return {
+                id: m.post_production_member_id,
+                name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.full_name || "Unknown",
+                role: profile.role || "Post Production",
+                image: profile.profile_image || profile.image || "/images/crew/CREW(6).png",
+                bgColor: BG_COLORS[idx % BG_COLORS.length]
+            };
+        });
+    };
 
     const fetchTeamMembers = async () => {
         try {
@@ -62,10 +75,13 @@ export default function ProjectTeam({ projectId }: { projectId: string }) {
     };
 
     useEffect(() => {
-        if (projectId) {
+        if (assignedMembers) {
+            setTeamMembers(mapMembers(assignedMembers));
+            setLoading(false);
+        } else if (projectId) {
             fetchTeamMembers();
         }
-    }, [projectId]);
+    }, [projectId, assignedMembers]);
 
     const handleMemberAdded = () => {
         fetchTeamMembers();

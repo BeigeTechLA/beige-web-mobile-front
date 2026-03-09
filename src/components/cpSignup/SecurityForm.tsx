@@ -73,7 +73,7 @@ const SecurityForm = ({ onSuccess }: { onSuccess: () => void }) => {
                             onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
                         >
-                            {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            {showCurrentPassword ? <Eye size={16} /> : <EyeOff size={16} />}
                         </button>
                     </div>
                 </div>
@@ -93,7 +93,7 @@ const SecurityForm = ({ onSuccess }: { onSuccess: () => void }) => {
                             onClick={() => setShowNewPassword(!showNewPassword)}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
                         >
-                            {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            {showNewPassword ? <Eye size={16} /> : <EyeOff size={16} />}
                         </button>
                     </div>
                 </div>
@@ -113,7 +113,7 @@ const SecurityForm = ({ onSuccess }: { onSuccess: () => void }) => {
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
                         >
-                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            {showConfirmPassword ? <Eye size={16} /> : <EyeOff size={16} />}
                         </button>
                     </div>
                 </div>

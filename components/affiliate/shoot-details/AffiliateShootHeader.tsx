@@ -37,7 +37,7 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
             <span className="text-sm font-medium">Back</span>
           </button>
         </div>
-        <div className="flex gap-3">
+        {/* <div className="flex gap-3">
           <Button variant="outline" className="bg-[#2C2C2C] border-none text-red-400 hover:bg-[#3D3D3D] hover:text-red-300 rounded-lg h-10 px-4 gap-2">
             <CircleX className="w-4 h-4" /> Cancel Shoot
           </Button>
@@ -47,7 +47,7 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
           <Button className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium">
             Edit Shoot
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {/* Hero Section */}
@@ -60,14 +60,16 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
             <div className="flex items-center gap-3 mb-2">
               <h1 className="lg:text-2xl font-bold text-white">
                 {project?.project_name || "Untitled Project"}
-                {project?.skills_needed && <span className="text-[#888] font-normal lg:text-lg ml-2">({project.skills_needed})</span>}
               </h1>
               <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
-                {project?.status !== undefined ? (["Initiated", "Pre Production", "Post Production", "Revision", "Completed", "Cancelled"][project.status] || "Unknown") : "Pending"}
+                {project?.status !== undefined ? (["Initiated", "Pre-Production", "Post-Production", "Revision", "Completed", "Cancelled"][project.status] || "Unknown") : "Pending"}
               </span>
             </div>
+            {project?.skills_needed && project.skills_needed !== "N/A" && (
+              <p className="text-[#888] font-normal text-sm lg:text-base mb-2">({project.skills_needed})</p>
+            )}
             <p className="text-[#888888] text-sm leading-relaxed max-w-3xl">
-              {project?.description || "No description available."}
+              {(project?.description || "No description available.").replace(/Matching Method: ai_matchmaker/gi, "").trim()}
             </p>
 
             <div className="hidden lg:block w-full h-px bg-[#222222] my-6" />
@@ -83,29 +85,33 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
               <div className="flex gap-2">
                 <span>Time :</span>
                 <span className="text-white font-medium">
-                  {project?.event_start_time ? new Date(project.event_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A"}
+                  {project?.start_time ? project.start_time : "N/A"}
                 </span>
               </div>
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />
               <div className="flex gap-2">
                 <span>Total Value :</span>
                 <span className="text-white font-medium">
-                  {project?.budget ? `$${parseFloat(project.budget).toLocaleString()}` : "$0.00"}
+                  {project?.quote_total ? `$${parseFloat(project.quote_total).toLocaleString()}` : (project?.budget ? `$${parseFloat(project.budget).toLocaleString()}` : "$0.00")}
                 </span>
               </div>
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />
               <div className="flex gap-2">
                 <span>Payment Status :</span>
-                <span className="text-[#22C55E] font-medium">Paid</span>
+                {project?.payment_id || project?.payment_status === "paid" ? (
+                  <span className="text-[#22C55E] font-medium">Paid</span>
+                ) : (
+                  <span className="text-yellow-400 font-medium">Pending</span>
+                )}
               </div>
             </div>
 
             <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base text-[#AAAAAA] mt-2 lg:mt-4">
               <div className="flex gap-2">
                 <span>Folder Link :</span>
-                <a href="#" className="text-[#E5D5B8] underline underline-offset-4 decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8] transition-all">
-                  http://fjiejpfkmdfjief
-                  {(activeTab === "Pre_Production" || activeTab === "Post_Production") && (
+                <a href={project?.reference_links || "#"} target="_blank" rel="noopener noreferrer" className="text-[#E5D5B8] underline underline-offset-4 decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8] transition-all">
+                  {project?.reference_links ? "View Folder" : "No Link Available"}
+                  {(activeTab === "Pre_Production" || activeTab === "Post_Production") && project?.reference_links && (
                     <span className="text-white"> / {activeTab.replace("_", " ")}</span>
                   )}
                 </a>
@@ -113,14 +119,14 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />
               <div className="flex gap-2">
                 <span>Shoot Files :</span>
-                <span className="text-white font-medium">200 Image & 50 Videos</span>
+                <span className="text-white font-medium">Coming Soon</span>
               </div>
             </div>
 
             <div className="mt-2 lg:mt-4 text-sm lg:text-base text-[#AAAAAA] flex gap-2">
               <span>Location :</span>
               <span className="text-white font-medium">
-                {[project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") || "No location specified"}
+                {project?.event_location || [project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") || "No location specified"}
               </span>
             </div>
           </div>

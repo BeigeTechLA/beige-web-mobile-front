@@ -117,9 +117,9 @@ export function ResetPasswordForm({ resetToken }: ResetPasswordFormProps) {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
             >
               {showNewPassword ? (
-                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
-              ) : (
                 <Eye className="h-4 w-4 lg:h-6 lg:w-6" />
+              ) : (
+                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
               )}
             </button>
           </div>
@@ -146,9 +146,9 @@ export function ResetPasswordForm({ resetToken }: ResetPasswordFormProps) {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
             >
               {showConfirmPassword ? (
-                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
-              ) : (
                 <Eye className="h-4 w-4 lg:h-6 lg:w-6" />
+              ) : (
+                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
               )}
             </button>
           </div>

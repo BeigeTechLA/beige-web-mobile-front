@@ -11,17 +11,27 @@ import "swiper/css/effect-cards";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const CP_MEMBERS = [
-    { id: 1, name: "Ryan Smith", role: "Photographer", image: "/images/crew/CREW(3).png", bgColor: "bg-[#FFD6D6]" }, // Pink
-    { id: 2, name: "Marcus Wright", role: "Videographer", image: "/images/crew/CREW(4).png", bgColor: "bg-[#C4B5FD]" }, // Purple
-    { id: 3, name: "Sara Kim", role: "Editor", image: "/images/crew/CREW(5).png", bgColor: "bg-white" }, // White
-];
-
-export default function AssignedCP({ projectId }: { projectId: string }) {
+export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { projectId: string; leadId?: string | number, assignedCrew?: any[] }) {
     const router = useRouter()
     const [activeIndex, setActiveIndex] = useState(0);
 
-    const hasCPs = CP_MEMBERS.length > 0;
+    const hasCPs = assignedCrew.length > 0;
+
+    // Use a placeholder if there is no image
+    const getProfileImage = (member: any) => {
+        const s3Prefix = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
+
+        if (member.crew_member?.crew_member_files?.length > 0) {
+            const photo = member.crew_member.crew_member_files.find((f: any) => f.file_type === "profile_photo" || f.file_type === "headshot");
+            if (photo) {
+                if (photo.file_url) return photo.file_url;
+                if (photo.file_path) return `${s3Prefix}${photo.file_path}`;
+            }
+        }
+
+        const fullName = `${member.crew_member?.first_name || ""} ${member.crew_member?.last_name || ""}`.trim() || "Unknown";
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`;
+    };
 
     return (
         <div className="bg-[#111111] rounded-2xl border border-[#222222] h-full flex flex-col items-center justify-center relative overflow-hidden py-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
@@ -48,42 +58,48 @@ export default function AssignedCP({ projectId }: { projectId: string }) {
                                 }}
                                 onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
                             >
-                                {CP_MEMBERS.map((member) => (
-                                    <SwiperSlide key={member.id} className={`rounded-3xl overflow-hidden shadow-lg ${member.bgColor}`}>
-                                        <Image
-                                            src={member.image}
-                                            alt={member.name}
-                                            fill
-                                            className="object-cover object-top"
-                                        />
-                                    </SwiperSlide>
-                                ))}
+                                {assignedCrew.map((member, index) => {
+                                    const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
+                                    return (
+                                        <SwiperSlide key={member.id || index} className={`rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
+                                            <Image
+                                                src={getProfileImage(member)}
+                                                alt={`${member.crew_member?.first_name} ${member.crew_member?.last_name}`}
+                                                fill
+                                                className="object-cover object-top"
+                                            />
+                                        </SwiperSlide>
+                                    );
+                                })}
                             </Swiper>
                         </div>
 
                         {/* Text Info - Added to match ProjectTeam symmetry */}
                         <div className="mt-auto lg:mb-4 text-center z-10 relative">
                             <h4 className="text-white lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300">
-                                {CP_MEMBERS[activeIndex]?.name}
+                                {assignedCrew[activeIndex]?.crew_member ? `${assignedCrew[activeIndex].crew_member.first_name} ${assignedCrew[activeIndex].crew_member.last_name}` : "Unknown"}
                             </h4>
                             <p className="text-[#888888] text-sm lg:text-base font-medium leading-none mt-1 lg:mt-2 transition-all duration-300">
-                                {CP_MEMBERS[activeIndex]?.role}
+                                {assignedCrew[activeIndex]?.crew_member?.role_name || "Creative Partner"}
                             </p>
                         </div>
 
                         <div className="flex flex-col lg:flex-row gap-4">
-                            <Button onClick={() => router.push("/admin/sales-representative/create-new-deal")} className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
+                            <Button
+                                onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
+                                className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
+                            >
                                 <Plus /> Add More CPs
                             </Button>
-                            <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+                            {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
                                 Change CPs
-                            </Button>
+                            </Button> */}
                         </div>
                     </>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30">
                         <button
-                            onClick={() => router.push("/admin/select-creatives")}
+                            onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
                             className="w-20 h-20 bg-[#E5D5B8] rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-transform shadow-lg shadow-[#E5D5B8]/10">
                             <Plus size={40} className="text-black" />
                         </button>
@@ -96,3 +112,4 @@ export default function AssignedCP({ projectId }: { projectId: string }) {
         </div>
     );
 }
+

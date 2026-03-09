@@ -115,7 +115,7 @@ export const AffiliateProfileSettings = () => {
                   onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
                 >
-                  {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showCurrentPassword ? <Eye size={20} /> : <EyeOff size={20} />}
                 </button>
               </div>
             </div>
@@ -136,7 +136,7 @@ export const AffiliateProfileSettings = () => {
                   onClick={() => setShowNewPassword(!showNewPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
                 >
-                  {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showNewPassword ? <Eye size={20} /> : <EyeOff size={20} />}
                 </button>
               </div>
             </div>
@@ -157,7 +157,7 @@ export const AffiliateProfileSettings = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
                 >
-                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showConfirmPassword ? <Eye size={20} /> : <EyeOff size={20} />}
                 </button>
               </div>
             </div>

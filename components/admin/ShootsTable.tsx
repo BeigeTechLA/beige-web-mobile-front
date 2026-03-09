@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo } from "react"; 
+import React, { useMemo } from "react";
 import Image from "next/image";
-import { ChevronRight, Loader2, Trash2, Search, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react"; 
+import { ChevronRight, Loader2, Trash2, Search, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { useEffect, useState } from "react";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow";
 import { StatusBadge } from "./StatusBadge";
+import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 
 type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Unknown";
 
@@ -54,13 +55,18 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
   const [range, setRange] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState(""); 
+  const [searchQuery, setSearchQuery] = useState("");
 
   // --- SORTING STATE ---
   const [sortConfig, setSortConfig] = useState<{ key: keyof ShootRecord; direction: 'asc' | 'desc' | null }>({
     key: 'rawDate',
     direction: null,
   });
+
+  // Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [shootToDelete, setShootToDelete] = useState<string | null>(null);
 
   // Sync external date with range
   useEffect(() => {
@@ -98,8 +104,8 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
           // Sorting Helpers
           const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
-          const priceValue = project.total_paid_amount 
-            ? parseFloat(project.total_paid_amount) 
+          const priceValue = project.total_paid_amount
+            ? parseFloat(project.total_paid_amount)
             : project.budget ? parseFloat(project.budget) : 0;
 
           return {
@@ -181,8 +187,8 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
     if (sortConfig.key !== key || sortConfig.direction === null) {
       return <ArrowUpDown size={14} className="ml-2 text-[#666] opacity-0 group-hover:opacity-100 transition-opacity" />;
     }
-    return sortConfig.direction === 'asc' 
-      ? <ChevronUp size={14} className="ml-2 text-[#E8D1AB]" /> 
+    return sortConfig.direction === 'asc'
+      ? <ChevronUp size={14} className="ml-2 text-[#E8D1AB]" />
       : <ChevronDown size={14} className="ml-2 text-[#E8D1AB]" />;
   };
 
@@ -201,23 +207,33 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
     router.push(`/admin/shoots/${cleanId}`);
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const cleanId = id.replace('#', '');
+    setShootToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
 
-    if (window.confirm("Are you sure you want to delete this shoot?")) {
-      try {
-        const response = await adminApi.deleteProject(cleanId);
-        if (response?.success || response?.message === "Project deleted successfully") {
-          setShoots(prev => prev.filter(shoot => shoot.id !== id));
-          toast.success("Shoot deleted successfully");
-        } else {
-          toast.error(response?.error || "Failed to delete shoot");
-        }
-      } catch (error) {
-        console.error("Delete failed", error);
-        toast.error("An error occurred while deleting");
+  const confirmDelete = async () => {
+    if (!shootToDelete) return;
+
+    const cleanId = shootToDelete.replace('#', '');
+    setIsDeleting(true);
+
+    try {
+      const response = await adminApi.deleteProject(cleanId);
+      if (response?.success || response?.message === "Project deleted successfully") {
+        setShoots(prev => prev.filter(shoot => shoot.id !== shootToDelete));
+        toast.success("Shoot deleted successfully");
+      } else {
+        toast.error(response?.error || "Failed to delete shoot");
       }
+    } catch (error) {
+      console.error("Delete failed", error);
+      toast.error("An error occurred while deleting");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+      setShootToDelete(null);
     }
   };
 
@@ -226,7 +242,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
       {/* Table Header Controls */}
       <div className="flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b border-[#333333] gap-4">
         <h3 className="text-xl font-semibold text-white">All Shoots</h3>
-        
+
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" size={18} />
@@ -326,20 +342,20 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="text-[#E8D1AB] text-base font-medium border-b border-[#333333] leading-none tracking-normal">
-                  <th 
+                  <th
                     className="py-5 px-6 font-medium cursor-pointer group hover:text-white transition-colors"
                     onClick={() => requestSort('id')}
                   >
                     <div className="flex items-center">Shoot ID {getSortIcon('id')}</div>
                   </th>
-                  <th 
+                  <th
                     className="py-5 px-6 font-medium cursor-pointer group hover:text-white transition-colors"
                     onClick={() => requestSort('customerName')}
                   >
                     <div className="flex items-center">Project Name {getSortIcon('customerName')}</div>
                   </th>
                   <th className="py-5 px-6 font-medium">Category</th>
-                  <th 
+                  <th
                     className="py-5 px-6 font-medium cursor-pointer group hover:text-white transition-colors"
                     onClick={() => requestSort('price')}
                   >
@@ -376,7 +392,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                     <td className="py-5 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={(e) => handleDelete(e, shoot.id)}
+                          onClick={(e) => handleDeleteClick(e, shoot.id)}
                           className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#666] hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={18} />
@@ -451,6 +467,14 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
           </div>
         </div>
       )}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Shoot"
+        description="Are you sure you want to delete this shoot? This action cannot be undone."
+        isLoading={isDeleting}
+      />
     </div>
   );
 };
