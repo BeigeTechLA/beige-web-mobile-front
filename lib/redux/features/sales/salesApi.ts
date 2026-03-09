@@ -217,6 +217,13 @@ export const salesApi = createApi({
         body,
       }),
     }),
+    previewInvoice: builder.mutation({
+      query: (body: { booking_id: number }) => ({
+        url: 'sales/preview-invoice',
+        method: 'POST',
+        body,
+      }),
+    }),
     updateLeadIntent: builder.mutation<any, { lead_id: number; intent: string; notes?: string }>({
       query: (body) => ({
         url: `sales/leads/intent`,
@@ -407,6 +414,7 @@ export const {
   useGetCrewForLeadQuery,
   useLazyGetCrewForLeadQuery,
   useGetClientFullDetailsQuery,
+  usePreviewInvoiceMutation,
   useSendInvoiceMutation,
   useUpdateLeadIntentMutation
 } = salesApi;

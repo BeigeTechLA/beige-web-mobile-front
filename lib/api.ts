@@ -97,7 +97,7 @@ export const equipmentApi = {
 export const paymentApi = {
   createIntent: async (
     creatorId: string,
-    bookingData: BookingFormData & { guest_email?: string },
+    bookingData: BookingFormData & { guest_email?: string; user_id?: string | number; referral_code?: string },
     hourlyRate: number
   ): Promise<PaymentIntentResponse> => {
     const response = await api.post('/payments/create-intent', {
@@ -109,7 +109,9 @@ export const paymentApi = {
       location: bookingData.location,
       shoot_type: bookingData.shoot_type,
       notes: bookingData.special_requests || '',
+      user_id: bookingData.user_id,
       guest_email: bookingData.guest_email,
+      referral_code: bookingData.referral_code,
     });
     // API returns { success: true, data: { clientSecret, paymentIntentId, pricing } }
     return response.data.data;
@@ -117,11 +119,12 @@ export const paymentApi = {
 
   confirmBooking: async (
     paymentIntentId: string,
-    bookingData: BookingFormData & { creator_id: string; guest_email?: string; hourly_rate?: number; referral_code?: string }
+    bookingData: BookingFormData & { creator_id: string; guest_email?: string; user_id?: string | number; hourly_rate?: number; referral_code?: string }
   ): Promise<BookingResponse> => {
     const response = await api.post('/payments/confirm', {
       paymentIntentId: paymentIntentId,
       creator_id: bookingData.creator_id,
+      user_id: bookingData.user_id,
       hours: bookingData.hours,
       hourly_rate: bookingData.hourly_rate,
       equipment: [], // No equipment for now

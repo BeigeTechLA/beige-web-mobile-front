@@ -38,8 +38,9 @@ function PaymentContent() {
   const shootId = searchParams.get("shootId");
 
   // Fetch guest booking if shootId exists
-  const { data: guestBooking, isLoading: isLoadingBooking } =
-    useGetGuestBookingByIdQuery(shootId || "", { skip: !shootId });
+  const { data: guestBooking } = useGetGuestBookingByIdQuery(shootId || "", {
+    skip: !shootId,
+  });
 
   // State
   const [step, setStep] = useState<"loading" | "payment" | "success">(
@@ -64,8 +65,7 @@ function PaymentContent() {
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(
     null,
   );
-  const [referralAffiliateName, setReferralAffiliateName] =
-    useState<string>("");
+  const appliedReferralCode = referralCodeValid === true ? referralCode : "";
 
   // Fetch data on mount
   useEffect(() => {
@@ -119,7 +119,6 @@ function PaymentContent() {
         hasGuestBooking: !!guestBooking,
         hasCreator: !!creator,
         step,
-        hasClientSecret: !!clientSecret,
       });
 
       // Only create payment intent when we have valid guest booking data
@@ -127,8 +126,7 @@ function PaymentContent() {
         shootId &&
         guestBooking &&
         creator &&
-        step === "payment" &&
-        !clientSecret
+        step === "payment"
       ) {
         console.log("Creating payment intent with data:", {
           creatorId,
@@ -147,9 +145,12 @@ function PaymentContent() {
             special_requests: guestBooking.description || "",
             selected_equipment_ids: [],
             guest_email: guestBooking.guest_email,
+            user_id: guestBooking.user_id,
+            referral_code: appliedReferralCode || undefined,
           };
 
           console.log("Payment data being sent:", paymentData);
+          setClientSecret("");
 
           const response = await paymentApi.createIntent(
             creatorId,
@@ -167,7 +168,7 @@ function PaymentContent() {
     };
 
     createPaymentIntent();
-  }, [shootId, guestBooking, creator, step, clientSecret, creatorId]);
+  }, [shootId, guestBooking, creator, step, creatorId, appliedReferralCode]);
 
   // Calculate pricing - no equipment selection for now
   const equipmentCost = 0;
@@ -175,6 +176,9 @@ function PaymentContent() {
   const totalAmount = creator
     ? (creator.price || creator.hourly_rate || 0) * (bookingData.hours || 1)
     : 0;
+  const referralDiscountAmount =
+    referralCodeValid === true ? parseFloat((totalAmount * 0.1).toFixed(2)) : 0;
+  const payableAmount = parseFloat((totalAmount - referralDiscountAmount).toFixed(2));
 
   // Handle payment success
   const handlePaymentSuccess = async (paymentIntentId: string) => {
@@ -184,6 +188,7 @@ function PaymentContent() {
       // Confirm payment and save to database
       const response = await paymentApi.confirmBooking(paymentIntentId, {
         creator_id: creatorId,
+        user_id: guestBooking?.user_id,
         hours: bookingData.hours || 1,
         hourly_rate: hourlyRate,
         shoot_date: bookingData.shoot_date || "",
@@ -308,14 +313,13 @@ function PaymentContent() {
                   <Elements stripe={stripePromise}>
                     <StripePaymentForm
                       clientSecret={clientSecret}
-                      amount={totalAmount}
+                      amount={payableAmount}
                       onSuccess={handlePaymentSuccess}
                       onError={handlePaymentError}
                       referralCode={referralCode}
-                      onReferralCodeChange={(code, isValid, affiliateName) => {
+                      onReferralCodeChange={(code, isValid) => {
                         setReferralCode(code);
                         setReferralCodeValid(isValid);
-                        setReferralAffiliateName(affiliateName);
                       }}
                     />
                   </Elements>
@@ -378,6 +382,7 @@ function PaymentContent() {
                         hourlyRate={creator.price || creator.hourly_rate || 0}
                         hours={bookingData.hours || 1}
                         equipmentCost={equipmentCost}
+                        referralDiscountAmount={referralDiscountAmount}
                       />
                     )}
 
@@ -504,7 +509,7 @@ function PaymentContent() {
               Payment Success
             </h2>
             <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-4 lg:mb-9">
-              ${totalAmount.toFixed(2)}
+              ${payableAmount.toFixed(2)}
             </p>
 
             <Button
@@ -526,13 +531,13 @@ function PaymentContent() {
             onContinue={(shootName) => {
               console.log("Shoot name:", shootName);
             }}
-            bookingDetails={{
-              confirmationNumber: "#BG-" + Date.now(),
-              paymentMethod: "Stripe (****)",
-              transactionId: "txn_" + Date.now(),
-              amountPaid: `$${totalAmount.toFixed(2)}`,
-              paymentDate: new Date().toLocaleString(),
-            }}
+              bookingDetails={{
+                confirmationNumber: "#BG-" + Date.now(),
+                paymentMethod: "Stripe (****)",
+                transactionId: "txn_" + Date.now(),
+                amountPaid: `$${payableAmount.toFixed(2)}`,
+                paymentDate: new Date().toLocaleString(),
+              }}
             shootType={bookingData.shoot_type || guestBooking?.event_type}
           />
         )}
