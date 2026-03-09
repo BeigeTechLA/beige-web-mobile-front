@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "../ui/button";
-import DottedDivider from "../admin/DottedDivider";
 import { Copy, Mail, Check, Clock, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { 
   useGeneratePaymentLinkMutation, 
   useNotifyPaymentLinkMutation,
+  usePreviewInvoiceMutation,
   useSendInvoiceMutation 
 } from "@/lib/redux/features/sales/salesApi";
 
@@ -15,6 +15,7 @@ interface GeneratePaymentLinkProps {
   leadId?: number;
   bookingId?: number;
   discountCodeId?: number;
+  bookingStatus?: string | null;
   activeLink?: {
     payment_link_id: number;
     full_url: string;
@@ -24,9 +25,10 @@ interface GeneratePaymentLinkProps {
   } | null;
 }
 
-const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, activeLink }: GeneratePaymentLinkProps) => {
+const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus, activeLink }: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>("No"); // Default to No
   const [isLocked, setIsLocked] = useState(false);
+  const [hasPreviewedInvoice, setHasPreviewedInvoice] = useState(false);
   
   const [paymentData, setPaymentData] = useState<{ url: string; id: number; isExpired: boolean } | null>(null);
 
@@ -40,9 +42,17 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, activeLink }: 
     }
   }, [activeLink]);
 
+  useEffect(() => {
+    setHasPreviewedInvoice(false);
+  }, [bookingId, paymentData?.id]);
+
   const [generateLink, { isLoading: isGenerating }] = useGeneratePaymentLinkMutation();
   const [notifyLink, { isLoading: isNotifying }] = useNotifyPaymentLinkMutation();
+  const [previewInvoice, { isLoading: isPreviewingInvoice }] = usePreviewInvoiceMutation();
   const [sendInvoice, { isLoading: isSendingInvoice }] = useSendInvoiceMutation();
+  const isPaidBooking = String(bookingStatus || "").toLowerCase() === "paid";
+  const showInvoiceActions = (!!paymentData && !paymentData.isExpired) || isPaidBooking;
+  const showGenerateSection = !isPaidBooking && (!paymentData || (paymentData.isExpired && !activeLink));
 
   const handleGenerate = async () => {
     if (!bookingId) {
@@ -82,16 +92,57 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, activeLink }: 
     }
   };
 
+  const handlePreviewInvoice = async () => {
+    if (!bookingId) return;
+
+    try {
+      const response = await previewInvoice({ booking_id: bookingId }).unwrap();
+      if (response.success) {
+        const hostedInvoiceUrl = response.data?.invoiceUrl || null;
+        const invoicePdfUrl = response.data?.invoicePdf || null;
+        const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "");
+        const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${bookingId}?t=${Date.now()}`;
+        const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${bookingId}?download=1&t=${Date.now()}`;
+
+        if (!hostedInvoiceUrl && !invoicePdfUrl) {
+          toast.error("Preview URL not available");
+          return;
+        }
+
+        // Open Stripe invoice page directly.
+        if (hostedInvoiceUrl) {
+          window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+        }
+
+        // Trigger direct PDF download through backend proxy.
+        if (invoicePdfUrl) {
+          const link = document.createElement("a");
+          link.href = proxiedDownloadUrl || proxiedPdfUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.click();
+        }
+
+        setHasPreviewedInvoice(true);
+        toast.success("Invoice opened and download started");
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to preview invoice");
+    }
+  };
+
   const handleSendInvoice = async () => {
     if (!bookingId) return;
+    if (!hasPreviewedInvoice) {
+      toast.error("Please preview invoice first");
+      return;
+    }
 
     try {
       const response = await sendInvoice({ booking_id: bookingId }).unwrap();
       if (response.success) {
         toast.success("Invoice sent successfully to client email");
-        if (response.data?.invoicePdf) {
-          window.open(response.data.invoicePdf, "_blank");
-        }
+        setHasPreviewedInvoice(false);
       }
     } catch (error: any) {
       toast.error(error?.data?.message || "Failed to send invoice");
@@ -107,21 +158,35 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, activeLink }: 
 
   return (
     <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl w-full max-w-[500px] lg:max-w-6xl overflow-hidden">
-      <div className="flex items-center justify-between px-5 lg:px-9 pt-5 lg:pt-8">
+      <div className="flex flex-col gap-3 px-5 lg:px-9 pt-5 lg:pt-8">
         <h2 className="lg:text-xl font-medium text-white">Payment Link</h2>
-        {paymentData && !paymentData.isExpired && (
-          <Button 
-            onClick={handleSendInvoice}
-            disabled={isSendingInvoice}
-            className="text-[#E8D1AB] text-xs lg:text-sm border border-[#E8D1AB]/20 bg-[#0A0808] px-4 py-1.5 rounded-lg hover:bg-[#E8D1AB]/10 transition-all flex items-center gap-2"
-          >
-            {isSendingInvoice ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <FileText size={14} />
-            )}
-            View & Send Invoice
-          </Button>
+        {showInvoiceActions && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full">
+            <Button 
+              onClick={handlePreviewInvoice}
+              disabled={isPreviewingInvoice}
+              className="h-10 text-[#E8D1AB] text-xs lg:text-sm border border-[#E8D1AB]/20 bg-[#0A0808] px-3 lg:px-4 py-1.5 rounded-lg hover:bg-[#E8D1AB]/10 transition-all flex items-center justify-center gap-2"
+            >
+              {isPreviewingInvoice ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <FileText size={14} />
+              )}
+              View Invoice
+            </Button>
+            <Button 
+              onClick={handleSendInvoice}
+              disabled={!hasPreviewedInvoice || isSendingInvoice}
+              className="h-10 text-[#101010] text-xs lg:text-sm bg-[#E8D1AB] px-3 lg:px-4 py-1.5 rounded-lg hover:bg-[#D4C3A3] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isSendingInvoice ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Mail size={14} />
+              )}
+              Send Invoice
+            </Button>
+          </div>
         )}
       </div>
               <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
@@ -129,7 +194,7 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, activeLink }: 
       {/* <DottedDivider /> */}
 
       <div className="px-5 pb-6 lg:pb-9 lg:px-9">
-        {!paymentData || (paymentData.isExpired && !activeLink) ? (
+        {showGenerateSection ? (
           <div className="space-y-6 mt-4">
             {/* Attach Discount Selection */}
             <div className="space-y-3">
@@ -184,7 +249,7 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, activeLink }: 
               {isGenerating ? "Generating..." : "Generate Payment Link"}
             </Button>
           </div>
-        ) : (
+        ) : paymentData ? (
           /* Active / Expired Link UI */
           <div className="space-y-4 mt-6">
             <div className={`border rounded-xl p-4 space-y-4 ${
@@ -245,6 +310,15 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, activeLink }: 
                 </button>
               </div>
             )}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+            <p className="text-sm text-emerald-300 font-medium">
+              Payment is already completed.
+            </p>
+            <p className="text-xs text-emerald-200/80 mt-1">
+              Use the buttons above to view the invoice or send it to the client.
+            </p>
           </div>
         )}
       </div>

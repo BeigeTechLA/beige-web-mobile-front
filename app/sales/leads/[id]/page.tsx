@@ -815,6 +815,7 @@ export default function SalesLeadDetailsPage() {
               leadId={parseInt(leadId)}
               bookingId={lead?.booking_id}
               discountCodeId={generatedDiscountId}
+              bookingStatus={status}
               activeLink={lead?.active_payment_link}
             />
 
