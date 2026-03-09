@@ -11,6 +11,7 @@ import {
   Tag,
   Check,
   X,
+  BadgeCheckIcon,
 } from "lucide-react";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
@@ -148,17 +149,17 @@ function StripePaymentFormMulti({
 
     // Logic: If URL code is different from saved code, prioritize the URL code
     if (urlCode && urlCode !== savedCode && !discountCode) {
-        setDiscountCode(urlCode);
-        validateDiscountCode(urlCode);
-    } 
+      setDiscountCode(urlCode);
+      validateDiscountCode(urlCode);
+    }
     // Otherwise, fallback to the saved code if it exists
     else if (existingDiscountTotal > 0 && !discountCode) {
-        setDiscountValid(true);
-        if (savedCode) {
-            setDiscountCode(savedCode);
-        }
+      setDiscountValid(true);
+      if (savedCode) {
+        setDiscountCode(savedCode);
+      }
     }
-  }, [urlDiscount, quote?.applied_discount_code, quote?.discount_total]); 
+  }, [urlDiscount, quote?.applied_discount_code, quote?.discount_total]);
 
   // TRIGGER APPLICATION: Trigger when discount is valid and differs from what is active
   useEffect(() => {
@@ -167,12 +168,12 @@ function StripePaymentFormMulti({
 
     // Condition to apply: It's valid AND (nothing is applied OR it's a different code than what's saved)
     if (urlCode && discountValid === true && !isValidatingDiscount) {
-        if (parseFloat(quote?.discount_total || 0) === 0 || urlCode !== savedCode) {
-            // Prevent infinite loop: Only apply if the current input matches the urlCode
-            if (discountCode === urlCode) {
-                applyDiscountCode();
-            }
+      if (parseFloat(quote?.discount_total || 0) === 0 || urlCode !== savedCode) {
+        // Prevent infinite loop: Only apply if the current input matches the urlCode
+        if (discountCode === urlCode) {
+          applyDiscountCode();
         }
+      }
     }
   }, [discountValid, urlDiscount, quote?.applied_discount_code]);
 
@@ -199,17 +200,17 @@ function StripePaymentFormMulti({
           console.error("Error parsing user", e);
         }
 
-      const response = await affiliateApi.validateCode(code, userId);
-      
-      if (response.valid) {
-        setReferralCodeValid(true);
-        setReferralAffiliateName(response.affiliate_name || "");
-        setReferralErrorMessage(""); 
-      } else {
-        setReferralCodeValid(false);
-        setReferralAffiliateName("");
-        setReferralErrorMessage(response.message || "Invalid referral code");
-      }
+        const response = await affiliateApi.validateCode(code, userId);
+
+        if (response.valid) {
+          setReferralCodeValid(true);
+          setReferralAffiliateName(response.affiliate_name || "");
+          setReferralErrorMessage("");
+        } else {
+          setReferralCodeValid(false);
+          setReferralAffiliateName("");
+          setReferralErrorMessage(response.message || "Invalid referral code");
+        }
 
       } catch (error) {
         // This will only run if there is a network crash
@@ -259,7 +260,7 @@ function StripePaymentFormMulti({
         }
       } catch (error: any) {
         if (quote?.applied_discount_code?.toUpperCase() === code.toUpperCase()) {
-            setDiscountValid(true);
+          setDiscountValid(true);
         } else {
           setDiscountValid(false);
           setDiscountData(null);
@@ -293,7 +294,7 @@ function StripePaymentFormMulti({
     // Check if it is already applied
     if (quote?.applied_discount_code?.toUpperCase() === discountCode.toUpperCase()) return;
 
-    setIsValidatingDiscount(true); 
+    setIsValidatingDiscount(true);
     try {
       const API_BASE_URL =
         (
@@ -568,8 +569,8 @@ function StripePaymentFormMulti({
           )}
           {referralCodeValid === false && referralCode.length >= 4 && (
             <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
-                <X className="w-4 h-4" />
-                {referralErrorMessage || "Invalid referral code"}
+              <X className="w-4 h-4" />
+              {referralErrorMessage || "Invalid referral code"}
             </p>
           )}
           {!isAuthenticated && (
@@ -625,7 +626,7 @@ function StripePaymentFormMulti({
           )}
           {discountValid === true && discountData && discountCode.toUpperCase() !== quote?.applied_discount_code?.toUpperCase() && (
             <p className="text-blue-400 text-sm mt-2">
-               Click &apos;Apply&apos; to update your total with this code.
+              Click &apos;Apply&apos; to update your total with this code.
             </p>
           )}
           {discountValid === false && discountCode.length >= 4 && (
@@ -644,8 +645,8 @@ function StripePaymentFormMulti({
         >
           {isProcessing
             ? "Processing..."
-            : isFree 
-              ? "Confirm Booking (Free)" 
+            : isFree
+              ? "Confirm Booking (Free)"
               : `Confirm & Pay ${formatCurrency(amount)}`}
         </Button>
       </form>
@@ -661,14 +662,14 @@ function MultiCreatorPaymentContent() {
   // State
   const [step, setStep] = useState<"loading" | "payment" | "success">("loading");
   const [isLoading, setIsLoading] = useState(true);
-  const [isUpdatingIntent, setIsUpdatingIntent] = useState(false); 
+  const [isUpdatingIntent, setIsUpdatingIntent] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string>("");
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showBackDialog, setShowBackDialog] = useState(false);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
-  const [summaryData, setSummaryData] = useState(null);
+  const [summaryData, setSummaryData] = useState<any>(null);
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -688,7 +689,7 @@ function MultiCreatorPaymentContent() {
   });
 
   const handleBackClick = (e?: React.MouseEvent) => {
-    if (e) e.preventDefault(); 
+    if (e) e.preventDefault();
     if (step !== "success") {
       setShowBackDialog(true);
     } else {
@@ -697,18 +698,21 @@ function MultiCreatorPaymentContent() {
   };
 
   const handleViewSummary = async () => {
-  try {
-    const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
-    const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`); // Your new API endpoint
-    
-    if (response.data.success) {
-      setSummaryData(response.data.data);
-      setIsSummaryModalOpen(true);
+    try {
+      // const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
+      // const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`); // Your new API endpoint
+
+      // if (response.data.success) {
+      //   setSummaryData(response.data.data);
+      //   setIsSummaryModalOpen(true);
+      // }
+      if (Object.keys(summaryData).length > 0) {
+        setIsSummaryModalOpen(true);
+      }
+    } catch (err) {
+      toast.error("Failed to load summary details");
     }
-  } catch (err) {
-    toast.error("Failed to load summary details");
-  }
-};
+  };
 
   useEffect(() => {
     if (step === "success") return;
@@ -738,7 +742,7 @@ function MultiCreatorPaymentContent() {
     let addVideoCount = 0;
     let addPhotoCount = 0;
     let addCPTotalCost = 0;
-    let editingFeesSum = 0; 
+    let editingFeesSum = 0;
     const mandatoryAddonItems: Array<{ role: string; cost: number }> = [];
 
     lineItems.forEach((item: any) => {
@@ -771,7 +775,7 @@ function MultiCreatorPaymentContent() {
           if (name === "Videographer") addVideoCount += extraQty;
           if (name === "Photographer") addPhotoCount += extraQty;
         }
-      } 
+      }
       else if (isEditingItem) {
         editingFeesSum += total;
       }
@@ -780,7 +784,7 @@ function MultiCreatorPaymentContent() {
           role: name,
           cost: total,
         });
-      } 
+      }
       else {
         addCPTotalCost += total;
       }
@@ -806,7 +810,7 @@ function MultiCreatorPaymentContent() {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
       const response = await axios.post(`${API_BASE_URL}payments/create-intent-multi`, {
         booking_id: shootId,
-        amount: parseFloat(quote.total), 
+        amount: parseFloat(quote.total),
         guest_email: booking.guest_email,
       });
 
@@ -853,6 +857,27 @@ function MultiCreatorPaymentContent() {
         setIsLoading(false);
       }
     };
+
+    // fetchSummaryData 
+    const fetchSummaryData = async () => {
+      try {
+        const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/")
+          .replace(/\/$/, "") + "/";
+
+        const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`);
+
+        if (response.data.success) {
+          setSummaryData(response.data.data);
+        }
+      } catch (err) {
+        toast.error("Failed to load summary details");
+        console.error("Fetch error:", err);
+      }
+    };
+
+    if (shootId) {
+      fetchSummaryData();
+    }
 
     fetchPaymentDetails();
   }, [shootId]);
@@ -963,10 +988,10 @@ function MultiCreatorPaymentContent() {
             </button>
           </motion.div>
         </div>
-        <BookingSummaryModal 
-          isOpen={isSummaryModalOpen} 
-          onClose={() => setIsSummaryModalOpen(false)} 
-          data={summaryData} 
+        <BookingSummaryModal
+          isOpen={isSummaryModalOpen}
+          onClose={() => setIsSummaryModalOpen(false)}
+          data={summaryData}
         />
       </div>
     );
@@ -986,6 +1011,14 @@ function MultiCreatorPaymentContent() {
             <h2 className="text-lg lg:text-[64px] lg:leading-[76px] font-bold text-gradient-white mb-3 lg:mb-5">Confirm and Book</h2>
             <p className="text-white/70 mx-auto text-xs lg:text-base">Review your crew selection and complete your booking</p>
           </motion.div>
+        </div>
+
+        {/* Beige Gaurantee */}
+        <div className="rounded-2xl border transition-all relative overflow-hidden bg-[#E8D1AB] text-[#1B1B1B] p-4 mt-15 lg:mt-30 mb-5 lg:mb-10 flex gap-4 ">
+          <div className="bg-[#1B1B1B] p-2 lg:p-4 rounded-lg">
+            <BadgeCheckIcon className="w-6 h-6 lg:w-10 lg:h-10 text-[#E8D1AB]" />
+          </div>
+          <p className="italic font-bold text-sm lg:text-lg">Our Beige Quality Guarantee ensures your production meets professional standards. If your shoot does not meet the agreed scope or quality expectations, we&apos;ll work with you and your assigned creative partner to make it right — including a complimentary reshoot if necessary.</p>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
@@ -1027,7 +1060,7 @@ function MultiCreatorPaymentContent() {
             <div className="bg-[#171717] rounded-[24px] p-6 lg:p-10">
               <h3 className="font-bold mb-7 text-base lg:text-2xl">Booking Summary</h3>
               <div className="bg-white rounded-[20px] text-black py-3 lg:py-5">
-                <div className="p-3 lg:p-5 border-b border-black/20">
+                <div className="p-3 lg:p-5">
                   <h4 className="font-bold text-lg mb-3">{toTitleCase(booking.shoot_name || "Unnamed Shoot")}</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
@@ -1041,6 +1074,86 @@ function MultiCreatorPaymentContent() {
                     <div className="flex justify-between">
                       <span className="text-[#626467]">Location:</span>
                       <span className="truncate ml-2">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mx-2 lg:mx-4 p-3 lg:p-5 rounded-2xl transition-all relative overflow-hidden bg-[#E8D1AB]/60 text-[#171717]">
+                  <h4 className="font-bold text-lg mb-3">Shoot includes:</h4>
+                  <div className="space-y-2 text-sm">
+                    {/* <div className="flex justify-between">
+                      <span className="text-[#626467]">Hours of {booking.event_type === "videographer" ? "Videography" : booking.event_type === "photographer" ? "Photography" : "Photography & Videography"} :</span>
+                      <span>{booking.duration_hours || 0} hours</span>
+                    </div> */}
+                    <div className="flex flex-col justify-between">
+                      <span className="text-[#626467]">Dedicated Team:</span>
+                      {
+                        booking.event_type === "videographer" && (
+                          <span>Videographer(s): {summaryData?.crew_counts[0].count || 0} </span>
+                        )
+                      }
+                      {
+                        booking.event_type === "photographer" && (
+                          <span>Photographer(s): {summaryData?.crew_counts[0].count || 0} </span>
+                        )
+                      }
+                      {
+                        booking.event_type === "videographer,photographer" && (
+                          <>
+                            <span>Videographer(s): {summaryData?.crew_counts[0].count || 0} </span>
+                            <span>Photographer(s): {summaryData?.crew_counts[1].count || 0} </span>
+                          </>
+                        )
+                      }
+                    </div>
+                    {
+                      summaryData?.editing?.is_needed == true && (
+                        <div className="flex flex-col justify-between gap-1.5">
+                          {/* This needs to be conditional */}
+                          <span className="text-[#626467]">Number of Edited Content:</span>
+                          {
+                            (summaryData?.editing && summaryData?.editing?.video_edits?.length > 0) && (
+                              <div className="pl-2 ">
+                                <span className="text-[#626467]">Video Edits: </span>
+                                <ul className="flex flex-wrap gap-1 list-disc list-inside ">
+                                  {
+                                    summaryData?.editing?.video_edits.map((edit: any, idx: number) => (
+                                      <li key={idx} className="text-black">
+                                        {edit}
+                                      </li>
+                                    ))
+                                  }
+                                </ul>
+                              </div>
+                            )
+                          }
+                          {
+                            (summaryData?.editing && summaryData?.editing?.photo_edits?.length > 0) && (
+                              <div className="pl-2 ">
+                                <span className="text-[#626467]">Photo Edits: </span>
+                                <ul className="flex flex-wrap gap-2 list-disc list-inside ">
+                                  {
+                                    summaryData?.editing?.photo_edits.map((edit: any, idx: number) => (
+                                      <li key={idx} className="text-black">
+                                        {edit}
+                                      </li>
+                                    ))
+                                  }
+                                </ul>
+                              </div>
+                            )
+                          }
+                        </div>
+                      )
+                    }
+                    <div className="flex justify-between">
+                      <span className="text-[#626467]">Unlimited Usage Rights</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#626467]">$1M Liability Insurance Policy</span>
+                    </div>
+                    <div className="flex flex-col justify-between">
+                      <span className="text-[#626467]">Beige Guarantee</span>
                     </div>
                   </div>
                 </div>
