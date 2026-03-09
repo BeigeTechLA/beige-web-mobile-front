@@ -28,7 +28,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { BookingSummaryModal } from "@/src/components/landing/BookingSummaryModal";
-import { corporateEventEditTypes, corporateEventPhotoEditTypes } from "@/app/data/shootData";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -90,47 +89,6 @@ const toTitleCase = (str: string) => {
   return str.replace(/\w\S*/g, (txt) => {
     return txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase();
   });
-};
-
-const formatTime12h = (timeStr?: string | null) => {
-  if (!timeStr) return "N/A";
-  const [h, m] = String(timeStr).split(":");
-  const hour = parseInt(h || "0", 10);
-  if (Number.isNaN(hour)) return String(timeStr);
-  const suffix = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${m || "00"} ${suffix}`;
-};
-
-const editTypeLabelByKey: Record<string, string> = [
-  ...corporateEventEditTypes,
-  ...corporateEventPhotoEditTypes,
-].reduce((acc: Record<string, string>, item: { key: string; value: string }) => {
-  acc[item.key] = item.value;
-  return acc;
-}, {});
-
-const getEditingDisplayName = (rawName: string) => {
-  const lower = String(rawName || "").toLowerCase();
-  if (lower.includes("social media reel") && lower.includes("15") && lower.includes("30")) {
-    return editTypeLabelByKey.social_reel_15_30 || rawName;
-  }
-  if (lower.includes("social media reel") && lower.includes("30") && lower.includes("90")) {
-    return editTypeLabelByKey.social_reel_30_90 || rawName;
-  }
-  if (lower.includes("mini") && lower.includes("highlight")) {
-    return editTypeLabelByKey.mini_highlight_1_2 || rawName;
-  }
-  if (lower.includes("highlight") && !lower.includes("mini")) {
-    return editTypeLabelByKey.highlight_4_7 || rawName;
-  }
-  if (lower.includes("feature")) {
-    return editTypeLabelByKey.feature_30_40 || rawName;
-  }
-  if (lower.includes("edited photo")) {
-    return editTypeLabelByKey.edited_photos || rawName;
-  }
-  return rawName;
 };
 
 const getAuthHeaders = () => {
@@ -765,10 +723,6 @@ function MultiCreatorPaymentContent() {
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
     shootCost: number;
-    serviceHours: {
-      videographer: number;
-      photographer: number;
-    };
     additionalCP: {
       totalCost: number;
       videoCount: number;
@@ -776,14 +730,11 @@ function MultiCreatorPaymentContent() {
     };
     mandatoryAddons: Array<{ role: string; cost: number }>;
     editingFees: number;
-    editingItems: Array<{ name: string; quantity: number; total: number }>;
   }>({
     shootCost: 0,
-    serviceHours: { videographer: 0, photographer: 0 },
     additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
     mandatoryAddons: [],
     editingFees: 0,
-    editingItems: [],
   });
 
   const handleBackClick = (e?: React.MouseEvent) => {
@@ -834,14 +785,11 @@ function MultiCreatorPaymentContent() {
 
     const lineItems = paymentDetails.quote.lineItems;
     let shootCostSum = 0;
-    let videographerHours = 0;
-    let photographerHours = 0;
     let addVideoCount = 0;
     let addPhotoCount = 0;
     let addCPTotalCost = 0;
     let editingFeesSum = 0; 
     const mandatoryAddonItems: Array<{ role: string; cost: number }> = [];
-    const editingLineItems: Array<{ name: string; quantity: number; total: number }> = [];
 
     lineItems.forEach((item: any) => {
       const name = item.item_name || "";
@@ -866,8 +814,6 @@ function MultiCreatorPaymentContent() {
       }
       // 2. Primary Crew (1st Unit to Shoot Cost, others to Additional aggregated)
       else if (name === "Videographer" || name === "Photographer") {
-        if (name === "Videographer") videographerHours = quantity;
-        if (name === "Photographer") photographerHours = quantity;
         shootCostSum += unitPrice;
         if (quantity > 1) {
           const extraQty = quantity - 1;
@@ -878,11 +824,6 @@ function MultiCreatorPaymentContent() {
       } 
       else if (isEditingItem) {
         editingFeesSum += total;
-        editingLineItems.push({
-          name: getEditingDisplayName(name),
-          quantity,
-          total
-        });
       }
       else if (item.is_mandatory) {
         mandatoryAddonItems.push({
@@ -897,10 +838,6 @@ function MultiCreatorPaymentContent() {
 
     setPricingGroups({
       shootCost: shootCostSum,
-      serviceHours: {
-        videographer: videographerHours,
-        photographer: photographerHours
-      },
       additionalCP: {
         totalCost: addCPTotalCost,
         videoCount: addVideoCount,
@@ -908,7 +845,6 @@ function MultiCreatorPaymentContent() {
       },
       mandatoryAddons: mandatoryAddonItems,
       editingFees: editingFeesSum,
-      editingItems: editingLineItems,
     });
   }, [paymentDetails]);
 
@@ -1166,35 +1102,9 @@ function MultiCreatorPaymentContent() {
                       <span>{toTitleCase((booking.project_name || booking.shoot_name || "").split("-")[0].trim())}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#626467]">
-                        {pricingGroups.serviceHours.videographer > 0 && pricingGroups.serviceHours.photographer > 0
-                          ? "Videography & Photography Hours:"
-                          : pricingGroups.serviceHours.videographer > 0
-                            ? "Videography Hours:"
-                            : pricingGroups.serviceHours.photographer > 0
-                              ? "Photography Hours:"
-                              : "Duration:"}
-                      </span>
-                      <span>
-                        {`${booking.duration_hours || 0} hours`}
-                      </span>
+                      <span className="text-[#626467]">Duration:</span>
+                      <span>{booking.duration_hours || 0} hours</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#626467]">Timing:</span>
-                      <span>{formatTime12h(booking.start_time)} - {formatTime12h(booking.end_time)}</span>
-                    </div>
-                    {pricingGroups.serviceHours.videographer > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-[#626467]">Videographer:</span>
-                        <span>{pricingGroups.serviceHours.videographer}x dedicated professional videographers</span>
-                      </div>
-                    )}
-                    {pricingGroups.serviceHours.photographer > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-[#626467]">Photographer:</span>
-                        <span>{pricingGroups.serviceHours.photographer}x dedicated professional photographers</span>
-                      </div>
-                    )}
                     <div className="flex justify-between">
                       <span className="text-[#626467]">Location:</span>
                       <span className="truncate ml-2">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
@@ -1257,24 +1167,12 @@ function MultiCreatorPaymentContent() {
                     )}
 
                     {pricingGroups.editingFees > 0 && (
-                      <div className="text-sm p-3 lg:p-5 border-b border-black/20 bg-[#f8f8f8]">
-                        <div className="flex justify-between">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium text-[#212122]">Editing Cost</span>
-                            <span className="text-[11px] text-[#626467]">
-                              Number of Edited Content ({pricingGroups.editingItems.length})
-                            </span>
-                          </div>
-                          <span className="font-medium">{formatCurrency(pricingGroups.editingFees)}</span>
-                        </div>
+                      <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#f8f8f8]">
                         <div className="flex flex-col gap-1">
-                          {pricingGroups.editingItems.map((editItem, idx) => (
-                            <div key={`edit-line-${idx}`} className="mt-2 flex justify-between text-[11px] text-[#626467]">
-                              <span>{editItem.name} {editItem.quantity > 1 ? `x${editItem.quantity}` : ""}</span>
-                              <span>{formatCurrency(editItem.total)}</span>
-                            </div>
-                          ))}
+                          <span className="font-medium text-[#212122]">Editing Cost</span>
+                          <span className="text-[11px] text-[#626467]">Includes professional editing</span>
                         </div>
+                        <span className="font-medium">{formatCurrency(pricingGroups.editingFees)}</span>
                       </div>
                     )}
 
