@@ -91,7 +91,7 @@ export default function EditBookingPage() {
     useEffect(() => {
         const options = [];
         for (let i = 0; i < 24; i++) {
-            for (let j = 0; j < 60; j += 30) {
+            for (let j = 0; j < 60; j += 15) {
                 const h = i.toString().padStart(2, '0');
                 const m = j.toString().padStart(2, '0');
                 const date = new Date();
@@ -315,75 +315,75 @@ export default function EditBookingPage() {
     };
 
     const handleDateChange = (date: Date | null) => {
-       if (!date) {
-           setSelectedShootDate(null);
-           updateData({ startDate: "", endDate: "" });
-           return;
-       }
-       setSelectedShootDate(
-           set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
-       );
-   
-       const finalStart = set(new Date(date), { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-       const finalEnd = set(new Date(date), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
-   
-       updateData({
-           // FIX: Remove 'T' and .SSS
-           startDate: format(finalStart, "yyyy-MM-dd HH:mm:ss"),
-           endDate: format(finalEnd, "yyyy-MM-dd HH:mm:ss"),
-       });
-   };
-       const videographerTarget = useMemo(() => {
-       return formData.contentType.includes("videographer") ? (extraTeam["videographer"] || 0) + 1 : 0;
-   }, [formData.contentType, extraTeam]);
-   
-   const photographerTarget = useMemo(() => {
-       return formData.contentType.includes("photographer") ? (extraTeam["photographer"] || 0) + 1 : 0;
-   }, [formData.contentType, extraTeam]);
-   
-      const handleStartTimeChange = (timeKey: string) => {
-       if (!timeKey) return updateData({ startDate: "" });
-       const [hours, minutes] = timeKey.split(":").map(Number);
-       
-       const currentBase =
-           (formData.startDate ? parseDate(formData.startDate) : null) ||
-           (formData.endDate ? parseDate(formData.endDate) : null) ||
-           selectedShootDate ||
-           new Date();
-       if (!currentBase) return;
-   
-       const newStart = set(new Date(currentBase), { 
-           hours, 
-           minutes, 
-           seconds: 0, 
-           milliseconds: 0 
-       });
-   
-       // FIX: Remove 'T' and .SSS
-       updateData({ startDate: format(newStart, "yyyy-MM-dd HH:mm:ss") });
-   };
-   
-      const handleEndTimeChange = (timeKey: string) => {
-       if (!timeKey) return updateData({ endDate: "" });
-       const [hours, minutes] = timeKey.split(":").map(Number);
-       
-       let baseDate =
-           (formData.startDate ? parseDate(formData.startDate) : null) ||
-           (formData.endDate ? parseDate(formData.endDate) : null) ||
-           selectedShootDate ||
-           new Date();
-       if (!baseDate) return;
-   
-       const newEnd = set(new Date(baseDate), { 
-           hours, 
-           minutes, 
-           seconds: 0, 
-           milliseconds: 0 
-       });
-   
-       // FIX: Remove 'T' and .SSS
-       updateData({ endDate: format(newEnd, "yyyy-MM-dd HH:mm:ss") });
-   };
+        if (!date) {
+            setSelectedShootDate(null);
+            updateData({ startDate: "", endDate: "" });
+            return;
+        }
+        setSelectedShootDate(
+            set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+        );
+
+        const finalStart = set(new Date(date), { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+        const finalEnd = set(new Date(date), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+
+        updateData({
+            // FIX: Remove 'T' and .SSS
+            startDate: format(finalStart, "yyyy-MM-dd HH:mm:ss"),
+            endDate: format(finalEnd, "yyyy-MM-dd HH:mm:ss"),
+        });
+    };
+    const videographerTarget = useMemo(() => {
+        return formData.contentType.includes("videographer") ? (extraTeam["videographer"] || 0) + 1 : 0;
+    }, [formData.contentType, extraTeam]);
+
+    const photographerTarget = useMemo(() => {
+        return formData.contentType.includes("photographer") ? (extraTeam["photographer"] || 0) + 1 : 0;
+    }, [formData.contentType, extraTeam]);
+
+    const handleStartTimeChange = (timeKey: string) => {
+        if (!timeKey) return updateData({ startDate: "" });
+        const [hours, minutes] = timeKey.split(":").map(Number);
+
+        const currentBase =
+            (formData.startDate ? parseDate(formData.startDate) : null) ||
+            (formData.endDate ? parseDate(formData.endDate) : null) ||
+            selectedShootDate ||
+            new Date();
+        if (!currentBase) return;
+
+        const newStart = set(new Date(currentBase), {
+            hours,
+            minutes,
+            seconds: 0,
+            milliseconds: 0
+        });
+
+        // FIX: Remove 'T' and .SSS
+        updateData({ startDate: format(newStart, "yyyy-MM-dd HH:mm:ss") });
+    };
+
+    const handleEndTimeChange = (timeKey: string) => {
+        if (!timeKey) return updateData({ endDate: "" });
+        const [hours, minutes] = timeKey.split(":").map(Number);
+
+        let baseDate =
+            (formData.startDate ? parseDate(formData.startDate) : null) ||
+            (formData.endDate ? parseDate(formData.endDate) : null) ||
+            selectedShootDate ||
+            new Date();
+        if (!baseDate) return;
+
+        const newEnd = set(new Date(baseDate), {
+            hours,
+            minutes,
+            seconds: 0,
+            milliseconds: 0
+        });
+
+        // FIX: Remove 'T' and .SSS
+        updateData({ endDate: format(newEnd, "yyyy-MM-dd HH:mm:ss") });
+    };
 
     const getStartTimeKey = () => formData.startDate ? format(parseDate(formData.startDate)!, "HH:mm") : "";
     const getEndTimeKey = () => formData.endDate ? format(parseDate(formData.endDate)!, "HH:mm") : "";

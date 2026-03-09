@@ -353,6 +353,14 @@ export const salesApi = createApi({
       }),
       invalidatesTags: ['Lead'],
     }),
+    assignCrewFromShoot: builder.mutation<ApiResponse<void>, { project_id: number; crew_member_ids: number[] }>({
+      query: (data) => ({
+        url: 'admin/assign-crew-from-shoot',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Lead'], // Invalidating Lead could trigger shoots/projects refresh depending on setup
+    }),
     getCrewForLead: builder.query<any[], { lead_id: number | string; role_type: string; search_query?: string }>({
       query: (params) => ({
         url: 'admin/get-crew-for-lead',
@@ -403,6 +411,7 @@ export const {
   useRemoveAssignedCrewMutation,
   useUpdateLeadBookingMutation,
   useAssignCrewFromLeadMutation,
+  useAssignCrewFromShootMutation,
   useNotifyPaymentLinkMutation,
   useGetCrewForLeadQuery,
   useLazyGetCrewForLeadQuery,

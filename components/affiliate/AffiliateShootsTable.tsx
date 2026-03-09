@@ -145,9 +145,14 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
           const statusLabel = hasQuote ? (STATUS_LABEL_MAP[project.status] || "Unknown") : "Pending";
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+
+          // Use quote total if available, otherwise budget
           const quoteTotal = project.quote_total;
           const budgetTotal = project.budget;
           const displayAmount = quoteTotal !== null && quoteTotal !== undefined ? quoteTotal : budgetTotal;
+
+          // Categorization: Use labels if available, otherwise event_type mapping
+          const category = project.event_type_labels || project.event_type || "Uncategorized";
 
           return {
             id: `#${project.stream_project_booking_id}`,
@@ -155,7 +160,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
             customerName,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-            category: project.event_type_labels || "Uncategorized",
+            category: category,
             price: displayAmount ? `$${parseFloat(displayAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
             status: statusLabel as Status,
             hasQuote,

@@ -84,7 +84,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
           setProject({
             ...projectData,
-            skills_needed: skillsText || projectData.skills_needed || "N/A"
+            skills_needed: skillsText || projectData.skills_needed
           });
         }
       } catch (error) {
@@ -97,7 +97,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     if (id) fetchProjectAndSkills();
   }, [id]);
 
-  const getInitials = (name) => {
+  const getInitials = (name: string) => {
     if (!name) return "??";
 
     // Split the name into words
@@ -152,8 +152,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           {activeTab === "Overview" && (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
-                <ProjectTeam projectId={id} />
-                <AssignedCP projectId={id} />
+                <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
+                <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
               </div>
               <MeetingSchedule />
             </>
@@ -200,7 +200,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               </div>
 
               <div className="h-full overflow-y-auto">
-                <ProjectTimeline />
+                <ProjectTimeline status={project?.status} />
               </div>
             </div>
           </div>
@@ -211,7 +211,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           <Button className="w-full bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
             Cancel Shoot
           </Button>
-          <Button className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
+          <Button
+            onClick={() => router.push(`/admin/shoots/${id}/edit-booking`)}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
             Edit Shoot
           </Button>
         </div>
