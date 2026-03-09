@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'beigexmemehouse.s3.eu-north-1.amazonaws.com',
+        hostname: 'd2jhn32fsulyac.cloudfront.net',
         port: '',
         pathname: '/**',
       },
