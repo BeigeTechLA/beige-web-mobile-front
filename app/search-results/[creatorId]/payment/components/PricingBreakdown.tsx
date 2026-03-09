@@ -1,18 +1,23 @@
 "use client";
 
 import React from 'react';
-import type { PricingBreakdown as PricingBreakdownType } from '@/types/payment';
 
 interface PricingBreakdownProps {
   hourlyRate: number;
   hours: number;
   equipmentCost: number;
+  referralDiscountAmount?: number;
 }
 
-export function PricingBreakdown({ hourlyRate, hours, equipmentCost }: PricingBreakdownProps) {
+export function PricingBreakdown({
+  hourlyRate,
+  hours,
+  equipmentCost,
+  referralDiscountAmount = 0,
+}: PricingBreakdownProps) {
   const cpCost = hourlyRate * hours;
   const subtotal = cpCost + equipmentCost;
-  const discount = 0; // Can be dynamic based on promotions
+  const discount = referralDiscountAmount;
   const total = subtotal - discount;
 
   return (
@@ -38,7 +43,7 @@ export function PricingBreakdown({ hourlyRate, hours, equipmentCost }: PricingBr
         </div>
         {discount > 0 && (
           <div className="flex justify-between">
-            <span className="text-[#626467]">Discount</span>
+            <span className="text-[#626467]">10% Referral Discount</span>
             <span className="font-medium text-[#4CAF50]">-${discount.toFixed(2)}</span>
           </div>
         )}

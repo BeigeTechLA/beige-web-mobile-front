@@ -91,6 +91,12 @@ const toTitleCase = (str: string) => {
   });
 };
 
+const getAuthHeaders = () => {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("revure_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
   clientSecret,
@@ -183,6 +189,7 @@ function StripePaymentFormMulti({
         setReferralCodeValid(null);
         setReferralAffiliateName("");
         setReferralErrorMessage("");
+        await refreshPricingWithReferral();
         return;
       }
 
@@ -204,11 +211,13 @@ function StripePaymentFormMulti({
       if (response.valid) {
         setReferralCodeValid(true);
         setReferralAffiliateName(response.affiliate_name || "");
-        setReferralErrorMessage(""); 
+        setReferralErrorMessage("");
+        await refreshPricingWithReferral(code);
       } else {
         setReferralCodeValid(false);
         setReferralAffiliateName("");
         setReferralErrorMessage(response.message || "Invalid referral code");
+        await refreshPricingWithReferral();
       }
 
       } catch (error) {
@@ -248,6 +257,9 @@ function StripePaymentFormMulti({
 
         const response = await axios.get(
           `${API_BASE_URL}sales/discount-codes/${code}/validate?booking_id=${shootId}`,
+          {
+            headers: getAuthHeaders(),
+          }
         );
 
         if (response.data.valid) {
@@ -272,13 +284,46 @@ function StripePaymentFormMulti({
   );
 
   const handleReferralCodeChange = (value: string) => {
-    if (!isAuthenticated) {
-      toast.info("Please login or signup if you want to add a referral code.");
-      return;
-    }
     const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setReferralCode(upperCode);
     validateReferralCode(upperCode);
+  };
+
+  async function refreshPricingWithReferral(code?: string) {
+    if (!shootId) return;
+    try {
+      const API_BASE_URL =
+        (
+          process.env.NEXT_PUBLIC_API_ENDPOINT ||
+          "https://revure-api.beige.app/v1/"
+        ).replace(/\/$/, "") + "/";
+
+      const detailsRes = await axios.get(
+        `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
+        {
+          params: code ? { referral_code: code } : {},
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (detailsRes.data.success) {
+        setPaymentDetails(detailsRes.data.data);
+        await refreshPaymentIntent(detailsRes.data.data);
+      }
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message ||
+          "Failed to refresh pricing with referral code",
+      );
+    }
+  }
+
+  const clearReferralCode = async () => {
+    setReferralCode("");
+    setReferralCodeValid(null);
+    setReferralAffiliateName("");
+    setReferralErrorMessage("");
+    await refreshPricingWithReferral();
   };
 
   const handleDiscountCodeChange = (value: string) => {
@@ -308,6 +353,9 @@ function StripePaymentFormMulti({
           booking_id: shootId,
           guest_email: booking.guest_email,
         },
+        {
+          headers: getAuthHeaders(),
+        }
       );
 
       if (response.data.success) {
@@ -315,7 +363,10 @@ function StripePaymentFormMulti({
         toast.success("Discount applied successfully!");
 
         const detailsRes = await axios.get(
-          `${API_BASE_URL}guest-bookings/${shootId}/payment-details`
+          `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
+          {
+            headers: getAuthHeaders(),
+          }
         );
 
         if (detailsRes.data.success) {
@@ -535,22 +586,16 @@ function StripePaymentFormMulti({
               type="text"
               value={referralCode}
               onChange={(e) => handleReferralCodeChange(e.target.value)}
-              onFocus={() => {
-                if (!isAuthenticated) {
-                  toast.info("Please login or signup if you want to add a referral code.");
-                }
-              }}
-              disabled={!isAuthenticated}
               className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-12 text-white outline-none bg-[#272626] uppercase tracking-wider ${referralCodeValid === true
                 ? "border-green-500 focus:border-green-400"
                 : referralCodeValid === false
                   ? "border-red-500 focus:border-red-400"
                   : "border-white/30 focus:border-white/50"
                 }`}
-              placeholder={isAuthenticated ? "Enter code" : "Login/Signup to use referral code"}
+              placeholder="Enter code"
               maxLength={10}
             />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isValidatingReferral ? (
                 <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
               ) : referralCodeValid === true ? (
@@ -558,6 +603,16 @@ function StripePaymentFormMulti({
               ) : referralCodeValid === false ? (
                 <X className="w-5 h-5 text-red-500" />
               ) : null}
+              {referralCode.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearReferralCode}
+                  className="text-white/60 hover:text-white transition-colors"
+                  aria-label="Clear referral code"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
           {referralCodeValid === true && referralAffiliateName && (
@@ -570,11 +625,6 @@ function StripePaymentFormMulti({
             <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
                 <X className="w-4 h-4" />
                 {referralErrorMessage || "Invalid referral code"}
-            </p>
-          )}
-          {!isAuthenticated && (
-            <p className="text-yellow-300 text-sm mt-2">
-              Please login or signup if you want to add a referral code.
             </p>
           )}
         </div>
@@ -804,11 +854,17 @@ function MultiCreatorPaymentContent() {
 
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
-      const response = await axios.post(`${API_BASE_URL}payments/create-intent-multi`, {
-        booking_id: shootId,
-        amount: parseFloat(quote.total), 
-        guest_email: booking.guest_email,
-      });
+      const response = await axios.post(
+        `${API_BASE_URL}payments/create-intent-multi`,
+        {
+          booking_id: shootId,
+          amount: parseFloat(quote.total),
+          guest_email: booking.guest_email,
+        },
+        {
+          headers: getAuthHeaders(),
+        }
+      );
 
       if (response.data.success && response.data.data.clientSecret) {
         setClientSecret(response.data.data.clientSecret);
@@ -836,7 +892,12 @@ function MultiCreatorPaymentContent() {
       try {
         setIsLoading(true);
         const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
-        const response = await axios.get(`${API_BASE_URL}guest-bookings/${shootId}/payment-details`);
+        const response = await axios.get(
+          `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
+          {
+            headers: getAuthHeaders(),
+          }
+        );
 
         if (!response.data.success) {
           throw new Error(response.data.message || "Failed to load payment details");
@@ -863,11 +924,17 @@ function MultiCreatorPaymentContent() {
   ) => {
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
-      await axios.post(`${API_BASE_URL}payments/confirm-multi`, {
-        paymentIntentId,
-        booking_id: shootId,
-        referral_code: referralCode || null,
-      });
+      await axios.post(
+        `${API_BASE_URL}payments/confirm-multi`,
+        {
+          paymentIntentId,
+          booking_id: shootId,
+          referral_code: referralCode || null,
+        },
+        {
+          headers: getAuthHeaders(),
+        }
+      );
       setStep("success");
       toast.success("Booking confirmed successfully!");
     } catch (error) {
@@ -1131,6 +1198,17 @@ function MultiCreatorPaymentContent() {
                             {quote.discount_percentage && <span className="text-[10px] text-green-600/80">({quote.discount_percentage}% off)</span>}
                           </div>
                           <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total)}</span>
+                        </div>
+                      )}
+
+                      {parseFloat(quote.referral_discount_amount || 0) > 0 && (
+                        <div className="flex justify-between mt-2">
+                          <span className="text-green-700 font-medium">
+                            10% Referral Discount
+                          </span>
+                          <span className="text-green-700 font-bold">
+                            -{formatCurrency(quote.referral_discount_amount)}
+                          </span>
                         </div>
                       )}
                     </div>
