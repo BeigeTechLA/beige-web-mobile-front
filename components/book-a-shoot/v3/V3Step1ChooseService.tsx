@@ -7,7 +7,7 @@ import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, Radio, SquaresUnite, Calendar, ChevronLeft, ChevronRight, ChevronDown, Info, Check } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -37,10 +37,9 @@ import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import MultiSelectDropdown from "@/components/book-a-shoot/MultiSelectDropdown";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import DatePicker from "@/components/ui/Datepicker";
-import { set, format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from "date-fns";
+import { set, format } from "date-fns";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface Props {
   data: BookingDataV3;
@@ -90,21 +89,6 @@ const datePickerColours = {
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
 
-const getFormattedDateString = (selectedDates: (string | Date)[]): string => {
-  if (!selectedDates || selectedDates.length === 0) return "";
-
-  const dateObjects = selectedDates.map(d => new Date(d));
-  const days = dateObjects.map(d => format(d, "d"));
-
-  const joinedDays = days.length > 1
-    ? `${days.slice(0, -1).join(", ")} & ${days.slice(-1)}`
-    : days[0];
-
-  const monthYear = format(dateObjects[0], "MMMM yyyy");
-
-  return `${joinedDays} ${monthYear}`;
-};
-
 export const V3Step1ChooseService: React.FC<Props> = ({
   data,
   updateData,
@@ -124,36 +108,24 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   >([]);
 
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
+
   const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
 
-  const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
-  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
+  const [timeOptions, setTimeOptions] = useState<
+    { key: string; value: string }[]
+  >([]);
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const isAllVisible = visibleCount >= availableShootTypes.length;
 
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
 
-
-  // Temporary variables until integration is done for new BookingType logic
-  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">("single_day");
-  const [sameTimingsMulti, setSameTimingsMulti] = useState<boolean>(true)
-
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [expandedDateIndex, setExpandedDateIndex] = useState<number | null>(0);
-  // End: Temporary variables until integration is done for new BookingType logic
-
-
   const emailRef = useRef<HTMLDivElement>(null);
   const contentTypeRef = useRef<HTMLDivElement>(null);
   const shootTypeRef = useRef<HTMLDivElement>(null);
-  const bookingTypeRef = useRef<HTMLDivElement>(null);
   const dateTimeRef = useRef<HTMLDivElement>(null);
   const editsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
-  const calendarRef = useRef<HTMLDivElement>(null);
 
   // Auto-fill email if user is logged in
   useEffect(() => {
@@ -207,15 +179,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
     setTimeOptions(options);
 
-    // Close calendar on click outside
-    const handler = (e: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
-        setIsCalendarOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-
     // add GA event on initial load
     pushToDataLayer("booking_page_viewed_step1", {
       type: "Action Tracking",
@@ -229,84 +192,26 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     });
   }, []);
 
-  useEffect(() => {
-    const primaryDate = data.startDate || data.endDate;
-    if (!primaryDate) return;
-
-    const parsed = parseDate(primaryDate);
-    if (!parsed) return;
-
-    const normalized = set(new Date(parsed), {
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      milliseconds: 0,
-    });
-    setSelectedShootDate(normalized);
-  }, [data.startDate, data.endDate]);
-
   // --- Move these helpers up here ---
-
-  const toggleDateSelection = (date: Date) => {
-    const exists = selectedDates.find(d => isSameDay(d, date));
-    let newDates;
-    if (exists) {
-      newDates = selectedDates.filter(d => !isSameDay(d, date));
-    } else {
-      newDates = [...selectedDates, date].sort((a, b) => a.getTime() - b.getTime());
-      setCurrentCalendarMonth(date); // Update month view to selected date
-    }
-    setSelectedDates(newDates);
-  };
-
-  const reelDays = React.useMemo(() => {
-    const startOfSelectedMonth = startOfMonth(currentCalendarMonth);
-    const endOfSelectedMonth = endOfMonth(currentCalendarMonth);
-    const now = new Date();
-
-    let startDate;
-
-    // If the viewed month is the current month, start from today
-    if (isSameMonth(currentCalendarMonth, now)) {
-      startDate = now;
-    } else {
-      // For future months, start from the 1st of that month
-      startDate = startOfSelectedMonth;
-    }
-
-    // If the viewed month is in the past (before current month), return empty or handle as needed
-    if (currentCalendarMonth < startOfMonth(now)) {
-      return [];
-    }
-
-    return eachDayOfInterval({
-      start: startDate,
-      end: endOfSelectedMonth,
-    });
-  }, [currentCalendarMonth]);
-
-  const calendarDays = eachDayOfInterval({
-    start: startOfMonth(currentCalendarMonth),
-    end: endOfMonth(currentCalendarMonth),
-  });
-
   const getStartTimeKey = () => {
     if (!data.startDate) return "";
     const date = parseDate(data.startDate);
-    return date ? format(date, "HH:mm") : "";
+    if (!date) return "";
+    return format(date, "HH:mm");
   };
 
   const getEndTimeKey = () => {
     if (!data.endDate) return "";
     const date = parseDate(data.endDate);
-    return date ? format(date, "HH:mm") : "";
+    if (!date) return "";
+    return format(date, "HH:mm");
   };
 
   // --- Now the useMemos can safely use them ---
   const filteredStartTimeOptions = React.useMemo(() => {
-    if (!selectedShootDate) return timeOptions;
+    if (!data.startDate) return timeOptions;
 
-    const selectedDate = selectedShootDate;
+    const selectedDate = parseDate(data.startDate);
     const now = new Date();
 
     const isToday =
@@ -321,7 +226,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     const minKey = format(minTime, "HH:mm");
 
     return timeOptions.filter((opt) => opt.key >= minKey);
-  }, [selectedShootDate, timeOptions]);
+  }, [data.startDate, timeOptions]);
 
   const filteredEndTimeOptions = React.useMemo(() => {
     // If no start date/time is selected, show all
@@ -335,14 +240,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const handleDateChange = (date: Date | null) => {
     if (!date) {
-      setSelectedShootDate(null);
       updateData({ startDate: "", endDate: "" });
       return;
     }
-
-    setSelectedShootDate(
-      set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
-    );
 
     const now = new Date();
     const isToday =
@@ -357,37 +257,61 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     let finalEnd: Date;
 
     if (existingStart && existingEnd) {
-      finalStart = set(new Date(date), {
+      finalStart = set(date, {
         hours: existingStart.getHours(),
         minutes: existingStart.getMinutes(),
         seconds: 0,
         milliseconds: 0,
       });
-      finalEnd = set(new Date(date), {
+
+      finalEnd = set(date, {
         hours: existingEnd.getHours(),
         minutes: existingEnd.getMinutes(),
         seconds: 0,
         milliseconds: 0,
       });
-    } else {
-      // Defaults
-      finalStart = set(new Date(date), { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-      finalEnd = set(new Date(date), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
-    }
 
-    // Same-day 4 hour logic
+      if (isToday) {
+        const minStartTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+
+        if (finalStart < minStartTime) {
+          const roundedStart = new Date(minStartTime);
+          const mins = roundedStart.getMinutes();
+          if (mins > 0 && mins <= 30) {
+            roundedStart.setMinutes(30, 0, 0);
+          } else if (mins > 30) {
+            roundedStart.setHours(roundedStart.getHours() + 1, 0, 0, 0);
+    } else {
+            roundedStart.setMinutes(0, 0, 0);
+          }
+
+          finalStart = roundedStart;
+          const durationMs = existingEnd.getTime() - existingStart.getTime();
+          finalEnd = new Date(finalStart.getTime() + (durationMs > 0 ? durationMs : 8 * 60 * 60 * 1000));
+    }
+      }
+    } else {
     if (isToday) {
       const minStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-      if (finalStart < minStart) {
-        finalStart = new Date(minStart.getTime() + 30 * 60 * 1000); // Add buffer
-        finalStart.setMinutes(finalStart.getMinutes() > 30 ? 0 : 30, 0, 0);
+        const mins = minStart.getMinutes();
+        if (mins > 0 && mins <= 30) {
+          minStart.setMinutes(30, 0, 0);
+        } else if (mins > 30) {
+          minStart.setHours(minStart.getHours() + 1, 0, 0, 0);
+        } else {
+          minStart.setMinutes(0, 0, 0);
+        }
+        finalStart = minStart;
         finalEnd = new Date(finalStart.getTime() + 8 * 60 * 60 * 1000);
+      } else {
+        finalStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+        finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
       }
     }
 
     updateData({
-      startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss.SSS"),
-      endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS"),
+      startDate: finalStart.toISOString(),
+      endDate: finalEnd.toISOString(),
     });
   };
   const handleStartTimeChange = (timeKey: string) => {
@@ -397,31 +321,31 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const baseDate =
-      (data.startDate ? parseDate(data.startDate) : null) ||
-      (data.endDate ? parseDate(data.endDate) : null) ||
-      selectedShootDate ||
-      new Date();
+    const currentDate = data.startDate ? parseDate(data.startDate) : new Date();
 
-    // Create new date object without mutating the state
-    const newStart = set(new Date(baseDate), {
-      hours,
-      minutes,
-      seconds: 0,
-      milliseconds: 0
-    });
-
-    // Validation
+    // Ensure we don't select a time before the current time
     const now = new Date();
-    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-    if (newStart < minimumTime && newStart.toDateString() === now.toDateString()) {
-      toast.error("You must select a start time at least 4 hours from now.");
-      return;
+    const selectedTime = new Date(currentDate.setHours(hours, minutes));
+
+    if (selectedTime < now) {
+      toast.error("Selected time must be later than the current time.");
+      setErrors((prev) => [...prev, "timeError"]);
+      return; // Don't update the time if it's invalid
     }
 
-    // Use format instead of toISOString to preserve LOCAL time
-    updateData({ startDate: format(newStart, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
+    // Enforce a 4-hour gap for same-day bookings
+    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000); // Add 4 hours to current time
+
+    if (selectedTime < minimumTime) {
+      toast.error("You must select a start time at least 4 hours from now.");
+      setErrors((prev) => [...prev, "timeError"]);
+      return; // Don't update the time if it's invalid
+    }
+
+    const newStart = set(currentDate, { hours, minutes });
+    updateData({ startDate: newStart.toISOString() });
   };
+
 
   const handleEndTimeChange = (timeKey: string) => {
     if (!timeKey) {
@@ -430,11 +354,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const baseDate =
-      (data.startDate ? parseDate(data.startDate) : null) ||
-      (data.endDate ? parseDate(data.endDate) : null) ||
-      selectedShootDate ||
-      new Date();
+
+    const baseDate = data.startDate ? parseDate(data.startDate) : new Date();
+    if (!baseDate) return;
 
     const newEnd = set(new Date(baseDate), {
       hours,
@@ -443,8 +365,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       milliseconds: 0
     });
 
-    // Use format instead of toISOString
-    updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
+    updateData({ endDate: newEnd.toISOString() });
     scrollToRef(editsRef);
   };
 
@@ -833,7 +754,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     selected={data.shootType === type.key}
                     onClick={() => {
                       updateData({ shootType: type.key });
-                      scrollToRef(bookingTypeRef);
+                      scrollToRef(dateTimeRef);
                     }}
                   />
                 </div>
@@ -849,59 +770,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Booking type: Single day/Multi day */}
-          <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-              }`}>
-              Select Booking Type
-            </h3>
-            <div className="flex gap-4">
-              <button
-                onClick={() => {
-                  // updateData
-                  setBookingType("single_day"); // Temporary until new BookingType logic is integrated
-                  scrollToRef(dateTimeRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${(bookingType === "single_day") ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${(bookingType === "single_day") ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
-                >
-                  {(bookingType === "single_day") && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  // updateData
-                  setBookingType("multi_day"); // Temporary until new BookingType logic is integrated
-                  scrollToRef(dateTimeRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${(bookingType === "multi_day") ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${(bookingType === "multi_day") ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
-                >
-                  {(bookingType === "multi_day") && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
-                </div>
-              </button>
-            </div>
-          </div>
-
           {/* Date & Time */}
           <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            {
-              bookingType === "single_day" ? (
-                <>
                   <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
                     }`}>
                     Shoot Date & Time
@@ -910,7 +780,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     <div className="flex-1">
                       <DatePicker
                         label="Select Date"
-                        value={selectedShootDate}
+                  value={data.startDate ? parseDate(data.startDate) : null}
                         onChange={handleDateChange}
                         minDate={new Date()}
                         colors={datePickerColours}
@@ -940,210 +810,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       />
                     </div>
                   </div>
-                </>
-              ) : (
-                <>
-                  <div className="relative mb-8 lg:mb-15">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-                        }`}>
-                        Select Date
-                      </h3>
-                      <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
-                        <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
-                        <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
-                      </button>
-                    </div>
-
-                    {/* Horizontal Scroll Reel */}
-                    <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-                      {reelDays.map((date) => {
-                        const isSelected = selectedDates.some(d => isSameDay(d, date));
-                        return (
-                          <button
-                            key={date.toISOString()}
-                            onClick={() => toggleDateSelection(date)}
-                            className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
-                          >
-                            <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
-                            <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex gap-4">
-                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
-                      </div>
-                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
-                      </div>
-                    </div>
-
-                    {/* Calendar Popover */}
-                    <AnimatePresence>
-                      {isCalendarOpen && (
-                        <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
-                          <div className="flex justify-between items-center mb-6">
-                            <button onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}><ChevronLeft size={20} /></button>
-                            <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
-                            <button onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}><ChevronRight size={20} /></button>
-                          </div>
-                          <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
-                          </div>
-                          <div className="grid grid-cols-7 gap-1">
-                            {calendarDays.map((date) => {
-                              const isSelected = selectedDates.some(d => isSameDay(d, date));
-                              return (
-                                <button
-                                  key={date.toISOString()}
-                                  onClick={() => toggleDateSelection(date)}
-                                  className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
-                                >
-                                  {format(date, "d")}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  {/* timings selector will go here */}
-
-                  {selectedDates.length > 0 && (
-                    <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
-                      <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
-
-                      <div className="flex gap-4">
-                        <button
-                          onClick={() => {
-                            setSameTimingsMulti(true);
-                            // scrollToRef(navigationRef);
-                          }}
-                          disabled={data.shootType === ""}
-                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                        >
-                          <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-                          <div
-                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
-                              }`}
-                          >
-                            {sameTimingsMulti && (
-                              <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                            )}
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSameTimingsMulti(false);
-                            // scrollToRef(navigationRef);  
-                          }}
-                          disabled={data.shootType === ""}
-                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                        >
-                          <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-                          <div
-                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
-                              }`}
-                          >
-                            {!sameTimingsMulti && (
-                              <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                            )}
-                          </div>
-                        </button>
-                      </div>
-
-                      {
-                        sameTimingsMulti ? (
-                          <div>
-                            <div className="flex flex-col lg:flex-row gap-6">
-                              <div className="flex-1">
-                                <DropdownSelect
-                                  title="Start Time"
-                                  options={filteredStartTimeOptions}
-                                  value={getStartTimeKey()}
-                                  onChange={handleStartTimeChange}
-                                  bgColour="bg-[#101010]"
-                                />
-                              </div>
-                              <div className="flex-1">
-                                <DropdownSelect
-                                  title="End Time"
-                                  options={filteredEndTimeOptions}
-                                  value={getEndTimeKey()}
-                                  onChange={handleEndTimeChange}
-                                  bgColour="bg-[#101010]"
-                                />
-                              </div>
-                            </div>
-                            <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
-                              <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
-                            </p>
-                            <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
-                              <p className="text-white font-medium lg:text-[20px]">
-                                {getFormattedDateString(selectedDates)}
-                              </p>
-                              <p className="text-white/60  font-medium lg:text-[20px]">
-                                {/* Please show selected time instead of following text */}
-                                Please show selected time here
-                              </p>
-                              <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
-                                Duration Hour/Day
-                              </p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {selectedDates.map((date, idx) => (
-                              <div key={date.toISOString()} className="border border-white/10 rounded-2xl bg-[#171717] overflow-hidden">
-                                <button onClick={() => setExpandedDateIndex(expandedDateIndex === idx ? null : idx)} className={`w-full px-6 py-5 flex justify-between items-center ${expandedDateIndex === idx ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
-                                  <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
-                                  <ChevronDown className={`text-white/40 transition-transform ${expandedDateIndex === idx ? "rotate-180" : ""}`} />
-                                </button>
-                                <AnimatePresence>
-                                  {expandedDateIndex === idx && (
-                                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden bg-[#101010] p-4 lg:p-7">
-                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                        <div className="flex-1">
-                                          <DropdownSelect
-                                            title="Start Time"
-                                            options={filteredStartTimeOptions}
-                                            value={getStartTimeKey()}
-                                            onChange={handleStartTimeChange}
-                                            bgColour="bg-[#101010]"
-                                          />
-                                        </div>
-                                        <div className="flex-1">
-                                          <DropdownSelect
-                                            title="End Time"
-                                            options={filteredEndTimeOptions}
-                                            value={getEndTimeKey()}
-                                            onChange={handleEndTimeChange}
-                                            bgColour="bg-[#101010]"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Duration: calculated duration to be shown here</p>
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            ))}
-                          </div>
-                        )
-                      }
-                    </div>
-                  )}
-                </>
-              )
-
-            }
           </div>
 
           {/* Edits Needed */}
@@ -1248,8 +914,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             )}
           </div>
         </>
-      )
-      }
+      )}
 
       {/* Navigation */}
       <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
@@ -1267,6 +932,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           Continue
         </Button>
       </div>
-    </div >
+    </div>
   );
 };
