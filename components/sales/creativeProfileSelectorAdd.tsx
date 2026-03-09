@@ -33,6 +33,7 @@ export const CreativeProfileSelectorAdd = ({
     const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
     const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({});
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [appliedFilters, setAppliedFilters] = useState({ radius: 100 }); 
     const [stats, setStats] = useState<any>(null);
     const [creatives, setCreatives] = useState<any[]>([]);
     const [roleType, setRoleType] = useState<string>('videographer');
@@ -101,7 +102,8 @@ export const CreativeProfileSelectorAdd = ({
                 const response = await salesApi.getCrewForLead({
                     lead_id: leadId,
                     role_type: roleType,
-                    search_query: debouncedSearch || city
+                    search_query: debouncedSearch || city,
+                    radius: appliedFilters.radius
                 });
 
                 if (response && response.data) {
@@ -130,7 +132,7 @@ export const CreativeProfileSelectorAdd = ({
         };
 
         fetchCreatives();
-    }, [leadId, stats?.location, currentLocation, roleType, debouncedSearch]);
+    }, [leadId, stats?.location, currentLocation, roleType, debouncedSearch, appliedFilters.radius]);
 
     const selectedIds = externalSelectedIds || internalSelectedIds;
 
@@ -275,9 +277,10 @@ export const CreativeProfileSelectorAdd = ({
             </div>
 
             {/* SIDEBAR COMPONENT */}
-            <CreativeFilterModal
+             <CreativeFilterModal
                 isOpen={isFilterOpen}
                 onClose={() => setIsFilterOpen(false)}
+                onApply={(filters) => setAppliedFilters(filters)} // <--- Capture the radius here
             />
         </div>
     );

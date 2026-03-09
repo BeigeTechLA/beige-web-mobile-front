@@ -1200,6 +1200,38 @@ export const adminApi = {
     }
   },
 
+  checkCpDeleteStatus: async (crew_member_id: string | number) => {
+    try {
+      const response = await api.get(`admin/check-cp-delete-status`, {
+        params: { crew_member_id }
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Check CP Delete Status Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to check CP delete status',
+      };
+    }
+  },
+
+  deleteCp: async (crew_member_id: string | number) => {
+    try {
+      const response = await api.post(`admin/delete-cp`, {
+        crew_member_id: Number(crew_member_id)
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete CP Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete creative partner',
+      };
+    }
+  },
+
   getClientById: async (id: string | number) => {
     try {
       const response = await api.get(`admin/get-client-by-id/${id}`);
@@ -1333,7 +1365,7 @@ export const salesApi = {
       };
     }
   },
-  getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string }) => {
+getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string, radius?: number }) => {
     try {
       const response = await api.get('admin/get-crew-for-lead/', { params });
       return response.data;
@@ -1345,5 +1377,5 @@ export const salesApi = {
         error: 'Failed to fetch crew for lead',
       };
     }
-  },
+},
 };

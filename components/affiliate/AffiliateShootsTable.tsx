@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { StatusBadge } from "../admin/StatusBadge";
 
-type Status = "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed";
+type Status = "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Pending" | "Cancelled" | "Unknown";
 
 interface ShootRecord {
   id: string;
@@ -28,6 +28,7 @@ interface ShootRecord {
   category: string;
   price: string;
   status: Status;
+  hasQuote: boolean;
   paymentStatus: "paid" | "pending";
 }
 
@@ -140,7 +141,8 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
-          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as any;
+          const hasQuote = project.quote_id !== null && project.quote_id !== undefined;
+          const statusLabel = hasQuote ? (STATUS_LABEL_MAP[project.status] || "Unknown") : "Pending";
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
           const quoteTotal = project.quote_total;
@@ -153,10 +155,11 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
             customerName,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-            category: parseSkills(project.skills_needed, skillMap),
+            category: project.event_type_labels || "Uncategorized",
             price: displayAmount ? `$${parseFloat(displayAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
-            status: statusLabel,
-            paymentStatus: project.payment_id ? "paid" : "pending",
+            status: statusLabel as Status,
+            hasQuote,
+            paymentStatus: project.payment_status === "paid" || !!project.payment_id ? "paid" : "pending",
           };
         });
         setShoots(mappedShoots);
@@ -191,8 +194,12 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
     setExpandedId(expandedId === id ? null : id);
   };
 
-  const handleProceedPayment = (e: React.MouseEvent, bookingId: string) => {
+  const handleActionClick = (e: React.MouseEvent, bookingId: string, hasQuote: boolean) => {
     e.stopPropagation();
+    if (!hasQuote) {
+      router.push(`/affiliate/dashboard/${bookingId}/edit-booking`);
+      return;
+    }
     router.push(`/search-results/payment?shootId=${bookingId}`);
   };
 
@@ -295,10 +302,10 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                     <div className="col-span-2 pt-2">
                       {shoot.paymentStatus === "pending" && (
                         <button
-                          onClick={(e) => handleProceedPayment(e, shoot.bookingId)}
+                          onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
                           className="w-full mb-2 py-2 bg-[#E8D1AB] hover:bg-[#dcb98a] rounded-lg text-black text-sm font-semibold"
                         >
-                          Proceed to Payment
+                          {shoot.hasQuote ? "Proceed to Payment" : "Complete Booking"}
                         </button>
                       )}
                       <button
@@ -391,10 +398,10 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                       <div className="flex items-center justify-end gap-2">
                         {shoot.paymentStatus === "pending" && (
                           <button
-                            onClick={(e) => handleProceedPayment(e, shoot.bookingId)}
+                            onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
                             className="px-3 py-1.5 rounded-lg bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-xs font-semibold"
                           >
-                            Proceed to Payment
+                            {shoot.hasQuote ? "Proceed to Payment" : "Complete Booking"}
                           </button>
                         )}
                         <button className="p-2 text-white/40 hover:text-white transition-colors">
