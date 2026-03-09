@@ -52,7 +52,7 @@ interface LeadRecord {
     customerName: string;
     email: string;
     leadType: "Self-Serve" | "Sales Assisted";
-    bookingStatus: "Paid" | "In-Progress"; // Updated to match your request
+    bookingStatus: "Paid" | "In-Progress"; 
     lastActivity: string;
     date: string;
 }
