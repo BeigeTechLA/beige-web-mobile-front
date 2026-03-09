@@ -90,6 +90,21 @@ const datePickerColours = {
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
 
+const getFormattedDateString = (selectedDates: (string | Date)[]): string => {
+  if (!selectedDates || selectedDates.length === 0) return "";
+
+  const dateObjects = selectedDates.map(d => new Date(d));
+  const days = dateObjects.map(d => format(d, "d"));
+
+  const joinedDays = days.length > 1
+    ? `${days.slice(0, -1).join(", ")} & ${days.slice(-1)}`
+    : days[0];
+
+  const monthYear = format(dateObjects[0], "MMMM yyyy");
+
+  return `${joinedDays} ${monthYear}`;
+};
+
 export const V3Step1ChooseService: React.FC<Props> = ({
   data,
   updateData,
@@ -957,8 +972,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       })}
                     </div>
 
-                    <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                      <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
+                    <div className="flex gap-4">
+                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
+                      </div>
+                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
+                      </div>
                     </div>
 
                     {/* Calendar Popover */}
@@ -1064,7 +1084,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                             </p>
                             <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
                               <p className="text-white font-medium lg:text-[20px]">
-                                {selectedDates.map(d => format(d, "MMM d")).join(", ")}, {format(selectedDates[0], "yyyy")}
+                                {getFormattedDateString(selectedDates)}
                               </p>
                               <p className="text-white/60  font-medium lg:text-[20px]">
                                 {/* Please show selected time instead of following text */}
