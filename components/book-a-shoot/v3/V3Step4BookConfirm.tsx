@@ -122,6 +122,27 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     editingFees: 0, // INITIALIZED
   });
 
+  const bookingDays = data.bookingDays || [];
+  const sortedBookingDays = bookingDays.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const isMultiDay = data.bookingType === "multi_day" && sortedBookingDays.length > 0;
+  const firstDay = sortedBookingDays[0];
+  const lastDay = sortedBookingDays[sortedBookingDays.length - 1];
+  const allSameTime = isMultiDay && sortedBookingDays.every(
+    (d) => d.startTime === firstDay?.startTime && d.endTime === firstDay?.endTime
+  );
+  const displayDateText = isMultiDay
+    ? `${sortedBookingDays.length} days • ${format(new Date(firstDay.date), "EEE, dd MMM yyyy")} - ${format(new Date(lastDay.date), "EEE, dd MMM yyyy")}`
+    : data.startDate
+      ? format(new Date(data.startDate), "EEEE, dd MMM yyyy")
+      : "Date not set";
+  const displayTimeText = isMultiDay
+    ? allSameTime && firstDay?.startTime && firstDay?.endTime
+      ? `${firstDay.startTime} - ${firstDay.endTime}`
+      : "Multiple times"
+    : data.startDate && data.endDate
+      ? `${format(new Date(data.startDate), "h:mm a")} - ${format(new Date(data.endDate), "h:mm a")}`
+      : "Time not set";
+
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(true);
   const [showSalesPopup, setShowSalesPopup] = useState(false);
@@ -179,6 +200,22 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
   // Calculate duration in hours
   useEffect(() => {
+    if (data.bookingType === "multi_day" && data.bookingDays && data.bookingDays.length > 0) {
+      const total = data.bookingDays.reduce((sum, d) => {
+        if (!d.startTime || !d.endTime) return sum;
+        const [sh, sm] = d.startTime.split(":").map(Number);
+        const [eh, em] = d.endTime.split(":").map(Number);
+        if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return sum;
+        const startMinutes = sh * 60 + sm;
+        const endMinutes = eh * 60 + em;
+        const diff = endMinutes - startMinutes;
+        if (diff <= 0) return sum;
+        return sum + diff / 60;
+      }, 0);
+      setDurationHours(Math.max(1, Math.round(total)));
+      return;
+    }
+
     if (!data.startDate || !data.endDate) {
       setDurationHours(0);
       return;
@@ -189,7 +226,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     const diffMs = end.getTime() - start.getTime();
     const hours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
     setDurationHours(hours);
-  }, [data.startDate, data.endDate]);
+  }, [data.startDate, data.endDate, data.bookingType, data.bookingDays]);
 
   // Calculate quote when component mounts or data changes
   useEffect(() => {
@@ -222,12 +259,16 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         //   skip_margin: true,   // Remove beige margin for V3
         // }).unwrap();
 
+        const firstBookingDate = data.bookingType === "multi_day" && data.bookingDays && data.bookingDays.length > 0
+          ? data.bookingDays.slice().sort((a, b) => a.date.localeCompare(b.date))[0]?.date
+          : null;
+
         const result = await calculateQuoteFromCreators({
           creator_ids: data.selectedCrewIds,
           shoot_hours: durationHours,
           role_counts: data.roleCounts,
           event_type: data.shootType || "general",
-          shoot_start_date: data.startDate,
+          shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : data.startDate,
           video_edit_types: data.videoEditTypes, // ADDED
           photo_edit_types: data.photoEditTypes, // ADDED
           skip_discount: true,
@@ -378,9 +419,15 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       ...socialContentEditTypes
     ];
 
-    return keys.map(key => {
+    const counts = keys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(counts).map(([key, count]) => {
       const match = allVideoOptions.find(opt => opt.key === key);
-      return match ? match.value : key;
+      const label = match ? match.value : key;
+      return count > 1 ? `${label} x${count}` : label;
     });
   };
 
@@ -393,9 +440,15 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       ...brandProductPhotoEditTypes, ...peopleTeamsPhotoEditTypes, ...behindScenesPhotoEditTypes
     ];
 
-    return keys.map(key => {
+    const counts = keys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(counts).map(([key, count]) => {
       const match = allPhotoOptions.find(opt => opt.key === key);
-      return match ? match.value : key;
+      const label = match ? match.value : key;
+      return count > 1 ? `${label} x${count}` : label;
     });
   };
 
@@ -500,7 +553,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="text-white text-base lg:text-lg font-medium capitalize">
-                        {format(new Date(data.startDate), "EEEE, dd MMM yyyy")}
+                        {displayDateText}
                       </span>
                       <span className="text-sm text-[#A9A9A9]">Date</span>
                     </div>
@@ -514,8 +567,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="text-white text-base lg:text-lg font-medium capitalize">
-                        {format(new Date(data.startDate), "h:mm a")} -{" "}
-                        {format(new Date(data.endDate), "h:mm a")}
+                        {displayTimeText}
                       </span>
                       <span className="text-sm text-[#A9A9A9]">Time</span>
                     </div>
