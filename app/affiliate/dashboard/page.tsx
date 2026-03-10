@@ -39,6 +39,7 @@ import AffiliateFileManager from "@/components/affiliate/AffiliateFileManager";
 import AffiliateMessages from "@/components/affiliate/AffiliateMessages";
 import { AffiliateShoots } from "@/components/affiliate/AffiliateShoots";
 import AffiliateShootDetails from "@/components/affiliate/AffiliateShootDetails";
+import { AffiliateShootDetailsForm } from "@/components/affiliate/AffiliateShootDetailsForm";
 import { AffiliateProfileSettings } from "@/components/affiliate/AffiliateProfileSettings";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { Button } from "@/components/ui/button";
@@ -78,8 +79,11 @@ export default function AffiliateDashboardPage() {
   const [referrals, setReferrals] = useState<ReferralHistoryItem[]>([]);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isShootFormOpen, setIsShootFormOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [pendingProjects, setPendingProjects] = useState<any[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -122,15 +126,21 @@ export default function AffiliateDashboardPage() {
           params.date_on = format(selectedDate, 'yyyy-MM-dd');
         }
 
-        const [statsData, referralHistory, summaryData] = await Promise.all([
+        const [statsData, referralHistory, summaryData, pendingData] = await Promise.all([
           affiliateApi.getDashboardStats(token),
           affiliateApi.getReferralHistory(token),
           affiliateApi.getDashboardSummary(token, params),
+          affiliateApi.getProjectFormSubmission(token),
         ]);
         setStats(statsData);
         setReferrals(referralHistory.referrals || []);
         setDashboardSummary(summaryData.data);
         setNewCode(statsData.affiliate.referral_code);
+
+        if (!pendingData.error) {
+          setPendingProjects(pendingData.projects || []);
+          setPendingCount(pendingData.count || 0);
+        }
       } catch (error: any) {
         console.error("Error fetching affiliate dashboard:", error);
         toast.error("Failed to load dashboard data.");
@@ -525,6 +535,8 @@ export default function AffiliateDashboardPage() {
               ) : (
                 <AffiliateShoots
                   onShootClick={(id) => setSelectedBooking(id)}
+                  onFillDetailsClick={() => setIsShootFormOpen(true)}
+                  pendingCount={pendingCount}
                 />
               )
             ) : activeTab === "file-manager" ? (
@@ -624,30 +636,27 @@ export default function AffiliateDashboardPage() {
                 </div>
 
                 {/* Google Forms CTA Banner */}
-                <div className="bg-gradient-to-r from-[#E8D1AB]/10 to-[#E8D1AB]/5 border border-[#E8D1AB]/20 rounded-lg lg:rounded-xl p-4 lg:p-8">
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-white font-semibold text-lg lg:text-xl mb-2">
-                        Complete Your Shoot Details
-                      </h3>
-                      <p className="text-white/60 text-sm lg:text-base">
-                        Help us prepare better by filling out detailed
-                        information about your upcoming shoot
-                      </p>
+                {pendingCount > 0 && (
+                  <div className="bg-gradient-to-r from-[#E8D1AB]/10 to-[#E8D1AB]/5 border border-[#E8D1AB]/20 rounded-lg lg:rounded-xl p-4 lg:p-8">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-white font-semibold text-lg lg:text-xl mb-2">
+                          Complete Your Shoot Details
+                        </h3>
+                        <p className="text-white/60 text-sm lg:text-base">
+                          Help us prepare better by filling out detailed
+                          information about your upcoming shoot
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => setIsShootFormOpen(true)}
+                        className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium px-6 py-3 h-auto whitespace-nowrap"
+                      >
+                        Fill Out Shoot Details
+                      </Button>
                     </div>
-                    <Button
-                      onClick={() => {
-                        // For now, we'll use a general form - ideally this would check the user's booking shoot type
-                        const formUrl =
-                          "https://docs.google.com/forms/d/e/1FAIpQLSeYWPQXfFBqzt4FHVy6ccrS4WVbjFLHJQeIu56rj_zEinGGfQ/viewform";
-                        window.open(formUrl, "_blank");
-                      }}
-                      className="bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium px-6 py-3 h-auto whitespace-nowrap"
-                    >
-                      Fill Out Shoot Details
-                    </Button>
                   </div>
-                </div>
+                )}
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1138,6 +1147,13 @@ export default function AffiliateDashboardPage() {
             )}
         </AnimatePresence>
       </div>
+
+      <AffiliateShootDetailsForm
+        isOpen={isShootFormOpen}
+        onClose={() => setIsShootFormOpen(false)}
+        projectId={pendingProjects[0]?.project_id || 0}
+        pendingProjects={pendingProjects}
+      />
     </div>
   );
 }

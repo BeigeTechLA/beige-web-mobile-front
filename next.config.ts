@@ -42,6 +42,11 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
+        protocol: "https",
+        hostname: "ui-avatars.com",
+        pathname: "/**",
+      },
+      {
         protocol: 'https',
         hostname: 'd2jhn32fsulyac.cloudfront.net',
         port: '',

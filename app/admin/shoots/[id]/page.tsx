@@ -15,7 +15,7 @@ import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOvervi
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
 
 import { adminApi } from "@/lib/api";
-import { CircleX, Loader2, X } from "lucide-react"; // Added X icon for closing
+import { CircleX, Loader2, X, Eye } from "lucide-react"; // Added X icon for closing
 import { Button } from "@/src/components/landing/ui/button";
 
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -207,15 +207,23 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         )}
 
         {/* --- FLOATING MOBILE BUTTONS --- */}
-        <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
-          <Button className="w-full bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
-            Cancel Shoot
-          </Button>
+        <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+          <div className="flex gap-2">
+            <Button className="w-full bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
+              Cancel Shoot
+            </Button>
+            <Button
+              onClick={() => router.push(`/admin/shoots/${id}/edit-booking`)}
+              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            >
+              Edit Shoot
+            </Button>
+          </div>
           <Button
-            onClick={() => router.push(`/admin/shoots/${id}/edit-booking`)}
-            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            onClick={() => router.push(`/admin/shoots/${id}/form-details`)}
+            className="w-full bg-[#111] text-[#E5D5B8] hover:bg-[#151515] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/10 active:scale-[0.98] transition-transform"
           >
-            Edit Shoot
+            <Eye size={18} /> View Form Details
           </Button>
         </div>
       </div>
