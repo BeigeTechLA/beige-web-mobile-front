@@ -3,7 +3,7 @@ name: Deploy Frontend Dev
 on:
   push:
     branches:
-      - dev
+      - development
   workflow_dispatch:
 
 concurrency:
@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           if [ -f "package-lock.json" ]; then
-            npm ci
+            npm ci --legacy-peer-deps
           else
             npm install
           fi
@@ -46,23 +46,19 @@ jobs:
       - name: Build on CI runner
         run: npm run build
 
-      - name: Create deploy archive
+      - name: Create standalone deploy archive
         run: |
+          ARCHIVE_NAME="next-build.tar.gz"
           ARCHIVE_ITEMS=(
-            ".next"
-            "package.json"
+            ".next/standalone"
+            ".next/static"
           )
 
-          [ -f "package-lock.json" ] && ARCHIVE_ITEMS+=("package-lock.json")
-          [ -f "yarn.lock" ] && ARCHIVE_ITEMS+=("yarn.lock")
+          [ -d ".next/standalone" ] || { echo ".next/standalone missing. Enable Next standalone output."; exit 1; }
           [ -d "public" ] && ARCHIVE_ITEMS+=("public")
-          [ -f "next.config.js" ] && ARCHIVE_ITEMS+=("next.config.js")
-          [ -f "next.config.mjs" ] && ARCHIVE_ITEMS+=("next.config.mjs")
-          [ -f "next.config.ts" ] && ARCHIVE_ITEMS+=("next.config.ts")
 
-          tar czf app-source.tar.gz \
+          tar czf "$ARCHIVE_NAME" \
             --exclude=".next/cache" \
-            --exclude=".next/cache/*" \
             "${ARCHIVE_ITEMS[@]}"
 
       - name: Upload archive
@@ -72,7 +68,7 @@ jobs:
           DEV_USER: ${{ secrets.DEV_USER }}
         run: |
           PORT="${DEV_PORT:-22}"
-          scp -P "$PORT" -i ~/.ssh/dev.pem app-source.tar.gz "$DEV_USER@$DEV_HOST:/tmp/app-source.tar.gz"
+          scp -P "$PORT" -i ~/.ssh/dev.pem next-build.tar.gz "$DEV_USER@$DEV_HOST:/tmp/"
 
       - name: Deploy on server
         env:
@@ -85,24 +81,23 @@ jobs:
           set -euo pipefail
 
           REMOTE_DIR="/var/www/beige-web-front-dev"
-          RELEASE_TAR="/tmp/app-source.tar.gz"
-          APP_NAME="revure-next-dev"
+          ARCHIVE_NAME="next-build.tar.gz"
+          APP_NAME="beige-web-dev"
 
           mkdir -p "$REMOTE_DIR"
-          find "$REMOTE_DIR" -mindepth 1 -maxdepth 1 ! -name '.env' ! -name '.env.production' -exec rm -rf {} +
+          find "$REMOTE_DIR" -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +
+          tar xzf "/tmp/$ARCHIVE_NAME" -C "$REMOTE_DIR"
 
-          tar xzf "$RELEASE_TAR" -C "$REMOTE_DIR"
-          rm -f "$RELEASE_TAR"
-
-          cd "$REMOTE_DIR"
-
-          if [ -f "package-lock.json" ]; then
-            npm ci --omit=dev
-          else
-            npm install --omit=dev
+          mkdir -p "$REMOTE_DIR/.next/standalone/.next"
+          cp -r "$REMOTE_DIR/.next/static" "$REMOTE_DIR/.next/standalone/.next/"
+          if [ -d "$REMOTE_DIR/public" ]; then
+            cp -r "$REMOTE_DIR/public" "$REMOTE_DIR/.next/standalone/"
           fi
 
+          cd "$REMOTE_DIR/.next/standalone"
           pm2 delete "$APP_NAME" >/dev/null 2>&1 || true
-          pm2 start npm --name "$APP_NAME" -- start
+          NODE_ENV=production pm2 start server.js --name "$APP_NAME"
           pm2 save
+
+          rm -f "/tmp/$ARCHIVE_NAME"
           EOF
