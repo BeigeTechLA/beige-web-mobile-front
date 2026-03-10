@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { ArrowLeft, SlidersHorizontal, Pencil, CheckCircle2, Circle, CircleX, Trash2 } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal, Pencil, CheckCircle2, Circle, CircleX, Trash2, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -66,6 +66,13 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
           </button>
         </div>
         <div className="flex gap-3">
+          <Button
+            variant="outline"
+            className="bg-[#2C2C2C] border-none text-[#E5D5B8] hover:bg-[#3D3D3D] hover:text-[#f0e4d0] rounded-lg h-10 px-4 gap-2"
+            onClick={() => router.push(`/admin/shoots/${projectId}/form-details`)}
+          >
+            <Eye className="w-4 h-4" /> View Form Details
+          </Button>
           <Button
             variant="outline"
             className="bg-[#2C2C2C] border-none text-red-400 hover:bg-[#3D3D3D] hover:text-red-300 rounded-lg h-10 px-4 gap-2"
