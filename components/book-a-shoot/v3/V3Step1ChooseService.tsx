@@ -115,6 +115,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     { key: string; value: string }[]
   >([]);
 
+  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
+
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const isAllVisible = visibleCount >= availableShootTypes.length;
 
@@ -133,6 +135,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       updateData({ email: user.email });
     }
   }, [isAuthenticated, user?.email, data.email, updateData]);
+
+  useEffect(() => {
+    const start = data.startDate ? parseDate(data.startDate) : null;
+    const end = !start && data.endDate ? parseDate(data.endDate) : null;
+    const next = start || end;
+    setSelectedShootDate(next);
+  }, [data.startDate, data.endDate]);
 
   const handleViewToggle = () => {
     if (visibleCount >= availableShootTypes.length) {
@@ -192,6 +201,10 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     });
   }, []);
 
+  const formatLocalDateTime = (date: Date) => {
+    return format(date, "yyyy-MM-dd'T'HH:mm:ss");
+  };
+
   // --- Move these helpers up here ---
   const getStartTimeKey = () => {
     if (!data.startDate) return "";
@@ -209,9 +222,10 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   // --- Now the useMemos can safely use them ---
   const filteredStartTimeOptions = React.useMemo(() => {
-    if (!data.startDate) return timeOptions;
-
-    const selectedDate = parseDate(data.startDate);
+    const selectedDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate;
+    if (!selectedDate) return timeOptions;
     const now = new Date();
 
     const isToday =
@@ -226,7 +240,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     const minKey = format(minTime, "HH:mm");
 
     return timeOptions.filter((opt) => opt.key >= minKey);
-  }, [data.startDate, timeOptions]);
+  }, [data.startDate, selectedShootDate, timeOptions]);
 
   const filteredEndTimeOptions = React.useMemo(() => {
     // If no start date/time is selected, show all
@@ -240,9 +254,12 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const handleDateChange = (date: Date | null) => {
     if (!date) {
+      setSelectedShootDate(null);
       updateData({ startDate: "", endDate: "" });
       return;
     }
+
+    setSelectedShootDate(date);
 
     const now = new Date();
     const isToday =
@@ -310,8 +327,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     updateData({
-      startDate: finalStart.toISOString(),
-      endDate: finalEnd.toISOString(),
+      startDate: formatLocalDateTime(finalStart),
+      endDate: formatLocalDateTime(finalEnd),
     });
   };
   const handleStartTimeChange = (timeKey: string) => {
@@ -321,7 +338,10 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const currentDate = data.startDate ? parseDate(data.startDate) : new Date();
+    const currentDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate || new Date();
+    if (!currentDate) return;
 
     // Ensure we don't select a time before the current time
     const now = new Date();
@@ -343,7 +363,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     const newStart = set(currentDate, { hours, minutes });
-    updateData({ startDate: newStart.toISOString() });
+    updateData({ startDate: formatLocalDateTime(newStart) });
   };
 
 
@@ -355,7 +375,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
     const [hours, minutes] = timeKey.split(":").map(Number);
 
-    const baseDate = data.startDate ? parseDate(data.startDate) : new Date();
+    const baseDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate || new Date();
     if (!baseDate) return;
 
     const newEnd = set(new Date(baseDate), {
@@ -365,7 +387,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       milliseconds: 0
     });
 
-    updateData({ endDate: newEnd.toISOString() });
+    updateData({ endDate: formatLocalDateTime(newEnd) });
     scrollToRef(editsRef);
   };
 
@@ -780,7 +802,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     <div className="flex-1">
                       <DatePicker
                         label="Select Date"
-                  value={data.startDate ? parseDate(data.startDate) : null}
+                  value={selectedShootDate}
                         onChange={handleDateChange}
                         minDate={new Date()}
                         colors={datePickerColours}
