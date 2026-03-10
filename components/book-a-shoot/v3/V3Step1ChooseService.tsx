@@ -7,7 +7,7 @@ import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, Radio, SquaresUnite, Calendar, ChevronLeft, ChevronRight, ChevronDown, Info, Check } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -37,10 +37,9 @@ import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import MultiSelectDropdown from "@/components/book-a-shoot/MultiSelectDropdown";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import DatePicker from "@/components/ui/Datepicker";
-import { set, format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from "date-fns";
+import { set, format } from "date-fns";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface Props {
   data: BookingDataV3;
@@ -90,21 +89,6 @@ const datePickerColours = {
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
 
-const getFormattedDateString = (selectedDates: (string | Date)[]): string => {
-  if (!selectedDates || selectedDates.length === 0) return "";
-
-  const dateObjects = selectedDates.map(d => new Date(d));
-  const days = dateObjects.map(d => format(d, "d"));
-
-  const joinedDays = days.length > 1
-    ? `${days.slice(0, -1).join(", ")} & ${days.slice(-1)}`
-    : days[0];
-
-  const monthYear = format(dateObjects[0], "MMMM yyyy");
-
-  return `${joinedDays} ${monthYear}`;
-};
-
 export const V3Step1ChooseService: React.FC<Props> = ({
   data,
   updateData,
@@ -124,9 +108,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   >([]);
 
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
+
   const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
 
-  const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
+  const [timeOptions, setTimeOptions] = useState<
+    { key: string; value: string }[]
+  >([]);
+
   const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
@@ -134,26 +122,12 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
 
-
-  // Temporary variables until integration is done for new BookingType logic
-  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">("single_day");
-  const [sameTimingsMulti, setSameTimingsMulti] = useState<boolean>(true)
-
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [expandedDateIndex, setExpandedDateIndex] = useState<number | null>(0);
-  // End: Temporary variables until integration is done for new BookingType logic
-
-
   const emailRef = useRef<HTMLDivElement>(null);
   const contentTypeRef = useRef<HTMLDivElement>(null);
   const shootTypeRef = useRef<HTMLDivElement>(null);
-  const bookingTypeRef = useRef<HTMLDivElement>(null);
   const dateTimeRef = useRef<HTMLDivElement>(null);
   const editsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
-  const calendarRef = useRef<HTMLDivElement>(null);
 
   // Auto-fill email if user is logged in
   useEffect(() => {
@@ -161,6 +135,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       updateData({ email: user.email });
     }
   }, [isAuthenticated, user?.email, data.email, updateData]);
+
+  useEffect(() => {
+    const start = data.startDate ? parseDate(data.startDate) : null;
+    const end = !start && data.endDate ? parseDate(data.endDate) : null;
+    const next = start || end;
+    setSelectedShootDate(next);
+  }, [data.startDate, data.endDate]);
 
   const handleViewToggle = () => {
     if (visibleCount >= availableShootTypes.length) {
@@ -192,7 +173,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   useEffect(() => {
     const options = [];
     for (let i = 0; i < 24; i++) {
-      for (let j = 0; j < 60; j += 30) {
+      for (let j = 0; j < 60; j += 15) {
         const hour = i.toString().padStart(2, "0");
         const minute = j.toString().padStart(2, "0");
         const key = `${hour}:${minute}`;
@@ -207,15 +188,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
     setTimeOptions(options);
 
-    // Close calendar on click outside
-    const handler = (e: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
-        setIsCalendarOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-
     // add GA event on initial load
     pushToDataLayer("booking_page_viewed_step1", {
       type: "Action Tracking",
@@ -229,84 +201,31 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     });
   }, []);
 
-  useEffect(() => {
-    const primaryDate = data.startDate || data.endDate;
-    if (!primaryDate) return;
-
-    const parsed = parseDate(primaryDate);
-    if (!parsed) return;
-
-    const normalized = set(new Date(parsed), {
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      milliseconds: 0,
-    });
-    setSelectedShootDate(normalized);
-  }, [data.startDate, data.endDate]);
-
-  // --- Move these helpers up here ---
-
-  const toggleDateSelection = (date: Date) => {
-    const exists = selectedDates.find(d => isSameDay(d, date));
-    let newDates;
-    if (exists) {
-      newDates = selectedDates.filter(d => !isSameDay(d, date));
-    } else {
-      newDates = [...selectedDates, date].sort((a, b) => a.getTime() - b.getTime());
-      setCurrentCalendarMonth(date); // Update month view to selected date
-    }
-    setSelectedDates(newDates);
+  const formatLocalDateTime = (date: Date) => {
+    return format(date, "yyyy-MM-dd'T'HH:mm:ss");
   };
 
-  const reelDays = React.useMemo(() => {
-    const startOfSelectedMonth = startOfMonth(currentCalendarMonth);
-    const endOfSelectedMonth = endOfMonth(currentCalendarMonth);
-    const now = new Date();
-
-    let startDate;
-
-    // If the viewed month is the current month, start from today
-    if (isSameMonth(currentCalendarMonth, now)) {
-      startDate = now;
-    } else {
-      // For future months, start from the 1st of that month
-      startDate = startOfSelectedMonth;
-    }
-
-    // If the viewed month is in the past (before current month), return empty or handle as needed
-    if (currentCalendarMonth < startOfMonth(now)) {
-      return [];
-    }
-
-    return eachDayOfInterval({
-      start: startDate,
-      end: endOfSelectedMonth,
-    });
-  }, [currentCalendarMonth]);
-
-  const calendarDays = eachDayOfInterval({
-    start: startOfMonth(currentCalendarMonth),
-    end: endOfMonth(currentCalendarMonth),
-  });
-
+  // --- Move these helpers up here ---
   const getStartTimeKey = () => {
     if (!data.startDate) return "";
     const date = parseDate(data.startDate);
-    return date ? format(date, "HH:mm") : "";
+    if (!date) return "";
+    return format(date, "HH:mm");
   };
 
   const getEndTimeKey = () => {
     if (!data.endDate) return "";
     const date = parseDate(data.endDate);
-    return date ? format(date, "HH:mm") : "";
+    if (!date) return "";
+    return format(date, "HH:mm");
   };
 
   // --- Now the useMemos can safely use them ---
   const filteredStartTimeOptions = React.useMemo(() => {
-    if (!selectedShootDate) return timeOptions;
-
-    const selectedDate = selectedShootDate;
+    const selectedDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate;
+    if (!selectedDate) return timeOptions;
     const now = new Date();
 
     const isToday =
@@ -321,7 +240,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     const minKey = format(minTime, "HH:mm");
 
     return timeOptions.filter((opt) => opt.key >= minKey);
-  }, [selectedShootDate, timeOptions]);
+  }, [data.startDate, selectedShootDate, timeOptions]);
 
   const filteredEndTimeOptions = React.useMemo(() => {
     // If no start date/time is selected, show all
@@ -340,9 +259,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       return;
     }
 
-    setSelectedShootDate(
-      set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
-    );
+    setSelectedShootDate(date);
 
     const now = new Date();
     const isToday =
@@ -357,37 +274,61 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     let finalEnd: Date;
 
     if (existingStart && existingEnd) {
-      finalStart = set(new Date(date), {
+      finalStart = set(date, {
         hours: existingStart.getHours(),
         minutes: existingStart.getMinutes(),
         seconds: 0,
         milliseconds: 0,
       });
-      finalEnd = set(new Date(date), {
+
+      finalEnd = set(date, {
         hours: existingEnd.getHours(),
         minutes: existingEnd.getMinutes(),
         seconds: 0,
         milliseconds: 0,
       });
-    } else {
-      // Defaults
-      finalStart = set(new Date(date), { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-      finalEnd = set(new Date(date), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
-    }
 
-    // Same-day 4 hour logic
+      if (isToday) {
+        const minStartTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+
+        if (finalStart < minStartTime) {
+          const roundedStart = new Date(minStartTime);
+          const mins = roundedStart.getMinutes();
+          if (mins > 0 && mins <= 30) {
+            roundedStart.setMinutes(30, 0, 0);
+          } else if (mins > 30) {
+            roundedStart.setHours(roundedStart.getHours() + 1, 0, 0, 0);
+    } else {
+            roundedStart.setMinutes(0, 0, 0);
+          }
+
+          finalStart = roundedStart;
+          const durationMs = existingEnd.getTime() - existingStart.getTime();
+          finalEnd = new Date(finalStart.getTime() + (durationMs > 0 ? durationMs : 8 * 60 * 60 * 1000));
+    }
+      }
+    } else {
     if (isToday) {
       const minStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-      if (finalStart < minStart) {
-        finalStart = new Date(minStart.getTime() + 30 * 60 * 1000); // Add buffer
-        finalStart.setMinutes(finalStart.getMinutes() > 30 ? 0 : 30, 0, 0);
+        const mins = minStart.getMinutes();
+        if (mins > 0 && mins <= 30) {
+          minStart.setMinutes(30, 0, 0);
+        } else if (mins > 30) {
+          minStart.setHours(minStart.getHours() + 1, 0, 0, 0);
+        } else {
+          minStart.setMinutes(0, 0, 0);
+        }
+        finalStart = minStart;
         finalEnd = new Date(finalStart.getTime() + 8 * 60 * 60 * 1000);
+      } else {
+        finalStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+        finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
       }
     }
 
     updateData({
-      startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss.SSS"),
-      endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS"),
+      startDate: formatLocalDateTime(finalStart),
+      endDate: formatLocalDateTime(finalEnd),
     });
   };
   const handleStartTimeChange = (timeKey: string) => {
@@ -397,31 +338,34 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const baseDate =
-      (data.startDate ? parseDate(data.startDate) : null) ||
-      (data.endDate ? parseDate(data.endDate) : null) ||
-      selectedShootDate ||
-      new Date();
+    const currentDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate || new Date();
+    if (!currentDate) return;
 
-    // Create new date object without mutating the state
-    const newStart = set(new Date(baseDate), {
-      hours,
-      minutes,
-      seconds: 0,
-      milliseconds: 0
-    });
-
-    // Validation
+    // Ensure we don't select a time before the current time
     const now = new Date();
-    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-    if (newStart < minimumTime && newStart.toDateString() === now.toDateString()) {
-      toast.error("You must select a start time at least 4 hours from now.");
-      return;
+    const selectedTime = new Date(currentDate.setHours(hours, minutes));
+
+    if (selectedTime < now) {
+      toast.error("Selected time must be later than the current time.");
+      setErrors((prev) => [...prev, "timeError"]);
+      return; // Don't update the time if it's invalid
     }
 
-    // Use format instead of toISOString to preserve LOCAL time
-    updateData({ startDate: format(newStart, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
+    // Enforce a 4-hour gap for same-day bookings
+    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000); // Add 4 hours to current time
+
+    if (selectedTime < minimumTime) {
+      toast.error("You must select a start time at least 4 hours from now.");
+      setErrors((prev) => [...prev, "timeError"]);
+      return; // Don't update the time if it's invalid
+    }
+
+    const newStart = set(currentDate, { hours, minutes });
+    updateData({ startDate: formatLocalDateTime(newStart) });
   };
+
 
   const handleEndTimeChange = (timeKey: string) => {
     if (!timeKey) {
@@ -430,11 +374,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const baseDate =
-      (data.startDate ? parseDate(data.startDate) : null) ||
-      (data.endDate ? parseDate(data.endDate) : null) ||
-      selectedShootDate ||
-      new Date();
+
+    const baseDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate || new Date();
+    if (!baseDate) return;
 
     const newEnd = set(new Date(baseDate), {
       hours,
@@ -443,8 +387,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       milliseconds: 0
     });
 
-    // Use format instead of toISOString
-    updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
+    updateData({ endDate: formatLocalDateTime(newEnd) });
     scrollToRef(editsRef);
   };
 
@@ -833,7 +776,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     selected={data.shootType === type.key}
                     onClick={() => {
                       updateData({ shootType: type.key });
-                      scrollToRef(bookingTypeRef);
+                      scrollToRef(dateTimeRef);
                     }}
                   />
                 </div>
@@ -849,59 +792,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Booking type: Single day/Multi day */}
-          <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-              }`}>
-              Select Booking Type
-            </h3>
-            <div className="flex gap-4">
-              <button
-                onClick={() => {
-                  // updateData
-                  setBookingType("single_day"); // Temporary until new BookingType logic is integrated
-                  scrollToRef(dateTimeRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${(bookingType === "single_day") ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${(bookingType === "single_day") ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
-                >
-                  {(bookingType === "single_day") && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  // updateData
-                  setBookingType("multi_day"); // Temporary until new BookingType logic is integrated
-                  scrollToRef(dateTimeRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${(bookingType === "multi_day") ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${(bookingType === "multi_day") ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
-                >
-                  {(bookingType === "multi_day") && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
-                </div>
-              </button>
-            </div>
-          </div>
-
           {/* Date & Time */}
           <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            {
-              bookingType === "single_day" ? (
-                <>
                   <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
                     }`}>
                     Shoot Date & Time
@@ -910,7 +802,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     <div className="flex-1">
                       <DatePicker
                         label="Select Date"
-                        value={selectedShootDate}
+                  value={selectedShootDate}
                         onChange={handleDateChange}
                         minDate={new Date()}
                         colors={datePickerColours}
@@ -1247,8 +1139,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             )}
           </div>
         </>
-      )
-      }
+      )}
 
       {/* Navigation */}
       <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
@@ -1266,6 +1157,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           Continue
         </Button>
       </div>
-    </div >
+    </div>
   );
 };

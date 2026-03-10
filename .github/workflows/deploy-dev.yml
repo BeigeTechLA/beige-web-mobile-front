@@ -1,0 +1,108 @@
+name: Deploy Frontend Dev
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        env:
+          DEV_SSH_KEY: ${{ secrets.DEV_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$DEV_SSH_KEY" > ~/.ssh/dev.pem
+          chmod 600 ~/.ssh/dev.pem
+
+      - name: Add server to known_hosts
+        env:
+          DEV_HOST: ${{ secrets.DEV_HOST }}
+          DEV_PORT: ${{ secrets.DEV_PORT }}
+        run: |
+          PORT="${DEV_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$DEV_HOST" >> ~/.ssh/known_hosts
+
+      - name: Install dependencies
+        run: |
+          if [ -f "package-lock.json" ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build on CI runner
+        run: npm run build
+
+      - name: Create deploy archive
+        run: |
+          ARCHIVE_ITEMS=(
+            ".next"
+            "package.json"
+          )
+
+          [ -f "package-lock.json" ] && ARCHIVE_ITEMS+=("package-lock.json")
+          [ -f "yarn.lock" ] && ARCHIVE_ITEMS+=("yarn.lock")
+          [ -d "public" ] && ARCHIVE_ITEMS+=("public")
+          [ -f "next.config.js" ] && ARCHIVE_ITEMS+=("next.config.js")
+          [ -f "next.config.mjs" ] && ARCHIVE_ITEMS+=("next.config.mjs")
+          [ -f "next.config.ts" ] && ARCHIVE_ITEMS+=("next.config.ts")
+
+          tar czf app-source.tar.gz \
+            --exclude=".next/cache" \
+            --exclude=".next/cache/*" \
+            "${ARCHIVE_ITEMS[@]}"
+
+      - name: Upload archive
+        env:
+          DEV_HOST: ${{ secrets.DEV_HOST }}
+          DEV_PORT: ${{ secrets.DEV_PORT }}
+          DEV_USER: ${{ secrets.DEV_USER }}
+        run: |
+          PORT="${DEV_PORT:-22}"
+          scp -P "$PORT" -i ~/.ssh/dev.pem app-source.tar.gz "$DEV_USER@$DEV_HOST:/tmp/app-source.tar.gz"
+
+      - name: Deploy on server
+        env:
+          DEV_HOST: ${{ secrets.DEV_HOST }}
+          DEV_PORT: ${{ secrets.DEV_PORT }}
+          DEV_USER: ${{ secrets.DEV_USER }}
+        run: |
+          PORT="${DEV_PORT:-22}"
+          ssh -p "$PORT" -i ~/.ssh/dev.pem "$DEV_USER@$DEV_HOST" << 'EOF'
+          set -euo pipefail
+
+          REMOTE_DIR="/var/www/beige-web-front-dev"
+          RELEASE_TAR="/tmp/app-source.tar.gz"
+          APP_NAME="revure-next-dev"
+
+          mkdir -p "$REMOTE_DIR"
+          find "$REMOTE_DIR" -mindepth 1 -maxdepth 1 ! -name '.env' ! -name '.env.production' -exec rm -rf {} +
+
+          tar xzf "$RELEASE_TAR" -C "$REMOTE_DIR"
+          rm -f "$RELEASE_TAR"
+
+          cd "$REMOTE_DIR"
+
+          if [ -f "package-lock.json" ]; then
+            npm ci --omit=dev
+          else
+            npm install --omit=dev
+          fi
+
+          pm2 delete "$APP_NAME" >/dev/null 2>&1 || true
+          pm2 start npm --name "$APP_NAME" -- start
+          pm2 save
+          EOF

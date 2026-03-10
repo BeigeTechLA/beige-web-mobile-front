@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "./StatusBadge";
+import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
@@ -79,6 +80,11 @@ export const OverallShootsTable = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null); // For mobile accordion
   const itemsPerPage = 5;
+
+  // Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [shootToDelete, setShootToDelete] = useState<string | null>(null);
 
   // New filtering states
   const [range, setRange] = useState<string>("all");
@@ -148,23 +154,33 @@ export const OverallShootsTable = () => {
     setExpandedId(expandedId === id ? null : id);
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const cleanId = id.replace('#', '');
+    setShootToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
 
-    if (window.confirm("Are you sure you want to delete this shoot?")) {
-      try {
-        const response = await adminApi.deleteProject(cleanId);
-        if (response?.success || response?.message === "Project deleted successfully") {
-          setShoots(prev => prev.filter(shoot => shoot.id !== id));
-          toast.success("Shoot deleted successfully");
-        } else {
-          toast.error(response?.error || "Failed to delete shoot");
-        }
-      } catch (error) {
-        console.error("Delete failed", error);
-        toast.error("An error occurred while deleting");
+  const confirmDelete = async () => {
+    if (!shootToDelete) return;
+
+    const cleanId = shootToDelete.replace('#', '');
+    setIsDeleting(true);
+
+    try {
+      const response = await adminApi.deleteProject(cleanId);
+      if (response?.success || response?.message === "Project deleted successfully") {
+        setShoots(prev => prev.filter(shoot => shoot.id !== shootToDelete));
+        toast.success("Shoot deleted successfully");
+      } else {
+        toast.error(response?.error || "Failed to delete shoot");
       }
+    } catch (error) {
+      console.error("Delete failed", error);
+      toast.error("An error occurred while deleting");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+      setShootToDelete(null);
     }
   };
 
@@ -259,7 +275,7 @@ export const OverallShootsTable = () => {
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
                       <div className="flex justify-end gap-2 mt-1">
                         <button
-                          onClick={(e) => handleDelete(e, shoot.id)}
+                          onClick={(e) => handleDeleteClick(e, shoot.id)}
                           className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#666] hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={16} />
@@ -339,7 +355,7 @@ export const OverallShootsTable = () => {
                   <td className="py-2 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={(e) => handleDelete(e, shoot.id)}
+                        onClick={(e) => handleDeleteClick(e, shoot.id)}
                         className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/40 hover:text-red-500 transition-colors"
                       >
                         <Trash2 size={18} />
@@ -421,6 +437,14 @@ export const OverallShootsTable = () => {
           </div>
         </div>
       )}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Shoot"
+        description="Are you sure you want to delete this shoot? This action cannot be undone."
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

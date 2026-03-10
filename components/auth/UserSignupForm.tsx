@@ -76,7 +76,7 @@ export function UserSignupForm() {
         page_name: "User Signup Page",
         location_in_website: "signup_user_page",
         duration_on_page: performance.now() / 1000,
-        phone:  data.phone || null,
+        phone: data.phone || null,
       });
       // ---------------------------
 
@@ -160,9 +160,9 @@ export function UserSignupForm() {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
             >
               {showPassword ? (
-                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
-              ) : (
                 <Eye className="h-4 w-4 lg:h-6 lg:w-6" />
+              ) : (
+                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
               )}
             </button>
           </div>
@@ -187,9 +187,9 @@ export function UserSignupForm() {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
             >
               {showConfirmPassword ? (
-                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
-              ) : (
                 <Eye className="h-4 w-4 lg:h-6 lg:w-6" />
+              ) : (
+                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
               )}
             </button>
           </div>

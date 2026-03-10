@@ -310,7 +310,7 @@ export default function ClientDetailPage() {
   useEffect(() => {
     const options = [];
     for (let i = 0; i < 24; i++) {
-      for (let j = 0; j < 60; j += 30) {
+      for (let j = 0; j < 60; j += 15) {
         const hour = i.toString().padStart(2, "0");
         const minute = j.toString().padStart(2, "0");
         const key = `${hour}:${minute}`;

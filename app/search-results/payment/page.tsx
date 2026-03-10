@@ -11,6 +11,7 @@ import {
   Tag,
   Check,
   X,
+  BadgeCheckIcon,
 } from "lucide-react";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
@@ -91,6 +92,12 @@ const toTitleCase = (str: string) => {
   });
 };
 
+const getAuthHeaders = () => {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("revure_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
   clientSecret,
@@ -148,17 +155,17 @@ function StripePaymentFormMulti({
 
     // Logic: If URL code is different from saved code, prioritize the URL code
     if (urlCode && urlCode !== savedCode && !discountCode) {
-        setDiscountCode(urlCode);
-        validateDiscountCode(urlCode);
-    } 
+      setDiscountCode(urlCode);
+      validateDiscountCode(urlCode);
+    }
     // Otherwise, fallback to the saved code if it exists
     else if (existingDiscountTotal > 0 && !discountCode) {
-        setDiscountValid(true);
-        if (savedCode) {
-            setDiscountCode(savedCode);
-        }
+      setDiscountValid(true);
+      if (savedCode) {
+        setDiscountCode(savedCode);
+      }
     }
-  }, [urlDiscount, quote?.applied_discount_code, quote?.discount_total]); 
+  }, [urlDiscount, quote?.applied_discount_code, quote?.discount_total]);
 
   // TRIGGER APPLICATION: Trigger when discount is valid and differs from what is active
   useEffect(() => {
@@ -167,12 +174,12 @@ function StripePaymentFormMulti({
 
     // Condition to apply: It's valid AND (nothing is applied OR it's a different code than what's saved)
     if (urlCode && discountValid === true && !isValidatingDiscount) {
-        if (parseFloat(quote?.discount_total || 0) === 0 || urlCode !== savedCode) {
-            // Prevent infinite loop: Only apply if the current input matches the urlCode
-            if (discountCode === urlCode) {
-                applyDiscountCode();
-            }
+      if (parseFloat(quote?.discount_total || 0) === 0 || urlCode !== savedCode) {
+        // Prevent infinite loop: Only apply if the current input matches the urlCode
+        if (discountCode === urlCode) {
+          applyDiscountCode();
         }
+      }
     }
   }, [discountValid, urlDiscount, quote?.applied_discount_code]);
 
@@ -183,6 +190,7 @@ function StripePaymentFormMulti({
         setReferralCodeValid(null);
         setReferralAffiliateName("");
         setReferralErrorMessage("");
+        await refreshPricingWithReferral();
         return;
       }
 
@@ -199,17 +207,19 @@ function StripePaymentFormMulti({
           console.error("Error parsing user", e);
         }
 
-      const response = await affiliateApi.validateCode(code, userId);
-      
-      if (response.valid) {
-        setReferralCodeValid(true);
-        setReferralAffiliateName(response.affiliate_name || "");
-        setReferralErrorMessage(""); 
-      } else {
-        setReferralCodeValid(false);
-        setReferralAffiliateName("");
-        setReferralErrorMessage(response.message || "Invalid referral code");
-      }
+        const response = await affiliateApi.validateCode(code, userId);
+
+        if (response.valid) {
+          setReferralCodeValid(true);
+          setReferralAffiliateName(response.affiliate_name || "");
+          setReferralErrorMessage("");
+          await refreshPricingWithReferral(code);
+        } else {
+          setReferralCodeValid(false);
+          setReferralAffiliateName("");
+          setReferralErrorMessage(response.message || "Invalid referral code");
+          await refreshPricingWithReferral();
+        }
 
       } catch (error) {
         // This will only run if there is a network crash
@@ -248,6 +258,9 @@ function StripePaymentFormMulti({
 
         const response = await axios.get(
           `${API_BASE_URL}sales/discount-codes/${code}/validate?booking_id=${shootId}`,
+          {
+            headers: getAuthHeaders(),
+          }
         );
 
         if (response.data.valid) {
@@ -259,7 +272,7 @@ function StripePaymentFormMulti({
         }
       } catch (error: any) {
         if (quote?.applied_discount_code?.toUpperCase() === code.toUpperCase()) {
-            setDiscountValid(true);
+          setDiscountValid(true);
         } else {
           setDiscountValid(false);
           setDiscountData(null);
@@ -272,13 +285,46 @@ function StripePaymentFormMulti({
   );
 
   const handleReferralCodeChange = (value: string) => {
-    if (!isAuthenticated) {
-      toast.info("Please login or signup if you want to add a referral code.");
-      return;
-    }
     const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setReferralCode(upperCode);
     validateReferralCode(upperCode);
+  };
+
+  async function refreshPricingWithReferral(code?: string) {
+    if (!shootId) return;
+    try {
+      const API_BASE_URL =
+        (
+          process.env.NEXT_PUBLIC_API_ENDPOINT ||
+          "https://revure-api.beige.app/v1/"
+        ).replace(/\/$/, "") + "/";
+
+      const detailsRes = await axios.get(
+        `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
+        {
+          params: code ? { referral_code: code } : {},
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (detailsRes.data.success) {
+        setPaymentDetails(detailsRes.data.data);
+        await refreshPaymentIntent(detailsRes.data.data);
+      }
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message ||
+          "Failed to refresh pricing with referral code",
+      );
+    }
+  }
+
+  const clearReferralCode = async () => {
+    setReferralCode("");
+    setReferralCodeValid(null);
+    setReferralAffiliateName("");
+    setReferralErrorMessage("");
+    await refreshPricingWithReferral();
   };
 
   const handleDiscountCodeChange = (value: string) => {
@@ -293,7 +339,7 @@ function StripePaymentFormMulti({
     // Check if it is already applied
     if (quote?.applied_discount_code?.toUpperCase() === discountCode.toUpperCase()) return;
 
-    setIsValidatingDiscount(true); 
+    setIsValidatingDiscount(true);
     try {
       const API_BASE_URL =
         (
@@ -308,6 +354,9 @@ function StripePaymentFormMulti({
           booking_id: shootId,
           guest_email: booking.guest_email,
         },
+        {
+          headers: getAuthHeaders(),
+        }
       );
 
       if (response.data.success) {
@@ -315,7 +364,10 @@ function StripePaymentFormMulti({
         toast.success("Discount applied successfully!");
 
         const detailsRes = await axios.get(
-          `${API_BASE_URL}guest-bookings/${shootId}/payment-details`
+          `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
+          {
+            headers: getAuthHeaders(),
+          }
         );
 
         if (detailsRes.data.success) {
@@ -535,22 +587,16 @@ function StripePaymentFormMulti({
               type="text"
               value={referralCode}
               onChange={(e) => handleReferralCodeChange(e.target.value)}
-              onFocus={() => {
-                if (!isAuthenticated) {
-                  toast.info("Please login or signup if you want to add a referral code.");
-                }
-              }}
-              disabled={!isAuthenticated}
               className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-12 text-white outline-none bg-[#272626] uppercase tracking-wider ${referralCodeValid === true
                 ? "border-green-500 focus:border-green-400"
                 : referralCodeValid === false
                   ? "border-red-500 focus:border-red-400"
                   : "border-white/30 focus:border-white/50"
                 }`}
-              placeholder={isAuthenticated ? "Enter code" : "Login/Signup to use referral code"}
+              placeholder="Enter code"
               maxLength={10}
             />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isValidatingReferral ? (
                 <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
               ) : referralCodeValid === true ? (
@@ -558,6 +604,16 @@ function StripePaymentFormMulti({
               ) : referralCodeValid === false ? (
                 <X className="w-5 h-5 text-red-500" />
               ) : null}
+              {referralCode.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearReferralCode}
+                  className="text-white/60 hover:text-white transition-colors"
+                  aria-label="Clear referral code"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
           {referralCodeValid === true && referralAffiliateName && (
@@ -568,13 +624,8 @@ function StripePaymentFormMulti({
           )}
           {referralCodeValid === false && referralCode.length >= 4 && (
             <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
-                <X className="w-4 h-4" />
-                {referralErrorMessage || "Invalid referral code"}
-            </p>
-          )}
-          {!isAuthenticated && (
-            <p className="text-yellow-300 text-sm mt-2">
-              Please login or signup if you want to add a referral code.
+              <X className="w-4 h-4" />
+              {referralErrorMessage || "Invalid referral code"}
             </p>
           )}
         </div>
@@ -625,7 +676,7 @@ function StripePaymentFormMulti({
           )}
           {discountValid === true && discountData && discountCode.toUpperCase() !== quote?.applied_discount_code?.toUpperCase() && (
             <p className="text-blue-400 text-sm mt-2">
-               Click &apos;Apply&apos; to update your total with this code.
+              Click &apos;Apply&apos; to update your total with this code.
             </p>
           )}
           {discountValid === false && discountCode.length >= 4 && (
@@ -644,8 +695,8 @@ function StripePaymentFormMulti({
         >
           {isProcessing
             ? "Processing..."
-            : isFree 
-              ? "Confirm Booking (Free)" 
+            : isFree
+              ? "Confirm Booking (Free)"
               : `Confirm & Pay ${formatCurrency(amount)}`}
         </Button>
       </form>
@@ -661,14 +712,14 @@ function MultiCreatorPaymentContent() {
   // State
   const [step, setStep] = useState<"loading" | "payment" | "success">("loading");
   const [isLoading, setIsLoading] = useState(true);
-  const [isUpdatingIntent, setIsUpdatingIntent] = useState(false); 
+  const [isUpdatingIntent, setIsUpdatingIntent] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string>("");
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showBackDialog, setShowBackDialog] = useState(false);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
-  const [summaryData, setSummaryData] = useState(null);
+  const [summaryData, setSummaryData] = useState<any>(null);
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -688,7 +739,7 @@ function MultiCreatorPaymentContent() {
   });
 
   const handleBackClick = (e?: React.MouseEvent) => {
-    if (e) e.preventDefault(); 
+    if (e) e.preventDefault();
     if (step !== "success") {
       setShowBackDialog(true);
     } else {
@@ -697,18 +748,21 @@ function MultiCreatorPaymentContent() {
   };
 
   const handleViewSummary = async () => {
-  try {
-    const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
-    const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`); // Your new API endpoint
-    
-    if (response.data.success) {
-      setSummaryData(response.data.data);
-      setIsSummaryModalOpen(true);
+    try {
+      // const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
+      // const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`); // Your new API endpoint
+
+      // if (response.data.success) {
+      //   setSummaryData(response.data.data);
+      //   setIsSummaryModalOpen(true);
+      // }
+      if (Object.keys(summaryData).length > 0) {
+        setIsSummaryModalOpen(true);
+      }
+    } catch (err) {
+      toast.error("Failed to load summary details");
     }
-  } catch (err) {
-    toast.error("Failed to load summary details");
-  }
-};
+  };
 
   useEffect(() => {
     if (step === "success") return;
@@ -738,7 +792,7 @@ function MultiCreatorPaymentContent() {
     let addVideoCount = 0;
     let addPhotoCount = 0;
     let addCPTotalCost = 0;
-    let editingFeesSum = 0; 
+    let editingFeesSum = 0;
     const mandatoryAddonItems: Array<{ role: string; cost: number }> = [];
 
     lineItems.forEach((item: any) => {
@@ -771,7 +825,7 @@ function MultiCreatorPaymentContent() {
           if (name === "Videographer") addVideoCount += extraQty;
           if (name === "Photographer") addPhotoCount += extraQty;
         }
-      } 
+      }
       else if (isEditingItem) {
         editingFeesSum += total;
       }
@@ -780,7 +834,7 @@ function MultiCreatorPaymentContent() {
           role: name,
           cost: total,
         });
-      } 
+      }
       else {
         addCPTotalCost += total;
       }
@@ -804,11 +858,17 @@ function MultiCreatorPaymentContent() {
 
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
-      const response = await axios.post(`${API_BASE_URL}payments/create-intent-multi`, {
-        booking_id: shootId,
-        amount: parseFloat(quote.total), 
-        guest_email: booking.guest_email,
-      });
+      const response = await axios.post(
+        `${API_BASE_URL}payments/create-intent-multi`,
+        {
+          booking_id: shootId,
+          amount: parseFloat(quote.total),
+          guest_email: booking.guest_email,
+        },
+        {
+          headers: getAuthHeaders(),
+        }
+      );
 
       if (response.data.success && response.data.data.clientSecret) {
         setClientSecret(response.data.data.clientSecret);
@@ -836,7 +896,12 @@ function MultiCreatorPaymentContent() {
       try {
         setIsLoading(true);
         const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
-        const response = await axios.get(`${API_BASE_URL}guest-bookings/${shootId}/payment-details`);
+        const response = await axios.get(
+          `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
+          {
+            headers: getAuthHeaders(),
+          }
+        );
 
         if (!response.data.success) {
           throw new Error(response.data.message || "Failed to load payment details");
@@ -854,6 +919,27 @@ function MultiCreatorPaymentContent() {
       }
     };
 
+    // fetchSummaryData 
+    const fetchSummaryData = async () => {
+      try {
+        const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/")
+          .replace(/\/$/, "") + "/";
+
+        const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`);
+
+        if (response.data.success) {
+          setSummaryData(response.data.data);
+        }
+      } catch (err) {
+        toast.error("Failed to load summary details");
+        console.error("Fetch error:", err);
+      }
+    };
+
+    if (shootId) {
+      fetchSummaryData();
+    }
+
     fetchPaymentDetails();
   }, [shootId]);
 
@@ -863,11 +949,17 @@ function MultiCreatorPaymentContent() {
   ) => {
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
-      await axios.post(`${API_BASE_URL}payments/confirm-multi`, {
-        paymentIntentId,
-        booking_id: shootId,
-        referral_code: referralCode || null,
-      });
+      await axios.post(
+        `${API_BASE_URL}payments/confirm-multi`,
+        {
+          paymentIntentId,
+          booking_id: shootId,
+          referral_code: referralCode || null,
+        },
+        {
+          headers: getAuthHeaders(),
+        }
+      );
       setStep("success");
       toast.success("Booking confirmed successfully!");
     } catch (error) {
@@ -963,10 +1055,10 @@ function MultiCreatorPaymentContent() {
             </button>
           </motion.div>
         </div>
-        <BookingSummaryModal 
-          isOpen={isSummaryModalOpen} 
-          onClose={() => setIsSummaryModalOpen(false)} 
-          data={summaryData} 
+        <BookingSummaryModal
+          isOpen={isSummaryModalOpen}
+          onClose={() => setIsSummaryModalOpen(false)}
+          data={summaryData}
         />
       </div>
     );
@@ -986,6 +1078,14 @@ function MultiCreatorPaymentContent() {
             <h2 className="text-lg lg:text-[64px] lg:leading-[76px] font-bold text-gradient-white mb-3 lg:mb-5">Confirm and Book</h2>
             <p className="text-white/70 mx-auto text-xs lg:text-base">Review your crew selection and complete your booking</p>
           </motion.div>
+        </div>
+
+        {/* Beige Gaurantee */}
+        <div className="rounded-2xl border transition-all relative overflow-hidden bg-[#E8D1AB] text-[#1B1B1B] p-4 mt-15 lg:mt-30 mb-5 lg:mb-10 flex gap-4 ">
+          <div className="bg-[#1B1B1B] p-2 lg:p-4 rounded-lg">
+            <BadgeCheckIcon className="w-6 h-6 lg:w-10 lg:h-10 text-[#E8D1AB]" />
+          </div>
+          <p className="italic font-bold text-sm lg:text-lg">Our Beige Quality Guarantee ensures your production meets professional standards. If your shoot does not meet the agreed scope or quality expectations, we&apos;ll work with you and your assigned creative partner to make it right — including a complimentary reshoot if necessary.</p>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
@@ -1027,7 +1127,7 @@ function MultiCreatorPaymentContent() {
             <div className="bg-[#171717] rounded-[24px] p-6 lg:p-10">
               <h3 className="font-bold mb-7 text-base lg:text-2xl">Booking Summary</h3>
               <div className="bg-white rounded-[20px] text-black py-3 lg:py-5">
-                <div className="p-3 lg:p-5 border-b border-black/20">
+                <div className="p-3 lg:p-5">
                   <h4 className="font-bold text-lg mb-3">{toTitleCase(booking.shoot_name || "Unnamed Shoot")}</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
@@ -1041,6 +1141,86 @@ function MultiCreatorPaymentContent() {
                     <div className="flex justify-between">
                       <span className="text-[#626467]">Location:</span>
                       <span className="truncate ml-2">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mx-2 lg:mx-4 p-3 lg:p-5 rounded-2xl transition-all relative overflow-hidden bg-[#E8D1AB]/60 text-[#171717]">
+                  <h4 className="font-bold text-lg mb-3">Shoot includes:</h4>
+                  <div className="space-y-2 text-sm">
+                    {/* <div className="flex justify-between">
+                      <span className="text-[#626467]">Hours of {booking.event_type === "videographer" ? "Videography" : booking.event_type === "photographer" ? "Photography" : "Photography & Videography"} :</span>
+                      <span>{booking.duration_hours || 0} hours</span>
+                    </div> */}
+                    <div className="flex flex-col justify-between">
+                      <span className="text-[#626467]">Dedicated Team:</span>
+                      {
+                        booking.event_type === "videographer" && (
+                          <span>Videographer(s): {summaryData?.crew_counts[0].count || 0} </span>
+                        )
+                      }
+                      {
+                        booking.event_type === "photographer" && (
+                          <span>Photographer(s): {summaryData?.crew_counts[0].count || 0} </span>
+                        )
+                      }
+                      {
+                        booking.event_type === "videographer,photographer" && (
+                          <>
+                            <span>Videographer(s): {summaryData?.crew_counts[0].count || 0} </span>
+                            <span>Photographer(s): {summaryData?.crew_counts[1].count || 0} </span>
+                          </>
+                        )
+                      }
+                    </div>
+                    {
+                      summaryData?.editing?.is_needed == true && (
+                        <div className="flex flex-col justify-between gap-1.5">
+                          {/* This needs to be conditional */}
+                          <span className="text-[#626467]">Number of Edited Content:</span>
+                          {
+                            (summaryData?.editing && summaryData?.editing?.video_edits?.length > 0) && (
+                              <div className="pl-2 ">
+                                <span className="text-[#626467]">Video Edits: </span>
+                                <ul className="flex flex-wrap gap-1 list-disc list-inside ">
+                                  {
+                                    summaryData?.editing?.video_edits.map((edit: any, idx: number) => (
+                                      <li key={idx} className="text-black">
+                                        {edit}
+                                      </li>
+                                    ))
+                                  }
+                                </ul>
+                              </div>
+                            )
+                          }
+                          {
+                            (summaryData?.editing && summaryData?.editing?.photo_edits?.length > 0) && (
+                              <div className="pl-2 ">
+                                <span className="text-[#626467]">Photo Edits: </span>
+                                <ul className="flex flex-wrap gap-2 list-disc list-inside ">
+                                  {
+                                    summaryData?.editing?.photo_edits.map((edit: any, idx: number) => (
+                                      <li key={idx} className="text-black">
+                                        {edit}
+                                      </li>
+                                    ))
+                                  }
+                                </ul>
+                              </div>
+                            )
+                          }
+                        </div>
+                      )
+                    }
+                    <div className="flex justify-between">
+                      <span className="text-[#626467]">Unlimited Usage Rights</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#626467]">$1M Liability Insurance Policy</span>
+                    </div>
+                    <div className="flex flex-col justify-between">
+                      <span className="text-[#626467]">Beige Guarantee</span>
                     </div>
                   </div>
                 </div>
@@ -1131,6 +1311,17 @@ function MultiCreatorPaymentContent() {
                             {quote.discount_percentage && <span className="text-[10px] text-green-600/80">({quote.discount_percentage}% off)</span>}
                           </div>
                           <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total)}</span>
+                        </div>
+                      )}
+
+                      {parseFloat(quote.referral_discount_amount || 0) > 0 && (
+                        <div className="flex justify-between mt-2">
+                          <span className="text-green-700 font-medium">
+                            10% Referral Discount
+                          </span>
+                          <span className="text-green-700 font-bold">
+                            -{formatCurrency(quote.referral_discount_amount)}
+                          </span>
                         </div>
                       )}
                     </div>

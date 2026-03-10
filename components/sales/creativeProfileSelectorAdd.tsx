@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { salesApi, ROLE_MAP } from '@/lib/api';
+import { salesApi, adminApi, ROLE_MAP } from '@/lib/api';
 import { Search, SlidersHorizontal, Video, Camera, Calendar, Check } from 'lucide-react';
 import { CreativeFilterModal } from './CreativeFilterModal';
 import { Separator } from '@/src/components/landing/Separator';
@@ -20,20 +20,24 @@ export const CreativeProfileSelectorAdd = ({
     onChange,
     onSelectionUpdate,
     leadId,
+    projectId,
     currentLocation,
-    targets
+    targets,
+    disableCrewFetch,
 }: {
     selectedIds?: number[],
     onChange?: (ids: number[]) => void,
     onSelectionUpdate?: (counts: { videographer: number, photographer: number }) => void,
     leadId?: number | string,
+    projectId?: number | string,
     currentLocation?: string,
-    targets?: { videographer: number, photographer: number }
+    targets?: { videographer: number, photographer: number },
+    disableCrewFetch?: boolean, // When true, suppresses the get-crew-for-lead API call
 } = {}) => {
     const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
     const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({});
     const [isFilterOpen, setIsFilterOpen] = useState(false);
-    const [appliedFilters, setAppliedFilters] = useState({ radius: 100 }); 
+    const [appliedFilters, setAppliedFilters] = useState({ radius: 100 });
     const [stats, setStats] = useState<any>(null);
     const [creatives, setCreatives] = useState<any[]>([]);
     const [roleType, setRoleType] = useState<string>('videographer');
@@ -49,7 +53,7 @@ export const CreativeProfileSelectorAdd = ({
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-     useEffect(() => {
+    useEffect(() => {
         if (creatives.length > 0) {
             setSelectedRoles((prev) => {
                 const updatedRoles = { ...prev };
@@ -62,8 +66,9 @@ export const CreativeProfileSelectorAdd = ({
     }, [creatives]);
 
     useEffect(() => {
+        // Only fetch lead stats if targets are NOT provided externally
         const fetchStats = async () => {
-            if (leadId) {
+            if (leadId && !targets) {
                 try {
                     const response = await salesApi.getLeadStats(leadId);
                     if (response && response.data) {
@@ -75,13 +80,17 @@ export const CreativeProfileSelectorAdd = ({
             }
         };
         fetchStats();
-    }, [leadId]);
+    }, [leadId, targets]);
 
     useEffect(() => {
         const fetchCreatives = async () => {
+            // Completely skip if disableCrewFetch is true
+            if (disableCrewFetch) return;
+
             const location = currentLocation || stats?.location;
 
-            if (!leadId || (!location && !debouncedSearch)) {
+            // Allow search with location even without leadId
+            if (!location && !debouncedSearch) {
                 return;
             }
 
@@ -99,12 +108,22 @@ export const CreativeProfileSelectorAdd = ({
                     }
                 }
 
-                const response = await salesApi.getCrewForLead({
-                    lead_id: leadId,
-                    role_type: roleType,
-                    search_query: debouncedSearch || city,
-                    radius: appliedFilters.radius
-                });
+                let response;
+                if (projectId) {
+                    response = await adminApi.getCrewForShoot({
+                        project_id: projectId,
+                        role_type: roleType,
+                        search_query: debouncedSearch || city,
+                        radius: appliedFilters.radius
+                    });
+                } else {
+                    response = await salesApi.getCrewForLead({
+                        lead_id: leadId || 0,
+                        role_type: roleType,
+                        search_query: debouncedSearch || city,
+                        radius: appliedFilters.radius
+                    });
+                }
 
                 if (response && response.data) {
                     const formattedCreatives = response.data.map((item: any) => ({
@@ -112,10 +131,8 @@ export const CreativeProfileSelectorAdd = ({
                         name: `${item.first_name} ${item.last_name}`,
                         status: item.is_active ? "Active" : "Inactive",
                         shoots: item.years_of_experience || 0,
-                        // Use the mapped role from your API response
                         specialities: item.role || "Creative",
                         availability: item.availability || "Available",
-                        // Map the profile photo from API
                         profile_photo: item.profile_photo,
                         ...item
                     }));
@@ -277,7 +294,7 @@ export const CreativeProfileSelectorAdd = ({
             </div>
 
             {/* SIDEBAR COMPONENT */}
-             <CreativeFilterModal
+            <CreativeFilterModal
                 isOpen={isFilterOpen}
                 onClose={() => setIsFilterOpen(false)}
                 onApply={(filters) => setAppliedFilters(filters)} // <--- Capture the radius here

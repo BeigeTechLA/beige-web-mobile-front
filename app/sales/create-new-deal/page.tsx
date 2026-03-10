@@ -182,7 +182,7 @@ export default function ClientDetailPage() {
   useEffect(() => {
     const options = [];
     for (let i = 0; i < 24; i++) {
-      for (let j = 0; j < 60; j += 30) {
+      for (let j = 0; j < 60; j += 15) {
         const hour = i.toString().padStart(2, "0");
         const minute = j.toString().padStart(2, "0");
         const key = `${hour}:${minute}`;
@@ -292,96 +292,96 @@ export default function ClientDetailPage() {
 
   // --- HANDLERS (Timezone Fix Applied) ---
   const handleDateChange = (date: Date | null) => {
-      if (!date) {
-        setSelectedShootDate(null);
-        updateData({ startDate: "", endDate: "" });
-        return;
-      }
-      setSelectedShootDate(
-        set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
-      );
-      const now = new Date();
-      const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-  
-      let finalStart: Date;
-      let finalEnd: Date;
-  
-      if (isToday) {
-        finalStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-        const mins = finalStart.getMinutes();
-        if (mins > 0 && mins <= 30) finalStart.setMinutes(30, 0, 0);
-        else if (mins > 30) finalStart.setHours(finalStart.getHours() + 1, 0, 0, 0);
-        else finalStart.setMinutes(0, 0, 0);
-        finalEnd = new Date(finalStart.getTime() + 8 * 60 * 60 * 1000);
-      } else {
-        finalStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-        finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
-      }
-  
-      // Use format to keep Local Time instead of UTC ISO String
-      updateData({
-        startDate: format(finalStart, "yyyy-MM-dd HH:mm:ss"),
-        endDate: format(finalEnd, "yyyy-MM-dd HH:mm:ss"),
-      });
-    };
-  
-    const handleStartTimeChange = (timeKey: string) => {
-      if (!timeKey) return updateData({ startDate: "" });
-      const [hours, minutes] = timeKey.split(":").map(Number);
-      const currentDate =
-        parseDate(formData.startDate) ||
-        parseDate(formData.endDate) ||
-        selectedShootDate ||
-        new Date();
-  
-      const selectedTime = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth(),
-        currentDate.getDate(),
-        hours,
-        minutes,
-        0,
-        0
-      );
-  
-      const now = new Date();
-  
-      if (selectedTime < now) {
-        toast.error("Selected time must be later than the current time.");
-        return;
-      }
-      const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-      if (selectedTime < minimumTime) {
-        toast.error("You must select a start time at least 4 hours from now.");
-        return;
-      }
-      // Fixed to send local string
-      updateData({ startDate: format(selectedTime, "yyyy-MM-dd HH:mm:ss") });
-    };
-  
-    const handleEndTimeChange = (timeKey: string) => {
-      if (!timeKey) return updateData({ endDate: "" });
-      const [hours, minutes] = timeKey.split(":").map(Number);
-      const baseDate =
-        parseDate(formData.startDate) ||
-        parseDate(formData.endDate) ||
-        selectedShootDate ||
-        new Date();
-  
-      const newEnd = new Date(
-        baseDate.getFullYear(),
-        baseDate.getMonth(),
-        baseDate.getDate(),
-        hours,
-        minutes,
-        0,
-        0
-      );
-  
-      // Fixed to send local string
-      updateData({ endDate: format(newEnd, "yyyy-MM-dd HH:mm:ss") });
-      scrollToRef(editsRef);
-    };
+    if (!date) {
+      setSelectedShootDate(null);
+      updateData({ startDate: "", endDate: "" });
+      return;
+    }
+    setSelectedShootDate(
+      set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
+    );
+    const now = new Date();
+    const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+
+    let finalStart: Date;
+    let finalEnd: Date;
+
+    if (isToday) {
+      finalStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+      const mins = finalStart.getMinutes();
+      if (mins > 0 && mins <= 30) finalStart.setMinutes(30, 0, 0);
+      else if (mins > 30) finalStart.setHours(finalStart.getHours() + 1, 0, 0, 0);
+      else finalStart.setMinutes(0, 0, 0);
+      finalEnd = new Date(finalStart.getTime() + 8 * 60 * 60 * 1000);
+    } else {
+      finalStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+      finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+    }
+
+    // Use format to keep Local Time instead of UTC ISO String
+    updateData({
+      startDate: format(finalStart, "yyyy-MM-dd HH:mm:ss"),
+      endDate: format(finalEnd, "yyyy-MM-dd HH:mm:ss"),
+    });
+  };
+
+  const handleStartTimeChange = (timeKey: string) => {
+    if (!timeKey) return updateData({ startDate: "" });
+    const [hours, minutes] = timeKey.split(":").map(Number);
+    const currentDate =
+      parseDate(formData.startDate) ||
+      parseDate(formData.endDate) ||
+      selectedShootDate ||
+      new Date();
+
+    const selectedTime = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      currentDate.getDate(),
+      hours,
+      minutes,
+      0,
+      0
+    );
+
+    const now = new Date();
+
+    if (selectedTime < now) {
+      toast.error("Selected time must be later than the current time.");
+      return;
+    }
+    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    if (selectedTime < minimumTime) {
+      toast.error("You must select a start time at least 4 hours from now.");
+      return;
+    }
+    // Fixed to send local string
+    updateData({ startDate: format(selectedTime, "yyyy-MM-dd HH:mm:ss") });
+  };
+
+  const handleEndTimeChange = (timeKey: string) => {
+    if (!timeKey) return updateData({ endDate: "" });
+    const [hours, minutes] = timeKey.split(":").map(Number);
+    const baseDate =
+      parseDate(formData.startDate) ||
+      parseDate(formData.endDate) ||
+      selectedShootDate ||
+      new Date();
+
+    const newEnd = new Date(
+      baseDate.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate(),
+      hours,
+      minutes,
+      0,
+      0
+    );
+
+    // Fixed to send local string
+    updateData({ endDate: format(newEnd, "yyyy-MM-dd HH:mm:ss") });
+    scrollToRef(editsRef);
+  };
 
   const getStartTimeKey = () => {
     if (!formData.startDate) return "";
@@ -464,7 +464,7 @@ export default function ClientDetailPage() {
   }, [formData.contentType, extraTeam]);
 
   const handleContinueClick = async () => {
-    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent ||!formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
+    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent || !formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
       toast.error("Please fill in all Booking information fields");
       return;
     }
