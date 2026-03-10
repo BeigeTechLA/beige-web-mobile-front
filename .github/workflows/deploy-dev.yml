@@ -13,6 +13,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: dev
     timeout-minutes: 30
 
     steps:
@@ -21,19 +22,19 @@ jobs:
 
       - name: Setup SSH key
         env:
-          DEV_SSH_KEY: ${{ secrets.DEV_SSH_KEY }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "$DEV_SSH_KEY" > ~/.ssh/dev.pem
-          chmod 600 ~/.ssh/dev.pem
+          echo "$SSH_KEY" > ~/.ssh/deploy.pem
+          chmod 600 ~/.ssh/deploy.pem
 
       - name: Add server to known_hosts
         env:
-          DEV_HOST: ${{ secrets.DEV_HOST }}
-          DEV_PORT: ${{ secrets.DEV_PORT }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
-          PORT="${DEV_PORT:-22}"
-          ssh-keyscan -p "$PORT" -H "$DEV_HOST" >> ~/.ssh/known_hosts
+          PORT="${SSH_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
       - name: Install dependencies
         run: |
@@ -44,6 +45,20 @@ jobs:
           fi
 
       - name: Build on CI runner
+        env:
+          NEXT_PUBLIC_SHOW_V2_LANDING: ${{ secrets.NEXT_PUBLIC_SHOW_V2_LANDING }}
+          DO_KEY: ${{ secrets.DO_KEY }}
+          DO_SECRET: ${{ secrets.DO_SECRET }}
+          NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}
+          NEXT_PUBLIC_API_ENDPOINT: ${{ secrets.NEXT_PUBLIC_API_ENDPOINT }}
+          NEXT_PUBLIC_INVESTOR_TYPEFORM_URL: ${{ secrets.NEXT_PUBLIC_INVESTOR_TYPEFORM_URL }}
+          NEXT_PUBLIC_BOOKING_FLOW_V3: ${{ secrets.NEXT_PUBLIC_BOOKING_FLOW_V3 }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_S3_BASE_URL: ${{ secrets.NEXT_PUBLIC_S3_BASE_URL }}
+          NEXT_PUBLIC_S3_PREFIX: ${{ secrets.NEXT_PUBLIC_S3_PREFIX }}
+          NEXT_PUBLIC_GTM_ID: ${{ secrets.NEXT_PUBLIC_GTM_ID }}
+          NEXT_PUBLIC_GTM_AUTH: ${{ secrets.NEXT_PUBLIC_GTM_AUTH }}
+          NEXT_PUBLIC_GTM_PREVIEW: ${{ secrets.NEXT_PUBLIC_GTM_PREVIEW }}
         run: npm run build
 
       - name: Create standalone deploy archive
@@ -63,21 +78,21 @@ jobs:
 
       - name: Upload archive
         env:
-          DEV_HOST: ${{ secrets.DEV_HOST }}
-          DEV_PORT: ${{ secrets.DEV_PORT }}
-          DEV_USER: ${{ secrets.DEV_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
         run: |
-          PORT="${DEV_PORT:-22}"
-          scp -P "$PORT" -i ~/.ssh/dev.pem next-build.tar.gz "$DEV_USER@$DEV_HOST:/tmp/"
+          PORT="${SSH_PORT:-22}"
+          scp -P "$PORT" -i ~/.ssh/deploy.pem next-build.tar.gz "$SSH_USER@$SSH_HOST:/tmp/"
 
       - name: Deploy on server
         env:
-          DEV_HOST: ${{ secrets.DEV_HOST }}
-          DEV_PORT: ${{ secrets.DEV_PORT }}
-          DEV_USER: ${{ secrets.DEV_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
         run: |
-          PORT="${DEV_PORT:-22}"
-          ssh -p "$PORT" -i ~/.ssh/dev.pem "$DEV_USER@$DEV_HOST" << 'EOF'
+          PORT="${SSH_PORT:-22}"
+          ssh -p "$PORT" -i ~/.ssh/deploy.pem "$SSH_USER@$SSH_HOST" << 'EOF'
           set -euo pipefail
 
           REMOTE_DIR="/var/www/beige-web-front-dev"
