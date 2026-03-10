@@ -7,7 +7,7 @@ import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -37,7 +37,8 @@ import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import MultiSelectDropdown from "@/components/book-a-shoot/MultiSelectDropdown";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import DatePicker from "@/components/ui/Datepicker";
-import { set, format } from "date-fns";
+import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
+import { AnimatePresence, motion } from "framer-motion";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
 
@@ -116,6 +117,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   >([]);
 
   const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
+  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(data.bookingType || "single_day");
+
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
+  const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
+  const [expandedDateIndex, setExpandedDateIndex] = useState<number | null>(null);
+  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const isAllVisible = visibleCount >= availableShootTypes.length;
@@ -125,9 +134,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const emailRef = useRef<HTMLDivElement>(null);
   const contentTypeRef = useRef<HTMLDivElement>(null);
   const shootTypeRef = useRef<HTMLDivElement>(null);
+  const bookingTypeRef = useRef<HTMLDivElement>(null);
   const dateTimeRef = useRef<HTMLDivElement>(null);
   const editsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   // Auto-fill email if user is logged in
   useEffect(() => {
@@ -200,6 +211,17 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       duration_on_page: performance.now() / 1000,
     });
   }, []);
+
+  const reelDays = React.useMemo(() => {
+    const start = startOfDay(new Date());
+    return Array.from({ length: 14 }, (_, idx) => addDays(start, idx));
+  }, []);
+
+  const calendarDays = React.useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentCalendarMonth));
+    const end = endOfWeek(endOfMonth(currentCalendarMonth));
+    return eachDayOfInterval({ start, end });
+  }, [currentCalendarMonth]);
 
   const formatLocalDateTime = (date: Date) => {
     return format(date, "yyyy-MM-dd'T'HH:mm:ss");
@@ -391,6 +413,82 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     scrollToRef(editsRef);
   };
 
+  const toggleDateSelection = (date: Date) => {
+    setSelectedDates((prev) => {
+      const exists = prev.some((d) => isSameDay(d, date));
+      if (exists) {
+        return prev.filter((d) => !isSameDay(d, date));
+      }
+      return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
+    });
+    if (bookingType === "multi_day") {
+      setSelectedShootDate(date);
+    }
+  };
+
+  const getFormattedDateString = (dates: Date[]) => {
+    if (!dates.length) return "None";
+    const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime());
+    return sorted.map((d) => format(d, "MMM d")).join(", ");
+  };
+
+  const getDateKey = (date: Date) => format(date, "yyyy-MM-dd");
+
+  const handleMultiDayStartTimeChange = (dateKey: string, timeKey: string) => {
+    setMultiDayTimes((prev) => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], startKey: timeKey }
+    }));
+  };
+
+  const handleMultiDayEndTimeChange = (dateKey: string, timeKey: string) => {
+    setMultiDayTimes((prev) => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], endKey: timeKey }
+    }));
+  };
+
+  useEffect(() => {
+    updateData({ bookingType });
+  }, [bookingType, updateData]);
+
+  useEffect(() => {
+    if (bookingType !== "multi_day") {
+      updateData({ bookingDays: [] });
+      return;
+    }
+
+    if (!selectedDates.length) {
+      updateData({ bookingDays: [] });
+      return;
+    }
+
+    const startKey = getStartTimeKey();
+    const endKey = getEndTimeKey();
+
+    const days = selectedDates.map((date) => {
+      const dateKey = getDateKey(date);
+      const dayTimes = multiDayTimes[dateKey] || {};
+      const finalStart = sameTimingsMulti ? startKey : dayTimes.startKey;
+      const finalEnd = sameTimingsMulti ? endKey : dayTimes.endKey;
+      return {
+        date: dateKey,
+        startTime: finalStart,
+        endTime: finalEnd
+      };
+    });
+
+    updateData({ bookingDays: days });
+  }, [
+    bookingType,
+    selectedDates,
+    data.startDate,
+    data.endDate,
+    sameTimingsMulti,
+    multiDayTimes,
+    updateData
+  ]);
+
   // const getStartTimeKey = () => {
   //   if (!data.startDate) return "";
   //   const date = parseDate(data.startDate);
@@ -482,7 +580,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       if (data.email && newErrors.includes("emailError")) return newErrors.filter(e => e !== "emailError");
       if (data.contentType.length > 0 && newErrors.includes("contentError")) return newErrors.filter(e => e !== "contentError");
       if (data.shootType && newErrors.includes("shootTypeError")) return newErrors.filter(e => e !== "shootTypeError");
-      if (data.startDate && data.endDate && newErrors.includes("timeError")) return newErrors.filter(e => e !== "timeError");
+      const hasMultiDayTimes = Array.isArray(data.bookingDays) && data.bookingDays.length > 0 && data.bookingDays.every(d => d.startTime && d.endTime);
+      if (
+        ((data.bookingType !== "multi_day" && data.startDate && data.endDate) ||
+          (data.bookingType === "multi_day" && hasMultiDayTimes)) &&
+        newErrors.includes("timeError")
+      ) {
+        return newErrors.filter(e => e !== "timeError");
+      }
       if (data.videoEditTypes.length > 0 && newErrors.includes("videoEditError")) return newErrors.filter(e => e !== "videoEditError");
       if (data.photoEditTypes.length > 0 && newErrors.includes("photoEditError")) return newErrors.filter(e => e !== "photoEditError");
       return prev;
@@ -560,20 +665,34 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
       return false;
     }
-    if (!data.startDate) {
-      toast.error("Please select a start date and time");
-      setErrors((prev) => [...prev, "timeError"]);
-      return false;
-    }
-    if (!data.endDate) {
-      toast.error("Please select an end date and time");
-      setErrors((prev) => [...prev, "timeError"]);
-      return false;
-    }
-    if (new Date(data.endDate) <= new Date(data.startDate)) {
-      toast.error("End time must be after start time");
-      setErrors((prev) => [...prev, "timeError"]);
-      return false;
+    if (bookingType === "single_day") {
+      if (!data.startDate) {
+        toast.error("Please select a start date and time");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      if (!data.endDate) {
+        toast.error("Please select an end date and time");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      if (new Date(data.endDate) <= new Date(data.startDate)) {
+        toast.error("End time must be after start time");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+    } else {
+      if (!data.bookingDays || data.bookingDays.length === 0) {
+        toast.error("Please select at least one booking day");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      const hasMissingTimes = data.bookingDays.some((d) => !d.startTime || !d.endTime);
+      if (hasMissingTimes) {
+        toast.error("Please select start and end time for all selected days");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
     }
     if (data.editsNeeded) {
       const needsVideoEdit = data.contentType.includes("videographer")
@@ -776,7 +895,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     selected={data.shootType === type.key}
                     onClick={() => {
                       updateData({ shootType: type.key });
-                      scrollToRef(dateTimeRef);
+                      scrollToRef(bookingTypeRef);
                     }}
                   />
                 </div>
@@ -792,49 +911,102 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             </div>
           </div>
 
+          {/* Booking Type */}
+          <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+              }`}>
+              Select Booking Type
+            </h3>
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setBookingType("single_day");
+                  setSelectedDates([]);
+                  setSameTimingsMulti(true);
+                  setMultiDayTimes({});
+                  updateData({ bookingType: "single_day", bookingDays: [] });
+                  scrollToRef(dateTimeRef);
+                }}
+                disabled={data.shootType === ""}
+                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              >
+                <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
+                <div
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "single_day" ? "bg-black" : "border border-[#E5E5E5]"
+                    }`}
+                >
+                  {bookingType === "single_day" && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setBookingType("multi_day");
+                  updateData({ bookingType: "multi_day" });
+                  scrollToRef(dateTimeRef);
+                }}
+                disabled={data.shootType === ""}
+                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              >
+                <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
+                <div
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "multi_day" ? "bg-black" : "border border-[#E5E5E5]"
+                    }`}
+                >
+                  {bookingType === "multi_day" && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
+            </div>
+          </div>
+
           {/* Date & Time */}
           <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-                    }`}>
-                    Shoot Date & Time
-                  </h3>
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    <div className="flex-1">
-                      <DatePicker
-                        label="Select Date"
-                  value={selectedShootDate}
-                        onChange={handleDateChange}
-                        minDate={new Date()}
-                        colors={datePickerColours}
-                        format="MM/dd/yyyy"
-                        sx={{
-                          height: { xs: "56px", md: "82px" },
-                          borderRadius: "16px",
-                        }}
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <DropdownSelect
-                        title="Start Time"
-                        options={filteredStartTimeOptions}
-                        value={getStartTimeKey()}
-                        onChange={handleStartTimeChange}
-                        bgColour="bg-[#101010]"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <DropdownSelect
-                        title="End Time"
-                        options={filteredEndTimeOptions}
-                        value={getEndTimeKey()}
-                        onChange={handleEndTimeChange}
-                        bgColour="bg-[#101010]"
-                      />
-                    </div>
+            {bookingType === "single_day" ? (
+              <>
+                <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                  }`}>
+                  Shoot Date & Time
+                </h3>
+                <div className="flex flex-col lg:flex-row gap-6">
+                  <div className="flex-1">
+                    <DatePicker
+                      label="Select Date"
+                      value={selectedShootDate}
+                      onChange={handleDateChange}
+                      minDate={new Date()}
+                      colors={datePickerColours}
+                      format="MM/dd/yyyy"
+                      sx={{
+                        height: { xs: "56px", md: "82px" },
+                        borderRadius: "16px",
+                      }}
+                    />
                   </div>
-                </>
-              ) : (
-                <>
+                  <div className="flex-1">
+                    <DropdownSelect
+                      title="Start Time"
+                      options={filteredStartTimeOptions}
+                      value={getStartTimeKey()}
+                      onChange={handleStartTimeChange}
+                      bgColour="bg-[#101010]"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <DropdownSelect
+                      title="End Time"
+                      options={filteredEndTimeOptions}
+                      value={getEndTimeKey()}
+                      onChange={handleEndTimeChange}
+                      bgColour="bg-[#101010]"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
                   <div className="relative mb-8 lg:mb-15">
                     <div className="flex justify-between items-center mb-6">
                       <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
@@ -913,6 +1085,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         <button
                           onClick={() => {
                             setSameTimingsMulti(true);
+                            setMultiDayTimes({});
                             // scrollToRef(navigationRef); //update with correct ref
                           }}
                           disabled={data.shootType === ""}
@@ -931,6 +1104,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         <button
                           onClick={() => {
                             setSameTimingsMulti(false);
+                            const startKey = getStartTimeKey();
+                            const endKey = getEndTimeKey();
+                            const nextTimes: Record<string, { startKey?: string; endKey?: string }> = {};
+                            selectedDates.forEach((d) => {
+                              const key = getDateKey(d);
+                              nextTimes[key] = { startKey, endKey };
+                            });
+                            setMultiDayTimes(nextTimes);
                             // scrollToRef(navigationRef);  //update with correct ref
                           }}
                           disabled={data.shootType === ""}
@@ -1003,8 +1184,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                           <DropdownSelect
                                             title="Start Time"
                                             options={filteredStartTimeOptions}
-                                            value={getStartTimeKey()}
-                                            onChange={handleStartTimeChange}
+                                            value={multiDayTimes[getDateKey(date)]?.startKey || ""}
+                                            onChange={(value) => handleMultiDayStartTimeChange(getDateKey(date), value)}
                                             bgColour="bg-[#101010]"
                                           />
                                         </div>
@@ -1012,8 +1193,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                           <DropdownSelect
                                             title="End Time"
                                             options={filteredEndTimeOptions}
-                                            value={getEndTimeKey()}
-                                            onChange={handleEndTimeChange}
+                                            value={multiDayTimes[getDateKey(date)]?.endKey || ""}
+                                            onChange={(value) => handleMultiDayEndTimeChange(getDateKey(date), value)}
                                             bgColour="bg-[#101010]"
                                           />
                                         </div>
@@ -1033,9 +1214,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     </div>
                   )}
                 </>
-              )
-
-            }
+              )}
           </div>
 
           {/* Edits Needed */}

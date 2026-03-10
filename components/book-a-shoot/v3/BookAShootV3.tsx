@@ -176,6 +176,8 @@ export const BookAShootV3 = () => {
           client_name: user?.name || formData.fullName,
           startDate: formData.startDate,
           endDate: formData.endDate,
+          booking_type: formData.bookingType,
+          booking_days: formData.bookingDays,
 
           edits_needed: formData.editsNeeded,
           video_edit_types: formData.videoEditTypes,
@@ -298,7 +300,24 @@ export const BookAShootV3 = () => {
   const handleBookingSubmission = async () => {
     try {
       // 1. Calculate Shoot Duration in Hours
+      const calculateDayHours = (startTime?: string, endTime?: string) => {
+        if (!startTime || !endTime) return 0;
+        const [sh, sm] = startTime.split(":").map(Number);
+        const [eh, em] = endTime.split(":").map(Number);
+        if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return 0;
+        const startMinutes = sh * 60 + sm;
+        const endMinutes = eh * 60 + em;
+        const diff = endMinutes - startMinutes;
+        if (diff <= 0) return 0;
+        return Math.round((diff / 60) * 100) / 100;
+      };
+
       const calculateDurationHours = () => {
+        if (formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0) {
+          const total = formData.bookingDays.reduce((sum, d) => sum + calculateDayHours(d.startTime, d.endTime), 0);
+          return Math.max(1, Math.round(total));
+        }
+
         if (!formData.startDate || !formData.endDate) return 3; // Default fallback
         const start = new Date(formData.startDate);
         const end = new Date(formData.endDate);
@@ -362,6 +381,12 @@ export const BookAShootV3 = () => {
       // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
       let savedQuoteId: number | null = null;
 
+      const firstBookingDate = formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0
+        ? formData.bookingDays
+          .slice()
+          .sort((a, b) => a.date.localeCompare(b.date))[0]?.date
+        : null;
+
       if (quoteItems.length > 0) {
         try {
           const quotePayload = {
@@ -369,7 +394,7 @@ export const BookAShootV3 = () => {
             shootHours: shootHours,
             eventType: formData.shootType || "general",
             guestEmail: formData.email,
-            shoot_start_date: formData.startDate, // Backend uses this for Same/Next Day fees
+            shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : formData.startDate,
             notes: formData.specialInstructions || undefined,
             video_edit_types: formData.editsNeeded ? formData.videoEditTypes : [],
             photo_edit_types: formData.editsNeeded ? formData.photoEditTypes : [],
@@ -385,11 +410,20 @@ export const BookAShootV3 = () => {
       }
 
       // 6. PREPARE FINAL BOOKING PAYLOAD
+      const bookingDaysPayload = formData.bookingDays?.map((d) => ({
+        date: d.date,
+        start_time: d.startTime,
+        end_time: d.endTime,
+        duration_hours: calculateDayHours(d.startTime, d.endTime)
+      })) || [];
+
       const finalBookingData: any = {
         order_name: `${formData.shootType.toUpperCase()} Shoot - ${formData.fullName}`,
         guest_email: formData.email,
         content_type: formData.contentType.join(","),
         shoot_type: formData.shootType,
+        booking_type: formData.bookingType,
+        booking_days: bookingDaysPayload,
         // start_date_time: formData.startDate,
         // end_time: formData.endDate,
         duration_hours: shootHours,
