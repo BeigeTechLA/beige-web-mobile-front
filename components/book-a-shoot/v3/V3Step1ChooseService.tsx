@@ -832,11 +832,214 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       />
                     </div>
                   </div>
+                </>
+              ) : (
+                <>
+                  <div className="relative mb-8 lg:mb-15">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                        }`}>
+                        Select Date
+                      </h3>
+                      <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
+                        <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                        <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
+                      </button>
+                    </div>
+
+                    {/* Horizontal Scroll Reel */}
+                    <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+                      {reelDays.map((date) => {
+                        const isSelected = selectedDates.some(d => isSameDay(d, date));
+                        return (
+                          <button
+                            key={date.toISOString()}
+                            onClick={() => toggleDateSelection(date)}
+                            className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
+                          >
+                            <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
+                            <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
+                      </div>
+                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
+                      </div>
+                    </div>
+
+                    {/* Calendar Popover */}
+                    <AnimatePresence>
+                      {isCalendarOpen && (
+                        <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
+                          <div className="flex justify-between items-center mb-6">
+                            <button onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}><ChevronLeft size={20} /></button>
+                            <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                            <button onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}><ChevronRight size={20} /></button>
+                          </div>
+                          <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
+                          </div>
+                          <div className="grid grid-cols-7 gap-1">
+                            {calendarDays.map((date) => {
+                              const isSelected = selectedDates.some(d => isSameDay(d, date));
+                              return (
+                                <button
+                                  key={date.toISOString()}
+                                  onClick={() => toggleDateSelection(date)}
+                                  className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
+                                >
+                                  {format(date, "d")}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  {/* timings selector will go here */}
+
+                  {selectedDates.length > 0 && (
+                    <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
+                      <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
+
+                      <div className="flex gap-4">
+                        <button
+                          onClick={() => {
+                            setSameTimingsMulti(true);
+                            // scrollToRef(navigationRef); //update with correct ref
+                          }}
+                          disabled={data.shootType === ""}
+                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                        >
+                          <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                          <div
+                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                              }`}
+                          >
+                            {sameTimingsMulti && (
+                              <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                            )}
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSameTimingsMulti(false);
+                            // scrollToRef(navigationRef);  //update with correct ref
+                          }}
+                          disabled={data.shootType === ""}
+                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                        >
+                          <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                          <div
+                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                              }`}
+                          >
+                            {!sameTimingsMulti && (
+                              <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                            )}
+                          </div>
+                        </button>
+                      </div>
+
+                      {
+                        sameTimingsMulti ? (
+                          <div>
+                            <div className="flex flex-col lg:flex-row gap-6">
+                              <div className="flex-1">
+                                <DropdownSelect
+                                  title="Start Time"
+                                  options={filteredStartTimeOptions}
+                                  value={getStartTimeKey()}
+                                  onChange={handleStartTimeChange}
+                                  bgColour="bg-[#101010]"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <DropdownSelect
+                                  title="End Time"
+                                  options={filteredEndTimeOptions}
+                                  value={getEndTimeKey()}
+                                  onChange={handleEndTimeChange}
+                                  bgColour="bg-[#101010]"
+                                />
+                              </div>
+                            </div>
+                            <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
+                              <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
+                            </p>
+                            <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                              <p className="text-white font-medium lg:text-[20px]">
+                                {getFormattedDateString(selectedDates)}
+                              </p>
+                              <p className="text-white/60  font-medium lg:text-[20px]">
+                                {/* Please show selected time instead of following text */}
+                                Please show selected time here
+                              </p>
+                              <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
+                                Duration Hour/Day
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {selectedDates.map((date, idx) => (
+                              <div key={date.toISOString()} className="border border-white/10 rounded-2xl bg-[#171717] overflow-hidden">
+                                <button onClick={() => setExpandedDateIndex(expandedDateIndex === idx ? null : idx)} className={`w-full px-6 py-5 flex justify-between items-center ${expandedDateIndex === idx ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
+                                  <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
+                                  <ChevronDown className={`text-white/40 transition-transform ${expandedDateIndex === idx ? "rotate-180" : ""}`} />
+                                </button>
+                                <AnimatePresence>
+                                  {expandedDateIndex === idx && (
+                                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden bg-[#101010] p-4 lg:p-7">
+                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <div className="flex-1">
+                                          <DropdownSelect
+                                            title="Start Time"
+                                            options={filteredStartTimeOptions}
+                                            value={getStartTimeKey()}
+                                            onChange={handleStartTimeChange}
+                                            bgColour="bg-[#101010]"
+                                          />
+                                        </div>
+                                        <div className="flex-1">
+                                          <DropdownSelect
+                                            title="End Time"
+                                            options={filteredEndTimeOptions}
+                                            value={getEndTimeKey()}
+                                            onChange={handleEndTimeChange}
+                                            bgColour="bg-[#101010]"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Duration: calculated duration to be shown here</p>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      }
+                    </div>
+                  )}
+                </>
+              )
+
+            }
           </div>
 
           {/* Edits Needed */}
           <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            {/* <h3 className="text-lg lg:text-[28px] font-medium text-white/90 mb-3 lg:mb-6"> */}
             <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
               }`}>
               Edits Needed?
