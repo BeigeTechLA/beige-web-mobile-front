@@ -1188,6 +1188,19 @@ export const adminApi = {
       };
     }
   },
+  removeProjectCrew: async (payload: { project_id: number; crew_member_id: number }) => {
+    try {
+      const response = await api.post('admin/remove-project-crew', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Remove Project Crew Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to remove assigned creative partner',
+      };
+    }
+  },
   getDashboardChartData: async (params: { range?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/dashboard-chart-data', { params });
