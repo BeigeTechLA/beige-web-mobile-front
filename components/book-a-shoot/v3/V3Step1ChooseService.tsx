@@ -7,7 +7,7 @@ import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -34,7 +34,6 @@ import {
   behindScenesPhotoEditTypes,
 } from "@/app/data/shootData";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
-import MultiSelectDropdown from "@/components/book-a-shoot/MultiSelectDropdown";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import DatePicker from "@/components/ui/Datepicker";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
@@ -123,7 +122,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
-  const [expandedDateIndex, setExpandedDateIndex] = useState<number | null>(null);
+  const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
+  const reelRef = useRef<HTMLDivElement>(null);
+  const isDraggingReel = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartScrollLeft = useRef(0);
   const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
@@ -139,6 +142,44 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const editsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
+
+  const [isVideoEditOpen, setIsVideoEditOpen] = useState(false);
+  const [isPhotoEditOpen, setIsPhotoEditOpen] = useState(false);
+
+  const buildEditCounts = (keys: string[]) =>
+    keys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+  const videoEditCounts = React.useMemo(
+    () => buildEditCounts(data.videoEditTypes),
+    [data.videoEditTypes]
+  );
+
+  const photoEditCounts = React.useMemo(
+    () => buildEditCounts(data.photoEditTypes),
+    [data.photoEditTypes]
+  );
+
+  const updateEditQuantity = (type: "video" | "photo", key: string, nextQty: number) => {
+    const base = type === "video" ? data.videoEditTypes : data.photoEditTypes;
+    const cleaned = base.filter((k) => k !== key);
+    const next = nextQty > 0 ? [...cleaned, ...Array.from({ length: nextQty }, () => key)] : cleaned;
+    if (type === "video") {
+      updateData({ videoEditTypes: next });
+    } else {
+      updateData({ photoEditTypes: next });
+    }
+  };
+
+  const getEditDisplayLabel = (
+    key: string,
+    options: { key: string; value: string }[]
+  ) => {
+    const match = options.find((o) => o.key === key);
+    return match ? match.value : key;
+  };
 
   // Auto-fill email if user is logged in
   useEffect(() => {
@@ -213,9 +254,16 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   }, []);
 
   const reelDays = React.useMemo(() => {
-    const start = startOfDay(new Date());
-    return Array.from({ length: 14 }, (_, idx) => addDays(start, idx));
-  }, []);
+    const now = new Date();
+    const monthStart = startOfMonth(currentCalendarMonth);
+    const monthEnd = endOfMonth(currentCalendarMonth);
+    const start =
+      isSameMonth(currentCalendarMonth, now) && now > monthStart
+        ? startOfDay(now)
+        : monthStart;
+    if (start > monthEnd) return [];
+    return eachDayOfInterval({ start, end: monthEnd });
+  }, [currentCalendarMonth]);
 
   const calendarDays = React.useMemo(() => {
     const start = startOfWeek(startOfMonth(currentCalendarMonth));
@@ -424,12 +472,33 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     if (bookingType === "multi_day") {
       setSelectedShootDate(date);
     }
+    if (reelRef.current) {
+      reelRef.current.scrollLeft = 0;
+    }
   };
 
   const getFormattedDateString = (dates: Date[]) => {
     if (!dates.length) return "None";
     const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime());
     return sorted.map((d) => format(d, "MMM d")).join(", ");
+  };
+
+  const getTimeLabel = (key: string) => {
+    if (!key) return "";
+    const match = timeOptions.find((opt) => opt.key === key);
+    return match ? match.value : key;
+  };
+
+  const calculateDurationHours = (startKey: string, endKey: string) => {
+    if (!startKey || !endKey) return null;
+    const [sh, sm] = startKey.split(":").map(Number);
+    const [eh, em] = endKey.split(":").map(Number);
+    if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return null;
+    const startMinutes = sh * 60 + sm;
+    const endMinutes = eh * 60 + em;
+    const diff = endMinutes - startMinutes;
+    if (diff <= 0) return null;
+    return Math.round((diff / 60) * 100) / 100;
   };
 
   const getDateKey = (date: Date) => format(date, "yyyy-MM-dd");
@@ -1020,7 +1089,35 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     </div>
 
                     {/* Horizontal Scroll Reel */}
-                    <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+                    <div
+                      ref={reelRef}
+                      onWheel={(e) => {
+                        if (!reelRef.current) return;
+                        e.preventDefault();
+                        reelRef.current.scrollLeft += e.deltaY;
+                      }}
+                      onPointerDown={(e) => {
+                        if (!reelRef.current) return;
+                        if ((e.target as HTMLElement).closest("button")) return;
+                        isDraggingReel.current = true;
+                        dragStartX.current = e.clientX;
+                        dragStartScrollLeft.current = reelRef.current.scrollLeft;
+                        reelRef.current.setPointerCapture?.(e.pointerId);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!reelRef.current || !isDraggingReel.current) return;
+                        const dx = e.clientX - dragStartX.current;
+                        reelRef.current.scrollLeft = dragStartScrollLeft.current - dx;
+                      }}
+                      onPointerUp={(e) => {
+                        isDraggingReel.current = false;
+                        reelRef.current?.releasePointerCapture?.(e.pointerId);
+                      }}
+                      onPointerLeave={() => {
+                        isDraggingReel.current = false;
+                      }}
+                      className="flex gap-3 overflow-x-auto pb-4 no-scrollbar cursor-grab active:cursor-grabbing select-none"
+                    >
                       {reelDays.map((date) => {
                         const isSelected = selectedDates.some(d => isSameDay(d, date));
                         return (
@@ -1050,9 +1147,22 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       {isCalendarOpen && (
                         <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
                           <div className="flex justify-between items-center mb-6">
-                            <button onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}><ChevronLeft size={20} /></button>
+                            <button onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
+                              <ChevronLeft size={20} />
+                            </button>
                             <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
-                            <button onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}><ChevronRight size={20} /></button>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
+                                <ChevronRight size={20} />
+                              </button>
+                              <button
+                                onClick={() => setIsCalendarOpen(false)}
+                                className="rounded-full p-1 hover:bg-white/10 transition-colors"
+                                aria-label="Close calendar"
+                              >
+                                <X size={18} />
+                              </button>
+                            </div>
                           </div>
                           <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
                             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
@@ -1063,7 +1173,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                               return (
                                 <button
                                   key={date.toISOString()}
-                                  onClick={() => toggleDateSelection(date)}
+                                  onClick={() => {
+                                    toggleDateSelection(date);
+                                  }}
                                   className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
                                 >
                                   {format(date, "d")}
@@ -1160,54 +1272,65 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                 {getFormattedDateString(selectedDates)}
                               </p>
                               <p className="text-white/60  font-medium lg:text-[20px]">
-                                {/* Please show selected time instead of following text */}
-                                Please show selected time here
+                                {getStartTimeKey() && getEndTimeKey()
+                                  ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
+                                  : "Select time"}
                               </p>
                               <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
-                                Duration Hour/Day
+                                {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
+                                  ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
+                                  : "Duration Hour/Day"}
                               </p>
                             </div>
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {selectedDates.map((date, idx) => (
-                              <div key={date.toISOString()} className="border border-white/10 rounded-2xl bg-[#171717] overflow-hidden">
-                                <button onClick={() => setExpandedDateIndex(expandedDateIndex === idx ? null : idx)} className={`w-full px-6 py-5 flex justify-between items-center ${expandedDateIndex === idx ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
-                                  <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
-                                  <ChevronDown className={`text-white/40 transition-transform ${expandedDateIndex === idx ? "rotate-180" : ""}`} />
-                                </button>
-                                <AnimatePresence>
-                                  {expandedDateIndex === idx && (
-                                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden bg-[#101010] p-4 lg:p-7">
-                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                        <div className="flex-1">
-                                          <DropdownSelect
-                                            title="Start Time"
-                                            options={filteredStartTimeOptions}
-                                            value={multiDayTimes[getDateKey(date)]?.startKey || ""}
-                                            onChange={(value) => handleMultiDayStartTimeChange(getDateKey(date), value)}
-                                            bgColour="bg-[#101010]"
-                                          />
+                            {selectedDates.map((date) => {
+                              const dateKey = getDateKey(date);
+                              const isExpanded = expandedDateKey === dateKey;
+                              return (
+                                <div key={date.toISOString()} className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}>
+                                  <button onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
+                                    <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
+                                    <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                  </button>
+                                  <AnimatePresence>
+                                    {isExpanded && (
+                                      <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible">
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                          <div className="flex-1">
+                                            <DropdownSelect
+                                              title="Start Time"
+                                              options={filteredStartTimeOptions}
+                                              value={multiDayTimes[dateKey]?.startKey || ""}
+                                              onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
+                                              bgColour="bg-[#101010]"
+                                            />
+                                          </div>
+                                          <div className="flex-1">
+                                            <DropdownSelect
+                                              title="End Time"
+                                              options={filteredEndTimeOptions}
+                                              value={multiDayTimes[dateKey]?.endKey || ""}
+                                              onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
+                                              bgColour="bg-[#101010]"
+                                            />
+                                          </div>
                                         </div>
-                                        <div className="flex-1">
-                                          <DropdownSelect
-                                            title="End Time"
-                                            options={filteredEndTimeOptions}
-                                            value={multiDayTimes[getDateKey(date)]?.endKey || ""}
-                                            onChange={(value) => handleMultiDayEndTimeChange(getDateKey(date), value)}
-                                            bgColour="bg-[#101010]"
-                                          />
-                                        </div>
-                                      </div>
 
-                                      <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Duration: calculated duration to be shown here</p>
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            ))}
+                                        <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                          <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                            Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
+                                              ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
+                                              : "Select time"}
+                                          </p>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })}
                           </div>
                         )
                       }
@@ -1280,15 +1403,82 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     //|| data.contentType.includes("cinematographer")) &&
                     editTypeOptions.length > 0 && (
                       <div>
-                        <MultiSelectDropdown
-                          title="Video Edit Type"
-                          options={editTypeOptions}
-                          value={data.videoEditTypes}
-                          onChange={(values) =>
-                            updateData({ videoEditTypes: values })
-                          }
-                          bgColour={"bg-[#101010]"}
-                        />
+                        <div className="relative w-full max-w-md">
+                          <div
+                            className="min-h-14 lg:min-h-[82px] relative bg-[#101010] rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40"
+                            onClick={() => setIsVideoEditOpen((p) => !p)}
+                          >
+                            <span className="absolute -top-3 left-4 bg-[#101010] px-3 text-sm lg:text-base text-white/60 rounded">
+                              Video Edit Type
+                            </span>
+                            <div className="flex-1 flex flex-wrap items-center gap-2">
+                              {Object.keys(videoEditCounts).length > 0 ? (
+                                Object.entries(videoEditCounts).map(([key, count]) => (
+                                  <div
+                                    key={key}
+                                    className="flex items-center gap-1.5 bg-[#2A2A2A] px-2 py-1 rounded-md text-white text-xs lg:text-sm"
+                                  >
+                                    <span className="truncate max-w-[140px]">
+                                      {getEditDisplayLabel(key, editTypeOptions)}
+                                    </span>
+                                    <span className="text-white/60">x{count}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-white/40 text-sm lg:text-base">Select Video Edit Type</span>
+                              )}
+                            </div>
+                            {isVideoEditOpen ? (
+                              <ChevronUp className="text-white flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="text-white flex-shrink-0" />
+                            )}
+                          </div>
+
+                          {isVideoEditOpen && (
+                            <div className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto">
+                              {editTypeOptions.map((option) => {
+                                const count = videoEditCounts[option.key] || 0;
+                                return (
+                                  <div
+                                    key={option.key}
+                                    className="flex items-center justify-between gap-3 px-4 py-3 text-white/80 hover:bg-white/5"
+                                  >
+                                    <span className="text-sm lg:text-base">{option.value}</span>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="min-w-[28px] text-center text-white">{count}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateEditQuantity("video", option.key, count + 1)}
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {data.videoEditTypes.length > 0 && (
+                                <div className="px-4 py-3 border-t border-white/10">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateData({ videoEditTypes: [] })}
+                                    className="text-xs text-white/50 hover:text-white/80 underline"
+                                  >
+                                    Clear all
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -1296,15 +1486,82 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   {data.contentType.includes("photographer") &&
                     photoEditTypeOptions.length > 0 && (
                       <div>
-                        <MultiSelectDropdown
-                          title="Photo Edit Type"
-                          options={photoEditTypeOptions}
-                          value={data.photoEditTypes}
-                          onChange={(values) =>
-                            updateData({ photoEditTypes: values })
-                          }
-                          bgColour={"bg-[#101010]"}
-                        />
+                        <div className="relative w-full max-w-md">
+                          <div
+                            className="min-h-14 lg:min-h-[82px] relative bg-[#101010] rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40"
+                            onClick={() => setIsPhotoEditOpen((p) => !p)}
+                          >
+                            <span className="absolute -top-3 left-4 bg-[#101010] px-3 text-sm lg:text-base text-white/60 rounded">
+                              Photo Edit Type
+                            </span>
+                            <div className="flex-1 flex flex-wrap items-center gap-2">
+                              {Object.keys(photoEditCounts).length > 0 ? (
+                                Object.entries(photoEditCounts).map(([key, count]) => (
+                                  <div
+                                    key={key}
+                                    className="flex items-center gap-1.5 bg-[#2A2A2A] px-2 py-1 rounded-md text-white text-xs lg:text-sm"
+                                  >
+                                    <span className="truncate max-w-[140px]">
+                                      {getEditDisplayLabel(key, photoEditTypeOptions)}
+                                    </span>
+                                    <span className="text-white/60">x{count}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-white/40 text-sm lg:text-base">Select Photo Edit Type</span>
+                              )}
+                            </div>
+                            {isPhotoEditOpen ? (
+                              <ChevronUp className="text-white flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="text-white flex-shrink-0" />
+                            )}
+                          </div>
+
+                          {isPhotoEditOpen && (
+                            <div className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto">
+                              {photoEditTypeOptions.map((option) => {
+                                const count = photoEditCounts[option.key] || 0;
+                                return (
+                                  <div
+                                    key={option.key}
+                                    className="flex items-center justify-between gap-3 px-4 py-3 text-white/80 hover:bg-white/5"
+                                  >
+                                    <span className="text-sm lg:text-base">{option.value}</span>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="min-w-[28px] text-center text-white">{count}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateEditQuantity("photo", option.key, count + 1)}
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {data.photoEditTypes.length > 0 && (
+                                <div className="px-4 py-3 border-t border-white/10">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateData({ photoEditTypes: [] })}
+                                    className="text-xs text-white/50 hover:text-white/80 underline"
+                                  >
+                                    Clear all
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         {photoEditNote && (
                           <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
                             <Info size={16} className="mt-0.5 flex-shrink-0" />

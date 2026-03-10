@@ -419,9 +419,15 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       ...socialContentEditTypes
     ];
 
-    return keys.map(key => {
+    const counts = keys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(counts).map(([key, count]) => {
       const match = allVideoOptions.find(opt => opt.key === key);
-      return match ? match.value : key;
+      const label = match ? match.value : key;
+      return count > 1 ? `${label} x${count}` : label;
     });
   };
 
@@ -434,9 +440,15 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       ...brandProductPhotoEditTypes, ...peopleTeamsPhotoEditTypes, ...behindScenesPhotoEditTypes
     ];
 
-    return keys.map(key => {
+    const counts = keys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(counts).map(([key, count]) => {
       const match = allPhotoOptions.find(opt => opt.key === key);
-      return match ? match.value : key;
+      const label = match ? match.value : key;
+      return count > 1 ? `${label} x${count}` : label;
     });
   };
 
