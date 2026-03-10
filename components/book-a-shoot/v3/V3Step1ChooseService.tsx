@@ -1021,7 +1021,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         <button
                           onClick={() => {
                             setSameTimingsMulti(true);
-                            // scrollToRef(navigationRef);
+                            // scrollToRef(navigationRef); //update with correct ref
                           }}
                           disabled={data.shootType === ""}
                           className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
@@ -1039,7 +1039,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         <button
                           onClick={() => {
                             setSameTimingsMulti(false);
-                            // scrollToRef(navigationRef);  
+                            // scrollToRef(navigationRef);  //update with correct ref
                           }}
                           disabled={data.shootType === ""}
                           className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
@@ -1148,7 +1148,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
           {/* Edits Needed */}
           <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            {/* <h3 className="text-lg lg:text-[28px] font-medium text-white/90 mb-3 lg:mb-6"> */}
             <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
               }`}>
               Edits Needed?
