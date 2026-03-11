@@ -431,6 +431,40 @@ export const affiliateApi = {
       };
     }
   },
+
+  // Submit project form (affiliate dashboard)
+  submitProjectForm: async (token: string, payload: any) => {
+    try {
+      const response = await api.post('client/submit-project-form', payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Submit Project Form Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.message || 'Failed to submit project form',
+      };
+    }
+  },
+
+  // Get project form submission (pending forms)
+  getProjectFormSubmission: async (token: string) => {
+    try {
+      const response = await api.get('client/get-project-form-submission', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Project Form Submission Error:', error.response?.data || error.message);
+      return {
+        error: true,
+        message: 'Failed to fetch pending project forms',
+        projects: []
+      };
+    }
+  },
 };
 
 
@@ -1188,6 +1222,19 @@ export const adminApi = {
       };
     }
   },
+  removeProjectCrew: async (payload: { project_id: number; crew_member_id: number }) => {
+    try {
+      const response = await api.post('admin/remove-project-crew', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Remove Project Crew Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to remove assigned creative partner',
+      };
+    }
+  },
   getDashboardChartData: async (params: { range?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/dashboard-chart-data', { params });
@@ -1285,6 +1332,24 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch client shoots',
+      };
+    }
+  },
+  getProjectForm: async (id: string | number) => {
+    try {
+      const response = await api.get(`admin/get-project-form/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Project Form Error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        id
+      });
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || error.message || 'Failed to fetch project form details',
       };
     }
   },
