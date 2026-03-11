@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight, X, MapPinHouse } from "lucide-react";
 import { toast } from "sonner";
-import { set, format } from "date-fns";
+import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import DottedDivider from "@/components/admin/DottedDivider";
@@ -41,6 +42,7 @@ import {
   peopleTeamsPhotoEditTypes,
   behindScenesPhotoEditTypes,
 } from "@/app/data/shootData";
+
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
@@ -50,6 +52,7 @@ import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
 import { adminApi } from "@/lib/api"; // Added for fetching client profile
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
+import { getFormattedDateString } from "@/lib/utils";
 
 const INITIAL_COUNT = 6;
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
@@ -73,7 +76,16 @@ export default function ClientDetailPage() {
   const extraTeamRef = useRef<HTMLDivElement>(null);
   const locationRef = useRef<HTMLDivElement>(null);
   const crewRef = useRef<HTMLDivElement>(null);
+  const bookingTypeRef = useRef<HTMLDivElement>(null);
+  const reelRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
+  // MultiSelect references
+  const isDraggingReel = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartScrollLeft = useRef(0);
+
+  // --- STATE ---
   const [formData, setFormData] = useState<BookingDataV3 & { selectedCrewIds: number[] }>({
     ...initialDataV3,
     selectedCrewIds: []
@@ -95,6 +107,14 @@ export default function ClientDetailPage() {
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
   const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0 });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+
+  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
+  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(formData.bookingType || "multi_day");
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
+  const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
+  const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
 
   // const { data: leadData } = useGetLeadByIdQuery(parseInt(leadId), { skip: !leadId });
 
@@ -468,6 +488,74 @@ export default function ClientDetailPage() {
     return format(date, "HH:mm");
   };
 
+  const getTimeLabel = (key: string) => {
+    if (!key) return "";
+    const match = timeOptions.find((opt) => opt.key === key);
+    return match ? match.value : key;
+  };
+
+  const calculateDurationHours = (startKey: string, endKey: string) => {
+    if (!startKey || !endKey) return null;
+    const [sh, sm] = startKey.split(":").map(Number);
+    const [eh, em] = endKey.split(":").map(Number);
+    if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return null;
+    const startMinutes = sh * 60 + sm;
+    const endMinutes = eh * 60 + em;
+    const diff = endMinutes - startMinutes;
+    if (diff <= 0) return null;
+    return Math.round((diff / 60) * 100) / 100;
+  };
+
+  const getDateKey = (date: Date) => format(date, "yyyy-MM-dd");
+
+  const handleMultiDayStartTimeChange = (dateKey: string, timeKey: string) => {
+    setMultiDayTimes((prev) => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], startKey: timeKey }
+    }));
+  };
+
+  const handleMultiDayEndTimeChange = (dateKey: string, timeKey: string) => {
+    setMultiDayTimes((prev) => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], endKey: timeKey }
+    }));
+  };
+
+  const toggleDateSelection = (date: Date) => {
+    setSelectedDates((prev) => {
+      const exists = prev.some((d) => isSameDay(d, date));
+      if (exists) {
+        return prev.filter((d) => !isSameDay(d, date));
+      }
+      return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
+    });
+    if (bookingType === "multi_day") {
+      setSelectedShootDate(date);
+    }
+    if (reelRef.current) {
+      reelRef.current.scrollLeft = 0;
+    }
+  };
+
+  const reelDays = React.useMemo(() => {
+    const now = new Date();
+    const monthStart = startOfMonth(currentCalendarMonth);
+    const monthEnd = endOfMonth(currentCalendarMonth);
+    const start =
+      isSameMonth(currentCalendarMonth, now) && now > monthStart
+        ? startOfDay(now)
+        : monthStart;
+    if (start > monthEnd) return [];
+    return eachDayOfInterval({ start, end: monthEnd });
+  }, [currentCalendarMonth]);
+
+  const calendarDays = React.useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentCalendarMonth));
+    const end = endOfWeek(endOfMonth(currentCalendarMonth));
+    return eachDayOfInterval({ start, end });
+  }, [currentCalendarMonth]);
+
   const filteredEndTimeOptions = useMemo(() => {
     if (!formData.startDate) return timeOptions;
     const startTimeKey = getStartTimeKey();
@@ -506,10 +594,6 @@ export default function ClientDetailPage() {
   const executeFinalizeDeal = async () => {
     setIsSubmitting(true);
     try {
-      const startDate = parseDate(formData.startDate);
-      const endDate = parseDate(formData.endDate);
-      const durationHours = startDate && endDate ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)) : 0;
-
       const crewRoles: Record<string, number> = {};
       if (formData.contentType.includes("videographer")) {
         crewRoles["videographer"] = 1 + (extraTeam["videographer"] || 0);
@@ -520,13 +604,24 @@ export default function ClientDetailPage() {
 
       const crewSize = Object.values(crewRoles).reduce((a, b) => a + b, 0);
 
-      const payload = {
+      const booking_days = bookingType === "multi_day" ? selectedDates.map(date => {
+        const dateKey = getDateKey(date);
+        const timings = sameTimingsMulti
+          ? { startKey: getStartTimeKey(), endKey: getEndTimeKey() }
+          : multiDayTimes[dateKey];
+
+        return {
+          date: dateKey,
+          start_time: timings?.startKey ? `${timings.startKey}:00` : "09:00:00",
+          end_time: timings?.endKey ? `${timings.endKey}:00` : "17:00:00"
+        };
+      }) : [];
+
+      const payload: any = {
+        booking_type: bookingType,
         user_id: leadId,
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
-        start_date_time: formData.startDate,
-        end_time: formData.endDate,
-        duration_hours: durationHours,
         location: formData.location,
         crew_roles: crewRoles,
         crew_size: crewSize,
@@ -538,6 +633,18 @@ export default function ClientDetailPage() {
         skip_discount: true,
         skip_margin: true
       };
+
+      if (bookingType === "single_day") {
+        const startDate = parseDate(formData.startDate);
+        const endDate = parseDate(formData.endDate);
+        const durationHours = startDate && endDate ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)) : 0;
+
+        payload.start_date_time = formData.startDate; // "yyyy-MM-dd'T'HH:mm:ss"
+        payload.end_time = endDate ? format(endDate, "HH:mm:ss") : "";
+        payload.duration_hours = durationHours;
+      } else {
+        payload.booking_days = booking_days;
+      }
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
         method: "POST",
@@ -661,6 +768,14 @@ export default function ClientDetailPage() {
               disabled={true}
             />
             <ContentTypeCheckbox
+              label="Studios"
+              subLabel="Coming Soon"
+              icon={<MapPinHouse size={20} />}
+              checked={false}
+              onChange={() => { }}
+              disabled={true}
+            />
+            <ContentTypeCheckbox
               label="Livestream"
               subLabel="Coming Soon"
               icon={<Radio size={20} />}
@@ -681,7 +796,7 @@ export default function ClientDetailPage() {
             label="Shoot Type"
             value={formData.shootType}
             options={availableShootTypes.map(s => ({ value: s.key, label: s.title }))}
-            onChange={(val) => { updateData({ shootType: val }); scrollToRef(dateTimeRef); }}
+            onChange={(val) => { updateData({ shootType: val }); scrollToRef(bookingTypeRef); }}
             placeholder="Select the type of shoot"
             labelBg="bg-[#101010]"
             required
@@ -689,48 +804,364 @@ export default function ClientDetailPage() {
         </div>
         {/* <DottedDivider /> */}
 
+        {/* Booking Type */}
+        <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors text-white/90`}>
+            Select Booking Type
+          </h3>
+          <div className="flex gap-4">
+            <button
+              onClick={() => {
+                setBookingType("single_day");
+                setSelectedDates([]);
+                setSameTimingsMulti(true);
+                setMultiDayTimes({});
+                updateData({ bookingType: "single_day", bookingDays: [] });
+                scrollToRef(dateTimeRef);
+              }}
+              disabled={formData.shootType === ""}
+              className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+            >
+              <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
+              <div
+                className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "single_day" ? "bg-black" : "border border-[#E5E5E5]"
+                  }`}
+              >
+                {bookingType === "single_day" && (
+                  <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                )}
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                setBookingType("multi_day");
+                updateData({ bookingType: "multi_day" });
+                scrollToRef(dateTimeRef);
+              }}
+              disabled={formData.shootType === ""}
+              className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+            >
+              <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
+              <div
+                className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "multi_day" ? "bg-black" : "border border-[#E5E5E5]"
+                  }`}
+              >
+                {bookingType === "multi_day" && (
+                  <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                )}
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Date & Time */}
         <div ref={dateTimeRef} className="my-4 lg:my-9">
-          <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">
-            Shoot Date & Time
-          </h3>
-          <div className="flex flex-col lg:flex-row gap-6">
-            <div className="flex-1">
-              <DatePicker
-                label="Select Date"
-                value={selectedShootDate}
-                onChange={handleDateChange}
-                minDate={new Date()}
-                colors={datePickerColours}
-                format="MM/dd/yyyy"
-                sx={{ height: { xs: "56px", md: "82px" }, borderRadius: "16px" }}
-              />
-            </div>
-            <div className="flex-1">
-              <DropdownSelect
-                title="Start Time"
-                options={filteredStartTimeOptions}
-                value={getStartTimeKey()}
-                onChange={handleStartTimeChange}
-                bgColour="bg-[#101010]"
-              />
-            </div>
-            <div className="flex-1">
-              <DropdownSelect
-                title="End Time"
-                options={filteredEndTimeOptions}
-                value={getEndTimeKey()}
-                onChange={handleEndTimeChange}
-                bgColour="bg-[#101010]"
-              />
-            </div>
-          </div>
+          {bookingType === "single_day" ? (
+            <>
+              <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">
+                Shoot Date & Time
+              </h3>
+              <div className="flex flex-col lg:flex-row gap-6">
+                <div className="flex-1">
+                  <DatePicker
+                    label="Select Date"
+                    value={selectedShootDate}
+                    onChange={handleDateChange}
+                    minDate={new Date()}
+                    colors={datePickerColours}
+                    format="MM/dd/yyyy"
+                    sx={{ height: { xs: "56px", md: "82px" }, borderRadius: "16px" }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <DropdownSelect
+                    title="Start Time"
+                    options={filteredStartTimeOptions}
+                    value={getStartTimeKey()}
+                    onChange={handleStartTimeChange}
+                    bgColour="bg-[#101010]"
+                  />
+                </div>
+                <div className="flex-1">
+                  <DropdownSelect
+                    title="End Time"
+                    options={filteredEndTimeOptions}
+                    value={getEndTimeKey()}
+                    onChange={handleEndTimeChange}
+                    bgColour="bg-[#101010]"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="relative mb-8 lg:mb-15">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors $text-white/90`}>
+                    Select Date
+                  </h3>
+                  <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
+                    <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                    <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
+                  </button>
+                </div>
+
+                {/* Horizontal Scroll Reel */}
+                <div
+                  ref={reelRef}
+                  onWheel={(e) => {
+                    if (!reelRef.current) return;
+                    e.preventDefault();
+                    reelRef.current.scrollLeft += e.deltaY;
+                  }}
+                  onPointerDown={(e) => {
+                    if (!reelRef.current) return;
+                    if ((e.target as HTMLElement).closest("button")) return;
+                    isDraggingReel.current = true;
+                    dragStartX.current = e.clientX;
+                    dragStartScrollLeft.current = reelRef.current.scrollLeft;
+                    reelRef.current.setPointerCapture?.(e.pointerId);
+                  }}
+                  onPointerMove={(e) => {
+                    if (!reelRef.current || !isDraggingReel.current) return;
+                    const dx = e.clientX - dragStartX.current;
+                    reelRef.current.scrollLeft = dragStartScrollLeft.current - dx;
+                  }}
+                  onPointerUp={(e) => {
+                    isDraggingReel.current = false;
+                    reelRef.current?.releasePointerCapture?.(e.pointerId);
+                  }}
+                  onPointerLeave={() => {
+                    isDraggingReel.current = false;
+                  }}
+                  className="flex gap-3 overflow-x-auto pb-4 no-scrollbar cursor-grab active:cursor-grabbing select-none"
+                >
+                  {reelDays.map((date) => {
+                    const isSelected = selectedDates.some(d => isSameDay(d, date));
+                    return (
+                      <button
+                        key={date.toISOString()}
+                        onClick={() => toggleDateSelection(date)}
+                        className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
+                      >
+                        <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
+                        <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                    <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
+                  </div>
+                  <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                    <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
+                  </div>
+                </div>
+
+                {/* Calendar Popover */}
+                <AnimatePresence>
+                  {isCalendarOpen && (
+                    <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
+                      <div className="flex justify-between items-center mb-6">
+                        <button onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
+                          <ChevronLeft size={20} />
+                        </button>
+                        <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
+                            <ChevronRight size={20} />
+                          </button>
+                          <button
+                            onClick={() => setIsCalendarOpen(false)}
+                            className="rounded-full p-1 hover:bg-white/10 transition-colors"
+                            aria-label="Close calendar"
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
+                      </div>
+                      <div className="grid grid-cols-7 gap-1">
+                        {calendarDays.map((date) => {
+                          const isSelected = selectedDates.some(d => isSameDay(d, date));
+                          return (
+                            <button
+                              key={date.toISOString()}
+                              onClick={() => {
+                                toggleDateSelection(date);
+                              }}
+                              className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
+                            >
+                              {format(date, "d")}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              {/* timings selector will go here */}
+
+              {selectedDates.length > 0 && (
+                <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
+                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors text-white/90`}>Are timings same for all selected dates?</h3>
+
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => {
+                        setSameTimingsMulti(true);
+                        setMultiDayTimes({});
+                        // scrollToRef(navigationRef); //update with correct ref
+                      }}
+                      disabled={formData.shootType === ""}
+                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                    >
+                      <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                      <div
+                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                          }`}
+                      >
+                        {sameTimingsMulti && (
+                          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                        )}
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSameTimingsMulti(false);
+                        const startKey = getStartTimeKey();
+                        const endKey = getEndTimeKey();
+                        const nextTimes: Record<string, { startKey?: string; endKey?: string }> = {};
+                        selectedDates.forEach((d) => {
+                          const key = getDateKey(d);
+                          nextTimes[key] = { startKey, endKey };
+                        });
+                        setMultiDayTimes(nextTimes);
+                        // scrollToRef(navigationRef);  //update with correct ref
+                      }}
+                      disabled={formData.shootType === ""}
+                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                    >
+                      <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                      <div
+                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                          }`}
+                      >
+                        {!sameTimingsMulti && (
+                          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                        )}
+                      </div>
+                    </button>
+                  </div>
+
+                  {
+                    sameTimingsMulti ? (
+                      <div>
+                        <div className="flex flex-col lg:flex-row gap-6">
+                          <div className="flex-1">
+                            <DropdownSelect
+                              title="Start Time"
+                              options={filteredStartTimeOptions}
+                              value={getStartTimeKey()}
+                              onChange={handleStartTimeChange}
+                              bgColour="bg-[#101010]"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <DropdownSelect
+                              title="End Time"
+                              options={filteredEndTimeOptions}
+                              value={getEndTimeKey()}
+                              onChange={handleEndTimeChange}
+                              bgColour="bg-[#101010]"
+                            />
+                          </div>
+                        </div>
+                        <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
+                          <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
+                        </p>
+                        <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                          <p className="text-white font-medium lg:text-[20px]">
+                            {getFormattedDateString(selectedDates)}
+                          </p>
+                          <p className="text-white/60  font-medium lg:text-[20px]">
+                            {getStartTimeKey() && getEndTimeKey()
+                              ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
+                              : "Select time"}
+                          </p>
+                          <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
+                            {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
+                              ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
+                              : "Duration Hour/Day"}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {selectedDates.map((date) => {
+                          const dateKey = getDateKey(date);
+                          const isExpanded = expandedDateKey === dateKey;
+                          return (
+                            <div key={date.toISOString()} className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}>
+                              <button onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
+                                <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
+                                <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                              </button>
+                              <AnimatePresence>
+                                {isExpanded && (
+                                  <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                      <div className="flex-1">
+                                        <DropdownSelect
+                                          title="Start Time"
+                                          options={filteredStartTimeOptions}
+                                          value={multiDayTimes[dateKey]?.startKey || ""}
+                                          onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
+                                          bgColour="bg-[#101010]"
+                                        />
+                                      </div>
+                                      <div className="flex-1">
+                                        <DropdownSelect
+                                          title="End Time"
+                                          options={filteredEndTimeOptions}
+                                          value={multiDayTimes[dateKey]?.endKey || ""}
+                                          onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
+                                          bgColour="bg-[#101010]"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                      <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                        Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
+                                          ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
+                                          : "Select time"}
+                                      </p>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )
+                  }
+                </div>
+              )}
+            </>
+          )}
         </div>
         {/* <DottedDivider /> */}
 
         {/* Edits Needed */}
         <div ref={editsRef} className="my-4 lg:my-9">
-          <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors text-white/90`}>
             Edits Needed?
           </h3>
           <div className="flex gap-4">

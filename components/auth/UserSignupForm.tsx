@@ -221,6 +221,30 @@ export function UserSignupForm() {
         >
           {isRegisterLoading ? "Creating Account..." : "Create Account"}
         </Button>
+
+        <div className="flex items-center justify-center mt-6 text-[#DDD] font-bold gap-2 text-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="221" height="1" viewBox="0 0 221 1" fill="none">
+            <path d="M0 0.25C9.89091 0.25 151.455 0.25 221 0.25" stroke="url(#paint0_linear_1780_5629)" strokeWidth="0.5" />
+            <defs>
+              <linearGradient id="paint0_linear_1780_5629" x1="0" y1="0.75" x2="221" y2="0.75" gradientUnits="userSpaceOnUse">
+                <stop stopColor="white" stopOpacity="0" />
+                <stop offset="1" stopColor="white" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="shrink-0 gap-1 flex">
+            Already have an account? <Link className="font-normal" href="/login">Login</Link>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="221" height="1" viewBox="0 0 221 1" fill="none">
+            <path d="M221 0.25C211.109 0.25 69.5455 0.25 6.19888e-06 0.25" stroke="url(#paint0_linear_1780_5630)" strokeWidth="0.5" />
+            <defs>
+              <linearGradient id="paint0_linear_1780_5630" x1="221" y1="0.75" x2="0" y2="0.75" gradientUnits="userSpaceOnUse">
+                <stop stopColor="white" stopOpacity="0" />
+                <stop offset="1" stopColor="white" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
       </form>
 
       {/* <div className="text-center pt-4">

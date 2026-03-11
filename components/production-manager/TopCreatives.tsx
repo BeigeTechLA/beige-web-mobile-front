@@ -54,9 +54,14 @@ export const TopCreatives = () => {
             earnings: partner.total_earnings
               ? `$${parseFloat(partner.total_earnings).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               : "$0.00",
-            image: partner.avatar
-              ? `${S3_PREFIX}${partner.avatar}`
-              : "/images/placeholder-user.png",
+            image: (() => {
+              if (partner.avatar) return `${S3_PREFIX}${partner.avatar}`;
+              if (partner.crew_member_files?.length > 0) {
+                const photo = partner.crew_member_files.find((f: any) => f.file_type === "profile_photo" || f.file_type === "headshot");
+                if (photo) return photo.file_url || `${S3_PREFIX}${photo.file_path}`;
+              }
+              return "/images/placeholder-user.png";
+            })(),
             bgColor: index % 3 === 0 ? "bg-blue-200" : index % 3 === 1 ? "bg-green-200" : "bg-orange-100",
           }));
 
