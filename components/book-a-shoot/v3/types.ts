@@ -1,5 +1,13 @@
 export type BookingDataV3 = {
    bookingId?: number; 
+  bookingType?: 'single_day' | 'multi_day';
+  bookingDays?: {
+    date: string;
+    startTime?: string;
+    endTime?: string;
+    durationHours?: number;
+    timeZone?: string;
+  }[];
   // Service & Content
   contentType: ("videographer" | "photographer" | "cinematographer" | "editing")[];
   shootType: string;
@@ -45,6 +53,8 @@ export type BookingDataV3 = {
 export const initialDataV3: BookingDataV3 = {
   contentType: [],
   shootType: "",
+  bookingType: "single_day",
+  bookingDays: [],
   startDate: "",
   endDate: "",
   editsNeeded: true,

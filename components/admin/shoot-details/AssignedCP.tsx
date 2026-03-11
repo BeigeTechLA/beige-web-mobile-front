@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -8,14 +8,52 @@ import { EffectCards } from "swiper/modules";
 
 import "swiper/css";
 import "swiper/css/effect-cards";
-import { Plus } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { adminApi } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { projectId: string; leadId?: string | number, assignedCrew?: any[] }) {
     const router = useRouter()
     const [activeIndex, setActiveIndex] = useState(0);
+    const [crewMembers, setCrewMembers] = useState<any[]>(assignedCrew);
+    const [removingCrewId, setRemovingCrewId] = useState<number | null>(null);
 
-    const hasCPs = assignedCrew.length > 0;
+    useEffect(() => {
+        setCrewMembers(assignedCrew);
+    }, [assignedCrew]);
+
+    const hasCPs = crewMembers.length > 0;
+
+    const handleRemoveCP = async (crewMemberId: number) => {
+        try {
+            setRemovingCrewId(crewMemberId);
+            const response = await adminApi.removeProjectCrew({
+                project_id: Number(projectId),
+                crew_member_id: crewMemberId,
+            });
+
+            if (response?.success === false && response?.error) {
+                toast.error(response.error);
+                return;
+            }
+
+            setCrewMembers((prev) => {
+                const updated = prev.filter((member) => Number(member.crew_member_id) !== Number(crewMemberId));
+                setActiveIndex((current) => {
+                    if (updated.length === 0) return 0;
+                    return Math.min(current, updated.length - 1);
+                });
+                return updated;
+            });
+            toast.success("Assigned CP removed successfully");
+        } catch (error) {
+            console.error("Failed to remove assigned CP:", error);
+            toast.error("Failed to remove assigned CP");
+        } finally {
+            setRemovingCrewId(null);
+        }
+    };
 
     // Use a placeholder if there is no image
     const getProfileImage = (member: any) => {
@@ -58,10 +96,26 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
                                 }}
                                 onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
                             >
-                                {assignedCrew.map((member, index) => {
+                                {crewMembers.map((member, index) => {
                                     const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
                                     return (
-                                        <SwiperSlide key={member.id || index} className={`rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
+                                        <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRemoveCP(Number(member.crew_member_id || member.id));
+                                                }}
+                                                disabled={removingCrewId === Number(member.crew_member_id || member.id)}
+                                                className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
+                                                aria-label="Remove CP"
+                                            >
+                                                {removingCrewId === Number(member.crew_member_id || member.id) ? (
+                                                    <Loader2 size={16} className="animate-spin" />
+                                                ) : (
+                                                    <X size={18} />
+                                                )}
+                                            </button>
                                             <Image
                                                 src={getProfileImage(member)}
                                                 alt={`${member.crew_member?.first_name} ${member.crew_member?.last_name}`}
@@ -77,10 +131,10 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
                         {/* Text Info - Added to match ProjectTeam symmetry */}
                         <div className="mt-auto lg:mb-4 text-center z-10 relative">
                             <h4 className="text-white lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300">
-                                {assignedCrew[activeIndex]?.crew_member ? `${assignedCrew[activeIndex].crew_member.first_name} ${assignedCrew[activeIndex].crew_member.last_name}` : "Unknown"}
+                                {crewMembers[activeIndex]?.crew_member ? `${crewMembers[activeIndex].crew_member.first_name} ${crewMembers[activeIndex].crew_member.last_name}` : "Unknown"}
                             </h4>
                             <p className="text-[#888888] text-sm lg:text-base font-medium leading-none mt-1 lg:mt-2 transition-all duration-300">
-                                {assignedCrew[activeIndex]?.crew_member?.role_name || "Creative Partner"}
+                                {crewMembers[activeIndex]?.crew_member?.role_name || "Creative Partner"}
                             </p>
                         </div>
 

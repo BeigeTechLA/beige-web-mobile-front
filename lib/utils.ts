@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import imageCompression from "browser-image-compression";
 import { PDFDocument } from 'pdf-lib';
+import { format } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -166,4 +167,21 @@ export const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return mins > 0 ? `${mins}:${secs.toString().padStart(2, "0")} minute(s)` : `${secs} second(s)`;
+};
+
+export const getFormattedDateString = (dates: Date[]) => {
+  if (!dates.length) return "None";
+
+  const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime());
+  const days = sorted.map((d) => format(d, "d"));
+  const monthYear = format(sorted[0], "MMMM, yyyy");
+
+  if (days.length === 1) {
+    return `${days[0]} ${monthYear}`;
+  }
+
+  const lastDay = days.pop();
+  const dayString = days.join(", ") + " & " + lastDay;
+
+  return `${dayString} ${monthYear}`;
 };
