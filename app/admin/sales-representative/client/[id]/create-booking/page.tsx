@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight, X, MapPinHouse } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
@@ -759,6 +759,14 @@ export default function ClientDetailPage() {
               label="AI Editing"
               subLabel="Coming Soon"
               icon={<Scissors size={20} />}
+              checked={false}
+              onChange={() => { }}
+              disabled={true}
+            />
+            <ContentTypeCheckbox
+              label="Studios"
+              subLabel="Coming Soon"
+              icon={<MapPinHouse size={20} />}
               checked={false}
               onChange={() => { }}
               disabled={true}
