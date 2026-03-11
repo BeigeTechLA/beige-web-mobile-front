@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, MapPinHouse, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { set, format } from "date-fns";
 
@@ -656,6 +656,14 @@ export default function ClientDetailPage() {
               label="AI Editing"
               subLabel="Coming Soon"
               icon={<Scissors size={20} />}
+              checked={false}
+              onChange={() => { }}
+              disabled={true}
+            />
+            <ContentTypeCheckbox
+              label="Studios"
+              subLabel="Coming Soon"
+              icon={<MapPinHouse size={20} />}
               checked={false}
               onChange={() => { }}
               disabled={true}
