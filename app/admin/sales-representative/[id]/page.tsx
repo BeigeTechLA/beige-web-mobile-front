@@ -526,16 +526,16 @@ export default function LeadDetailPage() {
                                   <p className={`${isDark ? "text-[#8E8E8E]" : "text-[#666666]"} text-sm mt-0.5`}>{cp.role}</p>
                                 </div>
 
-                                <div className={`px-5 py-2 rounded-xl text-xs font-bold capitalize
+                                <div className={`px-5 py-2 rounded-lg text-xs font-bold capitalize
                                   ${cp.status === 'accepted' ? 'bg-[#12B76A] text-white' :
                                     cp.status === 'rejected' ? 'bg-[#D92D20] text-white' :
-                                      'bg-[#9D6E2A] text-white'}`}
+                                      'bg-[#E8D1AB] text-black'}`}
                                 >
                                   {cp.status}
                                 </div>
                               </div>
                               <hr className={`mb-4 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
-                              <div className="flex items-center gap-2 text-[#E8D1AB] text-[11px] font-medium">
+                              <div className={`flex items-center gap-2 ${isDark ? "text-white" : "text-black/80"} text-[11px] font-medium`}>
                                 <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
                                 <span className="capitalize">{cp.status}</span>
                                 <span className="mx-0.5">—</span>
