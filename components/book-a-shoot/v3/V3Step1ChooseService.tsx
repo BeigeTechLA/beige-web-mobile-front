@@ -7,7 +7,7 @@ import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -912,6 +912,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             label="AI Editing"
             subLabel="Coming Soon"
             icon={<Scissors size={20} />}
+            checked={false}
+            onChange={() => { }}
+            disabled={true}
+          />
+          <ContentTypeCheckbox
+            label="Studios"
+            subLabel="Coming Soon"
+            icon={<MapPinHouse size={20} />}
             checked={false}
             onChange={() => { }}
             disabled={true}
