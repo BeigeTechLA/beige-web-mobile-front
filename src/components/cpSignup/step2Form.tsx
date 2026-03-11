@@ -284,21 +284,39 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
             type="button"
             onClick={handleSubmit}
             disabled={isLoading}
-            className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] bg-[#E8D1AB] hover:bg-[#DCD1BE] transition-all disabled:opacity-50"
+            className={`px-4 lg:px-10 h-14 lg:h-[76px] flex-1 flex items-center justify-center rounded-[12px] bg-[#E8D1AB] hover:bg-[#DCD1BE] transition-all disabled:opacity-50`}
           >
             {isLoading ? (
               <Loader2 className="animate-spin w-6 h-6 text-black" />
             ) : (
-              <ArrowRight className="w-6 h-6 text-black" />
+              // <ArrowRight className="w-6 h-6 text-black" />
+              <span className="lg:text-[20px] font-medium text-black">Next</span>
             )}
           </button>
         </div>
 
-        <div className="flex items-center justify-center gap-2 text-sm text-white/40 pt-4">
-          <div className="h-[1px] flex-grow bg-white/10"></div>
-          <span>Already have an account?</span>
-          <Link href="/login" className="text-[#E8D1AB] hover:underline">Log in</Link>
-          <div className="h-[1px] flex-grow bg-white/10"></div>
+        <div className="flex items-center justify-center mt-4 text-[#DDD] font-bold gap-2 text-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="221" height="1" viewBox="0 0 221 1" fill="none">
+            <path d="M0 0.25C9.89091 0.25 151.455 0.25 221 0.25" stroke="url(#paint0_linear_1780_5629)" strokeWidth="0.5" />
+            <defs>
+              <linearGradient id="paint0_linear_1780_5629" x1="0" y1="0.75" x2="221" y2="0.75" gradientUnits="userSpaceOnUse">
+                <stop stopColor="white" stopOpacity="0" />
+                <stop offset="1" stopColor="white" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="shrink-0 gap-1 flex">
+            <span>Already have an account?</span> <Link className="font-normal" href="/login">Log in</Link>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="221" height="1" viewBox="0 0 221 1" fill="none">
+            <path d="M221 0.25C211.109 0.25 69.5455 0.25 6.19888e-06 0.25" stroke="url(#paint0_linear_1780_5630)" strokeWidth="0.5" />
+            <defs>
+              <linearGradient id="paint0_linear_1780_5630" x1="221" y1="0.75" x2="0" y2="0.75" gradientUnits="userSpaceOnUse">
+                <stop stopColor="white" stopOpacity="0" />
+                <stop offset="1" stopColor="white" />
+              </linearGradient>
+            </defs>
+          </svg>
         </div>
       </form>
     </div>

@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "./StatusBadge";
+import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
@@ -81,6 +82,11 @@ export const OverallShootsTable = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const itemsPerPage = 5;
+
+  // Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [shootToDelete, setShootToDelete] = useState<string | null>(null);
 
   // New filtering states
   const [range, setRange] = useState<string>("all");
@@ -152,33 +158,42 @@ export const OverallShootsTable = () => {
     setExpandedId(expandedId === id ? null : id);
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const cleanId = id.replace('#', '');
-    if (window.confirm("Are you sure you want to delete this shoot?")) {
-      try {
-        const response = await adminApi.deleteProject(cleanId);
-        if (response?.success || response?.message === "Project deleted successfully") {
-          setShoots(prev => prev.filter(shoot => shoot.id !== id));
-          toast.success("Shoot deleted successfully");
-        } else {
-          toast.error(response?.error || "Failed to delete shoot");
-        }
-      } catch (error) {
-        console.error("Delete failed", error);
-        toast.error("An error occurred while deleting");
+    setShootToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!shootToDelete) return;
+
+    const cleanId = shootToDelete.replace('#', '');
+    setIsDeleting(true);
+
+    try {
+      const response = await adminApi.deleteProject(cleanId);
+      if (response?.success || response?.message === "Project deleted successfully") {
+        setShoots(prev => prev.filter(shoot => shoot.id !== shootToDelete));
+        toast.success("Shoot deleted successfully");
+      } else {
+        toast.error(response?.error || "Failed to delete shoot");
       }
+    } catch (error) {
+      console.error("Delete failed", error);
+      toast.error("An error occurred while deleting");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+      setShootToDelete(null);
     }
   };
 
   return (
-    <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col ${
-      isDark ? "bg-[#171717] border-white/5" : "bg-[#FFF] border-[#E3E3E3]"
-    }`}>
-      {/* Header Controls */}
-      <div className={`flex flex-row justify-between items-center p-5 border-b transition-colors duration-300 gap-4 ${
-        isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"
+    <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-[#FFF] border-[#E3E3E3]"
       }`}>
+      {/* Header Controls */}
+      <div className={`flex flex-row justify-between items-center p-5 border-b transition-colors duration-300 gap-4 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"
+        }`}>
         <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h3 className={isDark ? "text-white" : "text-[#323232]"}>Overall Shoots</h3>
@@ -186,9 +201,8 @@ export const OverallShootsTable = () => {
 
         <div className="flex gap-3">
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${
-              isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"
-            }`}>
+            <SelectTrigger className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"
+              }`}>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
@@ -205,9 +219,8 @@ export const OverallShootsTable = () => {
           </Select>
 
           <Select value={range} onValueChange={setRange}>
-            <SelectTrigger className={`flex-1 sm:w-[110px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${
-              isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"
-            }`}>
+            <SelectTrigger className={`flex-1 sm:w-[110px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"
+              }`}>
               <SelectValue placeholder="Range" />
             </SelectTrigger>
             <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
@@ -227,9 +240,8 @@ export const OverallShootsTable = () => {
           <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#E8D1AB]" /></div>
         ) : currentShoots.length > 0 ? (
           <>
-            <div className={`flex justify-between text-sm font-medium p-4 mb-4 rounded-b-2xl border-b ${
-              isDark ? "text-[#E8D1AB] bg-[#101010] border-b-white/5" : "text-[#BFA780] bg-[#FFFCF6] border-b-[#E3E3E3]"
-            }`}>
+            <div className={`flex justify-between text-sm font-medium p-4 mb-4 rounded-b-2xl border-b ${isDark ? "text-[#E8D1AB] bg-[#101010] border-b-white/5" : "text-[#BFA780] bg-[#FFFCF6] border-b-[#E3E3E3]"
+              }`}>
               <span>Project Name</span>
               <span>Status</span>
             </div>
@@ -266,7 +278,7 @@ export const OverallShootsTable = () => {
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
                       <div className="flex justify-end gap-2 mt-1">
                         <button
-                          onClick={(e) => handleDelete(e, shoot.id)}
+                          onClick={(e) => handleDeleteClick(e, shoot.id)}
                           className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
                         >
                           <Trash2 size={16} />
@@ -327,7 +339,10 @@ export const OverallShootsTable = () => {
                   <td className="py-2 px-4"><StatusBadge status={shoot.status} /></td>
                   <td className="py-2 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={(e) => handleDelete(e, shoot.id)} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}>
+                      <button
+                        onClick={(e) => handleDeleteClick(e, shoot.id)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/40" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
+                      >
                         <Trash2 size={18} />
                       </button>
                       <button className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}>
@@ -350,9 +365,8 @@ export const OverallShootsTable = () => {
 
       {/* Pagination Controls */}
       {!loading && shoots.length > 0 && (
-        <div className={`flex justify-between items-center p-4 border-t transition-colors duration-300 ${
-          isDark ? "bg-[#101010] border-white/5" : "bg-white border-[#E3E3E3]"
-        }`}>
+        <div className={`flex justify-between items-center p-4 border-t transition-colors duration-300 ${isDark ? "bg-[#101010] border-white/5" : "bg-white border-[#E3E3E3]"
+          }`}>
           <div className={`hidden lg:block text-sm ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
             Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, shoots.length)} of {shoots.length} entries
           </div>
@@ -360,9 +374,8 @@ export const OverallShootsTable = () => {
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg border disabled:opacity-30 disabled:cursor-not-allowed transition-all ${
-                isDark ? "bg-[#1A1A1A] text-white/60 border-white/5 hover:bg-white/10" : "bg-white text-[#323232] border-[#E3E3E3] hover:bg-zinc-50"
-              }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border disabled:opacity-30 disabled:cursor-not-allowed transition-all ${isDark ? "bg-[#1A1A1A] text-white/60 border-white/5 hover:bg-white/10" : "bg-white text-[#323232] border-[#E3E3E3] hover:bg-zinc-50"
+                }`}
             >
               Previous
             </button>
@@ -390,7 +403,7 @@ export const OverallShootsTable = () => {
                       onClick={() => handlePageChange(page as number)}
                       className={`min-w-[32px] h-8 flex items-center justify-center text-xs font-medium rounded-lg transition-all border ${currentPage === page
                         ? "bg-[#E5D5B8] text-black border-[#E5D5B8]"
-                      : isDark ? "bg-transparent text-white/60 border-transparent hover:bg-white/5" : "bg-transparent text-[#323232] border-transparent hover:bg-black/5"
+                        : isDark ? "bg-transparent text-white/60 border-transparent hover:bg-white/5" : "bg-transparent text-[#323232] border-transparent hover:bg-black/5"
                         }`}
                     >
                       {page}
@@ -403,15 +416,22 @@ export const OverallShootsTable = () => {
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed transition-all${
-                isDark ? "bg-[#1A1A1A] text-white/60 border-white/5 hover:bg-white/10" : "bg-white text-[#323232] border-[#E3E3E3] hover:bg-zinc-50"
-              }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed transition-all${isDark ? "bg-[#1A1A1A] text-white/60 border-white/5 hover:bg-white/10" : "bg-white text-[#323232] border-[#E3E3E3] hover:bg-zinc-50"
+                }`}
             >
               Next
             </button>
           </div>
         </div>
       )}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Shoot"
+        description="Are you sure you want to delete this shoot? This action cannot be undone."
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

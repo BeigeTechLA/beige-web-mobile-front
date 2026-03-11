@@ -291,13 +291,27 @@ export const Navbar = () => {
     router.push("/");
   };
 
+  // const goToDashboard = () => {
+  //   setMobileOpen(false);
+  //   setShowProfileDropdown(false);
+  //   if (localUser?.user_type_id === 1) router.push("/admin/dashboard");
+  //   else if (localUser?.user_type_id === 2) router.push("/creator/dashboard/request");
+  //   else if (localUser?.user_type_id === 3) router.push("/affiliate/dashboard");
+  //   else if (localUser?.user_type_id === 4) router.push("/sales/dashboard");
+  // };
+
   const goToDashboard = () => {
     setMobileOpen(false);
     setShowProfileDropdown(false);
     if (localUser?.user_type_id === 1) router.push("/admin/dashboard");
-    else if (localUser?.user_type_id === 2) router.push("/creator/dashboard/request");
+    else if (localUser?.user_type_id === 2)
+      router.push("/creator/dashboard/request");
     else if (localUser?.user_type_id === 3) router.push("/affiliate/dashboard");
-    else if (localUser?.user_type_id === 4) router.push("/sales/dashboard");
+    else if (localUser?.user_type_id === 4)
+      router.push("/creator/dashboard/request");
+    else if (localUser?.user_type_id === 5) router.push("/sales/dashboard");
+    else if (localUser?.user_type_id === 6)
+      router.push("/production-manager/dashboard");
   };
 
   return (

@@ -558,24 +558,75 @@ export default function LeadDetailPage() {
               <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
 
               <div className="flex flex-col gap-3 lg:gap-5 px-4 lg:px-9">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
-                    <Calendar size={20} />
+                {booking?.is_multiple_day_shoot && (booking?.booking_days?.length ?? 0) > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-4 mb-1">
+                      <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
+                        <Calendar size={20} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#71717B] font-medium mb-1">Shoot Schedule</p>
+                        <p className="text-xs lg:text-base font-medium text-[#E8D1AB]">{booking.booking_days!.length} Day Shoot</p>
+                      </div>
+                    </div>
+                    <div className="ml-2 border-l-2 border-[#3D3D3D] pl-5 flex flex-col gap-3">
+                      {booking.booking_days!.map((day: any, idx: number) => {
+                        const dayDate = day.event_date
+                          ? new Date(day.event_date).toLocaleDateString("en-US", {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                          : "Not set";
+                        const dayStart = formatTime(day.start_time);
+                        const dayEnd = formatTime(day.end_time);
+                        const dayTime = dayStart && dayEnd ? `${dayStart} - ${dayEnd}` : "Not set";
+                        return (
+                          <div key={idx} className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-4 py-3 border border-white/5">
+                            <div className="w-8 h-8 rounded-lg bg-[#E8D1AB]/10 flex items-center justify-center text-[#E8D1AB] text-xs font-bold shrink-0">
+                              D{idx + 1}
+                            </div>
+                            <div className="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-4 min-w-0">
+                              <p className="text-xs lg:text-sm font-medium text-white truncate">{dayDate}</p>
+                              <div className="hidden lg:block w-[1px] h-4 bg-[#3D3D3D]" />
+                              <p className="text-xs text-[#8E8E8E] flex items-center gap-1.5">
+                                <Clock size={12} /> {dayTime}
+                              </p>
+                              {day.duration_hours && (
+                                <>
+                                  <div className="hidden lg:block w-[1px] h-4 bg-[#3D3D3D]" />
+                                  <p className="text-xs text-[#8E8E8E]">{parseFloat(day.duration_hours)}h</p>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-[#71717B] font-medium mb-1">Shoot Date</p>
-                    <p className="text-xs lg:text-base font-medium">{bookingDate}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
-                    <Clock size={20} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#71717B] font-medium mb-1">Shoot Time</p>
-                    <p className="text-xs lg:text-base font-medium">{shootTimeDisplay}</p>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
+                        <Calendar size={20} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#71717B] font-medium mb-1">Shoot Date</p>
+                        <p className="text-xs lg:text-base font-medium">{bookingDate}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
+                        <Clock size={20} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#71717B] font-medium mb-1">Shoot Time</p>
+                        <p className="text-xs lg:text-base font-medium">{shootTimeDisplay}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
                     <MapPinned size={20} />
@@ -739,6 +790,7 @@ export default function LeadDetailPage() {
               leadId={parseInt(leadId)}
               bookingId={lead?.booking_id}
               discountCodeId={generatedDiscountId}
+              bookingStatus={status}
               activeLink={lead?.active_payment_link}
             />
 

@@ -16,6 +16,7 @@ export interface SalesLead {
   user_id?: number;
   guest_email?: string;
   client_name?: string;
+  phone?: string;
   lead_type: LeadType;
   lead_status: LeadStatus;
   assigned_sales_rep_id?: number;
@@ -46,6 +47,7 @@ export interface SalesLead {
   can_edit_booking?: boolean;
   intent_source?: string;
   selected_crew_ids?: number[];
+  active_payment_link?: any;
   fulfillmentSummary?: Record<string, {
     required: number;
     pending: number;
@@ -95,6 +97,14 @@ export interface SalesLeadDetails extends SalesLead {
     status?: number;
     video_edit_types?: string[];
     photo_edit_types?: string[];
+    is_multiple_day_shoot?: boolean;
+    booking_days?: Array<{
+      event_date: string;
+      start_time: string;
+      end_time: string;
+      duration_hours: string;
+      time_zone?: string | null;
+    }>;
     assigned_crews?: Array<{
       crew_member_id: number;
       crew_accept: number;

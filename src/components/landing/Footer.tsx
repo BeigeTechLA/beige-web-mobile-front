@@ -208,11 +208,11 @@ export const Footer = () => {
                 </li>
                 <li>
                   <a
-                    href="mailto:info@beigecorporation.io"
+                    href="mailto:sales@beigecorporation.io"
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium flex items-center gap-2"
                   >
                     <Mail className="w-4 h-4 lg:w-6 lg:h-6 text-white" />{" "}
-                    info@beigecorporation.io
+                    sales@beigecorporation.io
                   </a>
                 </li>
               </ul>

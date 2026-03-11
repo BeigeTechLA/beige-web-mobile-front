@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'beigexmemehouse.s3.eu-north-1.amazonaws.com',
+        hostname: 'd2jhn32fsulyac.cloudfront.net',
         port: '',
         pathname: '/**',
       },
@@ -40,6 +40,11 @@ const nextConfig: NextConfig = {
         hostname: 'beige-web-prod.s3.us-east-1.amazonaws.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: "https",
+        hostname: "ui-avatars.com",
+        pathname: "/**",
       },
       {
         protocol: 'https',

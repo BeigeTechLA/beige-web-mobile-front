@@ -97,7 +97,7 @@ export const equipmentApi = {
 export const paymentApi = {
   createIntent: async (
     creatorId: string,
-    bookingData: BookingFormData & { guest_email?: string },
+    bookingData: BookingFormData & { guest_email?: string; user_id?: string | number; referral_code?: string },
     hourlyRate: number
   ): Promise<PaymentIntentResponse> => {
     const response = await api.post('/payments/create-intent', {
@@ -109,7 +109,9 @@ export const paymentApi = {
       location: bookingData.location,
       shoot_type: bookingData.shoot_type,
       notes: bookingData.special_requests || '',
+      user_id: bookingData.user_id,
       guest_email: bookingData.guest_email,
+      referral_code: bookingData.referral_code,
     });
     // API returns { success: true, data: { clientSecret, paymentIntentId, pricing } }
     return response.data.data;
@@ -117,11 +119,12 @@ export const paymentApi = {
 
   confirmBooking: async (
     paymentIntentId: string,
-    bookingData: BookingFormData & { creator_id: string; guest_email?: string; hourly_rate?: number; referral_code?: string }
+    bookingData: BookingFormData & { creator_id: string; guest_email?: string; user_id?: string | number; hourly_rate?: number; referral_code?: string }
   ): Promise<BookingResponse> => {
     const response = await api.post('/payments/confirm', {
       paymentIntentId: paymentIntentId,
       creator_id: bookingData.creator_id,
+      user_id: bookingData.user_id,
       hours: bookingData.hours,
       hourly_rate: bookingData.hourly_rate,
       equipment: [], // No equipment for now
@@ -425,6 +428,40 @@ export const affiliateApi = {
         success: false,
         data: null,
         error: 'Failed to assign post production member',
+      };
+    }
+  },
+
+  // Submit project form (affiliate dashboard)
+  submitProjectForm: async (token: string, payload: any) => {
+    try {
+      const response = await api.post('client/submit-project-form', payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Submit Project Form Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.message || 'Failed to submit project form',
+      };
+    }
+  },
+
+  // Get project form submission (pending forms)
+  getProjectFormSubmission: async (token: string) => {
+    try {
+      const response = await api.get('client/get-project-form-submission', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Project Form Submission Error:', error.response?.data || error.message);
+      return {
+        error: true,
+        message: 'Failed to fetch pending project forms',
+        projects: []
       };
     }
   },
@@ -825,6 +862,32 @@ export const adminApi = {
       };
     }
   },
+  getProjectFulfillmentStats: async (projectId: string | number) => {
+    try {
+      const response = await api.post(`admin/get-project-fullfillment-stats/${projectId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Project Fulfillment Stats Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch project fulfillment stats',
+      };
+    }
+  },
+  getCrewForShoot: async (params: { project_id: number | string, role_type: string, search_query: string, radius?: number }) => {
+    try {
+      const response = await api.get('admin/get-crew-for-shoot/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Get Crew For Shoot Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch crew for shoot',
+      };
+    }
+  },
   getMonthlyRevenue: async () => {
     try {
       const response = await api.get('admin/dashboard/revenue/monthly');
@@ -1159,6 +1222,19 @@ export const adminApi = {
       };
     }
   },
+  removeProjectCrew: async (payload: { project_id: number; crew_member_id: number }) => {
+    try {
+      const response = await api.post('admin/remove-project-crew', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Remove Project Crew Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to remove assigned creative partner',
+      };
+    }
+  },
   getDashboardChartData: async (params: { range?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/dashboard-chart-data', { params });
@@ -1256,6 +1332,24 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch client shoots',
+      };
+    }
+  },
+  getProjectForm: async (id: string | number) => {
+    try {
+      const response = await api.get(`admin/get-project-form/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Project Form Error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        id
+      });
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || error.message || 'Failed to fetch project form details',
       };
     }
   },
@@ -1365,7 +1459,7 @@ export const salesApi = {
       };
     }
   },
-getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string, radius?: number }) => {
+  getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string, radius?: number }) => {
     try {
       const response = await api.get('admin/get-crew-for-lead/', { params });
       return response.data;
@@ -1377,5 +1471,5 @@ getCrewForLead: async (params: { lead_id: number | string, role_type: string, se
         error: 'Failed to fetch crew for lead',
       };
     }
-},
+  },
 };

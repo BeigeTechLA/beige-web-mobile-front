@@ -13,9 +13,9 @@ import PreProductionTab from "@/components/admin/shoot-details/PreProductionTab"
 import PostProductionTab from "@/components/admin/shoot-details/PostProductionTab";
 import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
-
+import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal } from "lucide-react";
+import { CircleX, Loader2, X, SlidersHorizontal, Eye } from "lucide-react"; // Added X icon for closing
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 
@@ -93,7 +93,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
           setProject({
             ...projectData,
-            skills_needed: skillsText || projectData.skills_needed || "N/A"
+            skills_needed: skillsText || projectData.skills_needed
           });
         }
       } catch (error) {
@@ -108,7 +108,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   if (!mounted) return null;
 
-  const getInitials = (name) => {
+  const getInitials = (name: string) => {
     if (!name) return "??";
 
     // Split the name into words
@@ -124,11 +124,11 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   };
 
   const handleDelete = async () => {
-    if (!projectId) return;
+    if (!id) return;
 
     if (window.confirm("Are you sure you want to delete this shoot? This action cannot be undone.")) {
       try {
-        const response = await adminApi.deleteProject(projectId);
+        const response = await adminApi.deleteProject(id);
         if (response?.success || response?.message === "Project deleted successfully") { // Adjust based on actual API response
           toast.success("Shoot deleted successfully");
           router.push('/admin/shoots');
@@ -197,65 +197,87 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               {activeTab === "Overview" && (
                 <>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
-                    <ProjectTeam projectId={id} />
-                    <AssignedCP projectId={id} />
+                    <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
+                    <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
                   </div>
                   <MeetingSchedule />
                 </>
               )}
 
-              {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-                <PreProductionTab />
-              )}
+              {
+                (activeTab === "Pre_Production" || activeTab === "Pre Production") && (
+                  <PreProductionTab />
+                )
+              }
 
-              {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-                <PostProductionTab />
-              )}
 
-              {activeTab === "Meetings" && (
-                <>
-                  <MeetingSchedule />
-                  <MeetingOverviewChart />
-                </>
-              )}
+              {
+                (activeTab === "Post_Production" || activeTab === "Post Production") && (
+                  <PostProductionTab />
+                )
+              }
 
-              {activeTab === "Messages" && (
-                <MessagesTab />
-              )}
-            </div>
-          </div>
-        </div>
+              {
+                activeTab === "Meetings" && (
+                  <>
+                    <MeetingSchedule />
+                    <MeetingOverviewChart />
+                  </>
+                )
+              }
+
+              {
+                activeTab === "Messages" && (
+                  <MessagesTab />
+                )
+              }
+            </div >
+          </div >
+        </div >
 
         {/* Right Sidebar (Timeline) */}
-        <div className="hidden lg:block">
+        < div className="hidden lg:block" >
           <ProjectTimeline />
-        </div>
+        </div >
 
         {/* Mobile Timeline Overlay (Conditional) */}
-        {isTimelineOpen && (
-          <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
-            {/* Close Backdrop Click */}
-            <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
+        {
+          isTimelineOpen && (
+            <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
+              {/* Close Backdrop Click */}
+              <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
 
-            <div className={`relative max-w-sm h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
-              <button onClick={() => setIsTimelineOpen(false)} className={`absolute top-3 right-3 ${isDark ? "text-white/60" : "text-black/60"}`}>
-                <X size={20} />
-              </button>
+              <div className={`relative max-w-sm h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+                <button onClick={() => setIsTimelineOpen(false)} className={`absolute top-3 right-3 ${isDark ? "text-white/60" : "text-black/60"}`}>
+                  <X size={20} />
+                </button>
 
-              <div className="h-full overflow-y-auto">
-                <ProjectTimeline />
+                <div className="h-full overflow-y-auto">
+                  <ProjectTimeline status={project?.status} />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
         {/* --- FLOATING MOBILE BUTTONS --- */}
-        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? "bg-[#0f0f0f]" : "bg-white border-t border-[#E5E5E5]"}`}>
-          <Button className="w-full bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
-            Cancel Shoot
-          </Button>
-          <Button className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
-            Edit Shoot
+        <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+          <div className="flex gap-2">
+            <Button className="w-full bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
+              Cancel Shoot
+            </Button>
+            <Button
+              onClick={() => router.push(`/admin/shoots/${id}/edit-booking`)}
+              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            >
+              Edit Shoot
+            </Button>
+          </div>
+          <Button
+            onClick={() => router.push(`/admin/shoots/${id}/form-details`)}
+            className="w-full bg-[#111] text-[#E5D5B8] hover:bg-[#151515] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/10 active:scale-[0.98] transition-transform"
+          >
+            <Eye size={18} /> View Form Details
           </Button>
         </div>
       </div>

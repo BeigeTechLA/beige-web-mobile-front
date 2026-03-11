@@ -77,9 +77,9 @@ function CpAuthLayout({
                   <button
                     type="button"
                     onClick={handleBack}
-                    className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full border border-white/20 hover:bg-white/10 transition-all mb-8"
+                    className="flex items-center justify-center transition-all mb-8 group"
                   >
-                    <ArrowLeft className="w-5 h-5 text-white" />
+                    <ArrowLeft className="mr-2 h-4 w-4 text-white/60 group-hover:text-[#FFF]" /> <span className="text-white/60 group-hover:text-[#FFF] transition-colors text-sm">Back</span>
                   </button>
 
                   <div className="max-w-xl">

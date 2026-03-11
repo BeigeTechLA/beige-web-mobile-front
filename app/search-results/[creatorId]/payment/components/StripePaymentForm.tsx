@@ -86,6 +86,13 @@ export function StripePaymentForm({
     validateReferralCode(upperCode);
   };
 
+  const clearReferralCode = () => {
+    setReferralCode('');
+    setReferralCodeValid(null);
+    setReferralAffiliateName('');
+    onReferralCodeChange?.('', null, '');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -192,14 +199,22 @@ export function StripePaymentForm({
               placeholder="Enter code"
               maxLength={10}
             />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isValidatingReferral ? (
                 <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
               ) : referralCodeValid === true ? (
                 <Check className="w-5 h-5 text-green-500" />
-              ) : referralCodeValid === false ? (
-                <X className="w-5 h-5 text-red-500" />
               ) : null}
+              {referralCode.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearReferralCode}
+                  className="text-white/60 hover:text-white transition-colors"
+                  aria-label="Clear referral code"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
           {referralCodeValid === true && referralAffiliateName && (

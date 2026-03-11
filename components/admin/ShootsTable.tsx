@@ -17,6 +17,7 @@ import {
 import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow";
 import { StatusBadge } from "./StatusBadge";
 import { useTheme } from "next-themes";
+import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 
 type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Unknown";
 
@@ -68,6 +69,12 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
+  // Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [shootToDelete, setShootToDelete] = useState<string | null>(null);
+
+  // Sync external date with range
   useEffect(() => {
     if (externalSelectedDate) {
       setRange("custom");
@@ -206,23 +213,33 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
     router.push(`/admin/shoots/${cleanId}`);
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const cleanId = id.replace('#', '');
+    setShootToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
 
-    if (window.confirm("Are you sure you want to delete this shoot?")) {
-      try {
-        const response = await adminApi.deleteProject(cleanId);
-        if (response?.success || response?.message === "Project deleted successfully") {
-          setShoots(prev => prev.filter(shoot => shoot.id !== id));
-          toast.success("Shoot deleted successfully");
-        } else {
-          toast.error(response?.error || "Failed to delete shoot");
-        }
-      } catch (error) {
-        console.error("Delete failed", error);
-        toast.error("An error occurred while deleting");
+  const confirmDelete = async () => {
+    if (!shootToDelete) return;
+
+    const cleanId = shootToDelete.replace('#', '');
+    setIsDeleting(true);
+
+    try {
+      const response = await adminApi.deleteProject(cleanId);
+      if (response?.success || response?.message === "Project deleted successfully") {
+        setShoots(prev => prev.filter(shoot => shoot.id !== shootToDelete));
+        toast.success("Shoot deleted successfully");
+      } else {
+        toast.error(response?.error || "Failed to delete shoot");
       }
+    } catch (error) {
+      console.error("Delete failed", error);
+      toast.error("An error occurred while deleting");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+      setShootToDelete(null);
     }
   };
 
@@ -377,7 +394,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                     <td className="py-5 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={(e) => handleDelete(e, shoot.id)}
+                          onClick={(e) => handleDeleteClick(e, shoot.id)}
                           className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}
                         >
                           <Trash2 size={18} />
@@ -389,61 +406,71 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                 ))}
               </tbody>
             </table>
-          </div>
+          </div >
         </>
       )}
 
       {/* Pagination - Exact Logic Preserved */}
-      {!loading && processedShoots.length > 0 && (
-        <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
-          <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, processedShoots.length)} of {processedShoots.length} entries
-          </div>
-          <div className="flex gap-2 items-center">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}>Previous</button>
-            <div className="flex gap-1">
-              {(() => {
-                const rangeArr = [];
-                const delta = 1;
-                const left = currentPage - delta;
-                const right = currentPage + delta + 1;
-
-                for (let i = 1; i <= totalPages; i++) {
-                  if (i === 1 || i === totalPages || (i >= left && i < right)) {
-                    rangeArr.push(i);
-                  } else if (i === left - 1 || i === right) {
-                    rangeArr.push('...');
-                  }
-                }
-
-                return rangeArr.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
-                  page === '...' ? (
-                    <span key={`dots-${index}`} className={`px-2 py-1 text-xs ${isDark ? "text-white/30" : "text-[#999]"}`}>...</span>
-                  ) : (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page as number)}
-                      className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page ? (isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black") : (isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-zinc-100")}`}
-                    >
-                      {page}
-                    </button>
-                  )
-                ));
-              })()}
+      {
+        !loading && processedShoots.length > 0 && (
+          <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
+            <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
+              Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, processedShoots.length)} of {processedShoots.length} entries
             </div>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
-            >
-              Next
-            </button>
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}>Previous</button>
+              <div className="flex gap-1">
+                {(() => {
+                  const rangeArr = [];
+                  const delta = 1;
+                  const left = currentPage - delta;
+                  const right = currentPage + delta + 1;
+
+                  for (let i = 1; i <= totalPages; i++) {
+                    if (i === 1 || i === totalPages || (i >= left && i < right)) {
+                      rangeArr.push(i);
+                    } else if (i === left - 1 || i === right) {
+                      rangeArr.push('...');
+                    }
+                  }
+
+                  return rangeArr.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
+                    page === '...' ? (
+                      <span key={`dots-${index}`} className={`px-2 py-1 text-xs ${isDark ? "text-white/30" : "text-[#999]"}`}>...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page as number)}
+                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page ? (isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black") : (isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-zinc-100")}`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  ));
+                })()}
+              </div>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
+              >
+                Next
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Shoot"
+        description="Are you sure you want to delete this shoot? This action cannot be undone."
+        isLoading={isDeleting}
+      />
+    </div >
   );
 };

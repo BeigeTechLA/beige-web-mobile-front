@@ -26,9 +26,14 @@ export default function DropdownSelect({
   icon,
 }: DropdownSelectProps) {
   const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find((o) => o.key === value);
+
+  const filteredOptions = options.filter((option) =>
+    option.value.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -55,10 +60,24 @@ export default function DropdownSelect({
 
       <div
         className={`h-14 lg:h-[82px] relative ${bgColour} rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40`}
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => {
+          if (!open) {
+            setOpen(true);
+            setSearchTerm("");
+          }
+        }}
       >
-        {/* Selected value pill */}
-        {selectedOption ? (
+        {/* Input or Selected value pill */}
+        {open ? (
+          <input
+            autoFocus
+            type="text"
+            className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/40 text-sm lg:text-base mr-2"
+            placeholder={`Search ${title}...`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        ) : selectedOption ? (
           <div className="flex items-center gap-2 bg-[#2A2A2A] px-3 py-1.5 rounded-md text-white text-sm lg:text-base">
             {selectedOption.value}
             <X
@@ -75,50 +94,55 @@ export default function DropdownSelect({
         )}
 
         {icon ? (
-          <div className="text-white">{icon}</div>
+          <div className="text-white flex-shrink-0">{icon}</div>
         ) : open ? (
-          <ChevronUp className="text-white" />
+          <ChevronUp className="text-white flex-shrink-0" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
         ) : (
-          <ChevronDown className="text-white" />
+          <ChevronDown className="text-white flex-shrink-0" />
         )}
       </div>
 
       {/* Dropdown */}
       {open && (
         <div className={`absolute top-[calc(100%+8px)] left-0 w-full z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto`}>
-          {options.map((option) => {
-            const isSelected = option.key === value;
+          {filteredOptions.length === 0 ? (
+            <div className="px-6 py-4 text-white/50 text-sm text-center">No options found.</div>
+          ) : (
+            filteredOptions.map((option) => {
+              const isSelected = option.key === value;
 
-            return (
-              <div
-                key={option.key}
-                onClick={() => {
-                  onChange(option.key);
-                  setOpen(false);
-                }}
-                className={`flex items-center gap-3 px-6 py-3 rounded-xl cursor-pointer transition
-                  ${isSelected
-                    ? "bg-[#FFFCE8] text-black"
-                    : "text-white/50 hover:bg-white/5"
-                  }`}
-              >
-                {/* Radio */}
+              return (
                 <div
-                  className={`w-4 h-4 rounded-full border flex items-center justify-center
-                    ${isSelected
-                      ? "border-[#E8D1AB] bg-[#E8D1AB]"
-                      : "border-white/50"
+                  key={option.key}
+                  onClick={() => {
+                    onChange(option.key);
+                    setOpen(false);
+                    setSearchTerm("");
+                  }}
+                  className={`flex items-center gap-3 px-6 py-3 rounded-xl cursor-pointer transition
+                  ${isSelected
+                      ? "bg-[#FFFCE8] text-black"
+                      : "text-white/50 hover:bg-white/5"
                     }`}
                 >
-                  {isSelected && (
-                    <div className="w-1 h-1 rounded-full bg-black" />
-                  )}
-                </div>
+                  {/* Radio */}
+                  <div
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center
+                    ${isSelected
+                        ? "border-[#E8D1AB] bg-[#E8D1AB]"
+                        : "border-white/50"
+                      }`}
+                  >
+                    {isSelected && (
+                      <div className="w-1 h-1 rounded-full bg-black" />
+                    )}
+                  </div>
 
-                <span className="text-sm lg:text-base">{option.value}</span>
-              </div>
-            );
-          })}
+                  <span className="text-sm lg:text-base">{option.value}</span>
+                </div>
+              );
+            })
+          )}
         </div>
       )}
     </div>

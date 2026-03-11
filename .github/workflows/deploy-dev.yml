@@ -1,0 +1,118 @@
+name: Deploy Frontend Dev
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy.pem
+          chmod 600 ~/.ssh/deploy.pem
+
+      - name: Add server to known_hosts
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Install dependencies
+        run: |
+          if [ -f "package-lock.json" ]; then
+            npm ci --legacy-peer-deps
+          else
+            npm install
+          fi
+
+      - name: Build on CI runner
+        env:
+          NEXT_PUBLIC_SHOW_V2_LANDING: ${{ secrets.NEXT_PUBLIC_SHOW_V2_LANDING }}
+          DO_KEY: ${{ secrets.DO_KEY }}
+          DO_SECRET: ${{ secrets.DO_SECRET }}
+          NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}
+          NEXT_PUBLIC_API_ENDPOINT: ${{ secrets.NEXT_PUBLIC_API_ENDPOINT }}
+          NEXT_PUBLIC_INVESTOR_TYPEFORM_URL: ${{ secrets.NEXT_PUBLIC_INVESTOR_TYPEFORM_URL }}
+          NEXT_PUBLIC_BOOKING_FLOW_V3: ${{ secrets.NEXT_PUBLIC_BOOKING_FLOW_V3 }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_S3_BASE_URL: ${{ secrets.NEXT_PUBLIC_S3_BASE_URL }}
+          NEXT_PUBLIC_S3_PREFIX: ${{ secrets.NEXT_PUBLIC_S3_PREFIX }}
+          NEXT_PUBLIC_GTM_ID: ${{ secrets.NEXT_PUBLIC_GTM_ID }}
+          NEXT_PUBLIC_GTM_AUTH: ${{ secrets.NEXT_PUBLIC_GTM_AUTH }}
+          NEXT_PUBLIC_GTM_PREVIEW: ${{ secrets.NEXT_PUBLIC_GTM_PREVIEW }}
+        run: npm run build
+
+      - name: Create standalone deploy archive
+        run: |
+          ARCHIVE_NAME="next-build.tar.gz"
+          ARCHIVE_ITEMS=(
+            ".next/standalone"
+            ".next/static"
+          )
+
+          [ -d ".next/standalone" ] || { echo ".next/standalone missing. Enable Next standalone output."; exit 1; }
+          [ -d "public" ] && ARCHIVE_ITEMS+=("public")
+
+          tar czf "$ARCHIVE_NAME" \
+            --exclude=".next/cache" \
+            "${ARCHIVE_ITEMS[@]}"
+
+      - name: Upload archive
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          scp -P "$PORT" -i ~/.ssh/deploy.pem next-build.tar.gz "$SSH_USER@$SSH_HOST:/tmp/"
+
+      - name: Deploy on server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          ssh -p "$PORT" -i ~/.ssh/deploy.pem "$SSH_USER@$SSH_HOST" << 'EOF'
+          set -euo pipefail
+
+          REMOTE_DIR="/var/www/beige-web-front-dev"
+          ARCHIVE_NAME="next-build.tar.gz"
+          APP_NAME="beige-web-dev"
+
+          mkdir -p "$REMOTE_DIR"
+          find "$REMOTE_DIR" -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +
+          tar xzf "/tmp/$ARCHIVE_NAME" -C "$REMOTE_DIR"
+
+          mkdir -p "$REMOTE_DIR/.next/standalone/.next"
+          cp -r "$REMOTE_DIR/.next/static" "$REMOTE_DIR/.next/standalone/.next/"
+          if [ -d "$REMOTE_DIR/public" ]; then
+            cp -r "$REMOTE_DIR/public" "$REMOTE_DIR/.next/standalone/"
+          fi
+
+          cd "$REMOTE_DIR/.next/standalone"
+          pm2 delete "$APP_NAME" >/dev/null 2>&1 || true
+          NODE_ENV=production pm2 start server.js --name "$APP_NAME"
+          pm2 save
+
+          rm -f "/tmp/$ARCHIVE_NAME"
+          EOF

@@ -14,7 +14,7 @@ const steps = [
     { id: 7, label: "Assets Delivered", icon: FileCheck, status: "pending", line: false },
 ];
 
-export default function ProjectTimeline() {
+export default function ProjectTimeline({ status = 0 }: { status?: number }) {
     const { theme, resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
 
@@ -22,47 +22,72 @@ export default function ProjectTimeline() {
         setMounted(true);
     }, []);
 
-    const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+    const isDark = !mounted || (resolvedTheme === "dark" || theme === "dark");
 
     if (!mounted) return null;
+
+    // Mapping project status (0-5) to timeline step indices
+    // 0: Initiated -> Step 1
+    // 1: Pre Production -> Step 2
+    // 2: Post Production -> Step 4 (Skip Shoot Day 3 as it's implied/transient)
+    // 3: Revision -> Step 5
+    // 4: Completed -> Step 6
+    // 5: Cancelled -> Special casing required, but usually stops at Initiated
+
+    const getCurrentStep = () => {
+        if (status === 0) return 1;
+        if (status === 1) return 2;
+        if (status === 2) return 4;
+        if (status === 3) return 5;
+        if (status >= 4) return 6;
+        return 1;
+    };
+
+    if (!mounted) return null;
+
+    const currentStepId = getCurrentStep();
 
     return (
         <div className={`h-full w-80 shrink-0 mt-1 pt-8 lg:pt-6 transition-colors duration-300 border-l ${isDark ? "bg-[#111111] border-[#222222]" : "bg-[#FFFFFF] border-[#D8D8D8]"
             }`}>
-            <h3 className={`px-6 py-3 text-lg font-bold lg:my-8 border-y transition-colors duration-300 ${isDark
-                    ? "text-white bg-[#101010] border-[#3A3A3A]"
-                    : "text-black bg-[#F4F5F7] border-[#D8D8D8]"
+            <h3 className={`px-6 py-3 text-lg font-bold lg:my-8 border-y transition-colors duration-300 ${isDark ? "text-white bg-[#101010] border-[#3A3A3A]" : "text-black bg-[#F4F5F7] border-[#D8D8D8]"
                 }`}>
                 Project Timeline
             </h3>
 
             <div className="p-6 flex flex-col gap-0.5">
                 {steps.map((step) => {
-                    const isActive = step.status === 'completed' || step.status === 'current';
+                    const isCompleted = step.id < currentStepId;
+                    const isCurrent = step.id === currentStepId;
+                    const isPending = step.id > currentStepId;
+                    const isActive = isCompleted || isCurrent;
 
                     return (
                         <div key={step.id} className="relative flex gap-4">
                             {/* Icon Column */}
                             <div className="flex flex-col items-center">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 ${isActive
-                                        ? (isDark ? 'bg-[#E5D5B8] border-[#E5D5B8] text-black' : 'bg-[#000000] border-[#000000] text-[#E8D1AB]')
-                                        : (isDark ? 'bg-transparent border-[#333333] text-[#666666]' : 'bg-[#F4F5F7] border-[#F4F5F7] text-[#A1A1A1]')
+                                        ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black scale-110 shadow-lg shadow-[#E8D1AB]/10'
+                                        : isDark
+                                            ? 'bg-transparent border-[#333333] text-[#666666]'
+                                            : 'bg-transparent border-[#CCCCCC] text-[#999999]'
                                     }`}>
                                     <step.icon size={18} />
                                 </div>
-                                {step.line && (
-                                    <div className={`h-10 w-px border-l border-dashed my-2 transition-colors duration-300 ${isDark ? "border-[#444444]" : "border-[#CCCCCC]"
-                                        }`} />
-                                )}
+                                {
+                                    step.line && (
+                                        <div className={`h-10 w-px border-l border-dashed my-2 transition-colors duration-300 ${isDark ? "border-[#444444]" : "border-[#CCCCCC]"
+                                            }`} />
+                                    )}
                             </div>
 
                             {/* Label Column */}
                             <div className="pt-2">
-                                <p className={`text-base font-medium leading-none transition-colors duration-300 ${isActive
+                                <p className={`text-base font-medium leading-none transition-colors ${isActive
                                         ? (isDark ? 'text-white' : 'text-black')
-                                        : (isDark ? 'text-[#666666]' : 'text-[#999]')
+                                        : 'text-[#666666]'
                                     }`}>
-                                    {step.label.replace("_", " ")}
+                                    {step.label}
                                 </p>
                             </div>
                         </div>

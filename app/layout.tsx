@@ -24,7 +24,7 @@ const instrumentSans = Instrument_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL("https://beige.app"),
   title: {
-    default: "Beige",
+    default: "Beige | Videographers, Photographers & AI Editing",
     template: "%s | Beige AI",
   },
   description:
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   openGraph: {
-    title: "Beige",
+    title: "Beige | Videographers, Photographers & AI Editing",
     description: "Discover the power of beige ai and how it can help you create constant content instantly.",
     url: "https://beige.app/",
     siteName: "BeigeAI",
@@ -73,7 +73,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Beige",
+    title: "Beige | Videographers, Photographers & AI Editing",
     description: "Discover the power of beige ai and how it can help you create constant content instantly.",
     images: ["/og-preview.png"],
     creator: "@BeigeAI",

@@ -7,7 +7,7 @@ import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, Radio, SquaresUnite, Calendar, ChevronLeft, ChevronRight, ChevronDown, Info, Check } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -34,13 +34,13 @@ import {
   behindScenesPhotoEditTypes,
 } from "@/app/data/shootData";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
-import MultiSelectDropdown from "@/components/book-a-shoot/MultiSelectDropdown";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import DatePicker from "@/components/ui/Datepicker";
-import { set, format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from "date-fns";
+import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
+import { AnimatePresence, motion } from "framer-motion";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
-import { motion, AnimatePresence } from "framer-motion";
+import {getFormattedDateString} from "@/lib/utils";
 
 interface Props {
   data: BookingDataV3;
@@ -90,21 +90,6 @@ const datePickerColours = {
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
 
-const getFormattedDateString = (selectedDates: (string | Date)[]): string => {
-  if (!selectedDates || selectedDates.length === 0) return "";
-
-  const dateObjects = selectedDates.map(d => new Date(d));
-  const days = dateObjects.map(d => format(d, "d"));
-
-  const joinedDays = days.length > 1
-    ? `${days.slice(0, -1).join(", ")} & ${days.slice(-1)}`
-    : days[0];
-
-  const monthYear = format(dateObjects[0], "MMMM yyyy");
-
-  return `${joinedDays} ${monthYear}`;
-};
-
 export const V3Step1ChooseService: React.FC<Props> = ({
   data,
   updateData,
@@ -124,27 +109,31 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   >([]);
 
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
+
   const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
 
-  const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
+  const [timeOptions, setTimeOptions] = useState<
+    { key: string; value: string }[]
+  >([]);
+
   const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
+  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(data.bookingType || "single_day");
+
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
+  const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
+  const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
+  const reelRef = useRef<HTMLDivElement>(null);
+  const isDraggingReel = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartScrollLeft = useRef(0);
+  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const isAllVisible = visibleCount >= availableShootTypes.length;
 
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
-
-
-  // Temporary variables until integration is done for new BookingType logic
-  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">("single_day");
-  const [sameTimingsMulti, setSameTimingsMulti] = useState<boolean>(true)
-
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [expandedDateIndex, setExpandedDateIndex] = useState<number | null>(0);
-  // End: Temporary variables until integration is done for new BookingType logic
-
 
   const emailRef = useRef<HTMLDivElement>(null);
   const contentTypeRef = useRef<HTMLDivElement>(null);
@@ -155,12 +144,57 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const navigationRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
 
+  const [isVideoEditOpen, setIsVideoEditOpen] = useState(false);
+  const [isPhotoEditOpen, setIsPhotoEditOpen] = useState(false);
+
+  const buildEditCounts = (keys: string[]) =>
+    keys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+  const videoEditCounts = React.useMemo(
+    () => buildEditCounts(data.videoEditTypes),
+    [data.videoEditTypes]
+  );
+
+  const photoEditCounts = React.useMemo(
+    () => buildEditCounts(data.photoEditTypes),
+    [data.photoEditTypes]
+  );
+
+  const updateEditQuantity = (type: "video" | "photo", key: string, nextQty: number) => {
+    const base = type === "video" ? data.videoEditTypes : data.photoEditTypes;
+    const cleaned = base.filter((k) => k !== key);
+    const next = nextQty > 0 ? [...cleaned, ...Array.from({ length: nextQty }, () => key)] : cleaned;
+    if (type === "video") {
+      updateData({ videoEditTypes: next });
+    } else {
+      updateData({ photoEditTypes: next });
+    }
+  };
+
+  const getEditDisplayLabel = (
+    key: string,
+    options: { key: string; value: string }[]
+  ) => {
+    const match = options.find((o) => o.key === key);
+    return match ? match.value : key;
+  };
+
   // Auto-fill email if user is logged in
   useEffect(() => {
     if (isAuthenticated && user?.email && !data.email) {
       updateData({ email: user.email });
     }
   }, [isAuthenticated, user?.email, data.email, updateData]);
+
+  useEffect(() => {
+    const start = data.startDate ? parseDate(data.startDate) : null;
+    const end = !start && data.endDate ? parseDate(data.endDate) : null;
+    const next = start || end;
+    setSelectedShootDate(next);
+  }, [data.startDate, data.endDate]);
 
   const handleViewToggle = () => {
     if (visibleCount >= availableShootTypes.length) {
@@ -192,7 +226,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   useEffect(() => {
     const options = [];
     for (let i = 0; i < 24; i++) {
-      for (let j = 0; j < 60; j += 30) {
+      for (let j = 0; j < 60; j += 15) {
         const hour = i.toString().padStart(2, "0");
         const minute = j.toString().padStart(2, "0");
         const key = `${hour}:${minute}`;
@@ -207,15 +241,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
     setTimeOptions(options);
 
-    // Close calendar on click outside
-    const handler = (e: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
-        setIsCalendarOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-
     // add GA event on initial load
     pushToDataLayer("booking_page_viewed_step1", {
       type: "Action Tracking",
@@ -229,84 +254,49 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     });
   }, []);
 
-  useEffect(() => {
-    const primaryDate = data.startDate || data.endDate;
-    if (!primaryDate) return;
-
-    const parsed = parseDate(primaryDate);
-    if (!parsed) return;
-
-    const normalized = set(new Date(parsed), {
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      milliseconds: 0,
-    });
-    setSelectedShootDate(normalized);
-  }, [data.startDate, data.endDate]);
-
-  // --- Move these helpers up here ---
-
-  const toggleDateSelection = (date: Date) => {
-    const exists = selectedDates.find(d => isSameDay(d, date));
-    let newDates;
-    if (exists) {
-      newDates = selectedDates.filter(d => !isSameDay(d, date));
-    } else {
-      newDates = [...selectedDates, date].sort((a, b) => a.getTime() - b.getTime());
-      setCurrentCalendarMonth(date); // Update month view to selected date
-    }
-    setSelectedDates(newDates);
-  };
-
   const reelDays = React.useMemo(() => {
-    const startOfSelectedMonth = startOfMonth(currentCalendarMonth);
-    const endOfSelectedMonth = endOfMonth(currentCalendarMonth);
     const now = new Date();
-
-    let startDate;
-
-    // If the viewed month is the current month, start from today
-    if (isSameMonth(currentCalendarMonth, now)) {
-      startDate = now;
-    } else {
-      // For future months, start from the 1st of that month
-      startDate = startOfSelectedMonth;
-    }
-
-    // If the viewed month is in the past (before current month), return empty or handle as needed
-    if (currentCalendarMonth < startOfMonth(now)) {
-      return [];
-    }
-
-    return eachDayOfInterval({
-      start: startDate,
-      end: endOfSelectedMonth,
-    });
+    const monthStart = startOfMonth(currentCalendarMonth);
+    const monthEnd = endOfMonth(currentCalendarMonth);
+    const start =
+      isSameMonth(currentCalendarMonth, now) && now > monthStart
+        ? startOfDay(now)
+        : monthStart;
+    if (start > monthEnd) return [];
+    return eachDayOfInterval({ start, end: monthEnd });
   }, [currentCalendarMonth]);
 
-  const calendarDays = eachDayOfInterval({
-    start: startOfMonth(currentCalendarMonth),
-    end: endOfMonth(currentCalendarMonth),
-  });
+  const calendarDays = React.useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentCalendarMonth));
+    const end = endOfWeek(endOfMonth(currentCalendarMonth));
+    return eachDayOfInterval({ start, end });
+  }, [currentCalendarMonth]);
 
+  const formatLocalDateTime = (date: Date) => {
+    return format(date, "yyyy-MM-dd'T'HH:mm:ss");
+  };
+
+  // --- Move these helpers up here ---
   const getStartTimeKey = () => {
     if (!data.startDate) return "";
     const date = parseDate(data.startDate);
-    return date ? format(date, "HH:mm") : "";
+    if (!date) return "";
+    return format(date, "HH:mm");
   };
 
   const getEndTimeKey = () => {
     if (!data.endDate) return "";
     const date = parseDate(data.endDate);
-    return date ? format(date, "HH:mm") : "";
+    if (!date) return "";
+    return format(date, "HH:mm");
   };
 
   // --- Now the useMemos can safely use them ---
   const filteredStartTimeOptions = React.useMemo(() => {
-    if (!selectedShootDate) return timeOptions;
-
-    const selectedDate = selectedShootDate;
+    const selectedDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate;
+    if (!selectedDate) return timeOptions;
     const now = new Date();
 
     const isToday =
@@ -321,7 +311,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     const minKey = format(minTime, "HH:mm");
 
     return timeOptions.filter((opt) => opt.key >= minKey);
-  }, [selectedShootDate, timeOptions]);
+  }, [data.startDate, selectedShootDate, timeOptions]);
 
   const filteredEndTimeOptions = React.useMemo(() => {
     // If no start date/time is selected, show all
@@ -340,9 +330,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       return;
     }
 
-    setSelectedShootDate(
-      set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })
-    );
+    setSelectedShootDate(date);
 
     const now = new Date();
     const isToday =
@@ -357,37 +345,61 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     let finalEnd: Date;
 
     if (existingStart && existingEnd) {
-      finalStart = set(new Date(date), {
+      finalStart = set(date, {
         hours: existingStart.getHours(),
         minutes: existingStart.getMinutes(),
         seconds: 0,
         milliseconds: 0,
       });
-      finalEnd = set(new Date(date), {
+
+      finalEnd = set(date, {
         hours: existingEnd.getHours(),
         minutes: existingEnd.getMinutes(),
         seconds: 0,
         milliseconds: 0,
       });
-    } else {
-      // Defaults
-      finalStart = set(new Date(date), { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
-      finalEnd = set(new Date(date), { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
-    }
 
-    // Same-day 4 hour logic
-    if (isToday) {
-      const minStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-      if (finalStart < minStart) {
-        finalStart = new Date(minStart.getTime() + 30 * 60 * 1000); // Add buffer
-        finalStart.setMinutes(finalStart.getMinutes() > 30 ? 0 : 30, 0, 0);
+      if (isToday) {
+        const minStartTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+
+        if (finalStart < minStartTime) {
+          const roundedStart = new Date(minStartTime);
+          const mins = roundedStart.getMinutes();
+          if (mins > 0 && mins <= 30) {
+            roundedStart.setMinutes(30, 0, 0);
+          } else if (mins > 30) {
+            roundedStart.setHours(roundedStart.getHours() + 1, 0, 0, 0);
+          } else {
+            roundedStart.setMinutes(0, 0, 0);
+          }
+
+          finalStart = roundedStart;
+          const durationMs = existingEnd.getTime() - existingStart.getTime();
+          finalEnd = new Date(finalStart.getTime() + (durationMs > 0 ? durationMs : 8 * 60 * 60 * 1000));
+        }
+      }
+    } else {
+      if (isToday) {
+        const minStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+        const mins = minStart.getMinutes();
+        if (mins > 0 && mins <= 30) {
+          minStart.setMinutes(30, 0, 0);
+        } else if (mins > 30) {
+          minStart.setHours(minStart.getHours() + 1, 0, 0, 0);
+        } else {
+          minStart.setMinutes(0, 0, 0);
+        }
+        finalStart = minStart;
         finalEnd = new Date(finalStart.getTime() + 8 * 60 * 60 * 1000);
+      } else {
+        finalStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+        finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
       }
     }
 
     updateData({
-      startDate: format(finalStart, "yyyy-MM-dd'T'HH:mm:ss.SSS"),
-      endDate: format(finalEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS"),
+      startDate: formatLocalDateTime(finalStart),
+      endDate: formatLocalDateTime(finalEnd),
     });
   };
   const handleStartTimeChange = (timeKey: string) => {
@@ -397,31 +409,34 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const baseDate =
-      (data.startDate ? parseDate(data.startDate) : null) ||
-      (data.endDate ? parseDate(data.endDate) : null) ||
-      selectedShootDate ||
-      new Date();
+    const currentDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate || new Date();
+    if (!currentDate) return;
 
-    // Create new date object without mutating the state
-    const newStart = set(new Date(baseDate), {
-      hours,
-      minutes,
-      seconds: 0,
-      milliseconds: 0
-    });
-
-    // Validation
+    // Ensure we don't select a time before the current time
     const now = new Date();
-    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-    if (newStart < minimumTime && newStart.toDateString() === now.toDateString()) {
-      toast.error("You must select a start time at least 4 hours from now.");
-      return;
+    const selectedTime = new Date(currentDate.setHours(hours, minutes));
+
+    if (selectedTime < now) {
+      toast.error("Selected time must be later than the current time.");
+      setErrors((prev) => [...prev, "timeError"]);
+      return; // Don't update the time if it's invalid
     }
 
-    // Use format instead of toISOString to preserve LOCAL time
-    updateData({ startDate: format(newStart, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
+    // Enforce a 4-hour gap for same-day bookings
+    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000); // Add 4 hours to current time
+
+    if (selectedTime < minimumTime) {
+      toast.error("You must select a start time at least 4 hours from now.");
+      setErrors((prev) => [...prev, "timeError"]);
+      return; // Don't update the time if it's invalid
+    }
+
+    const newStart = set(currentDate, { hours, minutes });
+    updateData({ startDate: formatLocalDateTime(newStart) });
   };
+
 
   const handleEndTimeChange = (timeKey: string) => {
     if (!timeKey) {
@@ -430,11 +445,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     const [hours, minutes] = timeKey.split(":").map(Number);
-    const baseDate =
-      (data.startDate ? parseDate(data.startDate) : null) ||
-      (data.endDate ? parseDate(data.endDate) : null) ||
-      selectedShootDate ||
-      new Date();
+
+    const baseDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate || new Date();
+    if (!baseDate) return;
 
     const newEnd = set(new Date(baseDate), {
       hours,
@@ -443,10 +458,100 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       milliseconds: 0
     });
 
-    // Use format instead of toISOString
-    updateData({ endDate: format(newEnd, "yyyy-MM-dd'T'HH:mm:ss.SSS") });
+    updateData({ endDate: formatLocalDateTime(newEnd) });
     scrollToRef(editsRef);
   };
+
+  const toggleDateSelection = (date: Date) => {
+    setSelectedDates((prev) => {
+      const exists = prev.some((d) => isSameDay(d, date));
+      if (exists) {
+        return prev.filter((d) => !isSameDay(d, date));
+      }
+      return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
+    });
+    if (bookingType === "multi_day") {
+      setSelectedShootDate(date);
+    }
+    if (reelRef.current) {
+      reelRef.current.scrollLeft = 0;
+    }
+  };
+
+  const getTimeLabel = (key: string) => {
+    if (!key) return "";
+    const match = timeOptions.find((opt) => opt.key === key);
+    return match ? match.value : key;
+  };
+
+  const calculateDurationHours = (startKey: string, endKey: string) => {
+    if (!startKey || !endKey) return null;
+    const [sh, sm] = startKey.split(":").map(Number);
+    const [eh, em] = endKey.split(":").map(Number);
+    if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return null;
+    const startMinutes = sh * 60 + sm;
+    const endMinutes = eh * 60 + em;
+    const diff = endMinutes - startMinutes;
+    if (diff <= 0) return null;
+    return Math.round((diff / 60) * 100) / 100;
+  };
+
+  const getDateKey = (date: Date) => format(date, "yyyy-MM-dd");
+
+  const handleMultiDayStartTimeChange = (dateKey: string, timeKey: string) => {
+    setMultiDayTimes((prev) => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], startKey: timeKey }
+    }));
+  };
+
+  const handleMultiDayEndTimeChange = (dateKey: string, timeKey: string) => {
+    setMultiDayTimes((prev) => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], endKey: timeKey }
+    }));
+  };
+
+  useEffect(() => {
+    updateData({ bookingType });
+  }, [bookingType, updateData]);
+
+  useEffect(() => {
+    if (bookingType !== "multi_day") {
+      updateData({ bookingDays: [] });
+      return;
+    }
+
+    if (!selectedDates.length) {
+      updateData({ bookingDays: [] });
+      return;
+    }
+
+    const startKey = getStartTimeKey();
+    const endKey = getEndTimeKey();
+
+    const days = selectedDates.map((date) => {
+      const dateKey = getDateKey(date);
+      const dayTimes = multiDayTimes[dateKey] || {};
+      const finalStart = sameTimingsMulti ? startKey : dayTimes.startKey;
+      const finalEnd = sameTimingsMulti ? endKey : dayTimes.endKey;
+      return {
+        date: dateKey,
+        startTime: finalStart,
+        endTime: finalEnd
+      };
+    });
+
+    updateData({ bookingDays: days });
+  }, [
+    bookingType,
+    selectedDates,
+    data.startDate,
+    data.endDate,
+    sameTimingsMulti,
+    multiDayTimes,
+    updateData
+  ]);
 
   // const getStartTimeKey = () => {
   //   if (!data.startDate) return "";
@@ -539,7 +644,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       if (data.email && newErrors.includes("emailError")) return newErrors.filter(e => e !== "emailError");
       if (data.contentType.length > 0 && newErrors.includes("contentError")) return newErrors.filter(e => e !== "contentError");
       if (data.shootType && newErrors.includes("shootTypeError")) return newErrors.filter(e => e !== "shootTypeError");
-      if (data.startDate && data.endDate && newErrors.includes("timeError")) return newErrors.filter(e => e !== "timeError");
+      const hasMultiDayTimes = Array.isArray(data.bookingDays) && data.bookingDays.length > 0 && data.bookingDays.every(d => d.startTime && d.endTime);
+      if (
+        ((data.bookingType !== "multi_day" && data.startDate && data.endDate) ||
+          (data.bookingType === "multi_day" && hasMultiDayTimes)) &&
+        newErrors.includes("timeError")
+      ) {
+        return newErrors.filter(e => e !== "timeError");
+      }
       if (data.videoEditTypes.length > 0 && newErrors.includes("videoEditError")) return newErrors.filter(e => e !== "videoEditError");
       if (data.photoEditTypes.length > 0 && newErrors.includes("photoEditError")) return newErrors.filter(e => e !== "photoEditError");
       return prev;
@@ -617,20 +729,34 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
       return false;
     }
-    if (!data.startDate) {
-      toast.error("Please select a start date and time");
-      setErrors((prev) => [...prev, "timeError"]);
-      return false;
-    }
-    if (!data.endDate) {
-      toast.error("Please select an end date and time");
-      setErrors((prev) => [...prev, "timeError"]);
-      return false;
-    }
-    if (new Date(data.endDate) <= new Date(data.startDate)) {
-      toast.error("End time must be after start time");
-      setErrors((prev) => [...prev, "timeError"]);
-      return false;
+    if (bookingType === "single_day") {
+      if (!data.startDate) {
+        toast.error("Please select a start date and time");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      if (!data.endDate) {
+        toast.error("Please select an end date and time");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      if (new Date(data.endDate) <= new Date(data.startDate)) {
+        toast.error("End time must be after start time");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+    } else {
+      if (!data.bookingDays || data.bookingDays.length === 0) {
+        toast.error("Please select at least one booking day");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      const hasMissingTimes = data.bookingDays.some((d) => !d.startTime || !d.endTime);
+      if (hasMissingTimes) {
+        toast.error("Please select start and end time for all selected days");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
     }
     if (data.editsNeeded) {
       const needsVideoEdit = data.contentType.includes("videographer")
@@ -791,6 +917,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             disabled={true}
           />
           <ContentTypeCheckbox
+            label="Studios"
+            subLabel="Coming Soon"
+            icon={<MapPinHouse size={20} />}
+            checked={false}
+            onChange={() => { }}
+            disabled={true}
+          />
+          <ContentTypeCheckbox
             label="Livestream"
             subLabel="Coming Soon"
             icon={<Radio size={20} />}
@@ -849,7 +983,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Booking type: Single day/Multi day */}
+          {/* Booking Type */}
           <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
             <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
               }`}>
@@ -858,38 +992,41 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             <div className="flex gap-4">
               <button
                 onClick={() => {
-                  // updateData
-                  setBookingType("single_day"); // Temporary until new BookingType logic is integrated
+                  setBookingType("single_day");
+                  setSelectedDates([]);
+                  setSameTimingsMulti(true);
+                  setMultiDayTimes({});
+                  updateData({ bookingType: "single_day", bookingDays: [] });
                   scrollToRef(dateTimeRef);
                 }}
                 disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${(bookingType === "single_day") ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
               >
                 <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
                 <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${(bookingType === "single_day") ? "bg-black" : "border border-[#E5E5E5]"
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "single_day" ? "bg-black" : "border border-[#E5E5E5]"
                     }`}
                 >
-                  {(bookingType === "single_day") && (
+                  {bookingType === "single_day" && (
                     <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
                   )}
                 </div>
               </button>
               <button
                 onClick={() => {
-                  // updateData
-                  setBookingType("multi_day"); // Temporary until new BookingType logic is integrated
+                  setBookingType("multi_day");
+                  updateData({ bookingType: "multi_day" });
                   scrollToRef(dateTimeRef);
                 }}
                 disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${(bookingType === "multi_day") ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
               >
                 <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
                 <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${(bookingType === "multi_day") ? "bg-black" : "border border-[#E5E5E5]"
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "multi_day" ? "bg-black" : "border border-[#E5E5E5]"
                     }`}
                 >
-                  {(bookingType === "multi_day") && (
+                  {bookingType === "multi_day" && (
                     <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
                   )}
                 </div>
@@ -899,220 +1036,277 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
           {/* Date & Time */}
           <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            {
-              bookingType === "single_day" ? (
-                <>
-                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-                    }`}>
-                    Shoot Date & Time
-                  </h3>
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    <div className="flex-1">
-                      <DatePicker
-                        label="Select Date"
-                        value={selectedShootDate}
-                        onChange={handleDateChange}
-                        minDate={new Date()}
-                        colors={datePickerColours}
-                        format="MM/dd/yyyy"
-                        sx={{
-                          height: { xs: "56px", md: "82px" },
-                          borderRadius: "16px",
-                        }}
-                      />
+            {bookingType === "single_day" ? (
+              <>
+                <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                  }`}>
+                  Shoot Date & Time
+                </h3>
+                <div className="flex flex-col lg:flex-row gap-6">
+                  <div className="flex-1">
+                    <DatePicker
+                      label="Select Date"
+                      value={selectedShootDate}
+                      onChange={handleDateChange}
+                      minDate={new Date()}
+                      colors={datePickerColours}
+                      format="MM/dd/yyyy"
+                      sx={{
+                        height: { xs: "56px", md: "82px" },
+                        borderRadius: "16px",
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <DropdownSelect
+                      title="Start Time"
+                      options={filteredStartTimeOptions}
+                      value={getStartTimeKey()}
+                      onChange={handleStartTimeChange}
+                      bgColour="bg-[#101010]"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <DropdownSelect
+                      title="End Time"
+                      options={filteredEndTimeOptions}
+                      value={getEndTimeKey()}
+                      onChange={handleEndTimeChange}
+                      bgColour="bg-[#101010]"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="relative mb-8 lg:mb-15">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                      }`}>
+                      Select Date
+                    </h3>
+                    <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
+                      <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                      <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
+                    </button>
+                  </div>
+
+                  {/* Horizontal Scroll Reel */}
+                  <div
+                    ref={reelRef}
+                    onWheel={(e) => {
+                      if (!reelRef.current) return;
+                      e.preventDefault();
+                      reelRef.current.scrollLeft += e.deltaY;
+                    }}
+                    onPointerDown={(e) => {
+                      if (!reelRef.current) return;
+                      if ((e.target as HTMLElement).closest("button")) return;
+                      isDraggingReel.current = true;
+                      dragStartX.current = e.clientX;
+                      dragStartScrollLeft.current = reelRef.current.scrollLeft;
+                      reelRef.current.setPointerCapture?.(e.pointerId);
+                    }}
+                    onPointerMove={(e) => {
+                      if (!reelRef.current || !isDraggingReel.current) return;
+                      const dx = e.clientX - dragStartX.current;
+                      reelRef.current.scrollLeft = dragStartScrollLeft.current - dx;
+                    }}
+                    onPointerUp={(e) => {
+                      isDraggingReel.current = false;
+                      reelRef.current?.releasePointerCapture?.(e.pointerId);
+                    }}
+                    onPointerLeave={() => {
+                      isDraggingReel.current = false;
+                    }}
+                    className="flex gap-3 overflow-x-auto pb-4 no-scrollbar cursor-grab active:cursor-grabbing select-none"
+                  >
+                    {reelDays.map((date) => {
+                      const isSelected = selectedDates.some(d => isSameDay(d, date));
+                      return (
+                        <button
+                          key={date.toISOString()}
+                          onClick={() => toggleDateSelection(date)}
+                          className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
+                        >
+                          <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
+                          <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                      <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
                     </div>
-                    <div className="flex-1">
-                      <DropdownSelect
-                        title="Start Time"
-                        options={filteredStartTimeOptions}
-                        value={getStartTimeKey()}
-                        onChange={handleStartTimeChange}
-                        bgColour="bg-[#101010]"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <DropdownSelect
-                        title="End Time"
-                        options={filteredEndTimeOptions}
-                        value={getEndTimeKey()}
-                        onChange={handleEndTimeChange}
-                        bgColour="bg-[#101010]"
-                      />
+                    <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                      <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
                     </div>
                   </div>
-                </>
-              ) : (
-                <>
-                  <div className="relative mb-8 lg:mb-15">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
-                        }`}>
-                        Select Date
-                      </h3>
-                      <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
-                        <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
-                        <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
+
+                  {/* Calendar Popover */}
+                  <AnimatePresence>
+                    {isCalendarOpen && (
+                      <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
+                        <div className="flex justify-between items-center mb-6">
+                          <button onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
+                            <ChevronLeft size={20} />
+                          </button>
+                          <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
+                              <ChevronRight size={20} />
+                            </button>
+                            <button
+                              onClick={() => setIsCalendarOpen(false)}
+                              className="rounded-full p-1 hover:bg-white/10 transition-colors"
+                              aria-label="Close calendar"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
+                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
+                        </div>
+                        <div className="grid grid-cols-7 gap-1">
+                          {calendarDays.map((date) => {
+                            const isSelected = selectedDates.some(d => isSameDay(d, date));
+                            return (
+                              <button
+                                key={date.toISOString()}
+                                onClick={() => {
+                                  toggleDateSelection(date);
+                                }}
+                                className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
+                              >
+                                {format(date, "d")}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+                {/* timings selector will go here */}
+
+                {selectedDates.length > 0 && (
+                  <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
+                    <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
+
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => {
+                          setSameTimingsMulti(true);
+                          setMultiDayTimes({});
+                          // scrollToRef(navigationRef); //update with correct ref
+                        }}
+                        disabled={data.shootType === ""}
+                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                      >
+                        <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                        <div
+                          className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                            }`}
+                        >
+                          {sameTimingsMulti && (
+                            <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                          )}
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSameTimingsMulti(false);
+                          const startKey = getStartTimeKey();
+                          const endKey = getEndTimeKey();
+                          const nextTimes: Record<string, { startKey?: string; endKey?: string }> = {};
+                          selectedDates.forEach((d) => {
+                            const key = getDateKey(d);
+                            nextTimes[key] = { startKey, endKey };
+                          });
+                          setMultiDayTimes(nextTimes);
+                          // scrollToRef(navigationRef);  //update with correct ref
+                        }}
+                        disabled={data.shootType === ""}
+                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                      >
+                        <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                        <div
+                          className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                            }`}
+                        >
+                          {!sameTimingsMulti && (
+                            <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                          )}
+                        </div>
                       </button>
                     </div>
 
-                    {/* Horizontal Scroll Reel */}
-                    <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-                      {reelDays.map((date) => {
-                        const isSelected = selectedDates.some(d => isSameDay(d, date));
-                        return (
-                          <button
-                            key={date.toISOString()}
-                            onClick={() => toggleDateSelection(date)}
-                            className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
-                          >
-                            <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
-                            <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex gap-4">
-                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
-                      </div>
-                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
-                      </div>
-                    </div>
-
-                    {/* Calendar Popover */}
-                    <AnimatePresence>
-                      {isCalendarOpen && (
-                        <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
-                          <div className="flex justify-between items-center mb-6">
-                            <button onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}><ChevronLeft size={20} /></button>
-                            <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
-                            <button onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}><ChevronRight size={20} /></button>
-                          </div>
-                          <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
-                          </div>
-                          <div className="grid grid-cols-7 gap-1">
-                            {calendarDays.map((date) => {
-                              const isSelected = selectedDates.some(d => isSameDay(d, date));
-                              return (
-                                <button
-                                  key={date.toISOString()}
-                                  onClick={() => toggleDateSelection(date)}
-                                  className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
-                                >
-                                  {format(date, "d")}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  {/* timings selector will go here */}
-
-                  {selectedDates.length > 0 && (
-                    <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
-                      <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
-
-                      <div className="flex gap-4">
-                        <button
-                          onClick={() => {
-                            setSameTimingsMulti(true);
-                            // scrollToRef(navigationRef);
-                          }}
-                          disabled={data.shootType === ""}
-                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                        >
-                          <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-                          <div
-                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
-                              }`}
-                          >
-                            {sameTimingsMulti && (
-                              <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                            )}
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSameTimingsMulti(false);
-                            // scrollToRef(navigationRef);  
-                          }}
-                          disabled={data.shootType === ""}
-                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                        >
-                          <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-                          <div
-                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
-                              }`}
-                          >
-                            {!sameTimingsMulti && (
-                              <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                            )}
-                          </div>
-                        </button>
-                      </div>
-
-                      {
-                        sameTimingsMulti ? (
-                          <div>
-                            <div className="flex flex-col lg:flex-row gap-6">
-                              <div className="flex-1">
-                                <DropdownSelect
-                                  title="Start Time"
-                                  options={filteredStartTimeOptions}
-                                  value={getStartTimeKey()}
-                                  onChange={handleStartTimeChange}
-                                  bgColour="bg-[#101010]"
-                                />
-                              </div>
-                              <div className="flex-1">
-                                <DropdownSelect
-                                  title="End Time"
-                                  options={filteredEndTimeOptions}
-                                  value={getEndTimeKey()}
-                                  onChange={handleEndTimeChange}
-                                  bgColour="bg-[#101010]"
-                                />
-                              </div>
+                    {
+                      sameTimingsMulti ? (
+                        <div>
+                          <div className="flex flex-col lg:flex-row gap-6">
+                            <div className="flex-1">
+                              <DropdownSelect
+                                title="Start Time"
+                                options={filteredStartTimeOptions}
+                                value={getStartTimeKey()}
+                                onChange={handleStartTimeChange}
+                                bgColour="bg-[#101010]"
+                              />
                             </div>
-                            <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
-                              <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
+                            <div className="flex-1">
+                              <DropdownSelect
+                                title="End Time"
+                                options={filteredEndTimeOptions}
+                                value={getEndTimeKey()}
+                                onChange={handleEndTimeChange}
+                                bgColour="bg-[#101010]"
+                              />
+                            </div>
+                          </div>
+                          <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
+                            <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
+                          </p>
+                          <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                            <p className="text-white font-medium lg:text-[20px]">
+                              {getFormattedDateString(selectedDates)}
                             </p>
-                            <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
-                              <p className="text-white font-medium lg:text-[20px]">
-                                {getFormattedDateString(selectedDates)}
-                              </p>
-                              <p className="text-white/60  font-medium lg:text-[20px]">
-                                {/* Please show selected time instead of following text */}
-                                Please show selected time here
-                              </p>
-                              <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
-                                Duration Hour/Day
-                              </p>
-                            </div>
+                            <p className="text-white/60  font-medium lg:text-[20px]">
+                              {getStartTimeKey() && getEndTimeKey()
+                                ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
+                                : "Select time"}
+                            </p>
+                            <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
+                              {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
+                                ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
+                                : "Duration Hour/Day"}
+                            </p>
                           </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {selectedDates.map((date, idx) => (
-                              <div key={date.toISOString()} className="border border-white/10 rounded-2xl bg-[#171717] overflow-hidden">
-                                <button onClick={() => setExpandedDateIndex(expandedDateIndex === idx ? null : idx)} className={`w-full px-6 py-5 flex justify-between items-center ${expandedDateIndex === idx ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {selectedDates.map((date) => {
+                            const dateKey = getDateKey(date);
+                            const isExpanded = expandedDateKey === dateKey;
+                            return (
+                              <div key={date.toISOString()} className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}>
+                                <button onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
                                   <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
-                                  <ChevronDown className={`text-white/40 transition-transform ${expandedDateIndex === idx ? "rotate-180" : ""}`} />
+                                  <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                                 </button>
                                 <AnimatePresence>
-                                  {expandedDateIndex === idx && (
-                                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden bg-[#101010] p-4 lg:p-7">
+                                  {isExpanded && (
+                                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible">
                                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                         <div className="flex-1">
                                           <DropdownSelect
                                             title="Start Time"
                                             options={filteredStartTimeOptions}
-                                            value={getStartTimeKey()}
-                                            onChange={handleStartTimeChange}
+                                            value={multiDayTimes[dateKey]?.startKey || ""}
+                                            onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
                                             bgColour="bg-[#101010]"
                                           />
                                         </div>
@@ -1120,35 +1314,37 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                           <DropdownSelect
                                             title="End Time"
                                             options={filteredEndTimeOptions}
-                                            value={getEndTimeKey()}
-                                            onChange={handleEndTimeChange}
+                                            value={multiDayTimes[dateKey]?.endKey || ""}
+                                            onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
                                             bgColour="bg-[#101010]"
                                           />
                                         </div>
                                       </div>
 
                                       <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Duration: calculated duration to be shown here</p>
+                                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                          Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
+                                            ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
+                                            : "Select time"}
+                                        </p>
                                       </div>
                                     </motion.div>
                                   )}
                                 </AnimatePresence>
                               </div>
-                            ))}
-                          </div>
-                        )
-                      }
-                    </div>
-                  )}
-                </>
-              )
-
-            }
+                            );
+                          })}
+                        </div>
+                      )
+                    }
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Edits Needed */}
           <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            {/* <h3 className="text-lg lg:text-[28px] font-medium text-white/90 mb-3 lg:mb-6"> */}
             <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
               }`}>
               Edits Needed?
@@ -1210,15 +1406,82 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     //|| data.contentType.includes("cinematographer")) &&
                     editTypeOptions.length > 0 && (
                       <div>
-                        <MultiSelectDropdown
-                          title="Video Edit Type"
-                          options={editTypeOptions}
-                          value={data.videoEditTypes}
-                          onChange={(values) =>
-                            updateData({ videoEditTypes: values })
-                          }
-                          bgColour={"bg-[#101010]"}
-                        />
+                        <div className="relative w-full max-w-md">
+                          <div
+                            className="min-h-14 lg:min-h-[82px] relative bg-[#101010] rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40"
+                            onClick={() => setIsVideoEditOpen((p) => !p)}
+                          >
+                            <span className="absolute -top-3 left-4 bg-[#101010] px-3 text-sm lg:text-base text-white/60 rounded">
+                              Video Edit Type
+                            </span>
+                            <div className="flex-1 flex flex-wrap items-center gap-2">
+                              {Object.keys(videoEditCounts).length > 0 ? (
+                                Object.entries(videoEditCounts).map(([key, count]) => (
+                                  <div
+                                    key={key}
+                                    className="flex items-center gap-1.5 bg-[#2A2A2A] px-2 py-1 rounded-md text-white text-xs lg:text-sm"
+                                  >
+                                    <span className="truncate max-w-[140px]">
+                                      {getEditDisplayLabel(key, editTypeOptions)}
+                                    </span>
+                                    <span className="text-white/60">x{count}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-white/40 text-sm lg:text-base">Select Video Edit Type</span>
+                              )}
+                            </div>
+                            {isVideoEditOpen ? (
+                              <ChevronUp className="text-white flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="text-white flex-shrink-0" />
+                            )}
+                          </div>
+
+                          {isVideoEditOpen && (
+                            <div className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto">
+                              {editTypeOptions.map((option) => {
+                                const count = videoEditCounts[option.key] || 0;
+                                return (
+                                  <div
+                                    key={option.key}
+                                    className="flex items-center justify-between gap-3 px-4 py-3 text-white/80 hover:bg-white/5"
+                                  >
+                                    <span className="text-sm lg:text-base">{option.value}</span>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="min-w-[28px] text-center text-white">{count}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateEditQuantity("video", option.key, count + 1)}
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {data.videoEditTypes.length > 0 && (
+                                <div className="px-4 py-3 border-t border-white/10">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateData({ videoEditTypes: [] })}
+                                    className="text-xs text-white/50 hover:text-white/80 underline"
+                                  >
+                                    Clear all
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -1226,15 +1489,82 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   {data.contentType.includes("photographer") &&
                     photoEditTypeOptions.length > 0 && (
                       <div>
-                        <MultiSelectDropdown
-                          title="Photo Edit Type"
-                          options={photoEditTypeOptions}
-                          value={data.photoEditTypes}
-                          onChange={(values) =>
-                            updateData({ photoEditTypes: values })
-                          }
-                          bgColour={"bg-[#101010]"}
-                        />
+                        <div className="relative w-full max-w-md">
+                          <div
+                            className="min-h-14 lg:min-h-[82px] relative bg-[#101010] rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40"
+                            onClick={() => setIsPhotoEditOpen((p) => !p)}
+                          >
+                            <span className="absolute -top-3 left-4 bg-[#101010] px-3 text-sm lg:text-base text-white/60 rounded">
+                              Photo Edit Type
+                            </span>
+                            <div className="flex-1 flex flex-wrap items-center gap-2">
+                              {Object.keys(photoEditCounts).length > 0 ? (
+                                Object.entries(photoEditCounts).map(([key, count]) => (
+                                  <div
+                                    key={key}
+                                    className="flex items-center gap-1.5 bg-[#2A2A2A] px-2 py-1 rounded-md text-white text-xs lg:text-sm"
+                                  >
+                                    <span className="truncate max-w-[140px]">
+                                      {getEditDisplayLabel(key, photoEditTypeOptions)}
+                                    </span>
+                                    <span className="text-white/60">x{count}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-white/40 text-sm lg:text-base">Select Photo Edit Type</span>
+                              )}
+                            </div>
+                            {isPhotoEditOpen ? (
+                              <ChevronUp className="text-white flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="text-white flex-shrink-0" />
+                            )}
+                          </div>
+
+                          {isPhotoEditOpen && (
+                            <div className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto">
+                              {photoEditTypeOptions.map((option) => {
+                                const count = photoEditCounts[option.key] || 0;
+                                return (
+                                  <div
+                                    key={option.key}
+                                    className="flex items-center justify-between gap-3 px-4 py-3 text-white/80 hover:bg-white/5"
+                                  >
+                                    <span className="text-sm lg:text-base">{option.value}</span>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="min-w-[28px] text-center text-white">{count}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateEditQuantity("photo", option.key, count + 1)}
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {data.photoEditTypes.length > 0 && (
+                                <div className="px-4 py-3 border-t border-white/10">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateData({ photoEditTypes: [] })}
+                                    className="text-xs text-white/50 hover:text-white/80 underline"
+                                  >
+                                    Clear all
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         {photoEditNote && (
                           <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
                             <Info size={16} className="mt-0.5 flex-shrink-0" />
@@ -1248,8 +1578,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             )}
           </div>
         </>
-      )
-      }
+      )}
 
       {/* Navigation */}
       <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
@@ -1267,6 +1596,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           Continue
         </Button>
       </div>
-    </div >
+    </div>
   );
 };
