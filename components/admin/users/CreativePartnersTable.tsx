@@ -739,7 +739,7 @@ export const CreativePartnersTable = () => {
                 {deleteBlockedData.map((shoot: any, index: number) => (
                   <div key={index} className="bg-[#1A1A1A] p-3 rounded-lg border border-[#333] flex justify-between items-center">
                     <span className="text-sm text-white">{shoot.name}</span>
-                    <span className="text-xs text-[#888]">{shoot.date}</span>
+                    <span className="text-xs text-[#888]">{new Date(shoot.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                   </div>
                 ))}
               </div>

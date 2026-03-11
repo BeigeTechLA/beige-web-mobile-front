@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { X, Plus, Check } from "lucide-react";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type SkillOption = {
   value: string;
@@ -26,6 +27,16 @@ const AddSkills = ({
 }: AddSkillsProps) => {
   const [tempSelected, setTempSelected] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen && options.length === 0) {
+      toast.error("Please select a role first", {
+        description: "You need to select at least one role to see relevant skills.",
+      });
+      return;
+    }
+    setOpen(newOpen);
+  };
 
   const toggleTempSkill = (id: string) => {
     setTempSelected((prev) =>
@@ -54,7 +65,7 @@ const AddSkills = ({
     <div className="flex flex-col gap-4">
       <div className="flex gap-3 items-center">
         {/* Added modal={false} to ensure it doesn't lock background scroll */}
-        <Popover open={open} onOpenChange={setOpen} modal={false}>
+        <Popover open={open} onOpenChange={handleOpenChange} modal={false}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -85,7 +96,7 @@ const AddSkills = ({
               "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
             )}
           >
-            <div className="max-h-[300px] overflow-y-auto p-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
+            <div className="max-h-[300px] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-neutral-900">
               {options.map((opt) => {
                 const isSelected = tempSelected.includes(opt.value);
                 const isAlreadyAdded = value.includes(opt.value);
