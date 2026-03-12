@@ -123,6 +123,12 @@ export const useAuth = () => {
 
   const logout = useCallback(() => {
     dispatch(logoutAction());
+    // Explicitly clear cookies and localStorage just in case
+    Cookies.remove('revure_token');
+    Cookies.remove('revure_user');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('revure_user');
+    }
     router.push('/');
   }, [dispatch, router]);
 

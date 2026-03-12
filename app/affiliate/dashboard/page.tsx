@@ -872,7 +872,7 @@ export default function AffiliateDashboardPage() {
                       <div>
                         <p className="font-medium text-white mb-1">You Earn</p>
                         <p className="text-sm text-white/40">
-                          Get $200 for every completed booking.
+                          Get 10% for every completed booking.
                         </p>
                       </div>
                     </div>

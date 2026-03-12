@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight, X, MapPinHouse } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
@@ -329,20 +329,20 @@ export default function ClientDetailPage() {
     const startKey = getStartTimeKey();
     const endKey = getEndTimeKey();
 
-    const days = selectedDates.map((date) => {
-      const dateKey = getDateKey(date);
-      const dayTimes = multiDayTimes[dateKey] || {};
-      const finalStart = sameTimingsMulti ? startKey : dayTimes.startKey;
-      const finalEnd = sameTimingsMulti ? endKey : dayTimes.endKey;
-      return {
-        date: dateKey,
-        startTime: finalStart,
-        endTime: finalEnd
-      };
-    });
+        const days = selectedDates.map((date) => {
+            const dateKey = getDateKey(date);
+            const dayTimes = multiDayTimes[dateKey] || {};
+            const finalStart = sameTimingsMulti ? startKey : dayTimes.startKey;
+            const finalEnd = sameTimingsMulti ? endKey : dayTimes.endKey;
+            return {
+                date: dateKey,
+                start_time: finalStart ? `${finalStart}:00` : "09:00:00",
+                end_time: finalEnd ? `${finalEnd}:00` : "17:00:00"
+            };
+        });
 
-    updateData({ bookingDays: days });
-  }, [
+        updateData({ bookingDays: days });
+    }, [
     bookingType,
     selectedDates,
     formData.startDate,
@@ -633,7 +633,7 @@ export default function ClientDetailPage() {
 
       const crewSize = Object.values(crewRoles).reduce((a, b) => a + b, 0);
 
-      const payload = {
+      const payload: any = {
         client_name: clientName,
         guest_email: clientEmail,
         phone: clientPhone,
@@ -641,9 +641,6 @@ export default function ClientDetailPage() {
         lead_source: thumbtack,
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
-        start_date_time: formData.startDate,
-        end_time: formData.endDate,
-        duration_hours: durationHours,
         location: formData.location,
         crew_roles: crewRoles,
         crew_size: crewSize,
@@ -653,8 +650,17 @@ export default function ClientDetailPage() {
         photo_edit_types: formData.photoEditTypes || [],
         is_draft: false,
         skip_discount: true,
-        skip_margin: true
+        skip_margin: true,
+        booking_type: bookingType
       };
+
+      if (bookingType === "single_day") {
+        payload.start_date_time = formData.startDate;
+        payload.end_time = formData.endDate ? format(parseDate(formData.endDate)!, "HH:mm:ss") : "17:00:00";
+        payload.duration_hours = durationHours;
+      } else {
+        payload.booking_days = formData.bookingDays;
+      }
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
         method: "POST",
@@ -795,6 +801,7 @@ export default function ClientDetailPage() {
               onChange={() => toggleContentType("photographer")}
             />
             <ContentTypeCheckbox label="AI Editing" subLabel="Coming Soon" icon={<Scissors size={20} />} checked={false} onChange={() => { }} disabled={true} />
+            <ContentTypeCheckbox label="Studios" subLabel="Coming Soon" icon={<MapPinHouse size={20} />} checked={false} onChange={() => { }} disabled={true} />
             <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} checked={false} onChange={() => { }} disabled={true} />
           </div>
         </div>

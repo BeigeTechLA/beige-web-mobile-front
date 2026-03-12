@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight, X, MapPinHouse } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
@@ -590,10 +590,6 @@ export default function ClientDetailPage() {
   const executeFinalizeDeal = async () => {
     setIsSubmitting(true);
     try {
-      const startDate = parseDate(formData.startDate);
-      const endDate = parseDate(formData.endDate);
-      const durationHours = startDate && endDate ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)) : 0;
-
       const crewRoles: Record<string, number> = {};
       if (formData.contentType.includes("videographer")) {
         crewRoles["videographer"] = 1 + (extraTeam["videographer"] || 0);
@@ -604,13 +600,24 @@ export default function ClientDetailPage() {
 
       const crewSize = Object.values(crewRoles).reduce((a, b) => a + b, 0);
 
-      const payload = {
+      const booking_days = bookingType === "multi_day" ? selectedDates.map(date => {
+        const dateKey = getDateKey(date);
+        const timings = sameTimingsMulti
+          ? { startKey: getStartTimeKey(), endKey: getEndTimeKey() }
+          : multiDayTimes[dateKey];
+
+        return {
+          date: dateKey,
+          start_time: timings?.startKey ? `${timings.startKey}:00` : "09:00:00",
+          end_time: timings?.endKey ? `${timings.endKey}:00` : "17:00:00"
+        };
+      }) : [];
+
+      const payload: any = {
+        booking_type: bookingType,
         user_id: leadId,
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
-        start_date_time: formData.startDate,
-        end_time: formData.endDate,
-        duration_hours: durationHours,
         location: formData.location,
         crew_roles: crewRoles,
         crew_size: crewSize,
@@ -622,6 +629,18 @@ export default function ClientDetailPage() {
         skip_discount: true,
         skip_margin: true
       };
+
+      if (bookingType === "single_day") {
+        const startDate = parseDate(formData.startDate);
+        const endDate = parseDate(formData.endDate);
+        const durationHours = startDate && endDate ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)) : 0;
+
+        payload.start_date_time = formData.startDate; // "yyyy-MM-dd'T'HH:mm:ss"
+        payload.end_time = endDate ? format(endDate, "HH:mm:ss") : "";
+        payload.duration_hours = durationHours;
+      } else {
+        payload.booking_days = booking_days;
+      }
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
         method: "POST",
@@ -740,6 +759,14 @@ export default function ClientDetailPage() {
               label="AI Editing"
               subLabel="Coming Soon"
               icon={<Scissors size={20} />}
+              checked={false}
+              onChange={() => { }}
+              disabled={true}
+            />
+            <ContentTypeCheckbox
+              label="Studios"
+              subLabel="Coming Soon"
+              icon={<MapPinHouse size={20} />}
               checked={false}
               onChange={() => { }}
               disabled={true}
