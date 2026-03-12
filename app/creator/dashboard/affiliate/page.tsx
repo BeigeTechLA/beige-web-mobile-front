@@ -69,9 +69,9 @@ export default function AffiliateOverviewPage() {
   }, []);
 
   const handleUpdateReferralCode = async () => {
-    // Validation: Exactly 6 characters
-    if (!newCode || newCode.length !== 6) {
-      toast.error("Referral code must be exactly 6 characters");
+    // Validation: 4-20 characters
+    if (newCode.length < 4 || newCode.length > 20) {
+      toast.error("Referral code must be between 4-20 characters");
       return;
     }
 
@@ -163,49 +163,63 @@ export default function AffiliateOverviewPage() {
             <p className="text-xs text-[#E8D1AB] uppercase tracking-wider font-semibold block mb-0.5">Your Code</p>
 
             {isEditingCode ? (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <input
-                    autoFocus
-                    value={newCode}
-                    maxLength={6}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^a-zA-Z0-9]/g, "");
-                      setNewCode(val.toUpperCase());
-                    }}
-                    className="bg-transparent border-b border-[#E8D1AB] outline-none text-lg font-mono font-bold text-white tracking-widest w-24 uppercase"
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={newCode}
+                  maxLength={20}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^a-zA-Z0-9]/g, "");
+                    setNewCode(val.toUpperCase());
+                  }}
+                  style={{
+                    width: `${Math.max(newCode.length, 4) + 1}ch`,
+                  }}
+                  className="bg-transparent border-b border-[#E8D1AB] outline-none text-lg font-mono font-bold text-white tracking-widest uppercase transition-all duration-75"
+                  disabled={isUpdating}
+                />
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleUpdateReferralCode}
                     disabled={isUpdating}
-                  />
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={handleUpdateReferralCode}
-                      disabled={isUpdating}
-                      className="text-green-400 p-1 hover:bg-white/5 rounded"
-                    >
-                      {isUpdating ? <div className="animate-spin h-4 w-4 border-2 border-t-transparent rounded-full" /> : <Check size={18} />}
-                    </button>
-                    <button
-                      onClick={() => { setIsEditingCode(false); setNewCode(stats?.affiliate.referral_code || ""); }}
-                      disabled={isUpdating}
-                      className="text-red-400 p-1 hover:bg-white/5 rounded"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
+                    className="text-green-400 p-1 hover:bg-white/5 rounded"
+                  >
+                    {isUpdating ? (
+                      <div className="animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" />
+                    ) : (
+                      <Check size={18} />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditingCode(false);
+                      setNewCode(stats?.affiliate.referral_code || "");
+                    }}
+                    disabled={isUpdating}
+                    className="text-red-400 p-1 hover:bg-white/5 rounded"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
-                <span className="text-[10px] text-white/30">{newCode.length}/6 characters</span>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <p className="lg:text-xl font-mono font-bold text-white tracking-widest">
                   {stats?.affiliate.referral_code}
                 </p>
-                <Button
-                  onClick={() => setIsEditingCode(true)}
-                  className="text-white/40 hover:text-[#E8D1AB]"
-                >
-                  <Pencil size={14} />
-                </Button>
+                <div className="relative group flex items-center">
+                  <button
+                    onClick={() => setIsEditingCode(true)}
+                    className="text-white/40 hover:text-[#E8D1AB] transition-colors flex items-center justify-center"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-[#111] border border-white/10 text-xs text-white rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 pointer-events-none shadow-xl">
+                    You can set your unique code
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-white/10"></div>
+                    <div className="absolute top-[calc(100%-1px)] left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-[#111]"></div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

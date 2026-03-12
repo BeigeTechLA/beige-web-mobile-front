@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
-import { Loader2, ArrowDownLeft, ArrowUpRight, CheckCircle2, X, AlertCircle } from "lucide-react";
+import { Loader2, ArrowDownLeft, ArrowUpRight, CheckCircle2, X, AlertCircle, Video, Camera } from "lucide-react";
 import { useSearchCreatorsQuery, useGetRandomCrewQuery } from "@/lib/redux/features/creators/creatorsApi";
 import { useCreateSalesAssistedLeadMutation } from "@/lib/redux/features/sales/salesApi";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -107,8 +107,8 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       shoot_location: data.location,
       additional_details: data.specialInstructions,
       supporting_url: data.referenceLinks,
-      videographyCount: data?.videographyCount,
-      photographyCount: data?.photographyCount,
+      videographyCount: data?.roleCounts?.videographer,
+      photographyCount: data?.roleCounts?.photographer,
     };
 
     const dlEvent = (creators.length > 0) ? "cp_selection_found" : "cp_selection_not_found"
@@ -118,7 +118,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       location_in_website: "book_a_shoot_dream_team",
       duration_on_page: performance.now() / 1000,
       user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
       email: isAuthenticated ? user?.email : "Unknown",
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       booking_id: data?.bookingId,
@@ -129,12 +129,15 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   // Helper to determine capabilities (User Request: "if any crew have two ability like video and photo")
   const getCreatorCapabilities = (creator: Creator) => {
     const roleName = creator.role_name?.toLowerCase() || "";
-    const roleIdStr = String(creator.role_id);
+    const roleId = Number(creator.role_id);
     const skills = creator.skills ? (typeof creator.skills === 'string' ? creator.skills.toLowerCase() : JSON.stringify(creator.skills).toLowerCase()) : "";
     const bio = creator.bio?.toLowerCase() || "";
 
-    const isVideo = roleName.includes("video") || roleIdStr.includes("1") || skills.includes("video") || skills.includes("videographer") || bio.includes("videographer");
-    const isPhoto = roleName.includes("photo") || roleIdStr.includes("2") || skills.includes("photo") || skills.includes("photographer") || bio.includes("photographer");
+    // 1=Videographer, 11=Videographer (Pricing), 12=Cinematographer (Pricing/Video)
+    const isVideo = roleName.includes("video") || roleId === 1 || roleId === 11 || roleId === 12 || skills.includes("video") || skills.includes("videographer") || bio.includes("videographer");
+    
+    // 2=Photographer, 10=Photographer (Pricing)
+    const isPhoto = roleName.includes("photo") || roleId === 2 || roleId === 10 || skills.includes("photo") || skills.includes("photographer") || bio.includes("photographer");
 
     return { isVideo, isPhoto };
   };
@@ -162,15 +165,13 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     };
   }, [creators, data.roleCounts]);
 
-  // Smart counting to distribute multi-role creators to fill holes
-  const selectedCounts = useMemo(() => {
-    const selectedCreators = creators.filter(c => selectedIds.includes(c.crew_member_id));
-
+  // Helper to calculate counts for any set of IDs
+  const calculateCounts = (ids: number[]) => {
+    const selectedCreators = creators.filter(c => ids.includes(c.crew_member_id));
     let videoCount = 0;
     let photoCount = 0;
     const both: Creator[] = [];
 
-    // First pass: Assign single-role creators
     selectedCreators.forEach(c => {
       const caps = getCreatorCapabilities(c);
       if (caps.isVideo && !caps.isPhoto) {
@@ -180,27 +181,31 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       } else if (caps.isVideo && caps.isPhoto) {
         both.push(c);
       } else {
-        // Fallback for others (maybe editing only?), check primary role
-        const role = c.role_name?.toLowerCase() || "";
+        const role = (c.role_name || "").toLowerCase();
         if (role.includes("video")) videoCount++;
         else if (role.includes("photo")) photoCount++;
       }
     });
 
-    // Second pass: Assign dual-role creators to where they are needed
+    const targetV = requirements.required.video;
+    const targetP = requirements.required.photo;
+
     both.forEach(_ => {
-      if (videoCount < requirements.required.video) {
-        videoCount++;
-      } else if (photoCount < requirements.required.photo) {
-        photoCount++;
-      } else {
-        // If both full, just dump into video for now (or doesn't matter)
-        videoCount++;
+      const deficitV = targetV - videoCount;
+      const deficitP = targetP - photoCount;
+      if (deficitV > deficitP) videoCount++;
+      else if (deficitP > deficitV) photoCount++;
+      else {
+        if (videoCount <= photoCount) videoCount++;
+        else photoCount++;
       }
     });
 
     return { video: videoCount, photo: photoCount };
-  }, [selectedIds, creators, requirements]);
+  };
+
+  // Smart counting to distribute multi-role creators to fill holes
+  const selectedCounts = useMemo(() => calculateCounts(selectedIds), [selectedIds, creators, requirements]);
 
   const toggleSelection = (id: number) => {
     const creator = creators.find(c => c.crew_member_id === id);
@@ -210,36 +215,34 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
     setSelectedIds((prev) => {
       const isAlreadySelected = prev.includes(id);
+      if (isAlreadySelected) return prev.filter((p) => p !== id);
 
-      if (isAlreadySelected) {
-        return prev.filter((p) => p !== id);
-      }
-
-      // Check if we have space in EITHER compatible role
-      const videoFull = selectedCounts.video >= requirements.required.video;
-      const photoFull = selectedCounts.photo >= requirements.required.photo;
+      // Perform a "Dry Run" to see if this addition is valid
+      const nextIds = [...prev, id];
+      const nextCounts = calculateCounts(nextIds);
+      
+      const isVideoFull = nextCounts.video > requirements.required.video;
+      const isPhotoFull = nextCounts.photo > requirements.required.photo;
 
       if (isVideo && isPhoto) {
-        // If they are double agent, they can fit in if ANY slot is open
-        if (videoFull && photoFull) {
-          toast.error(`You have already selected the required team members.`);
+        if (isVideoFull && isPhotoFull) {
+          toast.error("You have already selected the required team members.");
           return prev;
         }
-      } else if (isVideo) {
-        if (videoFull) {
-          toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
-          return prev;
-        }
-      } else if (isPhoto) {
-        if (photoFull) {
-          toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
-          return prev;
-        }
+      } else if (isVideo && isVideoFull) {
+        toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
+        return prev;
+      } else if (isPhoto && isPhotoFull) {
+        toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
+        return prev;
       }
 
-      if (data.crewCount > 0 && prev.length >= data.crewCount) return prev;
+      if (data.crewCount > 0 && prev.length >= data.crewCount) {
+        toast.error(`You have already selected the required ${data.crewCount} team members.`);
+        return prev;
+      }
 
-      return [...prev, id];
+      return nextIds;
     });
   };
 
@@ -291,7 +294,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         location_in_website: "book_a_shoot_dream_team",
         duration_on_page: performance.now() / 1000,
         user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+        user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
         email: isAuthenticated ? user?.email : "Unknown",
         phone: isAuthenticated ? user?.phone_number : "Unknown",
         booking_id: data?.bookingId,
@@ -308,7 +311,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       location_in_website: "book_a_shoot_dream_team",
       duration_on_page: performance.now() / 1000,
       user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
       email: isAuthenticated ? user?.email : "Unknown",
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       booking_id: data?.bookingId,
@@ -324,7 +327,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       location_in_website: "book_a_shoot_dream_team",
       duration_on_page: performance.now() / 1000,
       user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
       email: isAuthenticated ? user?.email : "Unknown",
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       booking_id: data?.bookingId,
@@ -468,7 +471,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
                       {...creator}
                       name={creator.name || "Creator"}
                       role_name={creator.role_name || ""}
-                      // rating={creator.rating || 0}
+                      rating={creator.rating || 0}
                       total_reviews={creator.total_reviews || 0}
                       profile_image={creator.profile_image || ""}
                       isActive={isActive}
@@ -512,15 +515,17 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
       <div className="flex flex-wrap justify-center gap-4">
         {requirements.required.video > 0 && (
-          <div className={`px-4 py-2 rounded-full border ${selectedCounts.video === requirements.required.video ? 'bg-[#E8D1AB]/20 border-[#E8D1AB]' : 'border-white/10'}`}>
-            <span className="text-white/90 text-sm">
+          <div className={`h-12 flex items-center gap-2 border px-6 py-2 rounded-lg text-sm transition-all ${selectedCounts.video >= requirements.required.video ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#1A1A1A] border-white/10 text-white/70'}`}>
+            <Video size={16} />
+            <span className="font-medium">
               Videographer(s): {selectedCounts.video} / {requirements.required.video}
             </span>
           </div>
         )}
         {requirements.required.photo > 0 && (
-          <div className={`px-4 py-2 rounded-full border ${selectedCounts.photo === requirements.required.photo ? 'bg-[#E8D1AB]/20 border-[#E8D1AB]' : 'border-white/10'}`}>
-            <span className="text-white/90 text-sm">
+          <div className={`h-12 flex items-center gap-2 border px-6 py-2 rounded-lg text-sm transition-all ${selectedCounts.photo >= requirements.required.photo ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#1A1A1A] border-white/10 text-white/70'}`}>
+            <Camera size={16} />
+            <span className="font-medium">
               Photographer(s): {selectedCounts.photo} / {requirements.required.photo}
             </span>
           </div>
@@ -590,7 +595,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
                       location_in_website: "book_a_shoot_dream_team",
                       duration_on_page: performance.now() / 1000,
                       user_id: isAuthenticated ? user?.id : "Unknown",
-                      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+                      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
                       email: isAuthenticated ? user?.email : "Unknown",
                       phone: isAuthenticated ? user?.phone_number : "Unknown",
                       booking_id: data?.bookingId,

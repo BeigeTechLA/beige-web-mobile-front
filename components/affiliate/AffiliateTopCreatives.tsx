@@ -20,7 +20,7 @@ const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 export const AffiliateTopCreatives = () => {
     const [activeIndex, setActiveIndex] = useState(1); // Default to center
     const [partners, setPartners] = useState<any[]>([]);
-    const [range, setRange] = useState<'all' | 'monthly'>('all');
+    const [range, setRange] = useState<'all' | 'month'>('all');
     const [isOpen, setIsOpen] = useState(false);
 
     React.useEffect(() => {
@@ -66,7 +66,7 @@ export const AffiliateTopCreatives = () => {
     const activePartner = partners.length > 0 ? partners[activeIndex % partners.length] : null;
 
     const toggleRange = () => {
-        setRange(prev => prev === 'all' ? 'monthly' : 'all');
+        setRange(prev => prev === 'all' ? 'month' : 'all');
         setIsOpen(false);
     };
 
@@ -83,7 +83,7 @@ export const AffiliateTopCreatives = () => {
                         onClick={() => setIsOpen(!isOpen)}
                         className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-full text-xs text-white/70 hover:bg-white/5 transition-colors capitalize"
                     >
-                        {range === 'monthly' ? 'Month' : 'All Time'} <ChevronDown size={14} />
+                        {range === 'month' ? 'Month' : 'All Time'} <ChevronDown size={14} />
                     </button>
                     {isOpen && (
                         <div className="absolute right-0 top-full mt-2 w-32 bg-[#1A1A1A] border border-white/10 rounded-xl overflow-hidden z-10 shadow-xl">
