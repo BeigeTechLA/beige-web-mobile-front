@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from "react";
-import { Tag, X, Upload, Loader2, Plus } from "lucide-react";
+import { Tag, X, Upload, Image as ImageIcon, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { compressImage } from "@/lib/utils";
 import { toast } from "sonner";
@@ -14,7 +14,9 @@ interface FeaturedWorkModalProps {
 }
 
 const MAX_FILE_SIZE_MB = 30;
+const MAX_TOTAL_PROJECT_MB = 50;
 
+// NEW: Allowed types constants
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const ALLOWED_EXT_TEXT = "png, jpg, jpeg, webp";
 
@@ -54,7 +56,8 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const invalidFiles = files.filter((f) => !ALLOWED_TYPES.includes(f.type));
+    // 1. Validation: File Type Check
+    const invalidFiles = files.filter(f => !ALLOWED_TYPES.includes(f.type));
     if (invalidFiles.length > 0) {
       toast.error("Invalid File Type", {
         description: `Only ${ALLOWED_EXT_TEXT} files are allowed.`
@@ -63,9 +66,10 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
       return;
     }
 
-    const oversizedFiles = files.filter((f) => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+    // 2. Validation: Size checks
+    const oversizedFiles = files.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
     if (oversizedFiles.length > 0) {
-      toast.error(`File too large. Max ${MAX_FILE_SIZE_MB}MB each allowed.`);
+      toast.error(`File too large. Max ${MAX_FILE_SIZE_MB}MB allowed.`);
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
@@ -79,7 +83,8 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
       for (const file of files) {
         let processedFile = file;
 
-        if (file.type.startsWith("image/")) {
+        // Compress images
+        if (file.type.startsWith('image/')) {
           processedFile = await compressImage(file);
         }
 
@@ -88,6 +93,8 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = reject;
           reader.readAsDataURL(processedFile);
+          // Note: if editing, some files might already be blobs/strings from previous upload, 
+          // but handleFileChange is only for NEW files.
         });
 
         newPreviews.push(base64);
@@ -96,6 +103,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
 
       setImagePreviews((prev) => [...prev, ...newPreviews]);
       setRawFiles((prev) => [...prev, ...newRawFiles]);
+
     } catch (error) {
       console.error("Upload error:", error);
       toast.error("An error occurred while processing files.");
@@ -138,6 +146,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
 
       <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${open ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}>
         <div className={`${modalBg} w-full md:w-[600px] lg:w-[738px] max-h-[90vh] flex flex-col overflow-hidden relative`}>
+
           <div className="flex items-center justify-between px-8 pt-6 pb-2">
             <div>
               <h3 className="text-xl font-bold text-white">{editItem ? "Edit Featured Work" : "Add Featured Work"}</h3>
@@ -158,7 +167,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
               <div className="flex justify-between items-center ml-1">
                 <label className="text-sm font-medium text-white/60">Thumbnail / Media</label>
                 <span className="text-[10px] text-white/30 tracking-widest uppercase">
-                  {ALLOWED_EXT_TEXT} only • Max {MAX_FILE_SIZE_MB}MB each
+                  {ALLOWED_EXT_TEXT} only • Max {MAX_FILE_SIZE_MB}MB
                 </span>
               </div>
 
@@ -177,6 +186,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 relative">
+                  {/* Previews logic remains same */}
                   {imagePreviews.map((src, index) => (
                     <div key={index} className="relative rounded-[12px] overflow-hidden border border-white/20 aspect-square group">
                       <img src={src} className="w-full h-full object-cover" />
@@ -203,6 +213,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
                 </div>
               )}
 
+              {/* Updated accept attribute */}
               <input
                 ref={fileRef}
                 type="file"
