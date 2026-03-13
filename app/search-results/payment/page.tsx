@@ -1283,6 +1283,10 @@ function MultiCreatorPaymentContent() {
     );
   }
 
+  // console.log(booking);
+  // console.log(summaryData);
+
+
   return (
     <div className="pt-20 md:pt-32 pb-20 min-h-screen">
       <div className="container mx-auto px-4 xl:px-0">
@@ -1401,7 +1405,7 @@ function MultiCreatorPaymentContent() {
                         }
                         {
                           booking.event_type === "videographer,photographer" && (
-                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Videographer(s) & {summaryData?.crew_counts[0].count || 0} Photographer(s)</span>
+                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Videographer(s) & {summaryData?.crew_counts[1].count || 0} Photographer(s)</span>
                           )
                         }
                       </div>
