@@ -1468,20 +1468,24 @@ export const CheckVerificationStatus = async (payload: { crew_member_id: any }) 
   }
 };
 
-export const CheckCpStatus = async () => {
+export const CheckCPStatus = async () => {
   try {
-    const response = await api.get("creator/check-cp-status", {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    return response;
+    const response = await api.get("creator/check-cp-status");
+    return response.data;
   } catch (error: any) {
+    // If we get a 401, it means the token is invalid or the CP is deleted/inactive
+    if (error.response?.status === 401) {
+      return {
+        success: false,
+        is_deleted: true,
+        error: "Unauthorized"
+      };
+    }
     console.error('Check CP Status Error:', error);
     return {
       success: false,
       data: null,
-      error: error.response?.data?.message || 'Failed to fetch CP status',
+      error: error.response?.data?.message || 'Failed to check CP status',
     };
   }
 };
