@@ -19,9 +19,6 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
-  Pencil,
-  Copy,
-  CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner"; // Using sonner for the high-end look of the first code
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -45,14 +42,14 @@ import {
   getCrewAvailability,
   GetCreatorDashboardDetails,
   GetCreatorStats,
-  CheckVerificationStatus,
-  updateReferralCode,
+  CheckVerificationStatus
 } from "@/lib/api";
 
 // ----------------------------
 // CONSTANTS & HELPERS
 // ----------------------------
-const NEXT_PUBLIC_MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+const NEXT_PUBLIC_MAPBOX_TOKEN = "pk.eyJ1IjoiYW1yaWtzaW5naDc4NiIsImEiOiJja29wZ2RicXQwa3ZpMnJudXE4OHJmd2NoIn0.NHIyPWX9FfNSCFRUwpvGfw";
+
 /**
  * Format location string for clean display
  */
@@ -235,14 +232,7 @@ export default function CreatorDashboardPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [verificationStatus, setVerificationStatus] = useState<number | null>(null);
-  const [isSyncing, setIsSyncing] = useState(true);
-
-  // Referral Code States
-  const [isEditingCode, setIsEditingCode] = useState(false);
-  const [newCode, setNewCode] = useState("");
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [copySuccess, setCopySuccess] = useState(false);
-  const [referralCode, setReferralCode] = useState("");
+   const [isSyncing, setIsSyncing] = useState(true);
 
   const [viewState, setViewState] = useState({
     latitude: 39.8283,
@@ -290,10 +280,11 @@ export default function CreatorDashboardPage() {
       try {
         // 1. Ask backend for the REAL current status
         const response = await CheckVerificationStatus({ crew_member_id: crewId });
-        if ((response as any).error) {
-          toast.error((response as any).error);
-        } else {
-          const latestStatus = Number((response as any).data.is_crew_verified);
+        
+        if (response && !response.error && response.data?.data) {
+          const latestStatus = Number(response.data.data.is_crew_verified);
+
+          // 2. Update React State (Unlocks the current page)
           setVerificationStatus(latestStatus);
 
           // 3. Update LocalStorage (Unlocks the Sidebar links)
@@ -326,22 +317,18 @@ export default function CreatorDashboardPage() {
 
       try {
         const responseCount = await GetCreatorDashboardCount({ crew_member_id: crewMemberId });
-        if ((responseCount as any).error) {
-          toast.error((responseCount as any).error);
-        } else {
+        if (responseCount && !responseCount.error) {
           setDashboardStats({
-            completedShoots: (responseCount as any).data.completedShoots,
-            upcomingShoots: (responseCount as any).data.upcomingShoots,
-            pendingRequests: (responseCount as any).data.pendingRequests,
-            equipmentRequests: (responseCount as any).data.equipmentRequests,
+            completedShoots: responseCount.data.data.completedShoots,
+            upcomingShoots: responseCount.data.data.upcomingShoots,
+            pendingRequests: responseCount.data.data.pendingRequests,
+            equipmentRequests: responseCount.data.data.equipmentRequests,
           });
         }
 
         const responseStats = await GetCreatorStats({ crew_member_id: crewMemberId });
-        if ((responseStats as any).error) {
-          toast.error((responseStats as any).error);
-        } else {
-          setCreatorStats((responseStats as any).data);
+        if (responseStats && !responseStats.error) {
+          setCreatorStats(responseStats.data.data);
         }
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
@@ -361,9 +348,9 @@ export default function CreatorDashboardPage() {
 
       try {
         const response = await GetCreatorDashboardDetails({ crew_member_id: crewMemberId });
-        if (response && !(response as any).error) {
-          const fetchedAllShoots = (response as any).data.allShoots || [];
-          const fetchedPending = (response as any).data.pendingRequests || [];
+        if (response && !response.error) {
+          const fetchedAllShoots = response.data.data.allShoots || [];
+          const fetchedPending = response.data.data.pendingRequests || [];
 
           setAllShoots(fetchedAllShoots);
           setPendingRequests(fetchedPending);
@@ -402,6 +389,13 @@ export default function CreatorDashboardPage() {
     fetchDashboardDetails();
   }, [user]);
 
+  // useEffect(() => {
+  //   const userStr = localStorage.getItem("revure_user");
+  //   const localUser = userStr ? JSON.parse(userStr) : null;
+  //   // Map the status: 0=Pending, 1=Verified, 2=Rejected
+  //   const status = user?.is_crew_verified ?? localUser?.is_crew_verified ?? 0;
+  //   setVerificationStatus(Number(status));
+  // }, [user]);
 
   useEffect(() => {
     const userStr = localStorage.getItem("revure_user");
@@ -411,72 +405,10 @@ export default function CreatorDashboardPage() {
     const status = (user as any)?.is_crew_verified ?? localUser?.is_crew_verified ?? 0;
 
     setVerificationStatus(Number(status));
-    
-    // Initialize referral code from user object
-    const revureUser = localUser || user;
-    if (revureUser?.referral_code) {
-      setReferralCode(revureUser.referral_code);
-      setNewCode(revureUser.referral_code);
-    }
-    
     console.log("Verification Status:", status);
     console.log("User Object:", user);
     console.log("verification status::::", verificationStatus);
   }, [user]);
-
-  const handleUpdateReferralCode = async () => {
-    if (newCode.length < 4 || newCode.length > 20) {
-      toast.error("Referral code must be between 4-20 characters");
-      return;
-    }
-
-    const userStr = localStorage.getItem("revure_user");
-    const localUser = userStr ? JSON.parse(userStr) : null;
-    const affiliate_id = (user as any)?.affiliate_id || localUser?.affiliate_id;
-
-    if (!affiliate_id) {
-      toast.error("Affiliate status not found for this account");
-      return;
-    }
-
-    try {
-      setIsUpdating(true);
-      await updateReferralCode({
-        affiliate_id,
-        referral_code: newCode.toUpperCase(),
-      });
-
-      setReferralCode(newCode.toUpperCase());
-      setIsEditingCode(false);
-      
-      // Update local storage to persist the change
-      if (localUser) {
-        const updatedUser = { ...localUser, referral_code: newCode.toUpperCase() };
-        localStorage.setItem("revure_user", JSON.stringify(updatedUser));
-      }
-      
-      toast.success("Referral code updated!");
-    } catch (error: any) {
-      toast.error(
-        error?.response?.data?.message || "Failed to update referral code",
-      );
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleCopyCode = async () => {
-    if (referralCode) {
-      try {
-        await navigator.clipboard.writeText(referralCode);
-        setCopySuccess(true);
-        toast.success("Referral code copied!");
-        setTimeout(() => setCopySuccess(false), 2000);
-      } catch (err) {
-        toast.error("Failed to copy code");
-      }
-    }
-  };
 
   // if (verificationStatus === null) return null;
 
@@ -667,90 +599,14 @@ export default function CreatorDashboardPage() {
     <div className="max-w-7xl mx-auto space-y-4 lg:space-y-8 pb-12 text-white bg-[#111] p-4 md:p-8">
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold">Welcome back, {user?.name || "Partner"}</h1>
           <p className="text-sm lg:text-base text-white/60">Performance overview and shoot schedule</p>
         </div>
-        
-        {/* Referral Code Card */}
-        <div className="bg-[#1A1A1A] border border-[#E8D1AB]/20 rounded-lg lg:rounded-xl p-1 pr-1 flex items-center gap-3 w-full md:w-auto min-w-[300px]">
-          <div className="px-4 py-2 flex-1">
-            <span className="text-xs text-[#E8D1AB] uppercase tracking-wider font-semibold block mb-0.5">
-              Your Code
-            </span>
+        {/* <div className="flex items-center gap-3">
 
-            {isEditingCode ? (
-              <div className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={newCode}
-                  maxLength={20}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(
-                      /[^a-zA-Z0-9]/g,
-                      ""
-                    );
-                    setNewCode(value.toUpperCase());
-                  }}
-                  style={{
-                    width: `${Math.max(newCode.length, 4) + 1}ch`,
-                  }}
-                  className="bg-transparent border-b border-[#E8D1AB] outline-none lg:text-xl font-mono font-bold text-white tracking-widest uppercase transition-all duration-75"
-                  disabled={isUpdating}
-                />
-                <button
-                  onClick={handleUpdateReferralCode}
-                  disabled={isUpdating}
-                  className="text-green-400 hover:text-green-300"
-                >
-                  {isUpdating ? (
-                    <div className="animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" />
-                  ) : (
-                    <Check size={20} />
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setIsEditingCode(false);
-                    setNewCode(referralCode);
-                  }}
-                  className="text-red-400 hover:text-red-300"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <span className="lg:text-xl font-mono font-bold text-white tracking-widest">
-                  {referralCode || "------"}
-                </span>
-                <button
-                  onClick={() => setIsEditingCode(true)}
-                  className="text-white/40 hover:text-[#E8D1AB]"
-                >
-                  <Pencil size={14} />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {!isEditingCode && (
-            <Button
-              onClick={handleCopyCode}
-              className="h-full bg-[#E8D1AB] hover:bg-[#d0b890] text-black font-medium px-4 py-3 rounded-lg"
-            >
-              {copySuccess ? (
-                <CheckCircle size={18} />
-              ) : (
-                <Copy size={18} />
-              )}
-              <span className="ml-2">
-                {copySuccess ? "Copied" : "Copy"}
-              </span>
-            </Button>
-          )}
-        </div>
+        </div> */}
       </div>
 
       {/* Stats Cards (Luxury Style) */}
