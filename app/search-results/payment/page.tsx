@@ -1238,8 +1238,15 @@ function MultiCreatorPaymentContent() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center h-full min-h-[60vh]">
             <div className="relative mb-8">
               <div className="absolute inset-0 bg-[#E8D1AB]/20 blur-[60px] rounded-full" />
-              <div className="relative w-[220px] h-[220px] md:w-[372px] md:h-[356px]">
-                <Image src="/images/misc/PaymentDone.png" alt="Payment Done" fill className="object-contain" priority />
+              <div className="relative w-[360px] h-[220px] lg:w-[548px] lg:h-[344px]">
+                <Image
+                  src="/images/misc/PaymentSuccess.gif"
+                  alt="Payment Done"
+                  fill
+                  className="object-contain"
+                  priority
+                  unoptimized
+                />
               </div>
             </div>
             <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Booking Confirmed</h2>
@@ -1558,12 +1565,12 @@ function MultiCreatorPaymentContent() {
                       </div>
                     </div>
                     <div className="p-6 lg:p-10 text-lg lg:text-2xl flex justify-between items-start bg-[#E8D1AB] rounded-b-[20px]">
-                        <div className="flex flex-col">
-                          <span className="font-bold">Total</span>
-                          <span className="lg:text-lg text-[#545557]">Amount Due</span>
-                        </div>
-                        <span className="text-xl lg:text-[30px] font-bold">{formatCurrency(quoteTotal || 0)}</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold">Total</span>
+                        <span className="lg:text-lg text-[#545557]">Amount Due</span>
                       </div>
+                      <span className="text-xl lg:text-[30px] font-bold">{formatCurrency(quoteTotal || 0)}</span>
+                    </div>
                   </>
                 )}
               </div>
