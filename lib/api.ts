@@ -1468,6 +1468,24 @@ export const CheckVerificationStatus = async (payload: { crew_member_id: any }) 
   }
 };
 
+export const CheckCpStatus = async () => {
+  try {
+    const response = await api.get("creator/check-cp-status", {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error: any) {
+    console.error('Check CP Status Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error.response?.data?.message || 'Failed to fetch CP status',
+    };
+  }
+};
+
 export const salesApi = {
   getLeadStats: async (leadId: number | string) => {
     try {
