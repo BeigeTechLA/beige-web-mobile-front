@@ -15,13 +15,48 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
 
 export default function AffiliateLayout({ children }: { children: React.ReactNode; }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout } = useAuth();
+
+  // Global CP status check for all creator pages
+  useEffect(() => {
+    const checkCpStatus = async () => {
+      try {
+        const response = await CheckCpStatus();
+        const data = (response as any)?.data ?? response;
+
+        if (data?.success === false || data?.status === "inactive") {
+          toast.error(data?.message || "Your creator account is inactive.");
+          logout();
+          localStorage.clear();
+          router.push("/login");
+          return;
+        }
+
+        // Optional: keep crew_member_id in sync if backend returns it
+        if (data?.crew_member_id) {
+          const userStr = typeof window !== 'undefined' ? localStorage.getItem("revure_user") : null;
+          const localUser = userStr ? JSON.parse(userStr) : null;
+          if (localUser && localUser.crew_member_id !== data.crew_member_id) {
+            const updatedUser = { ...localUser, crew_member_id: data.crew_member_id };
+            localStorage.setItem("revure_user", JSON.stringify(updatedUser));
+          }
+        }
+      } catch (err) {
+        console.error("Check CP status error:", err);
+      }
+    };
+
+    checkCpStatus();
+  }, [pathname, logout, router]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex overflow-hidden">
