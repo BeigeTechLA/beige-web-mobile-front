@@ -17,7 +17,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { CheckVerificationStatus } from "@/lib/api";
+import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
 
 export default function AffiliateLayout({ children }: { children: React.ReactNode; }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -74,6 +74,13 @@ function Sidebar({ pathname, onClose }: { pathname: string; onClose?: () => void
       if (!crewId) return;
 
       try {
+        // Check if CP is still active/not deleted
+        const statusResponse = await CheckCPStatus();
+        if (statusResponse && (statusResponse.error || statusResponse.success === false || statusResponse.is_deleted)) {
+          // If the API indicates the CP is not found or error (meaning deleted/inactive)
+          handleLogout();
+          return;
+        }
 
         const response = await CheckVerificationStatus({ crew_member_id: crewId });
         if (response && !response.error && response.data?.data) {
