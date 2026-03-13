@@ -39,7 +39,6 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
   return (
     <div 
       id="booking-summary-modal"
-      // Added print:overflow-hidden to stop the wrapper from generating a scrollbar track
       className="fixed inset-0 z-[100] overflow-y-auto bg-black/90 backdrop-blur-xl flex justify-center items-start py-8 sm:py-12 px-4 print:absolute print:inset-0 print:p-0 print:bg-white print:block print:overflow-hidden"
       onClick={onClose}
     >
