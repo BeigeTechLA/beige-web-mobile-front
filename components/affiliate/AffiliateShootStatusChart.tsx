@@ -41,22 +41,22 @@ export const AffiliateShootStatusChart = ({ externalSelectedDate }: { externalSe
                     params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
                 }
 
-                const response = await affiliateApi.getMyShoots(token, params);
+                const response = await affiliateApi.getShootStatus(token, params);
                 if (response && !response.error && response.data) {
-                    const { stats } = response.data;
+                    const data = response.data;
+                    setTotalShoots(data.total?.toLocaleString() || "0");
 
-                    // Map the stats object to chart data format
-                    const mappedData = [
-                        { name: "Active", value: stats.total_active || 0, fill: "#3B82F6" },
-                        { name: "Completed", value: stats.total_completed || 0, fill: "#22C55E" },
-                        { name: "Cancelled", value: stats.total_cancelled || 0, fill: "#EF4444" },
-                        { name: "Upcoming", value: stats.total_upcoming || 0, fill: "#8B5CF6" },
-                        { name: "Draft", value: stats.total_draft || 0, fill: "#F59E0B" }
-                    ];
+                    if (Array.isArray(data.breakdown)) {
+                        const mappedData = data.breakdown
+                            .filter((item: ShootStatusBreakdown) => item.count > 0)
+                            .map((item: ShootStatusBreakdown) => ({
+                                name: item.label,
+                                value: item.count,
+                                fill: item.color
+                            }));
 
-                    const total = Object.values(stats).reduce((acc: number, val: any) => acc + (val || 0), 0);
-                    setTotalShoots(total.toString());
-                    setChartData(mappedData.filter(item => item.value > 0));
+                        setChartData(mappedData);
+                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch shoot status:", error);
@@ -68,12 +68,12 @@ export const AffiliateShootStatusChart = ({ externalSelectedDate }: { externalSe
     // Sync external selected date with range
     React.useEffect(() => {
         if (externalSelectedDate) {
-            setRange('monthly'); // Or 'custom' if supported, but here it's all/monthly
+            setRange('month'); // Or 'custom' if supported, but here it's all/monthly
         }
     }, [externalSelectedDate]);
 
     const toggleRange = () => {
-        setRange(prev => prev === 'all' ? 'monthly' : 'all');
+        setRange(prev => prev === 'all' ? 'month' : 'all');
         setIsOpen(false);
     };
 
@@ -92,7 +92,7 @@ export const AffiliateShootStatusChart = ({ externalSelectedDate }: { externalSe
                     </SelectTrigger>
                     <SelectContent className="bg-[#111111] border-white/10">
                         <SelectItem value="all">All time</SelectItem>
-                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="month">Monthly</SelectItem>
                     </SelectContent>
                 </Select>
             </div>

@@ -190,8 +190,8 @@ export default function AffiliateDashboardPage() {
   };
 
   const handleUpdateReferralCode = async () => {
-    if (!newCode || newCode.length !== 6) {
-      toast.error("Referral code must be exactly 6 characters");
+    if (newCode.length < 4 || newCode.length > 20) {
+      toast.error("Referral code must be between 4-20 characters");
       return;
     }
 
@@ -570,15 +570,18 @@ export default function AffiliateDashboardPage() {
                           <input
                             autoFocus
                             value={newCode}
-                            maxLength={6}
+                            maxLength={20}
                             onChange={(e) => {
                               const value = e.target.value.replace(
                                 /[^a-zA-Z0-9]/g,
-                                "",
+                                ""
                               );
                               setNewCode(value.toUpperCase());
                             }}
-                            className="bg-transparent border-b border-[#E8D1AB] outline-none lg:text-xl font-mono font-bold text-white tracking-widest w-24 uppercase"
+                            style={{
+                              width: `${Math.max(newCode.length, 4) + 1}ch`,
+                            }}
+                            className="bg-transparent border-b border-[#E8D1AB] outline-none lg:text-xl font-mono font-bold text-white tracking-widest uppercase transition-all duration-75"
                             disabled={isUpdating}
                           />
                           <button
@@ -607,12 +610,19 @@ export default function AffiliateDashboardPage() {
                           <span className="lg:text-xl font-mono font-bold text-white tracking-widest">
                             {stats?.affiliate.referral_code || "------"}
                           </span>
-                          <button
-                            onClick={() => setIsEditingCode(true)}
-                            className="text-white/40 hover:text-[#E8D1AB]"
-                          >
-                            <Pencil size={14} />
-                          </button>
+                          <div className="relative group flex items-center">
+                            <button
+                              onClick={() => setIsEditingCode(true)}
+                              className="text-white/40 hover:text-[#E8D1AB] transition-colors"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-[#111] border border-white/10 text-xs text-white rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 pointer-events-none shadow-xl">
+                              You can set your unique code
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-white/10"></div>
+                              <div className="absolute top-[calc(100%-1px)] left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-[#111]"></div>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>

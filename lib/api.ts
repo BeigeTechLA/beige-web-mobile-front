@@ -1,4 +1,4 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import Cookies from 'js-cookie';
 
 import type { Creator, Review, Equipment, PaymentIntentResponse, BookingResponse, BookingFormData } from '@/types/payment';
@@ -284,7 +284,7 @@ export const affiliateApi = {
   // Get client dashboard summary (affiliate dashboard)
   getDashboardSummary: async (token: string, params: { date_on?: string; range?: string } = {}) => {
     try {
-      const response = await api.get('client/get-dashboard-summary', {
+      const response = await api.get('/client/get-dashboard-summary', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -307,7 +307,7 @@ export const affiliateApi = {
         finalParams.type = finalParams.tab.toLowerCase();
         delete finalParams.tab;
       }
-      const response = await api.get('client/get-shoots-count-by-category', {
+      const response = await api.get('/client/get-shoots-count-by-category', {
         headers: { Authorization: `Bearer ${token}` },
         params: finalParams,
       });
@@ -322,9 +322,9 @@ export const affiliateApi = {
     }
   },
   // Get shoot status (affiliate dashboard)
-  getShootStatus: async (token: string, params: { range?: 'all' | 'monthly'; date_on?: string } = {}) => {
+  getShootStatus: async (token: string, params: { range?: 'all' | 'monthly' | 'month'; date_on?: string } = {}) => {
     try {
-      const response = await api.get('client/get-shoot-status', {
+      const response = await api.get('/client/get-shoot-status', {
         headers: { Authorization: `Bearer ${token}` },
         params: { range: 'all', ...params },
       });
@@ -341,7 +341,7 @@ export const affiliateApi = {
   // Get my shoots (affiliate dashboard)
   getMyShoots: async (token: string, params: { status?: string; range?: string; date_on?: string; search?: string } = {}) => {
     try {
-      const response = await api.get('client/get-my-shoots', {
+      const response = await api.get('/client/get-my-shoots', {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
@@ -368,7 +368,7 @@ export const affiliateApi = {
   // Get recent activity (affiliate dashboard)
   getRecentActivity: async (token: string, params: { limit?: number; date_on?: string } = {}) => {
     try {
-      const response = await api.get('client/get-recent-activity', {
+      const response = await api.get('/client/get-recent-activity', {
         headers: { Authorization: `Bearer ${token}` },
         params: { limit: 10, ...params },
       });
@@ -383,9 +383,9 @@ export const affiliateApi = {
     }
   },
   // Get top creative partners (affiliate dashboard)
-  getTopCreativePartners: async (token: string, params: { range?: 'all' | 'monthly'; date_on?: string } = {}) => {
+  getTopCreativePartners: async (token: string, params: { range?: 'all' | 'monthly' | 'month'; date_on?: string } = {}) => {
     try {
-      const response = await api.get('client/get-top-creative-partners', {
+      const response = await api.get('/client/get-top-creative-partners', {
         headers: { Authorization: `Bearer ${token}` },
         params: { range: 'all', ...params },
       });
@@ -402,7 +402,7 @@ export const affiliateApi = {
   // Get post production members (affiliate dashboard)
   getPostProductionMembers: async (token: string) => {
     try {
-      const response = await api.get('admin/get-post-production-members', {
+      const response = await api.get('/admin/get-post-production-members', {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
@@ -418,7 +418,7 @@ export const affiliateApi = {
   // Assign post production member (affiliate dashboard)
   assignPostProductionMember: async (token: string, payload: { post_production_member_id: number; project_id: number }) => {
     try {
-      const response = await api.post('client/assign-post-production-member', payload, {
+      const response = await api.post('/client/assign-post-production-member', payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
@@ -435,7 +435,7 @@ export const affiliateApi = {
   // Submit project form (affiliate dashboard)
   submitProjectForm: async (token: string, payload: any) => {
     try {
-      const response = await api.post('client/submit-project-form', payload, {
+      const response = await api.post('/client/submit-project-form', payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
@@ -452,7 +452,7 @@ export const affiliateApi = {
   // Get project form submission (pending forms)
   getProjectFormSubmission: async (token: string) => {
     try {
-      const response = await api.get('client/get-project-form-submission', {
+      const response = await api.get('/client/get-project-form-submission', {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
@@ -607,7 +607,30 @@ export const updateReferralCode = async (payload: {
       payload
     );
 
-    return response.data;
+    const data = response.data;
+    const message =
+      data?.message ||
+      data?.data?.message ||
+      data?.error ||
+      "";
+
+    if (
+      data?.success === false ||
+      String(message).toLowerCase().includes("already in use")
+    ) {
+      const businessError: any = new Error(
+        message || "Referral code already in use"
+      );
+      businessError.response = {
+        data: {
+          ...data,
+          message: message || "Referral code already in use",
+        },
+      };
+      throw businessError;
+    }
+
+    return data;
   } catch (error) {
     console.error("Update Referral Code Error:", error);
     throw error;
