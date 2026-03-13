@@ -12,6 +12,8 @@ import {
   Check,
   X,
   BadgeCheckIcon,
+  User2,
+  PencilLine,
 } from "lucide-react";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
@@ -159,6 +161,9 @@ function StripePaymentFormMulti({
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [referralErrorMessage, setReferralErrorMessage] = useState("");
 
+  // Terms&Condn accept
+  const [acceptTerms, setAcceptTerms] = useState(true);
+
   const isFree = amount === 0;
 
   // AUTO-APPLY & REFRESH FIX LOGIC - UPDATED TO HANDLE OVERRIDE
@@ -244,7 +249,7 @@ function StripePaymentFormMulti({
         setIsValidatingReferral(false);
       }
     }, 500),
-    [], 
+    [],
   );
 
   // Immediate referral validation (used on submit)
@@ -414,7 +419,7 @@ function StripePaymentFormMulti({
     } catch (error: any) {
       toast.error(
         error?.response?.data?.message ||
-          "Failed to refresh pricing with referral code",
+        "Failed to refresh pricing with referral code",
       );
     }
   }
@@ -773,7 +778,7 @@ function StripePaymentFormMulti({
               maxLength={10}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {isValidatingReferral ? (
+              {isValidatingReferral ? (
                 <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
               ) : null}
               {referralCode.length > 0 && (
@@ -880,6 +885,20 @@ function StripePaymentFormMulti({
               : `Confirm & Pay ${formatCurrency(amount)}`}
         </Button>
       </form>
+
+      <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2 lg:mt-5">
+        <input
+          type="checkbox"
+          checked={acceptTerms}
+          onChange={(e) => setAcceptTerms(e.target.checked)}
+        />
+        <p className="text-sm text-[#999]">
+          I agree to the{" "}
+          <span className="text-[#E8D5B5]">Terms & Conditions</span>,{" "}
+          <span className="text-[#E8D5B5]">Cancellation Policy</span>,
+          and <span className="text-[#E8D5B5]">Privacy Policy</span>
+        </p>
+      </div>
     </div>
   );
 }
@@ -1226,8 +1245,8 @@ function MultiCreatorPaymentContent() {
             <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Booking Confirmed</h2>
             <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(paidAmount)}</p>
             <div className="w-full max-w-2xl mb-6">
-              <button 
-                onClick={() => setIsDetailsFormOpen(true)} 
+              <button
+                onClick={() => setIsDetailsFormOpen(true)}
                 className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center"
               >
                 Complete All The Details For Your Shoot
@@ -1273,14 +1292,6 @@ function MultiCreatorPaymentContent() {
           </motion.div>
         </div>
 
-        {/* Beige Gaurantee */}
-        <div className="rounded-2xl border transition-all relative overflow-hidden bg-[#E8D1AB] text-[#1B1B1B] p-4 mt-15 lg:mt-30 mb-5 lg:mb-10 flex gap-4 ">
-          <div className="bg-[#1B1B1B] p-2 lg:p-4 rounded-lg">
-            <BadgeCheckIcon className="w-6 h-6 lg:w-10 lg:h-10 text-[#E8D1AB]" />
-          </div>
-          <p className="italic font-bold text-sm lg:text-lg">Our Beige Quality Guarantee ensures your production meets professional standards. If your shoot does not meet the agreed scope or quality expectations, we&apos;ll work with you and your assigned creative partner to make it right — including a complimentary reshoot if necessary.</p>
-        </div>
-
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
           <div className="xl:col-span-7 space-y-5">
             {!clientSecret ? (
@@ -1312,131 +1323,153 @@ function MultiCreatorPaymentContent() {
                     refreshPaymentIntent={refreshPaymentIntent}
                   />
                 </Elements>
+
+                {/* Beige Gaurantee */}
+                <div className="rounded-2xl border transition-all relative overflow-hidden bg-[#E8D1AB] text-[#1B1B1B] p-4 mt-2 lg:mt-4 flex items-start gap-4 ">
+                  <div className="flex-shrink-0 bg-[#1B1B1B] p-2 lg:p-4 rounded-lg">
+                    <BadgeCheckIcon className="w-6 h-6 lg:w-10 lg:h-10 text-[#E8D1AB]" />
+                  </div>
+                  <p className="italic font-bold text-sm lg:text-base">Our Beige Quality Guarantee ensures your production meets professional standards. If your shoot does not meet the agreed scope or quality expectations, we&apos;ll work with you and your assigned creative partner to make it right — including a complimentary reshoot if necessary.</p>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="xl:col-span-5 space-y-6">
-            <div className="bg-[#171717] rounded-[24px] p-6 lg:p-10">
-              <h3 className="font-bold mb-7 text-base lg:text-2xl">Booking Summary</h3>
-              <div className="bg-white rounded-[20px] text-black py-3 lg:py-5">
-                <div className="p-3 lg:p-5">
-                  <h4 className="font-bold text-lg mb-3">{toTitleCase(booking.shoot_name || "Unnamed Shoot")}</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
+          <div className="xl:col-span-5 space-y-6 rounded-[20px]">
+            <div className="bg-[#171717] rounded-[20px]">
+              {/* <div className="bg-[#171717] rounded-[24px] p-6 lg:p-10"> */}
+              <div className="p-6 lg:p-10 bg-[#272626] rounded-[20px]">
+                <h3 className="font-bold text-base lg:text-2xl">Booking Summary</h3>
+              </div>
+              {/* <div className="bg-white rounded-[20px] text-black py-3 lg:py-5"> */}
+              <div className="rounded-b-[20px] text-black">
+                <div className="p-6 lg:p-10 border-b border-b-[#FFFFFF5C] flex gap-4 items-center">
+                  <div className="w-10 h-10 lg:h-[82px] lg:w-[82px] rounded-full bg-[#333333] flex items-center justify-center text-[#FFFFFF85] font-semibold lg:text-2xl">
+                    {summaryData.client_email.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2)}
+                  </div>
+                  {/* ProjectName/Shoot Name currently displayed */}
+                  <h4 className="font-bold text-base lg:text-2xl text-white">{toTitleCase(booking.shoot_name || "Unnamed Shoot")}</h4>
+                </div>
+                <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 mb-4 lg:mb-8">
+                    <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Event Type:</span>
-                      <span>{toTitleCase((booking.project_name || booking.shoot_name || "").split("-")[0].trim())}</span>
+                      <span className="font-medium">{toTitleCase((booking.project_name || booking.shoot_name || "").split("-")[0].trim())}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex flex-col justify-between">
+                      <span className="text-[#626467]">Shoot Date:</span>
+                      <span className="font-medium">{booking.event_date || "N/A"} </span>
+                    </div>
+                    <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
-                      <span>{booking.duration_hours || 0} hours</span>
+                      <span className="font-medium">{booking.duration_hours || 0} hours</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#626467]">Location:</span>
-                      <span className="truncate ml-2">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
-                    </div>
+                  </div>
+                  <div className="flex flex-col justify-between">
+                    <span className="text-[#626467]">Location:</span>
+                    <span className="truncate">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
                   </div>
                 </div>
 
-                <div className="mx-2 lg:mx-4 p-3 lg:p-5 rounded-2xl transition-all relative overflow-hidden bg-[#E8D1AB]/60 text-[#171717]">
-                  <h4 className="font-bold text-lg mb-3">Shoot includes:</h4>
-                  <div className="space-y-2 text-sm">
-                    {/* <div className="flex justify-between">
-                      <span className="text-[#626467]">Hours of {booking.event_type === "videographer" ? "Videography" : booking.event_type === "photographer" ? "Photography" : "Photography & Videography"} :</span>
-                      <span>{booking.duration_hours || 0} hours</span>
-                    </div> */}
-                    <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Dedicated Team:</span>
-                      {
-                        booking.event_type === "videographer" && (
-                          <span>Videographer(s): {summaryData?.crew_counts[0].count || 0} </span>
-                        )
-                      }
-                      {
-                        booking.event_type === "photographer" && (
-                          <span>Photographer(s): {summaryData?.crew_counts[0].count || 0} </span>
-                        )
-                      }
-                      {
-                        booking.event_type === "videographer,photographer" && (
-                          <>
-                            <span>Videographer(s): {summaryData?.crew_counts[0].count || 0} </span>
-                            <span>Photographer(s): {summaryData?.crew_counts[1].count || 0} </span>
-                          </>
-                        )
-                      }
+                <div className="m-6 lg:m-10 rounded-2xl transition-all relative overflow-hidden bg-[#FFFFFF] text-[#000000]">
+                  <div className=" p-4 lg:p-7">
+                    <h4 className="font-bold text-lg lg:text-2xl">Shoot includes:</h4>
+                  </div>
+                  <div className="p-4 lg:p-7 space-y-2 lg:space-y-4 text-sm border-t border-t-[#0000005C]">
+                    <div className="flex gap-4 items-center">
+                      <div className="w-10 h-10 lg:h-20 lg:w-20 rounded-full bg-[#E8D1AB] flex items-center justify-center text-[#000000]">
+                        <Users className="w-6 h-6 lg:w-1- lg:h-10" />
+                      </div>
+                      <div className="flex flex-col lg:text-lg">
+                        <span className="text-[#626467]">Dedicated Team:</span>
+                        {
+                          booking.event_type === "videographer" && (
+                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Videographer(s) </span>
+                          )
+                        }
+                        {
+                          booking.event_type === "photographer" && (
+                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Photographer(s)</span>
+                          )
+                        }
+                        {
+                          booking.event_type === "videographer,photographer" && (
+                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Videographer(s) & {summaryData?.crew_counts[0].count || 0} Photographer(s)</span>
+                          )
+                        }
+                      </div>
                     </div>
+
                     {
                       summaryData?.editing?.is_needed == true && (
-                        <div className="flex flex-col justify-between gap-1.5">
-                          {/* This needs to be conditional */}
-                          <span className="text-[#626467]">Number of Edited Content:</span>
-                          {
-                            (summaryData?.editing && summaryData?.editing?.video_edits?.length > 0) && (
-                              <div className="pl-2 ">
-                                <span className="text-[#626467]">Video Edits: </span>
-                                <ul className="flex flex-wrap gap-1 list-disc list-inside ">
-                                  {getEditCounts(summaryData?.editing?.video_edits || []).map(
-                                    ({ label, count }) => (
-                                      <li key={label} className="text-black">
-                                        {label}
-                                        {count > 1 ? ` (x${count})` : ""}
-                                      </li>
-                                    ),
-                                  )}
-                                </ul>
-                              </div>
-                            )
-                          }
-                          {
-                            (summaryData?.editing && summaryData?.editing?.photo_edits?.length > 0) && (
-                              <div className="pl-2 ">
-                                <span className="text-[#626467]">Photo Edits: </span>
-                                <ul className="flex flex-wrap gap-2 list-disc list-inside ">
-                                  {getEditCounts(summaryData?.editing?.photo_edits || []).map(
-                                    ({ label, count }) => (
-                                      <li key={label} className="text-black">
-                                        {label}
-                                        {count > 1 ? ` (x${count})` : ""}
-                                      </li>
-                                    ),
-                                  )}
-                                </ul>
-                              </div>
-                            )
-                          }
-                        </div>
+                        <>
+                          <div className="flex gap-4 items-center">
+                            <div className="w-10 h-10 lg:h-20 lg:w-20 rounded-full bg-[#E8D1AB] flex items-center justify-center text-[#000000]">
+                              <PencilLine className="shrink-0 w-6 h-6 lg:w-1- lg:h-10" />
+                            </div>
+                            <div className="flex flex-col justify-between lg:text-lg">
+                              <span className="text-[#626467]">Number of Edited Content:</span>
+                              {
+                                (summaryData?.editing && summaryData?.editing?.video_edits?.length > 0) && (
+                                  <div className="">
+                                    <span className="text-[#070707] font-medium">{summaryData?.editing?.video_edits?.length || 0} Video Edits</span>
+                                  </div>
+                                )
+                              }
+                              {
+                                (summaryData?.editing && summaryData?.editing?.photo_edits?.length > 0) && (
+                                  <div className="">
+                                    <span className="text-[#070707] font-medium">{summaryData?.editing?.photo_edits?.length || 0} Photo Edits</span>
+                                  </div>
+                                )
+                              }
+                            </div>
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            {getEditCounts(summaryData?.editing?.video_edits || []).map(
+                              ({ label, count }) => (
+                                <div key={label} className="text-[#666] text-xs lg:text-sm font-medium bg-[#F4F4F4] border border-[#00000033] rounded-[10px] p-2 lg:px-5 lg:py-3.5">
+                                  {label}
+                                  {count > 1 ? ` (x${count})` : ""}
+                                </div>
+                              ),
+                            )}
+                            {getEditCounts(summaryData?.editing?.photo_edits || []).map(
+                              ({ label, count }) => (
+                                <div key={label} className="text-[#666] text-xs lg:text-sm font-medium bg-[#F4F4F4] border border-[#00000033] rounded-[10px] p-2 lg:px-5 lg:py-3.5">
+                                  {label}
+                                  {count > 1 ? ` (x${count})` : ""}
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        </>
                       )
                     }
-                    <div className="flex justify-between">
-                      <span className="text-[#626467]">Unlimited Usage Rights</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#626467]">$1M Liability Insurance Policy</span>
-                    </div>
-                    <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Beige Guarantee</span>
+                    <div className="bg-gradient-to-r from-[#FFF0D8] to-white rounded-xl p-4 lg:p-7 flex flex-col justify-between gap-3 lg:gap-6 italic">
+                      <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />Unlimited Usage Rights</p>
+                      <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />$1M Liability Insurance Policy</p>
+                      <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />Beige Guarantee</p>
                     </div>
                   </div>
                 </div>
 
                 {creators && creators.length > 0 && (
-                  <div className="p-3 lg:p-5 border-b border-black/20">
-                    <h4 className="font-bold text-base mb-3 flex items-center gap-2">
-                      <center><Users className="w-4 h-4" /></center>
-                      Your Crew ({creators?.length || 0})
+                  <div className="p-6 lg:p-10 lg:text-lg text-white border-y border-y-[#FFFFFF5C]">
+                    <h4 className="font-bold text-lg lg:text-2xl mb-3 flex items-center gap-2">
+                      Your Crew <span className="text-[#E8D1AB]">({creators?.length || 0})</span>
                     </h4>
                     <div className="space-y-2">
                       {creators.slice(0, 3).map((creator: any) => {
                         const imageUrl = creator.profile_image || getFallbackImage(creator.crew_member_id);
                         return (
-                          <div key={creator.crew_member_id} className="flex items-center gap-2">
-                            <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
+                          <div key={creator.crew_member_id} className="flex items-center gap-2 lg:gap-4">
+                            <div className="relative w-10 h-10 lg:w-[80px] lg:h-[80px] rounded-full overflow-hidden shrink-0">
                               <Image src={imageUrl} alt={creator.name} fill className="object-cover" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{creator.name}</p>
-                              <p className="text-xs text-[#626467] truncate">{creator.role_name}</p>
+                            <div className="flex-1 min-w-0 lg:text-lg ">
+                              <p className="font-medium truncate">{creator.name}</p>
+                              <p className="text-[#626467] truncate">{creator.role_name}</p>
                             </div>
                           </div>
                         );
@@ -1446,89 +1479,92 @@ function MultiCreatorPaymentContent() {
                 )}
 
                 {quote && (
-                  <div className="">
-                    {/* NEW AGGREGATED PRICING DISPLAY */}
+                  <>
+                    <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
+                      {/* NEW AGGREGATED PRICING DISPLAY */}
 
-                    {/* 1. SHOOT COST */}
-                    <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-bold text-[#212122]">Shoot Cost</span>
-                      </div>
-                      <span className="font-bold">{formatCurrency(pricingGroups.shootCost || 0)}</span>
-                    </div>
-
-                    {pricingGroups.additionalCP.totalCost > 0 && (
-                      <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20">
+                      {/* 1. SHOOT COST */}
+                      <div className="flex justify-between mb-3">
                         <div className="flex flex-col gap-1">
-                          <span className="font-medium text-[#212122]">Additional Creative Partner Fees</span>
-                          <div className="text-[11px] text-[#626467] space-y-0.5">
+                          <span className="font-bold text-[#CCC6C6]">Shoot Cost</span>
+                        </div>
+                        <span className="font-bold">{formatCurrency(pricingGroups.shootCost || 0)}</span>
+                      </div>
+
+                      {pricingGroups.additionalCP.totalCost > 0 && (
+                        <div className="flex justify-between mb-3">
+                          <div className="flex flex-col gap-1">
+                            <span className="font-medium text-[#CCC6C6]">Additional Creative Partner Fees</span>
+                            {/* <div className="text-[11px] text-[#626467] space-y-0.5">
                             {pricingGroups.additionalCP.videoCount > 0 && (
                               <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
                             )}
                             {pricingGroups.additionalCP.photoCount > 0 && (
                               <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
                             )}
+                          </div> */}
                           </div>
+                          <span className="font-medium">{formatCurrency(pricingGroups.additionalCP.totalCost || 0)}</span>
                         </div>
-                        <span className="font-medium">{formatCurrency(pricingGroups.additionalCP.totalCost || 0)}</span>
-                      </div>
-                    )}
+                      )}
 
-                    {pricingGroups.editingFees > 0 && (
-                      <div className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#f8f8f8]">
-                        <div className="flex flex-col gap-1">
-                          <span className="font-medium text-[#212122]">Editing Cost</span>
-                          <span className="text-[11px] text-[#626467]">Includes professional editing</span>
+                      {pricingGroups.editingFees > 0 && (
+                        <div className="flex justify-between mb-3">
+                          <div className="flex flex-col gap-1">
+                            <span className="font-medium text-[#CCC6C6]">Editing Cost</span>
+                            <span className=" text-[#787979]">Includes professional editing</span>
+                          </div>
+                          <span className="font-medium">{formatCurrency(pricingGroups.editingFees)}</span>
                         </div>
-                        <span className="font-medium">{formatCurrency(pricingGroups.editingFees)}</span>
-                      </div>
-                    )}
+                      )}
 
-                    {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((item, idx) => (
-                      <div key={`addon-${idx}`} className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#E8D1AB]/5">
-                        <span className="text-[#626467] font-medium">{item.role}</span>
-                        <span className="font-bold">{formatCurrency(item.cost || 0)}</span>
-                      </div>
-                    ))}
+                      {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((item, idx) => (
+                        <div key={`addon-${idx}`} className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#E8D1AB]/5">
+                          <span className="text-[#626467] font-medium">{item.role}</span>
+                          <span className="font-bold">{formatCurrency(item.cost || 0)}</span>
+                        </div>
+                      ))}
+                    </div>
 
-                    <div className="p-3 lg:p-5 border-b border-black/20">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-[#626467]">Subtotal</span>
-                        <span className="font-medium">{formatCurrency(quote.subtotal || 0)}</span>
-                      </div>
+                    <div className="p-6 lg:p-10 lg:text-[22px] text-white border-b border-b-[#FFFFFF5C]">
+                      <div className="">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-[#CCC6C6]">Subtotal</span>
+                          <span className="font-medium text-[#389903]">{formatCurrency(quote.subtotal || 0)}</span>
+                        </div>
 
-                      {parseFloat(quote.discount_total || 0) > 0 && (
-                        <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
-                          <div className="flex flex-col">
-                            <span className="text-green-600 font-bold flex items-center gap-1">
-                              <Tag className="w-3 h-3" /> Discount
+                        {parseFloat(quote.discount_total || 0) > 0 && (
+                          <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                            <div className="flex flex-col">
+                              <span className="text-green-600 font-bold flex items-center gap-1">
+                                <Tag className="w-3 h-3" /> Discount
+                              </span>
+                              {quote.discount_percentage && <span className="text-[10px] text-green-600/80">({quote.discount_percentage}% off)</span>}
+                            </div>
+                            <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total)}</span>
+                          </div>
+                        )}
+
+                        {parseFloat(quote.referral_discount_amount || 0) > 0 && (
+                          <div className="flex justify-between mt-2">
+                            <span className="text-green-700 font-medium">
+                              10% Referral Discount
                             </span>
-                            {quote.discount_percentage && <span className="text-[10px] text-green-600/80">({quote.discount_percentage}% off)</span>}
+                            <span className="text-green-700 font-bold">
+                              -{formatCurrency(quote.referral_discount_amount)}
+                            </span>
                           </div>
-                          <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total)}</span>
-                        </div>
-                      )}
-
-                      {parseFloat(quote.referral_discount_amount || 0) > 0 && (
-                        <div className="flex justify-between mt-2">
-                          <span className="text-green-700 font-medium">
-                            10% Referral Discount
-                          </span>
-                          <span className="text-green-700 font-bold">
-                            -{formatCurrency(quote.referral_discount_amount)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex justify-between items-start p-3 lg:p-5 bg-[#fcf8f1] rounded-b-[20px]">
-                      <div className="flex flex-col gap-2 text-sm">
-                        <span className="font-bold">Total</span>
-                        <span className="text-[#212122]">Amount Due</span>
+                        )}
                       </div>
-                      <span className="text-xl font-bold">{formatCurrency(quoteTotal || 0)}</span>
                     </div>
-                  </div>
+                    <div className="p-6 lg:p-10 text-lg lg:text-2xl flex justify-between items-start bg-[#E8D1AB] rounded-b-[20px]">
+                        <div className="flex flex-col">
+                          <span className="font-bold">Total</span>
+                          <span className="lg:text-lg text-[#545557]">Amount Due</span>
+                        </div>
+                        <span className="text-xl lg:text-[30px] font-bold">{formatCurrency(quoteTotal || 0)}</span>
+                      </div>
+                  </>
                 )}
               </div>
             </div>
