@@ -809,7 +809,10 @@ function StripePaymentFormMulti({
             <input
               type="text"
               value={discountCode}
-              onChange={(e) => handleDiscountCodeChange(e.target.value)}
+              onChange={(e) => {
+                if (isFromPaymentLink) return;
+                handleDiscountCodeChange(e.target.value);
+              }}
               className={`h-14 lg:h-[82px] w-full rounded-[12px] border px-4 pr-24 text-white outline-none bg-[#272626] uppercase tracking-wider ${discountValid === true
                 ? "border-green-500 focus:border-green-400"
                 : discountValid === false
@@ -818,6 +821,7 @@ function StripePaymentFormMulti({
                 }`}
               placeholder="Enter discount code"
               maxLength={20}
+              disabled={isFromPaymentLink}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isValidatingDiscount ? (
