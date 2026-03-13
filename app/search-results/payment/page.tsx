@@ -29,6 +29,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { BookingSummaryModal } from "@/src/components/landing/BookingSummaryModal";
+import { AffiliateShootDetailsForm } from "@/components/affiliate/AffiliateShootDetailsForm";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -899,6 +900,7 @@ function MultiCreatorPaymentContent() {
   const [showBackDialog, setShowBackDialog] = useState(false);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [summaryData, setSummaryData] = useState<any>(null);
+  const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -1224,7 +1226,10 @@ function MultiCreatorPaymentContent() {
             <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Booking Confirmed</h2>
             <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(paidAmount)}</p>
             <div className="w-full max-w-2xl mb-6">
-              <button onClick={() => window.open(getFormUrl(), "_blank")} className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center">
+              <button 
+                onClick={() => setIsDetailsFormOpen(true)} 
+                className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center"
+              >
                 Complete All The Details For Your Shoot
               </button>
             </div>
@@ -1240,6 +1245,13 @@ function MultiCreatorPaymentContent() {
           isOpen={isSummaryModalOpen}
           onClose={() => setIsSummaryModalOpen(false)}
           data={summaryData}
+        />
+        <AffiliateShootDetailsForm
+          isOpen={isDetailsFormOpen}
+          onClose={() => setIsDetailsFormOpen(false)}
+          projectId={parseInt(shootId || "0")}
+          hideAffiliateStep={true}
+          redirectTo="/login"
         />
       </div>
     );
