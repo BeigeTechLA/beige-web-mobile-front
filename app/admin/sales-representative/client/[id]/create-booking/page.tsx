@@ -745,7 +745,7 @@ export default function ClientDetailPage() {
               disabled={true}
             />
             <ContentTypeCheckbox
-              label="Studios"
+              label="Locations"
               subLabel="Coming Soon"
               icon={<MapPinHouse size={20} />}
               checked={false}
