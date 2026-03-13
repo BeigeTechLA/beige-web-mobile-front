@@ -160,7 +160,7 @@ export default function MultiSelectDropdown({
       </div>
 
       {open && !isDisabled && (
-        <div className={`absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto`}>
+        <div className={`absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar`}>
           {options.map((option) => {
             const isSelected = value.includes(option.key);
             return (
