@@ -36,6 +36,47 @@ export const datePickerColours = {
   mutedText: "#ffffff66",
   desktopCalendarText: "#FFFFFF",
 };
+// Standard dark theme tokens
+const darkTheme: DatePickerColors = {
+  inputBackground: "#101010",
+  inputText: "#FFFFFF",
+  inputBorder: "rgba(255, 255, 255, 0.3)",
+  inputBorderHover: "#E8D1AB",
+  inputBorderFocus: "#E8D1AB",
+  inputDisabled: "rgba(255, 255, 255, 0.1)",
+  labelText: "rgba(255, 255, 255, 0.6)",
+  iconColor: "#FFFFFF",
+  accent: "#E8D1AB",
+  accentText: "#101010",
+  hoverAccent: "#F2E2C6",
+  paperBackground: "#101010",
+  calendarHeaderText: "#FFFFFF",
+  weekdayLabelText: "rgba(255, 255, 255, 0.6)",
+  dayNumberText: "#FFFFFF",
+  navigationIconColor: "#E8D1AB",
+  mutedText: "rgba(255, 255, 255, 0.4)",
+};
+
+// Standard light theme tokens based on your instructions
+const lightTheme: DatePickerColors = {
+  inputBackground: "#FFFFFF",
+  inputText: "#2C2C2C",
+  inputBorder: "#0000004D",
+  inputBorderHover: "#E8D1AB",
+  inputBorderFocus: "#E8D1AB",
+  inputDisabled: "rgba(0, 0, 0, 0.1)",
+  labelText: "rgba(0, 0, 0, 0.6)",
+  iconColor: "#2C2C2C",
+  accent: "#E8D1AB",
+  accentText: "#FFFFFF",
+  hoverAccent: "#F2E2C6",
+  paperBackground: "#FFFFFF",
+  calendarHeaderText: "#2C2C2C",
+  weekdayLabelText: "rgba(0, 0, 0, 0.6)",
+  dayNumberText: "#2C2C2C",
+  navigationIconColor: "#E8D1AB",
+  mutedText: "rgba(0, 0, 0, 0.4)",
+};
 
 export interface DatePickerColors {
   inputBackground: string;
@@ -88,6 +129,7 @@ interface Props {
   sx?: any;
   floating?: boolean;
   labelSx?: any;
+  isDark?: boolean;
 }
 
 export const DatePicker: React.FC<Props> = ({
@@ -101,8 +143,11 @@ export const DatePicker: React.FC<Props> = ({
   sx,
   labelSx,
   floating = false, // Default to your original top-label style
+  isDark = true,
 }) => {
-  const colors = { ...defaultColors, ...customColors };
+  const activeTheme = isDark ? darkTheme : lightTheme;
+  const colors = { ...activeTheme, ...customColors };
+  // const colors = { ...defaultColors, ...customColors };
   const [open, setOpen] = useState(false);
 
   const interiorStyles = {

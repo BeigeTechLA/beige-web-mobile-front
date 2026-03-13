@@ -107,9 +107,9 @@ export default function LeadDetailPage() {
   const pathname = usePathname();
   const params = useParams();
   const leadId = params.id as string;
-  const { theme, resolvedTheme } = useTheme();
-
+  const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+
   const [discount, setDiscount] = useState("");
   const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
   const [showDiscountCode, setShowDiscountCode] = useState(false);
@@ -128,8 +128,8 @@ export default function LeadDetailPage() {
     setMounted(true);
   }, []);
 
-  // Default to dark logic per saved instructions
-  const isDark = !mounted || (resolvedTheme === "dark" || theme === "dark");
+  // Constant default to dark
+  const isDark = !mounted || theme === "dark";
 
   // Fetch real lead data
   const {
@@ -748,8 +748,8 @@ export default function LeadDetailPage() {
                           <button
                             onClick={() => { setDiscountType("fixed_amount"); setIsDropdownOpen(false); }}
                             className={`w-full text-left px-4 py-4 transition-colors ${isDark
-                                ? "text-white hover:bg-white/10"
-                                : "text-black hover:bg-gray-50"
+                              ? "text-white hover:bg-white/10"
+                              : "text-black hover:bg-gray-50"
                               }`}
                           >
                             Fixed Amount

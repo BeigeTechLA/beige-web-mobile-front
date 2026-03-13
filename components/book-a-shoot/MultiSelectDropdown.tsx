@@ -17,6 +17,7 @@ type MultiSelectDropdownProps = {
   maxDisplay?: number; // Max number of pills to display before showing "+N more"
   isDisabled?: boolean;
   fullWidth?: boolean;
+  isDark?: boolean; // Added isDark prop
 };
 
 export default function MultiSelectDropdown({
@@ -27,7 +28,8 @@ export default function MultiSelectDropdown({
   onChange,
   maxDisplay = 2,
   isDisabled = false,
-  fullWidth= false
+  fullWidth = false,
+  isDark = true, // Defaulting to true
 }: MultiSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -73,12 +75,13 @@ export default function MultiSelectDropdown({
   };
 
   return (
-    <div className={`relative w-full ${fullWidth ? "": "max-w-md"} ${isDisabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`} ref={dropdownRef}>
+    <div className={`relative w-full ${fullWidth ? "" : "max-w-md"} ${isDisabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`} ref={dropdownRef}>
       <div
-        className={`min-h-14 lg:min-h-[82px] relative ${bgColour} rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40`}
-        onClick={() => !isDisabled && setOpen((p) => !p)} // Check isDisabled here
+        className={`min-h-14 lg:min-h-[82px] relative ${bgColour} rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border transition-colors ${isDark ? "border-white/40" : "border-[#0000004D]"
+          }`}
+        onClick={() => !isDisabled && setOpen((p) => !p)}
       >
-        <span className={`absolute -top-3 left-4 ${bgColour} px-3 text-sm lg:text-base text-white/60 rounded`}>
+        <span className={`absolute -top-3 left-4 px-3 text-sm lg:text-base rounded ${bgColour} ${isDark ? `text-white/60` : "text-[#919191]"}`}>
           {title}
         </span>
 
@@ -89,7 +92,8 @@ export default function MultiSelectDropdown({
               {displayOptions.map((option) => (
                 <div
                   key={option.key}
-                  className="relative flex items-center gap-1.5 bg-[#2A2A2A] px-2 py-1 rounded-md text-white text-xs lg:text-sm"
+                  className={`relative flex items-center gap-1.5 px-2 py-1 rounded-md text-xs lg:text-sm transition-colors ${isDark ? "bg-[#2A2A2A] text-white" : "bg-black/5 text-black"
+                    }`}
                   onMouseEnter={() => setHoveredPill(option.key)}
                   onMouseLeave={() => setHoveredPill(null)}
                 >
@@ -102,9 +106,11 @@ export default function MultiSelectDropdown({
 
                   {/* Individual Pill Hover Popup */}
                   {hoveredPill === option.key && (
-                    <div className="absolute bottom-full mb-2 left-0 z-50 bg-[#1A1A1A] border border-white/10 p-2 px-3 rounded-lg shadow-2xl animate-in fade-in zoom-in duration-200">
-                      <span className="text-white text-xs whitespace-nowrap">{option.value}</span>
-                      <div className="absolute top-full left-4 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-[#1A1A1A]"></div>
+                    <div className={`absolute bottom-full mb-2 left-0 z-50 border p-2 px-3 rounded-lg shadow-2xl animate-in fade-in zoom-in duration-200 ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-gray-200 text-black"
+                      }`}>
+                      <span className="text-xs whitespace-nowrap">{option.value}</span>
+                      <div className={`absolute top-full left-4 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 ${isDark ? "border-t-[#1A1A1A]" : "border-t-white"
+                        }`}></div>
                     </div>
                   )}
                 </div>
@@ -117,13 +123,14 @@ export default function MultiSelectDropdown({
                   onMouseEnter={() => setShowTooltip(true)}
                   onMouseLeave={() => setShowTooltip(false)}
                 >
-                  <span className="text-[#E8D1AB] text-xs lg:text-sm cursor-pointer">
+                  <span className={`${isDark ? "text-[#E8D1AB]":"text-[#919191]"} text-xs lg:text-sm cursor-pointer`}>
                     +{remainingCount} more
                   </span>
 
                   {/* Hover Popup */}
                   {showTooltip && (
-                    <div className="absolute bottom-full mb-2 left-0 z-50 bg-[#1A1A1A] border border-white/10 p-3 rounded-lg shadow-2xl min-w-[150px] animate-in fade-in zoom-in duration-200">
+                    <div className={`absolute bottom-full mb-2 left-0 z-50 border p-3 rounded-lg shadow-2xl min-w-[150px] animate-in fade-in zoom-in duration-200 ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-gray-200 text-black"
+                      }`}>
                       <div className="flex flex-col gap-2">
                         {remainingOptions.map((option) => (
                           <div key={option.key} className="flex items-center justify-between gap-3 pb-1 last:pb-0">
@@ -132,7 +139,7 @@ export default function MultiSelectDropdown({
                         ))}
                       </div>
                       {/* Triangle Arrow */}
-                      <div className="absolute top-full left-4 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-[#1A1A1A]"></div>
+                      <div className={`absolute top-full left-4 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 ${isDark ? "border-t-[#1A1A1A]" : "border-t-white"}`}></div>
                     </div>
                   )}
                 </div>
@@ -141,26 +148,25 @@ export default function MultiSelectDropdown({
               {selectedOptions.length > 1 && (
                 <button
                   onClick={handleClearAll}
-                  className="text-white/40 hover:text-white/70 text-xs underline ml-1"
+                  className={`text-xs underline ml-1 transition-colors ${isDark ? "text-white/40 hover:text-white/70" : "text-black/40 hover:text-black/70"
+                    }`}
                 >
                   Clear
                 </button>
               )}
             </>
           ) : (
-            <span className="text-white/40 text-sm lg:text-base">Select {title}</span>
+            <span className={`${isDark ? "text-white/40" : "text-black/40"} text-sm lg:text-base`}>Select {title}</span>
           )}
         </div>
 
-        {open && !isDisabled ? (
-          <ChevronUp className="text-white flex-shrink-0" />
-        ) : (
-          <ChevronDown className="text-white flex-shrink-0" />
-        )}
+        <div className={`${isDark ? "text-white" : "text-black"} flex-shrink-0`}>
+          {open && !isDisabled ? <ChevronUp /> : <ChevronDown />}
+        </div>
       </div>
 
       {open && !isDisabled && (
-        <div className={`absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto`}>
+        <div className={`absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 ${bgColour} rounded-lg border ${isDark ? `${bgColour} border-white/10` : "bg-white border-gray-200"}  max-h-[300px] overflow-y-auto`}>
           {options.map((option) => {
             const isSelected = value.includes(option.key);
             return (
@@ -168,11 +174,14 @@ export default function MultiSelectDropdown({
                 key={option.key}
                 onClick={() => handleToggle(option.key)}
                 className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition
-                  ${isSelected ? "bg-[#E8D1AB]/10 text-white" : "text-white/50 hover:bg-white/5"}`}
+                  ${isSelected 
+                    ? isDark ? "bg-[#E8D1AB]/10 text-white" : "bg-[#FDEFD9] text-black" 
+                    : isDark ? "text-white/50 hover:bg-white/5" : "text-black/60 hover:bg-black/5"
+                  }`}
               >
                 {/* Checkbox */}
                 <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center border transition-all
-                    ${isSelected ? "border-[#E8D1AB] bg-[#E8D1AB]" : "border-white/30"}`}>
+                    ${isSelected ? "border-[#E8D1AB] bg-[#E8D1AB]" : isDark ? "border-white/30" : "border-black/20"}`}>
                   {isSelected && <Check size={14} className="text-black" strokeWidth={3} />}
                 </div>
                 <span className="text-sm lg:text-base">{option.value}</span>

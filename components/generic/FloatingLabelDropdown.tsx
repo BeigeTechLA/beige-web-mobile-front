@@ -77,8 +77,8 @@ export const FloatingLabelDropdown = ({
         onClick={() => setIsOpen(!isOpen)}
         className={`h-14 lg:h-[82px] w-full flex items-center justify-between bg-transparent border rounded-xl px-5 transition-all duration-300 
           ${isOpen
-            ? (isDark ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20" : "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20")
-            : (isDark ? "border-white/20 hover:border-white/40" : "border-[#E8D1AB] hover:border-[#E8D1AB]/40")
+            ? (isDark ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20" : "border-[#000000]/80 ring-1 ring-[#E8D1AB]/20")
+            : (isDark ? "border-white/20 hover:border-white/40" : "border-[#0000004D] hover:border-[#000000]/40")
           }
         `}
       >
