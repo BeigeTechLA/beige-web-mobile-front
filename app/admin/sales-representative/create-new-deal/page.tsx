@@ -801,7 +801,7 @@ export default function ClientDetailPage() {
               onChange={() => toggleContentType("photographer")}
             />
             <ContentTypeCheckbox label="AI Editing" subLabel="Coming Soon" icon={<Scissors size={20} />} checked={false} onChange={() => { }} disabled={true} />
-            <ContentTypeCheckbox label="Studios" subLabel="Coming Soon" icon={<MapPinHouse size={20} />} checked={false} onChange={() => { }} disabled={true} />
+            <ContentTypeCheckbox label="Locations" subLabel="Coming Soon" icon={<MapPinHouse size={20} />} checked={false} onChange={() => { }} disabled={true} />
             <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} checked={false} onChange={() => { }} disabled={true} />
           </div>
         </div>
