@@ -92,6 +92,19 @@ const toTitleCase = (str: string) => {
   });
 };
 
+const getEditCounts = (items: any[]) => {
+  const counts = new Map<string, number>();
+  (items || []).forEach((item) => {
+    const label = String(item || "").trim();
+    if (!label) return;
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  return Array.from(counts.entries()).map(([label, count]) => ({
+    label,
+    count,
+  }));
+};
+
 const getAuthHeaders = () => {
   if (typeof window === "undefined") return {};
   const token = localStorage.getItem("revure_token");
@@ -128,6 +141,7 @@ function StripePaymentFormMulti({
 
   const searchParams = useSearchParams();
   const urlDiscount = searchParams.get("discount");
+  const isFromPaymentLink = !!urlDiscount;
 
   // Referral code state
   const [referralCode, setReferralCode] = useState("");
@@ -142,7 +156,6 @@ function StripePaymentFormMulti({
   const [discountValid, setDiscountValid] = useState<boolean | null>(null);
   const [discountData, setDiscountData] = useState<any>(null);
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
-  const [appliedDiscount, setAppliedDiscount] = useState<any>(null);
   const [referralErrorMessage, setReferralErrorMessage] = useState("");
 
   const isFree = amount === 0;
@@ -230,8 +243,53 @@ function StripePaymentFormMulti({
         setIsValidatingReferral(false);
       }
     }, 500),
-    [],
+    [], 
   );
+
+  // Immediate referral validation (used on submit)
+  const validateReferralCodeNow = async (code: string) => {
+    if (!code || code.length < 4) {
+      setReferralCodeValid(null);
+      setReferralAffiliateName("");
+      setReferralErrorMessage("");
+      return false;
+    }
+
+    setIsValidatingReferral(true);
+    try {
+      let userId = null;
+      try {
+        const storedUser = localStorage.getItem("revure_user");
+        if (storedUser) {
+          const userObj = JSON.parse(storedUser);
+          userId = userObj.id;
+        }
+      } catch (e) {
+        console.error("Error parsing user", e);
+      }
+
+      const response = await affiliateApi.validateCode(code, userId);
+
+      if (response.valid) {
+        setReferralCodeValid(true);
+        setReferralAffiliateName(response.affiliate_name || "");
+        setReferralErrorMessage("");
+        return true;
+      }
+
+      setReferralCodeValid(false);
+      setReferralAffiliateName("");
+      setReferralErrorMessage(response.message || "Invalid referral code");
+      return false;
+    } catch (error) {
+      console.error("Network Error:", error);
+      setReferralCodeValid(false);
+      setReferralErrorMessage("Check your internet connection");
+      return false;
+    } finally {
+      setIsValidatingReferral(false);
+    }
+  };
 
   // Debounced discount code validation
   const validateDiscountCode = React.useCallback(
@@ -284,6 +342,47 @@ function StripePaymentFormMulti({
     [shootId, quote?.applied_discount_code],
   );
 
+  // Immediate discount validation (used on submit)
+  const validateDiscountCodeNow = async (code: string) => {
+    if (!code || code.length < 4) {
+      setDiscountValid(null);
+      setDiscountData(null);
+      return false;
+    }
+
+    setIsValidatingDiscount(true);
+    try {
+      const API_BASE_URL =
+        (
+          process.env.NEXT_PUBLIC_API_ENDPOINT ||
+          "https://revure-api.beige.app/v1/"
+        ).replace(/\/$/, "") + "/";
+
+      const response = await axios.get(
+        `${API_BASE_URL}sales/discount-codes/${code}/validate?booking_id=${shootId}`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (response.data.valid) {
+        setDiscountValid(true);
+        setDiscountData(response.data.data);
+        return true;
+      }
+
+      setDiscountValid(false);
+      setDiscountData(null);
+      return false;
+    } catch (error: any) {
+      setDiscountValid(false);
+      setDiscountData(null);
+      return false;
+    } finally {
+      setIsValidatingDiscount(false);
+    }
+  };
+
   const handleReferralCodeChange = (value: string) => {
     const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setReferralCode(upperCode);
@@ -331,6 +430,9 @@ function StripePaymentFormMulti({
     const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setDiscountCode(upperCode);
     validateDiscountCode(upperCode);
+    if (!upperCode && quote?.applied_discount_code) {
+      clearDiscountCode();
+    }
   };
 
   const applyDiscountCode = async () => {
@@ -360,19 +462,24 @@ function StripePaymentFormMulti({
       );
 
       if (response.data.success) {
-        setAppliedDiscount(response.data.data);
         toast.success("Discount applied successfully!");
 
-        const detailsRes = await axios.get(
-          `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
-          {
-            headers: getAuthHeaders(),
-          }
-        );
+        // Recalculate pricing after discount.
+        // If a referral code is already valid, re-apply it on top of the discounted total.
+        if (referralCodeValid && referralCode) {
+          await refreshPricingWithReferral(referralCode);
+        } else {
+          const detailsRes = await axios.get(
+            `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
+            {
+              headers: getAuthHeaders(),
+            }
+          );
 
-        if (detailsRes.data.success) {
-          setPaymentDetails(detailsRes.data.data);
-          await refreshPaymentIntent(detailsRes.data.data);
+          if (detailsRes.data.success) {
+            setPaymentDetails(detailsRes.data.data);
+            await refreshPaymentIntent(detailsRes.data.data);
+          }
         }
       }
     } catch (error: any) {
@@ -383,8 +490,76 @@ function StripePaymentFormMulti({
     }
   };
 
+  const clearDiscountCode = async () => {
+    if (!quote?.applied_discount_code || !quote?.quote_id || !shootId) {
+      setDiscountCode("");
+      setDiscountValid(null);
+      setDiscountData(null);
+      return;
+    }
+
+    setIsValidatingDiscount(true);
+    try {
+      const API_BASE_URL =
+        (
+          process.env.NEXT_PUBLIC_API_ENDPOINT ||
+          "https://revure-api.beige.app/v1/"
+        ).replace(/\/$/, "") + "/";
+
+      const response = await axios.post(
+        `${API_BASE_URL}sales/discount-codes/${quote.applied_discount_code}/clear`,
+        {
+          quote_id: quote.quote_id,
+          booking_id: shootId,
+        },
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (response.data.success) {
+        setDiscountCode("");
+        setDiscountValid(null);
+        setDiscountData(null);
+        toast.success("Discount cleared successfully!");
+
+        // Recalculate pricing after clear, preserving referral if present
+        if (referralCodeValid && referralCode) {
+          await refreshPricingWithReferral(referralCode);
+        } else {
+          const detailsRes = await axios.get(
+            `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
+            {
+              headers: getAuthHeaders(),
+            }
+          );
+
+          if (detailsRes.data.success) {
+            setPaymentDetails(detailsRes.data.data);
+            await refreshPaymentIntent(detailsRes.data.data);
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error("Error clearing discount:", error);
+      toast.error(error.response?.data?.message || "Failed to clear discount");
+    } finally {
+      setIsValidatingDiscount(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate referral code on confirm before payment APIs
+    if (referralCode.length > 0) {
+      const isValid = await validateReferralCodeNow(referralCode);
+      if (!isValid) {
+        onError("Please enter a valid referral code or remove it.");
+        return;
+      }
+    }
+
 
     // add GA event when payment is initiated
     pushToDataLayer("booking_payment_initiated ", {
@@ -597,34 +772,28 @@ function StripePaymentFormMulti({
               maxLength={10}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              {isValidatingReferral ? (
+                {isValidatingReferral ? (
                 <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
-              ) : referralCodeValid === true ? (
-                <Check className="w-5 h-5 text-green-500" />
-              ) : referralCodeValid === false ? (
-                <X className="w-5 h-5 text-red-500" />
               ) : null}
               {referralCode.length > 0 && (
                 <button
                   type="button"
                   onClick={clearReferralCode}
-                  className="text-white/60 hover:text-white transition-colors"
+                  className="text-xs font-medium uppercase tracking-wider text-white/60 hover:text-white transition-colors"
                   aria-label="Clear referral code"
                 >
-                  <X className="w-5 h-5" />
+                  Clear
                 </button>
               )}
             </div>
           </div>
           {referralCodeValid === true && referralAffiliateName && (
-            <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
-              <Check className="w-4 h-4" />
+            <p className="text-green-400 text-sm mt-2">
               Referred by {referralAffiliateName}
             </p>
           )}
           {referralCodeValid === false && referralCode.length >= 4 && (
-            <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
-              <X className="w-4 h-4" />
+            <p className="text-red-400 text-sm mt-2">
               {referralErrorMessage || "Invalid referral code"}
             </p>
           )}
@@ -662,7 +831,13 @@ function StripePaymentFormMulti({
                   Apply
                 </button>
               ) : discountValid === true && discountCode.toUpperCase() === quote?.applied_discount_code?.toUpperCase() ? (
-                <Check className="w-5 h-5 text-green-500" />
+                <button
+                  type="button"
+                  onClick={clearDiscountCode}
+                  className={`text-xs font-medium uppercase tracking-wider text-white/60 hover:text-white transition-colors ${isFromPaymentLink ? "hidden" : ""}`}
+                >
+                  Clear
+                </button>
               ) : discountValid === false ? (
                 <X className="w-5 h-5 text-red-500" />
               ) : null}
@@ -885,6 +1060,22 @@ function MultiCreatorPaymentContent() {
     setIsUpdatingIntent(false);
   };
 
+  const fetchSummaryData = async () => {
+    try {
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/")
+        .replace(/\/$/, "") + "/";
+
+      const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`);
+
+      if (response.data.success) {
+        setSummaryData(response.data.data);
+      }
+    } catch (err) {
+      toast.error("Failed to load summary details");
+      console.error("Fetch error:", err);
+    }
+  };
+
   useEffect(() => {
     const fetchPaymentDetails = async () => {
       if (!shootId) {
@@ -919,23 +1110,6 @@ function MultiCreatorPaymentContent() {
       }
     };
 
-    // fetchSummaryData 
-    const fetchSummaryData = async () => {
-      try {
-        const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/")
-          .replace(/\/$/, "") + "/";
-
-        const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`);
-
-        if (response.data.success) {
-          setSummaryData(response.data.data);
-        }
-      } catch (err) {
-        toast.error("Failed to load summary details");
-        console.error("Fetch error:", err);
-      }
-    };
-
     if (shootId) {
       fetchSummaryData();
     }
@@ -960,6 +1134,7 @@ function MultiCreatorPaymentContent() {
           headers: getAuthHeaders(),
         }
       );
+      await fetchSummaryData();
       setStep("success");
       toast.success("Booking confirmed successfully!");
     } catch (error) {
@@ -1030,6 +1205,8 @@ function MultiCreatorPaymentContent() {
       return booking?.event_type?.toLowerCase().includes("wedding") ? weddingFormUrl : generalFormUrl;
     };
 
+    const paidAmount = summaryData?.pricing?.total_paid ?? quoteTotal;
+
     return (
       <div className="pt-20 lg:pt-32 pb-20">
         <div className="container mx-auto px-4 md:px-0">
@@ -1041,7 +1218,7 @@ function MultiCreatorPaymentContent() {
               </div>
             </div>
             <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Booking Confirmed</h2>
-            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(quoteTotal)}</p>
+            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(paidAmount)}</p>
             <div className="w-full max-w-2xl mb-6">
               <button onClick={() => window.open(getFormUrl(), "_blank")} className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center">
                 Complete All The Details For Your Shoot
@@ -1183,13 +1360,14 @@ function MultiCreatorPaymentContent() {
                               <div className="pl-2 ">
                                 <span className="text-[#626467]">Video Edits: </span>
                                 <ul className="flex flex-wrap gap-1 list-disc list-inside ">
-                                  {
-                                    summaryData?.editing?.video_edits.map((edit: any, idx: number) => (
-                                      <li key={idx} className="text-black">
-                                        {edit}
+                                  {getEditCounts(summaryData?.editing?.video_edits || []).map(
+                                    ({ label, count }) => (
+                                      <li key={label} className="text-black">
+                                        {label}
+                                        {count > 1 ? ` (x${count})` : ""}
                                       </li>
-                                    ))
-                                  }
+                                    ),
+                                  )}
                                 </ul>
                               </div>
                             )
@@ -1199,13 +1377,14 @@ function MultiCreatorPaymentContent() {
                               <div className="pl-2 ">
                                 <span className="text-[#626467]">Photo Edits: </span>
                                 <ul className="flex flex-wrap gap-2 list-disc list-inside ">
-                                  {
-                                    summaryData?.editing?.photo_edits.map((edit: any, idx: number) => (
-                                      <li key={idx} className="text-black">
-                                        {edit}
+                                  {getEditCounts(summaryData?.editing?.photo_edits || []).map(
+                                    ({ label, count }) => (
+                                      <li key={label} className="text-black">
+                                        {label}
+                                        {count > 1 ? ` (x${count})` : ""}
                                       </li>
-                                    ))
-                                  }
+                                    ),
+                                  )}
                                 </ul>
                               </div>
                             )
