@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Tag, Check, X, Loader2 } from 'lucide-react';
+import { CreditCard, Tag, Loader2 } from 'lucide-react';
 import { affiliateApi } from '@/lib/api';
 import { debounce } from '@/lib/utils';
 
@@ -202,30 +202,26 @@ export function StripePaymentForm({
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isValidatingReferral ? (
                 <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
-              ) : referralCodeValid === true ? (
-                <Check className="w-5 h-5 text-green-500" />
               ) : null}
               {referralCode.length > 0 && (
                 <button
                   type="button"
                   onClick={clearReferralCode}
-                  className="text-white/60 hover:text-white transition-colors"
+                  className="text-xs font-medium uppercase tracking-wider text-white/60 hover:text-white transition-colors"
                   aria-label="Clear referral code"
                 >
-                  <X className="w-5 h-5" />
+                  Clear
                 </button>
               )}
             </div>
           </div>
           {referralCodeValid === true && referralAffiliateName && (
-            <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
-              <Check className="w-4 h-4" />
+            <p className="text-green-400 text-sm mt-2">
               Referred by {referralAffiliateName}
             </p>
           )}
           {referralCodeValid === false && referralCode.length >= 4 && (
-            <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
-              <X className="w-4 h-4" />
+            <p className="text-red-400 text-sm mt-2">
               Invalid referral code
             </p>
           )}
