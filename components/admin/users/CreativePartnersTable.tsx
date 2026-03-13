@@ -23,6 +23,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useTheme } from 'next-themes';
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
@@ -67,6 +68,8 @@ const StatusBadge = ({ status, mobile }: { status: UserStatus; mobile?: boolean 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 export const CreativePartnersTable = () => {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [users, setUsers] = useState<CreativePartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,6 +91,9 @@ export const CreativePartnersTable = () => {
   const [deleteBlockedData, setDeleteBlockedData] = useState<any[]>([]);
 
   const router = useRouter();
+
+  useEffect(() => setMounted(true), []);
+  const isDark = !mounted || theme === "dark";
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -352,22 +358,23 @@ export const CreativePartnersTable = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-lg lg:text-2xl font-semibold text-white mb-2">Creative Partners</h1>
-        <p className="text-[#888] text-xs lg:text-base leading-none">Manage and review all onboarded creative professionals in one place.</p>
+        <h1 className={`text-lg lg:text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>Creative Partners</h1>
+        <p className={`${isDark ? "text-[#888]" : "text-[#666]"} text-xs lg:text-base leading-none`}>Manage and review all onboarded creative professionals in one place.</p>
       </div>
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4">
         {/* Search & Status Filter */}
         <div className="flex items-center gap-4 flex-1">
-          <div className="relative flex-1 max-w-xl">
-            <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+          <div className="relative flex-1 max-w-md min-w-[240px]">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
             <input
               type="text"
               placeholder="Search ..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all" />
+              className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
+                }`} />
           </div>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
