@@ -112,6 +112,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isQueryFromSelection, setIsQueryFromSelection] = useState(false);
 
   // Initialize with fallback
   const [viewState, setViewState] = useState({
@@ -167,7 +168,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   }, [syncLocation]);
 
   const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim() || !isValidToken) return;
+    if (!searchQuery.trim() || !isValidToken || isQueryFromSelection) return;
 
     setIsSearching(true);
     try {
@@ -235,6 +236,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       zoom: 14
     }));
     setSearchResults([]);
+    setIsQueryFromSelection(true);
     setSearchQuery(result.place_name);
   }, []);
 
@@ -328,7 +330,10 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             <Search size={16} style={{ color: colors.secondaryText }} className="absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsQueryFromSelection(false);
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="Search Your Location..."
               style={{
@@ -361,7 +366,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         {searchResults.length > 0 && (
           <div
             style={{ backgroundColor: colors.paperBg, borderColor: colors.divider }}
-            className="mt-2 border rounded-lg shadow-sm max-h-40 overflow-y-auto"
+            className="mt-2 border rounded-lg shadow-sm max-h-40 overflow-y-auto no-scrollbar"
           >
             <style jsx>{`
               .group .result-title {

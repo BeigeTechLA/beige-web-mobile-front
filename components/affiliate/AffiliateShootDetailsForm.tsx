@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { affiliateApi, getProject } from "@/lib/api";
 import Cookies from "js-cookie";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const shootTypeOptions = [
     "Private Event (Birthday Parties, Family Reunions, Baby Showers, VIP Events)",
@@ -56,18 +57,9 @@ const toArray = (value: unknown): string[] => {
 
 const mapShootTypes = (value: unknown): { shootTypes: string[]; otherShootType: string } => {
     const rawTypes = toArray(value);
-    const matched = rawTypes.filter((type) => shootTypeOptions.includes(type));
-    const unmatched = rawTypes.filter((type) => !shootTypeOptions.includes(type));
+    const normalizedInput = String(value || "").toLowerCase();
 
-    if (matched.length > 0 || unmatched.length > 0) {
-        return {
-            shootTypes: unmatched.length > 0 ? [...matched, "Other:"] : matched,
-            otherShootType: unmatched.join(", "),
-        };
-    }
-
-    const normalized = String(value || "").toLowerCase();
-    if (!normalized) {
+    if (!normalizedInput) {
         return { shootTypes: [], otherShootType: "" };
     }
 
@@ -81,15 +73,48 @@ const mapShootTypes = (value: unknown): { shootTypes: string[]; otherShootType: 
         { match: ["music video", "podcast", "dance", "entertainment"], label: shootTypeOptions[6] },
     ];
 
-    const matchedOption = fallbackMap.find((option) =>
-        option.match.some((keyword) => normalized.includes(keyword))
-    );
+    const finalShootTypes: string[] = [];
+    const unmatchedTypes: string[] = [];
 
-    if (matchedOption) {
-        return { shootTypes: [matchedOption.label], otherShootType: "" };
+    rawTypes.forEach(type => {
+        const normalizedType = type.toLowerCase().trim();
+        
+        // 1. Check for exact match in options
+        const exactMatch = shootTypeOptions.find(opt => opt === type);
+        if (exactMatch) {
+            finalShootTypes.push(exactMatch);
+            return;
+        }
+
+        // 2. Check for keyword match in fallback map
+        const keywordMatch = fallbackMap.find(m => 
+            m.match.some(keyword => normalizedType.includes(keyword))
+        );
+        if (keywordMatch) {
+            if (!finalShootTypes.includes(keywordMatch.label)) {
+                finalShootTypes.push(keywordMatch.label);
+            }
+            return;
+        }
+
+        // 3. Otherwise it's unmatched
+        unmatchedTypes.push(type);
+    });
+
+    if (unmatchedTypes.length > 0) {
+        if (!finalShootTypes.includes("Other:")) {
+            finalShootTypes.push("Other:");
+        }
+        return {
+            shootTypes: finalShootTypes,
+            otherShootType: unmatchedTypes.join(", "),
+        };
     }
 
-    return { shootTypes: ["Other:"], otherShootType: String(value) };
+    return {
+        shootTypes: finalShootTypes,
+        otherShootType: "",
+    };
 };
 
 const normalizeProjectPayload = (raw: any) => {
@@ -142,34 +167,53 @@ const parseContactInfoFromDescription = (description: unknown) => {
 };
 
 const parseBriefOverview = (project: any, projectForm: any, root: any) => {
+    // 1. Check for explicit brief_overview in any source
     const explicitOverview =
-        projectForm?.brief_overview ||
-        project?.brief_overview ||
-        root?.brief_overview ||
-        project?.project_description ||
+        projectForm?.brief_overview ??
+        project?.brief_overview ??
+        root?.brief_overview ??
+        projectForm?.project_notes ??
+        project?.project_notes ??
+        root?.project_notes ??
+        projectForm?.event_notes ??
+        project?.event_notes ??
+        root?.event_notes ??
+        projectForm?.order_description ??
+        project?.order_description ??
+        root?.order_description ??
+        projectForm?.event_description ??
+        project?.event_description ??
+        root?.event_description ??
+        projectForm?.project_description ??
+        project?.project_description ??
         root?.project_description;
 
-    if (String(explicitOverview || "").trim()) {
-        return String(explicitOverview).trim();
+    // If it's a string (even an empty one), we return it
+    if (typeof explicitOverview === "string") {
+        return explicitOverview.trim();
     }
 
+    // 2. Fallback to description if available
     const description = String(project?.description || root?.description || "");
-    const cleanedDescription = description
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(
-            (line) =>
-                line &&
-                !/^contact name:/i.test(line) &&
-                !/^phone:/i.test(line) &&
-                !/^matching method:/i.test(line)
-        )
-        .join(" ");
+    if (description.trim()) {
+        const cleanedDescription = description
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(
+                (line) =>
+                    line &&
+                    !/^contact name:/i.test(line) &&
+                    !/^phone:/i.test(line) &&
+                    !/^matching method:/i.test(line)
+            )
+            .join(" ");
 
-    if (cleanedDescription) {
-        return cleanedDescription;
+        if (cleanedDescription.trim()) {
+            return cleanedDescription.trim();
+        }
     }
 
+    // 3. Last resort fallback to project name
     return String(project?.project_name || root?.project_name || "").trim();
 };
 
@@ -235,9 +279,20 @@ interface AffiliateShootDetailsFormProps {
     onClose: () => void;
     projectId?: number;
     pendingProjects?: any[];
+    hideAffiliateStep?: boolean;
+    redirectTo?: string;
 }
 
-export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialProjectId, pendingProjects = [] }: AffiliateShootDetailsFormProps) => {
+export const AffiliateShootDetailsForm = ({ 
+    isOpen, 
+    onClose, 
+    projectId: initialProjectId, 
+    pendingProjects = [],
+    hideAffiliateStep = false,
+    redirectTo
+}: AffiliateShootDetailsFormProps) => {
+    const router = useRouter();
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<FormData>(initialFormData);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -245,6 +300,15 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
     const [referralCode, setReferralCode] = useState<string>("");
     const [showReferralCode, setShowReferralCode] = useState(false);
     const [isProjectLoading, setIsProjectLoading] = useState(false);
+
+    const totalSteps = hideAffiliateStep ? 4 : 5;
+
+    // Reset scroll position to top when step changes
+    React.useEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+        }
+    }, [step]);
 
     React.useEffect(() => {
         const fetchReferralCode = async () => {
@@ -273,8 +337,7 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
 
     React.useEffect(() => {
         const fetchProjectDetails = async () => {
-            const token = Cookies.get("revure_token");
-            if (!token || !selectedProjectId || !isOpen) {
+            if (!selectedProjectId || !isOpen) {
                 return;
             }
 
@@ -282,14 +345,47 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                 setIsProjectLoading(true);
 
                 let payload: any = null;
+                let normalized: any = { root: {}, project: {}, projectForm: {} };
 
                 try {
-                    payload = await affiliateApi.getProjectDetails(token, selectedProjectId);
-                } catch (error) {
-                    console.error("Affiliate project details fetch failed:", error);
-                }
+                    let projectPayload: any = null;
+                    let bookingPayload: any = null;
 
-                let normalized = normalizeProjectPayload(payload);
+                    // 1. Fetch from project endpoint (if token exists)
+                    if (!hideAffiliateStep) {
+                        const token = Cookies.get("revure_token");
+                        if (token) {
+                            projectPayload = await affiliateApi.getProjectDetails(token, selectedProjectId);
+                        }
+                    }
+
+                    // 2. Fetch from booking details endpoint (requested by user)
+                    bookingPayload = await affiliateApi.getBookingDetailsGuest(Number(selectedProjectId));
+
+                    // 3. Combine payloads
+                    // Prioritize project details if they exist, but use booking details as base/fallback
+                    const normalizedProject = normalizeProjectPayload(projectPayload);
+                    const normalizedBooking = normalizeProjectPayload(bookingPayload);
+
+                    // If project payload is empty but booking payload has data, use booking payload
+                    if (!projectPayload || !projectPayload.data) {
+                        payload = bookingPayload;
+                    } else {
+                        payload = projectPayload;
+                    }
+
+                    // Store both in normalization context if needed, but for now we merge them in setFormData
+                    const { root: bRoot, project: bProject, projectForm: bForm } = normalizedBooking;
+                    const { root: pRoot, project: pProject, projectForm: pForm } = normalizedProject;
+
+                    const mergedRoot = { ...bRoot, ...pRoot };
+                    const mergedProject = { ...bProject, ...pProject };
+                    const mergedForm = { ...bForm, ...pForm };
+
+                    normalized = { root: mergedRoot, project: mergedProject, projectForm: mergedForm };
+                } catch (error) {
+                    console.error("Project details fetch failed:", error);
+                }
 
                 const hasUsefulData =
                     Object.keys(normalized.projectForm || {}).length > 0 ||
@@ -305,7 +401,14 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
 
                 if (!hasUsefulData) {
                     const adminPayload = await getProject(Number(selectedProjectId));
-                    normalized = normalizeProjectPayload(adminPayload);
+                    const normalizedAdmin = normalizeProjectPayload(adminPayload);
+                    
+                    // Merge admin data if it has something useful
+                    normalized = {
+                        root: { ...normalized.root, ...normalizedAdmin.root },
+                        project: { ...normalized.project, ...normalizedAdmin.project },
+                        projectForm: { ...normalized.projectForm, ...normalizedAdmin.projectForm }
+                    };
                 }
 
                 const { root, project, projectForm } = normalized;
@@ -323,18 +426,31 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
 
                 const mappedShootTypes = mapShootTypes(projectTypesSource);
                 const parsedContactInfo = parseContactInfoFromDescription(project?.description);
+                
+                // Construct onsite contact string from guest fields if available
+                let onsiteContactFromGuest = "";
+                if (project?.contact_name || project?.contact_phone) {
+                    onsiteContactFromGuest = [project.contact_name, project.contact_phone]
+                        .filter(Boolean)
+                        .join(" - ");
+                }
+
                 const parsedBriefOverview = parseBriefOverview(project, projectForm, root);
 
                 setFormData({
                     email:
-                        projectForm?.email ||
                         project?.guest_email ||
                         root?.guest_email ||
+                        projectForm?.email ||
                         "",
                     onsiteContact:
+                        onsiteContactFromGuest ||
                         projectForm?.onsite_contact_info ||
                         project?.onsite_contact_info ||
                         root?.onsite_contact_info ||
+                        projectForm?.contact_name ||
+                        project?.contact_name ||
+                        root?.contact_name ||
                         parsedContactInfo ||
                         "",
                     shootTypes: mappedShootTypes.shootTypes,
@@ -358,6 +474,7 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                         root?.event_agenda ||
                         "",
                     address:
+                        (typeof project?.location === 'string' ? project.location : project?.location?.address) ||
                         projectForm?.location_address ||
                         project?.location_address ||
                         root?.location_address ||
@@ -365,8 +482,7 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                         project?.event_location ||
                         root?.event_location?.address ||
                         root?.event_location ||
-                        project?.location ||
-                        root?.location ||
+                        (typeof root?.location === 'string' ? root.location : root?.location?.address) ||
                         "",
                     locationSpec:
                         toArray(
@@ -385,15 +501,16 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                         projectForm?.shot_list ||
                         project?.shot_list ||
                         root?.shot_list ||
-                        (
-                            Array.isArray(project?.primary_quote?.line_items) &&
-                            project.primary_quote.line_items.length > 0
-                                ? project.primary_quote.line_items
-                                    .map((item: any) => item?.item_name)
-                                    .filter(Boolean)
-                                    .join(", ")
-                                : ""
-                        ) ||
+                        project?.shotlist ||
+                        project?.shots ||
+                        project?.short_list ||
+                        root?.short_list ||
+                        project?.notes ||
+                        root?.notes ||
+                        project?.special_requests ||
+                        root?.special_requests ||
+                        project?.special_instructions ||
+                        root?.special_instructions ||
                         "",
                     visualRefs:
                         projectForm?.visual_references ||
@@ -452,12 +569,6 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
     }, [isOpen, selectedProjectId]);
 
     const handleSubmit = async () => {
-        const token = Cookies.get("revure_token");
-        if (!token) {
-            toast.error("Authentication token missing. Please log in again.");
-            return;
-        }
-
         if (!selectedProjectId) {
             toast.error("Please select a project first.");
             return;
@@ -467,39 +578,48 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
         try {
             const payload = {
                 project_id: selectedProjectId,
-                email: formData.email,
-                full_name: "", // Removed from form
-                phone_number: "", // Removed from form
-                time_zone: "", // Removed from form
-                onsite_contact_info: formData.onsiteContact,
-                project_types: formData.shootTypes,
-                project_type_other: formData.otherShootType,
-                brief_overview: formData.projectOverview,
-                num_people_attending: formData.numPeople,
-                event_date: "", // Removed from form
-                additional_dates: "", // Removed from form
-                event_agenda: formData.agenda,
-                service_times: "", // Removed from form
-                location_address: formData.address,
-                google_maps_link: "", // Removed from form
-                location_specification: formData.locationSpec,
-                location_scouting_refs: formData.scoutingRefs,
-                shot_list: formData.shotList,
-                visual_references: formData.visualRefs,
-                specific_instructions: formData.specificInstructions,
-                creative_dress_code: formData.dressCode,
+                onsite_contact_info: formData.onsiteContact || "N/A",
+                project_types: formData.shootTypes || [],
+                project_type_other: formData.otherShootType || "",
+                brief_overview: formData.projectOverview || "",
+                num_people_attending: formData.numPeople || "0",
+                event_agenda: formData.agenda || "TBD",
+                location_address: formData.address || "",
+                location_specification: formData.locationSpec || [],
+                location_scouting_refs: formData.scoutingRefs || "",
+                shot_list: formData.shotList || "TBD",
+                visual_references: formData.visualRefs || "TBD",
+                specific_instructions: formData.specificInstructions || "",
+                creative_dress_code: formData.dressCode || "None",
                 post_production_ideas: formData.postProductionIdeas || "",
                 preferred_songs: formData.preferredSongs || "",
-                additional_info: formData.additionalInfo,
-                wants_to_learn_more: formData.wantsToLearnMore ?? true,
+                additional_info: formData.additionalInfo || "",
+                wants_to_learn_more: formData.wantsToLearnMore ? 1 : 0,
                 form_user_friendliness_rating: formData.rating ?? 5,
+                user_id: "", // Ensure user_id is not null
             };
 
-            const response = await affiliateApi.submitProjectForm(token, payload);
+            let response;
+            if (hideAffiliateStep) {
+                // Guest submission - no token required
+                response = await affiliateApi.submitProjectFormGuest(payload);
+            } else {
+                // Regular submission - requires auth
+                const token = Cookies.get("revure_token");
+                if (!token) {
+                    toast.error("Authentication token missing. Please log in again.");
+                    setIsSubmitting(false);
+                    return;
+                }
+                response = await affiliateApi.submitProjectForm(token, payload);
+            }
 
             if (response.success) {
                 toast.success(response.message || "Project form submitted successfully!");
                 handleClose();
+                if (redirectTo) {
+                    router.push(redirectTo);
+                }
             } else {
                 toast.error(response.message || "Failed to submit project form");
             }
@@ -543,7 +663,10 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
             }
         }
         if (step === 4) {
-            // Optional
+            if (hideAffiliateStep) {
+                handleSubmit();
+                return;
+            }
         }
         if (step === 5) {
             handleSubmit();
@@ -589,12 +712,12 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                         </div>
                         <div>
                             <DialogTitle className="text-xl font-bold text-white">Project Details</DialogTitle>
-                            <p className="text-xs text-white/40 uppercase tracking-widest font-semibold mt-0.5">Step {step} of 5</p>
+                            <p className="text-xs text-white/40 uppercase tracking-widest font-semibold mt-0.5">Step {step} of {totalSteps}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="flex gap-1.5 px-3">
-                            {[1, 2, 3, 4, 5].map((s) => (
+                            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
                                 <div
                                     key={s}
                                     className={`h-1.5 rounded-full transition-all duration-500 ${s === step ? "w-8 bg-[#E8D1AB]" : s < step ? "w-4 bg-[#E8D1AB]/40" : "w-4 bg-white/10"
@@ -611,7 +734,7 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                     </div>
                 </DialogHeader>
 
-                <div className="relative flex-1 overflow-y-auto custom-scrollbar">
+                <div ref={scrollContainerRef} className="relative flex-1 overflow-y-auto no-scrollbar">
                     <AnimatePresence mode="wait">
                         {step === 1 && (
                             <motion.div
@@ -753,19 +876,31 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                                                     <Label htmlFor={option} className="text-sm text-white/80 cursor-pointer whitespace-nowrap">
                                                         {option}
                                                     </Label>
-                                                    {option === "Other:" && (formData.shootTypes || []).includes("Other:") && (
-                                                        <Input
-                                                            placeholder="Your answer"
-                                                            value={formData.otherShootType}
-                                                            onChange={(e) => updateFormData("otherShootType", e.target.value)}
-                                                            className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 h-6 focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all flex-1"
-                                                        />
-                                                    )}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
+
+                                {/* Conditional "Other" Description Field */}
+                                {(formData.shootTypes || []).includes("Other:") && (
+                                    <div className="p-6 lg:p-8 rounded-2xl bg-[#111]/50 border border-white/5 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                                        <div className="space-y-1">
+                                            <Label className="text-base font-medium text-white block">
+                                                About Your Project
+                                            </Label>
+                                            <p className="text-sm text-white/70">
+                                                If you selected the option "Other", please describe your shoot or event.
+                                            </p>
+                                        </div>
+                                        <Textarea
+                                            placeholder="Your answer"
+                                            value={formData.otherShootType}
+                                            onChange={(e) => updateFormData("otherShootType", e.target.value)}
+                                            className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        />
+                                    </div>
+                                )}
 
                                 {/* Brief Overview */}
                                 <div className="p-6 lg:p-8 rounded-2xl bg-[#111]/50 border border-white/5 space-y-6">
@@ -811,6 +946,15 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                                         </Label>
                                         <p className="text-sm text-white/70">
                                             Let us know of the program flow of the event to better understand your expectations and align with them.
+                                            <br />
+                                            Example:
+                                            <br />
+                                            6 pm: Entrance
+                                            <br />
+                                            7 pm: Dance
+                                            <br />
+                                            8 pm: Dinner
+                                            <br />
                                             <br />
                                             If you do not have any yet, please write 'TBD'
                                         </p>
@@ -884,7 +1028,7 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                                             Location Scouting
                                         </Label>
                                         <p className="text-sm text-white/70">
-                                            If you selected the option "Location Scouting", please provide any references of what you're looking for.
+                                            If you selected the option of "Location Scouting", please provide any references of what you're looking for.
                                         </p>
                                     </div>
                                     <Textarea
@@ -904,6 +1048,12 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                                         <div className="flex items-start justify-between gap-4">
                                             <p className="text-sm text-white/70 flex-1">
                                                 If you have a shot list in mind (or an idea of the shots that <span className="italic">must</span> be taken), please share it below.
+                                                <br />
+                                                Example:
+                                                <br />
+                                                Close shots of the product
+                                                <br />
+                                                Wide angle shots of the venue and so on
                                                 <br />
                                                 <br />
                                                 If you do not have any yet, please write 'TBD'
@@ -1067,14 +1217,15 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                                     </div>
                                     
                                     <div className="space-y-4 relative z-10">
-                                        <h3 className="text-2xl lg:text-3xl font-bold text-[#E8D1AB] tracking-tight">
-                                            Invite your friends and earn rewards with Beige.
+                                        <h4 className="text-[#E8D1AB] font-bold uppercase tracking-widest text-sm">Affiliate Program</h4>
+                                        <h3 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">
+                                            Invite friends and earn rewards with Beige.
                                         </h3>
                                         <p className="text-white/80 text-lg leading-relaxed max-w-2xl">
-                                            Share your unique referral code and get <span className="text-[#E8D1AB] font-bold">10% off</span> your next booking when someone books using your code. The person you refer will also receive an exclusive discount on their booking, so both of you benefit.
+                                            Share your referral code and get <span className="text-[#E8D1AB] font-bold">10% of the booking value</span> when they complete a booking. They’ll also receive <span className="text-[#E8D1AB] font-bold">10% off</span> their booking, so both of you benefit.
                                         </p>
                                         <p className="text-white/60 text-sm">
-                                            Your personal referral code will be available in your dashboard once you create an account and log in.
+                                            Your referral code is available in your dashboard once you create an account and log in.
                                         </p>
                                     </div>
 
@@ -1152,7 +1303,7 @@ export const AffiliateShootDetailsForm = ({ isOpen, onClose, projectId: initialP
                             {isSubmitting ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                                step === 5 ? "Submit" : "Next"
+                                (step === 5 || (step === 4 && hideAffiliateStep)) ? "Submit" : "Next"
                             )}
                         </Button>
                     </div>

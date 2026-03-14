@@ -104,7 +104,7 @@ export default function DropdownSelect({
 
       {/* Dropdown */}
       {open && (
-        <div className={`absolute top-[calc(100%+8px)] left-0 w-full z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto`}>
+        <div className={`absolute top-[calc(100%+8px)] left-0 w-full z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar`}>
           {filteredOptions.length === 0 ? (
             <div className="px-6 py-4 text-white/50 text-sm text-center">No options found.</div>
           ) : (

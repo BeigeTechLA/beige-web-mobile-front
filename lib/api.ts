@@ -449,6 +449,37 @@ export const affiliateApi = {
     }
   },
 
+  // Submit project form as guest
+  submitProjectFormGuest: async (payload: any) => {
+    try {
+      const response = await api.post('/client/submit-project-form-guest', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Submit Project Form Guest Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.message || 'Failed to submit project form',
+      };
+    }
+  },
+
+  // Get booking details as guest
+  getBookingDetailsGuest: async (projectId: number) => {
+    try {
+      const response = await api.get(`/client/get-booking-details/${projectId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Booking Details Guest Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.message || 'Failed to fetch booking details',
+      };
+    }
+  },
+
+
   // Get project form submission (pending forms)
   getProjectFormSubmission: async (token: string) => {
     try {

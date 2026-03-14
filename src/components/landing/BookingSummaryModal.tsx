@@ -23,10 +23,22 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
 
+  const getEditCounts = (items: string[] = []) => {
+    const counts = new Map<string, number>();
+    items.forEach((item) => {
+      const label = String(item || "").trim();
+      if (!label) return;
+      counts.set(label, (counts.get(label) || 0) + 1);
+    });
+    return Array.from(counts.entries()).map(([label, count]) => ({
+      label,
+      count,
+    }));
+  };
+
   return (
     <div 
       id="booking-summary-modal"
-      // Added print:overflow-hidden to stop the wrapper from generating a scrollbar track
       className="fixed inset-0 z-[100] overflow-y-auto bg-black/90 backdrop-blur-xl flex justify-center items-start py-8 sm:py-12 px-4 print:absolute print:inset-0 print:p-0 print:bg-white print:block print:overflow-hidden"
       onClick={onClose}
     >
@@ -192,8 +204,10 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                       <div className="bg-[#E8D1AB]/10 p-3 rounded-2xl text-[#E8D1AB] no-print"><Film size={18} /></div>
                       <div className="space-y-1">
                         <p className="text-[10px] text-[#E8D1AB] font-bold uppercase tracking-wider print:text-gray-700">Video Reels</p>
-                        {data.editing.video_edits.map((edit: string, idx: number) => (
-                          <p key={idx} className="text-white/80 text-sm print:text-black">• {edit}</p>
+                        {getEditCounts(data.editing.video_edits).map(({ label, count }) => (
+                          <p key={label} className="text-white/80 text-sm print:text-black">
+                            • {label}{count > 1 ? ` (x${count})` : ""}
+                          </p>
                         ))}
                       </div>
                     </div>
@@ -204,8 +218,10 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                       <div className="bg-[#E8D1AB]/10 p-3 rounded-2xl text-[#E8D1AB] no-print"><ImageIcon size={18} /></div>
                       <div className="space-y-1">
                         <p className="text-[10px] text-[#E8D1AB] font-bold uppercase tracking-wider print:text-gray-700">Photography</p>
-                        {data.editing.photo_edits.map((edit: string, idx: number) => (
-                          <p key={idx} className="text-white/80 text-sm print:text-black">• {edit}</p>
+                        {getEditCounts(data.editing.photo_edits).map(({ label, count }) => (
+                          <p key={label} className="text-white/80 text-sm print:text-black">
+                            • {label}{count > 1 ? ` (x${count})` : ""}
+                          </p>
                         ))}
                       </div>
                     </div>
@@ -241,10 +257,28 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                      <span className="text-white/40 print:text-gray-500">Post-Production</span>
                      <span className="text-white font-medium print:text-black">{formatCurrency(data.pricing.editing_cost)}</span>
                    </div>
-                   {data.pricing.discount > 0 && (
+                   <div className="flex justify-between text-sm">
+                     <span className="text-white/40 print:text-gray-500">Total Amount</span>
+                     <span className="text-white font-medium print:text-black">
+                       {formatCurrency(data.pricing.total_before_discounts ?? data.pricing.total)}
+                     </span>
+                   </div>
+                   {data.pricing.discount_code_discount > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
                         <span>Discount Applied</span>
-                        <span>-{formatCurrency(data.pricing.discount)}</span>
+                        <span>-{formatCurrency(data.pricing.discount_code_discount)}</span>
+                     </div>
+                   )}
+                   {data.pricing.referral_code && (
+                     <div className="flex justify-between text-sm text-white/60 print:text-gray-600">
+                        <span>Referral Code</span>
+                        <span className="font-medium">{data.pricing.referral_code}</span>
+                     </div>
+                   )}
+                   {data.pricing.referral_discount > 0 && (
+                     <div className="flex justify-between text-sm text-green-500 font-medium">
+                        <span>Referral Discount</span>
+                        <span>-{formatCurrency(data.pricing.referral_discount)}</span>
                      </div>
                    )}
                    
@@ -254,7 +288,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                         <p className="text-[9px] text-white/30 uppercase font-bold tracking-tight print:text-gray-400">Paid via Card</p>
                      </div>
                      <span className="text-[#E8D1AB] font-bold text-2xl sm:text-3xl tabular-nums print:text-black">
-                        {formatCurrency(data.pricing.total)}
+                        {formatCurrency(data.pricing.total_paid ?? data.pricing.total)}
                      </span>
                    </div>
                 </section>
