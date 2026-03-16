@@ -13,11 +13,8 @@ import { Loader2 } from "lucide-react";
 interface ProfileProps {
   id: string;
   hideActions?: boolean;
+  isDark?: boolean;
 }
-
-const SECTION_TITLE_STYLE = "lg:text-lg font-medium text-white px-5 pt-5 lg:px-8 lg:pt-8";
-const LABEL_STYLE = "text-[#CFCCCC] text-sm font-medium mb-1 block";
-const VALUE_STYLE = "text-[#999696] text-sm block";
 
 import { Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Calendar, Navigation } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -33,13 +30,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DottedDivider from "../DottedDivider";
 
-const PORTFOLIO_IMAGES = [
-  "/images/crew/CREW(1).png",
-  "/images/crew/CREW(2).png",
-  "/images/crew/CREW(3).png",
-  "/images/crew/CREW(4).png",
-  "/images/crew/CREW(6).png",
-];
 
 // --- PREMIUM UI HELPERS ---
 const formatLocation = (locationInput: string) => {
@@ -101,7 +91,7 @@ function EventDot({ color, label }: any) {
   );
 }
 
-export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps) => {
+export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true }: ProfileProps) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
@@ -290,7 +280,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center min-h-[400px]">
-        <Loader2 className="animate-spin text-white/50" size={40} />
+        <Loader2 className={`animate-spin ${isDark ? "text-white/50" : "text-black/50"}`} size={40} />
       </div>
     );
   }
@@ -306,7 +296,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
   const fullName = `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || "Unknown Partner";
 
   // Base URL for uploads
-  // const S3_BASE_URL = "https://beigexmemehouse.s3.amazonaws.com/beige/";
   const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
   // Get profile photo
@@ -485,19 +474,16 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
     setIsOpen(false);
   };
 
+  const SECTION_TITLE_STYLE = `lg:text-lg font-medium px-5 pt-5 lg:px-8 lg:pt-8 ${isDark ? "text-white" : "text-black"}`;
+  const LABEL_STYLE = `text-sm font-medium mb-1 block ${isDark ? "text-[#CFCCCC]" : "text-[#313131]"}`;
+  const VALUE_STYLE = `text-sm block ${isDark ? "text-[#999696]" : "text-[#595959]"}`;
+
   return (
     <div className="space-y-3 lg:space-y-6">
-      {/* Breadcrumbs */}
-      {/* <div className="flex items-center gap-2 text-sm text-[#666]">
-        <span className="hover:text-[#E0E0E0] cursor-pointer">User - Creative Partners</span>
-        <span>/</span>
-        <span className="text-white">Creative Partner Profile Details</span>
-      </div> */}
-
       {/* Top Navigation */}
       {!hideActions && (
         <div className="flex items-center gap-2 text-sm text-[#666] mb-6">
-          <button onClick={() => router.back()} className="flex items-center gap-2 text-[#E0E0E0] hover:text-white transition-colors">
+          <button onClick={() => router.back()} className={`transition-colors flex items-center gap-2 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-black hover:text-black/70"}`}>
             <ArrowLeft size={20} />
             <span>Back</span>
           </button>
@@ -505,11 +491,12 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
       )}
 
       {/* Profile Header Card */}
-      <div className="bg-[#101010] border border-[#333] rounded-2xl">
+      <div className={`rounded-2xl border transition-colors duration-200 ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFFCF6] border-[#E5E5E5] shadow-sm"
+        }`}>
         <div className="flex items-start justify-between px-4 pt-4 lg:p-6">
           <div className="flex gap-6">
             {/* Avatar */}
-            <div className="w-[67px] h-[67px] lg:w-32 lg:h-32 rounded-lg lg:rounded-xl bg-[#222] overflow-hidden relative flex-shrink-0">
+            <div className={`w-[67px] h-[67px] lg:w-32 lg:h-32 rounded-lg lg:rounded-xl overflow-hidden relative flex-shrink-0 border ${isDark ? "bg-[#222] border-white/5" : "bg-gray-100 border-gray-200"}`}>
               {imageUrl ? (
                 <Image
                   src={imageUrl}
@@ -518,7 +505,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                   className="object-cover"
                 />
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-[#444] bg-[#222] text-3xl font-bold">
+                <div className={`absolute inset-0 flex items-center justify-center text-3xl font-bold ${isDark ? "text-[#444] bg-[#222]" : "text-gray-400 bg-gray-100"}`}>
                   {fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2)}
                 </div>
               )}
@@ -526,36 +513,46 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
             <div className="lg:pt-2">
               <div className="flex items-center gap-2 mb-1">
-                <h1 className="lg:text-2xl font-bold text-white">{fullName}</h1>
+                <h1 className={`lg:text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>{fullName}</h1>
                 {status === "Approved" && (
                   <div className="text-green-500">
-                    <div className="w-5 h-5 bg-green-500/10 rounded-full flex items-center justify-center border border-green-500/20 shrink-0">
-                      <Check size={12} strokeWidth={3} />
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 ${isDark ? "bg-green-500/10 border-green-500/20" : "bg-emerald-100 border-emerald-200"
+                      }`}>
+                      <Check size={12} strokeWidth={3} className={isDark ? "text-green-500" : "text-emerald-600"} />
                     </div>
                   </div>
                 )}
               </div>
-              <p className="text-[#888] text-xs lg:text-sm mb-1 lg:mb-2">{primaryRole}</p>
-              <div className="flex items-center gap-1 text-xs lg:text-[#C2C2C2] text-sm mb-2 lg:mb-5">
+              <p className={`text-xs lg:text-sm mb-1 lg:mb-2 ${isDark ? "text-[#888]" : "text-gray-500"}`}>{primaryRole}</p>
+              <div className={`flex items-center gap-1 text-xs text-sm mb-2 lg:mb-5 ${isDark ? "text-[#C2C2C2]" : "text-gray-600"}`}>
                 <MapPin size={14} className="shrink-0" />
                 <span>{partner.location || [partner.city, partner.state].filter(Boolean).join(", ") || "N/A"}</span>
               </div>
 
               <div className="flex items-center gap-3">
                 {partner.linkedin_url && (
-                  <a href={partner.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] rounded-lg text-white text-sm hover:bg-[#222] transition-colors">
+                  <a href={partner.linkedin_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-all active:scale-95 ${isDark
+                    ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                    : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+                    }`}>
                     <Linkedin size={16} />
                     <span>LinkedIn</span>
                   </a>
                 )}
                 {partner.behance_url && (
-                  <a href={partner.behance_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] rounded-lg text-white text-sm hover:bg-[#222] transition-colors">
+                  <a href={partner.behance_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-all active:scale-95 ${isDark
+                    ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                    : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+                    }`}>
                     <span className="font-bold text-lg leading-none">Bē</span>
                     <span>Behance</span>
                   </a>
                 )}
                 {partner.portfolio_url && (
-                  <a href={partner.portfolio_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] rounded-lg text-white text-sm hover:bg-[#222] transition-colors">
+                  <a href={partner.portfolio_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-all active:scale-95 ${isDark
+                    ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                    : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+                    }`}>
                     <Globe size={16} />
                     <span>Portfolio</span>
                   </a>
@@ -576,7 +573,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                 <button
                   onClick={() => handleVerifyStatus(status === "Approved" ? 2 : 1)}
                   disabled={isVerifying}
-                  className="text-[#666] hover:text-[#E0E0E0] text-xs underline underline-offset-4 disabled:opacity-50 mt-2"
+                  className={`text-xs underline underline-offset-4 disabled:opacity-50 mt-2 font-medium ${isDark ? "text-[#666] hover:text-[#E0E0E0]" : "text-gray-400 hover:text-black"}`}
                 >
                   Change to {status === "Approved" ? "Rejected" : "Approved"}
                 </button>
@@ -586,20 +583,23 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
         </div>
 
         {/* Divider */}
-        <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+        <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
         {/* <DottedDivider /> */}
 
         {/* Tabs */}
-        <div className="flex items-center w-full overflow-x-auto no-scrollbar gap-6 lg:gap-0 lg:justify-between lg:mt-2 px-2">
+        <div className="flex items-center w-full overflow-x-auto no-scrollbar gap-6 lg:gap-0 lg:justify-between lg:mt-2 px-2.5">
           {['Overview', 'Featured Work', 'Availability', 'Shoots', 'Certificates', 'Resume', 'Portfolio Links'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-2 lg:pb-4 text-sm lg:text-base font-medium transition-all duration-300 relative tracking-normal px-2 whitespace-nowrap flex-shrink-0 ${activeTab === tab ? 'text-[#E5D5B8]' : 'text-[#666666] hover:text-white'}`}
+              className={`pb-2 lg:pb-4 text-sm lg:text-base font-medium transition-all duration-300 relative tracking-normal px-2 whitespace-nowrap flex-shrink-0 ${activeTab === tab
+                ? (isDark ? 'text-[#E5D5B8]' : 'text-black')
+                : (isDark ? 'text-[#666666] hover:text-white' : 'text-[#635F5F] hover:text-black')
+                }`}
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#E5D5B8]" />
+                <div className={`absolute bottom-0 left-0 w-full h-[2px] ${isDark ? "bg-[#E5D5B8]" : "bg-black"}`} />
               )}
             </button>
           ))}
@@ -610,11 +610,11 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
       {activeTab === 'Overview' && (
         <>
           {/* Personal Information */}
-          <div className="bg-[##101010] border border-[#333] rounded-2xl">
+          <div className={`transition-colors duration-200 border rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFF] border-[#F4F5F7] shadow-sm"}`}>
             <h2 className={`${SECTION_TITLE_STYLE}`}>Personal Information</h2>
 
             {/* divider */}
-            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
             {/* <DottedDivider /> */}
 
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
@@ -632,7 +632,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               </div>
               <div>
                 <span className={LABEL_STYLE}>Contact Phone</span>
-                <div className="flex items-center gap-2 text-[#E0E0E0] text-[15px] font-medium">
+                <div className={`flex items-center gap-2 text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#595959]"}`}>
                   <Phone size={18} />
                   <span>{partner.phone_number || partner.contact_phone || "N/A"}</span>
                 </div>
@@ -649,10 +649,10 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           </div>
 
           {/* Professional Details */}
-          <div className="bg-[##101010] border border-[#333] rounded-2xl">
+          <div className={`transition-colors duration-200 border rounded-2xl mt-6 ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFF] border-[#F4F5F7] shadow-sm"}`}>
             <h2 className={SECTION_TITLE_STYLE}>Professional Details</h2>
             {/* divider */}
-            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
             {/* <DottedDivider /> */}
 
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
@@ -670,7 +670,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               </div>
               <div className="col-span-2">
                 <span className={LABEL_STYLE}>Bio / About</span>
-                <p className="text-[#888] text-[15px] leading-relaxed mt-1">
+                <p className={`text-sm leading-relaxed mt-1 ${isDark ? "text-[#888]" : "text-[#595959]"}`}>
                   {partner.bio || "No biography provided."}
                 </p>
               </div>
@@ -678,23 +678,23 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           </div>
 
           {/* Skills */}
-          <div className="bg-[#101010] border border-[#333] rounded-2xl">
+          <div className={`transition-colors duration-200 border rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFF] border-[#F4F5F7] shadow-sm"}`}>
             <h2 className={SECTION_TITLE_STYLE}>
-              Skills <span className="text-[#E5D5B8]">({skillNames.length})</span>
+              Skills <span className={isDark ? "text-[#E5D5B8]" : "text-[#000000]"}>({skillNames.length})</span>
             </h2>
             {/* divider */}
-            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
             {/* <DottedDivider /> */}
 
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-2 lg:gap-3">
               {skillNames.length > 0 ? (
                 skillNames.map(skill => (
-                  <div key={skill} className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] rounded-lg text-[#E0E0E0] text-xs lg:text-sm">
+                  <div key={skill} className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-xs lg:text-sm transition-all ${isDark ? "bg-[#1A1A1A] border-[#333] text-[#E0E0E0]" : "bg-gray-50 border-[#0000004D] text-[#020202]"}`}>
                     <span>{skill}</span>
                   </div>
                 ))
               ) : (
-                <span className="text-[#666] text-sm italic">No skills listed.</span>
+                <span className={`text-sm italic ${isDark ? "text-[#666]" : "text-[#020202]"}`}>No skills listed.</span>
               )}
             </div>
           </div>
@@ -703,7 +703,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
       {/* TAB CONTENT: Featured Work */}
       {activeTab === 'Featured Work' && (
-        <div className="bg-[#101010] border border-[#333] rounded-2xl min-h-[500px]">
+        <div className={`transition-colors duration-200 border rounded-2xl min-h-[500px] ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFF] border-[#F4F5F7] shadow-sm"}`}>
           {openFolder ? (
             <div className="p-5 lg:p-8">
               <button
@@ -711,13 +711,14 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                   setOpenFolder(null);
                   setActiveImages([]);
                 }}
-                className="flex items-center gap-2 text-[#E0E0E0] hover:text-white transition-colors mb-4 lg:mb-6"
+                className={`flex items-center gap-2 transition-colors mb-4 lg:mb-6 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-[#171717] hover:text-black"}`}
               >
                 <ArrowLeft size={20} />
                 <span className="lg:text-lg font-medium">{openFolder}</span>
               </button>
 
-              <div className="w-full bg-[#171717] rounded-2xl overflow-hidden text-white border border-[#3D3D3D] py-10">
+              <div className={`w-full rounded-2xl overflow-hidden border py-10 transition-colors ${isDark ? "bg-[#171717] text-white border-[#3D3D3D]" : "bg-[#F4F5F7] text-black border-[#F4F5F7]"
+                }`}>
                 {activeImages.length > 0 ? (
                   <Swiper
                     effect={"coverflow"}
@@ -751,7 +752,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                     ))}
                   </Swiper>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-[#666]">
+                  <div className={`flex flex-col items-center justify-center py-20 ${isDark ? "text-[#666]" : "text-[#000]"}`}>
                     <X size={48} className="mb-4 opacity-20" />
                     <p>No images found in this folder.</p>
                   </div>
@@ -763,16 +764,20 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               <h2 className={SECTION_TITLE_STYLE}>CP Featured Work</h2>
 
               {/* <DottedDivider /> */}
-              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+              <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
 
               {/* Toolbar */}
               <div className="flex items-center justify-between gap-2 px-5 pb-5 lg:px-8 lg:pb-8">
                 <div className="relative w-full lg:w-[500px]">
-                  <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+                  <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 ${isDark ? "text-white/40" : "text-gray-400"
+                    }`} />
                   <input
                     type="text"
                     placeholder="Search"
-                    className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+                    className={`w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                      ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                      : "bg-gray-50 border-[#E3E3E3] text-black placeholder:text-gray-400 focus:ring-[#E3E3E3]"
+                      }`}
                   />
                 </div>
 
@@ -781,26 +786,27 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                   <div className="md:hidden relative">
                     <Button
                       onClick={toggleDropdown}
-                      className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
+                      className={`flex items-center gap-2 p-2 h-8 rounded-lg border transition-all ${isDark ? "bg-[#202020] border-white/10 text-white" : "bg-white border-gray-200 text-black shadow-sm"
+                        }`}
                     >
                       {viewMode === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
                     </Button>
 
                     {/* Dropdown Menu */}
                     {isOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+                      <div className={`absolute top-full right-0 mt-2 w-48 rounded-xl shadow-2xl z-[50] overflow-hidden border ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-gray-200"}`}>
                         <button
                           onClick={() => handleSelect('grid')}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                            }`}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid' ? (isDark ? "bg-white/10 text-white" : "bg-gray-100 text-black")
+                            : (isDark ? "text-white/60 hover:bg-white/5" : "text-gray-500 hover:bg-gray-50")}`}
                         >
                           <Grid3X3 size={18} />
                           Grid View
                         </button>
                         <button
                           onClick={() => handleSelect('list')}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                            }`}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list' ? (isDark ? "bg-white/10 text-white" : "bg-gray-100 text-black")
+                            : (isDark ? "text-white/60 hover:bg-white/5" : "text-gray-500 hover:bg-gray-50")}`}
                         >
                           <List size={18} />
                           List View
@@ -810,12 +816,12 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                   </div>
 
                   {/* DESKTOP VIEW: Original Toggle */}
-                  <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
+                  <div className={`hidden lg:flex flex-wrap items-center rounded-lg border transition-all ${isDark ? "bg-[#202020] border-white/5" : "bg-gray-100 border-gray-200"}`}>
                     <Button
                       onClick={() => setViewMode('grid')}
                       className={`px-5 py-2.5 rounded-l-lg transition-colors ${viewMode === 'grid'
                         ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
+                        : (isDark ? "bg-transparent text-white/40 hover:text-white" : "bg-transparent text-gray-400 hover:text-black")
                         }`}
                     >
                       <Grid3X3 size={20} />
@@ -824,7 +830,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                       onClick={() => setViewMode('list')}
                       className={`px-5 py-2.5 rounded-r-lg transition-colors ${viewMode === 'list'
                         ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
+                        : (isDark ? "bg-transparent text-white/40 hover:text-white" : "bg-transparent text-gray-400 hover:text-black")
                         }`}
                     >
                       <List size={20} />
@@ -843,35 +849,36 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                         setOpenFolder(`${group.title} (${group.tag})`);
                         setActiveImages(group.images);
                       }}
-                      className="bg-[#1A1A1A] border border-[#333] rounded-xl hover:border-[#444] transition-colors group cursor-pointer"
+                      className={`rounded-xl transition-all group cursor-pointer border ${isDark ? "bg-[#1A1A1A] border-[#333] hover:border-[#444]" : "bg-[#F4F5F7] border-gray-200 hover:border-gray-400 shadow-sm"}`}
                     >
                       <div className="flex items-start justify-between p-5">
                         <div className="flex items-center gap-3">
                           <div>
                             <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
                           </div>
-                          <span className="text-white font-semibold text-sm leading-tight">{group.title}</span>
+                          <span className={`font-semibold text-sm leading-tight ${isDark ? "text-white" : "text-black"}`}>{group.title}</span>
                         </div>
-                        <button className="text-[#666] hover:text-white">
+                        <button className={`${isDark ? "text-[#666] hover:text-white" : "text-gray-400 hover:text-black"}`}>
                           <MoreVertical size={18} />
                         </button>
                       </div>
 
                       {/* Divider */}
-                      <hr className="my-1 border-white/50" />
+                      <hr className={`border-[1px] my-1 ${isDark ? "border-white/5" : "border-[#000000]/50 "}`} />
 
                       <div className="flex gap-2 p-5">
-                        <span className="px-3 py-1.5 rounded-full bg-[#101010] text-[#999] text-xs font-medium border border-[#333]">
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDark ? "bg-[#101010] text-[#999] border-[#333]" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
                           {group.tag}
                         </span>
-                        <span className="px-3 py-1.5 rounded-full bg-[#101010] text-[#E5D5B8] text-xs font-medium border border-[#E5D5B8]/20">
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDark ? "bg-[#101010] text-[#E5D5B8] border-[#E5D5B8]/20" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
                           {group.images.length} Image{group.images.length !== 1 ? 's' : ''}
                         </span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="col-span-2 py-20 text-center text-[#666] border border-dashed border-[#333] rounded-xl">
+                  <div className={`col-span-2 py-20 text-center border-dashed rounded-xl ${isDark ? "text-[#666] border-[#333]" : "text-gray-400 border-gray-200"
+                    }`}>
                     <Folder size={48} className="mx-auto mb-4 opacity-20" />
                     <p>No featured work available.</p>
                   </div>
@@ -893,6 +900,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               icon={CheckCircle}
               iconColor="text-green-500"
               hoverBorder="hover:border-green-500/30"
+              isDark={isDark}
             />
             <StatCard
               label="Booked Shoots"
@@ -900,6 +908,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               icon={Video}
               iconColor="text-[#E5D5B8]"
               hoverBorder="hover:border-[#E5D5B8]/30"
+              isDark={isDark}
             />
             <StatCard
               label="Time Off"
@@ -907,6 +916,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               icon={Clock}
               iconColor="text-red-400"
               hoverBorder="hover:border-red-400/30"
+              isDark={isDark}
             />
           </div>
 
@@ -1184,7 +1194,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
           {/* divider */}
           {/* <DottedDivider /> */}
-          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-5">
             {certificationFiles.length > 0 ? (
@@ -1232,7 +1242,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
           {/* divider */}
           {/* <DottedDivider /> */}
-          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
 
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8 w-full lg:w-[340px]">
@@ -1280,7 +1290,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
           {/* divider */}
           {/* <DottedDivider /> */}
-          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8">
             {(() => {

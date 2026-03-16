@@ -219,7 +219,7 @@ export const ClientsTable = () => {
                 <div className="w-full overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className={` text-sm font-normal border-b ${isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
+                            <tr className={`text-sm font-normal border-b ${isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
                                 <th className="py-5 px-6 font-medium">User ID</th>
                                 <th className="py-5 px-6 font-medium">User Name</th>
                                 <th className="py-5 px-6 font-medium">Email ID</th>

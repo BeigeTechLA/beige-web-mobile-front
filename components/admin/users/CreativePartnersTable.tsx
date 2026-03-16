@@ -378,10 +378,11 @@ export const CreativePartnersTable = () => {
           </div>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px] bg-[#111] border-[#333] text-white rounded-lg h-8 lg:h-10 focus:ring-0 capitalize">
+            <SelectTrigger className={`w-[180px] rounded-lg h-[46px] capitalize transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
+              }`}>
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
-            <SelectContent className="bg-[#111] border-[#333] text-white">
+            <SelectContent className={isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
@@ -414,12 +415,12 @@ export const CreativePartnersTable = () => {
       </div>
 
       {/* Table */}
-      <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">
+      <div className={`w-full rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"}`}>
         {/* --- DESKTOP TABLE VIEW --- */}
         <div className="hidden lg:block w-full overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="text-[#E8D1AB] text-base font-medium border-b border-[#333333] cursor-pointer leading-none tracking-normal">
+              <tr className={`text-sm font-normal border-b ${isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
                 <th className="py-5 px-6 font-medium">User ID</th>
                 <th className="py-5 px-6 font-medium">Creative Name</th>
                 <th className="py-5 px-6 font-medium">Email ID</th>
@@ -452,9 +453,8 @@ export const CreativePartnersTable = () => {
                   <tr
                     key={idx}
                     onClick={(e) => handleRowClick(user.id, e)}
-                    className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
-                  >
-                    <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.id}</td>
+                    className={`border-b cursor-pointer transition-colors ${isDark ? "border-[#222] hover:bg-white/[0.02] text-[#E0E0E0]" : "border-[#F0F0F0] hover:bg-black/[0.01] text-[#000]"}`}>
+                    <td className="py-5 px-6">{user.id}</td>
                     <td className="py-5 px-6">
                       <div className="flex items-center gap-3">
                         {/* Avatar: Show image if available, otherwise show initials */}
@@ -478,13 +478,13 @@ export const CreativePartnersTable = () => {
                           )}
                         </div>
                         <div>
-                          <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                          <p className="text-[#666666] text-xs mt-0.5">{user.joinDate}</p>
+                          <p className="font-medium">{user.name}</p>
+                          <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-[10px] mt-0.5 uppercase tracking-wider font-bold`}>{user.joinDate}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.email}</td>
-                    <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{user.role}</td>
+                    <td className="py-5 px-6">{user.email}</td>
+                    <td className="py-5 px-6">{user.role}</td>
                     <td className="py-5 px-6">
                       <StatusBadge status={user.status} />
                     </td>
@@ -494,11 +494,11 @@ export const CreativePartnersTable = () => {
                           <>
                             <button
                               onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="text-[#E0E0E0] hover:text-red-500 transition-colors"
+                              className="hover:text-red-500 transition-colors"
                             >
                               <Trash2 size={18} />
                             </button>
-                            <button className="text-[#666] hover:text-white transition-colors">
+                            <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
                           </>
@@ -507,7 +507,7 @@ export const CreativePartnersTable = () => {
                           <>
                             <button
                               onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="text-[#E0E0E0] hover:text-red-500 transition-colors mr-2"
+                              className="hover:text-red-500 transition-colors mr-2"
                             >
                               <Trash2 size={18} />
                             </button>
@@ -551,24 +551,28 @@ export const CreativePartnersTable = () => {
         </div>
 
         {/* --- MOBILE COLLAPSIBLE VIEW (Visible below lg) --- */}
-        <div className="lg:hidden divide-y divide-[#333]">
-          {loading && <div className="py-10 text-center text-[#888]">Loading partners...</div>}
-          {!loading && users.length === 0 && <div className="py-10 text-center text-[#888]">No partners found.</div>}
+        <div className={`lg:hidden divide-y ${isDark ? "divide-[#333]" : "divide-gray-200"}`}>
+          {loading && <div className={`py-10 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>Loading partners...  </div>}
+          {!loading && users.length === 0 && (
+            <div className={`py-10 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>
+              No partners found.
+            </div>
+          )}
 
           {!loading && users.map((user) => {
             const isExpanded = expandedRows.has(user.id);
             return (
-              <div key={user.id} className="bg-[#111] transition-colors">
+              <div key={user.id} className={`transition-colors ${isDark ? "bg-[#111]" : "bg-white"}`}>
                 <div
-                  className="flex items-center gap-2 p-4 cursor-pointer active:bg-white/5 transition-colors"
+                  className={`flex items-center gap-2 p-4 cursor-pointer transition-colors ${isDark ? "active:bg-white/5" : "active:bg-gray-100"}`}
                   onClick={(e) => handleRowClick(user.id, e)}
                 >
                   <div className="flex items-center gap-3">
                     <button
                       onClick={(e) => toggleRow(user.id, e)}
-                      className={`p-1 rounded-full  transition-transform duration-200 border ${isExpanded ? 'rotate-180 border-[#E8D1AB]' : 'border-[#777674]'}`}
+                      className={`p-1 rounded-full  transition-transform duration-200 border ${isExpanded ? (isDark ? 'rotate-180 border-[#E8D1AB]' : 'rotate-180 border-[#000000]') : 'border-[#777674]'}`}
                     >
-                      <ChevronDown size={16} className={`${isExpanded ? 'text-[#E8D1AB]' : 'text-[#777674]'}`} />
+                      <ChevronDown size={16} className={`${isExpanded ? (isDark ? 'text-[#E8D1AB]' : 'text-[#000]') : 'text-[#777674]'}`} />
                     </button>
                   </div>
 
@@ -580,7 +584,7 @@ export const CreativePartnersTable = () => {
                         ) : user.initials}
                       </div>
                       <div>
-                        <p className="text-[#E0E0E0] font-medium text-sm">{user.name}</p>
+                        <p className={`font-medium text-sm ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.name}</p>
                         {/* <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[#666] text-xs">{user.id}</span>
                         <div className="w-1 h-1 rounded-full bg-[#333]" />
@@ -590,9 +594,6 @@ export const CreativePartnersTable = () => {
                     </div>
                     <StatusBadge status={user.status} mobile />
                   </div>
-
-
-
                 </div>
 
                 {/* Expandable Content */}
@@ -603,21 +604,20 @@ export const CreativePartnersTable = () => {
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="overflow-hidden bg-white/[0.02] border-t border-[#222]"
-                    >
+                      className={`overflow-hidden border-t ${isDark ? "bg-white/[0.02] border-[#222]" : "bg-gray-50 border-gray-100"}`}>
                       <div className="p-4 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-[#F5F5F5] text-xs">User ID</p>
-                            <p className="text-[#A1A1A1] text-xs break-all">{user.id}</p>
+                            <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>User ID</p>
+                            <p className={`text-xs break-all ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.id}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-[#F5F5F5] text-xs">Role</p>
-                            <p className="text-[#A1A1A1] text-xs">{user.role}</p>
+                            <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Role</p>
+                            <p className={`text-xs ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.role}</p>
                           </div>
                           <div >
-                            <p className="text-[#F5F5F5] text-xs">Email ID</p>
-                            <p className="text-[#A1A1A1] text-xs break-all">{user.email}</p>
+                            <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Email ID</p>
+                            <p className={`text-xs break-all ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.email}</p>
                           </div>
                         </div>
 
@@ -666,15 +666,18 @@ export const CreativePartnersTable = () => {
 
       {/* Pagination */}
       {!loading && totalPages > 1 && (
-        <div className="flex justify-between items-center p-6 border-t border-[#333333]">
-          <div className="hidden lg:block text-sm text-[#666666]">
+        <div className={`flex justify-between items-center p-6 border-t transition-colors ${isDark ? "border-[#333333]" : "border-gray-200"}`}>
+          <div className={`hidden lg:block text-sm font-medium ${isDark ? "text-[#666666]" : "text-gray-500"}`}>
             Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalRecords)} of {totalRecords} results
           </div>
           <div className="flex gap-2 items-center">
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1A1A1A] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isDark
+                ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm"
+                }`}
             >
               Previous
             </button>
@@ -695,14 +698,17 @@ export const CreativePartnersTable = () => {
 
                 return range.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
                   page === '...' ? (
-                    <span key={`dots-${index}`} className="px-2 py-1 text-white/30 text-xs">...</span>
+                    <span key={`dots-${index}`} className={`px-2 py-1 text-xs self-center ${isDark ? "text-white/30" : "text-gray-400"
+                      }`}>...</span>
                   ) : (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page as number)}
-                      className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page
-                        ? "bg-[#E5D5B8] text-black"
-                        : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
+                      className={`w-9 h-9 flex items-center justify-center text-sm font-bold rounded-lg transition-all ${currentPage === page
+                        ? "bg-[#E5D5B8] text-black shadow-lg"
+                        : (isDark
+                          ? "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
+                          : "bg-transparent text-gray-500 hover:bg-gray-100 hover:text-black")
                         }`}
                     >
                       {page}
@@ -714,7 +720,10 @@ export const CreativePartnersTable = () => {
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1A1A1A] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isDark
+                ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm"
+                }`}
             >
               Next
             </button>
@@ -724,7 +733,7 @@ export const CreativePartnersTable = () => {
 
       {/* Delete Modal */}
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-        <DialogContent className="bg-[#111] border-[#333] text-white">
+        <DialogContent className={`border transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-gray-200 text-black"}`}>
           <DialogHeader>
             <DialogTitle>
               {deleteActionType === 'blocked' ? "Action Blocked" : "Delete Creative Partner"}
@@ -741,12 +750,18 @@ export const CreativePartnersTable = () => {
 
           {deleteActionType === 'blocked' && deleteBlockedData && deleteBlockedData.length > 0 && (
             <div className="mt-4 space-y-3">
-              <h4 className="text-sm font-medium text-white">Assigned Shoots:</h4>
+              <h4 className={`text-sm font-bold ${isDark ? "text-white" : "text-black"}`}>Assigned Shoots:</h4>
               <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2">
                 {deleteBlockedData.map((shoot: any, index: number) => (
-                  <div key={index} className="bg-[#1A1A1A] p-3 rounded-lg border border-[#333] flex justify-between items-center">
-                    <span className="text-sm text-white">{shoot.name}</span>
-                    <span className="text-xs text-[#888]">{new Date(shoot.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg border flex justify-between items-center transition-colors ${isDark
+                      ? "bg-[#1A1A1A] border-[#333]"
+                      : "bg-gray-50 border-gray-100"
+                      }`}
+                  >
+                    <span className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{shoot.name}</span>
+                    <span className={`text-xs ${isDark ? "text-[#888]" : "text-gray-400"}`}>{new Date(shoot.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                   </div>
                 ))}
               </div>
@@ -756,7 +771,10 @@ export const CreativePartnersTable = () => {
           <DialogFooter className="mt-6 flex gap-2 sm:justify-end">
             <button
               onClick={() => setDeleteModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1A1A1A] text-white border border-[#333] hover:bg-white/10 transition-all"
+              className={`px-4 py-2 text-sm font-bold rounded-lg border transition-all ${isDark
+                  ? "bg-[#1A1A1A] text-white border-[#333] hover:bg-white/10"
+                  : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                }`}
             >
               {deleteActionType === 'blocked' ? "Close" : "Cancel"}
             </button>
