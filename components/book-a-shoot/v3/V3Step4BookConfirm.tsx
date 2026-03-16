@@ -45,6 +45,9 @@ import {
   brandProductPhotoEditTypes,
   peopleTeamsPhotoEditTypes,
   behindScenesPhotoEditTypes,
+  videoShootTypes,
+  photoShootTypes,
+  hybridShootTypes,
 } from "@/app/data/shootData";
 import { useCalculateQuoteFromCreatorsMutation } from "@/lib/redux/features/pricing/pricingApi";
 import { newshootTypes } from "@/app/data/shootData";
@@ -55,6 +58,7 @@ import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { buildEditTypeCounts } from "./utils";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -148,13 +152,54 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const [showSalesPopup, setShowSalesPopup] = useState(false);
 
 
-  const shootInfo: ShootTypeProps = newshootTypes.find(
-    (type) => type.key === data.shootType,
-  ) || {
-    title: "Project",
-    details: data.shootType || "Shoot type",
-    image: "/images/projects/interior.png",
+  const formatShootTypeLabel = (value: string) => {
+    if (!value) return "Project";
+    return value
+      .replace(/_/g, " ")
+      .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase());
   };
+
+  const isVideoContent = data.contentType.some((type) =>
+    ["videographer", "cinematographer"].includes(type),
+  );
+  const isPhotoContent = data.contentType.includes("photographer");
+
+  const shootTypeSource = isVideoContent && isPhotoContent
+    ? hybridShootTypes
+    : isPhotoContent
+      ? photoShootTypes
+      : isVideoContent
+        ? videoShootTypes
+        : newshootTypes;
+
+  const shootInfo: ShootTypeProps = (() => {
+    const fallbackPools = [
+      ...newshootTypes,
+      ...videoShootTypes,
+      ...photoShootTypes,
+      ...hybridShootTypes,
+    ];
+
+    const match =
+      shootTypeSource.find((type) => type.key === data.shootType) ||
+      fallbackPools.find((type) => type.key === data.shootType);
+
+    if (match) return match;
+
+    return {
+      title: formatShootTypeLabel(data.shootType),
+      details: "Shoot type",
+      image: "/images/projects/interior.png",
+    };
+  })();
+
+  const shootTypeTag = isVideoContent && isPhotoContent
+    ? "#Photo + Video shoot type"
+    : isPhotoContent
+      ? "#Photo shoot type"
+      : isVideoContent
+        ? "#Video shoot type"
+        : "#Shoot type";
 
   const handlePay = () => {
     if (!data.fullName || !data.phone) {
@@ -269,8 +314,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           role_counts: data.roleCounts,
           event_type: data.shootType || "general",
           shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : data.startDate,
-          video_edit_types: data.videoEditTypes, // ADDED
-          photo_edit_types: data.photoEditTypes, // ADDED
+          video_edit_types: buildEditTypeCounts(data.videoEditTypes),
+          photo_edit_types: buildEditTypeCounts(data.photoEditTypes),
           skip_discount: true,
           skip_margin: true,
         }).unwrap();
@@ -538,7 +583,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
                     <div className="rounded-full bg-[#211F1C] border border-[#616161] min-w-[170px] py-2">
                       <p className="text-xs lg:text-sm text-center font-medium capitalize text-white/50">
-                        #Video shoot type
+                        {shootTypeTag}
                       </p>
                     </div>
                   </div>

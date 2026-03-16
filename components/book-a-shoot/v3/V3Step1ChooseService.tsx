@@ -577,73 +577,85 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   // Update edit type options based on shoot type
   useEffect(() => {
-    // Reset options
-    setEditTypeOptions([]);
-    setPhotoEditTypeOptions([]);
-    setPhotoEditNote("");
+    let nextVideoOptions: { key: string; value: string }[] = [];
+    let nextPhotoOptions: { key: string; value: string; note?: string }[] = [];
+    let nextPhotoNote = "";
 
-    // Common Video Options mapping
     switch (data.shootType) {
       case "wedding":
-        setEditTypeOptions(weddingEditTypes);
-        setPhotoEditTypeOptions(weddingPhotoEditTypes);
-        setPhotoEditNote("50 edited photos per hour for weddings");
+        nextVideoOptions = weddingEditTypes;
+        nextPhotoOptions = weddingPhotoEditTypes;
+        nextPhotoNote = "50 edited photos per hour for weddings";
         break;
       case "music":
-        setEditTypeOptions(musicEditTypes);
-        setPhotoEditTypeOptions(musicPhotoEditTypes);
-        setPhotoEditNote("25 edited photos per hour");
+        nextVideoOptions = musicEditTypes;
+        nextPhotoOptions = musicPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
         break;
       case "commercial":
-        setEditTypeOptions(commercialEditTypes);
-        setPhotoEditTypeOptions(commercialPhotoEditTypes);
-        setPhotoEditNote("25 edited photos per hour");
+        nextVideoOptions = commercialEditTypes;
+        nextPhotoOptions = commercialPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
         break;
       case "tv":
-        setEditTypeOptions(tvSeriesEditTypes);
+        nextVideoOptions = tvSeriesEditTypes;
         break;
       case "podcast":
-        setEditTypeOptions(podcastEditTypes);
+        nextVideoOptions = podcastEditTypes;
         break;
       case "short_film":
-        setEditTypeOptions(shortFilmEditTypes);
+        nextVideoOptions = shortFilmEditTypes;
         break;
       case "movie":
-        setEditTypeOptions(movieEditTypes);
+        nextVideoOptions = movieEditTypes;
         break;
       case "corporate":
-        setEditTypeOptions(corporateEventEditTypes);
-        setPhotoEditTypeOptions(corporateEventPhotoEditTypes);
-        setPhotoEditNote("25 edited photos per hour");
+        nextVideoOptions = corporateEventEditTypes;
+        nextPhotoOptions = corporateEventPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
         break;
       case "private":
-        setEditTypeOptions(privateEventEditTypes);
-        setPhotoEditTypeOptions(privateEventPhotoEditTypes);
-        setPhotoEditNote("25 edited photos per hour");
+        nextVideoOptions = privateEventEditTypes;
+        nextPhotoOptions = privateEventPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
         break;
       case "social_content":
-        setEditTypeOptions(socialContentEditTypes);
-        setPhotoEditTypeOptions(socialContentPhotoEditTypes);
-        setPhotoEditNote("25 edited photos per hour");
+        nextVideoOptions = socialContentEditTypes;
+        nextPhotoOptions = socialContentPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
         break;
       case "brand_product":
-        setPhotoEditTypeOptions(brandProductPhotoEditTypes);
-        setPhotoEditNote("25 edited photos per hour");
+        nextPhotoOptions = brandProductPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
         break;
       case "people_teams":
-        setPhotoEditTypeOptions(peopleTeamsPhotoEditTypes);
-        setPhotoEditNote("25 edited photos per hour");
+        nextPhotoOptions = peopleTeamsPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
         break;
       case "behind_scenes":
-        setPhotoEditTypeOptions(behindScenesPhotoEditTypes);
-        setPhotoEditNote("25 edited photos per hour");
+        nextPhotoOptions = behindScenesPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
         break;
       default:
-        setEditTypeOptions([]);
-        setPhotoEditTypeOptions([]);
-        setPhotoEditNote("");
+        break;
     }
-  }, [data.shootType]);
+
+    const hasVideoContent = data.contentType.includes("videographer");
+    const hasPhotoContent = data.contentType.includes("photographer");
+
+    // Fallbacks when user selects both but the shoot type only provides one set.
+    if (hasVideoContent && nextVideoOptions.length === 0) {
+      nextVideoOptions = socialContentEditTypes;
+    }
+    if (hasPhotoContent && nextPhotoOptions.length === 0) {
+      nextPhotoOptions = corporateEventPhotoEditTypes;
+      if (!nextPhotoNote) nextPhotoNote = "25 edited photos per hour";
+    }
+
+    setEditTypeOptions(nextVideoOptions);
+    setPhotoEditTypeOptions(nextPhotoOptions);
+    setPhotoEditNote(nextPhotoNote);
+  }, [data.shootType, data.contentType]);
 
   // Clear errors when data changes
   useEffect(() => {
