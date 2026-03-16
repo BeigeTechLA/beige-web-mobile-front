@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useOutsideClick } from "@/lib/hooks/use-outside-click";
 import { BookingDataV3 } from "./types";
 import { ContentTypeCheckbox } from "./components/ContentTypeCheckbox";
 import { ShootTypeCard } from "./components/ShootTypeCard";
@@ -147,13 +146,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const [isVideoEditOpen, setIsVideoEditOpen] = useState(false);
   const [isPhotoEditOpen, setIsPhotoEditOpen] = useState(false);
-
-  const videoEditDropdownRef = useOutsideClick(() => {
-    setIsVideoEditOpen(false);
-  });
-  const photoEditDropdownRef = useOutsideClick(() => {
-    setIsPhotoEditOpen(false);
-  });
+  const videoEditDropdownRef = useRef<HTMLDivElement>(null);
+  const photoEditDropdownRef = useRef<HTMLDivElement>(null);
 
   const buildEditCounts = (keys: string[]) =>
     keys.reduce<Record<string, number>>((acc, key) => {
@@ -190,6 +184,22 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     return match ? match.value : key;
   };
 
+  const areBookingDaysEqual = (
+    a: BookingDataV3["bookingDays"] = [],
+    b: BookingDataV3["bookingDays"] = []
+  ) => {
+    if (a.length !== b.length) return false;
+    return a.every((day, index) => {
+      const other = b[index];
+      return (
+        other &&
+        day.date === other.date &&
+        day.startTime === other.startTime &&
+        day.endTime === other.endTime
+      );
+    });
+  };
+
   // Auto-fill email if user is logged in
   useEffect(() => {
     if (isAuthenticated && user?.email && !data.email) {
@@ -203,6 +213,79 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     const next = start || end;
     setSelectedShootDate(next);
   }, [data.startDate, data.endDate]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (
+        isVideoEditOpen &&
+        videoEditDropdownRef.current &&
+        !videoEditDropdownRef.current.contains(target)
+      ) {
+        setIsVideoEditOpen(false);
+      }
+
+      if (
+        isPhotoEditOpen &&
+        photoEditDropdownRef.current &&
+        !photoEditDropdownRef.current.contains(target)
+      ) {
+        setIsPhotoEditOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isVideoEditOpen, isPhotoEditOpen]);
+
+  useEffect(() => {
+    setBookingType(data.bookingType || "single_day");
+  }, [data.bookingType]);
+
+  useEffect(() => {
+    if (data.bookingType !== "multi_day") {
+      setSelectedDates([]);
+      setMultiDayTimes({});
+      setSameTimingsMulti(true);
+      setExpandedDateKey(null);
+      return;
+    }
+
+    if (!Array.isArray(data.bookingDays) || data.bookingDays.length === 0) {
+      return;
+    }
+
+    const restoredDates = data.bookingDays
+      .map((day) => new Date(`${day.date}T00:00:00`))
+      .filter((date) => !Number.isNaN(date.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    if (!restoredDates.length) {
+      return;
+    }
+
+    const restoredTimes = data.bookingDays.reduce<Record<string, { startKey?: string; endKey?: string }>>((acc, day) => {
+      acc[day.date] = {
+        startKey: day.startTime,
+        endKey: day.endTime,
+      };
+      return acc;
+    }, {});
+
+    const completeTimings = data.bookingDays.filter((day) => day.startTime && day.endTime);
+    const uniqueTimingPairs = new Set(
+      completeTimings.map((day) => `${day.startTime}-${day.endTime}`)
+    );
+    const restoredSameTimings =
+      completeTimings.length === data.bookingDays.length && uniqueTimingPairs.size <= 1;
+
+    setSelectedDates(restoredDates);
+    setSameTimingsMulti(restoredSameTimings);
+    setMultiDayTimes(restoredSameTimings ? {} : restoredTimes);
+    setSelectedShootDate(restoredDates[0]);
+    setCurrentCalendarMonth(restoredDates[0]);
+  }, [data.bookingType, data.bookingDays]);
 
   const handleViewToggle = () => {
     if (visibleCount >= availableShootTypes.length) {
@@ -521,17 +604,23 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   };
 
   useEffect(() => {
-    updateData({ bookingType });
-  }, [bookingType, updateData]);
+    if ((data.bookingType || "single_day") !== bookingType) {
+      updateData({ bookingType });
+    }
+  }, [bookingType, data.bookingType, updateData]);
 
   useEffect(() => {
     if (bookingType !== "multi_day") {
-      updateData({ bookingDays: [] });
+      if ((data.bookingDays?.length || 0) > 0) {
+        updateData({ bookingDays: [] });
+      }
       return;
     }
 
     if (!selectedDates.length) {
-      updateData({ bookingDays: [] });
+      if ((data.bookingDays?.length || 0) > 0) {
+        updateData({ bookingDays: [] });
+      }
       return;
     }
 
@@ -550,12 +639,15 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       };
     });
 
-    updateData({ bookingDays: days });
+    if (!areBookingDaysEqual(days, data.bookingDays || [])) {
+      updateData({ bookingDays: days });
+    }
   }, [
     bookingType,
     selectedDates,
     data.startDate,
     data.endDate,
+    data.bookingDays,
     sameTimingsMulti,
     multiDayTimes,
     updateData
@@ -1254,7 +1346,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
                     {
                       sameTimingsMulti ? (
-                        <div ref={videoEditDropdownRef}>
+                        <div>
                           <div className="flex flex-col lg:flex-row gap-6">
                             <div className="flex-1">
                               <DropdownSelect
@@ -1447,7 +1539,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                           </div>
 
                           {isVideoEditOpen && (
-                            <div className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar">
+                            <div
+                              className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar"
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
                               {editTypeOptions.map((option) => {
                                 const count = videoEditCounts[option.key] || 0;
                                 return (
@@ -1459,7 +1555,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                     <div className="flex items-center gap-2">
                                       <button
                                         type="button"
-                                        onClick={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateEditQuantity("video", option.key, Math.max(0, count - 1));
+                                        }}
+                                        onMouseDown={(e) => e.stopPropagation()}
                                         className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
                                       >
                                         -
@@ -1467,7 +1567,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                       <span className="min-w-[28px] text-center text-white">{count}</span>
                                       <button
                                         type="button"
-                                        onClick={() => updateEditQuantity("video", option.key, count + 1)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateEditQuantity("video", option.key, count + 1);
+                                        }}
+                                        onMouseDown={(e) => e.stopPropagation()}
                                         className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
                                       >
                                         +
@@ -1480,7 +1584,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                 <div className="px-4 py-3 border-t border-white/10">
                                   <button
                                     type="button"
-                                    onClick={() => updateData({ videoEditTypes: [] })}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateData({ videoEditTypes: [] });
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
                                     className="text-xs text-white/50 hover:text-white/80 underline"
                                   >
                                     Clear all
@@ -1530,7 +1638,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                           </div>
 
                           {isPhotoEditOpen && (
-                            <div className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar">
+                            <div
+                              className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar"
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
                               {photoEditTypeOptions.map((option) => {
                                 const count = photoEditCounts[option.key] || 0;
                                 return (
@@ -1542,7 +1654,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                     <div className="flex items-center gap-2">
                                       <button
                                         type="button"
-                                        onClick={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateEditQuantity("photo", option.key, Math.max(0, count - 1));
+                                        }}
+                                        onMouseDown={(e) => e.stopPropagation()}
                                         className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
                                       >
                                         -
@@ -1550,7 +1666,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                       <span className="min-w-[28px] text-center text-white">{count}</span>
                                       <button
                                         type="button"
-                                        onClick={() => updateEditQuantity("photo", option.key, count + 1)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateEditQuantity("photo", option.key, count + 1);
+                                        }}
+                                        onMouseDown={(e) => e.stopPropagation()}
                                         className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
                                       >
                                         +
@@ -1563,7 +1683,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                 <div className="px-4 py-3 border-t border-white/10">
                                   <button
                                     type="button"
-                                    onClick={() => updateData({ photoEditTypes: [] })}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateData({ photoEditTypes: [] });
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
                                     className="text-xs text-white/50 hover:text-white/80 underline"
                                   >
                                     Clear all
