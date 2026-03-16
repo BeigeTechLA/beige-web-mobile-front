@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -167,6 +167,15 @@ function StripePaymentFormMulti({
   const [acceptTerms, setAcceptTerms] = useState(true);
 
   const isFree = amount === 0;
+  const isReferralLocked =
+    isFree && parseFloat(quote?.discount_total || 0) > 0;
+
+  useEffect(() => {
+    if (!isReferralLocked) return;
+    if (referralCode.length === 0) return;
+    clearReferralCode();
+    toast.info("Referral codes can’t be applied when the total is $0.");
+  }, [isReferralLocked]);
 
   // AUTO-APPLY & REFRESH FIX LOGIC - UPDATED TO HANDLE OVERRIDE
   useEffect(() => {
@@ -392,6 +401,7 @@ function StripePaymentFormMulti({
   };
 
   const handleReferralCodeChange = (value: string) => {
+    if (isReferralLocked) return;
     const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setReferralCode(upperCode);
     validateReferralCode(upperCode);
@@ -776,8 +786,9 @@ function StripePaymentFormMulti({
                   ? "border-red-500 focus:border-red-400"
                   : "border-white/30 focus:border-white/50"
                 }`}
-              placeholder="Enter code"
+              placeholder={isReferralLocked ? "Disabled for $0 total" : "Enter code"}
               maxLength={10}
+              disabled={isReferralLocked}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isValidatingReferral ? (
@@ -803,6 +814,11 @@ function StripePaymentFormMulti({
           {referralCodeValid === false && referralCode.length >= 4 && (
             <p className="text-red-400 text-sm mt-2">
               {referralErrorMessage || "Invalid referral code"}
+            </p>
+          )}
+          {isReferralLocked && (
+            <p className="text-white/50 text-sm mt-2">
+              Referral codes can’t be applied when a 100% discount makes the total $0.
             </p>
           )}
         </div>
@@ -923,6 +939,30 @@ function MultiCreatorPaymentContent() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
 
+  const mergeSummaryPricing = useCallback((summary: any, details: any) => {
+    if (!summary || !summary.pricing) return summary;
+    const quote = details?.quote;
+    if (!quote) return summary;
+
+    const referralDiscount = parseFloat(quote.referral_discount_amount || 0);
+    const discountTotal = parseFloat(quote.discount_total || 0);
+    const discountCodeDiscount = Math.max(0, discountTotal - referralDiscount);
+    const paidTotal = summary.pricing.total_paid ?? summary.pricing.total ?? 0;
+    const totalBeforeDiscounts = parseFloat((paidTotal + discountCodeDiscount + referralDiscount).toFixed(2));
+
+    return {
+      ...summary,
+      pricing: {
+        ...summary.pricing,
+        discount_code_discount: discountCodeDiscount,
+        referral_discount: referralDiscount,
+        referral_code: quote.applied_referral_code ?? summary.pricing.referral_code,
+        discount_code: quote.applied_discount_code ?? summary.pricing.discount_code,
+        total_before_discounts: totalBeforeDiscounts,
+      },
+    };
+  }, []);
+
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
     shootCost: number;
@@ -958,7 +998,7 @@ function MultiCreatorPaymentContent() {
       //   setSummaryData(response.data.data);
       //   setIsSummaryModalOpen(true);
       // }
-      if (Object.keys(summaryData).length > 0) {
+      if (summaryData && Object.keys(summaryData).length > 0) {
         setIsSummaryModalOpen(true);
       }
     } catch (err) {
@@ -1095,7 +1135,8 @@ function MultiCreatorPaymentContent() {
       const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`);
 
       if (response.data.success) {
-        setSummaryData(response.data.data);
+        const merged = mergeSummaryPricing(response.data.data, paymentDetails);
+        setSummaryData(merged);
       }
     } catch (err) {
       toast.error("Failed to load summary details");
@@ -1143,6 +1184,11 @@ function MultiCreatorPaymentContent() {
 
     fetchPaymentDetails();
   }, [shootId]);
+
+  useEffect(() => {
+    if (!summaryData || !paymentDetails) return;
+    setSummaryData((prev: any) => mergeSummaryPricing(prev, paymentDetails));
+  }, [mergeSummaryPricing, paymentDetails]);
 
   const handlePaymentSuccess = async (
     paymentIntentId: string,

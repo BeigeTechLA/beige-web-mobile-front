@@ -11,6 +11,12 @@ interface ShootTypeCardProps {
   stats?: { label: string; value: string }[];
   selected: boolean;
   onClick: () => void;
+  priority?: boolean;
+  loading?: "eager" | "lazy";
+  fetchPriority?: "high" | "low" | "auto";
+  sizes?: string;
+  quality?: number;
+  unoptimized?: boolean;
 }
 
 export const ShootTypeCard: React.FC<ShootTypeCardProps> = ({
@@ -20,7 +26,15 @@ export const ShootTypeCard: React.FC<ShootTypeCardProps> = ({
   stats,
   selected,
   onClick,
+  priority = false,
+  loading = "lazy",
+  fetchPriority = "auto",
+  sizes = "(min-width: 1280px) 162px, (min-width: 768px) 140px, 80px",
+  quality = 60,
+  unoptimized = false,
 }) => {
+  const blurDataURL =
+    "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMTMxMzEzIi8+PC9zdmc+";
   return (
     <div
       onClick={onClick}
@@ -40,6 +54,14 @@ export const ShootTypeCard: React.FC<ShootTypeCardProps> = ({
           alt={title}
           fill
           className="object-cover"
+          sizes={sizes}
+          quality={quality}
+          priority={priority}
+          loading={priority ? "eager" : loading}
+          fetchPriority={priority ? "high" : fetchPriority}
+          placeholder="blur"
+          blurDataURL={blurDataURL}
+          unoptimized={unoptimized}
         />
       </div>
 
