@@ -213,6 +213,17 @@ export default function LeadDetailPage() {
   const discountAmount = lead?.pricing_breakdown?.discount || 0;
   const total = lead?.pricing_breakdown?.total || 0;
 
+  const referralInfo = useMemo(() => {
+    const notes = booking?.primary_quote?.notes || "";
+    const match = String(notes).match(/Referral applied \(([^)]+)\): -\$(\d+(?:\.\d+)?)/i);
+    if (!match) return { code: null, amount: 0 };
+    return { code: match[1] || null, amount: parseFloat(match[2] || "0") || 0 };
+  }, [booking?.primary_quote?.notes]);
+
+  const referralDiscountAmount = referralInfo.amount;
+  const discountCodeDiscount = Math.max(0, discountAmount - referralDiscountAmount);
+  const discountCodeValue = lead?.discount_codes?.[0]?.code || null;
+
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
     if (!discount || parseFloat(discount) <= 0) {
@@ -672,10 +683,28 @@ export default function LeadDetailPage() {
                   <span className="text-[#71717B] text-xs">Additional Creatives</span>
                   <span className="text-sm lg:text-base text-white">${additionalCreatives.toLocaleString()}</span>
                 </div>
-                {discountAmount > 0 && (
+                {discountCodeValue && (
                   <div className="flex justify-between font-medium">
-                    <span className="text-[#71717B] text-xs">Discount</span>
-                    <span className="text-sm lg:text-base text-red-400">-${discountAmount.toLocaleString()}</span>
+                    <span className="text-[#71717B] text-xs">Discount Code</span>
+                    <span className="text-sm lg:text-base text-white font-mono">{discountCodeValue}</span>
+                  </div>
+                )}
+                {discountCodeDiscount > 0 && (
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Discount Code Discount</span>
+                    <span className="text-sm lg:text-base text-red-400">-${discountCodeDiscount.toLocaleString()}</span>
+                  </div>
+                )}
+                {referralInfo.code && (
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Referral Code</span>
+                    <span className="text-sm lg:text-base text-white font-mono">{referralInfo.code}</span>
+                  </div>
+                )}
+                {referralDiscountAmount > 0 && (
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">Referral Discount</span>
+                    <span className="text-sm lg:text-base text-red-400">-${referralDiscountAmount.toLocaleString()}</span>
                   </div>
                 )}
               </div>

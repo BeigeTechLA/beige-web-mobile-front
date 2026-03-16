@@ -249,23 +249,29 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                 </section>
 
                 <section className="pt-6 border-t border-white/10 space-y-3 print:border-gray-200">
-                   <div className="flex justify-between text-sm">
+                   {/* <div className="flex justify-between text-sm">
                      <span className="text-white/40 print:text-gray-500">Base Shoot Fee</span>
                      <span className="text-white font-medium print:text-black">{formatCurrency(data.pricing.shoot_cost)}</span>
                    </div>
                    <div className="flex justify-between text-sm">
                      <span className="text-white/40 print:text-gray-500">Post-Production</span>
                      <span className="text-white font-medium print:text-black">{formatCurrency(data.pricing.editing_cost)}</span>
-                   </div>
+                   </div> */}
                    <div className="flex justify-between text-sm">
                      <span className="text-white/40 print:text-gray-500">Total Amount</span>
                      <span className="text-white font-medium print:text-black">
                        {formatCurrency(data.pricing.total_before_discounts ?? data.pricing.total)}
                      </span>
                    </div>
+                   {data.pricing.discount_code && (
+                     <div className="flex justify-between text-sm text-white/60 print:text-gray-600">
+                        <span>Discount Code</span>
+                        <span className="font-medium">{data.pricing.discount_code}</span>
+                     </div>
+                   )}
                    {data.pricing.discount_code_discount > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
-                        <span>Discount Applied</span>
+                        <span>Discount Code Discount</span>
                         <span>-{formatCurrency(data.pricing.discount_code_discount)}</span>
                      </div>
                    )}
@@ -277,7 +283,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                    )}
                    {data.pricing.referral_discount > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
-                        <span>Referral Discount</span>
+                        <span>Referral Code Discount</span>
                         <span>-{formatCurrency(data.pricing.referral_discount)}</span>
                      </div>
                    )}

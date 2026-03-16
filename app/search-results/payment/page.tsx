@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -923,6 +923,30 @@ function MultiCreatorPaymentContent() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
 
+  const mergeSummaryPricing = useCallback((summary: any, details: any) => {
+    if (!summary || !summary.pricing) return summary;
+    const quote = details?.quote;
+    if (!quote) return summary;
+
+    const referralDiscount = parseFloat(quote.referral_discount_amount || 0);
+    const discountTotal = parseFloat(quote.discount_total || 0);
+    const discountCodeDiscount = Math.max(0, discountTotal - referralDiscount);
+    const paidTotal = summary.pricing.total_paid ?? summary.pricing.total ?? 0;
+    const totalBeforeDiscounts = parseFloat((paidTotal + discountCodeDiscount + referralDiscount).toFixed(2));
+
+    return {
+      ...summary,
+      pricing: {
+        ...summary.pricing,
+        discount_code_discount: discountCodeDiscount,
+        referral_discount: referralDiscount,
+        referral_code: quote.applied_referral_code ?? summary.pricing.referral_code,
+        discount_code: quote.applied_discount_code ?? summary.pricing.discount_code,
+        total_before_discounts: totalBeforeDiscounts,
+      },
+    };
+  }, []);
+
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
     shootCost: number;
@@ -1095,7 +1119,8 @@ function MultiCreatorPaymentContent() {
       const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`);
 
       if (response.data.success) {
-        setSummaryData(response.data.data);
+        const merged = mergeSummaryPricing(response.data.data, paymentDetails);
+        setSummaryData(merged);
       }
     } catch (err) {
       toast.error("Failed to load summary details");
@@ -1143,6 +1168,11 @@ function MultiCreatorPaymentContent() {
 
     fetchPaymentDetails();
   }, [shootId]);
+
+  useEffect(() => {
+    if (!summaryData || !paymentDetails) return;
+    setSummaryData((prev: any) => mergeSummaryPricing(prev, paymentDetails));
+  }, [mergeSummaryPricing, paymentDetails, summaryData]);
 
   const handlePaymentSuccess = async (
     paymentIntentId: string,
