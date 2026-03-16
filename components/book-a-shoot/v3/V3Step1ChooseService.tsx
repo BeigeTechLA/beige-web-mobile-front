@@ -1066,7 +1066,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             {/* <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"> */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
               {/* {availableShootTypes.map((type) => ( */}
-              {availableShootTypes.slice(0, visibleCount).map((type) => (
+              {availableShootTypes.slice(0, visibleCount).map((type, index) => (
                 <div
                   key={type.key}
                   className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start"
@@ -1077,6 +1077,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     image={type.image}
                     // stats={type.stats}
                     selected={data.shootType === type.key}
+                    priority={index < 3}
+                    loading={index < 3 ? "eager" : "lazy"}
+                    fetchPriority={index < 3 ? "high" : "auto"}
                     onClick={() => {
                       updateData({ shootType: type.key });
                       scrollToRef(bookingTypeRef);
