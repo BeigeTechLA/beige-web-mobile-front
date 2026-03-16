@@ -35,15 +35,15 @@ export const ShootTypeCard: React.FC<ShootTypeCardProps> = ({
       }}
     >
       <div className="relative overflow-hidden w-[80px] lg:w-[162px] h-full lg:h-[220px] rounded-xl">
-      <Image
-  src={image}
-  alt={title}
-  fill
-  sizes="(max-width: 768px) 80px, 162px"
-  priority
-  quality={60}
-  className="object-cover"
-/>
+        <Image
+          src={image}
+          alt={title}
+          fill
+          sizes="(max-width: 768px) 80px, 162px"
+          priority
+          quality={75}
+          className="object-cover"
+        />
       </div>
 
       {/* Content */}
