@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Sparkles, User, Mail, Phone, Globe, Calendar, Clock, MapPin, List, Eye, MessageSquare, Info, Star } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, User, Mail, Phone, Globe, Calendar, Clock, MapPin, List, Eye, MessageSquare, Info } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
@@ -117,33 +117,22 @@ export default function FormDetailsPage({ params }: { params: Promise<{ id: stri
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <Section title="Contact Information" icon={User}>
-                        <DataItem label="Full Name" value={formData.full_name} />
-                        <DataItem label="Email Address" value={formData.email} />
-                        <DataItem label="Phone Number" value={formData.phone_number} />
-                        <DataItem label="Time Zone" value={formData.time_zone} />
-                        <DataItem label="Onsite Contact Info" value={formData.onsite_contact_info} fullWidth />
-                    </Section>
-
                     <Section title="Project Overview" icon={Info}>
                         <DataItem label="Project Types" value={formData.project_types} fullWidth />
                         {formData.project_type_other && <DataItem label="Other Project Type" value={formData.project_type_other} fullWidth />}
                         <DataItem label="Brief Overview" value={formData.brief_overview} fullWidth />
                         <DataItem label="People Attending" value={formData.num_people_attending} />
-                    </Section>
-
-                    <Section title="Timing & Schedule" icon={Calendar}>
-                        <DataItem label="Event Date" value={formData.event_date} />
-                        <DataItem label="Service Times" value={formData.service_times} />
-                        <DataItem label="Additional Dates" value={formData.additional_dates} fullWidth />
-                        <DataItem label="Event Agenda" value={formData.event_agenda} fullWidth />
+                        <DataItem label="Onsite Contact Info" value={formData.onsite_contact_info} fullWidth />
                     </Section>
 
                     <Section title="Location" icon={MapPin}>
                         <DataItem label="Address" value={formData.location_address} fullWidth />
-                        <DataItem label="Google Maps Link" value={formData.google_maps_link} fullWidth />
                         <DataItem label="Location Specifications" value={formData.location_specification} fullWidth />
                         <DataItem label="Scouting References" value={formData.location_scouting_refs} fullWidth />
+                    </Section>
+
+                    <Section title="Timing & Schedule" icon={Calendar}>
+                        <DataItem label="Event Agenda" value={formData.event_agenda} fullWidth />
                     </Section>
 
                     <Section title="Creative Requirements" icon={Eye}>
@@ -158,11 +147,6 @@ export default function FormDetailsPage({ params }: { params: Promise<{ id: stri
                         <DataItem label="Preferred Songs" value={formData.preferred_songs} fullWidth />
                         <DataItem label="Additional Information" value={formData.additional_info} fullWidth />
                     </Section>
-
-                    <Section title="Internal Feedback" icon={Star}>
-                        <DataItem label="Wants to learn more" value={formData.wants_to_learn_more ? "Yes" : "No"} />
-                        <DataItem label="Form Rating" value={`${formData.form_user_friendliness_rating || 0} / 5`} />
-                    </Section>
                 </div>
 
                 <div className="mt-8 mb-12 flex justify-center">
@@ -170,7 +154,7 @@ export default function FormDetailsPage({ params }: { params: Promise<{ id: stri
                         onClick={() => router.back()}
                         className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-12 px-10 rounded-xl font-bold transition-all shadow-lg"
                     >
-                        Finished Reviewing
+                        Done
                     </Button>
                 </div>
             </div>
