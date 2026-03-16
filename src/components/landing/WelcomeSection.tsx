@@ -27,7 +27,7 @@ export const WelcomeSection = () => {
           >
             {/* Heading */}
             <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight text-center lg:text-left">
-              Welcome to Beige
+              Welcome to Beige AI
             </h2>
 
             <p className="mx-auto lg:mx-0 text-white/60 text-xs md:text-base leading-relaxed max-w-[600px] mb-5 lg:mb-12 font-light text-center lg:text-left">

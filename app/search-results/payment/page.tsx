@@ -47,6 +47,8 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
 );
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 // Fallback images for creators
 const crewImages = [
   "/images/crew/CREW(1).png",
@@ -1472,7 +1474,9 @@ function MultiCreatorPaymentContent() {
                     </h4>
                     <div className="space-y-2">
                       {creators.slice(0, 3).map((creator: any) => {
-                        const imageUrl = creator.profile_image || getFallbackImage(creator.crew_member_id);
+                        const imageUrl = creator.profile_image
+                          ? `${S3_PREFIX}${creator.profile_image}`
+                          : getFallbackImage(creator.crew_member_id);
                         return (
                           <div key={creator.crew_member_id} className="flex items-center gap-2 lg:gap-4">
                             <div className="relative w-10 h-10 lg:w-[80px] lg:h-[80px] rounded-full overflow-hidden shrink-0">
