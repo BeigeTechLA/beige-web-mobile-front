@@ -102,6 +102,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://d2jhn32fsulyac.cloudfront.net" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://d2jhn32fsulyac.cloudfront.net" />
         {/* GTM Container Script */}
         <Script id="google-tag-manager" strategy="afterInteractive">
           {`
