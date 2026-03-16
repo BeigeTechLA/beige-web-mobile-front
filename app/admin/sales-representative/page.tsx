@@ -287,7 +287,7 @@ export default function AdminSaleRepManagerPage() {
     const rawId = user.id.replace('#', '');
     const basePath = activeTab === "Client"
       ? "/admin/sales-representative/client"
-      : "/admin/sales-representative/creative-partner";
+      : "/admin/users/creative-partners";
     router.push(`${basePath}/${rawId}`);
   };
 
@@ -532,7 +532,7 @@ export default function AdminSaleRepManagerPage() {
               activeTab === "Client"
                 ? "/admin/sales-representative/client"
                 : activeTab === "Creative Partner"
-                  ? "/admin/sales-representative/creative-partner"
+                  ? "/admin/users/creative-partners"
                   : undefined
             }
           />
