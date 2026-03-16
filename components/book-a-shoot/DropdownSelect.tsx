@@ -114,7 +114,7 @@ export default function DropdownSelect({
 
       {/* Dropdown */}
       {open && (
-        <div className={`absolute top-[calc(100%+8px)] left-0 w-full z-30 rounded-lg border max-h-[300px] overflow-y-auto ${
+        <div className={`absolute top-[calc(100%+8px)] left-0 w-full z-30 rounded-lg border max-h-[300px] overflow-y-auto no-scrollbar ${
           isDark ? `${bgColour} border-white/10` : "bg-white border-gray-200"
         }`}>
           {filteredOptions.length === 0 ? (

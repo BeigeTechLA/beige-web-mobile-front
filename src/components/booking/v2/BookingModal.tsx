@@ -60,6 +60,7 @@ const initialData: BookingData = {
 
 export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
   const router = useRouter();
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   // UseEffect to prevent and renable scrolling depending on if modal is open or closed
   useEffect(() => {
@@ -81,6 +82,13 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
   const [formData, setFormData] = useState<BookingData>(initialData);
   const [bookingStatus, setBookingStatus] = useState<"idle" | "creating" | "created" | "error">("idle");
   const [currentBookingId, setCurrentBookingId] = useState<string | null>(null);
+
+  // Reset scroll position when step changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentStep]);
 
   // Map 0-indexed currentStep to 1-indexed step for UI
   const step = currentStep + 1;
@@ -254,6 +262,7 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
 
           {/* Modal Content */}
           <motion.div
+            ref={scrollContainerRef}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -272,7 +281,7 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
             )} */}
 
             {/* Step Content */}
-            <div className="flex-1 p-0 flex flex-col min-h-0 max-h-[100dvh] overflow-y-auto">
+            <div className="flex-1 p-0 flex flex-col min-h-0 max-h-[100dvh] overflow-y-auto no-scrollbar">
               {step === 1 && (
                 <Step1ProjectNeeds
                   data={formData}

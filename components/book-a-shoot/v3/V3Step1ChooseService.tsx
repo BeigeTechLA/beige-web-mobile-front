@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useOutsideClick } from "@/lib/hooks/use-outside-click";
 import { BookingDataV3 } from "./types";
 import { ContentTypeCheckbox } from "./components/ContentTypeCheckbox";
 import { ShootTypeCard } from "./components/ShootTypeCard";
@@ -146,6 +147,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const [isVideoEditOpen, setIsVideoEditOpen] = useState(false);
   const [isPhotoEditOpen, setIsPhotoEditOpen] = useState(false);
+
+  const videoEditDropdownRef = useOutsideClick(() => {
+    setIsVideoEditOpen(false);
+  });
+  const photoEditDropdownRef = useOutsideClick(() => {
+    setIsPhotoEditOpen(false);
+  });
 
   const buildEditCounts = (keys: string[]) =>
     keys.reduce<Record<string, number>>((acc, key) => {
@@ -917,7 +925,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             disabled={true}
           />
           <ContentTypeCheckbox
-            label="Studios"
+            label="Locations"
             subLabel="Coming Soon"
             icon={<MapPinHouse size={20} />}
             checked={false}
@@ -1246,7 +1254,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
                     {
                       sameTimingsMulti ? (
-                        <div>
+                        <div ref={videoEditDropdownRef}>
                           <div className="flex flex-col lg:flex-row gap-6">
                             <div className="flex-1">
                               <DropdownSelect
@@ -1406,7 +1414,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     //|| data.contentType.includes("cinematographer")) &&
                     editTypeOptions.length > 0 && (
                       <div>
-                        <div className="relative w-full max-w-md">
+                        <div ref={videoEditDropdownRef} className="relative w-full max-w-md">
                           <div
                             className="min-h-14 lg:min-h-[82px] relative bg-[#101010] rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40"
                             onClick={() => setIsVideoEditOpen((p) => !p)}
@@ -1439,7 +1447,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                           </div>
 
                           {isVideoEditOpen && (
-                            <div className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto">
+                            <div className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar">
                               {editTypeOptions.map((option) => {
                                 const count = videoEditCounts[option.key] || 0;
                                 return (
@@ -1489,7 +1497,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   {data.contentType.includes("photographer") &&
                     photoEditTypeOptions.length > 0 && (
                       <div>
-                        <div className="relative w-full max-w-md">
+                        <div ref={photoEditDropdownRef} className="relative w-full max-w-md">
                           <div
                             className="min-h-14 lg:min-h-[82px] relative bg-[#101010] rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40"
                             onClick={() => setIsPhotoEditOpen((p) => !p)}
@@ -1522,7 +1530,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                           </div>
 
                           {isPhotoEditOpen && (
-                            <div className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto">
+                            <div className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar">
                               {photoEditTypeOptions.map((option) => {
                                 const count = photoEditCounts[option.key] || 0;
                                 return (

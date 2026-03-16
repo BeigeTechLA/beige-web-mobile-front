@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
-import React from "react";
+import React, { useState } from "react";
+import { AffiliateShootDetailsForm } from "@/components/affiliate/AffiliateShootDetailsForm";
 
 interface BookingDetails {
   confirmationNumber: string;
@@ -28,6 +29,7 @@ export const BookingSummaryModal = ({
   shootType,
 }: BookingSummaryModalProps) => {
   const [shootName, setShootName] = React.useState("");
+  const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
 
   // Determine form URL based on shoot type
   const getFormUrl = () => {
@@ -142,15 +144,23 @@ export const BookingSummaryModal = ({
           {/* Google Forms CTA */}
           <div className="px-8 lg:px-[50px] pt-6 lg:pt-10 pb-4 border-b border-black/10">
             <button
-              onClick={handleOpenForm}
+              onClick={() => setIsDetailsFormOpen(true)}
               className="w-full h-14 lg:h-[72px] rounded-[10px] lg:rounded-[20px] bg-[#E8D1AB] text-black text-base lg:text-xl font-medium hover:bg-[#dcb98a] transition flex items-center justify-center"
             >
               Complete All The Details For Your Shoot
             </button>
-            <p className="text-xs lg:text-sm text-black/60 mt-2 text-center">
+            <p className="text-xs lg:sm text-black/60 mt-2 text-center">
               Help us prepare better by providing detailed shoot information
             </p>
           </div>
+
+          <AffiliateShootDetailsForm
+            isOpen={isDetailsFormOpen}
+            onClose={() => setIsDetailsFormOpen(false)}
+            projectId={parseInt(bookingDetails.confirmationNumber.replace(/[^0-9]/g, "") || "0")}
+            hideAffiliateStep={true}
+            redirectTo="/login"
+          />
 
           {/* Actions */}
           <div className="mt-6 lg:mt-12 grid grid-cols-2 gap-2.5 px-8 pb-6 lg:px-[50px] lg:pb-[50px]">

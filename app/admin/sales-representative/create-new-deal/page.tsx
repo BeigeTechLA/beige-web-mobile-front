@@ -814,7 +814,7 @@ export default function ClientDetailPage() {
               isDark={isDark}
             />
             <ContentTypeCheckbox label="AI Editing" subLabel="Coming Soon" icon={<Scissors size={20} />} checked={false} onChange={() => { }} disabled={true} isDark={isDark} />
-            <ContentTypeCheckbox label="Studios" subLabel="Coming Soon" icon={<MapPinHouse size={20} />} checked={false} onChange={() => { }} disabled={true} isDark={isDark} />
+            <ContentTypeCheckbox label="Locations" subLabel="Coming Soon" icon={<MapPinHouse size={20} />} checked={false} onChange={() => { }} disabled={true} isDark={isDark} />
             <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} checked={false} onChange={() => { }} disabled={true} isDark={isDark} />
           </div>
         </div>

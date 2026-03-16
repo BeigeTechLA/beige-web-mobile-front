@@ -776,7 +776,7 @@ export default function ClientDetailPage() {
               isDark={isDark}
             />
             <ContentTypeCheckbox
-              label="Studios"
+              label="Locations"
               subLabel="Coming Soon"
               icon={<MapPinHouse size={20} />}
               checked={false}
