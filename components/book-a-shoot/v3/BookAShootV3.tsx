@@ -26,6 +26,7 @@ import {
   V3Step4BookConfirm,
 } from "./index";
 import { pushToDataLayer } from "@/lib/gtm";
+import { buildEditTypeCounts } from "./utils";
 
 const V3_STEPS = [
   { label: "Choose Service" },
@@ -396,8 +397,12 @@ export const BookAShootV3 = () => {
             guestEmail: formData.email,
             shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : formData.startDate,
             notes: formData.specialInstructions || undefined,
-            video_edit_types: formData.editsNeeded ? formData.videoEditTypes : [],
-            photo_edit_types: formData.editsNeeded ? formData.photoEditTypes : [],
+            video_edit_types: formData.editsNeeded
+              ? buildEditTypeCounts(formData.videoEditTypes)
+              : [],
+            photo_edit_types: formData.editsNeeded
+              ? buildEditTypeCounts(formData.photoEditTypes)
+              : [],
           };
 
           const savedQuote = await saveQuote(quotePayload).unwrap();
