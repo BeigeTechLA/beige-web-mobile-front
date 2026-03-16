@@ -911,7 +911,7 @@ function StripePaymentFormMulti({
           onChange={(e) => setAcceptTerms(e.target.checked)}
         />
         <p className="text-sm text-[#999]">
-          I agree to the{" "}
+          By continuing to payment, you agree to our{" "}
           <span className="text-[#E8D5B5]">Terms & Conditions</span>,{" "}
           <span className="text-[#E8D5B5]">Cancellation Policy</span>,
           and <span className="text-[#E8D5B5]">Privacy Policy</span>

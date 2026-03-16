@@ -548,12 +548,12 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   <ContentTypeIcon />
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm text-[#999] capitalize tracking-wide mb-1">
                     Content Type
                   </div>
                   {/* Updated Text Display */}
-                  <h3 className="text-base text-white capitalize">
+                  <h3 className="text-base text-white capitalize whitespace-nowrap truncate">
                     {displayContentType}
                   </h3>
                 </div>
@@ -569,20 +569,20 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       className="object-cover rounded-lg"
                     />
                   </div>
-                  <div className="flex flex-col lg:flex-row gap-2 lg:gap-0 justify-between lg:items-center flex-1">
-                    <div className="w-full">
+                  <div className="flex flex-col lg:flex-row gap-2 lg:gap-0 justify-between lg:items-center flex-1 min-w-0">
+                    <div className="w-full min-w-0">
                       <div className="">
                         <h4 className="text-[#E8D1AB] text-base lg:text-lg font-bold capitalize">
                           {shootInfo.title}
                         </h4>
-                        <span className="text-sm text-[#A9A9A9]">
+                        <span className="text-sm text-[#A9A9A9] capitalize">
                           {shootInfo.details}
                         </span>
                       </div>
                     </div>
 
-                    <div className="rounded-full bg-[#211F1C] border border-[#616161] min-w-[170px] py-2">
-                      <p className="text-xs lg:text-sm text-center font-medium capitalize text-white/50">
+                    <div className="rounded-full bg-[#211F1C] border border-[#616161] w-fit shrink-0 py-2 px-4">
+                      <p className="text-xs lg:text-sm text-center font-medium capitalize text-white/50 whitespace-nowrap">
                         {shootTypeTag}
                       </p>
                     </div>
@@ -757,7 +757,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   onChange={(e) => setAcceptTerms(e.target.checked)}
                 />
                 <p className="text-sm text-[#999]">
-                  I agree to the{" "}
+                  By continuing to payment, you agree to our{" "}
                   <span className="text-[#E8D5B5]">Terms & Conditions</span>,{" "}
                   <span className="text-[#E8D5B5]">Cancellation Policy</span>,
                   and <span className="text-[#E8D5B5]">Privacy Policy</span>
