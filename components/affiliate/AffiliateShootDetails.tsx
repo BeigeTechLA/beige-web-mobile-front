@@ -50,7 +50,8 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
           });
         }
 
-        let projectData = projectResponse?.data?.project || projectResponse?.data || projectResponse;
+        const responseRoot = projectResponse?.data || projectResponse;
+        let projectData = responseRoot?.project || responseRoot;
 
         if (projectData) {
           let skillsText = "";
@@ -81,6 +82,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
           }
 
           setProject({
+            ...responseRoot,
             ...projectData,
             skills_needed: skillsText || projectData.skills_needed || "N/A"
           });

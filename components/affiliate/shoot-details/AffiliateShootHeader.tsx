@@ -15,6 +15,67 @@ interface AffiliateShootHeaderProps {
 export default function AffiliateShootHeader({ activeTab = "Overview", project, onBack }: AffiliateShootHeaderProps) {
   const router = useRouter();
 
+  const formatShootDate = (dateValue?: string) => {
+    if (!dateValue) return "N/A";
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "N/A";
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const formatShootTime = () => {
+    if (project?.start_time && project?.end_time) {
+      return `${project.start_time.split(":").slice(0, 2).join(":")} - ${project.end_time.split(":").slice(0, 2).join(":")}`;
+    }
+
+    if (project?.event_start_time) {
+      const start = new Date(project.event_start_time);
+      if (!Number.isNaN(start.getTime())) {
+        return start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+    }
+
+    return "N/A";
+  };
+
+  const formatTotalValue = () => {
+    const amount =
+      project?.total_paid_amount ??
+      project?.quote_total ??
+      project?.budget ??
+      0;
+
+    const parsedAmount = Number(amount);
+    return Number.isNaN(parsedAmount) ? "$0.00" : `$${parsedAmount.toLocaleString()}`;
+  };
+
+  const getPaymentStatus = () => {
+    if (project?.payment_status) {
+      return project.payment_status;
+    }
+    if (project?.payment_id) {
+      return "paid";
+    }
+    return "pending";
+  };
+
+  const getLocationText = () => {
+    if (typeof project?.event_location === "string" && project.event_location.trim()) {
+      return project.event_location;
+    }
+
+    if (project?.event_location?.address) {
+      return project.event_location.address;
+    }
+
+    return [project?.location, project?.city, project?.state, project?.country]
+      .filter(Boolean)
+      .join(", ") || "No location specified";
+  };
+
   const handleBack = () => {
     if (onBack) {
       onBack();
@@ -78,31 +139,29 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
               <div className="flex gap-2">
                 <span>Shoot Date :</span>
                 <span className="text-white font-medium">
-                  {project?.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A"}
+                  {formatShootDate(project?.event_date)}
                 </span>
               </div>
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />
               <div className="flex gap-2">
                 <span>Time :</span>
                 <span className="text-white font-medium">
-                  {project?.start_time ? project.start_time : "N/A"}
+                  {formatShootTime()}
                 </span>
               </div>
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />
               <div className="flex gap-2">
                 <span>Total Value :</span>
                 <span className="text-white font-medium">
-                  {project?.quote_total ? `$${parseFloat(project.quote_total).toLocaleString()}` : (project?.budget ? `$${parseFloat(project.budget).toLocaleString()}` : "$0.00")}
+                  {formatTotalValue()}
                 </span>
               </div>
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />
               <div className="flex gap-2">
                 <span>Payment Status :</span>
-                {project?.payment_id || project?.payment_status === "paid" ? (
-                  <span className="text-[#22C55E] font-medium">Paid</span>
-                ) : (
-                  <span className="text-yellow-400 font-medium">Pending</span>
-                )}
+                <span className={getPaymentStatus() === "paid" ? "text-[#22C55E] font-medium capitalize" : "text-yellow-400 font-medium capitalize"}>
+                  {getPaymentStatus()}
+                </span>
               </div>
             </div>
 
@@ -126,7 +185,7 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
             <div className="mt-2 lg:mt-4 text-sm lg:text-base text-[#AAAAAA] flex gap-2">
               <span>Location :</span>
               <span className="text-white font-medium">
-                {project?.event_location || [project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") || "No location specified"}
+                {getLocationText()}
               </span>
             </div>
           </div>
