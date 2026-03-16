@@ -61,7 +61,7 @@ export const Hero = () => {
                 paddingBottom: "4px"
               }}
             >
-              Create Content Instantly.
+              Beige AI: Videography, Photography, & AI Editing
             </motion.h1>
 
 
