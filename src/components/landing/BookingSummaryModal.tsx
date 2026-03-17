@@ -26,11 +26,15 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
   const formatShortDate = (value: string) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return new Intl.DateTimeFormat("en-GB", {
+    const parts = new Intl.DateTimeFormat("en-GB", {
       day: "numeric",
       month: "short",
       year: "numeric",
-    }).format(date);
+    }).formatToParts(date);
+    const day = parts.find((part) => part.type === "day")?.value || "";
+    const month = parts.find((part) => part.type === "month")?.value || "";
+    const year = parts.find((part) => part.type === "year")?.value || "";
+    return `${day} ${month}, ${year}`;
   };
 
   const getEditCounts = (items: string[] = []) => {
