@@ -390,12 +390,18 @@ export const BookAShootV3 = () => {
 
       if (quoteItems.length > 0) {
         try {
+          const toIsoIfValid = (value?: string | null) => {
+            if (!value) return value;
+            const d = new Date(value);
+            return isNaN(d.getTime()) ? value : d.toISOString();
+          };
+
           const quotePayload = {
             items: quoteItems,
             shootHours: shootHours,
             eventType: formData.shootType || "general",
             guestEmail: formData.email,
-            shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : formData.startDate,
+            shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : toIsoIfValid(formData.startDate),
             notes: formData.specialInstructions || undefined,
             video_edit_types: formData.editsNeeded
               ? buildEditTypeCounts(formData.videoEditTypes)

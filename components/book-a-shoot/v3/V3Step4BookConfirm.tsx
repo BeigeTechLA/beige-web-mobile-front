@@ -284,6 +284,12 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       }
 
       try {
+        const toIsoIfValid = (value?: string | null) => {
+          if (!value) return value;
+          const d = new Date(value);
+          return isNaN(d.getTime()) ? value : d.toISOString();
+        };
+
         console.log("V3Step4BookConfirm - Sending to API:", {
           creator_ids: data.selectedCrewIds,
           selectedCrewCount: data.selectedCrewIds?.length || 0,
@@ -313,7 +319,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           shoot_hours: durationHours,
           role_counts: data.roleCounts,
           event_type: data.shootType || "general",
-          shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : data.startDate,
+          shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : toIsoIfValid(data.startDate),
           video_edit_types: buildEditTypeCounts(data.videoEditTypes),
           photo_edit_types: buildEditTypeCounts(data.photoEditTypes),
           skip_discount: true,
