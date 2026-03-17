@@ -189,7 +189,7 @@ function StripePaymentFormMulti({
     if (!isReferralLocked) return;
     if (referralCode.length === 0) return;
     clearReferralCode();
-    toast.info("Referral Code Not Applicable", {
+    toast.info("⚠️ Referral Code Not Applicable", {
       description: "This code can only be applied to shoot with a total value greater than $0.00",
     });
   }, [isReferralLocked]);
