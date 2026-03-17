@@ -841,9 +841,14 @@ function StripePaymentFormMulti({
             </p>
           )}
           {isReferralLocked && (
-            <p className="text-white/50 text-sm mt-2">
-              Referral codes can’t be applied when a 100% discount makes the total $0.
-            </p>
+            <div className="text-white/60 text-sm mt-2">
+              <div className="font-medium text-white/80">
+                ⚠️ Referral Code Not Applicable
+              </div>
+              <div>
+                This code can only be applied to shoot with a total value greater than $0.00
+              </div>
+            </div>
           )}
         </div>
 
