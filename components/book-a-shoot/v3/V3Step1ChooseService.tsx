@@ -564,9 +564,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     if (bookingType === "multi_day") {
       setSelectedShootDate(date);
     }
-    if (reelRef.current) {
-      reelRef.current.scrollLeft = 0;
-    }
   };
 
   const getTimeLabel = (key: string) => {
@@ -1238,6 +1235,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       return (
                         <button
                           key={date.toISOString()}
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => toggleDateSelection(date)}
                           className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
                         >

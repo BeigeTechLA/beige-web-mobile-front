@@ -23,6 +23,20 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
 
+  const formatShortDate = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).formatToParts(date);
+    const day = parts.find((part) => part.type === "day")?.value || "";
+    const month = parts.find((part) => part.type === "month")?.value || "";
+    const year = parts.find((part) => part.type === "year")?.value || "";
+    return `${day} ${month}, ${year}`;
+  };
+
   const getEditCounts = (items: string[] = []) => {
     const counts = new Map<string, number>();
     items.forEach((item) => {
@@ -181,7 +195,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                   <div className="bg-white/5 p-3 rounded-2xl text-[#E8D1AB] no-print"><Calendar size={18} /></div>
                   <div>
                     <p className="text-white font-medium print:text-black">
-                        {new Date(data.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        {formatShortDate(data.date)}
                     </p>
                     <p className="text-white/50 text-sm print:text-gray-600">{data.start_time.slice(0, 5)} - {data.end_time.slice(0, 5)}</p>
                   </div>
@@ -288,12 +302,12 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                      </div>
                    )}
                    
-                   <div className="pt-4 mt-2 flex justify-between items-center border-t border-white/20 print:border-gray-300">
-                     <div>
-                        <p className="text-white font-bold text-lg print:text-black">Total Paid</p>
-                        <p className="text-[9px] text-white/30 uppercase font-bold tracking-tight print:text-gray-400">Paid via Card</p>
+                   <div className="pt-4 mt-2 flex items-end justify-between gap-6 border-t border-white/20 print:border-gray-300">
+                     <div className="shrink-0">
+                        <p className="text-white font-bold text-base sm:text-lg leading-none whitespace-nowrap print:text-black">Total Paid</p>
+                        <p className="mt-2 text-[10px] text-white/35 uppercase font-bold tracking-[0.12em] whitespace-nowrap print:text-gray-400">Paid via Card</p>
                      </div>
-                     <span className="text-[#E8D1AB] font-bold text-2xl sm:text-3xl tabular-nums print:text-black">
+                     <span className="text-[#E8D1AB] font-bold text-xl sm:text-2xl tabular-nums text-right leading-none whitespace-nowrap print:text-black">
                         {formatCurrency(data.pricing.total_paid ?? data.pricing.total)}
                      </span>
                    </div>
