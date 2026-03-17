@@ -898,24 +898,24 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
               label="Available Days"
               value={summaryData.availableDays}
               icon={CheckCircle}
-              iconColor="text-green-500"
-              hoverBorder="hover:border-green-500/30"
+              iconColor={isDark ? "text-green-500" : "text-green-800"}
+              hoverBorder={isDark ? "hover:border-green-500/30" : "hover:border-green-700/30"}
               isDark={isDark}
             />
             <StatCard
               label="Booked Shoots"
               value={summaryData.bookedShoots}
               icon={Video}
-              iconColor="text-[#E5D5B8]"
-              hoverBorder="hover:border-[#E5D5B8]/30"
+              iconColor={isDark ? "text-[#E5D5B8]" : "text-[#4f473a]"}
+              hoverBorder={isDark ? "hover:border-[#E5D5B8]/30" : "hover:border-[#4f473a]/30"}
               isDark={isDark}
             />
             <StatCard
               label="Time Off"
               value={`${summaryData.timeOff}`}
               icon={Clock}
-              iconColor="text-red-400"
-              hoverBorder="hover:border-red-400/30"
+              iconColor={isDark ? "text-red-400" : "text-red-800"}
+              hoverBorder={isDark ? "hover:border-red-400/30" : "hover:border-red-800/30"}
               isDark={isDark}
             />
           </div>
@@ -923,33 +923,36 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
           <div className="grid grid-cols-12 gap-6">
             {/* Main Calendar Section */}
             <div className="col-span-12 lg:col-span-9 space-y-6">
-              <div className="bg-[#101010] border border-[#333] rounded-2xl overflow-hidden shadow-2xl">
+              <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden shadow-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200"
+                }`}>
                 {/* Calendar Controls */}
-                <div className="p-4 lg:p-6 border-b border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className={`p-4 lg:p-6 border-b flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${isDark ? "border-white/5" : "border-gray-100"
+                  }`}>
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-black rounded-lg border border-white/10 p-1">
+                    <div className={`flex items-center rounded-lg gap-2 lg:gap-4 p-1`}>
                       <button
                         onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                        className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 text-white/60 transition-colors"
+                        className={`h-8 w-8 flex items-center justify-center rounded-md transition-colors border ${isDark ? "hover:bg-white/5 text-white/60 bg-black border-white/10" : "hover:bg-gray-200 text-[#000000] bg-[#F0F0F0] border-[#0A0A0A33]"
+                          }`}
                       >
                         <ChevronLeft size={18} />
                       </button>
+                      <span className={`lg:text-lg font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                        {format(currentMonth, 'MMMM yyyy')}
+                      </span>
                       <button
                         onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                        className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 text-white/60 transition-colors"
+                        className={`h-8 w-8 flex items-center justify-center rounded-md transition-colors border ${isDark ? "hover:bg-white/5 text-white/60 bg-black border-white/10" : "hover:bg-gray-200 text-[#000000] bg-[#F0F0F0] border-[#0A0A0A33]"
+                          }`}
                       >
                         <ChevronRight size={18} />
                       </button>
                     </div>
-
-                    <span className="lg:text-lg font-bold text-white tracking-tight">
-                      {format(currentMonth, 'MMMM yyyy')}
-                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <button
-                      className="px-4 py-2 bg-transparent border border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40 rounded-lg text-sm transition-all"
+                      className={`px-4 py-2 border rounded-lg text-sm transition-all ${isDark ? "bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40" : "bg-[#F0F0F0] border-[#E3E3E3] text-gray-600 hover:text-black shadow-sm"}`}
                       onClick={() => setCurrentMonth(new Date(2026, 0, 1))}
                     >
                       Today
@@ -963,7 +966,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                     (d, index) => (
                       <div
                         key={index}
-                        className="py-3 text-center text-[10px] font-bold uppercase tracking-widest text-white/30 bg-black/40 border-b border-r border-[#333]"
+                        className={`py-3 text-center text-[10px] font-bold uppercase tracking-widest border-b border-r last:border-r-0 ${isDark ? "text-white/30 bg-black/40 border-[#333]" : "text-[#7C7777] bg-[#EDEBEB] border-gray-100"}`}
                       >
                         {d}
                       </div>
@@ -985,7 +988,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                     return (
                       <div
                         key={day.toString()}
-                        className={`min-h-[100px] p-3 border-[#333] ${!isLastRow ? 'border-b' : ''} ${!isLastCol ? 'border-r' : ''} ${!isCurrentMonth ? 'bg-[#0A0A0A] text-[#444]' : 'text-[#E0E0E0]'
+                        className={`min-h-[100px] p-3 transition-colors ${isDark ? "border-[#333]" : "border-gray-100"} ${!isLastRow ? 'border-b' : ''} ${!isLastCol ? 'border-r' : ''} ${!isCurrentMonth
+                          ? (isDark ? 'bg-[#0A0A0A] text-[#444]' : 'bg-[#F4F4F4] text-[#878787]')
+                          : (isDark ? 'text-[#E0E0E0]' : 'bg-[#F8F4EE] text-[#3F3F3F]')
                           }`}
                       >
                         <span className={`text-sm font-medium block mb-2 w-7 h-7 flex items-center justify-center ${isTodayDate ? 'bg-[#E5D5B8] text-black rounded-full' : ''
@@ -995,14 +1000,15 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
                         {hasShoot && (
                           <div className="space-y-1">
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#1E293B] border border-[#334155] w-fit">
+                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded border w-fit ${isDark ? "bg-[#1E293B] border-[#334155]" : "bg-blue-50 border-blue-100"
+                              }`}>
+                              <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
+                              <span className={`text-[10px] font-bold leading-none ${isDark ? "text-[#93C5FD]" : "text-blue-700"}`}>Shoot</span>
+                            </div>
+                            {/* <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#1E293B] border border-[#334155] w-fit">
                               <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
                               <span className="text-[10px] text-[#93C5FD] font-medium leading-none">Shoot</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#1E293B] border border-[#334155] w-fit">
-                              <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
-                              <span className="text-[10px] text-[#93C5FD] font-medium leading-none">Shoot</span>
-                            </div>
+                            </div> */}
                           </div>
                         )}
                       </div>
@@ -1013,66 +1019,70 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
             </div>
 
             {/* Right: Sidebar */}
-            <div className="col-span-12 lg:col-span-3 w-full xl:w-[320px] space-y-3 lg:space-y-6">
+            <div className="col-span-12 lg:col-span-3 w-full xl:max-w-[320px] space-y-3 lg:space-y-6">
               {/* Legend */}
-              <div className="bg-[#101010] border border-[#333] rounded-2xl p-4 lg:p-6">
-                <h3 className="text-white font-medium mb-2 lg:mb-4">Color Legend</h3>
+              <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+                }`}>
+                <h3 className={`font-medium mb-2 lg:mb-4 ${isDark ? "text-white" : "text-black"}`}>Color Legend</h3>
                 <div className="space-y-2 space-y-4">
                   <div className="flex items-start gap-2 lg:gap-3">
-                    <div className="w-3 h-3 rounded-full bg-[#444] mt-1.5"></div>
+                    <div className={`w-3 h-3 rounded-full mt-1.5 ${isDark ? "bg-[#444]" : "bg-[#ECE7E2]"}`}></div>
                     <div>
-                      <div className="text-[#E0E0E0] text-sm font-medium">Disabled</div>
-                      <div className="text-[#666] text-xs">Time off or blocked</div>
+                      <div className={`text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#3A3A3A]"}`}>Disabled</div>
+                      <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Time off or blocked</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-3 h-3 rounded-full bg-[#8B7355] mt-1.5"></div>
                     <div>
-                      <div className="text-[#E0E0E0] text-sm font-medium">Today's</div>
-                      <div className="text-[#666] text-xs">Time off or blocked</div>
+                      <div className={`text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#3A3A3A]"}`}>Today's</div>
+                      <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Time off or blocked</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-3 h-3 rounded-full bg-[#3B82F6] mt-1.5"></div>
                     <div>
-                      <div className="text-[#E0E0E0] text-sm font-medium">Shoots</div>
-                      <div className="text-[#666] text-xs">Confirmed shoots</div>
+                      <div className={`text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#3A3A3A]"}`}>Shoots</div>
+                      <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Confirmed shoots</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-3 h-3 rounded-full bg-[#EF4444] mt-1.5"></div>
                     <div>
-                      <div className="text-[#E0E0E0] text-sm font-medium">Conflicts</div>
-                      <div className="text-[#666] text-xs">Scheduling conflicts</div>
+                      <div className={`text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#3A3A3A]"}`}>Conflicts</div>
+                      <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Scheduling conflicts</div>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* This Month Stats */}
-              <div className="bg-[#101010] border border-[#333] rounded-2xl p-4 lg:p-6">
-                <h3 className="text-white font-medium mb-4">This Month</h3>
-                <div className="space-y-2 space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-lg">
+              <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+                }`}>
+                <h3 className={`font-medium mb-4 ${isDark ? "text-white" : "text-black"}`}>This Month</h3>
+                <div className="space-y-2 lg:space-y-4">
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-[#F0F0F0]"}`}>
                     <span className="text-[#999] text-sm">Working Days</span>
-                    <span className="text-sm lg:text-base text-white font-medium text-right">{availabilityDays.length > 0 ? availabilityDays.join(", ") : "Not set"}</span>
+                    <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#303030]"} text-right`}>{availabilityDays.length > 0 ? availabilityDays.join(", ") : "Not set"}</span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-lg">
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-[#F0F0F0]"}`}>
                     <span className="text-[#999] text-sm">Booked Shoots</span>
-                    <span className="text-sm lg:text-base text-white font-medium">{stats?.total_projects || stats?.accepted_projects || '0'}</span>
+                    <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#303030]"}`}>{stats?.total_projects || stats?.accepted_projects || '0'}</span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-lg">
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-[#F0F0F0]"}`}>
                     <span className="text-[#999] text-sm">Rating</span>
-                    <span className="text-sm lg:text-base text-white font-medium">{partner.rating || "N/A"}</span>
+                    <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#303030]"}`}>{partner.rating || "N/A"}</span>
                   </div>
                 </div>
               </div>
 
               {/* Share Availability */}
-              <div className="bg-[#101010] border border-[#333] rounded-2xl p-4 lg:p-6">
-                <h3 className="text-white font-medium mb-2">Share Availability</h3>
-                <p className="text-[#888] text-sm mb-4">Share your availability link with production teams</p>
-                <button className="w-full py-3 bg-[#E5D5B8] text-black rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-[#d4c3a3] transition-colors">
+              <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+                }`}>
+                <h3 className={`font-medium mb-2 ${isDark ? "text-white" : "text-black"}`}>Share Availability</h3>
+                <p className={`text-sm mb-4 ${isDark ? "text-[#888]" : "text-gray-500"}`}>Share your availability link with production teams</p>
+                <button className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all active:scale-95 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]" : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 shadow-md"
+                  }`}>
                   <Copy size={18} />
                   <span>Copy Link</span>
                 </button>
@@ -1084,10 +1094,12 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
       {/* TAB CONTENT: Shoots */}
       {activeTab === 'Shoots' && (
-        <div className="bg-[#101010] border border-[#333] rounded-2xl overflow-hidden">
+        <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+          }`}>
           {/* MOBILE ONLY VIEW */}
-          <div className="lg:hidden p-3 bg-[#111111]">
-            <div className="flex justify-between px-5 py-3 text-[#E8D1AB] text-sm font-medium">
+          <div className={`lg:hidden p-3 transition-colors ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+            <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"
+              }`}>
               <span>Shoot Name</span>
               <span>Status</span>
             </div>
@@ -1097,19 +1109,29 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                 const isExpanded = expandedId === shoot.id;
 
                 return (
-                  <div key={shoot.id} className="bg-[#171717] rounded-xl border border-white/5 overflow-hidden">
+                  <div
+                    key={shoot.id}
+                    className={`rounded-xl border transition-all ${isDark
+                      ? "bg-[#171717] border-white/5"
+                      : "bg-[#F4F5F7] border-[#F4F5F7]"
+                      }`}
+                  >
                     {/* Header Row */}
                     <div
                       className="flex items-center justify-between p-4 cursor-pointer active:bg-white/5"
                       onClick={() => toggleRow(shoot.id)}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-transform duration-300 ${isExpanded ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'border-white/10 text-white/60'}`}>
+                        <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-transform duration-300 ${isExpanded
+                          ? (isDark ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-white rotate-180 border-[#777674] text-[#777674]')
+                          : (isDark ? 'border-white/10 text-white/60' : 'bg-white border-[#D9D9D9] text-[#777674]')
+                          }`}>
                           <ChevronDown size={14} />
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-white">{shoot.name}</span>
-                          <span className="text-[10px] text-white/40 uppercase tracking-tight flex items-center gap-1">
+                          <span className={`text-sm ${isDark ? "font-semibold text-white" : "font-medium text-[#6D6D6D]"}`}>{shoot.name}</span>
+                          <span className={`text-[10px] uppercase tracking-tight flex items-center gap-1 ${isDark ? "text-white/40" : "text-gray-400"
+                            }`}>
                             {shoot.id}
                           </span>
                         </div>
@@ -1128,21 +1150,23 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                           animate={{ height: "auto", opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.2, ease: "easeInOut" }}
-                          className="border-t border-white/5 bg-black/20"
+                          className={`border-t ${isDark ? "border-white/5 bg-black/20" : "border-[#D9D9D9] bg-[#F4F5F7]"}`}
                         >
                           <div className="p-4 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mb-1 flex items-center gap-1">
+                                <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 flex items-center gap-1 ${isDark ? "text-white/40" : "text-gray-400"
+                                  }`}>
                                   <Briefcase size={12} /> Files
                                 </p>
-                                <p className="text-white text-sm font-medium">{shoot.files} Items</p>
+                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black/80"}`}>{shoot.files} Items</p>
                               </div>
                               <div className="text-right">
-                                <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mb-1 flex items-center justify-end gap-1">
+                                <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 flex items-center justify-end gap-1 ${isDark ? "text-white/40" : "text-gray-400"
+                                  }`}>
                                   Price
                                 </p>
-                                <p className="text-[#E8D1AB] text-sm font-bold">{shoot.price}</p>
+                                <p className={`text-sm font-bold ${isDark ? "text-[#E8D1AB]" : "text-[#6D6D6D]"}`}>{shoot.price}</p>
                               </div>
                             </div>
                           </div>
@@ -1159,21 +1183,22 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
           <div className="hidden lg:block w-full overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#333] bg-[#202020]">
-                  <th className="text-left py-5 px-6 text-[#E5D5B8] font-medium text-sm w-[15%]">Shoot ID</th>
-                  <th className="text-left py-5 px-6 text-[#E5D5B8] font-medium text-sm w-[35%]">Shoot Name</th>
-                  <th className="text-left py-5 px-6 text-[#E5D5B8] font-medium text-sm w-[10%]">Files</th>
-                  <th className="text-left py-5 px-6 text-[#E5D5B8] font-medium text-sm w-[20%]">Price</th>
-                  <th className="text-left py-5 px-6 text-[#E5D5B8] font-medium text-sm w-[20%]">Status</th>
+                <tr className={`transition-colors border-b ${isDark ? "bg-[#202020] border-[#333]" : "bg-[#FFFCF6] border-[#F4F5F7]"
+                  }`}>
+                  <th className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm w-[15%]`}>Shoot ID</th>
+                  <th className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm  w-[35%]`}>Shoot Name</th>
+                  <th className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm  w-[10%]`}>Files</th>
+                  <th className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm w-[20%]`}>Price</th>
+                  <th className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm w-[20%]`}>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#333]">
+              <tbody className={`divide-y transition-colors ${isDark ? "divide-[#333]" : "divide-gray-100"}`}>
                 {shoots.map((shoot) => (
-                  <tr key={shoot.id} className="hover:bg-[#161616] transition-colors font-[family-name:var(--font-instrument-sans)]">
-                    <td className="py-6 px-6 text-[#E0E0E0] text-[15px]">{shoot.id}</td>
-                    <td className="py-6 px-6 text-[#E0E0E0] text-[15px]">{shoot.name}</td>
-                    <td className="py-6 px-6 text-[#E0E0E0] text-[15px]">{shoot.files}</td>
-                    <td className="py-6 px-6 text-[#E5D5B8] text-[15px]">{shoot.price}</td>
+                  <tr key={shoot.id} className={`${isDark ? "hover:bg-[#161616]" : "bg-[#F4F5F7] hover:bg-gray-50/50"} transition-colors font-[family-name:var(--font-instrument-sans)]`}>
+                    <td className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>{shoot.id}</td>
+                    <td className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>{shoot.name}</td>
+                    <td className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>{shoot.files}</td>
+                    <td className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E5D5B8]" : "text-[#0C0C0C]"}`}>{shoot.price}</td>
                     <td className="py-6 px-6">
                       <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusStyle(shoot.status)}`}>
                         {shoot.status}
@@ -1189,29 +1214,38 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
       {/* TAB CONTENT: Certificates */}
       {activeTab === 'Certificates' && (
-        <div className="bg-[#101010] border border-[#333] rounded-2xl">
+        <div className={`transition-colors duration-200 border rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#fff] border-[#F4F5F7] shadow-sm"
+          }`}>
           <h2 className={SECTION_TITLE_STYLE}>CP Certificates</h2>
 
           {/* divider */}
           {/* <DottedDivider /> */}
-          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/30"}`} />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-5">
             {certificationFiles.length > 0 ? (
               certificationFiles.map((file: any, index: number) => (
-                <div key={index} className="bg-[#0D0D0D] border border-[#222] rounded-2xl p-4 w-full lg:w-[340px] hover:border-[#444] transition-all group cursor-default">
+                <div
+                  key={index}
+                  className={`transition-all group cursor-default border rounded-2xl p-4 w-full lg:w-[340px] ${isDark
+                    ? "bg-[#0D0D0D] border-[#222] hover:border-[#444]"
+                    : "bg-white border-gray-100 shadow-sm hover:border-gray-300 hover:shadow-md"
+                    }`}
+                >
                   <div className="flex items-center gap-3 mb-2 lg:mb-4">
                     <div className="w-8 h-8 flex items-center justify-center bg-[#FF453A] rounded-md shrink-0">
                       <span className="text-white text-[8px] font-bold">Pdf</span>
                     </div>
-                    <span className="text-[#E0E0E0] font-medium text-sm truncate">{file.title || `Certificate ${index + 1}`}</span>
+                    <span className={`font-medium text-sm truncate ${isDark ? "text-[#E0E0E0]" : "text-gray-900"}`}>{file.title || `Certificate ${index + 1}`}</span>
                   </div>
 
-                  <div className="w-full h-[220px] bg-[#161616] rounded-xl mb-4 flex items-center justify-center relative overflow-hidden">
+                  <div className={`w-full h-[220px] rounded-xl mb-4 flex items-center justify-center relative overflow-hidden transition-colors ${isDark ? "bg-[#161616]" : "bg-gray-50 border border-gray-100"
+                    }`}>
                     <div className="w-16 h-20 bg-[#FF453A] rounded-lg flex items-center justify-center relative transform group-hover:scale-105 transition-transform duration-300">
                       <span className="text-white font-bold text-xl">Pdf</span>
                       <div className="absolute top-0 right-0 w-6 h-6 bg-[#D93025] rounded-bl-lg"></div>
-                      <div className="absolute top-0 right-0 w-6 h-6 bg-[#161616] transform translate-x-3 -translate-y-3 rotate-45"></div>
+                      <div className={`absolute top-0 right-0 w-6 h-6 transform translate-x-3 -translate-y-3 rotate-45 ${isDark ? "bg-[#161616]" : "bg-gray-50"
+                        }`}></div>
                     </div>
                   </div>
 
@@ -1219,15 +1253,16 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                     href={`${UPLOADS_URL}${file.file_path}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full py-3 bg-[#E5D5B8] text-black rounded-xl text-sm font-semibold hover:bg-[#d4c3a3] transition-colors block text-center"
+                    className={`w-full py-3 rounded-xl text-sm font-semibold transition-all block text-center bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]`}
                   >
                     View Certificate
                   </a>
                 </div>
               ))
             ) : (
-              <div className="w-full py-10 lg:py-20 text-center text-[#666] border border-dashed border-[#333] rounded-xl">
-                <FileText size={48} className="mx-auto mb-4 opacity-20" />
+              <div className={`w-full py-10 lg:py-20 text-center border border-dashed rounded-xl ${isDark ? "text-[#666] border-[#333]" : "text-gray-400 border-gray-200 bg-gray-50/50"
+                }`}>
+                <FileText size={48} className={`mx-auto mb-4 transition-opacity ${isDark ? "opacity-20" : "opacity-40"}`} />
                 <p>No certifications uploaded.</p>
               </div>
             )}
@@ -1237,25 +1272,29 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
       {/* TAB CONTENT: Resume */}
       {activeTab === 'Resume' && (
-        <div className="bg-[#101010] border border-[#333] rounded-2xl lg:min-h-[500px]">
+        <div className={`transition-colors duration-200 border rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#fff] border-[#F4F5F7] shadow-sm"
+          }`}>
           <h2 className={SECTION_TITLE_STYLE}>CP Resume</h2>
 
           {/* divider */}
           {/* <DottedDivider /> */}
-          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/30"}`} />
 
-
-          <div className="px-5 pb-5 lg:px-8 lg:pb-8 w-full lg:w-[340px]">
+          <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-5">
             {resumeFile ? (
-              <div className="bg-[#0D0D0D] border border-[#222] rounded-2xl p-4 hover:border-[#444] transition-all group cursor-default">
+              <div className={`transition-all group cursor-default border rounded-2xl p-4 ${isDark
+                ? "bg-[#0D0D0D] border-[#222] hover:border-[#444]"
+                : "bg-white border-gray-100 shadow-sm hover:border-gray-300 hover:shadow-md"
+                }`}>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 flex items-center justify-center bg-[#2563EB] rounded-md shrink-0">
                     <FileText size={16} className="text-white" />
                   </div>
-                  <span className="text-[#E0E0E0] font-medium text-sm truncate">{resumeFile.title || 'Creative Professional Resume'}</span>
+                  <span className={`font-medium text-sm truncate ${isDark ? "text-[#E0E0E0]" : "text-gray-900"}`}>{resumeFile.title || 'Creative Professional Resume'}</span>
                 </div>
 
-                <div className="w-full h-[220px] bg-[#161616] rounded-xl mb-4 flex items-center justify-center relative overflow-hidden">
+                <div className={`w-full h-[220px] rounded-xl mb-4 flex items-center justify-center relative overflow-hidden transition-colors ${isDark ? "bg-[#161616]" : "bg-gray-50 border border-gray-100"
+                  }`}>
                   <div className="w-16 h-20 bg-[#2563EB] rounded-lg flex flex-col items-center justify-center p-4 relative transform group-hover:scale-105 transition-transform duration-300">
                     <div className="w-full h-1 bg-white/40 mb-1.5 rounded-full"></div>
                     <div className="w-full h-1 bg-white/40 mb-1.5 rounded-full"></div>
@@ -1274,8 +1313,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                 </a>
               </div>
             ) : (
-              <div className="lg:w-[850px] py-10 lg:py-20 text-center text-[#666] border border-dashed border-[#333] rounded-xl">
-                <FileText size={48} className="mx-auto mb-4 opacity-20" />
+              <div className={`w-full py-10 lg:py-20 text-center border border-dashed rounded-xl ${isDark ? "text-[#666] border-[#333]" : "text-gray-400 border-gray-200 bg-gray-50/50"
+                }`}>
+                <FileText size={48} className={`mx-auto mb-4 transition-opacity ${isDark ? "opacity-20" : "opacity-40"}`} />
                 <p>No resume uploaded.</p>
               </div>
             )}
@@ -1285,12 +1325,13 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
       {/* TAB CONTENT: Portfolio Links */}
       {activeTab === 'Portfolio Links' && (
-        <div className="bg-[#101010] border border-[#333] rounded-2xl lg:min-h-[500px]">
+        <div className={`transition-colors duration-200 border lg:min-h-[500px] rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#fff] border-[#F4F5F7] shadow-sm"
+          }`}>
           <h2 className={SECTION_TITLE_STYLE}>Portfolio Links</h2>
 
           {/* divider */}
           {/* <DottedDivider /> */}
-          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/30"}`} />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8">
             {(() => {
@@ -1300,8 +1341,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
               if (portfolioLinks.length === 0) {
                 return (
-                  <div className="py-20 text-center text-[#666] border border-dashed border-[#333] rounded-xl w-full">
-                    <Globe size={48} className="mx-auto mb-4 opacity-20" />
+                  <div className={`w-full py-10 lg:py-20 text-center border border-dashed rounded-xl ${isDark ? "text-[#666] border-[#333]" : "text-gray-400 border-gray-200 bg-gray-50/50"
+                    }`}>
+                    <Globe size={48} className={`mx-auto mb-4 transition-opacity ${isDark ? "opacity-20" : "opacity-40"}`} />
                     <p>No portfolio links added.</p>
                   </div>
                 );
@@ -1322,10 +1364,14 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                     return (
                       <div
                         key={link.crew_files_id || index}
-                        className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col gap-4 group hover:border-white/20 transition-all shadow-xl"
+                        className={`transition-all duration-300 border rounded-2xl p-6 flex flex-col gap-4 group shadow-xl ${isDark
+                            ? "bg-white/5 border-white/10 hover:border-white/20"
+                            : "bg-white border-gray-100 hover:border-gray-300 hover:shadow-2xl"
+                          }`}
                       >
                         <div className="flex items-center justify-between">
-                          <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-colors ${isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
+                            }`}>
                             {platform?.icon ? (
                               <platform.icon size={24} className="text-[#E8D1AB]" />
                             ) : (
@@ -1335,10 +1381,12 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                         </div>
 
                         <div className="space-y-1">
-                          <p className="text-sm font-bold text-white uppercase tracking-wider">
+                          <p className={`text-sm font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"
+                            }`}>
                             {platform?.label || "Portfolio Link"}
                           </p>
-                          <p className="text-xs text-white/40 truncate">
+                          <p className={`text-xs truncate font-medium ${isDark ? "text-white/40" : "text-gray-400"
+                            }`}>
                             {link.file_path}
                           </p>
                         </div>
@@ -1359,6 +1407,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
           </div>
         </div>
       )}
+
       {/* VIDEO PLAYER MODAL */}
       {playingVideo && (
         <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
