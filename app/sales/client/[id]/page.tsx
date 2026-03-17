@@ -2,11 +2,10 @@
 
 import React, { useState } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Mail, Phone, Calendar, MapPin, Loader2, Wallet } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Calendar, Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { IntentBadge } from "@/components/sales/IntentBadge";
-import DottedDivider from "@/components/admin/DottedDivider";
 import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
 import Link from "next/link";
 import Topbar from "@/components/admin/Topbar";
@@ -41,11 +40,8 @@ export default function ClientFullDetailPage() {
     </div>
   );
 
-  const { profile, stats, projects } = data;
+  const { profile } = data;
   const { user, affiliate } = profile;
-
-  // Combine projects for the list
-  const shootList = [...(projects.paid || []), ...(projects.unpaid_or_draft || [])];
 
   const initials = user.name
     ? user.name.split(" ").map((n: any) => n[0]).join("").toUpperCase()
@@ -119,63 +115,6 @@ export default function ClientFullDetailPage() {
                   <p className="text-sm flex items-center gap-2 font-mono"><Wallet size={14} className="text-[#E8D1AB]" /> {affiliate?.referral_code || "None"}</p>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* 2. STATS GRID */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {[
-              { label: "Active", val: stats.total_active },
-              { label: "Upcoming", val: stats.total_upcoming },
-              { label: "Completed", val: stats.total_completed },
-              { label: "Drafts", val: stats.total_draft },
-              { label: "Cancelled", val: stats.total_cancelled },
-            ].map((item) => (
-              <div key={item.label} className="bg-[#171717] border border-[#3D3D3D] p-5 rounded-2xl">
-                <p className="text-[10px] uppercase text-white/40 font-bold mb-1">{item.label}</p>
-                <p className="text-2xl font-bold">{item.val}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* 3. BOOKINGS LIST */}
-          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-6 lg:p-9">
-            <h2 className="text-xl font-medium mb-6 text-white">Booking History</h2>
-            <div className="space-y-4">
-              {shootList.length === 0 ? (
-                <div className="text-center py-10 text-white/20 border-2 border-dashed border-white/5 rounded-2xl">
-                  No bookings found for this client.
-                </div>
-              ) : (
-                shootList.map((proj: any) => (
-                  <div key={proj.stream_project_booking_id} className="bg-[#101010] border border-white/5 p-5 rounded-xl flex flex-col lg:flex-row justify-between gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <p className="font-semibold text-lg text-white">{proj.project_name}</p>
-                        <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold ${proj.is_draft ? 'bg-zinc-800 text-zinc-500' : 'bg-[#E8D1AB]/10 text-[#E8D1AB]'}`}>
-                          {proj.is_draft ? "Draft" : "Confirmed"}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-white/50">
-                        <span className="flex items-center gap-2"><Calendar size={14} /> {proj.event_date ? format(new Date(proj.event_date), "PP") : 'No Date Set'}</span>
-                        <span className="flex items-center gap-2"><MapPin size={14} /> {proj.event_location || proj.event_location_formatted || 'No Location'}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center lg:items-end flex-row lg:flex-col justify-between">
-                      <div className="text-right">
-                        <p className="text-[10px] uppercase text-white/40">Paid Amount</p>
-                        <p className="text-lg font-bold text-[#E8D1AB]">${proj.total_paid_amount || '0.00'}</p>
-                      </div>
-                      <Link
-                        href={`/sales/shoots/${proj.stream_project_booking_id}`}
-                        className="text-xs text-[#E8D1AB] hover:underline mt-1"
-                      >
-                        View Details
-                      </Link>
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
           </div>
         </div>

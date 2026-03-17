@@ -46,6 +46,9 @@ interface UserData {
   phoneNumber?: string;
   role?: string;
   imageUrl?: string | null;
+  intent?: string;
+  bookingStatus?: string;
+
 }
 
 interface LeadData {
@@ -194,21 +197,35 @@ export default function AdminSaleRepManagerPage() {
 
       if (activeTab === "Client") {
         const clientsRes = await adminApi.getClients(params);
-        if (clientsRes?.data) {
-          const mappedClients = (Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || [])).map((client: any) => ({
-            id: `#${client.user_id || client.id}`,
-            name: client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
-            email: client.email || "No Email",
+        const clientsPayload = clientsRes?.data?.data || clientsRes?.data || {};
+        const clientsList = Array.isArray(clientsPayload)
+          ? clientsPayload
+          : (clientsPayload.leads || clientsPayload.items || []);
+
+        if (clientsList.length || clientsPayload.pagination) {
+          const mappedClients = clientsList.map((client: any) => ({
+            id: `#${client.user_id || client.id || client.lead_id}`,
+            name: client.client_name || client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
+            email: client.guest_email || client.email || "No Email",
             type: "Client" as const,
-            status: (client.status === 1 || client.status === "Active" || client.status === "approved" ? "Active" :
-              client.status === 0 || client.status === "Inactive" || client.status === "rejected" ? "Inactive" : "Pending") as UserStatus,
+            status: (
+              client.lead_status === "signed_up" || client.booking_status === "Signed Up"
+                ? "Active"
+                : client.status === 1 || client.status === "Active" || client.status === "approved"
+                  ? "Active"
+                  : client.status === 0 || client.status === "Inactive" || client.status === "rejected"
+                    ? "Inactive"
+                    : "Pending"
+            ) as UserStatus,
             joinDate: client.created_at ? new Date(client.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
-            initials: (client.name || "Unknown").split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
-            phoneNumber: client.phone_number || "N/A",
+            initials: (client.client_name || client.name || "Unknown").split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
+            phoneNumber: client.phone || client.phone_number || "N/A",
             imageUrl: client.profile_image || client.image || null,
+            intent: client.intent || "N/A",
+            bookingStatus: client.booking_status || mapLeadStatusToUI(client.payment_status),
           }));
           allUsers = mappedClients;
-          pagination = clientsRes.pagination;
+          pagination = clientsPayload.pagination || clientsRes?.pagination;
         }
       } else if (activeTab === "Creative Partner") {
         const creativeRes = await adminApi.getPendingCP(params);
@@ -475,10 +492,10 @@ export default function AdminSaleRepManagerPage() {
                 </td>
                 <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">{user.type}</td>
                 <td className="py-5 px-6">
-                  <IntentBadge intent={"Warm"} />
+                  <IntentBadge intent={(user.intent as any) || "Warm"} />
                 </td>
                 <td className="py-5 px-6">
-                  <LeadsStatusBadge status={"Booking In Progress"} />
+                  <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
                 </td>
                 <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">
                   {user.phoneNumber}
@@ -509,7 +526,7 @@ export default function AdminSaleRepManagerPage() {
                 <div className="">
                   <p className="text-white/40 text-[10px] uppercase">Intent</p>
                   <div className="">
-                    <IntentBadge intent="Hot" size="sm" />
+                    <IntentBadge intent={(user.intent as any) || "Hot"} size="sm" />
                   </div>
                 </div>
                 <div className="text-right">

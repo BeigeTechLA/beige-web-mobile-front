@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import Cookies from 'js-cookie';
 
 import type { Creator, Review, Equipment, PaymentIntentResponse, BookingResponse, BookingFormData } from '@/types/payment';
@@ -1304,14 +1304,14 @@ export const adminApi = {
   },
   getClients: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
     try {
-      const response = await api.get('admin/get-clients', { params });
+      const response = await api.get('sales/client-leads', { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Clients Error:', error.response?.data || error.message);
+      console.error('Get Client Leads Error:', error.response?.data || error.message);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch clients',
+        error: error.response?.data?.message || 'Failed to fetch client leads',
       };
     }
   },
