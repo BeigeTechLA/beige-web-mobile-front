@@ -593,6 +593,15 @@ function StripePaymentFormMulti({
       }
     }
 
+    // Validate discount code on confirm before payment APIs
+    if (discountCode.length > 0) {
+      const isValid = await validateDiscountCodeNow(discountCode);
+      if (!isValid) {
+        onError("Your discount code has either expired, been changed, or is invalid. Please enter a valid discount code or remove it to proceed.");
+        return;
+      }
+    }
+
 
     // add GA event when payment is initiated
     pushToDataLayer("booking_payment_initiated ", {
