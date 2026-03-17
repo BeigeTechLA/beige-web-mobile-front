@@ -7,6 +7,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { adminApi } from "@/lib/api";
+import {
+  getPaymentStatusMeta,
+  getProjectFolderLink,
+  getShootFilesText,
+} from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
 
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
@@ -21,6 +26,9 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const router = useRouter();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
+  const folderLink = getProjectFolderLink(project);
+  const shootFilesText = getShootFilesText(project);
 
   const handleDelete = async () => {
     if (!projectId) return;
@@ -153,11 +161,8 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />
               <div className="flex gap-2">
                 <span>Payment Status :</span>
-                <span className={cn(
-                  "font-medium capitalize",
-                  project?.payment_status === 'paid' ? "text-[#22C55E]" : "text-yellow-500"
-                )}>
-                  {project?.payment_status || "Paid"}
+                <span className={cn("font-medium", paymentStatus.className)}>
+                  {paymentStatus.label}
                 </span>
               </div>
             </div>
@@ -165,9 +170,19 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
             <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base text-[#AAAAAA] mt-2 lg:mt-4">
               <div className="flex gap-2">
                 <span>Folder Link :</span>
-                <a href="#" className="text-[#E5D5B8] underline underline-offset-4 decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8] transition-all">
-                  http://fjiejpfkmdfjief
-                  {(activeTab === "Pre_Production" || activeTab === "Post_Production") && (
+                <a
+                  href={folderLink || "#"}
+                  target={folderLink ? "_blank" : undefined}
+                  rel={folderLink ? "noopener noreferrer" : undefined}
+                  className={cn(
+                    "underline underline-offset-4 transition-all",
+                    folderLink
+                      ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]"
+                      : "text-white/50 decoration-white/10 pointer-events-none"
+                  )}
+                >
+                  {folderLink || "No Link Available"}
+                  {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production") && (
                     <span className="text-white"> / {activeTab.replace("_", " ")}</span>
                   )}
                 </a>
@@ -175,7 +190,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />
               <div className="flex gap-2">
                 <span>Shoot Files :</span>
-                <span className="text-white font-medium">200 Image & 50 Videos</span>
+                <span className="text-white font-medium">{shootFilesText}</span>
               </div>
             </div>
 

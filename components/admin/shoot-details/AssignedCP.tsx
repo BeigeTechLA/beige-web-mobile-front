@@ -11,6 +11,7 @@ import "swiper/css/effect-cards";
 import { Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminApi } from "@/lib/api";
+import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
 
 export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { projectId: string; leadId?: string | number, assignedCrew?: any[] }) {
@@ -134,7 +135,10 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
                                 {crewMembers[activeIndex]?.crew_member ? `${crewMembers[activeIndex].crew_member.first_name} ${crewMembers[activeIndex].crew_member.last_name}` : "Unknown"}
                             </h4>
                             <p className="text-[#888888] text-sm lg:text-base font-medium leading-none mt-1 lg:mt-2 transition-all duration-300">
-                                {crewMembers[activeIndex]?.crew_member?.role_name || "Creative Partner"}
+                                {getPrimaryRoleLabel(
+                                    crewMembers[activeIndex]?.crew_member?.primary_role,
+                                    crewMembers[activeIndex]?.crew_member?.role_name
+                                )}
                             </p>
                         </div>
 

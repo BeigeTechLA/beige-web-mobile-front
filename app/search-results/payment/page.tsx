@@ -89,6 +89,17 @@ const formatCurrency = (amount: any) => {
   }).format(numericAmount || 0);
 };
 
+const formatShortDate = (value: string) => {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+};
+
 // Helper for title casing
 const toTitleCase = (str: string) => {
   if (!str) return "";
@@ -1417,7 +1428,7 @@ function MultiCreatorPaymentContent() {
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Shoot Date:</span>
-                      <span className="font-medium">{booking.event_date || "N/A"} </span>
+                      <span className="font-medium">{formatShortDate(booking.event_date)} </span>
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
