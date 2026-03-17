@@ -10,6 +10,7 @@ import "swiper/css/effect-cards";
 import { Loader2, User } from "lucide-react";
 import Cookies from "js-cookie";
 import { affiliateApi } from "@/lib/api";
+import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 
 interface CrewMember {
     id: number;
@@ -40,9 +41,7 @@ export default function AffiliateAssignedCP({ projectId }: { projectId: string }
                 const s3Prefix = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
                 const mappedCrew = crew.map((item: any, idx: number) => {
                     const member = item.crew_member || {};
-                    const roles = member.primary_role ? (typeof member.primary_role === 'string' ? JSON.parse(member.primary_role) : member.primary_role) : [];
-                    // Using a simple role mapping or label
-                    const roleLabel = roles.includes("9") ? "Cinematographer" : (roles.length > 0 ? `Role ${roles[0]}` : "Crew Member");
+                    const roleLabel = getPrimaryRoleLabel(member.primary_role, member.role_name);
 
                     // Priority: crew_member_files (profile_photo/headshot) -> direct fields -> default
                     let imagePath = "/images/crew/CREW(3).png";
