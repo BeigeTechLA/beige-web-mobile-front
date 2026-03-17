@@ -39,6 +39,8 @@ export const ShootTypeCard: React.FC<ShootTypeCardProps> = ({
           src={image}
           alt={title}
           fill
+          sizes="(max-width: 768px) 160px, 320px"
+          priority
           className="object-cover"
         />
       </div>

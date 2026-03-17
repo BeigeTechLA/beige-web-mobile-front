@@ -117,7 +117,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
       >
 
         {/* Header */}
-       <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#1c1c1c] sticky top-1.5 z-10 print:static print:bg-white print:border-gray-200 print:px-0 print:pb-6">
+       <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#1c1c1c] sticky top-1.5 z-10 relative print:static print:bg-white print:border-gray-200 print:px-0 print:pb-6">
           <div className="flex items-center gap-4">
             <div className="bg-green-500/20 p-2.5 rounded-full print:bg-green-100">
               <CheckCircle2 className="text-green-500 w-6 h-6 sm:w-7 sm:h-7 print:text-green-600" />
@@ -131,19 +131,20 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
               </p>
             </div>
           </div>
-          
+
+          {/* Close button — absolutely positioned so it doesn't affect flex layout */}
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-all no-print"
+            className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-all no-print"
           >
             <X size={24} />
           </button>
 
-          {/* Logo */}
+          {/* Logo — always visible on screen, right-aligned flex sibling */}
           <img
-            src="https://beigexmemehouse.s3.eu-north-1.amazonaws.com/beige/beige_logo_vb.png"
+            src="/images/blackBeigeLogo.png"
             alt="Beige Logo"
-            className="hidden print:block print:w-24 print:h-auto" 
+            className="w-20 h-auto object-contain print:w-24"
           />
        </div>
 
@@ -162,7 +163,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 print:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-10 print:gap-6 print:items-start">
             {/* Left Side: Shoot Details */}
             <div className="space-y-8 print:space-y-6">
               <section className="space-y-5 print:space-y-3">
@@ -193,8 +194,10 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                   </div>
                 </div>
               </section>
+            </div>
 
-              {/* Editing Deliverables */}
+            {/* Right Side: Crew & Pricing */}
+            <div className="space-y-6">
               {data.editing?.is_needed && (
                 <section className="space-y-5 print:space-y-3">
                   <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-[2px] border-b border-white/5 pb-2 print:text-gray-400 print:border-gray-100">Deliverables</h4>
@@ -228,10 +231,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                   )}
                 </section>
               )}
-            </div>
 
-            {/* Right Side: Crew & Pricing */}
-            <div className="space-y-6">
               <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-6 lg:p-8 space-y-6 print:bg-gray-50 print:border-gray-200 print:p-6 print:rounded-xl">
                 <section>
                     <div className="flex items-center gap-2 mb-4">
@@ -249,23 +249,29 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                 </section>
 
                 <section className="pt-6 border-t border-white/10 space-y-3 print:border-gray-200">
-                   <div className="flex justify-between text-sm">
+                   {/* <div className="flex justify-between text-sm">
                      <span className="text-white/40 print:text-gray-500">Base Shoot Fee</span>
                      <span className="text-white font-medium print:text-black">{formatCurrency(data.pricing.shoot_cost)}</span>
                    </div>
                    <div className="flex justify-between text-sm">
                      <span className="text-white/40 print:text-gray-500">Post-Production</span>
                      <span className="text-white font-medium print:text-black">{formatCurrency(data.pricing.editing_cost)}</span>
-                   </div>
+                   </div> */}
                    <div className="flex justify-between text-sm">
                      <span className="text-white/40 print:text-gray-500">Total Amount</span>
                      <span className="text-white font-medium print:text-black">
                        {formatCurrency(data.pricing.total_before_discounts ?? data.pricing.total)}
                      </span>
                    </div>
+                   {data.pricing.discount_code && (
+                     <div className="flex justify-between text-sm text-white/60 print:text-gray-600">
+                        <span>Discount Code</span>
+                        <span className="font-medium">{data.pricing.discount_code}</span>
+                     </div>
+                   )}
                    {data.pricing.discount_code_discount > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
-                        <span>Discount Applied</span>
+                        <span>Discount Code Discount</span>
                         <span>-{formatCurrency(data.pricing.discount_code_discount)}</span>
                      </div>
                    )}
@@ -277,7 +283,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                    )}
                    {data.pricing.referral_discount > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
-                        <span>Referral Discount</span>
+                        <span>Referral Code Discount</span>
                         <span>-{formatCurrency(data.pricing.referral_discount)}</span>
                      </div>
                    )}
