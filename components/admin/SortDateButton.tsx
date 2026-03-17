@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DesktopDatePicker } from "@mui/x-date-pickers/DesktopDatePicker";
-import { Calendar } from "lucide-react";
+import { Calendar, X } from "lucide-react";
 import { format } from "date-fns";
 import { Box } from "@mui/material";
 
@@ -24,16 +24,32 @@ export const SortDateButton: React.FC<SortDateButtonProps> = ({
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ position: "relative" }}>
-        {/* Styled Trigger Button */}
-        <button
-          onClick={() => setIsOpen(true)}
-          className={`shrink-0 flex items-center justify-between gap-1 lg:gap-3 px-3 py-1.5 lg:px-6 lg:py-3.5 bg-[#1A1A1A] border border-white/10 rounded-full text-[#C4C4C4] hover:text-white hover:border-white/30 transition-all text-xs lg:text-base lg:font-medium shadow-sm whitespace-nowrap ${width ? width : "w-fit"}`}
-        >
-          <span className="whitespace-nowrap">
-            {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Sort by Date"}
-          </span>
-          <Calendar className="w-4 h-4 lg:w-6 lg:h-6 text-[#C4C4C4] shrink-0" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Styled Trigger Button */}
+          <button
+            onClick={() => setIsOpen(true)}
+            className={`shrink-0 flex items-center justify-between gap-1 lg:gap-3 px-3 py-1.5 lg:px-6 lg:py-3.5 bg-[#1A1A1A] border border-white/10 rounded-full text-[#C4C4C4] hover:text-white hover:border-white/30 transition-all text-xs lg:text-base lg:font-medium shadow-sm whitespace-nowrap ${width ? width : "w-fit"}`}
+          >
+            <span className="whitespace-nowrap">
+              {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Sort by Date"}
+            </span>
+            <Calendar className="w-4 h-4 lg:w-6 lg:h-6 text-[#C4C4C4] shrink-0" />
+          </button>
+
+          {selectedDate && (
+            <button
+              type="button"
+              onClick={() => {
+                onDateChange(null);
+                setIsOpen(false);
+              }}
+              className="h-8 w-8 lg:h-10 lg:w-10 rounded-full border border-white/10 bg-[#1A1A1A] text-[#C4C4C4] hover:text-white hover:border-white/30 transition-all flex items-center justify-center"
+              aria-label="Clear date filter"
+            >
+              <X className="w-4 h-4 lg:w-5 lg:h-5" />
+            </button>
+          )}
+        </div>
 
         {/* Hidden MUI DatePicker */}
         <div className="invisible absolute top-0 left-0 h-0 w-0">

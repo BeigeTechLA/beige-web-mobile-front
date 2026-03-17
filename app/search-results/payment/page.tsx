@@ -89,6 +89,21 @@ const formatCurrency = (amount: any) => {
   }).format(numericAmount || 0);
 };
 
+const formatShortDate = (value: string) => {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).formatToParts(date);
+  const day = parts.find((part) => part.type === "day")?.value || "";
+  const month = parts.find((part) => part.type === "month")?.value || "";
+  const year = parts.find((part) => part.type === "year")?.value || "";
+  return `${day} ${month}, ${year}`;
+};
+
 // Helper for title casing
 const toTitleCase = (str: string) => {
   if (!str) return "";
@@ -174,7 +189,9 @@ function StripePaymentFormMulti({
     if (!isReferralLocked) return;
     if (referralCode.length === 0) return;
     clearReferralCode();
-    toast.info("Referral codes can’t be applied when the total is $0.");
+    toast.info("⚠️ Referral Code Not Applicable", {
+      description: "This code can only be applied to shoot with a total value greater than $0.00",
+    });
   }, [isReferralLocked]);
 
   // AUTO-APPLY & REFRESH FIX LOGIC - UPDATED TO HANDLE OVERRIDE
@@ -578,6 +595,15 @@ function StripePaymentFormMulti({
       }
     }
 
+    // Validate discount code on confirm before payment APIs
+    if (discountCode.length > 0) {
+      const isValid = await validateDiscountCodeNow(discountCode);
+      if (!isValid) {
+        onError("Your discount code has either expired, been changed, or is invalid. Please enter a valid discount code or remove it to proceed.");
+        return;
+      }
+    }
+
 
     // add GA event when payment is initiated
     pushToDataLayer("booking_payment_initiated ", {
@@ -817,9 +843,14 @@ function StripePaymentFormMulti({
             </p>
           )}
           {isReferralLocked && (
-            <p className="text-white/50 text-sm mt-2">
-              Referral codes can’t be applied when a 100% discount makes the total $0.
-            </p>
+            <div className="text-white/60 text-sm mt-2">
+              <div className="font-medium text-white/80">
+                ⚠️ Referral Code Not Applicable
+              </div>
+              <div>
+                This code can only be applied to shoot with a total value greater than $0.00
+              </div>
+            </div>
           )}
         </div>
 
@@ -1417,7 +1448,7 @@ function MultiCreatorPaymentContent() {
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Shoot Date:</span>
-                      <span className="font-medium">{booking.event_date || "N/A"} </span>
+                      <span className="font-medium">{formatShortDate(booking.event_date)} </span>
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
