@@ -1535,6 +1535,19 @@ export const salesApi = {
       };
     }
   },
+  getClientLeadStats: async (leadId: number | string) => {
+    try {
+      const response = await api.get(`/sales/get-client-lead-stats/${leadId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Lead Stats Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch client lead stats',
+      };
+    }
+  },
   getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string, radius?: number }) => {
     try {
       const response = await api.get('admin/get-crew-for-lead/', { params });

@@ -70,7 +70,7 @@ export const CreativeProfileSelectorAdd = ({
         const fetchStats = async () => {
             if (leadId && !targets) {
                 try {
-                    const response = await salesApi.getLeadStats(leadId);
+                    const response = await salesApi.getClientLeadStats(leadId);
                     if (response && response.data) {
                         setStats(response.data);
                     }

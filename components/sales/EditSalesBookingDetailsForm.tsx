@@ -45,7 +45,7 @@ import { parseDate } from "@/src/components/landing/lib/utils";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
-import { useUpdateLeadBookingMutation } from "@/lib/redux/features/sales/salesApi";
+import { useUpdateLeadBookingMutation, useUpdateClientLeadBookingMutation } from "@/lib/redux/features/sales/salesApi";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import { getFormattedDateString } from "@/lib/utils";
 
@@ -54,7 +54,7 @@ const TEAM_ROLES = [
     { id: "photographer", label: "Photographer", price: 250, icon: <Camera size={28} /> },
 ];
 
-interface EditBookingFormProps {
+interface EditSalesBookingDetailsFormProps {
     leadId?: string | number;
     initialBookingData: any;
     onSuccess?: () => void;
@@ -64,7 +64,7 @@ interface EditBookingFormProps {
     projectId?: string | number;
 }
 
-export default function EditBookingForm({ leadId, initialBookingData, onSuccess, onCancel, isModal, hideCreativeSelector, projectId }: EditBookingFormProps) {
+export default function EditSalesBookingDetailsForm({ leadId, initialBookingData, onSuccess, onCancel, isModal, hideCreativeSelector, projectId }: EditSalesBookingDetailsFormProps) {
     const router = useRouter();
     const contentTypeRef = useRef<HTMLDivElement>(null);
     const shootTypeRef = useRef<HTMLDivElement>(null);
@@ -97,7 +97,9 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
     const dragStartX = useRef(0);
     const dragStartScrollLeft = useRef(0);
 
-    const [updateLeadBooking, { isLoading: isUpdating }] = useUpdateLeadBookingMutation();
+    const [updateLeadBooking, { isLoading: isUpdatingInitial }] = useUpdateLeadBookingMutation();
+    const [updateClientLeadBooking, { isLoading: isUpdatingClient }] = useUpdateClientLeadBookingMutation();
+    const isUpdating = isUpdatingInitial || isUpdatingClient;
 
     const updateData = useCallback((newData: Partial<BookingDataV3>) => {
         setFormData((prev) => ({ ...prev, ...newData }));
@@ -504,17 +506,17 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
         }
 
         try {
-            if (formData.bookingId) {
+            if (leadId) {
+                await updateClientLeadBooking({
+                    lead_id: typeof leadId === 'string' ? parseInt(leadId) : leadId,
+                    payload
+                }).unwrap();
+            } else if (formData.bookingId) {
                 await updateLeadBooking({
                     booking_id: formData.bookingId as number,
                     payload,
-                    lead_id: leadId ? (typeof leadId === 'string' ? parseInt(leadId) : (leadId as number)) : undefined
+                    lead_id: undefined
                 }).unwrap();
-            } else if (leadId) {
-                // Fallback or handle cases where only leadId is present (though updateLeadBooking is preferred)
-                // Assuming there might be a mutation for this if needed, but for now we follow the pattern
-                toast.error("Booking ID missing");
-                return;
             }
             toast.success("Booking updated successfully");
 

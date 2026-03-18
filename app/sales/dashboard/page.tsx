@@ -202,7 +202,7 @@ export default function SalesLeadsPage() {
 
         if (clientsList.length || clientsPayload.pagination) {
           const mappedClients = clientsList.map((client: any) => ({
-            id: `#${client.user_id || client.id || client.lead_id}`,
+            id: `#${client.lead_id || client.user_id || client.id}`,
             name: client.client_name || client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
             email: client.guest_email || client.email || "No Email",
             type: "Client" as const,
@@ -465,7 +465,7 @@ export default function SalesLeadsPage() {
             totalPages={usersTotalPages}
             totalRecords={usersTotalRecords}
             limit={usersLimit}
-            headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
+            headers={["Lead ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
             onPageChange={(page) => setUsersCurrentPage(page)}
             renderRow={(user) => (
               <tr

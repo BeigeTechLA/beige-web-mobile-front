@@ -204,7 +204,7 @@ export default function AdminSaleRepManagerPage() {
 
         if (clientsList.length || clientsPayload.pagination) {
           const mappedClients = clientsList.map((client: any) => ({
-            id: `#${client.user_id || client.id || client.lead_id}`,
+            id: `#${client.lead_id || client.user_id || client.id}`,
             name: client.client_name || client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
             email: client.guest_email || client.email || "No Email",
             type: "Client" as const,
