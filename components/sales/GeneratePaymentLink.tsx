@@ -6,6 +6,7 @@ import { Copy, Mail, Check, Clock, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { 
   useGeneratePaymentLinkMutation, 
+  useGenerateClientPaymentLinkMutation,
   useNotifyPaymentLinkMutation,
   usePreviewInvoiceMutation,
   useSendInvoiceMutation 
@@ -23,9 +24,10 @@ interface GeneratePaymentLinkProps {
     is_used: boolean;
     is_expired: boolean;
   } | null;
+  isClientLead?: boolean;
 }
 
-const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus, activeLink }: GeneratePaymentLinkProps) => {
+const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus, activeLink, isClientLead }: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>("No"); // Default to No
   const [isLocked, setIsLocked] = useState(false);
   const [hasPreviewedInvoice, setHasPreviewedInvoice] = useState(false);
@@ -46,7 +48,10 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
     setHasPreviewedInvoice(false);
   }, [bookingId, paymentData?.id]);
 
-  const [generateLink, { isLoading: isGenerating }] = useGeneratePaymentLinkMutation();
+  const [generateLink, { isLoading: isGeneratingLink }] = useGeneratePaymentLinkMutation();
+  const [generateClientLink, { isLoading: isGeneratingClientLink }] = useGenerateClientPaymentLinkMutation();
+  const isGenerating = isGeneratingLink || isGeneratingClientLink;
+  
   const [notifyLink, { isLoading: isNotifying }] = useNotifyPaymentLinkMutation();
   const [previewInvoice, { isLoading: isPreviewingInvoice }] = usePreviewInvoiceMutation();
   const [sendInvoice, { isLoading: isSendingInvoice }] = useSendInvoiceMutation();
@@ -61,12 +66,23 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
     }
 
     try {
-      const response = await generateLink({
-        lead_id: leadId,
-        booking_id: bookingId,
-        discount_code_id: attachDiscount === "Yes" ? discountCodeId : undefined,
-        expiry_hours: 48
-      }).unwrap();
+      let response: any;
+      
+      if (isClientLead && leadId) {
+        response = await generateClientLink({
+          client_lead_id: leadId,
+          booking_id: bookingId,
+          discount_code_id: attachDiscount === "Yes" ? discountCodeId : undefined,
+          expiry_hours: 2 // User requested 2 hours in example
+        }).unwrap();
+      } else {
+        response = await generateLink({
+          lead_id: leadId,
+          booking_id: bookingId,
+          discount_code_id: attachDiscount === "Yes" ? discountCodeId : undefined,
+          expiry_hours: 48
+        }).unwrap();
+      }
 
       if (response.success && response.data) {
         setPaymentData({

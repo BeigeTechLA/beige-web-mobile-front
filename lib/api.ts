@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import Cookies from 'js-cookie';
 
 import type { Creator, Review, Equipment, PaymentIntentResponse, BookingResponse, BookingFormData } from '@/types/payment';
@@ -1304,14 +1304,14 @@ export const adminApi = {
   },
   getClients: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
     try {
-      const response = await api.get('admin/get-clients', { params });
+      const response = await api.get('sales/client-leads', { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Clients Error:', error.response?.data || error.message);
+      console.error('Get Client Leads Error:', error.response?.data || error.message);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch clients',
+        error: error.response?.data?.message || 'Failed to fetch client leads',
       };
     }
   },
@@ -1532,6 +1532,19 @@ export const salesApi = {
         success: false,
         data: null,
         error: 'Failed to fetch lead stats',
+      };
+    }
+  },
+  getClientLeadStats: async (leadId: number | string) => {
+    try {
+      const response = await api.get(`/sales/get-client-lead-stats/${leadId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Lead Stats Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch client lead stats',
       };
     }
   },
