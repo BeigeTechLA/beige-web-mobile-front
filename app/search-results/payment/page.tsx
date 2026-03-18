@@ -599,7 +599,7 @@ function StripePaymentFormMulti({
     if (discountCode.length > 0) {
       const isValid = await validateDiscountCodeNow(discountCode);
       if (!isValid) {
-        onError("Your discount code has either expired, been changed, or is invalid. Please enter a valid discount code or remove it to proceed.");
+        onError("This discount code is no longer active or is incorrect. Please enter a valid code or remove it to continue.");
         return;
       }
     }
@@ -1400,7 +1400,7 @@ function MultiCreatorPaymentContent() {
                   )}
                 </AnimatePresence>
 
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <Elements stripe={stripePromise}>
                   <StripePaymentFormMulti
                     clientSecret={clientSecret}
                     amount={quoteTotal || 0}
