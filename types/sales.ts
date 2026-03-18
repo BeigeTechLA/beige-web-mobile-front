@@ -8,6 +8,7 @@ export type LeadStatus =
   | 'payment_link_sent'
   | 'discount_applied'
   | 'booked'
+  | 'signed_up'
   | 'abandoned';
 
 export interface SalesLead {
@@ -41,11 +42,14 @@ export interface SalesLead {
   created_at: string;
   updated_at: string;
   intent?: string;
+  lead_source?: string;
+  intent_source?: string;
+  intent_updated_by?: number;
+  intent_updated_at?: string;
   booking_status?: string;
   payment_status?: string;
   booking_step?: number;
   can_edit_booking?: boolean;
-  intent_source?: string;
   selected_crew_ids?: number[];
   active_payment_link?: any;
   fulfillmentSummary?: Record<string, {
@@ -105,6 +109,11 @@ export interface SalesLeadDetails extends SalesLead {
       duration_hours: string;
       time_zone?: string | null;
     }>;
+    primary_quote?: {
+      id: number;
+      notes?: string;
+      total_amount?: number;
+    };
     assigned_crews?: Array<{
       crew_member_id: number;
       crew_accept: number;
@@ -137,6 +146,7 @@ export interface SalesLeadActivity {
   | 'discount_code_generated'
   | 'payment_link_opened'
   | 'discount_applied'
+  | 'intent_updated'
   | 'payment_completed';
   activity_data?: any;
   performed_by_user_id?: number;
@@ -323,6 +333,13 @@ export interface CreatePaymentLinkRequest {
   expiry_hours?: number;
 }
 
+export interface CreateClientPaymentLinkRequest {
+  client_lead_id: number;
+  booking_id: number;
+  discount_code_id?: number;
+  expiry_hours?: number;
+}
+
 export interface AssignLeadRequest {
   sales_rep_id: number;
 }
@@ -365,6 +382,7 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   payment_link_sent: 'Payment Link Sent',
   discount_applied: 'Discount Applied',
   booked: 'Booked',
+  signed_up: 'Signed Up',
   abandoned: 'Abandoned',
 };
 
@@ -374,6 +392,7 @@ export const LEAD_STATUS_COLORS: Record<LeadStatus, string> = {
   payment_link_sent: 'bg-yellow-100 text-yellow-800',
   discount_applied: 'bg-orange-100 text-orange-800',
   booked: 'bg-green-100 text-green-800',
+  signed_up: 'bg-blue-100 text-blue-800',
   abandoned: 'bg-gray-100 text-gray-800',
 };
 
@@ -391,5 +410,6 @@ export const ACTIVITY_TYPE_LABELS: Record<SalesLeadActivity['activity_type'], st
   discount_code_generated: 'Discount Code Generated',
   payment_link_opened: 'Payment Link Opened',
   discount_applied: 'Discount Applied',
+  intent_updated: 'Intent Updated',
   payment_completed: 'Payment Completed',
 };
