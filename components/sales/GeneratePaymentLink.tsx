@@ -29,7 +29,6 @@ interface GeneratePaymentLinkProps {
 
 const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus, activeLink, isClientLead }: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>("No"); // Default to No
-  const [isLocked, setIsLocked] = useState(false);
   const [hasPreviewedInvoice, setHasPreviewedInvoice] = useState(false);
   
   const [paymentData, setPaymentData] = useState<{ url: string; id: number; isExpired: boolean } | null>(null);
@@ -240,22 +239,6 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
               </div>
             </div>
 
-            <div className="flex items-center justify-between py-2">
-              <label className="text-sm text-[#9F9FA9] font-light">Lock Booking After Generation</label>
-              <button
-                type="button"
-                onClick={() => setIsLocked(!isLocked)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                  isLocked ? "bg-[#E8D1AB]" : "bg-[#2A2A2A]"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                    isLocked ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
 
             <Button
               onClick={handleGenerate}
