@@ -352,18 +352,21 @@ export default function LeadDetailPage() {
                   Client Details
                 </h2>
                 <div className="flex gap-3">
-                  <Button
-                    onClick={() => router.push(`/sales/client/${leadId}/create-booking`)}
-                    className="h-10 bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black px-5 rounded-lg text-sm font-semibold transition-all"
-                  >
-                    Create Booking
-                  </Button>
-                  <Button
-                    onClick={() => router.push(`/sales/client/${leadId}/edit-details`)}
-                    className="h-10 bg-zinc-800 border border-white/10 text-white hover:bg-zinc-700 px-5 rounded-lg text-sm font-semibold transition-all"
-                  >
-                    Edit Details
-                  </Button>
+                  {!lead?.booking_id ? (
+                    <Button
+                      onClick={() => router.push(`/sales/client/${leadId}/create-booking`)}
+                      className="h-10 bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black px-5 rounded-lg text-sm font-semibold transition-all"
+                    >
+                      Create Booking
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => router.push(`/sales/client/${leadId}/edit-details`)}
+                      className="h-10 bg-zinc-800 border border-white/10 text-white hover:bg-zinc-700 px-5 rounded-lg text-sm font-semibold transition-all"
+                    >
+                      Edit Details
+                    </Button>
+                  )}
                   <Button
                     onClick={() => setIsIntentModalOpen(true)}
                     className="h-10 bg-zinc-800 border border-white/10 text-[#E8D1AB] hover:bg-zinc-700 px-5 rounded-lg text-sm transition-all"
