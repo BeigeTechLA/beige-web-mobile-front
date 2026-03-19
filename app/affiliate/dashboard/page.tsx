@@ -497,8 +497,9 @@ export default function AffiliateDashboardPage() {
                       Welcome back, {user?.name || "Partner"} !
                     </h1>
                     <p className="text-xs lg:text-sm text-white/70">
-                      Monitor revenue, shoots, clients, and performance metrics
-                      in one centralized dashboard.
+                      {/* Monitor revenue, shoots, clients, and performance metrics
+                      in one centralized dashboard. */}
+                      Manage every shoot from start to finish in one centralized platform.
                     </p>
                   </div>
                   <SortDateButton

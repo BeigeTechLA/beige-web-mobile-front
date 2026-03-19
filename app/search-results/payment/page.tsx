@@ -1365,7 +1365,6 @@ function MultiCreatorPaymentContent() {
   // console.log(booking);
   // console.log(summaryData);
 
-
   return (
     <div className="pt-20 md:pt-32 pb-20 min-h-screen">
       <div className="container mx-auto px-4 xl:px-0">
@@ -1441,10 +1440,10 @@ function MultiCreatorPaymentContent() {
                   <h4 className="font-bold text-base lg:text-2xl text-white">{toTitleCase(booking.shoot_name || "Unnamed Shoot")}</h4>
                 </div>
                 <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
-                  <div className="grid grid-cols-2 lg:grid-cols-3 mb-4 lg:mb-8">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 mb-4 gap-2">
                     <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Event Type:</span>
-                      <span className="font-medium">{toTitleCase((booking.project_name || booking.shoot_name || "").split("-")[0].trim())}</span>
+                      <span className="text-[#626467]">Shoot Category:</span>
+                      <span className="font-medium">{toTitleCase((summaryData.shoot_type || "").trim())}</span>
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Shoot Date:</span>
@@ -1452,9 +1451,13 @@ function MultiCreatorPaymentContent() {
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
-                      <span className="font-medium">{booking.duration_hours || 0} hours</span>
+                      <span className="font-medium">{(booking.duration_hours.replace(/\.00$/, '')) || 0} hours</span>
                     </div>
                   </div>
+                    <div className="flex flex-col justify-between mb-4">
+                      <span className="text-[#626467]">Shoot Type:</span>
+                      <span className="font-medium">{toTitleCase((summaryData.event_type || "").trim())}</span>
+                    </div>
                   <div className="flex flex-col justify-between">
                     <span className="text-[#626467]">Location:</span>
                     <span className="truncate">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
@@ -1538,7 +1541,7 @@ function MultiCreatorPaymentContent() {
                     }
                     <div className="bg-gradient-to-r from-[#FFF0D8] to-white rounded-xl p-4 lg:p-7 flex flex-col justify-between gap-3 lg:gap-6 italic">
                       <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />Unlimited Usage Rights</p>
-                      <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />$1M Liability Insurance Policy</p>
+                      <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />$2M Liability Insurance Policy</p>
                       <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />Beige Guarantee</p>
                     </div>
                   </div>
