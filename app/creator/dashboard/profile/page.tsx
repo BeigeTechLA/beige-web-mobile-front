@@ -40,7 +40,7 @@ import { useChangePasswordMutation } from "@/lib/redux/features/auth/authApi";
 import SecurityForm from "@/src/components/cpSignup/SecurityForm";
 
 import FeaturedWorkModal from "@/src/components/cpSignup/FeaturedWorkModal";
-import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";
+import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";  
 import PersonalInfoForm from "@/src/components/cpSignup/PersonalInfoForm";
 import ProfessionalInfoForm from "@/src/components/cpSignup/ProfessionalInfoForm";
 import SkillsForm from "@/src/components/cpSignup/SkillsForm";
@@ -207,7 +207,7 @@ export default function ProfilePage() {
     isOpen: boolean;
     title: string;
     description: string;
-    idsToDelete: number[];
+    idsToDelete: number[];  
   }>({
     isOpen: false,
     title: "",
@@ -281,6 +281,40 @@ export default function ProfilePage() {
       }
     }
   }, [profile.social_media_links]);
+  const profilePhotoFile = profile.crew_member_files?.find((f: any) => f.file_type === "profile_photo");
+  const profileImageUrl = profilePhotoFile
+    ? `${S3_BASE_URL}${profilePhotoFile.file_path}`
+    : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.first_name || 'default'}`;
+
+  const portfolioBannerFile = profile.crew_member_files?.find(
+    (f: any) => f.file_type === "portfolio"
+  );
+
+  const portfolioBannerUrl = portfolioBannerFile?.file_path
+    ? `${S3_BASE_URL}${portfolioBannerFile.file_path}`
+    : null;
+
+  useEffect(() => {
+    if (!portfolioBannerFile?.file_path) {
+      setMediaPreview(null);
+      setMediaType(null);
+      return;
+    }
+
+    const fullUrl = `${S3_BASE_URL}${portfolioBannerFile.file_path}`;
+    setMediaPreview(fullUrl);
+
+    const lowerPath = portfolioBannerFile.file_path.toLowerCase();
+
+    const isVideoFile =
+      lowerPath.endsWith(".mp4") ||
+      lowerPath.endsWith(".mov") ||
+      lowerPath.endsWith(".webm") ||
+      lowerPath.endsWith(".avi") ||
+      lowerPath.endsWith(".mkv");
+
+    setMediaType(isVideoFile ? "video" : "image");
+  }, [portfolioBannerFile]);
 
   const featuredWorks = profile.crew_member_files?.filter(
     (file: any) => file.file_type === "recent_work"
@@ -523,13 +557,58 @@ export default function ProfilePage() {
     setProfile((prev: any) => ({ ...prev, ...updates }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setMediaType(file.type.startsWith("video") ? "video" : "image");
-      setMediaPreview(URL.createObjectURL(file));
+ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const userStr = localStorage.getItem("revure_user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const crewMemberId = user?.crew_member_id;
+
+  if (!crewMemberId) {
+    toast.error("User ID not found");
+    return;
+  }
+
+  const localPreview = URL.createObjectURL(file);
+
+  try {
+    setIsPageLoading(true);
+
+    setMediaType(file.type.startsWith("video") ? "video" : "image");
+    setMediaPreview(localPreview);
+
+    const response: any = await UploadProfileFile(
+      "portfolio",
+      [file],
+      crewMemberId
+    );
+
+    if (response?.data && response.data.error === false) {
+      toast.success("Portfolio banner updated successfully");
+
+      const updatedProfile = await GetMyProfile({
+        crew_member_id: parseInt(crewMemberId),
+      });
+
+      if (updatedProfile?.data && updatedProfile.data.error === false) {
+        setProfile(updatedProfile.data.data);
+      }
+    } else {
+      toast.error(response?.data?.message || "Upload failed");
+      setMediaPreview(portfolioBannerUrl || null);
     }
-  };
+  } catch (err) {
+    console.error("Failed to upload portfolio banner:", err);
+    toast.error("An error occurred during upload");
+    setMediaPreview(portfolioBannerUrl || null);
+  } finally {
+    setIsPageLoading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+};
 
   const handleAddProject = async (data: any) => {
     const userStr = localStorage.getItem("revure_user");
@@ -539,7 +618,7 @@ export default function ProfilePage() {
     if (!crewMemberId) return;
 
     try {
-      setIsPageLoading(true); // ✅ START LOADER
+      setIsPageLoading(true); 
 
       const response = await UploadProfileFile(
         "recent_work",
@@ -567,7 +646,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Failed to upload project:", err);
     } finally {
-      setIsPageLoading(false); // ✅ STOP LOADER
+      setIsPageLoading(false); 
     }
   };
 
@@ -585,7 +664,7 @@ export default function ProfilePage() {
     if (!crewMemberId) return;
 
     try {
-      setIsPageLoading(true); // 🔥 SHOW LOADER
+      setIsPageLoading(true); 
 
       const filesArray = Array.from(selectedFiles);
 
@@ -607,7 +686,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Failed to upload certificates:", err);
     } finally {
-      setIsPageLoading(false); // 🔥 HIDE LOADER
+      setIsPageLoading(false);
     }
   };
 
@@ -645,13 +724,48 @@ export default function ProfilePage() {
     }
   };
 
+  const handleRemovePortfolioBanner = async () => {
+  const userStr = localStorage.getItem("revure_user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const crewMemberId = user?.crew_member_id;
+
+  if (!crewMemberId || !portfolioBannerFile?.crew_files_id) {
+    setMediaPreview(null);
+    setMediaType(null);
+    return;
+  }
+
+  try {
+    setIsPageLoading(true);
+
+    await DeleteProfileFile(portfolioBannerFile.crew_files_id, {
+      crew_member_id: parseInt(crewMemberId),
+    });
+
+    toast.success("Portfolio banner removed successfully");
+
+    const updatedProfile = await GetMyProfile({
+      crew_member_id: parseInt(crewMemberId),
+    });
+
+    if (updatedProfile?.data && updatedProfile.data.error === false) {
+      setProfile(updatedProfile.data.data);
+    }
+  } catch (err) {
+    console.error("Failed to remove portfolio banner:", err);
+    toast.error("Failed to remove portfolio banner");
+  } finally {
+    setIsPageLoading(false);
+  }
+};
+
 
   const handleExecuteDelete = async () => {
     const crewMemberId = getCrewId();
     if (!crewMemberId || deleteModal.idsToDelete.length === 0) return;
 
     try {
-      setIsPageLoading(true); // ✅ START LOADER
+      setIsPageLoading(true); 
 
       await Promise.all(
         deleteModal.idsToDelete.map((id) =>
@@ -670,7 +784,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Delete failed:", err);
     } finally {
-      setIsPageLoading(false); // ✅ STOP LOADER
+      setIsPageLoading(false); 
     }
   };
 
@@ -773,11 +887,9 @@ export default function ProfilePage() {
     index: 0
   });
 
-  // Logic for profile photo
-  const profilePhotoFile = profile.crew_member_files?.find((f: any) => f.file_type === "profile_photo");
-  const profileImageUrl = profilePhotoFile
-    ? `${S3_BASE_URL}${profilePhotoFile.file_path}`
-    : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.first_name || 'default'}`;
+
+
+  
 
 
   return (
@@ -897,9 +1009,29 @@ export default function ProfilePage() {
                 ) : (
                   <video src={mediaPreview} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                 )}
-                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                  <button onClick={(e) => { e.stopPropagation(); setMediaPreview(null); }} className="p-2 bg-red-500/90 text-white rounded-full"><X size={16} /></button>
-                </div>
+               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+               <button
+                    onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                className="p-2 bg-white/90 text-black rounded-full"
+                title="Replace Banner"
+                  >
+                <Edit3 size={16} />
+                </button>
+
+              <button
+               onClick={(e) => {
+               e.stopPropagation();
+               handleRemovePortfolioBanner();
+               }}
+                className="p-2 bg-red-500/90 text-white rounded-full"
+                title="Remove Banner"
+                >
+                <X size={16} />
+               </button>
+              </div>
               </div>
             )}
           </div>
@@ -1618,3 +1750,4 @@ export default function ProfilePage() {
     // </div>
   );
 }
+
