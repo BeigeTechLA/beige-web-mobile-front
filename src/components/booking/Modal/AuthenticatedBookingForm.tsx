@@ -29,6 +29,7 @@ import { useAppSelector } from "@/lib/redux/hooks";
 import type { RootState } from "@/lib/redux/store";
 import { setBookingData } from "@/lib/redux/features/booking/bookingSlice";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { sanitizePhoneInput } from "@/lib/utils/phone";
 
 const updateFormData = setBookingData;
 
@@ -374,7 +375,7 @@ const AuthenticatedBookingForm: React.FC<AuthenticatedBookingFormProps> = ({
                   fullWidth
                   size="small"
                   value={tempPhone}
-                  onChange={(e) => setTempPhone(e.target.value)}
+                  onChange={(e) => setTempPhone(sanitizePhoneInput(e.target.value))}
                   placeholder="Enter phone number"
                   InputProps={{
                     startAdornment: (
