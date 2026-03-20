@@ -23,7 +23,7 @@ const menuItems = [
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
-  // { name: 'Quotes', icon: FileText, link: '/admin/quotes' },
+  { name: 'Quotes', icon: FileText, link: '/admin/quotes' },
 ];
 
 type MenuItem = {
