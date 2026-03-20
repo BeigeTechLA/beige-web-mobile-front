@@ -42,6 +42,7 @@ import {
 
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
+import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
@@ -480,6 +481,7 @@ export default function EditSalesBookingDetailsForm({ leadId, initialBookingData
             }
         });
 
+        const browserTimeZone = getBrowserTimeZone();
         let payload: any = {
             booking_type: bookingType,
             content_type: formData.contentType.filter(t => t !== "editing").join(","),
@@ -493,16 +495,25 @@ export default function EditSalesBookingDetailsForm({ leadId, initialBookingData
             selected_crew_ids: formData.selectedCrewIds || [],
             is_draft: false,
             skip_discount: true,
-            skip_margin: true
+            skip_margin: true,
+            time_zone: browserTimeZone
         };
 
         if (bookingType === "single_day") {
+            const startDate = getLocalDatePart(formData.startDate);
+            const startTime = getLocalTimePart(formData.startDate);
+            const endTime = getLocalTimePart(formData.endDate);
             const duration = differenceInHours(parseDate(formData.endDate)!, parseDate(formData.startDate)!);
+            payload.start_date = startDate;
+            payload.start_time = startTime;
+            payload.end_time = endTime;
             payload.start_date_time = formData.startDate;
-            payload.end_time = format(parseDate(formData.endDate)!, "HH:mm:ss");
             payload.duration_hours = duration;
         } else {
-            payload.booking_days = formData.bookingDays;
+            payload.booking_days = (formData.bookingDays || []).map((d: any) => ({
+                ...d,
+                time_zone: d.time_zone || d.timeZone || browserTimeZone
+            }));
         }
 
         try {

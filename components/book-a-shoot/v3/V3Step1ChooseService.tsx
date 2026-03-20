@@ -7,7 +7,7 @@ import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse, Minus, Plus } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -1624,11 +1624,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                           updateEditQuantity("video", option.key, Math.max(0, count - 1));
                                         }}
                                         onMouseDown={(e) => e.stopPropagation()}
-                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40 grid place-items-center"
                                       >
-                                        -
+                                        <Minus className="h-3.5 w-3.5" />
                                       </button>
-                                      <span className="min-w-[28px] text-center text-white">{count}</span>
+                                      <span className="min-w-[28px] text-center text-white tabular-nums">{count}</span>
                                       <button
                                         type="button"
                                         onClick={(e) => {
@@ -1636,9 +1636,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                           updateEditQuantity("video", option.key, count + 1);
                                         }}
                                         onMouseDown={(e) => e.stopPropagation()}
-                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40 grid place-items-center"
                                       >
-                                        +
+                                        <Plus className="h-3.5 w-3.5" />
                                       </button>
                                     </div>
                                   </div>
@@ -1723,11 +1723,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                           updateEditQuantity("photo", option.key, Math.max(0, count - 1));
                                         }}
                                         onMouseDown={(e) => e.stopPropagation()}
-                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40 grid place-items-center"
                                       >
-                                        -
+                                        <Minus className="h-3.5 w-3.5" />
                                       </button>
-                                      <span className="min-w-[28px] text-center text-white">{count}</span>
+                                      <span className="min-w-[28px] text-center text-white tabular-nums">{count}</span>
                                       <button
                                         type="button"
                                         onClick={(e) => {
@@ -1735,9 +1735,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                           updateEditQuantity("photo", option.key, count + 1);
                                         }}
                                         onMouseDown={(e) => e.stopPropagation()}
-                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40"
+                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40 grid place-items-center"
                                       >
-                                        +
+                                        <Plus className="h-3.5 w-3.5" />
                                       </button>
                                     </div>
                                   </div>
