@@ -6,6 +6,7 @@ import { adminApi } from "@/lib/api";
 import EditBookingForm from "@/components/admin/EditBookingForm";
 import Topbar from "@/components/admin/Topbar";
 import { Loader2 } from "lucide-react";
+import { useTheme } from "next-themes";
 
 interface EditShootBookingPageProps {
     params: Promise<{ id: string }>;
@@ -17,7 +18,15 @@ export default function EditShootBookingPage({ params }: EditShootBookingPagePro
     const { id: projectId } = use(params);
     const [project, setProject] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const { theme } = useTheme();
+    const [mounted, setMounted] = useState(false);
 
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Constant default to dark
+    const isDark = !mounted || theme === "dark";
     useEffect(() => {
         const fetchProjectDetails = async () => {
             try {
@@ -37,15 +46,15 @@ export default function EditShootBookingPage({ params }: EditShootBookingPagePro
 
     if (loading) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#101010]">
-                <Loader2 className="animate-spin text-white/50" size={40} />
+            <div className={`flex h-screen items-center justify-center bg-[#101010] ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-black"}`}>
+                <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDark ? "border-white" : "border-black"}`}></div>
             </div>
         );
     }
 
     if (!project) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#101010] text-white">
+            <div className={`flex h-screen items-center justify-center bg-[#101010] ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-black"}`}>
                 <p>Project not found.</p>
             </div>
         );
@@ -66,6 +75,7 @@ export default function EditShootBookingPage({ params }: EditShootBookingPagePro
                     initialBookingData={project}
                     onSuccess={() => router.push(`/admin/shoots/${projectId}`)}
                     onCancel={() => router.back()}
+          isDark={isDark}
                 />
             </div>
         </>

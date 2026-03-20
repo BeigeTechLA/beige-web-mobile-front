@@ -305,7 +305,7 @@ export default function LeadDetailPage() {
   const handleRemoveCP = async (cpId: number) => {
     try {
       await removeAssignedCrew({
-        lead_id: Number(params.id),
+        client_lead_id: Number(params.id),
         crew_member_id: cpId,
       }).unwrap();
 
@@ -420,7 +420,7 @@ export default function LeadDetailPage() {
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>
-                    Lead Source : <span className={isDark ? "text-white" : "text-black"}>{formatLeadSource(lead.lead_source || lead.intent_source)}</span>
+                    Lead Source : <span className={isDark ? "text-white capitalize" : "text-black capitalize"}>{formatLeadSource(lead.lead_source || lead.intent_source)}</span>
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>

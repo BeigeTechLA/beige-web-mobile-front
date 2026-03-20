@@ -74,7 +74,7 @@ export default function MeetingSchedule() {
             <Button
               onClick={() => setIsModalOpen(true)}
               className={`flex-1 rounded-lg px-4 font-medium transition-colors ${
-                isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-[#E8D1AB] hover:bg-black/80"
+                isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-[#E8D1AB] text-black hover:bg-[#D4C3A3]"
               }`}
             >
               Create New Meeting
@@ -206,7 +206,7 @@ export default function MeetingSchedule() {
         </div>
       </div>
 
-      <CreateMeetingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <CreateMeetingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} isDark={isDark} />
     </>
   );
 }

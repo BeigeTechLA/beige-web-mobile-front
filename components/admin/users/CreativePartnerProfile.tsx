@@ -1365,8 +1365,8 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                       <div
                         key={link.crew_files_id || index}
                         className={`transition-all duration-300 border rounded-2xl p-6 flex flex-col gap-4 group shadow-xl ${isDark
-                            ? "bg-white/5 border-white/10 hover:border-white/20"
-                            : "bg-white border-gray-100 hover:border-gray-300 hover:shadow-2xl"
+                          ? "bg-white/5 border-white/10 hover:border-white/20"
+                          : "bg-white border-gray-100 hover:border-gray-300 hover:shadow-2xl"
                           }`}
                       >
                         <div className="flex items-center justify-between">
@@ -1410,25 +1410,34 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
       {/* VIDEO PLAYER MODAL */}
       {playingVideo && (
-        <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
+        <div className={`fixed inset-0 z-[120] overflow-y-auto animate-in fade-in duration-500 backdrop-blur-2xl ${isDark ? "bg-black/98" : "bg-white/98"
+          }`}>
 
           {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
-          <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
+          <div className={`sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 pointer-events-none bg-gradient-to-b ${isDark
+            ? "from-black/95 via-black/80 to-transparent"
+            : "from-white/95 via-white/80 to-transparent"
+            }`}>
             <div className="space-y-1 pointer-events-auto">
-              <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">
+              <h3 className={`text-xs lg:text-sm font-black uppercase tracking-[0.3em] ${isDark ? "text-white" : "text-black"
+                }`}>
                 Portfolio Player
               </h3>
               <div className="flex items-center gap-2">
                 {/* Accent color matched to this specific page's theme */}
-                <span className="w-1.5 h-1.5 bg-[#E5D5B8] rounded-full animate-pulse" />
-                <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
-                  Now Playing
+                <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDark ? "bg-[#E5D5B8]" : "bg-black"
+                  }`} />
+                <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-white/30" : "text-black/30"
+                  }`}>  Now Playing
                 </p>
               </div>
             </div>
             <button
               onClick={() => setPlayingVideo(null)}
-              className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90 shadow-lg pointer-events-auto"
+              className={`p-3 lg:p-4 border rounded-full transition-all active:scale-90 shadow-lg pointer-events-auto ${isDark
+                  ? "bg-white/5 border-white/10 text-white hover:bg-white/20"
+                  : "bg-black/5 border-black/10 text-black hover:bg-black/20"
+                }`}
             >
               <X size={20} className="lg:w-6 lg:h-6" />
             </button>
@@ -1436,7 +1445,8 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
           {/* Video Container - Beautifully centers and allows scroll */}
           <div className="w-full max-w-6xl mx-auto px-4 pb-24 pt-2 lg:pt-10">
-            <div className="w-full aspect-video bg-black rounded-xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/10 relative">
+            <div className={`w-full aspect-video rounded-xl lg:rounded-[2rem] overflow-hidden relative shadow-[0_0_100px_rgba(0,0,0,0.8)] border ${isDark ? "bg-black border-white/10" : "bg-gray-100 border-black/10"
+              }`}>
               <iframe
                 src={getEmbedUrl(playingVideo) || ""}
                 className="w-full h-full absolute inset-0 border-none"

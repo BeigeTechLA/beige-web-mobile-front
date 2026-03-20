@@ -78,7 +78,7 @@ export default function SelectCreativesPage() {
     setIsConfirmModalOpen(false);
     try {
       const response = await assignCrew({
-        lead_id: Number(leadId), // Use the dynamic ID
+        client_lead_id: Number(leadId), // Use the dynamic ID
         crew_member_ids: selectedCreativeIds,
       }).unwrap();
 
@@ -104,7 +104,6 @@ export default function SelectCreativesPage() {
     }
   };
 
-  console.log(isDark)
   return (
     <>
       <Topbar pathname={pathname}

@@ -978,15 +978,15 @@ export default function ClientDetailPage() {
                     <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className={`absolute right-0 top-14 z-50 border p-5 rounded-2xl shadow-2xl w-[320px] ${isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200"
                       }`}>
                       <div className="flex justify-between items-center mb-6">
-                        <button onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
+                        <button className={`font-bold ${isDark ? "text-white" : "text-black"}`} onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
                           <ChevronLeft size={20} />
                         </button>
                         <span className={`font-bold ${isDark ? "text-white" : "text-black"}`}>{format(currentCalendarMonth, "MMMM yyyy")}</span>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
+                          <button className={`font-bold ${isDark ? "text-white" : "text-black"}`} onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
                             <ChevronRight size={20} />
                           </button>
-                          <button
+                          <button 
                             onClick={() => setIsCalendarOpen(false)}
                             className={`rounded-full p-1 transition-colors ${isDark ? "hover:bg-white/10 text-white" : "hover:bg-black/5 text-black"}`}
                             aria-label="Close calendar"

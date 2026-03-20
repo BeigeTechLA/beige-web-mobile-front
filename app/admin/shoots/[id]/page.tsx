@@ -221,7 +221,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 activeTab === "Meetings" && (
                   <>
                     <MeetingSchedule />
-                    <MeetingOverviewChart />
+                    <MeetingOverviewChart isDark={isDark} />
                   </>
                 )
               }
