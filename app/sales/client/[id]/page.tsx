@@ -37,6 +37,7 @@ import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
 import Topbar from "@/components/admin/Topbar";
+import { parseDate } from "@/src/components/landing/lib/utils";
 import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
 import {
   Dialog,
@@ -198,7 +199,7 @@ export default function LeadDetailPage() {
   const status = lead ? (lead.booking_status || LEAD_STATUS_LABELS[lead.lead_status as keyof typeof LEAD_STATUS_LABELS] || mapLeadStatusToUI(lead.lead_status)) : "Loading...";
 
   const bookingDate = booking?.event_date
-    ? new Date(booking.event_date).toLocaleDateString("en-US", {
+    ? (parseDate(booking.event_date) || new Date(booking.event_date)).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -611,7 +612,7 @@ export default function LeadDetailPage() {
                         <div className="ml-2 border-l-2 border-[#3D3D3D] pl-5 flex flex-col gap-3">
                           {booking.booking_days!.map((day: any, idx: number) => {
                             const dayDate = day.event_date
-                              ? new Date(day.event_date).toLocaleDateString("en-US", {
+                              ? (parseDate(day.event_date) || new Date(day.event_date)).toLocaleDateString("en-US", {
                                 weekday: "short",
                                 month: "short",
                                 day: "numeric",

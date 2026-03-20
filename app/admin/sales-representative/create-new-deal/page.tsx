@@ -48,6 +48,7 @@ import {
 
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
+import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
@@ -633,6 +634,7 @@ export default function ClientDetailPage() {
 
       const crewSize = Object.values(crewRoles).reduce((a, b) => a + b, 0);
 
+      const browserTimeZone = getBrowserTimeZone();
       const payload: any = {
         client_name: clientName,
         guest_email: clientEmail,
@@ -651,15 +653,21 @@ export default function ClientDetailPage() {
         is_draft: false,
         skip_discount: true,
         skip_margin: true,
-        booking_type: bookingType
+        booking_type: bookingType,
+        time_zone: browserTimeZone
       };
 
       if (bookingType === "single_day") {
+        payload.start_date = getLocalDatePart(formData.startDate);
+        payload.start_time = getLocalTimePart(formData.startDate);
+        payload.end_time = getLocalTimePart(formData.endDate) || "17:00:00";
         payload.start_date_time = formData.startDate;
-        payload.end_time = formData.endDate ? format(parseDate(formData.endDate)!, "HH:mm:ss") : "17:00:00";
         payload.duration_hours = durationHours;
       } else {
-        payload.booking_days = formData.bookingDays;
+        payload.booking_days = (formData.bookingDays || []).map((d: any) => ({
+          ...d,
+          time_zone: d.time_zone || d.timeZone || browserTimeZone
+        }));
       }
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
