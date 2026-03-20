@@ -28,6 +28,7 @@ import Cookies from "js-cookie";
 import { useQuickRegisterMutation } from "@/lib/redux/features/auth/authApi";
 import { useAuth } from "@/lib/hooks/useAuth";
 import type { BookingData } from "@/lib/types";
+import { sanitizePhoneInput } from "@/lib/utils/phone";
 
 type BookingFormData = BookingData;
 
@@ -519,7 +520,7 @@ const AuthPrompt: React.FC<AuthPromptProps> = ({
             label="Phone Number (Optional)"
             value={registerForm.phone}
             onChange={(e) =>
-              setRegisterForm({ ...registerForm, phone: e.target.value })
+              setRegisterForm({ ...registerForm, phone: sanitizePhoneInput(e.target.value) })
             }
             disabled={isLoading}
             sx={{ mb: 2 }}

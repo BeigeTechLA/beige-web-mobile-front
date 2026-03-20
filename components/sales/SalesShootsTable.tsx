@@ -8,6 +8,7 @@ import { adminApi } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { parseDate } from "@/src/components/landing/lib/utils";
 import {
   Select,
   SelectContent,
@@ -131,7 +132,7 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
             id: `#${project.stream_project_booking_id}`,
             customerName,
             initials,
-            date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
+            date: project.event_date ? (parseDate(project.event_date) || new Date(project.event_date)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
             category: parseSkills(project.skills_needed, skillMap),
             price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
             status: statusLabel,
