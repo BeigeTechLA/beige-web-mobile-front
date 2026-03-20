@@ -15,6 +15,7 @@ import type {
   FunnelData,
   CreateDiscountCodeRequest,
   CreatePaymentLinkRequest,
+  CreateClientPaymentLinkRequest,
   AssignLeadRequest,
   UpdateLeadStatusRequest,
   TrackBookingStartRequest,
@@ -96,7 +97,7 @@ export const salesApi = createApi({
 
     getLeads: builder.query<
       PaginatedLeadsResponse,
-      { page?: number; limit?: number; status?: string; lead_type?: string; assigned_to?: string; search?: string; start_date?: string; end_date?: string }
+      { page?: number; limit?: number; status?: string; lead_type?: string; assigned_to?: string; search?: string; start_date?: string; end_date?: string; intent?: string }
     >({
       query: (params) => ({
         url: 'sales/leads',
@@ -143,6 +144,20 @@ export const salesApi = createApi({
     generateDiscountCode: builder.mutation<ApiResponse<DiscountCode>, CreateDiscountCodeRequest>({
       query: (data) => ({
         url: 'sales/discount-codes',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['DiscountCode', 'Lead'],
+    }),
+    generateClientDiscountCode: builder.mutation<ApiResponse<DiscountCode>, { 
+      client_lead_id: number; 
+      booking_id: number; 
+      discount_type: string; 
+      discount_value: number; 
+      usage_type: string 
+    }>({
+      query: (data) => ({
+        url: 'sales/client-discount-codes',
         method: 'POST',
         body: data,
       }),
@@ -204,6 +219,14 @@ export const salesApi = createApi({
       }),
       invalidatesTags: ['PaymentLink', 'Lead'],
     }),
+    generateClientPaymentLink: builder.mutation<ApiResponse<PaymentLink>, CreateClientPaymentLinkRequest>({
+      query: (data) => ({
+        url: 'sales/client-payment-links',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['PaymentLink', 'Lead'],
+    }),
 
     getPaymentLinkDetails: builder.query<PaymentLinkDetails, string>({
       query: (token) => `sales/payment-links/${token}`,
@@ -228,6 +251,14 @@ export const salesApi = createApi({
       query: (body) => ({
         url: `sales/leads/intent`,
         method: "POST",
+        body,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
+    }),
+    updateClientLeadIntent: builder.mutation<any, { lead_id: number; intent: string; notes?: string }>({
+      query: (body) => ({
+        url: 'sales/client-leads/intent',
+        method: 'POST',
         body,
       }),
       invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
@@ -335,13 +366,13 @@ export const salesApi = createApi({
         body: payload, // This now sends crew_roles, location, description, and reference_links
       }),
     }),
-    removeAssignedCrew: builder.mutation<ApiResponse<void>, { lead_id: number; crew_member_id: number }>({
+    removeAssignedCrew: builder.mutation<ApiResponse<void>, { client_lead_id: number; crew_member_id: number }>({
       query: (data) => ({
         url: 'admin/remove-assigned-crew',
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
+      invalidatesTags: (result, error, { client_lead_id }) => [{ type: 'Lead', id: client_lead_id }, { type: 'Lead', id: 'LIST' }],
     }),
     updateLeadBooking: builder.mutation<ApiResponse<any>, { booking_id: number; payload: any; lead_id?: number }>({
       query: ({ booking_id, payload }) => ({
@@ -351,8 +382,16 @@ export const salesApi = createApi({
       }),
       invalidatesTags: (result, error, { lead_id }) => lead_id ? [{ type: 'Lead', id: lead_id }] : ['Lead'],
     }),
+    updateClientLeadBooking: builder.mutation<ApiResponse<any>, { lead_id: number; payload: any }>({
+      query: ({ lead_id, payload }) => ({
+        url: `sales/client-leads/${lead_id}/booking`,
+        method: 'PUT',
+        body: payload,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
+    }),
 
-    assignCrewFromLead: builder.mutation<ApiResponse<void>, { lead_id: number; crew_member_ids: number[] }>({
+    assignCrewFromLead: builder.mutation<ApiResponse<void>, { client_lead_id: number; crew_member_ids: number[] }>({
       query: (data) => ({
         url: 'admin/assign-crew-from-lead',
         method: 'POST',
@@ -379,6 +418,11 @@ export const salesApi = createApi({
       query: (userId) => `admin/get-client-details-with-shoots/${userId}`,
       transformResponse: (response: ApiResponse<any>) => response.data,
     }),
+    getClientLeadById: builder.query<any, number>({
+      query: (id) => `sales/client-leads/${id}`,
+      transformResponse: (response: ApiResponse<any>) => response.data!,
+      providesTags: (result, error, id) => [{ type: 'Lead', id }],
+    }),
   }),
 });
 
@@ -403,6 +447,7 @@ export const {
   useGetDiscountCodeUsageHistoryQuery,
   // Payment links
   useGeneratePaymentLinkMutation,
+  useGenerateClientPaymentLinkMutation,
   useGetPaymentLinkDetailsQuery,
   useValidatePaymentLinkQuery,
   useLazyValidatePaymentLinkQuery,
@@ -423,7 +468,11 @@ export const {
   useGetCrewForLeadQuery,
   useLazyGetCrewForLeadQuery,
   useGetClientFullDetailsQuery,
+  useGetClientLeadByIdQuery,
+  useUpdateClientLeadBookingMutation,
   usePreviewInvoiceMutation,
   useSendInvoiceMutation,
-  useUpdateLeadIntentMutation
+  useUpdateLeadIntentMutation,
+  useUpdateClientLeadIntentMutation,
+  useGenerateClientDiscountCodeMutation
 } = salesApi;

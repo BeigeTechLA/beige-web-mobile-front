@@ -104,6 +104,27 @@ const formatShortDate = (value: string) => {
   return `${day} ${month}, ${year}`;
 };
 
+const formatDurationHours = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return "0";
+
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? String(value) : String(value).replace(/\.0+$/, "");
+  }
+
+  if (typeof value === "string") {
+    return value.trim().replace(/\.00$/, "") || "0";
+  }
+
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue)) {
+    return Number.isInteger(numericValue)
+      ? String(numericValue)
+      : String(numericValue).replace(/\.0+$/, "");
+  }
+
+  return "0";
+};
+
 // Helper for title casing
 const toTitleCase = (str: string) => {
   if (!str) return "";
@@ -599,7 +620,7 @@ function StripePaymentFormMulti({
     if (discountCode.length > 0) {
       const isValid = await validateDiscountCodeNow(discountCode);
       if (!isValid) {
-        onError("Your discount code has either expired, been changed, or is invalid. Please enter a valid discount code or remove it to proceed.");
+        onError("This discount code is no longer active or is incorrect. Please enter a valid code or remove it to continue.");
         return;
       }
     }
@@ -970,30 +991,6 @@ function MultiCreatorPaymentContent() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
 
-  const mergeSummaryPricing = useCallback((summary: any, details: any) => {
-    if (!summary || !summary.pricing) return summary;
-    const quote = details?.quote;
-    if (!quote) return summary;
-
-    const referralDiscount = parseFloat(quote.referral_discount_amount || 0);
-    const discountTotal = parseFloat(quote.discount_total || 0);
-    const discountCodeDiscount = Math.max(0, discountTotal - referralDiscount);
-    const paidTotal = summary.pricing.total_paid ?? summary.pricing.total ?? 0;
-    const totalBeforeDiscounts = parseFloat((paidTotal + discountCodeDiscount + referralDiscount).toFixed(2));
-
-    return {
-      ...summary,
-      pricing: {
-        ...summary.pricing,
-        discount_code_discount: discountCodeDiscount,
-        referral_discount: referralDiscount,
-        referral_code: quote.applied_referral_code ?? summary.pricing.referral_code,
-        discount_code: quote.applied_discount_code ?? summary.pricing.discount_code,
-        total_before_discounts: totalBeforeDiscounts,
-      },
-    };
-  }, []);
-
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
     shootCost: number;
@@ -1166,8 +1163,7 @@ function MultiCreatorPaymentContent() {
       const response = await axios.get(`${API_BASE_URL}admin/${shootId}/get-booking-summary`);
 
       if (response.data.success) {
-        const merged = mergeSummaryPricing(response.data.data, paymentDetails);
-        setSummaryData(merged);
+        setSummaryData(response.data.data);
       }
     } catch (err) {
       toast.error("Failed to load summary details");
@@ -1215,11 +1211,6 @@ function MultiCreatorPaymentContent() {
 
     fetchPaymentDetails();
   }, [shootId]);
-
-  useEffect(() => {
-    if (!summaryData || !paymentDetails) return;
-    setSummaryData((prev: any) => mergeSummaryPricing(prev, paymentDetails));
-  }, [mergeSummaryPricing, paymentDetails]);
 
   const handlePaymentSuccess = async (
     paymentIntentId: string,
@@ -1365,7 +1356,6 @@ function MultiCreatorPaymentContent() {
   // console.log(booking);
   // console.log(summaryData);
 
-
   return (
     <div className="pt-20 md:pt-32 pb-20 min-h-screen">
       <div className="container mx-auto px-4 xl:px-0">
@@ -1400,7 +1390,7 @@ function MultiCreatorPaymentContent() {
                   )}
                 </AnimatePresence>
 
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <Elements stripe={stripePromise}>
                   <StripePaymentFormMulti
                     clientSecret={clientSecret}
                     amount={quoteTotal || 0}
@@ -1441,10 +1431,10 @@ function MultiCreatorPaymentContent() {
                   <h4 className="font-bold text-base lg:text-2xl text-white">{toTitleCase(booking.shoot_name || "Unnamed Shoot")}</h4>
                 </div>
                 <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
-                  <div className="grid grid-cols-2 lg:grid-cols-3 mb-4 lg:mb-8">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 mb-4 gap-2">
                     <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Event Type:</span>
-                      <span className="font-medium">{toTitleCase((booking.project_name || booking.shoot_name || "").split("-")[0].trim())}</span>
+                      <span className="text-[#626467]">Shoot Category:</span>
+                      <span className="font-medium">{toTitleCase((summaryData.shoot_type || "").trim())}</span>
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Shoot Date:</span>
@@ -1452,9 +1442,13 @@ function MultiCreatorPaymentContent() {
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
-                      <span className="font-medium">{booking.duration_hours || 0} hours</span>
+                      <span className="font-medium">{formatDurationHours(booking.duration_hours)} hours</span>
                     </div>
                   </div>
+                    <div className="flex flex-col justify-between mb-4">
+                      <span className="text-[#626467]">Shoot Type:</span>
+                      <span className="font-medium">{toTitleCase((summaryData.event_type || "").trim())}</span>
+                    </div>
                   <div className="flex flex-col justify-between">
                     <span className="text-[#626467]">Location:</span>
                     <span className="truncate">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
@@ -1538,7 +1532,7 @@ function MultiCreatorPaymentContent() {
                     }
                     <div className="bg-gradient-to-r from-[#FFF0D8] to-white rounded-xl p-4 lg:p-7 flex flex-col justify-between gap-3 lg:gap-6 italic">
                       <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />Unlimited Usage Rights</p>
-                      <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />$1M Liability Insurance Policy</p>
+                      <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />$2M Liability Insurance Policy</p>
                       <p className="text-[#000] flex gap-2 text-base font-medium"><Check size={24} />Beige Guarantee</p>
                     </div>
                   </div>

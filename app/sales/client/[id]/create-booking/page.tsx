@@ -45,12 +45,12 @@ import {
 
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
+import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
-import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
+import { useGetClientLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
-import { adminApi } from "@/lib/api"; // Added for fetching client profile
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { getFormattedDateString } from "@/lib/utils";
 
@@ -116,32 +116,24 @@ export default function ClientDetailPage() {
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
 
-  // const { data: leadData } = useGetLeadByIdQuery(parseInt(leadId), { skip: !leadId });
+  const { data: leadData, isLoading: isLeadLoading } = useGetClientLeadByIdQuery(parseInt(leadId), { skip: !leadId });
 
-  // 1. Fetch Client Profile to show name proper
+  // Sync profile data from leadData
   useEffect(() => {
-    const fetchClientProfile = async () => {
-      try {
-        setIsProfileLoading(true);
-        const res = await adminApi.getClientFullDetails(leadId);
-        if (res && !res.error) {
-          setClientProfile(res.data.profile);
-          // Sync with formData
-          setFormData(prev => ({
-            ...prev,
-            fullName: res.data.profile.user.name,
-            email: res.data.profile.user.email,
-            phone: res.data.profile.user.phone_number || "",
-          }));
-        }
-      } catch (err) {
-        console.error("Profile Fetch Error:", err);
-      } finally {
-        setIsProfileLoading(false);
-      }
-    };
-    if (leadId) fetchClientProfile();
-  }, [leadId]);
+    if (leadData && leadData.profile) {
+      setClientProfile(leadData.profile);
+      setFormData(prev => ({
+        ...prev,
+        fullName: leadData.profile.user.name,
+        email: leadData.profile.user.email,
+        phone: leadData.profile.user.phone_number || "",
+      }));
+    }
+  }, [leadData]);
+
+  useEffect(() => {
+    setIsProfileLoading(isLeadLoading);
+  }, [isLeadLoading]);
 
   // Pre-populate form data when lead data is available
   // useEffect(() => {
@@ -304,7 +296,7 @@ export default function ClientDetailPage() {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
+        `${API_BASE_URL}/admin/get-crew-for-lead/?lead_id=${leadId}&date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
       );
       const result = await response.json();
 
@@ -617,9 +609,13 @@ export default function ClientDetailPage() {
         };
       }) : [];
 
+      const browserTimeZone = getBrowserTimeZone();
       const payload: any = {
+        client_lead_id: parseInt(leadId),
         booking_type: bookingType,
-        user_id: leadId,
+        user_id: clientProfile?.user_id || clientProfile?.user?.id || leadId,
+        guest_email: formData.email,
+        lead_id: leadId,
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
         location: formData.location,
@@ -631,7 +627,8 @@ export default function ClientDetailPage() {
         photo_edit_types: formData.photoEditTypes || [],
         is_draft: false,
         skip_discount: true,
-        skip_margin: true
+        skip_margin: true,
+        time_zone: browserTimeZone
       };
 
       if (bookingType === "single_day") {
@@ -639,11 +636,16 @@ export default function ClientDetailPage() {
         const endDate = parseDate(formData.endDate);
         const durationHours = startDate && endDate ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)) : 0;
 
+        payload.start_date = getLocalDatePart(formData.startDate);
+        payload.start_time = getLocalTimePart(formData.startDate);
+        payload.end_time = getLocalTimePart(formData.endDate) || "";
         payload.start_date_time = formData.startDate; // "yyyy-MM-dd'T'HH:mm:ss"
-        payload.end_time = endDate ? format(endDate, "HH:mm:ss") : "";
         payload.duration_hours = durationHours;
       } else {
-        payload.booking_days = booking_days;
+        payload.booking_days = booking_days.map((d: any) => ({
+          ...d,
+          time_zone: d.time_zone || d.timeZone || browserTimeZone
+        }));
       }
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
@@ -725,11 +727,11 @@ export default function ClientDetailPage() {
           <div className="flex flex-col gap-1">
             <div className="flex gap-3 items-center">
               <h1 className="lg:text-[28px] text-xl font-bold">
-                {clientProfile?.user?.name || "Client Name"}
+                {leadData?.client_name || leadData?.guest_email || clientProfile?.user?.name || "Client Name"}
               </h1>
-              <IntentBadge intent={"Hot"} />
+              <IntentBadge intent={(leadData?.intent || "Hot") as any} />
             </div>
-            <p className="text-sm text-white/40">{clientProfile?.user?.email}</p>
+            <p className="text-sm text-white/40">{leadData?.guest_email || clientProfile?.user?.email}</p>
           </div>
         </div>
         {/* <DottedDivider /> */}

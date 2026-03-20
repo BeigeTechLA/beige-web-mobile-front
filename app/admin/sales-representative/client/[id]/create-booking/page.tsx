@@ -44,12 +44,18 @@ import {
 } from "@/app/data/shootData";
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
+import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
-import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
+import {
+  useGetClientLeadByIdQuery,
+  useUpdateBookingCrewMutation,
+  useRemoveAssignedCrewMutation,
+  useGenerateClientDiscountCodeMutation,
+  useUpdateClientLeadIntentMutation
+} from "@/lib/redux/features/sales/salesApi";
 import Topbar from "@/components/admin/Topbar";
-import { adminApi } from "@/lib/api"; // Added for fetching client profile
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { getFormattedDateString } from "@/lib/utils";
 
@@ -90,10 +96,7 @@ export default function ClientDetailPage() {
     selectedCrewIds: []
   });
 
-  // --- NEW: Profile State ---
-  const [clientProfile, setClientProfile] = useState<any>(null);
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
-
+  // Fetch available shoot types from shootData
   const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
   const [videoEditTypeOptions, setVideoEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
@@ -115,32 +118,22 @@ export default function ClientDetailPage() {
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
 
-  // const { data: leadData } = useGetLeadByIdQuery(parseInt(leadId), { skip: !leadId });
+  // 1. Fetch Client Lead Details
+  const { data: leadData, isLoading: isLeadLoading } = useGetClientLeadByIdQuery(parseInt(leadId), { skip: !leadId });
 
-  // 1. Fetch Client Profile to show name proper
+  const clientProfile = leadData;
+  const isProfileLoading = isLeadLoading;
+
   useEffect(() => {
-    const fetchClientProfile = async () => {
-      try {
-        setIsProfileLoading(true);
-        const res = await adminApi.getClientFullDetails(leadId);
-        if (res && !res.error) {
-          setClientProfile(res.data.profile);
-          // Sync with formData
-          setFormData(prev => ({
-            ...prev,
-            fullName: res.data.profile.user.name,
-            email: res.data.profile.user.email,
-            phone: res.data.profile.user.phone_number || "",
-          }));
-        }
-      } catch (err) {
-        console.error("Profile Fetch Error:", err);
-      } finally {
-        setIsProfileLoading(false);
-      }
-    };
-    if (leadId) fetchClientProfile();
-  }, [leadId]);
+    if (leadData) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: leadData.client_name || leadData.guest_email || "",
+        email: leadData.guest_email || "",
+        phone: leadData.phone || "",
+      }));
+    }
+  }, [leadData]);
 
   // Pre-populate form data when lead data is available
   // useEffect(() => {
@@ -167,10 +160,10 @@ export default function ClientDetailPage() {
 
   // Dynamic Initials
   const initials = useMemo(() => {
-    const name = clientProfile?.user?.name || "Client Name";
+    const name = leadData?.client_name || leadData?.guest_email || "Client Name";
     if (!name) return "IN";
     return name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
-  }, [clientProfile]);
+  }, [leadData]);
 
   const includedRoles = formData.contentType.filter(t => t !== 'editing').map(t => {
     const role = TEAM_ROLES.find(r => r.id === t);
@@ -590,6 +583,11 @@ export default function ClientDetailPage() {
   const executeFinalizeDeal = async () => {
     setIsSubmitting(true);
     try {
+      if (!leadData?.user_id) {
+        toast.error("Client user ID not found");
+        return;
+      }
+
       const crewRoles: Record<string, number> = {};
       if (formData.contentType.includes("videographer")) {
         crewRoles["videographer"] = 1 + (extraTeam["videographer"] || 0);
@@ -613,9 +611,11 @@ export default function ClientDetailPage() {
         };
       }) : [];
 
+      const browserTimeZone = getBrowserTimeZone();
       const payload: any = {
+        client_lead_id: parseInt(leadId),
         booking_type: bookingType,
-        user_id: leadId,
+        user_id: String(leadData.user_id),
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
         location: formData.location,
@@ -627,7 +627,8 @@ export default function ClientDetailPage() {
         photo_edit_types: formData.photoEditTypes || [],
         is_draft: false,
         skip_discount: true,
-        skip_margin: true
+        skip_margin: true,
+        time_zone: browserTimeZone
       };
 
       if (bookingType === "single_day") {
@@ -635,11 +636,16 @@ export default function ClientDetailPage() {
         const endDate = parseDate(formData.endDate);
         const durationHours = startDate && endDate ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)) : 0;
 
+        payload.start_date = getLocalDatePart(formData.startDate);
+        payload.start_time = getLocalTimePart(formData.startDate);
+        payload.end_time = getLocalTimePart(formData.endDate) || "";
         payload.start_date_time = formData.startDate; // "yyyy-MM-dd'T'HH:mm:ss"
-        payload.end_time = endDate ? format(endDate, "HH:mm:ss") : "";
         payload.duration_hours = durationHours;
       } else {
-        payload.booking_days = booking_days;
+        payload.booking_days = booking_days.map((d: any) => ({
+          ...d,
+          time_zone: d.time_zone || d.timeZone || browserTimeZone
+        }));
       }
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
@@ -708,10 +714,10 @@ export default function ClientDetailPage() {
         {/* Dynamic Profile Header */}
         <div className="flex items-center gap-5 mb-8">
           <div className="w-16 h-16 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-[#101010] border border-[#E8D1AB] flex items-center justify-center text-xl lg:text-[30px] font-bold shrink-0 overflow-hidden">
-            {clientProfile?.user?.profile_image || clientProfile?.profile_image ? (
+            {leadData?.profile_image ? (
               <img
-                src={clientProfile?.user?.profile_image ? `${clientProfile.user.profile_image}` : `${S3_PREFIX}${clientProfile.profile_image}`}
-                alt={clientProfile?.user?.name}
+                src={leadData.profile_image.startsWith('http') ? leadData.profile_image : `${S3_PREFIX}${leadData.profile_image}`}
+                alt={leadData?.client_name}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -721,11 +727,11 @@ export default function ClientDetailPage() {
           <div className="flex flex-col gap-1">
             <div className="flex gap-3 items-center">
               <h1 className="lg:text-[28px] text-xl font-bold">
-                {clientProfile?.user?.name || "Client Name"}
+                {leadData?.client_name || leadData?.guest_email || "Client Name"}
               </h1>
-              <IntentBadge intent={"Hot"} />
+              <IntentBadge intent={(leadData?.intent || "Hot") as any} />
             </div>
-            <p className="text-sm text-white/40">{clientProfile?.user?.email}</p>
+            <p className="text-sm text-white/40">{leadData?.guest_email}</p>
           </div>
         </div>
         {/* <DottedDivider /> */}

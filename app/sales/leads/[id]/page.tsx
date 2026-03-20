@@ -39,6 +39,7 @@ import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
 import Topbar from "@/components/admin/Topbar";
+import { parseDate } from "@/src/components/landing/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -94,12 +95,20 @@ const mapLeadStatusToUI = (status: string): string => {
 // Helper to format date for the UI (e.g., 12 Mar 2026)
 const formatDateUI = (dateStr: string | null | undefined) => {
   if (!dateStr) return null;
-  const date = new Date(dateStr);
+  const date = parseDate(dateStr);
+  if (!date) return null;
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
+};
+
+const formatLeadSource = (value?: string | null) => {
+  if (!value) return "Website";
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
 export default function SalesLeadDetailsPage() {
@@ -200,7 +209,7 @@ export default function SalesLeadDetailsPage() {
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
 
   const bookingDate = booking?.event_date
-    ? new Date(booking.event_date).toLocaleDateString("en-US", {
+    ? (parseDate(booking.event_date) || new Date(booking.event_date)).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -414,7 +423,7 @@ export default function SalesLeadDetailsPage() {
                   </p>
                   <div className="w-[1px] h-4 bg-white hidden md:block" />
                   <p>
-                    Lead Source : <span className="text-white">{lead.intent_source || "Website"}</span>
+                    Lead Source : <span className="text-white">{formatLeadSource(lead.lead_source || lead.intent_source)}</span>
                   </p>
                   <div className="w-[1px] h-4 bg-white hidden md:block" />
                   <p>
@@ -599,7 +608,7 @@ export default function SalesLeadDetailsPage() {
                     <div className="ml-2 border-l-2 border-[#3D3D3D] pl-5 flex flex-col gap-3">
                       {booking.booking_days!.map((day: any, idx: number) => {
                         const dayDate = day.event_date
-                          ? new Date(day.event_date).toLocaleDateString("en-US", {
+                          ? (parseDate(day.event_date) || new Date(day.event_date)).toLocaleDateString("en-US", {
                             weekday: "short",
                             month: "short",
                             day: "numeric",
