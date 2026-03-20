@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { sanitizePhoneInput } from "@/lib/utils/phone";
 import { LocationPickerSignup } from "./LocationPickerSignup";
 import CropProfileModal from "./cropProfileModal";
 import {
@@ -205,7 +206,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
             type="tel"
             placeholder="+1 (555) 000-0000"
             value={data.phoneNumber || ""}
-            onChange={(e) => setData({ ...data, phoneNumber: e.target.value })}
+            onChange={(e) => setData({ ...data, phoneNumber: sanitizePhoneInput(e.target.value) })}
             className={inputClasses}
           />
         </div>

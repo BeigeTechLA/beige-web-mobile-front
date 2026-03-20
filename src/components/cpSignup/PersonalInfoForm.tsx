@@ -12,6 +12,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { LocationPicker } from "../booking/v2/component/LocationPicker";
+import { sanitizePhoneInput } from "@/lib/utils/phone";
 
 const distanceOptions = [
   { value: "Upto 50 miles", label: "Upto 50 miles" },
@@ -123,9 +124,12 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
       <div className="flex flex-col">
         <Label className={labelClasses}>Contact Phone</Label>
         <Input
+          type="tel"
           placeholder="Enter phone number"
           value={formData.phone_number}
-          onChange={(e) => handleFieldChange("phone_number", e.target.value)}
+          onChange={(e) => handleFieldChange("phone_number", sanitizePhoneInput(e.target.value))}
+          inputMode="tel"
+          autoComplete="tel"
           className={inputClasses}
         />
       </div>

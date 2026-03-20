@@ -1057,8 +1057,11 @@ export default function CreateQuotePage() {
                     <span className="text-xs text-zinc-400 font-medium">Phone Number*</span>
                   </div>
                   <Input
+                    type="tel"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
+                    inputMode="tel"
+                    autoComplete="tel"
                     className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E5D5B8]/50 transition-all pl-6"
                   />
                 </div>
