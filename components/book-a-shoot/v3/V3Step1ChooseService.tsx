@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { BookingDataV3 } from "./types";
 import { ContentTypeCheckbox } from "./components/ContentTypeCheckbox";
 import { ShootTypeCard } from "./components/ShootTypeCard";
@@ -129,6 +129,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const dragStartX = useRef(0);
   const dragStartScrollLeft = useRef(0);
   const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
+  const hasHydratedMultiDayState = useRef(false);
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const isAllVisible = visibleCount >= availableShootTypes.length;
@@ -249,10 +250,15 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       setMultiDayTimes({});
       setSameTimingsMulti(true);
       setExpandedDateKey(null);
+      hasHydratedMultiDayState.current = false;
       return;
     }
 
     if (!Array.isArray(data.bookingDays) || data.bookingDays.length === 0) {
+      return;
+    }
+
+    if (hasHydratedMultiDayState.current) {
       return;
     }
 
@@ -285,6 +291,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     setMultiDayTimes(restoredSameTimings ? {} : restoredTimes);
     setSelectedShootDate(restoredDates[0]);
     setCurrentCalendarMonth(restoredDates[0]);
+    hasHydratedMultiDayState.current = true;
   }, [data.bookingType, data.bookingDays]);
 
   const handleViewToggle = () => {
@@ -564,9 +571,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     if (bookingType === "multi_day") {
       setSelectedShootDate(date);
     }
-    if (reelRef.current) {
-      reelRef.current.scrollLeft = 0;
-    }
   };
 
   const getTimeLabel = (key: string) => {
@@ -589,6 +593,49 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const getDateKey = (date: Date) => format(date, "yyyy-MM-dd");
 
+  const buildDateTimeString = useCallback((date: Date, timeKey: string) => {
+    const [hours, minutes] = timeKey.split(":").map(Number);
+    const nextDate = set(date, { hours, minutes, seconds: 0, milliseconds: 0 });
+    return formatLocalDateTime(nextDate);
+  }, []);
+
+  const buildMultiDayTimeMap = useCallback((
+    dates: Date[],
+    fallback: { startKey?: string; endKey?: string } = {},
+    existing: Record<string, { startKey?: string; endKey?: string }> = {}
+  ) => {
+    return dates.reduce<Record<string, { startKey?: string; endKey?: string }>>((acc, date) => {
+      const dateKey = getDateKey(date);
+      acc[dateKey] = existing[dateKey] || { ...fallback };
+      return acc;
+    }, {});
+  }, []);
+
+  const handleSameTimingsModeChange = (useSameTimings: boolean) => {
+    setSameTimingsMulti(useSameTimings);
+    setExpandedDateKey(null);
+
+    if (useSameTimings) {
+      const firstSelectedDate = selectedDates[0];
+      const firstSelectedTiming = firstSelectedDate
+        ? multiDayTimes[getDateKey(firstSelectedDate)]
+        : undefined;
+
+      if (firstSelectedDate && firstSelectedTiming?.startKey && firstSelectedTiming?.endKey) {
+        updateData({
+          startDate: buildDateTimeString(firstSelectedDate, firstSelectedTiming.startKey),
+          endDate: buildDateTimeString(firstSelectedDate, firstSelectedTiming.endKey),
+        });
+      }
+
+      return;
+    }
+
+    const startKey = getStartTimeKey();
+    const endKey = getEndTimeKey();
+    setMultiDayTimes((prev) => buildMultiDayTimeMap(selectedDates, { startKey, endKey }, prev));
+  };
+
   const handleMultiDayStartTimeChange = (dateKey: string, timeKey: string) => {
     setMultiDayTimes((prev) => ({
       ...prev,
@@ -602,6 +649,20 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       [dateKey]: { ...prev[dateKey], endKey: timeKey }
     }));
   };
+
+  useEffect(() => {
+    if (bookingType !== "multi_day" || sameTimingsMulti) {
+      return;
+    }
+
+    const startKey = getStartTimeKey();
+    const endKey = getEndTimeKey();
+    setMultiDayTimes((prev) => buildMultiDayTimeMap(selectedDates, { startKey, endKey }, prev));
+
+    if (expandedDateKey && !selectedDates.some((date) => getDateKey(date) === expandedDateKey)) {
+      setExpandedDateKey(null);
+    }
+  }, [bookingType, sameTimingsMulti, selectedDates, expandedDateKey, data.startDate, data.endDate, buildMultiDayTimeMap]);
 
   useEffect(() => {
     if ((data.bookingType || "single_day") !== bookingType) {
@@ -1197,7 +1258,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       }`}>
                       Select Date
                     </h3>
-                    <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
+                    <button type="button" onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
                       <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
                       <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
                     </button>
@@ -1237,7 +1298,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       const isSelected = selectedDates.some(d => isSameDay(d, date));
                       return (
                         <button
+                          type="button"
                           key={date.toISOString()}
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => toggleDateSelection(date)}
                           className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
                         >
@@ -1262,15 +1325,16 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     {isCalendarOpen && (
                       <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
                         <div className="flex justify-between items-center mb-6">
-                          <button onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
+                          <button type="button" onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
                             <ChevronLeft size={20} />
                           </button>
                           <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
                           <div className="flex items-center gap-2">
-                            <button onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
+                            <button type="button" onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
                               <ChevronRight size={20} />
                             </button>
                             <button
+                              type="button"
                               onClick={() => setIsCalendarOpen(false)}
                               className="rounded-full p-1 hover:bg-white/10 transition-colors"
                               aria-label="Close calendar"
@@ -1287,6 +1351,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                             const isSelected = selectedDates.some(d => isSameDay(d, date));
                             return (
                               <button
+                                type="button"
                                 key={date.toISOString()}
                                 onClick={() => {
                                   toggleDateSelection(date);
@@ -1310,11 +1375,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
                     <div className="flex gap-4">
                       <button
-                        onClick={() => {
-                          setSameTimingsMulti(true);
-                          setMultiDayTimes({});
-                          // scrollToRef(navigationRef); //update with correct ref
-                        }}
+                        type="button"
+                        onClick={() => handleSameTimingsModeChange(true)}
                         disabled={data.shootType === ""}
                         className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                       >
@@ -1329,18 +1391,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         </div>
                       </button>
                       <button
-                        onClick={() => {
-                          setSameTimingsMulti(false);
-                          const startKey = getStartTimeKey();
-                          const endKey = getEndTimeKey();
-                          const nextTimes: Record<string, { startKey?: string; endKey?: string }> = {};
-                          selectedDates.forEach((d) => {
-                            const key = getDateKey(d);
-                            nextTimes[key] = { startKey, endKey };
-                          });
-                          setMultiDayTimes(nextTimes);
-                          // scrollToRef(navigationRef);  //update with correct ref
-                        }}
+                        type="button"
+                        onClick={() => handleSameTimingsModeChange(false)}
                         disabled={data.shootType === ""}
                         className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                       >
@@ -1405,7 +1457,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                             const isExpanded = expandedDateKey === dateKey;
                             return (
                               <div key={date.toISOString()} className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}>
-                                <button onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
+                                <button type="button" onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
                                   <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
                                   <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                                 </button>

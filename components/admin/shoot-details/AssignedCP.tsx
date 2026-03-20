@@ -12,6 +12,7 @@ import "swiper/css/effect-cards";
 import { Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminApi } from "@/lib/api";
+import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
 
 export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { projectId: string; leadId?: string | number, assignedCrew?: any[] }) {
@@ -95,53 +96,89 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
             <div className={`w-full h-px bg-dashed border-t border-dashed absolute top-20 left-0 transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
                 }`} />
 
-            {hasCPs ? (
-                <>
-                    {/* Cards Swiper - Vertical Direction to match 'down' interaction feel */}
-                    <div className="w-[240px] h-[260px] mt-24 relative z-10">
-                        <Swiper
-                            effect={"cards"}
-                            direction={"vertical"} // Vertical swipe to "pull down" or "push up"
-                            grabCursor={true}
-                            modules={[EffectCards]}
-                            className="w-full h-full"
-                            cardsEffect={{
-                                perSlideOffset: 12, // Reduced offset to keep in box
-                                perSlideRotate: 0, // No rotation
-                                slideShadows: false,
-                            }}
-                            onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
-                        >
-                            {crewMembers.map((member, index) => {
-                                const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
-                                return (
-                                    <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleRemoveCP(Number(member.crew_member_id || member.id));
-                                            }}
-                                            disabled={removingCrewId === Number(member.crew_member_id || member.id)}
-                                            className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
-                                            aria-label="Remove CP"
-                                        >
-                                            {removingCrewId === Number(member.crew_member_id || member.id) ? (
-                                                <Loader2 size={16} className="animate-spin" />
-                                            ) : (
-                                                <X size={18} />
-                                            )}
-                                        </button>
-                                        <Image
-                                            src={getProfileImage(member)}
-                                            alt={`${member.crew_member?.first_name} ${member.crew_member?.last_name}`}
-                                            fill
-                                            className="object-cover object-top"
-                                        />
-                                    </SwiperSlide>
-                                );
-                            })}
-                        </Swiper>
+            {
+                hasCPs ? (
+                    <>
+                        {/* Cards Swiper - Vertical Direction to match 'down' interaction feel */}
+                        <div className="w-[240px] h-[260px] mt-24 relative z-10">
+                            <Swiper
+                                effect={"cards"}
+                                direction={"vertical"} // Vertical swipe to "pull down" or "push up"
+                                grabCursor={true}
+                                modules={[EffectCards]}
+                                className="w-full h-full"
+                                cardsEffect={{
+                                    perSlideOffset: 12, // Reduced offset to keep in box
+                                    perSlideRotate: 0, // No rotation
+                                    slideShadows: false,
+                                }}
+                                onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
+                            >
+                                {crewMembers.map((member, index) => {
+                                    const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
+                                    return (
+                                        <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRemoveCP(Number(member.crew_member_id || member.id));
+                                                }}
+                                                disabled={removingCrewId === Number(member.crew_member_id || member.id)}
+                                                className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
+                                                aria-label="Remove CP"
+                                            >
+                                                {removingCrewId === Number(member.crew_member_id || member.id) ? (
+                                                    <Loader2 size={16} className="animate-spin" />
+                                                ) : (
+                                                    <X size={18} />
+                                                )}
+                                            </button>
+                                            <Image
+                                                src={getProfileImage(member)}
+                                                alt={`${member.crew_member?.first_name} ${member.crew_member?.last_name}`}
+                                                fill
+                                                className="object-cover object-top"
+                                            />
+                                        </SwiperSlide>
+                                    );
+                                })}
+                            </Swiper>
+                        </div>
+
+                        {/* Text Info - Added to match ProjectTeam symmetry */}
+                        <div className="mt-auto lg:mb-4 text-center z-10 relative">
+                            <h4 className="text-white lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300">
+                                {crewMembers[activeIndex]?.crew_member ? `${crewMembers[activeIndex].crew_member.first_name} ${crewMembers[activeIndex].crew_member.last_name}` : "Unknown"}
+                            </h4>
+                            <p className="text-[#888888] text-sm lg:text-base font-medium leading-none mt-1 lg:mt-2 transition-all duration-300">
+                                {getPrimaryRoleLabel(
+                                    crewMembers[activeIndex]?.crew_member?.primary_role,
+                                    crewMembers[activeIndex]?.crew_member?.role_name
+                                )}
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col lg:flex-row gap-4">
+                            <Button
+                                onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
+                                className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
+                            >
+                                <Plus /> Add More CPs
+                            </Button>
+                            {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
+                                Change CPs
+                            </Button> */}
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30">
+                        <button
+                            onClick={() => router.push(`/admin/shoots/${projectId}/add-creatives`)}
+                            className="w-20 h-20 bg-[#E5D5B8] rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-transform shadow-lg shadow-[#E5D5B8]/10">
+                            <Plus size={40} className="text-black" />
+                        </button>
+                        <h4 className="text-[#E5D5B8] text-base font-medium leading-none">Assign Creative Partner</h4>
                     </div>
 
                     {/* Text Info - Added to match ProjectTeam symmetry */}

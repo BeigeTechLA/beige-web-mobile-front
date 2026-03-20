@@ -92,6 +92,15 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const sanitizePhoneInput = (value: string) => value.replace(/[^\d+()\-\s]/g, "");
+
+const getPhoneDigits = (value: string) => value.replace(/\D/g, "");
+
+const isValidPhoneNumber = (value: string) => {
+  const digitCount = getPhoneDigits(value).length;
+  return digitCount >= 7 && digitCount <= 15;
+};
+
 export const V3Step4BookConfirm: React.FC<Props> = ({
   data,
   updateData,
@@ -146,6 +155,12 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     : data.startDate && data.endDate
       ? `${format(new Date(data.startDate), "h:mm a")} - ${format(new Date(data.endDate), "h:mm a")}`
       : "Time not set";
+  const formatSummaryDate = (value: string) => format(new Date(value), "dd MMM, yyyy");
+  const summaryDateText = displayDateText && (isMultiDay
+    ? `${sortedBookingDays.length} Days • ${formatSummaryDate(firstDay.date)} - ${formatSummaryDate(lastDay.date)}`
+    : data.startDate
+      ? formatSummaryDate(data.startDate)
+      : "Date not set");
 
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(true);
@@ -207,6 +222,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       setErrors((prev) => [...prev, "contactError"]);
       return;
     }
+
+    if (!isValidPhoneNumber(data.phone)) {
+      toast.error("Please enter a valid phone number");
+      setErrors((prev) => [...prev, "contactError"]);
+      return;
+    }
+
     // Trigger submission
     onConfirm();
   };
@@ -284,6 +306,12 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       }
 
       try {
+        const toIsoIfValid = (value?: string | null) => {
+          if (!value) return value;
+          const d = new Date(value);
+          return isNaN(d.getTime()) ? value : d.toISOString();
+        };
+
         console.log("V3Step4BookConfirm - Sending to API:", {
           creator_ids: data.selectedCrewIds,
           selectedCrewCount: data.selectedCrewIds?.length || 0,
@@ -313,7 +341,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           shoot_hours: durationHours,
           role_counts: data.roleCounts,
           event_type: data.shootType || "general",
-          shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : data.startDate,
+          shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : toIsoIfValid(data.startDate),
           video_edit_types: buildEditTypeCounts(data.videoEditTypes),
           photo_edit_types: buildEditTypeCounts(data.photoEditTypes),
           skip_discount: true,
@@ -432,7 +460,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
   // Automatically clear the location error once data.location is truthy
   useEffect(() => {
-    if ((data.fullName || data.phone) && errors.includes("contactError")) {
+    if (data.fullName && isValidPhoneNumber(data.phone) && errors.includes("contactError")) {
       setErrors(prev => prev.filter(err => err !== "contactError"));
     }
   }, [data.fullName, data.phone, errors]);
@@ -598,7 +626,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="text-white text-base lg:text-lg font-medium capitalize">
-                        {displayDateText}
+                    {summaryDateText}
                       </span>
                       <span className="text-sm text-[#A9A9A9]">Date</span>
                     </div>
@@ -723,7 +751,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     id="phone"
                     type={"tel"}
                     value={data.phone}
-                    onChange={(e) => updateData({ phone: e.target.value })}
+                    onChange={(e) => updateData({ phone: sanitizePhoneInput(e.target.value) })}
+                    inputMode="tel"
+                    autoComplete="tel"
                     className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
                   />
                 </div>

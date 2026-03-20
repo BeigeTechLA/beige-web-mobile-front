@@ -6,6 +6,7 @@ import { Copy, Mail, Check, Clock, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import {
   useGeneratePaymentLinkMutation,
+  useGenerateClientPaymentLinkMutation,
   useNotifyPaymentLinkMutation,
   usePreviewInvoiceMutation,
   useSendInvoiceMutation
@@ -23,14 +24,13 @@ interface GeneratePaymentLinkProps {
     is_used: boolean;
     is_expired: boolean;
   } | null;
-  isDark?: boolean; // Added theme prop
+  isClientLead?: boolean;
+  isDark?: boolean;
 }
 
-const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus, activeLink, isDark = true }: GeneratePaymentLinkProps) => {
+const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus, activeLink, isClientLead, isDark = true }: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>("No");
-  const [isLocked, setIsLocked] = useState(false);
   const [hasPreviewedInvoice, setHasPreviewedInvoice] = useState(false);
-
   const [paymentData, setPaymentData] = useState<{ url: string; id: number; isExpired: boolean } | null>(null);
 
   useEffect(() => {
@@ -47,7 +47,10 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
     setHasPreviewedInvoice(false);
   }, [bookingId, paymentData?.id]);
 
-  const [generateLink, { isLoading: isGenerating }] = useGeneratePaymentLinkMutation();
+  const [generateLink, { isLoading: isGeneratingLink }] = useGeneratePaymentLinkMutation();
+  const [generateClientLink, { isLoading: isGeneratingClientLink }] = useGenerateClientPaymentLinkMutation();
+  const isGenerating = isGeneratingLink || isGeneratingClientLink;
+
   const [notifyLink, { isLoading: isNotifying }] = useNotifyPaymentLinkMutation();
   const [previewInvoice, { isLoading: isPreviewingInvoice }] = usePreviewInvoiceMutation();
   const [sendInvoice, { isLoading: isSendingInvoice }] = useSendInvoiceMutation();
@@ -63,12 +66,22 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
     }
 
     try {
-      const response = await generateLink({
-        lead_id: leadId,
-        booking_id: bookingId,
-        discount_code_id: attachDiscount === "Yes" ? discountCodeId : undefined,
-        expiry_hours: 48
-      }).unwrap();
+      let response: any;
+      if (isClientLead && leadId) {
+        response = await generateClientLink({
+          client_lead_id: leadId,
+          booking_id: bookingId,
+          discount_code_id: attachDiscount === "Yes" ? discountCodeId : undefined,
+          expiry_hours: 2 // User requested 2 hours in example
+        }).unwrap();
+      } else {
+        response = await generateLink({
+          lead_id: leadId,
+          booking_id: bookingId,
+          discount_code_id: attachDiscount === "Yes" ? discountCodeId : undefined,
+          expiry_hours: 48
+        }).unwrap();
+      }
 
       if (response.success && response.data) {
         setPaymentData({
@@ -159,8 +172,9 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
   };
 
   return (
-    <div className={`transition-colors duration-300 border rounded-2xl w-full max-w-[500px] lg:max-w-6xl overflow-hidden ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"
-      }`}>
+    <div className={`transition-all duration-300 border rounded-2xl w-full max-w-[500px] lg:max-w-6xl overflow-hidden ${
+      isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"
+    }`}>
       <div className="flex flex-col gap-3 px-5 lg:px-9 pt-5 lg:pt-8">
         <h2 className={`lg:text-xl font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
           Payment Link
@@ -171,8 +185,8 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
               onClick={handlePreviewInvoice}
               disabled={isPreviewingInvoice}
               className={`h-10 text-xs lg:text-sm border px-3 lg:px-4 py-1.5 rounded-lg transition-all flex items-center justify-center gap-2 ${isDark
-                  ? "text-[#E8D1AB] border-[#E8D1AB]/20 bg-[#0A0808] hover:bg-[#E8D1AB]/10"
-                  : "text-white border-black bg-black hover:bg-gblack/70"
+                ? "text-[#E8D1AB] border-[#E8D1AB]/20 bg-[#0A0808] hover:bg-[#E8D1AB]/10"
+                : "text-white border-black bg-black hover:bg-gblack/70"
                 }`}
             >
               {isPreviewingInvoice ? (
@@ -186,8 +200,8 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
               onClick={handleSendInvoice}
               disabled={!hasPreviewedInvoice || isSendingInvoice}
               className={`h-10 text-xs lg:text-sm px-3 lg:px-4 py-1.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${isDark
-                  ? "text-[#101010] bg-[#E8D1AB] hover:bg-[#D4C3A3]"
-                  : "text-black bg-[#E8D1AB] hover:bg-[#D9C19A]"
+                ? "text-[#101010] bg-[#E8D1AB] hover:bg-[#D4C3A3]"
+                : "text-black bg-[#E8D1AB] hover:bg-[#D9C19A]"
                 }`}
             >
               {isSendingInvoice ? (
@@ -200,6 +214,7 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
           </div>
         )}
       </div>
+      
       <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"} my-4 lg:my-9`} />
 
       {/* <DottedDivider /> */}
@@ -219,14 +234,14 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
                     type="button"
                     onClick={() => setAttachDiscount(opt as any)}
                     className={`flex-1 h-12 rounded-xl border flex items-center justify-between px-4 transition-all duration-300 ${attachDiscount === opt
-                        ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/5 text-white" : "border-[#E8D1AB] bg-[#E8D1AB]/50 text-black")
-                        : (isDark ? "border-[#3D3D3D] bg-transparent text-[#9F9FA9]" : "border-[#D8D8D8] bg-transparent text-black/40")
+                      ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/5 text-white" : "border-[#E8D1AB] bg-[#E8D1AB]/50 text-black")
+                      : (isDark ? "border-[#3D3D3D] bg-transparent text-[#9F9FA9]" : "border-[#D8D8D8] bg-transparent text-black/40")
                       }`}
                   >
                     <span className="font-medium text-sm">{opt}</span>
                     <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${attachDiscount === opt
-                        ? (isDark ? "border-[#E8D1AB]" : "border-black")
-                        : (isDark ? "border-white/20" : "border-gray-400/60")
+                      ? (isDark ? "border-[#E8D1AB]" : "border-black")
+                      : (isDark ? "border-white/20" : "border-gray-400/60")
                       }`}>
                       {attachDiscount === opt && (
                         <div className={`w-2.5 h-2.5 rounded-full bg-[#E8D1AB] ${isDark ? "bg-[#E8D1AB]" : "bg-black"}`} />
@@ -235,23 +250,6 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
                   </button>
                 ))}
               </div>
-            </div>
-
-            <div className="flex items-center justify-between py-2">
-              <label className={`text-sm font-light ${isDark ? "text-[#9F9FA9]" : "text-black/60"}`}>
-                Lock Booking After Generation
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsLocked(!isLocked)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${isLocked ? ("bg-[#E8D1AB]") : (isDark ? "bg-[#2A2A2A]" : "bg-gray-200")
-                  }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${isLocked ? "translate-x-6" : "translate-x-1"
-                    }`}
-                />
-              </button>
             </div>
 
             <Button
@@ -266,13 +264,11 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
         ) : paymentData ? (
           /* Active / Expired Link UI */
           <div className="space-y-4 mt-6">
-            <div className={`border rounded-xl p-4 space-y-4 transition-colors ${
-              paymentData.isExpired 
-                ? (isDark ? "bg-red-500/10 border-red-500/20" : "bg-red-50 border-red-200") 
-                : (isDark ? "bg-[#0365441A] border-[#1B3024]" : "bg-emerald-50 border-emerald-100")
+            <div className={`border rounded-xl p-4 space-y-4 transition-colors ${paymentData.isExpired
+              ? (isDark ? "bg-red-500/10 border-red-500/20" : "bg-red-50 border-red-200")
+              : (isDark ? "bg-[#0365441A] border-[#1B3024]" : "bg-emerald-50 border-emerald-100")
               }`}>
-              <div className={`flex items-center gap-2 text-sm font-medium ${
-                paymentData.isExpired ? (isDark ? "text-red-400" : "text-red-600") : (isDark ? "text-[#22C55E]" : "text-emerald-600")
+              <div className={`flex items-center gap-2 text-sm font-medium ${paymentData.isExpired ? (isDark ? "text-red-400" : "text-red-600") : (isDark ? "text-[#22C55E]" : "text-emerald-600")
                 }`}>
                 {paymentData.isExpired ? <Clock size={16} /> : <Check size={16} />}
                 {paymentData.isExpired ? "Payment Link Expired" : "Active Payment Link"}
@@ -280,14 +276,12 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
 
               {!paymentData.isExpired && (
                 <div className="flex gap-2">
-                  <div className={`flex-1 border rounded-lg px-4 py-3 text-xs lg:text-sm truncate transition-colors ${
-                    isDark ? "bg-[#101010] border-white/5 text-[#A1A1A1]" : "bg-white border-[#D8D8D8] text-black/60"
-                  }`}>
+                  <div className={`flex-1 border rounded-lg px-4 py-3 text-xs lg:text-sm truncate transition-colors ${isDark ? "bg-[#101010] border-white/5 text-[#A1A1A1]" : "bg-white border-[#D8D8D8] text-black/60"
+                    }`}>
                     {paymentData.url}
                   </div>
-                  <button onClick={handleCopy} className={`border p-3 rounded-lg transition-colors ${
-                    isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
-                  }`}>
+                  <button onClick={handleCopy} className={`border p-3 rounded-lg transition-colors ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
+                    }`}>
                     <Copy size={18} />
                   </button>
                 </div>
@@ -317,8 +311,8 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
                 <button
                   onClick={() => setPaymentData(null)}
                   className={`text-sm transition-colors underline underline-offset-4 ${isDark
-                      ? "text-[#9F9FA9] hover:text-white"
-                      : "text-black/50 hover:text-black"
+                    ? "text-[#9F9FA9] hover:text-white"
+                    : "text-black/50 hover:text-black"
                     }`}
                 >
                   Regenerate Link
@@ -337,8 +331,8 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
             </p>
           </div>
         )}
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

@@ -102,6 +102,13 @@ const formatDateUI = (dateStr: string | null | undefined) => {
   });
 };
 
+const formatLeadSource = (value?: string | null) => {
+  if (!value) return "Website";
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 export default function LeadDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -413,7 +420,7 @@ export default function LeadDetailPage() {
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>
-                    Lead Source : <span className={isDark ? "text-white" : "text-black"}>{lead.intent_source || "Website"}</span>
+                    Lead Source : <span className={isDark ? "text-white" : "text-black"}>{formatLeadSource(lead.lead_source || lead.intent_source)}</span>
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>

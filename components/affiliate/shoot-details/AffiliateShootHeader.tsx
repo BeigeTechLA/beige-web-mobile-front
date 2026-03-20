@@ -5,6 +5,12 @@ import Image from "next/image";
 import { ArrowLeft, SlidersHorizontal, Pencil, CheckCircle2, Circle, CircleX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import {
+  getPaymentStatusMeta,
+  getProjectFolderLink,
+  getShootFilesText,
+} from "@/lib/utils/shootDetails";
 
 interface AffiliateShootHeaderProps {
   activeTab?: string;
@@ -14,6 +20,9 @@ interface AffiliateShootHeaderProps {
 
 export default function AffiliateShootHeader({ activeTab = "Overview", project, onBack }: AffiliateShootHeaderProps) {
   const router = useRouter();
+  const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
+  const folderLink = getProjectFolderLink(project);
+  const shootFilesText = getShootFilesText(project);
 
   const formatShootDate = (dateValue?: string) => {
     if (!dateValue) return "N/A";
@@ -50,16 +59,6 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
 
     const parsedAmount = Number(amount);
     return Number.isNaN(parsedAmount) ? "$0.00" : `$${parsedAmount.toLocaleString()}`;
-  };
-
-  const getPaymentStatus = () => {
-    if (project?.payment_status) {
-      return project.payment_status;
-    }
-    if (project?.payment_id) {
-      return "paid";
-    }
-    return "pending";
   };
 
   const getLocationText = () => {
@@ -159,8 +158,8 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />
               <div className="flex gap-2">
                 <span>Payment Status :</span>
-                <span className={getPaymentStatus() === "paid" ? "text-[#22C55E] font-medium capitalize" : "text-yellow-400 font-medium capitalize"}>
-                  {getPaymentStatus()}
+                <span className={cn("font-medium", paymentStatus.className)}>
+                  {paymentStatus.label}
                 </span>
               </div>
             </div>
@@ -168,9 +167,19 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
             <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base text-[#AAAAAA] mt-2 lg:mt-4">
               <div className="flex gap-2">
                 <span>Folder Link :</span>
-                <a href={project?.reference_links || "#"} target="_blank" rel="noopener noreferrer" className="text-[#E5D5B8] underline underline-offset-4 decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8] transition-all">
-                  {project?.reference_links ? "View Folder" : "No Link Available"}
-                  {(activeTab === "Pre_Production" || activeTab === "Post_Production") && project?.reference_links && (
+                <a
+                  href={folderLink || "#"}
+                  target={folderLink ? "_blank" : undefined}
+                  rel={folderLink ? "noopener noreferrer" : undefined}
+                  className={cn(
+                    "underline underline-offset-4 transition-all",
+                    folderLink
+                      ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]"
+                      : "text-white/50 decoration-white/10 pointer-events-none"
+                  )}
+                >
+                  {folderLink || "No Link Available"}
+                  {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production") && (
                     <span className="text-white"> / {activeTab.replace("_", " ")}</span>
                   )}
                 </a>
@@ -178,7 +187,7 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />
               <div className="flex gap-2">
                 <span>Shoot Files :</span>
-                <span className="text-white font-medium">Coming Soon</span>
+                <span className="text-white font-medium">{shootFilesText}</span>
               </div>
             </div>
 

@@ -30,7 +30,7 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const checkCpStatus = async () => {
       try {
-        const response = await CheckCpStatus();
+        const response = await CheckCPStatus();
         const data = (response as any)?.data ?? response;
 
         if (data?.success === false || data?.status === "inactive") {

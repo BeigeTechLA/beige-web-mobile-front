@@ -61,7 +61,7 @@ export const Hero = () => {
                 paddingBottom: "4px"
               }}
             >
-              Beige AI: Videography, Photography, & AI Editing
+              Beige AI: Videography, Photography, & Editing
             </motion.h1>
 
 
@@ -72,7 +72,7 @@ export const Hero = () => {
               transition={{ duration: 0.8 }}
               className="text-base md:text-[32px] leading-tight text-white/70 mb-4 lg:mb-8"
             >
-              Video, Photo, & Editing All in One Platform
+             All in One Platform
             </motion.h4>
 
             {/* New section */}
