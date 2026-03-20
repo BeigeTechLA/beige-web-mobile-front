@@ -104,6 +104,27 @@ const formatShortDate = (value: string) => {
   return `${day} ${month}, ${year}`;
 };
 
+const formatDurationHours = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return "0";
+
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? String(value) : String(value).replace(/\.0+$/, "");
+  }
+
+  if (typeof value === "string") {
+    return value.trim().replace(/\.00$/, "") || "0";
+  }
+
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue)) {
+    return Number.isInteger(numericValue)
+      ? String(numericValue)
+      : String(numericValue).replace(/\.0+$/, "");
+  }
+
+  return "0";
+};
+
 // Helper for title casing
 const toTitleCase = (str: string) => {
   if (!str) return "";
@@ -1451,7 +1472,7 @@ function MultiCreatorPaymentContent() {
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
-                      <span className="font-medium">{(booking.duration_hours.replace(/\.00$/, '')) || 0} hours</span>
+                      <span className="font-medium">{formatDurationHours(booking.duration_hours)} hours</span>
                     </div>
                   </div>
                     <div className="flex flex-col justify-between mb-4">
