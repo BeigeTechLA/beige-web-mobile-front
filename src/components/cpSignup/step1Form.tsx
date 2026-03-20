@@ -119,7 +119,26 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
         formData.append("user_id", data.user_id);
       }
 
-      formData.append("location", typeof data.location === 'object' ? JSON.stringify(data.location) : data.location);
+      const locationAddress =
+        typeof data.location === "object" && data.location !== null
+          ? data.location.address
+          : data.location;
+      const locationLat =
+        typeof data.location === "object" && data.location !== null
+          ? data.location.lat
+          : null;
+      const locationLng =
+        typeof data.location === "object" && data.location !== null
+          ? data.location.lng
+          : null;
+
+      formData.append("location", locationAddress || "");
+      if (typeof locationLat === "number") {
+        formData.append("lat", locationLat.toString());
+      }
+      if (typeof locationLng === "number") {
+        formData.append("lng", locationLng.toString());
+      }
       formData.append("working_distance", data.workingDistance);
       formData.append("profile_photo", data.profileImage, "profile-picture.jpg");
 
@@ -143,10 +162,10 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
         cp_signup_form: {
           first_name: data.firstName,
           last_name: data.lastName,
-          location: typeof data.location === 'object' ? JSON.stringify(data.location) : data.location,
-          shoot_radius: data.workingDistance,
-          profile_picture: data.profileImage ? true : false,
-        }
+        location: locationAddress,
+        shoot_radius: data.workingDistance,
+        profile_picture: data.profileImage ? true : false,
+      }
       });
       // ---------------------------
 
