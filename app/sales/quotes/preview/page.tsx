@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import Topbar from "@/components/admin/Topbar";
+import Topbar from "@/components/sales/Topbar";
 import { ArrowDownToLine, ArrowLeft, Copy, Send, Video } from "lucide-react";
 import { getInitials } from "@/lib/utils";
 
@@ -38,7 +38,7 @@ export default function QuoteSummaryPage() {
             <Button onClick={() => console.log("Download PDF")} className="bg-[#202020] text-white hover:bg-[#202020]/50 border border-[#FFFFFF33]">
               <ArrowDownToLine /> Download PDF
             </Button>
-            <Button onClick={() => router.push("/admin/quotes/preview")} className="bg-[#E5D5B8] text-black">
+            <Button onClick={() => router.push("/sales/quotes/preview")} className="bg-[#E5D5B8] text-black">
               <Send /> Send Quote
             </Button>
           </>
