@@ -185,3 +185,11 @@ export const getFormattedDateString = (dates: Date[]) => {
 
   return `${dayString} ${monthYear}`;
 };
+
+export const getInitials = (name: string) => {
+  if (!name) return "NA";
+  const words = name.trim().split(/\s+/);
+  const firstLetter = words[0]?.charAt(0) || "";
+  const secondLetter = words[1]?.charAt(0) || "";
+  return (firstLetter + secondLetter).toUpperCase();
+};
