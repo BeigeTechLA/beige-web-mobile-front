@@ -168,7 +168,7 @@ export const UserManagementTabbed = () => {
             let paginationData: any = null;
 
             if (shouldFetchClients) {
-                const clientsRes = await adminApi.getClients(params);
+                const clientsRes = await adminApi.getAdminClients(params);
                 if (clientsRes?.data) {
                     const items = Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || []);
                     const mapped = items.map((client: any) => ({
