@@ -32,7 +32,7 @@ export default function QuoteSummaryPage() {
       <Topbar pathname={pathname}
         actions={
           <Button onClick={() => router.push("/admin/quotes/preview")} className="bg-[#E5D5B8] text-black">
-            Preview
+            Preview Quote
           </Button>
         }
       />
@@ -138,31 +138,25 @@ export default function QuoteSummaryPage() {
               </div>
             )}
 
-             {/* Add-ons  */}
-            {logisticsData.length > 0 && (
-              <div className="bg-[#282727] rounded-xl border border-[#FFFFFF80] p-3 lg:p-6">
-                <div className="flex justify-between lg:text-lg">
-                  <p className="text-[#FFFFFFAD] font-semibold">Subtotal</p>
-                  <p className="text-white font-bold">$1,600.00</p>
-                </div>
-                <div className="my-8 border-t  border-[#FFFFFF5C]" />
-                <div className="space-y-3 lg:space-y-6">
-                  {
-                    addonData.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center lg:text-lg"
-                      >
-                        <p className="text-[#FFF] font-medium">{item.label}</p>
-                        <p className="text-[#9C9696]">
-                          ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                    ))
-                  }
-                </div>
+            {/* Subtotal  */}
+            <div className="bg-[#282727] rounded-xl border border-[#FFFFFF80] p-3 lg:p-6 space-y-3 lg:space-y-6">
+              <div className="flex justify-between lg:text-lg">
+                <p className="text-[#FFFFFFAD] font-semibold">Subtotal</p>
+                <p className="text-white font-bold">$1,600.00</p>
               </div>
-            )}
+              <div className="flex justify-between items-center lg:text-lg">
+                <p className="text-[#FFF] font-medium">Sales Tax (8.5%)</p>
+                <p className="text-[#9C9696]">
+                  $471.75
+                </p>
+              </div>
+              <div className="flex justify-between items-center text-lg text-black lg:text-xl bg-[#E8D1AB] p-3 lg:p-6 rounded-lg lg:rounded-xl">
+                <p className="font-medium">Final Total</p>
+                <p className="text-xl lg:text-2xl font-semibold">
+                  $6,021.75
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
