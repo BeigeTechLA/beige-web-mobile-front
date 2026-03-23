@@ -45,6 +45,7 @@ import {
 } from "@/app/data/shootData";
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
+import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
@@ -614,6 +615,7 @@ export default function ClientDetailPage() {
         };
       }) : [];
 
+      const browserTimeZone = getBrowserTimeZone();
       const payload: any = {
         client_lead_id: parseInt(leadId),
         booking_type: bookingType,
@@ -629,7 +631,8 @@ export default function ClientDetailPage() {
         photo_edit_types: formData.photoEditTypes || [],
         is_draft: false,
         skip_discount: true,
-        skip_margin: true
+        skip_margin: true,
+        time_zone: browserTimeZone
       };
 
       if (bookingType === "single_day") {
@@ -637,11 +640,16 @@ export default function ClientDetailPage() {
         const endDate = parseDate(formData.endDate);
         const durationHours = startDate && endDate ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)) : 0;
 
+        payload.start_date = getLocalDatePart(formData.startDate);
+        payload.start_time = getLocalTimePart(formData.startDate);
+        payload.end_time = getLocalTimePart(formData.endDate) || "";
         payload.start_date_time = formData.startDate; // "yyyy-MM-dd'T'HH:mm:ss"
-        payload.end_time = endDate ? format(endDate, "HH:mm:ss") : "";
         payload.duration_hours = durationHours;
       } else {
-        payload.booking_days = booking_days;
+        payload.booking_days = booking_days.map((d: any) => ({
+          ...d,
+          time_zone: d.time_zone || d.timeZone || browserTimeZone
+        }));
       }
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {

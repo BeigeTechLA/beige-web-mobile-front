@@ -1,55 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, Dispatch, SetStateAction } from "react";
+import React from "react";
 
 export const Gallery = () => {
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [mobileVideoUrl, setMobileVideoUrl] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
-
-  const videoFileName = "Beige Scroller.mp4";
-  const mobileVideoFileName = "Beige Scroller - Mobile.mp4";
-
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkScreenSize();
-
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  const activeVideoUrl = isMobile ? mobileVideoUrl : videoUrl;
-
-  useEffect(() => {
-    const fetchSignedUrl = async (fileName: string, setUrl: Dispatch<SetStateAction<string | null>>) => {
-      try {
-        const response = await fetch(`/api/video/${fileName}`);
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch signed URL.");
-        }
-
-        const data = await response.json();
-        setUrl(data.url);
-      } catch (error) {
-        console.error("Error fetching video URL:", error);
-      }
-    };
-
-    fetchSignedUrl(videoFileName, setVideoUrl);
-    fetchSignedUrl(mobileVideoFileName, setMobileVideoUrl);
-  }, [videoFileName, mobileVideoFileName]);
-
   return (
     <section className="bg-[#010101] py-10 md:py-20 lg:py-32 relative overflow-hidden">
-      {/* Header */}
       <div className="text-center mb-5 lg:mb-16 relative z-10">
-        {/* <div className="inline-flex items-center border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
-          <p className="text-xs md:text-base text-white">Gallery</p>
-        </div> */}
-
         <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 lg:mb-8 tracking-tight">
           #ShotOnBeige
         </h2>
@@ -61,16 +17,14 @@ export const Gallery = () => {
 
       <div className="relative w-full h-[700px] overflow-hidden">
         <div className="pointer-events-none absolute top-0 left-0 w-full h-[80px] z-[2] bg-gradient-to-t from-transparent via-[#010101]/80 to-[#010101]" />
-        {activeVideoUrl && (
-          <video
-            className="absolute inset-0 w-full h-full object-cover"
-            src={activeVideoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-          />
-        )}
+        <video
+          className="absolute inset-0 w-full h-full object-cover"
+          src="https://d2jhn32fsulyac.cloudfront.net/assets/videos/BeigeScroller.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
         <div className="pointer-events-none absolute bottom-0 left-0 w-full h-[80px] z-[2] bg-gradient-to-t from-[#010101] via-[#010101]/80 to-transparent" />
       </div>
     </section>

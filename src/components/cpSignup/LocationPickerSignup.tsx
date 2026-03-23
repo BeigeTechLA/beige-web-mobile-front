@@ -51,9 +51,15 @@ interface LocationData {
   address: string;
 }
 
+interface LocationPickerValue {
+  address: string;
+  lat: number;
+  lng: number;
+}
+
 interface LocationPickerProps {
-  value: string;
-  onChange: (address: string) => void;
+  value: string | LocationPickerValue;
+  onChange: (value: string | LocationPickerValue) => void;
   placeholder?: string;
   colors?: Partial<LocationPickerColors>;
 }
@@ -268,12 +274,19 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
 
   const confirmLocation = () => {
     if (marker) {
-      onChange(marker.address);
+      onChange({
+        address: marker.address,
+        lat: marker.lat,
+        lng: marker.lng
+      });
       setIsExpanded(false);
     }
   };
 
   /* ======================== COLLAPSED VIEW ======================== */
+
+  const displayAddress =
+    typeof value === "string" ? value : value?.address || "";
 
   if (!isExpanded) {
     return (
@@ -291,10 +304,10 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
 
         <div className="flex items-center gap-3 h-full px-4">
           <MapPin size={20} color={colors.iconColorSelected} />
-          <div style={{ color: value ? colors.primaryText : colors.secondaryText }} className="flex-1 truncate">
-            {value || placeholder}
+          <div style={{ color: displayAddress ? colors.primaryText : colors.secondaryText }} className="flex-1 truncate">
+            {displayAddress || placeholder}
           </div>
-          {value && (
+          {displayAddress && (
             <button onClick={(e) => { e.stopPropagation(); clearSelection(); }}>
               <X size={16} color={colors.secondaryText} />
             </button>

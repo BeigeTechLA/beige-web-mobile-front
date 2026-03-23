@@ -302,14 +302,14 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                      </div>
                    )}
                    
-                   <div className="pt-4 mt-2 flex items-end justify-between gap-6 border-t border-white/20 print:border-gray-300">
-                     <div className="shrink-0">
+                   <div className="pt-4 mt-2 border-t border-white/20 print:border-gray-300">
+                     <div className="flex items-center justify-between gap-6">
                         <p className="text-white font-bold text-base sm:text-lg leading-none whitespace-nowrap print:text-black">Total Paid</p>
-                        <p className="mt-2 text-[10px] text-white/35 uppercase font-bold tracking-[0.12em] whitespace-nowrap print:text-gray-400">Paid via Card</p>
+                        <span className="text-[#E8D1AB] font-bold text-xl sm:text-2xl tabular-nums text-right leading-none whitespace-nowrap print:text-black">
+                           {formatCurrency(data.pricing.total_paid ?? data.pricing.total)}
+                        </span>
                      </div>
-                     <span className="text-[#E8D1AB] font-bold text-xl sm:text-2xl tabular-nums text-right leading-none whitespace-nowrap print:text-black">
-                        {formatCurrency(data.pricing.total_paid ?? data.pricing.total)}
-                     </span>
+                     <p className="mt-2 text-[10px] text-white/35 uppercase font-bold tracking-[0.12em] whitespace-nowrap print:text-gray-400">Paid via Card</p>
                    </div>
                 </section>
               </div>

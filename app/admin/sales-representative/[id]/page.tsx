@@ -32,6 +32,7 @@ import {
 import { LEAD_TYPE_LABELS } from "@/types/sales";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils/discountHelpers";
+import { parseDate } from "@/src/components/landing/lib/utils";
 import GeneratePaymentLink from "@/components/sales/GeneratePaymentLink";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { IntentBadge } from "@/components/sales/IntentBadge";
@@ -94,7 +95,8 @@ const mapLeadStatusToUI = (status: string): string => {
 // Helper to format date for the UI (e.g., 12 Mar 2026)
 const formatDateUI = (dateStr: string | null | undefined) => {
   if (!dateStr) return null;
-  const date = new Date(dateStr);
+  const date = parseDate(dateStr);
+  if (!date) return null;
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -215,7 +217,7 @@ export default function LeadDetailPage() {
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
 
   const bookingDate = booking?.event_date
-    ? new Date(booking.event_date).toLocaleDateString("en-US", {
+    ? (parseDate(booking.event_date) || new Date(booking.event_date)).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -603,7 +605,7 @@ export default function LeadDetailPage() {
                     <div className={`ml-2 border-l-2 pl-5 flex flex-col gap-3 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                       {booking.booking_days!.map((day: any, idx: number) => {
                         const dayDate = day.event_date
-                          ? new Date(day.event_date).toLocaleDateString("en-US", {
+                          ? (parseDate(day.event_date) || new Date(day.event_date)).toLocaleDateString("en-US", {
                             weekday: "short",
                             month: "short",
                             day: "numeric",
