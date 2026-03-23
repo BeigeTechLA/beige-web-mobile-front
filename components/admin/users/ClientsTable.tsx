@@ -99,7 +99,7 @@ export const ClientsTable = () => {
                     params.end_date = formattedDate;
                 }
 
-                const response = await adminApi.getAdminClients(params);
+                const response = await adminApi.getClients(params);
                 if (response && response.data) {
                     const pagination = response.pagination;
                     setTotalRecords(pagination?.total_records || 0);
