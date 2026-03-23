@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Video, Camera, Film, Users, ChevronDown, UsersRound, Calendar as CalendarIcon, ArrowUpRight } from 'lucide-react';
+import { Video, Camera, Film, Users, UsersRound, ArrowUpRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from "next-themes";
 import {
     Select,
     SelectContent,
@@ -11,18 +12,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/Datepicker";
 import { format } from 'date-fns';
+import { adminApi } from '@/lib/api';
 
 const initialMetrics = [
-    { id: 'total', label: 'Total Shoots', value: '0', growth: 0, icon: Video, color: 'bg-[#E5D5B8]' },
-    { id: 'active', label: 'Active Shoots', value: '0', growth: 0, icon: Camera, color: 'bg-zinc-800' },
-    { id: 'completed', label: 'Completed Shoots', value: '0', growth: 0, icon: Film, color: 'bg-zinc-800' },
-    { id: 'clients', label: 'Total Users', value: '0', growth: 0, icon: UsersRound, color: 'bg-zinc-800' },
-    { id: 'cps', label: 'Total Creative Partners', value: '0', growth: 0, icon: Users, color: 'bg-zinc-800' },
+    { id: 'total', label: 'Total Shoots', value: '0', growth: 0, icon: Video },
+    { id: 'active', label: 'Active Shoots', value: '0', growth: 0, icon: Camera },
+    { id: 'completed', label: 'Completed Shoots', value: '0', growth: 0, icon: Film },
+    { id: 'clients', label: 'Total Users', value: '0', growth: 0, icon: UsersRound },
+    { id: 'cps', label: 'Total Creative Partners', value: '0', growth: 0, icon: Users },
 ];
-
-import { adminApi } from '@/lib/api';
 
 interface OverviewChartProps {
     externalSelectedDate?: Date | null;
@@ -30,6 +29,8 @@ interface OverviewChartProps {
 
 export default function OverviewChart({ externalSelectedDate }: OverviewChartProps) {
     const router = useRouter();
+    const { theme } = useTheme();
+    const [mounted, setMounted] = useState(false);
     const [activeMetric, setActiveMetric] = useState('total');
     const [metrics, setMetrics] = useState<any[]>(initialMetrics);
     const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +38,11 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
     const [range, setRange] = useState('all');
     const [chartData, setChartData] = useState<any[]>([]);
 
-    React.useEffect(() => {
+    useEffect(() => setMounted(true), []);
+
+    const isDark = !mounted || theme === "dark";
+
+    useEffect(() => {
         if (externalSelectedDate) {
             setRange('custom');
         } else if (range === 'custom') {
@@ -46,7 +51,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
         }
     }, [externalSelectedDate]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             setIsChartLoading(true);
@@ -70,6 +75,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                         clients: charts.total_clients?.[index]?.value || 0,
                         cps: charts.total_CPs?.[index]?.value || 0,
                     }));
+
                     setChartData(consolidatedChartData);
 
                     // Update Metrics
@@ -80,7 +86,6 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                             value: summary.total_shoots?.count?.toString() || '0',
                             growth: summary.total_shoots?.growth || 0,
                             icon: Video,
-                            color: 'bg-[#E5D5B8]'
                         },
                         {
                             id: 'active',
@@ -88,7 +93,6 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                             value: summary.active_shoots?.count?.toString() || '0',
                             growth: summary.active_shoots?.growth || 0,
                             icon: Camera,
-                            color: 'bg-zinc-800'
                         },
                         {
                             id: 'completed',
@@ -96,7 +100,6 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                             value: summary.completed_shoots?.count?.toString() || '0',
                             growth: summary.completed_shoots?.growth || 0,
                             icon: Film,
-                            color: 'bg-zinc-800'
                         },
                         {
                             id: 'clients',
@@ -104,7 +107,6 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                             value: summary.total_clients?.count?.toString() || '0',
                             growth: summary.total_clients?.growth || 0,
                             icon: UsersRound,
-                            color: 'bg-zinc-800'
                         },
                         {
                             id: 'cps',
@@ -112,7 +114,6 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                             value: summary.approved_CPs?.count?.toString() || '0',
                             growth: summary.approved_CPs?.growth || 0,
                             icon: Users,
-                            color: 'bg-zinc-800',
                             details: {
                                 approved: summary.approved_CPs?.count || 0,
                                 pending: summary.pending_CPs?.count || 0,
@@ -129,7 +130,6 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                 setIsChartLoading(false);
             }
         };
-
         fetchData();
     }, [range, externalSelectedDate]);
 
@@ -143,13 +143,17 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
         }
     };
 
+    const stopColor = isDark ? "#E5D5B8" : "#000000";
+    const stopOpacityStart = isDark ? 0.3 : 0.4;
+
     return (
-        <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-5 w-full text-white mt-5 lg:mt-9">
+        <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-[#FFFFFF] border-[#E5E5E5] text-[#202020]"
+            }`}>
             {/* Header */}
             <div className="flex justify-between items-center mb-5 lg:mb-8">
                 <div className="flex items-center gap-2">
                     <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-                    <p className="">Overview</p>
+                    <p className="font-medium text-sm lg:text-base">Overview</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <Select
@@ -160,13 +164,14 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                             // but the API will prioritize the 'range' parameter unless it's 'custom'
                         }}
                     >
-                        <SelectTrigger className="w-[110px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-[10px] lg:text-xs text-zinc-400 focus:ring-0">
+                        <SelectTrigger className={`w-[130px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-zinc-400" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"
+                            }`}>
                             <SelectValue placeholder="Range" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#111111] border-[#3D3D3D]">
+                        <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
                             <SelectItem value="all">All time</SelectItem>
-                            <SelectItem value="week">Week</SelectItem>
-                            <SelectItem value="month">Month</SelectItem>
+                            <SelectItem value="week">This Week</SelectItem>
+                            <SelectItem value="month">This Month</SelectItem>
                             {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
                         </SelectContent>
                     </Select>
@@ -174,68 +179,52 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
             </div>
 
             {/* Metric Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-10 bg-[#101010] rounded-2xl p-4">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10 rounded-2xl p-4 ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"
+                }`}>
                 {metrics.map((m: any) => {
                     const isActive = activeMetric === m.id;
                     return (
                         <div
                             key={m.id}
                             onClick={() => setActiveMetric(m.id)}
-                            className={`relative group cursor-pointer rounded-lg p-4 border border-transparent transition-all duration-200 ${isActive ? 'bg-[#ECD7B4] text-[#171717]' : 'bg-[#101010] text-white hover:border-white/30'
+                            className={`relative group cursor-pointer rounded-lg p-4 border transition-all duration-200 ${isActive
+                                ? 'bg-[#ECD7B4] text-[#171717] border-transparent'
+                                : (isDark ? 'bg-[#101010] text-white border-transparent hover:border-white/30' : 'bg-[#F4F5F7] text-[#323232] border-transparent hover:border-[#ECD7B4]')
                                 }`}
                         >
                             {/* Tooltip for CPs */}
                             {m.id === 'cps' && m.details && (
-                                <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-40 bg-[#1A1A1A] border border-[#3D3D3D] rounded-xl p-3 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none mb-2">
+                                <div className={`absolute -top-36 left-1/2 -translate-x-1/2 w-40 border rounded-xl p-3 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none mb-2 ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D]" : "bg-white border-[#E3E3E3]"
+                                    }`}>
                                     <div className="space-y-2">
-                                        <div className="flex justify-between items-center text-[10px] uppercase tracking-wider text-zinc-500 font-bold">
-                                            <span>CP Breakdown</span>
-                                        </div>
-                                        <div className="h-[1px] bg-[#3D3D3D] w-full" />
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-xs text-[#0DAE3D] font-medium">Approved</span>
-                                            <span className="text-xs font-bold text-white">{m.details.approved}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-xs text-orange-400 font-medium">Pending</span>
-                                            <span className="text-xs font-bold text-white">{m.details.pending}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-xs text-red-400 font-medium">Rejected</span>
-                                            <span className="text-xs font-bold text-white">{m.details.rejected}</span>
-                                        </div>
-                                        <div className="h-[1px] bg-[#3D3D3D] w-full" />
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-xs text-zinc-400 font-medium">Total</span>
-                                            <span className="text-xs font-bold text-white">{m.details.total}</span>
-                                        </div>
+                                        <p className={`text-[10px] uppercase tracking-wider font-bold border-b pb-1 ${isDark ? "text-zinc-500 border-[#3D3D3D]" : "text-zinc-400 border-[#E3E3E3]"}`}>CP Breakdown</p>
+                                        <div className="flex justify-between items-center"><span className="text-xs text-[#0DAE3D]">Approved</span><span className={`text-xs font-bold ${isDark ? "text-white" : "text-black"}`}>{m.details.approved}</span></div>
+                                        <div className="flex justify-between items-center"><span className="text-xs text-orange-400">Pending</span><span className={`text-xs font-bold ${isDark ? "text-white" : "text-black"}`}>{m.details.pending}</span></div>
+                                        <div className="flex justify-between items-center"><span className="text-xs text-red-400">Rejected</span><span className={`text-xs font-bold ${isDark ? "text-white" : "text-black"}`}>{m.details.rejected}</span></div>
+                                        <div className={`pt-1 border-t flex justify-between items-center ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}><span className="text-xs text-zinc-400">Total</span><span className={`text-xs font-bold ${isDark ? "text-white" : "text-black"}`}>{m.details.total}</span></div>
                                     </div>
-                                    {/* Arrow */}
-                                    <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1A1A1A] border-r border-b border-[#3D3D3D] rotate-45" />
+                                    <div className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 border-r border-b rotate-45 ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D]" : "bg-white border-[#E3E3E3]"}`} />
                                 </div>
                             )}
 
                             <div className="flex justify-between items-start mb-6">
-                                <div className="flex items-center gap-2">
-                                    <span className={`text-sm font-medium ${isActive ? 'text-black/70' : 'text-zinc-400'}`}>
-                                        {m.label}
-                                    </span>
-                                </div>
-                                <div className={`p-2 rounded-full ${isActive ? 'bg-[#171717] text-[#E8D1AB]' : 'bg-[#2C2C2C] text-white/60'}`}>
+                                <span className={`text-sm font-medium ${isActive ? 'text-black/70' : (isDark ? 'text-zinc-400' : 'text-zinc-500')}`}>
+                                    {m.label}
+                                </span>
+                                <div className={`p-2 rounded-full ${isActive ? 'bg-[#171717] text-[#E8D1AB]' : (isDark ? 'bg-[#2C2C2C] text-white/60' : 'bg-[#fff] text-[#E8D1AB]')}`}>
                                     <m.icon size={20} />
                                 </div>
                             </div>
-                            <div className="text-[26px] leading-normal font-bold mb-3">
-                                {isLoading ? (
-                                    <div className="h-8 w-16 bg-white/10 animate-pulse rounded" />
-                                ) : (
-                                    m.value
-                                )}
+
+                            <div className="text-[26px] font-bold mb-2">
+                                {isLoading ? <div className={`h-8 w-12 animate-pulse rounded ${isDark ? "bg-white/10" : "bg-zinc-200"}`} /> : m.value}
                             </div>
-                            <div className={`text-xs flex gap-1 items-center ${isActive ? 'text-[#171717]' : 'text-white/70'}`}>
-                                <span className={`font-bold text-sm ${isActive ? 'text-[#047726]' : 'text-[#0DAE3D]'}`}>
+
+                            <div className={`text-xs flex gap-1 items-center ${isActive ? 'text-[#171717]' : (isDark ? 'text-white/70' : 'text-zinc-500')}`}>
+                                <span className={`font-bold ${m.growth >= 0 ? (isActive ? 'text-[#047726]' : 'text-[#0DAE3D]') : 'text-red-500'}`}>
                                     {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
-                                </span> {getGrowthLabel()}
+                                </span>
+                                {getGrowthLabel()}
                             </div>
 
                             {m.id === 'cps' && (
@@ -249,9 +238,9 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                                         // If no users page, this button might do nothing or just log.
                                         console.log("Navigate to CPs");
                                     }}
-                                    className={`absolute bottom-3 right-3 p-1 rounded-full hover:bg-black/10 transition-colors ${isActive ? 'text-black/70' : 'text-zinc-400 hover:bg-white/10'}`}
+                                    className={`absolute bottom-3 right-3 p-1 rounded-full transition-colors ${isActive ? 'text-black/70 hover:bg-black/10' : (isDark ? 'text-zinc-400 hover:bg-white/10' : 'text-zinc-400 hover:bg-zinc-100')}`}
                                 >
-                                    <ArrowUpRight size={16} />
+                                    <ArrowUpRight size={14} />
                                 </button>
                             )}
                         </div>
@@ -270,37 +259,41 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
                     <AreaChart data={chartData}>
                         <defs>
                             <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#E5D5B8" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#E5D5B8" stopOpacity={0} />
+                                <stop offset="5%" stopColor={stopColor} stopOpacity={stopOpacityStart} />
+                                <stop offset="95%" stopColor={stopColor} stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid vertical={false} stroke="#27272a" strokeDasharray="3 3" />
+                        <CartesianGrid vertical={false} stroke={isDark ? "#27272a" : "#E3E3E3"} strokeDasharray="3 3" />
                         <XAxis
                             dataKey="name"
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: '#ffffff66', fontSize: 14 }}
+                            tick={{ fill: isDark ? '#ffffff66' : '#32323266', fontSize: 12 }}
                             dy={10}
                         />
                         <YAxis
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: '#ffffff66', fontSize: 14 }}
-                            dx={-20}
+                            tick={{ fill: isDark ? '#ffffff66' : '#32323266', fontSize: 12 }}
                         />
                         <Tooltip
-                            contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: 'none', color: '#000' }}
-                            labelStyle={{ color: '#666', marginBottom: '4px' }}
+                            contentStyle={{
+                                backgroundColor: isDark ? '#1A1A1A' : '#E5D5B8',
+                                borderRadius: '8px',
+                                border: isDark ? '1px solid #3D3D3D' : '1px solid #E3E3E3',
+                                color: isDark ? '#fff' : '#323232'
+                            }}
+                            itemStyle={{ color: '#BFA780' }}
                             cursor={{ stroke: '#E5D5B8', strokeWidth: 1 }}
                         />
                         <Area
                             type="monotone"
                             dataKey={activeMetric}
-                            stroke="#E5D5B8"
+                            stroke={isDark ? '#E5D5B8' : '#00000066'}
                             strokeWidth={2}
                             fillOpacity={1}
                             fill="url(#chartGradient)"
-                            activeDot={{ r: 6, fill: '#121212', stroke: '#E5D5B8', strokeWidth: 2 }}
+                            activeDot={{ r: 6, fill: isDark ? '#121212' : '#FFFFFF', stroke: '#E5D5B8', strokeWidth: 2 }}
                         />
                     </AreaChart>
                 </ResponsiveContainer>

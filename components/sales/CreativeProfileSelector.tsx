@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useMemo } from 'react';
 import { Search, SlidersHorizontal, Video, Camera, Calendar, Check, Loader2 } from 'lucide-react';
 import { CreativeFilterModal } from './CreativeFilterModal';
@@ -32,6 +34,7 @@ export interface CreativeProfileSelectorProps {
   videographerCount?: number; // This is the Required count
   photographerCount?: number; // This is the Required count
   onSelectionUpdate?: (counts: { videographer: number, photographer: number }) => void;
+  isDark?: boolean;
 }
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
@@ -54,6 +57,7 @@ export const CreativeProfileSelector = ({
   videographerCount = 0,
   photographerCount = 0,
   onSelectionUpdate,
+    isDark = true, // Added isDark prop
 }: CreativeProfileSelectorProps) => {
   const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -132,18 +136,24 @@ export const CreativeProfileSelector = ({
   };
 
   return (
-    <div className="text-white">
+    <div className={isDark ? "text-white" : "text-[#2C2C2C]"}>
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <h3 className="text-xl font-medium text-white/90">Select Creative Profile</h3>
+        <h3 className={`text-xl font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
+            Select Creative Profile
+        </h3>
 
         <div className="flex gap-3">
-          <div className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-lg text-sm text-white/70">
-            <Video size={16} className={selectedDetails.v >= videographerCount && videographerCount > 0 ? "text-green-500" : "text-white/70"} />
+          <div className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm transition-colors ${
+              isDark ? "bg-[#1A1A1A] border-white/10 text-white/70" : "bg-black/5 border-[#0000004D] text-black/70"
+            }`}>
+            <Video size={16} className={selectedDetails.v >= videographerCount && videographerCount > 0 ? "text-green-500" : (isDark ? "text-white/70" : "text-black/70")} />
             <span>Videographer(s) : {selectedDetails.v.toString()}/{videographerCount.toString()}</span>
           </div>
-          <div className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-lg text-sm text-white/70">
-            <Camera size={16} className={selectedDetails.p >= photographerCount && photographerCount > 0 ? "text-green-500" : "text-white/70"} />
+          <div className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm transition-colors ${
+              isDark ? "bg-[#1A1A1A] border-white/10 text-white/70" : "bg-black/5 border-[#0000004D] text-black/70"
+            }`}>
+            <Camera size={16} className={selectedDetails.p >= photographerCount && photographerCount > 0 ? "text-green-500" : (isDark ? "text-white/70" : "text-black/70")} />
             <span>Photographers(s) : {selectedDetails.p.toString()}/{photographerCount.toString()}</span>
           </div>
         </div>
@@ -152,18 +162,22 @@ export const CreativeProfileSelector = ({
       {/* Search and Filters */}
       <div className="flex gap-3 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/40" : "text-black/40"}`} size={18} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search"
-            className="w-full bg-[#1A1A1A] border border-white/10 rounded-xl py-3 pl-10 pr-4 outline-none focus:border-[#E8D1AB]/50 transition-all"
+            className={`w-full border rounded-xl py-3 pl-10 pr-4 outline-none transition-all ${
+              isDark ? "bg-[#1A1A1A] border-white/10 text-white placeholder:text-white/40 focus:border-[#E8D1AB]/50" : "bg-white border-[#0000004D] text-black placeholder:text-black/40 focus:border-black/40"
+            }`}
           />
         </div>
         <button
           onClick={() => setIsFilterOpen(true)}
-          className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-6 py-3 rounded-xl hover:bg-white/5 transition-all active:scale-95"
+          className={`flex items-center gap-2 border px-6 py-3 rounded-xl transition-all active:scale-95 ${
+            isDark ? "bg-[#1A1A1A] border-white/10 hover:bg-white/5" : "bg-white border-[#0000004D] hover:bg-black/5"
+          }`}
         >
           <SlidersHorizontal size={18} />
           <span>Filters</span>
@@ -171,11 +185,13 @@ export const CreativeProfileSelector = ({
       </div>
 
       {/* Creative List Container */}
-      <div className="bg-[#101010] border border-white/5 rounded-2xl p-4 md:p-8 space-y-4 lg:space-y-8">
+      <div className={`border rounded-2xl p-4 md:p-8 space-y-4 lg:space-y-8 transition-colors ${
+        isDark ? "bg-[#101010] border-white/5" : "bg-white border-black/10 shadow-sm"
+      }`}>
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-10">
             <Loader2 className="animate-spin text-[#E8D1AB] mb-4" size={32} />
-            <p className="text-white/40">Loading available creatives...</p>
+            <p className={isDark ? "text-white/40" : "text-black/40"}>Loading available creatives...</p>
           </div>
         ) : filteredCreatives.length > 0 ? (
           filteredCreatives.map((creative, index) => {
@@ -190,13 +206,14 @@ export const CreativeProfileSelector = ({
                   isSelected={currentSelectedIds.includes(creative.id)}
                   onToggle={() => toggleSelection(creative.id)}
                   onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                  isDark={isDark}
                 />
                 {index !== filteredCreatives.length - 1 && <Separator />}
               </div>
             );
           })
         ) : (
-          <div className="p-10 border border-dashed border-white/20 rounded-2xl text-center text-white/40">
+          <div className={`p-10 border border-dashed rounded-2xl text-center ${isDark ? "border-white/20 text-white/40" : "border-black/20 text-black/40"}`}>
             {emptyMessage}
           </div>
         )}
@@ -205,6 +222,7 @@ export const CreativeProfileSelector = ({
       <CreativeFilterModal
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
+        isDark={isDark}
       />
     </div>
   );
@@ -227,13 +245,17 @@ interface CreativeCardProps {
   isSelected: boolean;
   onToggle: () => void;
   onViewProfile: () => void;
+  isDark?: boolean;
 }
 
-const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile }: CreativeCardProps) => {
+const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark=true }: CreativeCardProps) => {
   return (
     <div
       onClick={onToggle}
-      className={`relative group flex flex-col md:flex-row items-center md:items-start gap-6 rounded-2xl cursor-pointer transition-all border p-2 ${isSelected ? 'bg-white/[0.04] border-white/10' : 'bg-transparent border-transparent'
+      className={`relative group flex flex-col md:flex-row items-center md:items-start gap-6 rounded-2xl cursor-pointer transition-all border p-2 ${
+        isSelected 
+          ? isDark ? 'bg-white/[0.04] border-white/10' : 'bg-black/[0.03] border-[#E8D1AB]/40' 
+          : 'bg-transparent border-transparent'
         }`}
     >
       <div className="relative w-20 h-25 lg:w-[146px] lg:h-[156px] flex-shrink-0">
@@ -259,23 +281,24 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile }: Creativ
             </span>
           </div>
 
-          <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : 'bg-transparent border-white/20'
+          <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${
+            isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-[#0000004D]'
             }`}>
             {isSelected && <Check size={16} className="text-black stroke-[3px]" />}
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-4 md:gap-8 text-sm border-t border-white/5 pt-3 lg:pt-5">
+        <div className={`flex flex-col lg:flex-row gap-4 md:gap-8 text-sm border-t pt-3 lg:pt-5 ${isDark ? "border-white/5" : "border-black/5"}`}>
           <div>
-            <p className="text-[#AAA7A7] mb-1">Assigned Shoots:</p>
-            <p className="text-white font-medium">{creative.shoots.toString()} Shoots</p>
+            <p className={isDark ? "text-[#AAA7A7] mb-1" : "text-black/50 mb-1"}>Assigned Shoots:</p>
+            <p className={isDark ? "font-medium text-white" : "font-medium text-black/80"}>{creative.shoots.toString()} Shoots</p>
           </div>
-          <div className="md:border-x-2 border-white/5 md:px-8">
-            <p className="text-[#AAA7A7] mb-1">Specialities:</p>
-            <p className="text-white font-medium capitalize">{creative.specialities}</p>
+          <div className={`md:border-x-2 md:px-8 ${isDark ? "border-white/5":"border-black/5"}`}>
+            <p className={isDark ? "text-[#AAA7A7] mb-1" : "text-black/50 mb-1"}>Specialities:</p>
+            <p className={`${isDark ? "text-white":"text-black/80"} font-medium capitalize`}>{creative.specialities}</p>
           </div>
           <div className="md:pl-8">
-            <p className="text-[#AAA7A7] mb-1">Availability:</p>
+            <p className={isDark ? "text-[#AAA7A7] mb-1" : "text-black/50 mb-1"}>Availability:</p>
             <div className="flex items-center gap-2 text-[#E8D1AB] underline decoration-[#E8D1AB]/30 underline-offset-4">
               <span>{creative.availability}</span>
               <Calendar size={14} />
@@ -284,7 +307,7 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile }: Creativ
         </div>
 
         {creative.location && (
-          <div className="flex items-center gap-2 text-sm text-white/60 mt-3">
+          <div className={`flex items-center gap-2 text-sm mt-3 ${isDark ? "text-white/60" : "text-black/60"}`}>
             <span className="truncate">{creative.location}</span>
           </div>
         )}
@@ -304,7 +327,7 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile }: Creativ
       </div>
 
       {creative.is_beige_member === 1 && (
-        <div className="absolute top-2 right-2 bg-[#E8D1AB] text-black text-[10px] px-2 py-0.5 rounded-full font-bold">
+        <div className="absolute top-4 right-10 bg-[#E8D1AB] text-black text-[10px] px-2 py-0.5 rounded-full font-bold">
           PRO
         </div>
       )}
