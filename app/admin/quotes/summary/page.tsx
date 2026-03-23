@@ -28,7 +28,7 @@ export default function QuoteSummaryPage() {
   };
 
   return (
-    <>
+    <div className=" overflow-hidden relative">
       <Topbar pathname={pathname}
         actions={
           <Button onClick={() => router.push("/admin/quotes/preview")} className="bg-[#E5D5B8] text-black">
@@ -37,7 +37,7 @@ export default function QuoteSummaryPage() {
         }
       />
 
-      <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
+      <div className="px-4 pb-20 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
         {/* Navigation */}
         <div className="flex justify-between items-center mb-7">
           <button
@@ -69,31 +69,31 @@ export default function QuoteSummaryPage() {
             </div>
 
             {/* Service included */}
-            <div className="bg-[#282727] rounded-xl border border-[#FFFFFF80] p-3 lg:p-6">
+            <div className="bg-[#282727] rounded-xl lg:border lg:border-[#FFFFFF80] p-3 lg:p-6">
               <div className="flex justify-between lg:text-lg">
                 <p className="text-[#FFFFFFAD] font-semibold">Service Include</p>
                 <p className="text-white font-bold">$1,000.00</p>
               </div>
-              <div className="my-8 border-t  border-[#FFFFFF5C]" />
+              <div className="my-4 lg:my-6 border-t border-[#FFFFFF5C]" />
               <div className="flex justify-between items-center lg:text-lg">
                 <div className="flex items-center gap-3">
-                  <div className="bg-[#E8D1AB] rounded-full p-3 text-black">
-                    <Video size={36} />
+                  <div className="bg-[#E8D1AB] rounded-full p-2 lg:p-3 text-black">
+                    <Video className="w-5 h-5 lg:h-9 lg:w-9" />
                   </div>
-                  <p className="text-[#FFF] font-medium">Videography - (Private Event)</p>
+                  <p className="text-sm lg:text-base text-[#FFF] font-medium w-1/2 lg:w-full">Videography - (Private Event)</p>
                 </div>
-                <p className="text-[#9C9696]">$1,000.00</p>
+                <p className="text-sm lg:text-base text-[#9C9696]">$1,000.00</p>
               </div>
             </div>
 
             {/* Add-ons  */}
             {logisticsData.length > 0 && (
-              <div className="bg-[#282727] rounded-xl border border-[#FFFFFF80] p-3 lg:p-6">
+              <div className="bg-[#282727] rounded-xl lg:border lg:border-[#FFFFFF80] p-3 lg:p-6">
                 <div className="flex justify-between lg:text-lg">
                   <p className="text-[#FFFFFFAD] font-semibold">Add-ons</p>
                   <p className="text-white font-bold">$1,600.00</p>
                 </div>
-                <div className="my-8 border-t  border-[#FFFFFF5C]" />
+                <div className="my-4 lg:my-6 border-t  border-[#FFFFFF5C]" />
                 <div className="space-y-3 lg:space-y-6">
                   {
                     addonData.map((item, index) => (
@@ -101,8 +101,8 @@ export default function QuoteSummaryPage() {
                         key={index}
                         className="flex justify-between items-center lg:text-lg"
                       >
-                        <p className="text-[#FFF] font-medium">{item.label}</p>
-                        <p className="text-[#9C9696]">
+                        <p className="text-sm lg:text-base text-[#FFF] font-medium">{item.label}</p>
+                        <p className="text-sm lg:text-base text-[#9C9696]">
                           ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </p>
                       </div>
@@ -114,12 +114,12 @@ export default function QuoteSummaryPage() {
 
             {/* Logistics */}
             {logisticsData.length > 0 && (
-              <div className="bg-[#282727] rounded-xl border border-[#FFFFFF80] p-3 lg:p-6">
+              <div className="bg-[#282727] rounded-xl lg:border lg:border-[#FFFFFF80] p-3 lg:p-6">
                 <div className="flex justify-between lg:text-lg">
                   <p className="text-[#FFFFFFAD] font-semibold">Logistics</p>
                   <p className="text-white font-bold">$1,600.00</p>
                 </div>
-                <div className="my-8 border-t  border-[#FFFFFF5C]" />
+                <div className="my-4 lg:my-6 border-t  border-[#FFFFFF5C]" />
                 <div className="space-y-3 lg:space-y-6">
                   {
                     logisticsData.map((item, index) => (
@@ -127,8 +127,8 @@ export default function QuoteSummaryPage() {
                         key={index}
                         className="flex justify-between items-center lg:text-lg"
                       >
-                        <p className="text-[#FFF] font-medium">{item.label}</p>
-                        <p className="text-[#9C9696]">
+                        <p className="text-sm lg:text-base text-[#FFF] font-medium">{item.label}</p>
+                        <p className="text-sm lg:text-base text-[#9C9696]">
                           ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </p>
                       </div>
@@ -139,20 +139,20 @@ export default function QuoteSummaryPage() {
             )}
 
             {/* Subtotal  */}
-            <div className="bg-[#282727] rounded-xl border border-[#FFFFFF80] p-3 lg:p-6 space-y-3 lg:space-y-6">
+            <div className="bg-[#282727] rounded-xl lg:border lg:border-[#FFFFFF80] p-3 lg:p-6 space-y-3 lg:space-y-6">
               <div className="flex justify-between lg:text-lg">
-                <p className="text-[#FFFFFFAD] font-semibold">Subtotal</p>
-                <p className="text-white font-bold">$1,600.00</p>
+                <p className="text-white font-semibold">Subtotal</p>
+                <p className="text-[#9C9696] font-bold">$1,600.00</p>
               </div>
               <div className="flex justify-between items-center lg:text-lg">
-                <p className="text-[#FFF] font-medium">Sales Tax (8.5%)</p>
-                <p className="text-[#9C9696]">
+                <p className="text-sm lg:text-base text-white font-medium">Sales Tax (8.5%)</p>
+                <p className="text-sm lg:text-base text-[#9C9696]">
                   $471.75
                 </p>
               </div>
               <div className="flex justify-between items-center text-lg text-black lg:text-xl bg-[#E8D1AB] p-3 lg:p-6 rounded-lg lg:rounded-xl">
-                <p className="font-medium">Final Total</p>
-                <p className="text-xl lg:text-2xl font-semibold">
+                <p className="text-sm lg:text-base font-medium">Final Total</p>
+                <p className="text-lg lg:text-2xl font-semibold">
                   $6,021.75
                 </p>
               </div>
@@ -160,6 +160,16 @@ export default function QuoteSummaryPage() {
           </div>
         </div>
       </div>
-    </>
+
+      {/* --- FLOATING MOBILE BUTTON --- */}
+      <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+        <Button
+          onClick={() => router.push('/admin/quotes/preview')}
+          className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+        >
+          Preview Quote
+        </Button>
+      </div>
+    </div>
   )
 }
