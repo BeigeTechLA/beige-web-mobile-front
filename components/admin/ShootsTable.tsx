@@ -44,7 +44,17 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   7: "Cancelled",
 };
 
-export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
+interface ShootsTableProps {
+  externalSelectedDate?: Date | null;
+  detailBasePath?: string;
+  enablePriceSort?: boolean;
+}
+
+export const ShootsTable = ({
+  externalSelectedDate,
+  detailBasePath = "/admin/shoots",
+  enablePriceSort = true,
+}: ShootsTableProps) => {
   const router = useRouter();
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,7 +214,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
   const handleRowClick = (id: string) => {
     const cleanId = id.replace('#', '');
-    router.push(`/admin/shoots/${cleanId}`);
+    router.push(`${detailBasePath}/${cleanId}`);
   };
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
@@ -355,12 +365,16 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                     <div className="flex items-center">Project Name {getSortIcon('customerName')}</div>
                   </th>
                   <th className="py-5 px-6 font-medium">Category</th>
-                  <th
-                    className="py-5 px-6 font-medium cursor-pointer group hover:text-white transition-colors"
-                    onClick={() => requestSort('price')}
-                  >
-                    <div className="flex items-center">Price {getSortIcon('price')}</div>
-                  </th>
+                  {enablePriceSort ? (
+                    <th
+                      className="py-5 px-6 font-medium cursor-pointer group hover:text-white transition-colors"
+                      onClick={() => requestSort('price')}
+                    >
+                      <div className="flex items-center">Price {getSortIcon('price')}</div>
+                    </th>
+                  ) : (
+                    <th className="py-5 px-6 font-medium">Price</th>
+                  )}
                   <th className="py-5 px-6 font-medium">Status</th>
                   <th className="py-5 px-6 font-medium text-right">Action</th>
                 </tr>

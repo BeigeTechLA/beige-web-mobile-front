@@ -1,12 +1,11 @@
 "use client";
 import React, { useState } from 'react';
-import SalesShootsTable from '@/components/sales/SalesShootsTable';
-import { ArrowUpToLine, Calendar } from 'lucide-react';
+import { ShootsTable } from '@/components/admin/ShootsTable';
+import { ArrowUpToLine } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
-import DottedDivider from '@/components/admin/DottedDivider';
 
 export default function SalesShootsPage() {
   const router = useRouter()
@@ -40,10 +39,10 @@ export default function SalesShootsPage() {
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
         {/* Header */}
-        <div className="flex justify-between items-end">
+        <div className="flex justify-between items-start lg:items-end">
           <div>
             <h1 className="text-lg lg:text-[32px] font-semibold text-white mb-2 leading-none">Shoots Management</h1>
-            <p className="text-[#888888] text-sm lg:text-base leading-none">Track and manage your photography and videography project</p>
+            <p className="text-[#888888] text-xs lg:text-base leading-none">Track and manage your photography and videography project</p>
           </div>
           <SortDateButton
             selectedDate={selectedDate}
@@ -53,7 +52,11 @@ export default function SalesShootsPage() {
 
         {/* <DottedDivider /> */}
 
-        <SalesShootsTable externalSelectedDate={selectedDate} />
+        <ShootsTable
+          externalSelectedDate={selectedDate}
+          detailBasePath="/sales/shoots"
+          enablePriceSort={false}
+        />
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">

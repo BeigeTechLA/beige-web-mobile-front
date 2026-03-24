@@ -108,11 +108,11 @@ export default function CreateQuotePage() {
   type DiscountType = "percentage" | "fixed";
   const [discountEnabled, setDiscountEnabled] = useState(false);
   const [discountType, setDiscountType] = useState<DiscountType>("percentage");
-  const [discountValue, setDiscountValue] = useState(0)
+  const [discountValue, setDiscountValue] = useState("")
 
   // Step 7: Discount 
   const [selectedTax, setSelectedTax] = useState<0 | 5 | 8.5 | 10>(0);
-  const [taxRate, setTaxRate] = useState(0)
+  const [taxRate, setTaxRate] = useState("")
   const [taxtType, setTaxType] = useState("")
 
   // Configuration for each selected service
@@ -303,6 +303,23 @@ export default function CreateQuotePage() {
 
   const handleDiscountTypeSelect = (type: DiscountType) => {
     setDiscountType(type);
+  };
+
+  const handleWholeNumberInput = (value: string) => {
+    return value.replace(/\D/g, "");
+  };
+
+  const handleDecimalInput = (value: string) => {
+    const normalizedValue = value.replace(/[^\d.]/g, "");
+    const firstDecimalIndex = normalizedValue.indexOf(".");
+
+    if (firstDecimalIndex === -1) {
+      return normalizedValue;
+    }
+
+    const integerPart = normalizedValue.slice(0, firstDecimalIndex + 1);
+    const decimalPart = normalizedValue.slice(firstDecimalIndex + 1).replace(/\./g, "");
+    return `${integerPart}${decimalPart}`;
   };
 
   // const handleTaxRate = (taxRate) => {
@@ -1290,7 +1307,7 @@ export default function CreateQuotePage() {
                       <Input
                         placeholder="0.00"
                         value={discountValue}
-                        onChange={(e) => setDiscountValue(parseInt(e.target.value))}
+                        onChange={(e) => setDiscountValue(handleWholeNumberInput(e.target.value))}
                         className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
                       />
                     </div>
@@ -1448,7 +1465,7 @@ export default function CreateQuotePage() {
                   <Input
                     placeholder="0.00"
                     value={taxRate}
-                    onChange={(e) => setTaxRate(parseInt(e.target.value))}
+                    onChange={(e) => setTaxRate(handleDecimalInput(e.target.value))}
                     className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
                   />
                 </div>

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { ShootsTable } from '@/components/admin/ShootsTable';
-import { ArrowUpToLine, Calendar } from 'lucide-react';
+import { ArrowUpToLine } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
@@ -40,9 +40,9 @@ export default function ShootsPage() {
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
         {/* Header */}
-        <div className="flex justify-between items-start lg:items-end">
-          <div>
-            <h1 className="text-lg lg:text-[32px] font-semibold text-white mb-2 leading-none">Shoots Management</h1>
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <h1 className="text-lg lg:text-[32px] font-semibold text-white leading-none">Shoots Management</h1>
             <p className="text-[#888888] text-xs lg:text-base leading-none">Track and manage your photography and videography project</p>
           </div>
           <SortDateButton
@@ -51,7 +51,7 @@ export default function ShootsPage() {
           />
         </div>
 
-        {/* <DottedDivider /> */}
+        <DottedDivider className="my-0" />
 
         <ShootsTable externalSelectedDate={selectedDate} />
 

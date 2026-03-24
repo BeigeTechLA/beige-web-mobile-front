@@ -180,8 +180,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         </div>
 
         {/* Right Sidebar (Timeline) */}
-        <div className="hidden lg:block">
-          <ProjectTimeline />
+        <div className="hidden lg:block h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+          <ProjectTimeline status={project?.status} />
         </div>
 
         {/* Mobile Timeline Overlay (Conditional) */}
