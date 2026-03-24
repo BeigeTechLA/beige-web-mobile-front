@@ -15,6 +15,7 @@ import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDet
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
+import { useTheme } from "next-themes";
 import {
   Select,
   SelectContent,
@@ -56,7 +57,7 @@ interface LeadData {
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
-  bookingStatus: "Paid" | "In-Progress" | BookingStatus; 
+  bookingStatus: "Paid" | "In-Progress" | BookingStatus;
   lastActivity: string;
   date: Date;
   intent: string;
@@ -128,6 +129,8 @@ const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
 export default function AdminSaleRepManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sortBy, setSortBy] = React.useState("");
@@ -162,6 +165,12 @@ export default function AdminSaleRepManagerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [range, setRange] = useState('All Time');
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+
   // --- FILTER CHANGE LOGIC ---
   // Reset pagination when any lead filter changes
   useEffect(() => {
@@ -177,7 +186,7 @@ export default function AdminSaleRepManagerPage() {
     lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
     status: statusFilter === "All" ? undefined : statusFilter,
     // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
-    intent: intentFilter === "All" ? undefined : intentFilter, 
+    intent: intentFilter === "All" ? undefined : intentFilter,
   });
 
   // Fetch users for Client and Creative Partner tabs
@@ -289,7 +298,7 @@ export default function AdminSaleRepManagerPage() {
       }));
       setDisplayLeads(mapped);
     } else if (leadsApiData) {
-        setDisplayLeads([]); // Clear if no leads found
+      setDisplayLeads([]); // Clear if no leads found
     }
   }, [leadsApiData]);
 
@@ -340,38 +349,47 @@ export default function AdminSaleRepManagerPage() {
     }
   };
 
+  if (!mounted) return null;
+
   return (
     <>
       <Topbar pathname={pathname}
         actions={
           <>
             <div className="relative flex-1 max-w-lg">
-              <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+              <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
               <input
                 type="text"
                 placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-12 w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+                className={`h-12 w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2.5 border rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                  ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                  : "bg-white border-black/10 text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
+                  }`}
               />
             </div>
             {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
             </Button> */}
-            <Button onClick={() => router.push("/admin/sales-representative/create-new-deal")} className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black">
+            <Button
+              onClick={() => router.push("/admin/sales-representative/create-new-deal")}
+              className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
+                }`}
+            >
               Create new lead
             </Button>
           </>
         }
       />
 
-      <div className="min-h-screen pb-40 p-4 lg:p-6 lg:px-10 lg:py-9">
+      <div className={`min-h-screen pb-40 p-4 lg:p-6 lg:px-10 lg:py-9 transition-colors duration-300 ${isDark ? "bg-transparent" : "bg-[#F3F4F6]"}`}>
         <div className="flex flex-col lg:flex-row gap-6 justify-between items-start w-full">
-          <div className="text-white">
-            <h1 className="text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1">
+          <div>
+            <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
               Sales Representative Management
             </h1>
-            <p className="text-xs lg:text-sm text-white/70">
+            <p className={`text-xs lg:text-sm transition-colors ${isDark ? "text-white/70" : "text-black/60"}`}>
               View activity, manage assignments, and monitor performance across
               your sales team.
             </p>
@@ -403,7 +421,7 @@ export default function AdminSaleRepManagerPage() {
               }}
             />
 
-           {activeTab === "Booking" && (
+            {activeTab === "Booking" && (
               <div className="flex flex-wrap gap-2 lg:gap-4">
                 <BasicDropdown
                   label="Lead Type"
@@ -471,13 +489,15 @@ export default function AdminSaleRepManagerPage() {
             renderRow={(user) => (
               <tr
                 key={user.id}
-                className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0"
+                className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222] hover:bg-white/[0.02]" : "border-[#E5E5E5] hover:bg-black/[0.01]"
+                  }`}
                 onClick={() => handleUserRowClick(user)}
               >
-                <td className="py-5 px-6 text-[#888] text-[14px]">{user.id}</td>
+                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#888]" : "text-[#666]"}`}>{user.id}</td>
                 <td className="py-5 px-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-sm">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm transition-colors ${isDark ? "bg-[#F5D5D5] text-black" : "bg-[#FEE2E2] text-black"
+                      }`}>
                       {user.imageUrl ? (
                         <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover rounded-lg" />
                       ) : (
@@ -485,24 +505,24 @@ export default function AdminSaleRepManagerPage() {
                       )}
                     </div>
                     <div>
-                      <p className="text-[#E0E0E0] font-medium text-[15px]">{user.name}</p>
-                      <p className="text-[#666666] text-xs mt-0.5">{user.joinDate}</p>
+                      <p className={`font-medium text-[15px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.name}</p>
+                      <p className={`text-xs mt-0.5 transition-colors ${isDark ? "text-[#666666]" : "text-[#999999]"}`}>{user.joinDate}</p>
                     </div>
                   </div>
                 </td>
-                <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">{user.type}</td>
+                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{user.type}</td>
                 <td className="py-5 px-6">
                   <IntentBadge intent={(user.intent as any) || "Warm"} />
                 </td>
                 <td className="py-5 px-6">
                   <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
                 </td>
-                <td className="py-5 px-6 text-[#E0E0E0] text-[14px]">
+                <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                   {user.phoneNumber}
                 </td>
                 <td className="py-5 px-6 text-right">
                   <button
-                    className="text-[#666] hover:text-white transition-colors p-1"
+                    className={`transition-colors p-1 ${isDark ? "text-[#666] hover:text-white" : "text-[#999] hover:text-black"}`}
                     onClick={(e) => {
                       const rawId = user.id.replace('#', '');
                       handleOpenMenu(e, user.name, rawId as any);
@@ -516,22 +536,22 @@ export default function AdminSaleRepManagerPage() {
             renderMobileDetails={(user) => (
               <div className="p-4 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-white/40 text-[10px] uppercase">Email</p>
-                  <p className="text-white text-sm truncate">{user.email}</p>
+                  <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Email</p>
+                  <p className={`text-sm truncate ${isDark ? "text-white" : "text-black"}`}>{user.email}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-white/40 text-[10px] uppercase">Type</p>
-                  <p className="text-white text-sm">{user.type}</p>
+                  <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Type</p>
+                  <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.type}</p>
                 </div>
                 <div className="">
-                  <p className="text-white/40 text-[10px] uppercase">Intent</p>
+                  <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Intent</p>
                   <div className="">
                     <IntentBadge intent={(user.intent as any) || "Hot"} size="sm" />
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-white/40 text-[10px] uppercase">Contact Info</p>
-                  <p className="text-white text-sm">{user.phoneNumber}</p>
+                  <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Contact Info</p>
+                  <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
                 </div>
               </div>
             )}

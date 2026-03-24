@@ -13,21 +13,30 @@ import PreProductionTab from "@/components/admin/shoot-details/PreProductionTab"
 import PostProductionTab from "@/components/admin/shoot-details/PostProductionTab";
 import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
-
+import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
-import { CircleX, Loader2, X, Eye } from "lucide-react"; // Added X icon for closing
+import { CircleX, Loader2, X, SlidersHorizontal, Eye } from "lucide-react"; // Added X icon for closing
 import { Button } from "@/src/components/landing/ui/button";
+import { useTheme } from "next-themes";
 
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const pathname = usePathname();
   const { id } = use(params);
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("Overview");
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
@@ -97,6 +106,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     if (id) fetchProjectAndSkills();
   }, [id]);
 
+  if (!mounted) return null;
+
   const getInitials = (name: string) => {
     if (!name) return "??";
 
@@ -112,10 +123,29 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     return (first + second).toUpperCase();
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+
+    if (window.confirm("Are you sure you want to delete this shoot? This action cannot be undone.")) {
+      try {
+        const response = await adminApi.deleteProject(id);
+        if (response?.success || response?.message === "Project deleted successfully") { // Adjust based on actual API response
+          toast.success("Shoot deleted successfully");
+          router.push('/admin/shoots');
+        } else {
+          toast.error(response?.error || "Failed to delete shoot");
+        }
+      } catch (error) {
+        console.error("Delete failed", error);
+        toast.error("An error occurred while deleting");
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center min-h-[500px]">
-        <Loader2 className="animate-spin text-white/50" size={40} />
+        <Loader2 className={`animate-spin ${isDark ? "text-white/50" : "text-black/30"}`} size={40} />
       </div>
     );
   }
@@ -125,12 +155,23 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
       <Topbar pathname={pathname}
         actions={
           <>
-            {/* Need to add filters  */}
-            <Button className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors ">
+            <Button
+              className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
+              onClick={handleDelete}
+            >
               <CircleX /> Cancel Shoot
             </Button>
+            <Button
+              variant="outline"
+              className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+                : "bg-white border-[#E5E5E5] text-[#666] hover:bg-zinc-50"
+                }`}
+            >
+              <SlidersHorizontal className="w-4 h-4" /> Filters
+            </Button>
             <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
-              Book a Shoot
+              Edit Shoot
             </Button>
           </>
         }
@@ -138,73 +179,86 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 flex h-full -m-6 lg:-m-10 relative">
         {/* Main Content (Left) */}
-        <div className="flex-1 p-6 pb-15 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+        <div className="flex-1 p-6 pb-30 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] ">
           <ShootHeader activeTab={activeTab} project={project} projectId={id} />
           <Button
-            className="lg:hidden w-full bg-[#202020] text-white hover:bg-[#202020]/50 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 mb-3"
+            className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
+              ? "bg-[#202020] text-white border-white/20 hover:bg-[#202020]/50 shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
+              : "bg-white text-black border-[#E5E5E5] hover:bg-zinc-50"
+              }`}
             onClick={() => setIsTimelineOpen(true)}
           >
             View Project Timeline
           </Button>
 
-          <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <div className={`rounded-lg lg:rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
+            <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            <div className="px-5 py-6 lg:py-9">
+              {activeTab === "Overview" && (
+                <>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
+                    <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
+                    <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
+                  </div>
+                  <MeetingSchedule />
+                </>
+              )}
 
-          {activeTab === "Overview" && (
-            <>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
-                <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
-                <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
-              </div>
-              <MeetingSchedule />
-            </>
-          )}
+              {
+                (activeTab === "Pre_Production" || activeTab === "Pre Production") && (
+                  <PreProductionTab />
+                )
+              }
 
-          {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-            <PreProductionTab />
-          )}
 
-          {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-            <PostProductionTab />
-          )}
+              {
+                (activeTab === "Post_Production" || activeTab === "Post Production") && (
+                  <PostProductionTab />
+                )
+              }
 
-          {activeTab === "Meetings" && (
-            <>
-              <MeetingSchedule />
-              <MeetingOverviewChart />
-            </>
-          )}
+              {
+                activeTab === "Meetings" && (
+                  <>
+                    <MeetingSchedule />
+                    <MeetingOverviewChart isDark={isDark} />
+                  </>
+                )
+              }
 
-          {activeTab === "Messages" && (
-            <MessagesTab />
-          )}
-        </div>
+              {
+                activeTab === "Messages" && (
+                  <MessagesTab />
+                )
+              }
+            </div >
+          </div >
+        </div >
 
         {/* Right Sidebar (Timeline) */}
-        <div className="hidden lg:block">
+        < div className="hidden lg:block" >
           <ProjectTimeline />
-        </div>
+        </div >
 
         {/* Mobile Timeline Overlay (Conditional) */}
-        {isTimelineOpen && (
-          <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
-            {/* Close Backdrop Click */}
-            <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
+        {
+          isTimelineOpen && (
+            <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
+              {/* Close Backdrop Click */}
+              <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
 
-            <div className="relative w-[85%] max-w-sm bg-[#111111] h-full shadow-2xl animate-in slide-in-from-right duration-300">
-              {/* Header with Close Button */}
-              <div className="flex items-center justify-between p-6 border-b border-white/10">
-                <h2 className="text-white font-semibold">Project Timeline</h2>
-                <button onClick={() => setIsTimelineOpen(false)} className="text-white/60">
-                  <X size={24} />
+              <div className={`relative max-w-sm h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+                <button onClick={() => setIsTimelineOpen(false)} className={`absolute top-3 right-3 ${isDark ? "text-white/60" : "text-black/60"}`}>
+                  <X size={20} />
                 </button>
-              </div>
 
-              <div className="h-full overflow-y-auto">
-                <ProjectTimeline status={project?.status} />
+                <div className="h-full overflow-y-auto">
+                  <ProjectTimeline status={project?.status} />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
         {/* --- FLOATING MOBILE BUTTONS --- */}
         <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
