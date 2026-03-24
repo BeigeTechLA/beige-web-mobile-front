@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { Loader2, ChevronDown, MoreVertical } from "lucide-react";
+import { Loader2, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
+import { useTheme } from "next-themes";
 
 // This is the internal component that handles the expandable mobile view
 function MobileUserRow<T>({
@@ -14,29 +15,33 @@ function MobileUserRow<T>({
   renderMobileDetails: (item: T) => React.ReactNode
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const data = item as any; // Type casting for ease of access to common fields
+  const { theme, resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark" || theme === "dark";
+  const data = item as any;
 
   return (
-    <div className="bg-[#171717] border border-[#333] rounded-xl overflow-hidden mb-3 lg:hidden">
+    <div className={`border rounded-xl overflow-hidden mb-3 lg:hidden transition-all duration-300 ${isDark ? "bg-[#171717] border-[#333]" : "bg-white border-[#E5E5E5]"
+      }`}>
       {/* Header - Always Visible */}
       <div
         className="flex items-center justify-between p-4 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <div className={`p-1 rounded-full border border-white/10 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-            <ChevronDown size={14} className="text-white/60" />
+          <div className={`p-1 rounded-full border transition-all duration-300 ${isExpanded ? 'rotate-180 border-[#E5D5B8]' : isDark ? 'border-white/10' : 'border-black/10'
+            }`}>
+            <ChevronDown size={14} className={isDark ? "text-white/60" : "text-black/60"} />
           </div>
-          <div className="w-9 h-9 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-xs">
+          <div className="w-9 h-9 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-xs overflow-hidden">
             {data.imageUrl ? (
-              <img src={data.imageUrl} alt={data.name} className="w-full h-full object-cover rounded-lg" />
+              <img src={data.imageUrl} alt={data.name} className="w-full h-full object-cover" />
             ) : (
               <span>{data.initials}</span>
             )}
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-white">{data.name}</span>
-            <span className="text-[10px] text-white/40">{data.id}</span>
+            <span className={`text-sm font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>{data.name}</span>
+            <span className={`text-[10px] ${isDark ? "text-white/40" : "text-[#999]"}`}>{data.id}</span>
           </div>
         </div>
         <LeadsStatusBadge status={"Booking In Progress"} />
@@ -49,7 +54,8 @@ function MobileUserRow<T>({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="border-t border-white/5 bg-black/20"
+            className={`border-t transition-colors duration-300 ${isDark ? "border-white/5 bg-black/20" : "border-[#F0F0F0] bg-[#FFFCF6]"
+              }`}
           >
             {renderMobileDetails(item)}
           </motion.div>
@@ -68,7 +74,7 @@ interface Props<T> {
   limit: number;
   headers: string[];
   renderRow: (item: T) => React.ReactNode;
-  renderMobileDetails: (item: T) => React.ReactNode; // Defines what shows inside the expanded area
+  renderMobileDetails: (item: T) => React.ReactNode;
   onPageChange: (page: number) => void;
 }
 
@@ -84,14 +90,19 @@ export default function UsersTable<T>({
   renderMobileDetails,
   onPageChange,
 }: Props<T>) {
+  const { theme, resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark" || theme === "dark";
+
   return (
     <div className="space-y-6">
       {/* --- DESKTOP TABLE --- */}
-      <div className="hidden lg:block w-full bg-[#171717] rounded-2xl border border-[#333] overflow-hidden">
+      <div className={`hidden lg:block w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#171717] border-[#333]" : "bg-white border-[#E5E5E5]"
+        }`}>
         <div className="w-full overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#101010] text-[#E8D1AB] text-sm">
+              <tr className={`text-sm transition-colors duration-300 ${isDark ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#000000]"
+                }`}>
                 {headers.map((header, idx) => (
                   <th key={header} className={`py-5 px-6 font-medium ${idx === headers.length - 1 ? 'text-right' : ''}`}>
                     {header}
@@ -102,11 +113,15 @@ export default function UsersTable<T>({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={headers.length} className="py-20 text-center"><Loader2 className="animate-spin inline text-[#E8D1AB]" /></td>
+                  <td colSpan={headers.length} className="py-20 text-center">
+                    <Loader2 className={`animate-spin inline ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`} />
+                  </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={headers.length} className="py-20 text-center text-[#888]">No users found.</td>
+                  <td colSpan={headers.length} className={`py-20 text-center ${isDark ? "text-[#888]" : "text-[#999]"}`}>
+                    No users found.
+                  </td>
                 </tr>
               ) : (
                 data.map(renderRow)
@@ -119,7 +134,9 @@ export default function UsersTable<T>({
       {/* --- MOBILE LIST --- */}
       <div className="lg:hidden">
         {loading && data.length === 0 ? (
-          <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#E8D1AB]" /></div>
+          <div className="flex justify-center py-10">
+            <Loader2 className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`} />
+          </div>
         ) : (
           data.map((item, idx) => (
             <MobileUserRow key={idx} item={item} renderMobileDetails={renderMobileDetails} />
@@ -129,20 +146,46 @@ export default function UsersTable<T>({
 
       {/* --- PAGINATION --- */}
       {!loading && totalPages > 1 && (
-        <div className="flex flex-col md:flex-row justify-between items-center p-6 border border-[#333] rounded-2xl bg-[#171717] gap-4">
-          <div className="text-sm text-[#666666]">
+        <div className={`flex flex-col md:flex-row justify-between items-center p-6 border rounded-2xl gap-4 transition-all duration-300 ${isDark ? "border-[#333] bg-[#171717]" : "border-[#E5E5E5] bg-[#FFFCF6]"
+          }`}>
+          <div className={`text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
             Showing {(currentPage - 1) * limit + 1} to {Math.min(currentPage * limit, totalRecords)} of {totalRecords} results
           </div>
           <div className="flex gap-2 items-center">
-            <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 disabled:opacity-30">Previous</button>
+            <button
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
+                  ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10"
+                  : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                }`}
+            >
+              Previous
+            </button>
             <div className="flex gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => (
-                <button key={i + 1} onClick={() => onPageChange(i + 1)} className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg ${currentPage === i + 1 ? "bg-[#E5D5B8] text-black" : "text-white/60 hover:bg-white/5"}`}>
+                <button
+                  key={i + 1}
+                  onClick={() => onPageChange(i + 1)}
+                  className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === i + 1
+                      ? "bg-[#E5D5B8] text-black"
+                      : isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-black/5"
+                    }`}
+                >
                   {i + 1}
                 </button>
               ))}
             </div>
-            <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-4 py-2 text-sm font-medium rounded-lg bg-[#111] text-white/60 border border-[#333] hover:bg-white/10 disabled:opacity-30">Next</button>
+            <button
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
+                  ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10"
+                  : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                }`}
+            >
+              Next
+            </button>
           </div>
         </div>
       )}

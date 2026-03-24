@@ -48,6 +48,7 @@ import {
 
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
+import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
@@ -633,6 +634,11 @@ export default function ClientDetailPage() {
 
       const crewSize = Object.values(crewRoles).reduce((a, b) => a + b, 0);
 
+      const browserTimeZone = getBrowserTimeZone();
+      const startDatePart = getLocalDatePart(formData.startDate);
+      const startTimePart = getLocalTimePart(formData.startDate);
+      const endTimePart = getLocalTimePart(formData.endDate);
+
       const payload = {
         client_name: clientName,
         guest_email: clientEmail,
@@ -641,8 +647,11 @@ export default function ClientDetailPage() {
         lead_source: thumbtack,
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
+        start_date: startDatePart,
+        start_time: startTimePart,
+        end_time: endTimePart,
+        time_zone: browserTimeZone,
         start_date_time: formData.startDate,
-        end_time: formData.endDate,
         duration_hours: durationHours,
         location: formData.location,
         crew_roles: crewRoles,
@@ -653,7 +662,12 @@ export default function ClientDetailPage() {
         photo_edit_types: formData.photoEditTypes || [],
         is_draft: false,
         skip_discount: true,
-        skip_margin: true
+        skip_margin: true,
+        booking_type: formData.bookingType,
+        booking_days: (formData.bookingDays || []).map((d: any) => ({
+          ...d,
+          time_zone: d.time_zone || d.timeZone || browserTimeZone
+        }))
       };
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {

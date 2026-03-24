@@ -1,11 +1,23 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { sanitizePhoneInput } from "@/lib/utils/phone"
 
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {}
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, onChange, ...props }, ref) => {
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (type === "tel") {
+        const sanitizedValue = sanitizePhoneInput(event.target.value)
+        if (sanitizedValue !== event.target.value) {
+          event.target.value = sanitizedValue
+        }
+      }
+
+      onChange?.(event)
+    }
+
     return (
       <input
         type={type}
@@ -14,6 +26,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           className
         )}
         ref={ref}
+        onChange={handleChange}
         {...props}
       />
     )

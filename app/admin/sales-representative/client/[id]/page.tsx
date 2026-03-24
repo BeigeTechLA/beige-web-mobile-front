@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 
 import {
   Calendar,
@@ -31,12 +32,14 @@ import {
 import { LEAD_TYPE_LABELS, LEAD_STATUS_LABELS, SalesLeadDetails } from "@/types/sales";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils/discountHelpers";
+import { parseDate } from "@/src/components/landing/lib/utils";
 import GeneratePaymentLink from "@/components/sales/GeneratePaymentLink";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import DottedDivider from "@/components/admin/DottedDivider";
 import BookingStatusStepper from "@/components/sales/BookingStatusStepper";
 import Topbar from "@/components/admin/Topbar";
+import { format } from "date-fns";
 import { UpdateLeadIntentModal } from "@/components/sales/UpdateLeadIntent";
 import {
   Dialog,
@@ -93,7 +96,8 @@ const mapLeadStatusToUI = (status: string): string => {
 // Helper to format date for the UI (e.g., 12 Mar 2026)
 const formatDateUI = (dateStr: string | null | undefined) => {
   if (!dateStr) return null;
-  const date = new Date(dateStr);
+  const date = parseDate(dateStr);
+  if (!date) return null;
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -105,7 +109,10 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
+  const userId = params.id as string;
   const leadId = params.id as string;
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
   const [discount, setDiscount] = useState("");
   const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
@@ -120,6 +127,13 @@ export default function LeadDetailPage() {
   const [generatedDiscountId, setGeneratedDiscountId] = useState<number | undefined>(undefined);
   const [isCPModalOpen, setIsCPModalOpen] = useState(false);
   const [selectedCPId, setSelectedCPId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Constant default to dark
+  const isDark = !mounted || theme === "dark";
 
   // Fetch real lead data
   const {
@@ -198,7 +212,7 @@ export default function LeadDetailPage() {
   const status = lead ? (lead.booking_status || LEAD_STATUS_LABELS[lead.lead_status as keyof typeof LEAD_STATUS_LABELS] || mapLeadStatusToUI(lead.lead_status)) : "Loading...";
 
   const bookingDate = booking?.event_date
-    ? new Date(booking.event_date).toLocaleDateString("en-US", {
+    ? (parseDate(booking.event_date) || new Date(booking.event_date)).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -305,25 +319,25 @@ export default function LeadDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="text-white font-sans flex flex-col items-center justify-center py-20 min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB] mb-4"></div>
-        <p className="text-white/60 animate-pulse">Fetching client lead details...</p>
+      <div className={`${isDark ? "text-white" : "text-black"}font-sans flex flex-col items-center justify-center py-20 min-h-[60vh]`}>
+        <div className={`animate-spin rounded-full h-12 w-12 border-b-2  ${isDark ? "border-[#E8D1AB]" : "border-[#BFA780]"} mb-4`}></div>
+        <p className={`${isDark ? "text-white/60" : "text-black/40"} animate-pulse`}>Fetching client lead details...</p>
       </div>
     );
   }
 
   if (error || !lead) {
     return (
-      <div className="text-white font-sans">
+      <div className={`${isDark ? "text-white" : "text-black"} font-sans`}>
         <Button
           onClick={() => router.back()}
-          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none"
+          className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none border-none`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
-        <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-8 text-center">
-          <p className="text-white/60">Lead not found</p>
+        <div className={`${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} border rounded-2xl p-8 text-center`}>
+          <p className={isDark ? "text-white/60" : "text-black/60"}>Lead not found</p>
         </div>
       </div>
     );
@@ -332,11 +346,11 @@ export default function LeadDetailPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans">
+      <div className={`overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
         {/* Back Button */}
         <Button
           onClick={() => router.back()}
-          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none"
+          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none border-none ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-[#B18A00]"}`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
@@ -346,37 +360,40 @@ export default function LeadDetailPage() {
           {/* Main Content Area (Left/Middle) */}
           <div className="lg:col-span-8 space-y-3 lg:space-y-6">
             {/* Client Details Card */}
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
+            <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
               <div className="flex justify-between items-center p-5 lg:px-9 lg:py-6 !pb-0">
-                <h2 className="lg:text-xl font-medium text-white">
+                <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Client Details
                 </h2>
                 <div className="flex gap-3">
                   {!lead?.booking_id ? (
                     <Button
                       onClick={() => router.push(`/admin/sales-representative/client/${leadId}/create-booking`)}
-                      className="h-10 bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black px-5 rounded-lg text-sm font-semibold transition-all"
+                      className={`h-10 font-semibold flex items-center px-5 rounded-lg text-sm transition-all bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] `}
                     >
                       Create Booking
                     </Button>
                   ) : (
                     <Button
                       onClick={() => router.push(`/admin/sales-representative/client/${leadId}/edit-details`)}
-                      className="h-10 bg-zinc-800 border border-white/10 text-white hover:bg-zinc-700 px-5 rounded-lg text-sm font-semibold transition-all"
+                      className={`h-10 border px-5 rounded-lg text-sm transition-all ${isDark
+                    ? "bg-zinc-800 border-white/10 text-[#E8D1AB] hover:bg-zinc-700"
+                    : "bg-[#E8D1AB] hover:bg-[#D9C19A] border-[#E8D1AB] text-black"
+                    }`}
                     >
                       Edit Details
                     </Button>
                   )}
                   <Button
                     onClick={() => setIsIntentModalOpen(true)}
-                    className="h-10 bg-zinc-800 border border-white/10 text-[#E8D1AB] hover:bg-zinc-700 px-5 rounded-lg text-sm transition-all"
+                    className={`h-10 bg-zinc-800 border border-white/10 hover:bg-zinc-700 px-5 rounded-lg text-sm transition-all ${isDark ? "text-[#E8D1AB]":"text-white"}`}
                   >
                     Update Intent
                   </Button>
                 </div>
               </div>
 
-              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+              <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
 
               <div className="flex flex-col gap-3 lg:gap-6 p-5 lg:p-9 !pt-0">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -385,7 +402,7 @@ export default function LeadDetailPage() {
                       {initials}
                     </div>
                     <div className="flex flex-col gap-2 min-w-0">
-                      <h1 className="lg:text-[22px] font-semibold truncate">{clientName}</h1>
+                      <h1 className={`lg:text-[22px] font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{clientName}</h1>
                       <div className=" lg:hidden">
                         <LeadsStatusBadge status={status as any} />
                       </div>
@@ -398,43 +415,43 @@ export default function LeadDetailPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
+                <div className={`flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm ${isDark ? "text-[#AAA7A7]" : "text-[#666666]"}`}>
                   <p>
-                    Email ID : <span className="text-white">{email}</span>
+                    Email ID : <span className={isDark ? "text-white" : "text-black"}>{email}</span>
                   </p>
-                  <div className="w-[1px] h-4 bg-white hidden md:block" />
+                  <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>
-                    Phone Number : <span className="text-white">{phone}</span>
+                    Phone Number : <span className={isDark ? "text-white" : "text-black"}>{phone}</span>
                   </p>
-                  <div className="w-[1px] h-4 bg-white hidden md:block" />
+                  <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>
-                    Lead Type : <span className="text-white">{leadType}</span>
+                    Lead Type : <span className={isDark ? "text-white" : "text-black"}>{leadType}</span>
                   </p>
                 </div>
-                <div className="flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm text-[#AAA7A7]">
+                <div className={`flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm ${isDark ? "text-[#AAA7A7]" : "text-[#666666]"}`}>
                   <p>
                     Temporary Booking ID : <span className="text-[#E8D1AB]">{lead.booking_id ? `TMP-${lead.created_at ? new Date(lead.created_at).getFullYear() : new Date().getFullYear()}-${lead.booking_id.toString().padStart(3, '0')}` : "Not assigned"}</span>
                   </p>
-                  <div className="w-[1px] h-4 bg-white hidden md:block" />
+                  <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>
-                    Lead Source : <span className="text-white capitalize">{lead.lead_source || lead.intent_source || "Website"}</span>
+                    Lead Source : <span className={isDark ? "text-white capitalize" : "text-black capitalize"}>{lead.lead_source || lead.intent_source || "Website"}</span>
                   </p>
-                  <div className="w-[1px] h-4 bg-white hidden md:block" />
+                  <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>
-                    Created Date : <span className="text-white">{formatDateUI(lead.created_at) || "N/A"}</span>
+                    Created Date : <span className={isDark ? "text-white" : "text-black"}>{formatDateUI(lead.created_at) || "N/A"}</span>
                   </p>
-                  <div className="w-[1px] h-4 bg-white hidden md:block" />
+                  <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>
-                    Assigned Sales Rep : <span className="text-white">{lead.assigned_sales_rep?.name || "Unassigned"}</span>
+                    Assigned Sales Rep :<span className={isDark ? "text-white" : "text-black"}>{lead.assigned_sales_rep?.name || "Unassigned"}</span>
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Assigned CPs Section - FLOATING UI & HOVER PILL & ACTIVE METADATA */}
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-[32px] overflow-hidden">
+            <div className={`border rounded-[32px] overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 lg:p-9 !pb-0 gap-4">
-                <h2 className="text-xl lg:text-2xl font-medium text-white">
+                <h2 className={`text-xl lg:text-2xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Assigned CPs ({filteredCPs.length.toString().padStart(2, '0')})
                 </h2>
 
@@ -443,7 +460,8 @@ export default function LeadDetailPage() {
                   <div className="relative">
                     <button
                       onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                      className="flex items-center justify-between min-w-[140px] bg-[#1a1a1a] border border-[#3D3D3D] rounded-xl px-4 py-2.5 text-sm font-medium text-white hover:bg-[#252525] transition-all"
+                      className={`flex items-center justify-between min-w-[140px] border rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D] text-white hover:bg-[#252525]" : "bg-[#F9FAFB] border-[#D8D8D8] text-black hover:bg-[#F3F4F6]"
+                        }`}
                     >
                       <span className="capitalize">{statusFilter === "all" ? "All Status" : statusFilter}</span>
                       <ChevronDown size={16} className={`ml-2 transition-transform ${isStatusDropdownOpen ? "rotate-180" : ""}`} />
@@ -451,7 +469,7 @@ export default function LeadDetailPage() {
                     {isStatusDropdownOpen && (
                       <>
                         <div className="fixed inset-0 z-30" onClick={() => setIsStatusDropdownOpen(false)}></div>
-                        <div className="absolute top-full right-0 mt-2 w-44 bg-[#1a1a1a] border border-[#3D3D3D] rounded-xl shadow-2xl z-40 overflow-hidden">
+                        <div className={`absolute top-full right-0 mt-2 w-44 border rounded-xl shadow-2xl z-40 overflow-hidden ${isDark ? "bg-[#1a1a1a] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
                           {['all', 'pending', 'accepted', 'rejected'].map((s) => (
                             <button
                               key={s}
@@ -459,7 +477,7 @@ export default function LeadDetailPage() {
                                 setStatusFilter(s as any);
                                 setIsStatusDropdownOpen(false);
                               }}
-                              className="w-full text-left px-4 py-3 text-sm text-white hover:bg-[#E8D1AB] hover:text-black transition-colors capitalize"
+                              className={`w-full text-left px-4 py-3 text-sm transition-colors capitalize ${isDark ? "text-white hover:bg-[#E8D1AB] hover:text-black" : "text-black hover:bg-[#E8D1AB]"}`}
                             >
                               {s} Status
                             </button>
@@ -470,7 +488,7 @@ export default function LeadDetailPage() {
                   </div>
 
                   <Button
-                    className="h-11 bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black font-semibold px-6 rounded-xl flex items-center gap-2"
+                    className={`h-11 font-semibold px-6 rounded-xl flex items-center gap-2 transition-all ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-black" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                     onClick={() => router.push(`/admin/sales-representative/client/${leadId}/select-creatives`)}
                   >
                     <Plus size={18} /> Add More CPs
@@ -478,7 +496,7 @@ export default function LeadDetailPage() {
                 </div>
               </div>
 
-              <hr className="border-t border-[#3D3D3D] border-dashed my-6 lg:my-9 mx-6 lg:mx-9" />
+              <hr className={`border-dashed my-6 lg:my-9 mx-6 lg:mx-9 ${isDark ? "border-[#3D3D3D]" : "border-[#D8D8D8]"}`} />
 
               <div className="p-6 lg:p-9 !pt-0">
                 <div className="relative">
@@ -510,12 +528,12 @@ export default function LeadDetailPage() {
                             {/* FLOATING IMAGE AREA */}
                             <div
                               onClick={() => handleCPClick(cp.id)}
-                              className="relative aspect-[1.1/1] rounded-[32px] overflow-hidden bg-zinc-800 shadow-2xl mb-4 cursor-pointer"
+                              className={`relative aspect-[1.1/1] rounded-[32px] overflow-hidden shadow-2xl mb-4 cursor-pointer ${isDark ? "bg-zinc-800" : "bg-zinc-200"}`}
                             >
                               {cp.image ? (
                                 <img src={cp.image} alt={cp.name} className="w-full h-full object-cover" />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-3xl font-bold">
+                                <div className={`w-full h-full flex items-center justify-center text-3xl font-bold ${isDark ? "bg-zinc-700" : "bg-zinc-300"}`}>
                                   {cp.name.split(" ").map((n: string) => n[0]).join("")}
                                 </div>
                               )}
@@ -540,22 +558,20 @@ export default function LeadDetailPage() {
                             <div className={`px-2 transition-all duration-500 transform ${index === activeCPIndex ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"}`}>
                               <div className="flex justify-between items-start mb-4">
                                 <div className="min-w-0">
-                                  <h3 className="text-xl font-bold text-white truncate leading-tight">{cp.name}</h3>
-                                  <p className="text-[#8E8E8E] text-sm mt-0.5">{cp.role}</p>
+                                  <h3 className={`text-xl font-bold truncate leading-tight ${isDark ? "text-white" : "text-black"}`}>{cp.name}</h3>
+                                  <p className={`${isDark ? "text-[#8E8E8E]" : "text-[#666666]"} text-sm mt-0.5`}>{cp.role}</p>
                                 </div>
 
-                                <div className={`px-5 py-2 rounded-xl text-xs font-bold capitalize
+                                <div className={`px-5 py-2 rounded-lg text-xs font-bold capitalize
                                   ${cp.status === 'accepted' ? 'bg-[#12B76A] text-white' :
                                     cp.status === 'rejected' ? 'bg-[#D92D20] text-white' :
-                                      'bg-[#9D6E2A] text-white'}`}
+                                      'bg-[#E8D1AB] text-black'}`}
                                 >
                                   {cp.status}
                                 </div>
                               </div>
-
-                              <hr className="border-t border-[#3D3D3D] mb-4" />
-
-                              <div className="flex items-center gap-2 text-[#E8D1AB] text-[11px] font-medium">
+                              <hr className={`mb-4 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
+                              <div className={`flex items-center gap-2 ${isDark ? "text-white" : "text-black/80"} text-[11px] font-medium`}>
                                 <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
                                 <span className="capitalize">{cp.status}</span>
                                 <span className="mx-0.5">—</span>
@@ -567,7 +583,7 @@ export default function LeadDetailPage() {
                       ))}
                     </Swiper>
                   ) : (
-                    <div className="h-[300px] flex items-center justify-center text-white/40 border border-[#3D3D3D] border-dashed rounded-[32px]">
+                    <div className={`h-[300px] flex items-center justify-center border-dashed border rounded-[32px] ${isDark ? "text-white/40 border-[#3D3D3D]" : "text-black/40 border-[#D8D8D8]"}`}>
                       No partners found matching this status.
                     </div>
                   )}
@@ -576,23 +592,23 @@ export default function LeadDetailPage() {
             </div>
 
             {/* Booking Summary Card */}
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
+            <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
               <div className="flex justify-between items-center p-4 lg:p-9 !pb-0">
-                <h2 className="lg:text-xl font-medium text-white">
+                <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Booking Summary
                 </h2>
                 <Button
                   onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-details`)}
-                  className="h-10 w-fit bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-2 px-4 rounded-lg transition-all text-sm"
+                  className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                 >
                   Edit Details
                 </Button>
               </div>
-              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+              <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
 
               <div className="flex flex-col gap-3 lg:gap-5 px-4 lg:px-9">
                 {!booking ? (
-                  <div className="py-10 text-center text-white/40 border border-[#3D3D3D] border-dashed rounded-xl">
+                  <div className={`py-10 text-center border border-dashed rounded-xl ${isDark?"text-white/40 border-[#3D3D3D]":"text-black/40 border-black/30"}`}>
                     No active booking found for this lead.
                   </div>
                 ) : (
@@ -600,18 +616,18 @@ export default function LeadDetailPage() {
                     {booking?.is_multiple_day_shoot && (booking?.booking_days?.length ?? 0) > 0 ? (
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-4 mb-1">
-                          <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
+                          <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                             <Calendar size={20} />
                           </div>
                           <div>
-                            <p className="text-xs text-[#71717B] font-medium mb-1">Shoot Schedule</p>
+                            <p className={`text-xs font-medium mb-1 ${isDark ? "text-[#71717B]" : "text-[#71717B]"}`}>Shoot Schedule</p>
                             <p className="text-xs lg:text-base font-medium text-[#E8D1AB]">{booking.booking_days!.length} Day Shoot</p>
                           </div>
                         </div>
-                        <div className="ml-2 border-l-2 border-[#3D3D3D] pl-5 flex flex-col gap-3">
+                        <div className={`ml-2 border-l-2 pl-5 flex flex-col gap-3 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                           {booking.booking_days!.map((day: any, idx: number) => {
                             const dayDate = day.event_date
-                              ? new Date(day.event_date).toLocaleDateString("en-US", {
+                              ? (parseDate(day.event_date) || new Date(day.event_date)).toLocaleDateString("en-US", {
                                 weekday: "short",
                                 month: "short",
                                 day: "numeric",
@@ -627,9 +643,9 @@ export default function LeadDetailPage() {
                                   D{idx + 1}
                                 </div>
                                 <div className="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-4 min-w-0">
-                                  <p className="text-xs lg:text-sm font-medium text-white truncate">{dayDate}</p>
-                                  <div className="hidden lg:block w-[1px] h-4 bg-[#3D3D3D]" />
-                                  <p className="text-xs text-[#8E8E8E] flex items-center gap-1.5">
+                                  <p className={`text-xs lg:text-sm font-medium truncate ${isDark ? "text-white" : "text-black"}`}>{dayDate}</p>
+                                   <div className={`hidden lg:block w-[1px] h-4 ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
+                                  <p className={`text-xs flex items-center gap-1.5 ${isDark ? "text-[#8E8E8E]" : "text-[#666666]"}`}>
                                     <Clock size={12} /> {dayTime}
                                   </p>
                                   {day.duration_hours && (
@@ -647,7 +663,7 @@ export default function LeadDetailPage() {
                     ) : (
                       <>
                         <div className="flex items-start gap-4">
-                          <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
+                          <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                             <Calendar size={20} />
                           </div>
                           <div>
@@ -656,7 +672,7 @@ export default function LeadDetailPage() {
                           </div>
                         </div>
                         <div className="flex items-start gap-4">
-                          <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
+                           <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                             <Clock size={20} />
                           </div>
                           <div>
@@ -667,16 +683,16 @@ export default function LeadDetailPage() {
                       </>
                     )}
                     <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
+                       <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                         <MapPinned size={20} />
                       </div>
                       <div>
                         <p className="text-xs text-[#71717B] font-medium mb-1">Location</p>
-                        <p className="text-xs lg:text-base font-medium max-w-md">{location}</p>
+                        <p className={`text-xs lg:text-base font-medium max-w-md ${isDark ? "text-white" : "text-black"}`}>{location}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-lg lg:rounded-xl bg-white/5 text-[#8E8E8E]">
+                       <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                         <Camera size={20} />
                       </div>
                       <div>
@@ -687,21 +703,20 @@ export default function LeadDetailPage() {
                   </>
                 )}
               </div>
-              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
-
+              <hr className={`my-4 lg:my-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
               <div className="p-4 !pt-0 lg:p-9">
                 <BookingStatusStepper currentStep={lead.booking_step || 1} />
               </div>
             </div>
 
             {/* Pricing Breakdown Card */}
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-              <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9 !pb-0">
+            <div className={`border rounded-2xl transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+              <h2 className={`lg:text-xl font-medium p-4 lg:p-9 !pb-0 ${isDark ? "text-white" : "text-black"}`}>
                 Pricing Breakdown
               </h2>
-              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+              <hr className={`my-4 lg:my-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
               <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
-                <div className="flex justify-between font-medium">
+                {/* <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Base Price</span>
                   <span className="text-sm lg:text-base text-white">${basePrice.toLocaleString()}</span>
                 </div>
@@ -712,11 +727,17 @@ export default function LeadDetailPage() {
                 <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Additional Creatives</span>
                   <span className="text-sm lg:text-base text-white">${additionalCreatives.toLocaleString()}</span>
-                </div>
+                </div> */}
+                {[["Base Price", basePrice], ["Editing Fee", editingCost], ["Additional Creatives", additionalCreatives]].map(([label, val]) => (
+                  <div key={label as string} className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">{label}</span>
+                    <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>${(val as number).toLocaleString()}</span>
+                  </div>
+                ))}
                 {discountCodeValue && (
                   <div className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">Discount Code</span>
-                    <span className="text-sm lg:text-base text-white font-mono">{discountCodeValue}</span>
+                    <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>{discountCodeValue}</span>
                   </div>
                 )}
                 {discountCodeDiscount > 0 && (
@@ -728,7 +749,7 @@ export default function LeadDetailPage() {
                 {referralInfo.code && (
                   <div className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">Referral Code</span>
-                    <span className="text-sm lg:text-base text-white font-mono">{referralInfo.code}</span>
+                    <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>{referralInfo.code}</span>
                   </div>
                 )}
                 {referralDiscountAmount > 0 && (
@@ -738,9 +759,9 @@ export default function LeadDetailPage() {
                   </div>
                 )}
               </div>
-              <div className="h-[1px] w-full bg-[#3D3D3D]" />
+              <div className={`h-[1px] w-full ${isDark ? "bg-[#3D3D3D]" : "bg-[#E5E5E5]"}`} />
               <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
-                <span className="text-sm font-medium">Total Amount</span>
+                <span className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Total Amount</span>
                 <span className="lg:text-lg font-semibold text-[#E8D1AB]">${total.toLocaleString()}</span>
               </div>
             </div>
@@ -748,39 +769,50 @@ export default function LeadDetailPage() {
 
           {/* Right Sidebar - Restored Discount Input Validation Logic */}
           <div className="lg:col-span-4 space-y-3 lg:space-y-6">
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
-              <h2 className="lg:text-xl font-medium text-white p-4 lg:p-9 !pb-0">
+            <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+              <h2 className={`lg:text-xl font-medium p-4 lg:p-9 !pb-0 ${isDark ? "text-white" : "text-black"}`}>
                 Generate Discount
               </h2>
-              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
-
+              <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
               <div className="flex flex-col gap-6 p-5 pt-6 lg:p-9">
                 <div className="relative w-full">
-                  <label className="absolute -top-2.5 left-4 bg-[#171717] px-2 text-sm text-white/60 capitalize tracking-widest z-20 pointer-events-none">
+                  <label className={`absolute -top-2.5 left-4 px-2 text-sm capitalize tracking-widest z-20 pointer-events-none ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-black/60"}`}>
                     Discount Type
                   </label>
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className={`flex items-center justify-between w-full border rounded-xl px-4 py-4 text-left text-base text-white transition-all ${isDropdownOpen ? "border-white/80 ring-1 ring-white/20" : "border-white/50"} hover:border-white/80`}
+                      className={`flex items-center justify-between w-full border rounded-xl px-4 py-4 text-left text-base transition-all duration-300 ${isDark
+                        ? `text-white ${isDropdownOpen ? "border-white/80 ring-1 ring-white/20" : "border-white/50"} hover:border-white/80`
+                        : `text-black ${isDropdownOpen ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20" : "border-[#D8D8D8]"} hover:border-[#E8D1AB]`
+                        }`}
                     >
                       {discountType === "percentage" ? "Percentage" : "Fixed Amount"}
-                      <ChevronDown size={18} className={`transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`} />
+                      <ChevronDown size={18} className={`transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""} ${isDark ? "text-white" : "text-black"}`} />
                     </button>
                     {isDropdownOpen && (
                       <>
                         <div className="fixed inset-0 z-30" onClick={() => setIsDropdownOpen(false)}></div>
-                        <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0A0808] border border-white/20 rounded-xl overflow-hidden z-40 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <div className={`absolute top-[calc(100%+8px)] left-0 right-0 border rounded-xl overflow-hidden z-40 shadow-2xl animate-in fade-in zoom-in-95 duration-200 ${isDark
+                          ? "bg-[#0A0808] border-white/20"
+                          : "bg-white border-[#D8D8D8]"
+                          }`}>
                           <button
                             onClick={() => { setDiscountType("percentage"); setIsDropdownOpen(false); }}
-                            className="w-full text-left px-4 py-4 text-white hover:bg-white/10 transition-colors border-b border-white/5"
+                            className={`w-full text-left px-4 py-4 transition-colors border-b ${isDark
+                              ? "text-white hover:bg-white/10 border-white/5"
+                              : "text-black hover:bg-gray-50 border-gray-100"
+                              }`}
                           >
                             Percentage
                           </button>
                           <button
                             onClick={() => { setDiscountType("fixed_amount"); setIsDropdownOpen(false); }}
-                            className="w-full text-left px-4 py-4 text-white hover:bg-white/10 transition-colors"
+                            className={`w-full text-left px-4 py-4 transition-colors ${isDark
+                              ? "text-white hover:bg-white/10"
+                              : "text-black hover:bg-gray-50"
+                              }`}
                           >
                             Fixed Amount
                           </button>
@@ -791,14 +823,17 @@ export default function LeadDetailPage() {
                 </div>
 
                 <div className="relative">
-                  <label className="absolute -top-2 lg:-top-2.5 left-4 bg-[#171717] px-2 text-xs lg:text-sm text-white/60 capitalize tracking-widest z-10">
+                  <label className={`absolute -top-2 lg:-top-2.5 left-4 px-2 text-xs lg:text-sm capitalize tracking-widest z-10 transition-colors duration-300 ${isDark
+                    ? "bg-[#171717] text-white/60"
+                    : "bg-white text-black/60"
+                    }`}>
                     {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
                   </label>
-                  <div className="flex items-center border border-white/50 rounded-xl px-4 py-4 bg-transparent focus-within:border-[#E8D1AB]/50 transition-all">
+                  <div className={`flex items-center border rounded-xl px-4 py-4 bg-transparent transition-all focus-within:border-[#E8D1AB] ${isDark ? "border-white/50" : "border-[#D8D8D8]"}`}>
                     <input
                       type="number"
                       placeholder="0"
-                      className="bg-transparent w-full outline-none text-white text-base"
+                      className={`bg-transparent w-full outline-none text-base transition-colors ${isDark ? "text-white placeholder:text-white/40" : "text-black placeholder:text-black/40"}`}
                       value={discount}
                       onChange={(e) => {
                         const value = e.target.value;
@@ -810,12 +845,12 @@ export default function LeadDetailPage() {
                       }}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     />
-                    {discountType === "percentage" ? <Percent size={20} className="text-white" /> : <DollarSign size={20} className="text-white" />}
+                    {discountType === "percentage" ? <Percent size={20} className={isDark ? "text-white" : "text-black"} /> : <DollarSign size={20} className={isDark ? "text-white" : "text-black"} />}
                   </div>
                 </div>
 
                 <Button
-                  className="h-12 w-full bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010] font-semibold py-3.5 rounded-lg transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`h-12 w-full font-semibold py-3.5 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   onClick={handleGenerateDiscount}
                   disabled={isGenerating || !discount}
                 >
@@ -823,14 +858,25 @@ export default function LeadDetailPage() {
                 </Button>
 
                 {showDiscountCode && generatedCode && (
-                  <div className="flex flex-col gap-2 bg-[#0A0808] border border-white/50 rounded-xl p-4">
-                    <p className="text-sm font-medium text-white">Generated Code</p>
+                  <div className={`flex flex-col gap-2 border rounded-xl p-4 transition-colors duration-300 ${isDark
+                    ? "bg-[#0A0808] border-white/50"
+                    : "bg-[#F3F4F6] border-[#D8D8D8]"
+                    }`}>
+                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Generated Code</p>
                     <div className="flex gap-2 items-center">
-                      <div className="flex-1 px-3 py-2 bg-[#171717] border border-[#3F3F46] rounded-sm text-sm text-[#E8D1AB] font-mono">
+                      <div className={`flex-1 px-3 py-2 border rounded-sm text-sm font-mono transition-colors ${isDark
+                        ? "bg-[#171717] border-[#3F3F46] text-[#E8D1AB]"
+                        : "bg-white border-[#D8D8D8] text-[#B18A00]"
+                        }`}>
                         {generatedCode}
                       </div>
-                      <Button className="h-8 w-8 bg-[#171717] hover:bg-[#272626]" onClick={handleCopyCode}>
-                        <Copy size={16} className="text-white" />
+                      <Button
+                        className={`h-8 w-8 transition-colors ${isDark
+                          ? "bg-[#171717] hover:bg-[#272626] text-white"
+                          : "bg-white border border-[#D8D8D8] hover:bg-gray-100 text-black"
+                          }`}
+                        onClick={handleCopyCode}>
+                        <Copy size={16} className={`${isDark ? "text-white" : "text-black"}`} />
                       </Button>
                     </div>
                   </div>
@@ -843,6 +889,7 @@ export default function LeadDetailPage() {
               onClose={() => setIsIntentModalOpen(false)}
               onSave={handleUpdateIntent}
               currentIntent={lead.intent}
+              isDark={isDark}
             />
 
             <GeneratePaymentLink
@@ -850,6 +897,7 @@ export default function LeadDetailPage() {
               bookingId={lead?.booking_id}
               discountCodeId={generatedDiscountId}
               bookingStatus={status}
+              isDark={isDark}
               activeLink={lead?.active_payment_link}
               isClientLead={true}
             />
@@ -857,7 +905,10 @@ export default function LeadDetailPage() {
             <div className="lg:text-right lg:mt-[82px]">
               <Button
                 onClick={() => router.push(`/admin/sales-representative/client/${leadId}/select-creatives`)}
-                className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
+                className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg border transition-all ${isDark
+                  ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
+                  : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
+                  }`}
               >
                 Change CPs
               </Button>
@@ -867,7 +918,12 @@ export default function LeadDetailPage() {
       </div>
 
       <Dialog open={isCPModalOpen} onOpenChange={setIsCPModalOpen}>
-        <DialogContent className="max-w-5xl bg-[#101010] border-[#333] text-white overflow-y-auto max-h-[90vh] no-scrollbar p-0">
+        <DialogContent
+          className={`max-w-5xl overflow-y-auto max-h-[90vh] no-scrollbar p-0 transition-colors duration-300 border ${isDark
+            ? "bg-[#101010] border-[#333] text-white"
+            : "bg-white border-[#D8D8D8] text-black"
+            }`}
+        >
           <div className="sr-only">
             <DialogTitle>Creative Partner Profile</DialogTitle>
           </div>

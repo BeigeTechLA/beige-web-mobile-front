@@ -19,6 +19,7 @@ import { MultiSelectDropdown } from "@/components/book-a-shoot";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
+import { useTheme } from "next-themes";
 
 import {
   newshootTypes,
@@ -48,6 +49,7 @@ import {
 
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
+import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelector } from "@/components/sales/CreativeProfileSelector";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
@@ -71,6 +73,7 @@ export default function ClientDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
+  const { theme } = useTheme();
 
   // Refs for scrolling logic
   const contentTypeRef = useRef<HTMLDivElement>(null);
@@ -91,6 +94,7 @@ export default function ClientDetailPage() {
   const dragStartScrollLeft = useRef(0);
 
   // --- STATE ---
+  const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState<BookingDataV3 & { selectedCrewIds: number[] }>({
     ...initialDataV3,
     selectedCrewIds: []
@@ -212,6 +216,7 @@ export default function ClientDetailPage() {
       }
     }
     setTimeOptions(options);
+    setMounted(true);
   }, []);
 
   useEffect(() => {
@@ -329,20 +334,20 @@ export default function ClientDetailPage() {
     const startKey = getStartTimeKey();
     const endKey = getEndTimeKey();
 
-        const days = selectedDates.map((date) => {
-            const dateKey = getDateKey(date);
-            const dayTimes = multiDayTimes[dateKey] || {};
-            const finalStart = sameTimingsMulti ? startKey : dayTimes.startKey;
-            const finalEnd = sameTimingsMulti ? endKey : dayTimes.endKey;
-            return {
-                date: dateKey,
-                start_time: finalStart ? `${finalStart}:00` : "09:00:00",
-                end_time: finalEnd ? `${finalEnd}:00` : "17:00:00"
-            };
-        });
+    const days = selectedDates.map((date) => {
+      const dateKey = getDateKey(date);
+      const dayTimes = multiDayTimes[dateKey] || {};
+      const finalStart = sameTimingsMulti ? startKey : dayTimes.startKey;
+      const finalEnd = sameTimingsMulti ? endKey : dayTimes.endKey;
+      return {
+        date: dateKey,
+        start_time: finalStart ? `${finalStart}:00` : "09:00:00",
+        end_time: finalEnd ? `${finalEnd}:00` : "17:00:00"
+      };
+    });
 
-        updateData({ bookingDays: days });
-    }, [
+    updateData({ bookingDays: days });
+  }, [
     bookingType,
     selectedDates,
     formData.startDate,
@@ -633,6 +638,7 @@ export default function ClientDetailPage() {
 
       const crewSize = Object.values(crewRoles).reduce((a, b) => a + b, 0);
 
+      const browserTimeZone = getBrowserTimeZone();
       const payload: any = {
         client_name: clientName,
         guest_email: clientEmail,
@@ -651,15 +657,21 @@ export default function ClientDetailPage() {
         is_draft: false,
         skip_discount: true,
         skip_margin: true,
-        booking_type: bookingType
+        booking_type: bookingType,
+        time_zone: browserTimeZone
       };
 
       if (bookingType === "single_day") {
+        payload.start_date = getLocalDatePart(formData.startDate);
+        payload.start_time = getLocalTimePart(formData.startDate);
+        payload.end_time = getLocalTimePart(formData.endDate) || "17:00:00";
         payload.start_date_time = formData.startDate;
-        payload.end_time = formData.endDate ? format(parseDate(formData.endDate)!, "HH:mm:ss") : "17:00:00";
         payload.duration_hours = durationHours;
       } else {
-        payload.booking_days = formData.bookingDays;
+        payload.booking_days = (formData.bookingDays || []).map((d: any) => ({
+          ...d,
+          time_zone: d.time_zone || d.timeZone || browserTimeZone
+        }));
       }
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
@@ -688,6 +700,9 @@ export default function ClientDetailPage() {
 
   const availableRolesToAdd = TEAM_ROLES.filter(role => formData.contentType.includes(role.id as any));
 
+  // Constant default to dark
+  const isDark = !mounted || theme === "dark";
+
   return (
     <>
       <Topbar pathname={pathname} />
@@ -698,49 +713,50 @@ export default function ClientDetailPage() {
         onConfirm={executeFinalizeDeal}
         videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
+        isDark={isDark}
       />
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans mb-20">
+      <div className={`overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans mb-20 transition-colors ${isDark ? "text-white" : "text-black"}`}>
         <Button
           onClick={() => router.back()}
-          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0"
+          className={`transition-colors flex items-center gap-2 mb-5 p-0 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
 
         <div className="space-y-6 my-4 lg:my-9">
-          <h3 className="text-base lg:text-xl font-medium text-white/90">Client Information</h3>
+          <h3 className={`text-base lg:text-xl font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>Client Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
             <div className="relative space-y-2">
-              <Label htmlFor="name" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Client Name</Label>
+              <Label htmlFor="name" className={`absolute -top-2 lg:-top-3 left-4 px-2 text-sm lg:text-base ${isDark ? "bg-[#101010] text-white/60" : "bg-[#F4F5F7] text-black/60 "} `}>Client Name</Label>
               <Input
                 id="name"
                 type="text"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+                className={`h-14 lg:h-[82px] w-full rounded-[12px] border p-4 text-white outline-none resize-none text-sm lg:text-base ${isDark ? "border-white/30 bg-[#101010] focus:border-[#1A1A1A] " : "bg-transparent border-[#0000004D] text-[#2C2C2C] focus:border-[#000000]/20"}`}
               />
             </div>
 
             <div className="relative space-y-2">
-              <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email</Label>
+              <Label htmlFor="email" className={`absolute -top-2 lg:-top-3 left-4 px-2 text-sm lg:text-base ${isDark ? "bg-[#101010] text-white/60" : "bg-[#F4F5F7] text-black/60 "} `}>Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
-                className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+                className={`h-14 lg:h-[82px] w-full rounded-[12px] border p-4 text-white outline-none resize-none text-sm lg:text-base ${isDark ? "border-white/30 bg-[#101010] focus:border-[#1A1A1A] " : "bg-transparent border-[#0000004D] text-[#2C2C2C] focus:border-[#000000]/20"}`}
               />
             </div>
 
             <div className="relative space-y-2">
-              <Label htmlFor="phone" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Phone Number</Label>
+              <Label htmlFor="phone" className={`absolute -top-2 lg:-top-3 left-4 px-2 text-sm lg:text-base ${isDark ? "bg-[#101010] text-white/60" : "bg-[#F4F5F7] text-black/60 "} `}>Phone Number</Label>
               <Input
                 id="phone"
                 type="text"
                 value={clientPhone}
                 onChange={(e) => setClientPhone(e.target.value)}
-                className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+                className={`h-14 lg:h-[82px] w-full rounded-[12px] border p-4 text-white outline-none resize-none text-sm lg:text-base ${isDark ? "border-white/30 bg-[#101010] focus:border-[#1A1A1A] " : "bg-transparent border-[#0000004D] text-[#2C2C2C] focus:border-[#000000]/20"}`}
               />
             </div>
 
@@ -759,8 +775,9 @@ export default function ClientDetailPage() {
               ]}
               onChange={(val) => setThumbtack(val)}
               placeholder=""
-              labelBg={"bg-[#000]"}
+              labelBg={isDark ? "bg-[#000]" : "bg-[#F4F5F7]"}
               required
+              isDark={isDark}
             />
 
             <FloatingLabelDropdown
@@ -769,15 +786,16 @@ export default function ClientDetailPage() {
               options={intentOptions}
               onChange={(val) => setIntent(val)}
               placeholder="Choose an intent..."
-              labelBg={"bg-[#000]"}
+              labelBg={isDark ? "bg-[#000]" : "bg-[#F4F5F7]"}
               required
+              isDark={isDark}
             />
           </div>
         </div>
         {/* <DottedDivider /> */}
 
         <div ref={contentTypeRef} className="my-4 lg:my-9">
-          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>Content Type</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ContentTypeCheckbox
               label="Select All"
@@ -787,28 +805,31 @@ export default function ClientDetailPage() {
                 if (checked) updateData({ contentType: ["videographer", "photographer"] });
                 else updateData({ contentType: [] });
               }}
+              isDark={isDark}
             />
             <ContentTypeCheckbox
               label="Videography"
               icon={<Video size={20} />}
               checked={formData.contentType.includes("videographer")}
               onChange={() => toggleContentType("videographer")}
+              isDark={isDark}
             />
             <ContentTypeCheckbox
               label="Photography"
               icon={<Camera size={20} />}
               checked={formData.contentType.includes("photographer")}
               onChange={() => toggleContentType("photographer")}
+              isDark={isDark}
             />
-            <ContentTypeCheckbox label="AI Editing" subLabel="Coming Soon" icon={<Scissors size={20} />} checked={false} onChange={() => { }} disabled={true} />
-            <ContentTypeCheckbox label="Locations" subLabel="Coming Soon" icon={<MapPinHouse size={20} />} checked={false} onChange={() => { }} disabled={true} />
-            <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} checked={false} onChange={() => { }} disabled={true} />
+            <ContentTypeCheckbox label="AI Editing" subLabel="Coming Soon" icon={<Scissors size={20} />} checked={false} onChange={() => { }} disabled={true} isDark={isDark} />
+            <ContentTypeCheckbox label="Locations" subLabel="Coming Soon" icon={<MapPinHouse size={20} />} checked={false} onChange={() => { }} disabled={true} isDark={isDark} />
+            <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} checked={false} onChange={() => { }} disabled={true} isDark={isDark} />
           </div>
         </div>
         {/* <DottedDivider /> */}
 
         <div ref={shootTypeRef} className="my-4 lg:my-9">
-          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>
             {formData.contentType.length > 1 ? "Video and Photo Shoot Type" : "Shoot Type"}
           </h3>
           <FloatingLabelDropdown
@@ -820,59 +841,55 @@ export default function ClientDetailPage() {
               scrollToRef(bookingTypeRef);
             }}
             placeholder="Select the type of shoot"
-            labelBg="bg-[#101010]"
+            labelBg={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
             required
+            isDark={isDark}
           />
         </div>
         {/* <DottedDivider /> */}
 
         {/* Booking Type */}
         <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors text-white/90`}>
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${isDark ? "text-white/90" : "text-black/80"}`}>
             Select Booking Type
           </h3>
           <div className="flex gap-4">
-            <button
-              onClick={() => {
-                setBookingType("single_day");
-                setSelectedDates([]);
-                setSameTimingsMulti(true);
-                setMultiDayTimes({});
-                updateData({ bookingType: "single_day", bookingDays: [] });
-                scrollToRef(dateTimeRef);
-              }}
-              disabled={formData.shootType === ""}
-              className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-            >
-              <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
-              <div
-                className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "single_day" ? "bg-black" : "border border-[#E5E5E5]"
-                  }`}
-              >
-                {bookingType === "single_day" && (
-                  <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                )}
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                setBookingType("multi_day");
-                updateData({ bookingType: "multi_day" });
-                scrollToRef(dateTimeRef);
-              }}
-              disabled={formData.shootType === ""}
-              className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-            >
-              <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
-              <div
-                className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "multi_day" ? "bg-black" : "border border-[#E5E5E5]"
-                  }`}
-              >
-                {bookingType === "multi_day" && (
-                  <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                )}
-              </div>
-            </button>
+            {[
+              { id: "single_day", label: "Single Day" },
+              { id: "multi_day", label: "Multiple Days" }
+            ].map((type) => {
+              const isSelected = bookingType === type.id;
+              return (
+                <button
+                  key={type.id}
+                  onClick={() => {
+                    setBookingType(type.id as "single_day" | "multi_day");
+                    updateData({
+                      bookingType: type.id as "single_day" | "multi_day",
+                      bookingDays: []
+                    });
+                    if (type.id === "single_day") {
+                      setSelectedDates([]);
+                      setSameTimingsMulti(true);
+                      setMultiDayTimes({});
+                    }
+                    scrollToRef(dateTimeRef);
+                  }}
+                  className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all duration-300 ${isSelected
+                    ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                    : isDark
+                      ? "bg-[#101010] border-white/10 text-[#A9A9A9] hover:border-white/20"
+                      : "bg-transparent border-[#0000004D] text-[#2C2C2C] hover:border-[#000000]/50"
+                    }`}
+                >
+                  <span className="font-medium text-sm lg:text-lg pr-2">{type.label}</span>
+                  <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${isSelected ? "bg-black" : isDark ? "border border-white/20" : "border border-[#0000004D]"
+                    }`}>
+                    {isSelected && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -880,49 +897,52 @@ export default function ClientDetailPage() {
         <div ref={dateTimeRef} className="my-4 lg:my-9">
           {bookingType === "single_day" ? (
             <>
-          <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">Shoot Date & Time</h3>
-          <div className="flex flex-col lg:flex-row gap-6">
-            <div className="flex-1">
-              <DatePicker
-                label="Select Date"
-                value={selectedShootDate}
-                onChange={handleDateChange}
-                minDate={new Date()}
-                colors={datePickerColours}
-                format="MM/dd/yyyy"
-                sx={{ height: { xs: "56px", md: "82px" }, borderRadius: "16px" }}
-              />
-            </div>
-            <div className="flex-1">
-              <DropdownSelect
-                title="Start Time"
-                options={filteredStartTimeOptions}
-                value={getStartTimeKey()}
-                onChange={handleStartTimeChange}
-                bgColour="bg-[#101010]"
-              />
-            </div>
-            <div className="flex-1">
-              <DropdownSelect
-                title="End Time"
-                options={filteredEndTimeOptions}
-                value={getEndTimeKey()}
-                onChange={handleEndTimeChange}
-                bgColour="bg-[#101010]"
-              />
-            </div>
-          </div>
+              <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>Shoot Date & Time</h3>
+              <div className="flex flex-col lg:flex-row gap-6">
+                <div className="flex-1">
+                  <DatePicker
+                    label="Select Date"
+                    value={selectedShootDate}
+                    onChange={handleDateChange}
+                    minDate={new Date()}
+                    // colors={datePickerColours}
+                    format="MM/dd/yyyy"
+                    sx={{ height: { xs: "56px", md: "82px" }, borderRadius: "16px" }}
+                    isDark={isDark}
+                  />
+                </div>
+                <div className="flex-1">
+                  <DropdownSelect
+                    title="Start Time"
+                    options={filteredStartTimeOptions}
+                    value={getStartTimeKey()}
+                    onChange={handleStartTimeChange}
+                    bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                    isDark={isDark}
+                  />
+                </div>
+                <div className="flex-1">
+                  <DropdownSelect
+                    title="End Time"
+                    options={filteredEndTimeOptions}
+                    value={getEndTimeKey()}
+                    onChange={handleEndTimeChange}
+                    bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                    isDark={isDark}
+                  />
+                </div>
+              </div>
             </>
           ) : (
             <>
               <div className="relative mb-8 lg:mb-15">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors $text-white/90`}>
+                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>
                     Select Date
                   </h3>
                   <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
-                    <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
-                    <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
+                    <span className={`font-medium lg:text-[20px] ${isDark ? "text-white group-hover:text-[#E8D1AB]" : "text-black group-hover:text-black/80"}`}>{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                    <Calendar size={20} className={`${isDark ? "text-white group-hover:text-[#E8D1AB]" : "text-black group-hover:text-black/80"} `} />
                   </button>
                 </div>
 
@@ -962,7 +982,12 @@ export default function ClientDetailPage() {
                       <button
                         key={date.toISOString()}
                         onClick={() => toggleDateSelection(date)}
-                        className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
+                        className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected
+                          ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                          : isDark
+                            ? "bg-transparent border-white/10 text-white/40 hover:border-white/30"
+                            : "bg-white border-[#0000004D] text-[#2C2C2C] hover:border-black/50 shadow-sm"
+                          }`}
                       >
                         <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
                         <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
@@ -972,30 +997,31 @@ export default function ClientDetailPage() {
                 </div>
 
                 <div className="flex gap-4">
-                  <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                    <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
+                  <div className={`mt-4 lg:mt-8 rounded-lg lg:rounded-xl w-fit px-4 py-2 lg:px-7 lg:py-3 ${isDark ? "bg-[#211F1C]" : "bg-[#FFF]"}`}>
+                    <p className={`font-medium text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#323232]"}`}>Total Days: {selectedDates.length}</p>
                   </div>
-                  <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                    <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
+                  <div className={`mt-4 lg:mt-8 rounded-lg lg:rounded-xl w-fit px-4 py-2 lg:px-7 lg:py-3 ${isDark ? "bg-[#211F1C]" : "bg-[#FFF]"}`}>
+                    <p className={`font-medium text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#323232]"}`}>Selected Days: {getFormattedDateString(selectedDates)}</p>
                   </div>
                 </div>
 
                 {/* Calendar Popover */}
                 <AnimatePresence>
                   {isCalendarOpen && (
-                    <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
+                    <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className={`absolute right-0 top-14 z-50 border p-5 rounded-2xl shadow-2xl w-[320px] ${isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200"
+                      }`}>
                       <div className="flex justify-between items-center mb-6">
                         <button onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
                           <ChevronLeft size={20} />
                         </button>
-                        <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                        <span className={`font-bold ${isDark ? "text-white" : "text-black"}`}>{format(currentCalendarMonth, "MMMM yyyy")}</span>
                         <div className="flex items-center gap-2">
                           <button onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
                             <ChevronRight size={20} />
                           </button>
                           <button
                             onClick={() => setIsCalendarOpen(false)}
-                            className="rounded-full p-1 hover:bg-white/10 transition-colors"
+                            className={`rounded-full p-1 transition-colors ${isDark ? "hover:bg-white/10 text-white" : "hover:bg-black/5 text-black"}`}
                             aria-label="Close calendar"
                           >
                             <X size={18} />
@@ -1014,7 +1040,7 @@ export default function ClientDetailPage() {
                               onClick={() => {
                                 toggleDateSelection(date);
                               }}
-                              className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
+                              className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white hover:bg-white/10" : "text-[#323232] hover:bg-black/10")} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
                             >
                               {format(date, "d")}
                             </button>
@@ -1028,8 +1054,8 @@ export default function ClientDetailPage() {
               {/* timings selector will go here */}
 
               {selectedDates.length > 0 && (
-                <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
-                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors text-white/90`}>Are timings same for all selected dates?</h3>
+                <div className={`pt-6 lg:pt-15 border-t space-y-6 ${isDark ? "border-white/10" : "border-black/5"}`}>
+                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${isDark ? "text-white/90" : "text-black/80"}`}>Are timings same for all selected dates?</h3>
 
                   <div className="flex gap-4">
                     <button
@@ -1039,12 +1065,14 @@ export default function ClientDetailPage() {
                         // scrollToRef(navigationRef); //update with correct ref
                       }}
                       disabled={formData.shootType === ""}
-                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${sameTimingsMulti
+                        ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                        : isDark ? "bg-[#101010] border-white/10 text-[#A9A9A9]" : "bg-transparent border-[#0000004D] text-[#2C2C2C]"
+                        }`}
                     >
                       <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
                       <div
-                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
-                          }`}
+                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : (isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]")}`}
                       >
                         {sameTimingsMulti && (
                           <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
@@ -1065,11 +1093,13 @@ export default function ClientDetailPage() {
                         // scrollToRef(navigationRef);  //update with correct ref
                       }}
                       disabled={formData.shootType === ""}
-                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!sameTimingsMulti
+                        ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                        : isDark ? "bg-[#101010] border-white/10 text-[#A9A9A9]" : "bg-transparent border-[#0000004D] text-[#2C2C2C]"}`}
                     >
                       <span className="font-medium text-sm lg:text-lg pr-2">No</span>
                       <div
-                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : (isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]")
                           }`}
                       >
                         {!sameTimingsMulti && (
@@ -1089,7 +1119,8 @@ export default function ClientDetailPage() {
                               options={filteredStartTimeOptions}
                               value={getStartTimeKey()}
                               onChange={handleStartTimeChange}
-                              bgColour="bg-[#101010]"
+                              bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                              isDark={isDark}
                             />
                           </div>
                           <div className="flex-1">
@@ -1098,23 +1129,27 @@ export default function ClientDetailPage() {
                               options={filteredEndTimeOptions}
                               value={getEndTimeKey()}
                               onChange={handleEndTimeChange}
-                              bgColour="bg-[#101010]"
+                              bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                              isDark={isDark}
                             />
                           </div>
                         </div>
-                        <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
-                          <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
+                        <p className={`flex gap-2 my-3 lg:mt-6 lg:mb-8 ${isDark ? "text-[#A9A9A9]" : "text-[#747171]"}`}>
+                          <Check size={24} className={`${isDark ? "text-white" : "text-[#747171]"}`} /> Applied to {selectedDates.length} selected dates
                         </p>
-                        <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
-                          <p className="text-white font-medium lg:text-[20px]">
+                        <div className={`rounded-lg lg:rounded-2xl border p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center transition-all ${isDark
+                          ? "bg-[#171717] border-white/30"
+                          : "bg-white border-[#E5E5E5]/40 shadow-sm"
+                          }`}>
+                          <p className={`font-medium lg:text-[20px] ${isDark ? "text-white" : "text-black"}`}>
                             {getFormattedDateString(selectedDates)}
                           </p>
-                          <p className="text-white/60  font-medium lg:text-[20px]">
+                          <p className={`font-medium lg:text-[20px] ${isDark ? "text-white/60" : "text-black"}`}>
                             {getStartTimeKey() && getEndTimeKey()
                               ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
                               : "Select time"}
                           </p>
-                          <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
+                          <p className={`font-medium lg:text-[20px] ${isDark ? "text-[#E8D1AB]" : "text-[#595959]"}`}>
                             {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
                               ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
                               : "Duration Hour/Day"}
@@ -1127,14 +1162,20 @@ export default function ClientDetailPage() {
                           const dateKey = getDateKey(date);
                           const isExpanded = expandedDateKey === dateKey;
                           return (
-                            <div key={date.toISOString()} className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}>
-                              <button onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
-                                <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
-                                <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                            <div key={date.toISOString()} className={`border border-white/10 rounded-2xl ${isDark ? "border-white/10 bg-[#171717]" : "border-black/10 bg-white shadow-sm"} ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}>
+                              <button onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? isDark ? "border-b rounded-b-2xl border-b-white/10" : "border-b rounded-b-2xl border-b-black/5" : ""}`}>
+                                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{format(date, "MMMM dd, yyyy")}</span>
+                                <ChevronDown className={`${isDark ? "text-white/40" : "text-black/50"} transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                               </button>
                               <AnimatePresence>
                                 {isExpanded && (
-                                  <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible">
+                                  <motion.div
+                                    initial={{ height: 0 }}
+                                    animate={{ height: "auto" }}
+                                    exit={{ height: 0 }}
+                                    className={`p-4 lg:p-7 overflow-visible transition-colors rounded-b-2xl ${isDark ? "bg-[#101010]" : "bg-black/5"
+                                      }`}
+                                  >
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                       <div className="flex-1">
                                         <DropdownSelect
@@ -1142,7 +1183,8 @@ export default function ClientDetailPage() {
                                           options={filteredStartTimeOptions}
                                           value={multiDayTimes[dateKey]?.startKey || ""}
                                           onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
-                                          bgColour="bg-[#101010]"
+                                          bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                                          isDark={isDark}
                                         />
                                       </div>
                                       <div className="flex-1">
@@ -1151,13 +1193,14 @@ export default function ClientDetailPage() {
                                           options={filteredEndTimeOptions}
                                           value={multiDayTimes[dateKey]?.endKey || ""}
                                           onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
-                                          bgColour="bg-[#101010]"
+                                          bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                                          isDark={isDark}
                                         />
                                       </div>
                                     </div>
 
-                                    <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                                      <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                    <div className={`mt-2 lg:mt-4 rounded-lg lg:rounded-xl ${isDark ? "bg-[#211F1C]" : "bg-[#FFF]"} w-fit px-4 py-2 lg:px-7 lg:py-3`}>
+                                      <p className={`font-medium text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#323232]"}`}>
                                         Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
                                           ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
                                           : "Select time"}
@@ -1179,26 +1222,31 @@ export default function ClientDetailPage() {
         </div>
         {/* <DottedDivider /> */}
 
+        {/* Edits Needed */}
         <div ref={editsRef} className="my-4 lg:my-9">
-          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors text-white/90`}>Edits Needed?</h3>
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>Edits Needed?</h3>
           <div className="flex gap-4">
             <button
               onClick={() => { updateData({ editsNeeded: true }); }}
               disabled={formData.shootType === ""}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${formData.editsNeeded ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
+              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${formData.editsNeeded
+                ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                : isDark ? "bg-[#101010] border-white/10 text-[#A9A9A9]" : "bg-transparent border-[#0000004D] text-[#2C2C2C]"}`}
             >
               <span className="font-medium text-sm lg:text-lg">Yes</span>
-              <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${formData.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"}`}>
+              <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${formData.editsNeeded ? "bg-black" : (isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]")}`}>
                 {formData.editsNeeded && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
               </div>
             </button>
             <button
               onClick={() => { updateData({ editsNeeded: false }); }}
               disabled={formData.shootType === ""}
-              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${!formData.editsNeeded ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
+              className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!formData.editsNeeded
+                ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                : isDark ? "bg-[#101010] border-white/10 text-[#A9A9A9]" : "bg-transparent border-[#0000004D] text-[#2C2C2C]"}`}
             >
               <span className="font-medium text-sm lg:text-lg">No</span>
-              <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!formData.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"}`}>
+              <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!formData.editsNeeded ? "bg-black" : (isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]")}`}>
                 {!formData.editsNeeded && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
               </div>
             </button>
@@ -1213,7 +1261,8 @@ export default function ClientDetailPage() {
                     options={videoEditTypeOptions}
                     value={formData.videoEditTypes}
                     onChange={(values) => updateData({ videoEditTypes: values })}
-                    bgColour={"bg-[#101010]"}
+                    bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                    isDark={isDark}
                   />
                 )}
                 {formData.contentType.includes("photographer") && photoEditTypeOptions.length > 0 && (
@@ -1223,11 +1272,12 @@ export default function ClientDetailPage() {
                       options={photoEditTypeOptions}
                       value={formData.photoEditTypes}
                       onChange={(values) => updateData({ photoEditTypes: values })}
-                      bgColour={"bg-[#101010]"}
+                      bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                      isDark={isDark}
                     />
                     {photoEditNote && (
-                      <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
-                        <Info size={16} className="mt-0.5" />
+                      <div className={`mt-3 flex items-start gap-2 text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#919191]"}`}>
+                        <Info size={16} className="mt-0.5 flex-shrink-0" />
                         <span>{photoEditNote}</span>
                       </div>
                     )}
@@ -1241,23 +1291,27 @@ export default function ClientDetailPage() {
 
         <div ref={extraTeamRef} className="my-4 lg:my-9">
           <div className="flex flex-col gap-3 lg:gap-6">
-            <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
+            <h3 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black/90"} `}>Would you like to add additional creatives?</h3>
             <div className="flex gap-2 lg:gap-6">
               <button
                 onClick={() => updateData({ addTeamMembers: true })}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${formData.addTeamMembers ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${formData.addTeamMembers
+                  ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                  : isDark ? "bg-[#101010] border-white/10 text-[#A9A9A9]" : "bg-transparent border-[#0000004D] text-[#2C2C2C]"}`}
               >
                 <span className="font-medium text-sm lg:text-lg">Yes</span>
-                <div className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${formData.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}>
+                <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${formData.addTeamMembers ? "bg-black" : (isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]")}`}>
                   {formData.addTeamMembers && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
                 </div>
               </button>
               <button
                 onClick={() => { updateData({ addTeamMembers: false }); setExtraTeam({}); updateData({ teamIncluded: [] }); }}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors ${!formData.addTeamMembers ? "bg-[#E8D1AB] text-black" : "bg-[#101010] text-[#A9A9A9]"}`}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!formData.addTeamMembers
+                  ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                  : isDark ? "bg-[#101010] border-white/10 text-[#A9A9A9]" : "bg-transparent border-[#0000004D] text-[#2C2C2C]"}`}
               >
                 <span className="font-medium text-sm lg:text-lg">No</span>
-                <div className={`w-6 h-6 lg:w-7 lg:h-7 rounded-full flex items-center justify-center ${!formData.addTeamMembers ? "bg-black" : "border border-[#E5E5E5]"}`}>
+                <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!formData.addTeamMembers ? "bg-black" : (isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]")}`}>
                   {!formData.addTeamMembers && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
                 </div>
               </button>
@@ -1265,14 +1319,16 @@ export default function ClientDetailPage() {
           </div>
 
           {formData.addTeamMembers && (
-            <div className="bg-[#171717] rounded-[20px] p-3 lg:p-6 border border-white/5 animate-in slide-in-from-top-4 mt-4 md:mt-6">
+            <div className={`${isDark ? "bg-[#171717] border-white/5" : "bg-white border-black/10 shadow-sm"} rounded-[20px] p-3 lg:p-6 border border-white/5 animate-in slide-in-from-top-4 mt-4 md:mt-6`}>
               <div className="flex flex-col gap-4">
                 {availableRolesToAdd.length > 0 ? (
                   availableRolesToAdd.map((role) => (
-                    <div key={role.id} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
+                    <div key={role.id} className={`flex items-center justify-between py-4 border-b last:border-0 ${isDark ? "border-white/5" : "border-black/5"}`}>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/60">{role.icon}</div>
-                        <div className="text-lg font-medium text-white">{role.label}</div>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? "bg-white/5 text-white/60" : "bg-black/5 text-black/60"}`}>
+                          {role.icon}
+                        </div>
+                        <div className={`text-lg font-medium ${isDark ? "text-white" : "text-[#2C2C2C]"}`}>{role.label}</div>
                       </div>
                       <QuantityControl
                         value={extraTeam[role.id] || 0}
@@ -1282,7 +1338,7 @@ export default function ClientDetailPage() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-white/40 italic">No eligible roles to add based on your selection.</p>
+                  <p className={`${isDark ? "text-white/40" : "text-[#2C2C2C]"} italic`}>No eligible roles to add based on your selection.</p>
                 )}
               </div>
             </div>
@@ -1291,7 +1347,7 @@ export default function ClientDetailPage() {
         {/* <DottedDivider /> */}
 
         <div ref={locationRef} className="my-4 lg:my-9">
-          <h3 className="text-xl font-medium text-white/90 mb-6">Select Location</h3>
+          <h3 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black/90"} mb-6`}>Select Location</h3>
           <LocationPicker
             value={formData.location}
             onChange={(address, details) => {
@@ -1301,14 +1357,14 @@ export default function ClientDetailPage() {
               });
             }}
             placeholder="Search for a location"
-            colors={darkThemeColors}
+            colors={isDark ? darkThemeColors : undefined}
           />
         </div>
         {/* <DottedDivider /> */}
 
         <div ref={crewRef} className="my-4 lg:my-9 space-y-6">
           {!formData.startDate || !formData.location ? (
-            <div className="p-10 border border-dashed border-white/20 rounded-2xl text-center text-white/40">
+            <div className={`p-10 border border-dashed rounded-2xl text-center ${isDark ? "border-white/20 text-white/40" : "border-black/20 text-black/60"}`}>
               Please select a shoot date and location to view available creatives.
             </div>
           ) : (
@@ -1341,16 +1397,16 @@ export default function ClientDetailPage() {
                   ? 1 + (extraTeam["photographer"] as number || 0)
                   : 0
               }
+              isDark={isDark}
             />
           )}
         </div>
-
         {/* <DottedDivider /> */}
 
         <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-4 lg:pt-9">
           <Button
             onClick={() => router.back()}
-            className="h-14 lg:h-[72px] border border-[#8E8E8E] bg-transparent hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+            className={`h-14 lg:h-[72px] border  font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] ${isDark ? "border-[#8E8E8E] hover:bg-[#1A1A1A] text-white" : "bg-[#FFF] border-[#E3E3E3] text-[#323232] hover:bg-[#1A1A1A]/10"}`}
           >
             Back
           </Button>

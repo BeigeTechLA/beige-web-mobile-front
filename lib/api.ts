@@ -1315,6 +1315,19 @@ export const adminApi = {
       };
     }
   },
+  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string } = {}) => {
+    try {
+      const response = await api.get('admin/get-clients', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Admin Clients Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch clients',
+      };
+    }
+  },
 
   getPendingCP: async (params: { page?: number; limit?: number; search?: string } = {}) => {
     try {

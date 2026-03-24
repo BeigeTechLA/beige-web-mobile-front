@@ -13,6 +13,7 @@ import { useAppSelector } from "@/lib/redux/hooks";
 import type { RootState } from "@/lib/redux/store";
 import { setBookingData } from "@/lib/redux/features/booking/bookingSlice";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { sanitizePhoneInput } from "@/lib/utils/phone";
 
 const updateFormData = setBookingData;
 
@@ -168,7 +169,7 @@ const GuestBookingForm: React.FC<GuestBookingFormProps> = ({
             placeholder={isSalesRep ? "Enter client's phone number" : "Enter your phone number"}
             value={formData.guestPhone || ""}
             onChange={(e) =>
-              dispatch(updateFormData({ guestPhone: e.target.value }))
+              dispatch(updateFormData({ guestPhone: sanitizePhoneInput(e.target.value) }))
             }
             required
             InputProps={{

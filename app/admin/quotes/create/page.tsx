@@ -323,19 +323,19 @@ export default function CreateQuotePage() {
         }
       />
 
-      <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
+      <div className="px-4 pb-30 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
         {/* Navigation & Progress Header */}
         <div className="flex justify-between items-center mb-7">
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 text-[15px] text-[#D4D4D4] hover:text-white transition-colors"
+            className="flex items-center gap-2 text-base text-[#D4D4D4] hover:text-white transition-colors"
           >
             <ArrowLeft size={18} />
             Back
           </button>
 
           <div className="text-right">
-            <span className="text-[15px] font-semibold text-white">
+            <span className="text-base font-semibold text-white">
               Step {stepNumber} - {progressLabel} Completed
             </span>
           </div>
@@ -382,7 +382,7 @@ export default function CreateQuotePage() {
                       <div key={item.id} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hidden">
                         <div className="flex justify-between items-center">
                           <div className="space-y-1">
-                            <h3 className="text-[15px] font-medium text-white leading-none">{item.label}</h3>
+                            <h3 className="text-base font-medium text-white leading-none">{item.label}</h3>
                             <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">${item.basePrice.toFixed(2)}</p>
                           </div>
 
@@ -428,24 +428,24 @@ export default function CreateQuotePage() {
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-7">
                     <div className="md:col-span-8 relative">
                       <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-[12px] text-[#8A8A8A] font-normal">Item Name</span>
+                        <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
                       </div>
                       <Input
                         placeholder="Eg : Cleaning Services"
                         value={customLogisticsName}
                         onChange={(e) => setCustomLogisticsName(e.target.value)}
-                        className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                        className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
                     <div className="md:col-span-4 relative">
                       <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-[12px] text-[#8A8A8A] font-normal">Cost</span>
+                        <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
                       </div>
                       <Input
                         placeholder="$ 0.00"
                         value={customLogisticsCost}
                         onChange={(e) => setCustomLogisticsCost(e.target.value)}
-                        className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                        className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
                   </div>
@@ -510,7 +510,7 @@ export default function CreateQuotePage() {
                           {selectedAddons.includes(addon.id) && <Check size={14} strokeWidth={4} />}
                         </div>
                         <div className="space-y-2">
-                          <div className="font-medium text-[15px] text-white leading-none">{addon.label}</div>
+                          <div className="font-medium text-base text-white leading-none">{addon.label}</div>
                           <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
                             ${addon.price.toFixed(2)}
                           </div>
@@ -539,24 +539,24 @@ export default function CreateQuotePage() {
                       >
                         <div className="md:col-span-8 relative">
                           <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                            <span className="text-[12px] text-[#8A8A8A] font-normal">Add-on Name</span>
+                            <span className="text-xs text-[#8A8A8A] font-normal">Add-on Name</span>
                           </div>
                           <Input
                             placeholder="Eg : 4K RAW Recording"
                             value={customAddonName}
                             onChange={(e) => setCustomAddonName(e.target.value)}
-                            className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                            className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                           />
                         </div>
                         <div className="md:col-span-4 relative">
                           <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                            <span className="text-[12px] text-[#8A8A8A] font-normal">Cost</span>
+                            <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
                           </div>
                           <Input
                             placeholder="$ 0.00"
                             value={customAddonCost}
                             onChange={(e) => setCustomAddonCost(e.target.value)}
-                            className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                            className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                           />
                         </div>
                       </motion.div>
@@ -584,8 +584,8 @@ export default function CreateQuotePage() {
                           <div key={addonId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hidden">
                             <div className="flex justify-between items-center">
                               <div className="space-y-1">
-                                <h3 className="text-[15px] font-medium text-white leading-none">{addon.label}</h3>
-                                <p className="text-[#8A8A8A] text-[12px] font-normal">${addon.price.toFixed(2)}</p>
+                                <h3 className="text-base font-medium text-white leading-none">{addon.label}</h3>
+                                <p className="text-[#8A8A8A] text-xs font-normal">${addon.price.toFixed(2)}</p>
                               </div>
 
                               <div className="flex items-center gap-6">
@@ -652,26 +652,26 @@ export default function CreateQuotePage() {
             <div className="">
               {/* Services Section */}
               <section>
-                <div className="px-7 pt-7 lg:px-8 lg:pt-8 mb-7">
-                  <h2 className="text-xl font-medium leading-none mb-2 text-white">Services</h2>
+                <div className="px-5 pt-5 lg:px-8 lg:pt-8 mb-7">
+                  <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">Services</h2>
                   <p className="text-[#A1A1AA] text-sm font-normal leading-none">Select services and configure pricing</p>
                 </div>
-                <div className="my-8 border-t border-[#FFFFFF80]" />
+                <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
-                <div className="px-4 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-4 lg:space-y-8 ">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-4 lg:space-y-8 ">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                     {(services || []).map((service) => (
                       <button
                         key={service.id}
                         onClick={() => handleServiceSelect(service.id, service.price)}
-                        className={`relative flex flex-col items-start p-6 rounded-[16px] border transition-all h-[98px] text-left group ${selectedServices.includes(service.id)
+                        className={`relative flex flex-col items-start p-5 lg:p-6 rounded-xl lg:rounded-[16px] border transition-all h-[78px] lg:h-[98px] text-left group ${selectedServices.includes(service.id)
                           ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
                           : 'bg-transparent border-[#303030] hover:border-zinc-700'
                           }`}
                       >
-                        <div className="font-medium text-[16px] text-white mb-2 leading-none">{service.label}</div>
+                        <div className="font-medium text-base text-white mb-2 leading-none">{service.label}</div>
                         <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
-                          ${service.price.toFixed(2)} <span className="text-[#7B7B85] font-normal text-[11px] lowercase ml-1">per hour</span>
+                          ${service.price.toFixed(2)} <span className="text-[#71717B] font-medium text-xs lowercase ml-1">per hour</span>
                         </div>
                         {selectedServices.includes(service.id) && (
                           <div className="absolute top-6 right-6 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none">
@@ -682,10 +682,10 @@ export default function CreateQuotePage() {
                     ))}
                   </div>
 
-                  <div className="mt-7 space-y-6">
+                  <div className="mt-5 lg:mt-7 space-y-6">
                     <Button
                       onClick={() => setShowAddServiceForm(!showAddServiceForm)}
-                      className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[42px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                      className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[42px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                     >
                       <Plus size={16} strokeWidth={3} />
                       Add Services
@@ -701,24 +701,24 @@ export default function CreateQuotePage() {
                         >
                           <div className="md:col-span-8 relative">
                             <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                              <span className="text-[12px] text-[#8A8A8A] font-normal">Service Name</span>
+                              <span className="text-xs text-[#8A8A8A] font-normal">Service Name</span>
                             </div>
                             <Input
                               placeholder="Eg : Post Production Editing"
                               value={customServiceName}
                               onChange={(e) => setCustomServiceName(e.target.value)}
-                              className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
                             />
                           </div>
                           <div className="md:col-span-4 relative">
                             <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                              <span className="text-[12px] text-[#8A8A8A] font-normal">Cost</span>
+                              <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
                             </div>
                             <Input
                               placeholder="$ 0.00"
                               value={customServiceCost}
                               onChange={(e) => setCustomServiceCost(e.target.value)}
-                              className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
                             />
                           </div>
                         </motion.div>
@@ -731,7 +731,7 @@ export default function CreateQuotePage() {
               {/* Conditional Sections based on selection */}
               {selectedServices.length > 0 && (
                 <>
-                  <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="space-y-4 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {/* Shoot Type Section */}
                     {(selectedServices.includes('videography') || selectedServices.includes('photography')) && (
                       <section className="">
@@ -741,7 +741,7 @@ export default function CreateQuotePage() {
                             onClick={() => setIsShootTypeExpanded(!isShootTypeExpanded)}
                             className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
                           >
-                            <h2 className="text-xl font-medium text-white">Video Shoot Type</h2>
+                            <h2 className="text-base lg:text-xl font-medium text-white">Video Shoot Type</h2>
                             <div className="text-zinc-600 transition-transform duration-300">
                               {isShootTypeExpanded ? <ChevronDown size={22} className="rotate-180" /> : <ChevronDown size={22} />}
                             </div>
@@ -788,13 +788,13 @@ export default function CreateQuotePage() {
                                         className="relative"
                                       >
                                         <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                          <span className="text-[12px] text-[#8A8A8A] font-normal">Video Shoot Type Name</span>
+                                          <span className="text-xs text-[#8A8A8A] font-normal">Video Shoot Type Name</span>
                                         </div>
                                         <Input
                                           placeholder="Eg : Real Estate.."
                                           value={customShootType}
                                           onChange={(e) => setCustomShootType(e.target.value)}
-                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                                         />
                                       </motion.div>
                                     )}
@@ -816,7 +816,7 @@ export default function CreateQuotePage() {
                             onClick={() => setIsEditingTypeExpanded(!isEditingTypeExpanded)}
                             className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
                           >
-                            <h2 className="text-xl font-medium text-white">AI Editing Types</h2>
+                            <h2 className="text-base lg:text-xl font-medium text-white">AI Editing Types</h2>
                             <div className="text-zinc-600 transition-transform duration-300">
                               {isEditingTypeExpanded ? <ChevronDown size={22} className="rotate-180" /> : <ChevronDown size={22} />}
                             </div>
@@ -863,13 +863,13 @@ export default function CreateQuotePage() {
                                         className="relative"
                                       >
                                         <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                          <span className="text-[12px] text-[#8A8A8A] font-normal">Editing Type Name</span>
+                                          <span className="text-xs text-[#8A8A8A] font-normal">Editing Type Name</span>
                                         </div>
                                         <Input
                                           placeholder="Eg : Reel Editing..."
                                           value={customEditingType}
                                           onChange={(e) => setCustomEditingType(e.target.value)}
-                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                                         />
                                       </motion.div>
                                     )}
@@ -887,7 +887,7 @@ export default function CreateQuotePage() {
                       <hr className="border-t border-[#3D3D3D]" />
                       <section className="px-4 pt-4 pb-5 lg:pt-8 lg:px-8 lg:pb-10">
                         <div className="mb-8">
-                          <h2 className="text-xl font-medium text-white">Configure Selected Services</h2>
+                          <h2 className="text-base lg:text-xl font-medium text-white">Configure Selected Services</h2>
                         </div>
 
                         <div className="space-y-6">
@@ -910,7 +910,7 @@ export default function CreateQuotePage() {
                                         <>{service.label} - <span className="text-[#8E826A]">({shootTypeLabel})</span></>
                                       )}
                                     </h3>
-                                    <p className="text-[#8A8A8A] text-[12px] font-normal">Base: ${service.price.toFixed(2)} per hour</p>
+                                    <p className="text-[#8A8A8A] text-xs font-normal">Base: ${service.price.toFixed(2)} per hour</p>
                                   </div>
                                   <div className="flex items-center gap-5">
                                     <div className="flex flex-col items-end gap-1">
@@ -1037,7 +1037,7 @@ export default function CreateQuotePage() {
                 <p className="text-sm text-[#A1A1AA]">Select an existing client or create a new one</p>
               </div>
 
-              <div className="my-8 border-t border-[#FFFFFF80]" />
+              <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
               <div className="px-7 pb-9 lg:px-8 lg:pb-10">
                 <div className="relative max-w-full">
@@ -1073,14 +1073,14 @@ export default function CreateQuotePage() {
                                   setSelectedClient(client);
                                   setIsDropdownOpen(false);
                                 }}
-                                className={`flex items-center gap-4 px-5 py-4 rounded-xl cursor-pointer transition-all mb-1 ${selectedClient?.id === client.id
-                                  ? 'bg-[#FFF9EE] text-[#101010]'
-                                  : 'hover:bg-white/5 text-zinc-400'
+                                className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${selectedClient?.id === client.id
+                                  ? 'bg-[#FFFCE8] text-[#171717]'
+                                  : 'hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]'
                                   }`}
                               >
                                 <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedClient?.id === client.id
-                                  ? 'border-[#101010]'
-                                  : 'border-zinc-700'
+                                  ? 'border-[#E8D1AB] bg-[#E8D1AB]'
+                                  : 'border-[#FFFFFF85] group-hover:border-[#171717]'
                                   }`}>
                                   {selectedClient?.id === client.id && (
                                     <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
@@ -1091,8 +1091,8 @@ export default function CreateQuotePage() {
                             ))}
 
                             <button className="w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 border-t border-zinc-800/50 pt-6">
-                              <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#1D1A15]">
-                                <Plus size={16} />
+                              <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
+                                <Plus size={16} className="text-[#171717]" />
                               </div>
                               <span className="font-semibold text-lg">Create New Client</span>
                             </button>
@@ -1115,24 +1115,24 @@ export default function CreateQuotePage() {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-7">
                   <div className="md:col-span-8 relative">
                     <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                      <span className="text-[12px] text-[#8A8A8A] font-normal">Item Name</span>
+                      <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
                     </div>
                     <Input
                       placeholder="Eg : Cleaning Services"
                       value={customItemName}
                       onChange={(e) => setCustomItemName(e.target.value)}
-                      className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                      className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                     />
                   </div>
                   <div className="md:col-span-4 relative">
                     <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                      <span className="text-[12px] text-[#8A8A8A] font-normal">Cost</span>
+                      <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
                     </div>
                     <Input
                       placeholder="$ 0.00"
                       value={customItemCost}
                       onChange={(e) => setCustomItemCost(e.target.value)}
-                      className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                      className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                     />
                   </div>
                 </div>
@@ -1149,7 +1149,7 @@ export default function CreateQuotePage() {
               <div className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hiddenm-4 lg:m-9 mt-0 ">
                 <div className="flex justify-between items-center">
                   <div className="space-y-1">
-                    <h3 className="text-[15px] font-medium text-white leading-none">Rush Delivery</h3>
+                    <h3 className="text-base font-medium text-white leading-none">Rush Delivery</h3>
                     <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">$1,500.00</p>
                   </div>
 
@@ -1285,13 +1285,13 @@ export default function CreateQuotePage() {
 
                     <div className="md:col-span-8 relative">
                       <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-[12px] text-[#8A8A8A] font-normal">Discount Value</span>
+                        <span className="text-xs text-[#8A8A8A] font-normal">Discount Value</span>
                       </div>
                       <Input
                         placeholder="0.00"
                         value={discountValue}
                         onChange={(e) => setDiscountValue(parseInt(e.target.value))}
-                        className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                        className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
 
@@ -1443,24 +1443,24 @@ export default function CreateQuotePage() {
               <div className="flex gap-3 w-full p-4 lg:p-9">
                 <div className="w-full relative">
                   <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                    <span className="text-[12px] text-[#8A8A8A] font-normal">Tax Rate (%)</span>
+                    <span className="text-xs text-[#8A8A8A] font-normal">Tax Rate (%)</span>
                   </div>
                   <Input
                     placeholder="0.00"
                     value={taxRate}
                     onChange={(e) => setTaxRate(parseInt(e.target.value))}
-                    className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                    className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                   />
                 </div>
                 <div className="w-full relative">
                   <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                    <span className="text-[12px] text-[#8A8A8A] font-normal">Tax Type</span>
+                    <span className="text-xs text-[#8A8A8A] font-normal">Tax Type</span>
                   </div>
                   <Input
                     placeholder="Sales Tax"
                     value={taxtType}
                     onChange={(e) => setTaxType(e.target.value)}
-                    className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                    className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                   />
                 </div>
               </div>
@@ -1468,78 +1468,90 @@ export default function CreateQuotePage() {
           ) : (
             /* Client Details View */
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className="px-7 pt-7 lg:px-8 lg:pt-8">
+              <div className="px-5 pt-5 lg:px-8 lg:pt-8">
                 <h2 className="text-base lg:text-xl font-medium text-white mb-1">Client Information</h2>
                 <p className="text-sm text-[#A1A1AA]">Select an existing client or create a new one</p>
               </div>
-              <div className="my-8 border-t border-[#FFFFFF80]" />
+              <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
-              <div className="px-4 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-4 lg:space-y-8 ">
+              <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-6 lg:space-y-8 ">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-xs text-zinc-400 font-medium">Client Name*</span>
+                      <span className="text-sm text-[#FFFFFF99] font-medium">Client Name*</span>
                     </div>
                     <Input
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6"
+                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-xs text-zinc-400 font-medium">Email ID*</span>
+                      <span className="text-sm text-[#FFFFFF99] font-medium">Email ID*</span>
                     </div>
                     <Input
                       value={emailId}
                       onChange={(e) => setEmailId(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6"
+                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-xs text-zinc-400 font-medium">Phone Number*</span>
+                      <span className="text-sm text-[#FFFFFF99] font-medium">Phone Number*</span>
                     </div>
                     <Input
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6"
+                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
                 </div>
 
                 <div className="relative">
                   <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-xs text-zinc-400 font-medium">Address*</span>
+                    <span className="text-sm text-[#FFFFFF99] font-medium">Address*</span>
                   </div>
                   <Input
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="567 Mission Street, San Francisco, CA 94105"
-                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6"
+                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                   />
                 </div>
 
                 <div className="relative">
                   <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-xs text-zinc-400 font-medium">Project Description*</span>
+                    <span className="text-sm text-[#FFFFFF99] font-medium">Project Description*</span>
                   </div>
                   <Textarea
                     value={projectDescription}
                     onChange={(e) => setProjectDescription(e.target.value)}
                     placeholder="Describe the project scope and requirements....."
-                    className="min-h-[120px] bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8"
+                    className="min-h-[120px] bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8 text-sm lg:text-base"
                   />
                 </div>
-
-                <div className="">
-                  <h3 className="text-xl font-semibold mb-6">Quote Validity</h3>
+                {/* <div className="relative">
+                  <div className="absolute -top-3 left-4 z-10 px-2 bg-[#0A0A0A]">
+                    <span className="text-xs text-zinc-400 font-medium">Phone Number*</span>
+                  </div>
+                  <Input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E5D5B8]/50 transition-all pl-6"
+                  />
+                </div> */}
+                <div>
+                  <h3 className="lg:text-xl font-semibold mb-6">Quote Validity</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     {[3, 5, 7].map((days: number) => (
                       <button
                         key={days}
                         onClick={() => handleValiditySelect(days)}
-                        className={`h-14 rounded-xl font-semibold transition-all border ${validityDays === days
+                        className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === days
                           ? 'bg-[#1D1A15] border-[#E8D1AB]/40 text-[#E8D1AB]'
                           : 'bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700'
                           }`}
@@ -1549,7 +1561,7 @@ export default function CreateQuotePage() {
                     ))}
                     <button
                       onClick={() => handleValiditySelect('custom')}
-                      className={`h-14 rounded-xl font-semibold transition-all border ${validityDays === 'custom'
+                      className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === 'custom'
                         ? 'bg-[#1D1A15] border-[#E8D1AB]/40 text-[#E8D1AB]'
                         : 'bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700'
                         }`}
@@ -1623,16 +1635,19 @@ export default function CreateQuotePage() {
                   </div>
                 </div>
               </div>
+
+
             </div>
+            // </div>
           )}
         </div>
 
         {/* Footer Actions */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-8 pb-4">
+        <div className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-8 pb-4">
           <div className="flex gap-4">
             <Button
               variant="outline"
-              className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-[17px] font-medium bg-transparent transition-all"
+              className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
               onClick={handleBack}
             >
               Back
@@ -1643,7 +1658,7 @@ export default function CreateQuotePage() {
                   view === 'details' ? clientName :
                     view === 'services' ? selectedServices.length > 0 :
                       true // Add-ons are optional
-              ) ? 'bg-[#E8D1AB] text-[#101010]' : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-[62px] min-w-[166px] rounded-xl text-[17px] font-bold transition-all shadow-md`}
+              ) ? 'bg-[#E8D1AB] text-[#101010]' : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
               disabled={!(
                 view === 'selection' ? selectedClient :
                   view === 'details' ? clientName :
@@ -1656,12 +1671,48 @@ export default function CreateQuotePage() {
             </Button>
           </div>
 
-          <Button className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-[62px] px-8 rounded-xl flex items-center gap-3 text-[17px] font-bold transition-all group border-0 shadow-lg self-start sm:self-auto">
+          <Button className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg self-start sm:self-auto">
             <div className="flex items-center justify-center">
               <Save size={20} className="group-hover:scale-110 transition-transform" />
             </div>
             Save as Draft
           </Button>
+        </div>
+      </div>
+
+       {/* --- FLOATING MOBILE BUTTON --- */}
+      <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f] items-center">
+          <Button className="underline text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all">
+            <div className="flex items-center justify-center">
+              <Save size={20} className="group-hover:scale-110 transition-transform" />
+            </div>
+            Save as Draft
+          </Button>
+        <div className="flex gap-2">
+          <Button
+              variant="outline"
+              className="border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
+              onClick={handleBack}
+            >
+              Back
+            </Button>
+            <Button
+              className={`${(
+                view === 'selection' ? selectedClient :
+                  view === 'details' ? clientName :
+                    view === 'services' ? selectedServices.length > 0 :
+                      true // Add-ons are optional
+              ) ? 'bg-[#E8D1AB] text-[#101010]' : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
+              disabled={!(
+                view === 'selection' ? selectedClient :
+                  view === 'details' ? clientName :
+                    view === 'services' ? selectedServices.length > 0 :
+                      true
+              )}
+              onClick={handleContinue}
+            >
+              {view === "tax" ? "Preview Quote" : "Continue"}
+            </Button>
         </div>
       </div>
     </div>

@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronRight, Loader2, Trash2, Search, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
-import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import {
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { MobileShootRow } from "@/components/production-manager/shoot-details/MobileShootRow";
 import { StatusBadge } from "./StatusBadge";
+import { useTheme } from "next-themes";
 
 type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Unknown";
 
@@ -45,6 +45,8 @@ const STATUS_LABEL_MAP: Record<number, string> = {
 
 export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
     const router = useRouter();
+    const { theme, resolvedTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
     const [shoots, setShoots] = useState<ShootRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -62,7 +64,10 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
         direction: null,
     });
 
-    // Sync external date with range
+    useEffect(() => { setMounted(true); }, []);
+
+    const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+
     useEffect(() => {
         if (externalSelectedDate) {
             setRange("custom");
@@ -179,11 +184,11 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
     const getSortIcon = (key: keyof ShootRecord) => {
         if (sortConfig.key !== key || sortConfig.direction === null) {
-            return <ArrowUpDown size={14} className="ml-2 text-[#666] opacity-0 group-hover:opacity-100 transition-opacity" />;
+            return <ArrowUpDown size={14} className={`ml-2 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? "text-[#666]" : "text-[#999]"}`} />;
         }
         return sortConfig.direction === 'asc'
-            ? <ChevronUp size={14} className="ml-2 text-[#E8D1AB]" />
-            : <ChevronDown size={14} className="ml-2 text-[#E8D1AB]" />;
+            ? <ChevronUp size={14} className={`ml-2 ${isDark ? "text-[#E8D1AB]" : "text-[#B18A00]"}`} />
+            : <ChevronDown size={14} className={`ml-2 ${isDark ? "text-[#E8D1AB]" : "text-[#B18A00]"}`} />;
     };
 
     const totalPages = Math.ceil(processedShoots.length / itemsPerPage);
@@ -222,15 +227,17 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
         }
     };
 
+    if (!mounted) return null;
+
     return (
-        <div className="w-full bg-[#111111] rounded-2xl border border-[#333333] overflow-hidden" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+        <div className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
             {/* Table Header Controls */}
-            <div className="flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b border-[#333333] gap-4">
-                <h3 className="text-xl font-semibold text-white">All Shoots</h3>
+            <div className={`flex flex-col lg:flex-row justify-between lg:items-center p-4 lg:p-6 border-b gap-4 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
+                <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>All Shoots</h3>
 
                 <div className="flex flex-col md:flex-row gap-3">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" size={18} />
+                        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
                         <input
                             type="text"
                             placeholder="Search project name..."
@@ -239,16 +246,17 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                                 setSearchQuery(e.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="w-full md:w-[280px] bg-zinc-900 border border-[#333333] rounded-lg h-10 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-[#E8D1AB] transition-colors"
+                            className={`w-full md:w-[280px] border rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]" : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+                                }`}
                         />
                     </div>
 
                     <div className="flex flex-wrap gap-3">
                         <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
-                            <SelectTrigger className="w-[140px] bg-zinc-900 border-[#333333] rounded-lg h-10 text-sm text-white/70 focus:ring-0 capitalize">
+                            <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                                 <SelectValue placeholder="Category" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#111111] border-[#333333]">
+                            <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
                                 <SelectItem value="all">All Categories</SelectItem>
                                 <SelectItem value="corporate">Corporate</SelectItem>
                                 <SelectItem value="wedding">Wedding</SelectItem>
@@ -262,10 +270,10 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                         </Select>
 
                         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
-                            <SelectTrigger className="w-[130px] bg-zinc-900 border-[#333333] rounded-lg h-10 text-sm text-white/70 focus:ring-0 capitalize">
+                            <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#111111] border-[#333333]">
+                            <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
                                 <SelectItem value="all">All Status</SelectItem>
                                 <SelectItem value="Initiated">Initiated</SelectItem>
                                 <SelectItem value="PreProduction">Pre Production</SelectItem>
@@ -279,10 +287,10 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                         </Select>
 
                         <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>
-                            <SelectTrigger className="w-[120px] bg-zinc-900 border-[#333333] rounded-lg h-10 text-sm text-white/70 focus:ring-0">
+                            <SelectTrigger className={`w-[130px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                                 <SelectValue placeholder="Range" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#111111] border-[#333333]">
+                            <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
                                 <SelectItem value="all">All time</SelectItem>
                                 <SelectItem value="week">Week</SelectItem>
                                 <SelectItem value="month">Month</SelectItem>
@@ -301,13 +309,13 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                     </div>
                 </div>
             ) : processedShoots.length === 0 ? (
-                <div className="py-20 text-center text-white/50 font-instrument-sans">No shoots found.</div>
+                <div className={`py-20 text-center font-instrument-sans ${isDark ? "text-white/50" : "text-[#999]"}`}>No shoots found.</div>
             ) : (
                 <>
                     {/* MOBILE ONLY VIEW */}
-                    <div className="lg:hidden p-3 bg-[#111111]">
-                        <div className="flex justify-between px-5 py-3 text-[#E8D1AB] text-sm font-medium">
-                            <span>Project Name</span>
+                    <div className={`lg:hidden transition-colors duration-300 ${isDark ? "bg-[#111111]" : ""}`}>
+                        <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#000000]"}`}>
+                            <span>Customer Name</span>
                             <span>Status</span>
                         </div>
 
@@ -326,24 +334,17 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                     <div className="hidden lg:block w-full overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="text-[#E8D1AB] text-base font-medium border-b border-[#333333] leading-none tracking-normal">
+                                <tr className={`text-base font-medium border-b leading-none tracking-normal transition-colors duration-300 ${isDark ? "text-[#E8D1AB] border-[#333333]" : "text-[#000000] border-[#E5E5E5] bg-[#FFFCF6]"}`}>
                                     <th
-                                        className="py-5 px-6 font-medium cursor-pointer group hover:text-white transition-colors"
-                                        onClick={() => requestSort('id')}
-                                    >
+                                        className="py-5 px-6 font-medium cursor-pointer group hover:text-opacity-70 transition-colors"
+                                        onClick={() => requestSort('id')}>
                                         <div className="flex items-center">Shoot ID {getSortIcon('id')}</div>
                                     </th>
-                                    <th
-                                        className="py-5 px-6 font-medium cursor-pointer group hover:text-white transition-colors"
-                                        onClick={() => requestSort('customerName')}
-                                    >
+                                    <th className="py-5 px-6 font-medium cursor-pointer group hover:text-opacity-70 transition-colors" onClick={() => requestSort('customerName')}>
                                         <div className="flex items-center">Project Name {getSortIcon('customerName')}</div>
                                     </th>
                                     <th className="py-5 px-6 font-medium">Category</th>
-                                    <th
-                                        className="py-5 px-6 font-medium cursor-pointer group hover:text-white transition-colors"
-                                        onClick={() => requestSort('price')}
-                                    >
+                                    <th className="py-5 px-6 font-medium cursor-pointer group hover:text-opacity-70 transition-colors" onClick={() => requestSort('price')}>
                                         <div className="flex items-center">Price {getSortIcon('price')}</div>
                                     </th>
                                     <th className="py-5 px-6 font-medium">Status</th>
@@ -355,22 +356,22 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                                     <tr
                                         key={idx}
                                         onClick={() => handleRowClick(shoot.id)}
-                                        className="border-b border-[#222222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
+                                        className={`border-b transition-colors last:border-0 cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
                                     >
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-base font-medium leading-none tracking-normal">{shoot.id}</td>
+                                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.id}</td>
                                         <td className="py-5 px-6">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-[#F5F5F5] flex items-center justify-center text-black font-semibold text-sm">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                                                     {shoot.initials}
                                                 </div>
                                                 <div>
-                                                    <p className="text-[#E0E0E0] font-medium text-base leading-none tracking-normal">{shoot.customerName}</p>
-                                                    <p className="text-[#666666] text-xs mt-1.5">{shoot.date}</p>
+                                                    <p className={`font-medium text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#000000]"}`}>{shoot.customerName}</p>
+                                                    <p className={`text-xs mt-1.5 ${isDark ? "text-[#666666]" : "text-[#999]"}`}>{shoot.date}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-base font-medium leading-none tracking-normal">{shoot.category}</td>
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-base font-medium leading-none tracking-normal">{shoot.price}</td>
+                                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.category}</td>
+                                        <td className={`py-5 px-6 text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{shoot.price}</td>
                                         <td className="py-5 px-6">
                                             <StatusBadge status={shoot.status} />
                                         </td>
@@ -378,13 +379,11 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
                                                     onClick={(e) => handleDelete(e, shoot.id)}
-                                                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#666] hover:text-red-500 transition-colors"
+                                                    className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-[#666] hover:bg-white/10 hover:text-red-500" : "text-[#999] hover:bg-red-50 hover:text-red-500"}`}
                                                 >
                                                     <Trash2 size={18} />
                                                 </button>
-                                                <button className="text-white hover:text-white transition-colors">
-                                                    <ChevronRight size={20} className="text-[#666666]" />
-                                                </button>
+                                                <ChevronRight size={20} className={isDark ? "text-[#666666]" : "text-[#999]"} />
                                             </div>
                                         </td>
                                     </tr>
@@ -397,18 +396,15 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
             {/* Pagination - Exact Logic Preserved */}
             {!loading && processedShoots.length > 0 && (
-                <div className="flex justify-between items-center p-6 border-t border-[#333333]">
-                    <div className="hidden lg:block text-sm text-[#666666]">
+                <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
+                    <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
                         Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, processedShoots.length)} of {processedShoots.length} entries
                     </div>
                     <div className="flex gap-2 items-center">
                         <button
                             onClick={() => handlePageChange(currentPage - 1)}
                             disabled={currentPage === 1}
-                            className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1A1A1A] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        >
-                            Previous
-                        </button>
+                            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}>Previous</button>
                         <div className="flex gap-1">
                             {(() => {
                                 const rangeArr = [];
@@ -426,15 +422,12 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
                                 return rangeArr.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
                                     page === '...' ? (
-                                        <span key={`dots-${index}`} className="px-2 py-1 text-white/30 text-xs">...</span>
+                                        <span key={`dots-${index}`} className={`px-2 py-1 text-xs ${isDark ? "text-white/30" : "text-[#999]"}`}>...</span>
                                     ) : (
                                         <button
                                             key={page}
                                             onClick={() => handlePageChange(page as number)}
-                                            className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page
-                                                ? "bg-[#E5D5B8] text-black"
-                                                : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
-                                                }`}
+                                            className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page ? (isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black") : (isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-zinc-100")}`}
                                         >
                                             {page}
                                         </button>
@@ -445,7 +438,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
                         <button
                             onClick={() => handlePageChange(currentPage + 1)}
                             disabled={currentPage === totalPages}
-                            className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1A1A1A] text-white/60 border border-[#333] hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
                         >
                             Next
                         </button>
