@@ -1,6 +1,8 @@
 "use client";
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import Topbar from "@/components/sales/Topbar";
 import { ArrowDownToLine, ArrowLeft, Copy, Send, Video } from "lucide-react";
@@ -21,7 +23,12 @@ const logisticsData = [
 export default function QuoteSummaryPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => setMounted(true), []);
+  // Constant default to dark
+  const isDark = !mounted || theme === "dark";
 
   const handleBack = () => {
     router.back();
@@ -32,10 +39,13 @@ export default function QuoteSummaryPage() {
       <Topbar pathname={pathname}
         actions={
           <>
-            <Button onClick={() => console.log("Copy Link")} className="bg-[#202020] text-white hover:bg-[#202020]/50 border border-[#FFFFFF33]">
+            <Button
+              onClick={() => console.log("Copy Link")}
+              className={`border ${isDark ? "bg-[#202020] border-[#FFFFFF33] text-white hover:bg-[#202020]/50" : "bg-[#F0F0F0] hover:bg-[#A4A5A6]/60 border-[#E3E3E3] text-black"}`}
+            >
               <Copy />Copy Link
             </Button>
-            <Button onClick={() => console.log("Download PDF")} className="bg-[#202020] text-white hover:bg-[#202020]/50 border border-[#FFFFFF33]">
+            <Button onClick={() => console.log("Download PDF")} className={`border ${isDark ? "bg-[#202020] border-[#FFFFFF33] text-white hover:bg-[#202020]/50" : "bg-[#F0F0F0] hover:bg-[#A4A5A6]/60 border-[#E3E3E3] text-black"}`}>
               <ArrowDownToLine /> Download PDF
             </Button>
             <Button onClick={() => router.push("/sales/quotes/preview")} className="bg-[#E5D5B8] text-black">
@@ -50,8 +60,7 @@ export default function QuoteSummaryPage() {
         <div className="flex justify-between items-center mb-7">
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 text-[15px] text-[#D4D4D4] hover:text-white transition-colors"
-          >
+            className={`flex items-center gap-2 transition-colors ${isDark ? "text-[#D4D4D4] hover:text-white" : "text-black hover:text-black/70"}`}>
             <ArrowLeft size={18} />
             Back
           </button>
@@ -59,12 +68,12 @@ export default function QuoteSummaryPage() {
 
         {/* Header */}
         <div className="mb-4 lg:mb-9">
-          <h2 className="text-[18px] lg:text-[19px] font-medium text-white mb-1">Quote Preview</h2>
-          <p className="text-[14px] text-[#A1A1AA]">Review before sending to client</p>
+          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>Quote Preview</h2>
+          <p className={`text-sm ${isDark ? "text-[#A1A1AA]" : "text-[#000000B2]"}`}>Review before sending to client</p>
         </div>
 
         {/* Preview Block */}
-        <div className={`border rounded-[18px] mb-8 bg-[#171717] border-[#3D3D3D]`}>
+        <div className={`border rounded-[18px] mb-8 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#fff] border-[#DFDDDD]"} `}>
           {/* Data */}
           <div className="p-4 lg:p-9 space-y-3 lg:space-y-6">
             {/* Beige HEader */}
@@ -81,12 +90,12 @@ export default function QuoteSummaryPage() {
                     <p className="text-sm lg:text-2xl font-bold text-[#E8D1AB]">
                       Beige AI
                     </p>
-                    <p className="text-[10px] lg:text-sm text-white">
+                    <p className={`text-[10px] lg:text-sm ${isDark ? "text-white" : "text-[#020202]"}`}>
                       Production Marketplace
                     </p>
                   </div>
                 </div>
-                <div className="text-[10px] lg:text-sm text-white ">
+                <div className={`text-[10px] lg:text-sm ${isDark ? "text-white" : "text-[#606060]"}`}>
                   <p>123 Business Street</p>
                   <p>San Francisco, CA 94102</p>
                   <p>contact@beigeAI.com</p>
@@ -95,23 +104,22 @@ export default function QuoteSummaryPage() {
 
               {/* Right */}
               <div>
-                <h2 className="text-lg lg:text-4xl text-white font-bold">QUOTATION</h2>
-                <div className="mt-2.5 text-[10px] lg:text-sm text-[#BDBDBD] text-right">
+                <h2 className={`text-lg lg:text-4xl font-bold ${isDark ? "text-white" : "text-[#101010]"}`}>QUOTATION</h2>
+                <div className={`mt-2.5 text-[10px] lg:text-sm text-right ${isDark ? "text-[#BDBDBD]" : "text-[#000]"}`}>
                   <p>Quote #: Q1</p>
                   <p>Date: March 10, 2026</p>
                   <p>Valid Until: April 15, 2026</p>
                 </div>
               </div>
             </div>
-
-            <div className="my-4 lg:my-9 border-t border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" />
+            <div className={`my-4 lg:my-9 border-t ${isDark ? "border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" : "border-[#0000001A]"}`} />
 
             {/* Bill Addresses to */}
             <div className="space-y-2 lg:space-y-5">
-              <p className="text-[#71717B] text-[10px] font-semibold mb-1.5 lg:mb-3 uppercase">Bill To</p>
+              <p className="text-[#71717B] text-[10px] lg:text-sm font-semibold mb-1.5 lg:mb-3 uppercase">Bill To</p>
 
-              <div className="text-[10px] lg:text-sm text-white ">
-                <p className="text-xs lg:text-lg font-semibold text-white">
+              <div className={`text-[10px] lg:text-sm ${isDark ? "text-white" : "text-black"}`}>
+                <p className={`text-xs lg:text-lg font-semibold `}>
                   Harsh Panchal
                 </p>
                 <p>New York, NY</p>
@@ -120,19 +128,18 @@ export default function QuoteSummaryPage() {
               </div>
             </div>
 
-            <div className="bg-[#FAFAFA] rounded-xl p-4 text-[10px] lg:text-sm space-y-1.5 mb-5 lg:mb-9">
+            <div className={`rounded-xl p-4 text-[10px] lg:text-sm space-y-1.5 mb-5 lg:mb-9 ${isDark ? "bg-[#FAFAFA]" : "bg-[#F4F5F7] border border-[#D7D7D7]"}`}>
               <p className="text-[#71717B] font-semibold uppercase">Project Description</p>
               <p className="text-[#18181B]">
                 Corporate video production for annual conference
               </p>
             </div>
-            <div className="my-4 lg:my-9 border-t border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" />
-
+            <div className={`my-4 lg:my-9 border-t ${isDark ? "border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" : "border-[#0000001A]"}`} />
 
             {/* Service included */}
             <div className="space-y-2 lg:space-y-4 mb-6 lg:mb-12">
               <p className="text-[10px] lg:text-sm text-[#71717B] font-semibold uppercase">Service Include</p>
-              <div className="text-[10px] lg:text-sm grid grid-cols-5 text-[#FFF] font-medium border-b  border-[#FFFFFF1A] lg:border-[#FFFFFF5C] pb-2">
+              <div className={`text-[10px] lg:text-sm grid grid-cols-5 font-medium border-b pb-2 ${isDark ? "border-[#FFFFFF1A] lg:border-[#FFFFFF5C] text-white" : "border-[#0000001A] text-black"}`}>
                 {/* <p className="">Videography - (Private Event)</p> */}
                 <p>Description</p>
                 <p className="text-center">Qty</p>
@@ -140,15 +147,15 @@ export default function QuoteSummaryPage() {
                 <p className="text-center">Crew</p>
                 <p className="text-right">Amount</p>
               </div>
-              <div className="text-xs lg:text-base grid grid-cols-5 text-[#FFFFFF99] font-medium">
-                <p className="text-white">Videography - (Private Event)</p>
+              <div className={`text-xs lg:text-base grid grid-cols-5 font-medium ${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"}`}>
+                <p className={isDark ? "text-white" : "text-black"}>Videography - (Private Event)</p>
                 <p className="text-center">01</p>
                 <p className="text-center">4 Hours</p>
                 <p className="text-center">02</p>
                 <p className="text-right">$1,000.00</p>
               </div>
             </div>
-            <div className="my-4 lg:my-9 border-t border-[#FFFFFF1A] lg:border-[#FFFFFF1A]" />
+            <div className={`my-4 lg:my-9 border-t ${isDark ? "border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" : "border-[#0000001A]"}`} />
 
             {/* Add-ons  */}
             {logisticsData.length > 0 && (
@@ -161,8 +168,8 @@ export default function QuoteSummaryPage() {
                         key={index}
                         className="flex justify-between items-center text-xs lg:text-base"
                       >
-                        <p className="text-[#FFF]">{item.label}</p>
-                        <p className="text-[#FFFFFF99] font-medium">
+                        <p className={isDark ? "text-white" : "text-black"}>{item.label}</p>
+                        <p className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} font-medium`}>
                           ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </p>
                       </div>
@@ -171,7 +178,7 @@ export default function QuoteSummaryPage() {
                 </div>
               </div>
             )}
-            <div className="my-4 lg:my-9 border-t  border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" />
+            <div className={`my-4 lg:my-9 border-t ${isDark ? "border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" : "border-[#0000001A]"}`} />
 
             {/* Logistics */}
             {logisticsData.length > 0 && (
@@ -184,8 +191,8 @@ export default function QuoteSummaryPage() {
                         key={index}
                         className="flex justify-between items-center text-xs lg:text-base"
                       >
-                        <p className="text-[#FFF]">{item.label}</p>
-                        <p className="text-[#FFFFFF99] font-medium">
+                        <p className={isDark ? "text-white" : "text-black"}>{item.label}</p>
+                        <p className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} font-medium`}>
                           ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </p>
                       </div>
@@ -210,19 +217,19 @@ export default function QuoteSummaryPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center text-sm lg:text-lg text-white lg:text-xl bg-[#171717] p-2 lg:p-4 rounded-lg lg:rounded-xl font-bold">
+              <div className={`flex justify-between items-center text-sm lg:text-lg lg:text-xl p-2 lg:p-4 rounded-lg lg:rounded-xl font-bold ${isDark ? "text-white bg-[#171717]" : "bg-white bg-[#000]"}`}>
                 <p>Final Total</p>
-                <p className="text-[#E8D1AB]">
+                <p className={isDark ? "text-[#E8D1AB]" : "text-black"}>
                   $6,021.75
                 </p>
               </div>
             </div>
-            <div className="my-4 lg:my-9 border-t  border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" />
+            <div className={`my-4 lg:my-9 border-t ${isDark ? "border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" : "border-[#0000001A]"}`} />
 
             {/* Terms & Conditions */}
             <div className="space-y-2 lg:space-y-3">
-              <p className="text-[10px] lg:text-sm text-white font-semibold uppercase">Terms & Conditions</p>
-              <ul className="text-[10px] lg:text-sm text-[#AAAAAA] list-disc list-inside">
+              <p className={`text-[10px] lg:text-sm font-semibold uppercase ${isDark ? "text-white" : "text-black"}`}>Terms & Conditions</p>
+              <ul className={`text-[10px] lg:text-sm list-disc list-inside ${isDark ? "text-[#AAAAAA]" : "text-[#00000085]"}`}>
                 <li>Payment is due within 30 days of quote acceptance.</li>
                 <li>A 50% deposit is required before project commencement.</li>
                 <li>This quote is valid until April 15, 2026.</li>
@@ -230,10 +237,10 @@ export default function QuoteSummaryPage() {
                 <li>Changes to the scope of work may result in additional charges.</li>
               </ul>
             </div>
-            <div className="my-4 lg:my-9 border-t  border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" />
+            <div className={`my-4 lg:my-9 border-t ${isDark ? "border-[#FFFFFF1A] lg:border-[#FFFFFF5C]" : "border-[#0000001A]"}`} />
 
             {/* Contact */}
-            <div className="p-4 text-[10px] lg:text-sm text-white text-center">
+            <div className={`p-4 text-[10px] lg:text-sm text-center ${isDark ? "text-white" : "text-black"}`}>
               Thank you for your business! For questions, contact John Smith at contact@BeigeAI.com
             </div>
           </div>
