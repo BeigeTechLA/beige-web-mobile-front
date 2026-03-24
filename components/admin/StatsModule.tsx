@@ -42,7 +42,7 @@ const StatsLayout = ({
     { key: "margin_revenue", color: "#FF8484", stackId: "a", radius: [6, 6, 0, 0] }
   ]
 }: any) => (
-  <div className="bg-[#101010] flex flex-col lg:flex-row gap-6 h-full lg:max-h-[300px] items-stretch lg:items-center">
+  <div className="bg-[#101010] flex flex-col lg:flex-row gap-6 h-full lg:max-h-[400px] items-stretch lg:items-center">
     {/* Left */}
     <div className="lg:w-1/4 flex flex-col justify-between shrink-0">
       <div className="flex items-center gap-2">

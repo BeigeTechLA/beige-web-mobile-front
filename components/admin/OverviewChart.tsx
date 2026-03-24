@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Video, Camera, Film, Users, UsersRound, ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   Select,
@@ -14,12 +14,45 @@ import {
 import { format } from 'date-fns';
 import { adminApi } from '@/lib/api';
 
+const CustomVideoIcon = ({ size = 16 }) => (
+  <img
+    src="/images/socmed/videocamera-record.svg"
+    width={size}
+    height={size}
+    alt="video"
+  />
+);
+const CustomCameraIcon = ({ size = 16 }) => (
+  <img
+    src="/images/socmed/camera-icon.svg"
+    width={size}
+    height={size}
+    alt="camera"
+  />
+);
+const CustomFilmReelIcon = ({ size = 16 }) => (
+  <img
+    src="/images/socmed/filmreel-icon.svg"
+    width={size}
+    height={size}
+    alt="film reel"
+  />
+);
+const CustomUserIcon = ({ size = 16 }) => (
+  <img
+    src="/images/socmed/user-icon.svg"
+    width={size}
+    height={size}
+    alt="user"
+  />
+);
+
 const initialMetrics = [
-  { id: 'total', label: 'Total Shoots', value: '0', growth: 0, icon: Video, color: 'bg-[#E5D5B8]' },
-  { id: 'active', label: 'Active Shoots', value: '0', growth: 0, icon: Camera, color: 'bg-zinc-800' },
-  { id: 'completed', label: 'Completed Shoots', value: '0', growth: 0, icon: Film, color: 'bg-zinc-800' },
-  { id: 'clients', label: 'Total Users', value: '0', growth: 0, icon: UsersRound, color: 'bg-zinc-800' },
-  { id: 'cps', label: 'Total Creative Partners', value: '0', growth: 0, icon: Users, color: 'bg-zinc-800' },
+  { id: 'total', label: 'Total Shoots', value: '0', growth: 0, icon: CustomVideoIcon, color: 'bg-[#E5D5B8]' },
+  { id: 'active', label: 'Active Shoots', value: '0', growth: 0, icon: CustomCameraIcon, color: 'bg-zinc-800' },
+  { id: 'completed', label: 'Completed Shoots', value: '0', growth: 0, icon: CustomFilmReelIcon, color: 'bg-zinc-800' },
+  { id: 'clients', label: 'Total Users', value: '0', growth: 0, icon: CustomUserIcon, color: 'bg-zinc-800' },
+  { id: 'cps', label: 'Total Creative Partners', value: '0', growth: 0, icon: CustomUserIcon, color: 'bg-zinc-800' },
 ];
 
 interface OverviewChartProps {
@@ -85,35 +118,35 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
               label: 'Total Shoots',
               value: summary.total_shoots?.count?.toString() || '0',
               growth: summary.total_shoots?.growth || 0,
-              icon: Video,
+              icon: CustomVideoIcon,
             },
             {
               id: 'active',
               label: 'Active Shoots',
               value: summary.active_shoots?.count?.toString() || '0',
               growth: summary.active_shoots?.growth || 0,
-              icon: Camera,
+              icon: CustomCameraIcon,
             },
             {
               id: 'completed',
               label: 'Completed Shoots',
               value: summary.completed_shoots?.count?.toString() || '0',
               growth: summary.completed_shoots?.growth || 0,
-              icon: Film,
+              icon: CustomFilmReelIcon,
             },
             {
               id: 'clients',
               label: 'Total Users',
               value: summary.total_clients?.count?.toString() || '0',
               growth: summary.total_clients?.growth || 0,
-              icon: UsersRound,
+              icon: CustomUserIcon,
             },
             {
               id: 'cps',
               label: 'Total Creative Partners',
               value: summary.approved_CPs?.count?.toString() || '0',
               growth: summary.approved_CPs?.growth || 0,
-              icon: Users,
+              icon: CustomUserIcon,
               details: {
                 approved: summary.approved_CPs?.count || 0,
                 pending: summary.pending_CPs?.count || 0,

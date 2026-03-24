@@ -37,6 +37,23 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
     return `${day} ${month}, ${year}`;
   };
 
+  const formatTimeToAmPm = (value?: string) => {
+    if (!value) return "N/A";
+
+    const match = value.trim().match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return value;
+
+    const hours = Number(match[1]);
+    const minutes = match[2];
+
+    if (Number.isNaN(hours) || hours < 0 || hours > 23) return value;
+
+    const period = hours >= 12 ? "PM" : "AM";
+    const twelveHour = hours % 12 || 12;
+
+    return `${String(twelveHour).padStart(2, "0")}:${minutes} ${period}`;
+  };
+
   const getEditCounts = (items: string[] = []) => {
     const counts = new Map<string, number>();
     items.forEach((item) => {
@@ -197,7 +214,9 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                     <p className="text-white font-medium print:text-black">
                         {formatShortDate(data.date)}
                     </p>
-                    <p className="text-white/50 text-sm print:text-gray-600">{data.start_time.slice(0, 5)} - {data.end_time.slice(0, 5)}</p>
+                    <p className="text-white/50 text-sm print:text-gray-600">
+                      {formatTimeToAmPm(data.start_time)} - {formatTimeToAmPm(data.end_time)}
+                    </p>
                   </div>
                 </div>
 
