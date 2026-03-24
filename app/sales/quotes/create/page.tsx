@@ -31,12 +31,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, parseISO, isValid } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
+import { salesApi } from "@/lib/api";
 
 const clients = [
-  { id: 1, name: "Jaymin Patel", email: "jaymin@example.com", phone: "+1 (555) 123-4567" },
-  { id: 2, name: "Harsh Panchal", email: "harsh@example.com", phone: "+1 (555) 987-6543" },
-  { id: 3, name: "Parth Patel", email: "parth@example.com", phone: "+1 (555) 000-1111" },
-  { id: 4, name: "Raj Yadav", email: "raj@example.com", phone: "+1 (555) 222-3333" },
+// Dynamic client fetching replaces hardcoded array
 ];
 
 export default function CreateQuotePage() {
@@ -49,6 +47,8 @@ export default function CreateQuotePage() {
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [clients, setClients] = useState<any[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
 
   // Form State
   const [clientName, setClientName] = useState("");
@@ -81,26 +81,15 @@ export default function CreateQuotePage() {
   const [customAddonCost, setCustomAddonCost] = useState("");
 
   // Step 4: Logistics State
-  const initialLogisticsItems = [
-    { id: "travel", label: "Travel and Transportation", basePrice: 500 },
-    { id: "equipment", label: "Equipment Rental", basePrice: 800 },
-    { id: "studio", label: "Studio Rental", basePrice: 1200 },
-    { id: "permits", label: "Permits & Licenses", basePrice: 300 },
-  ];
-  const [logisticsItems, setLogisticsItems] = useState(initialLogisticsItems);
-  const [logisticsConfigs, setLogisticsConfigs] = useState<Record<string, { price: number }>>({
-    travel: { price: 500 },
-    equipment: { price: 800 },
-    studio: { price: 1200 },
-    permits: { price: 300 },
-  });
+  const [logisticsItems, setLogisticsItems] = useState<any[]>([]);
+  const [logisticsConfigs, setLogisticsConfigs] = useState<Record<string, { price: number }>>({});
   const [customLogisticsName, setCustomLogisticsName] = useState("");
   const [customLogisticsCost, setCustomLogisticsCost] = useState("");
 
   //Step 5: Custom Line Items State
   const [customItemName, setCustomItemName] = useState("");
   const [customItemCost, setCustomItemCost] = useState("");
-  const [lineItems, setLineItems] = useState(initialLogisticsItems);
+  const [lineItems, setLineItems] = useState<any[]>([]);
   const [lineItemConfigs, setLineItemConfigs] = useState<Record<string, { price: number }>>({});
 
   // Step 6: Discount 
@@ -122,22 +111,137 @@ export default function CreateQuotePage() {
     estimatedPrice: number;
   }>>({});
 
-  const services = [
-    { id: "videography", label: "Videography", price: 250, icon: <Video size={20} /> },
-    { id: "photography", label: "Photography", price: 250, icon: <Camera size={20} /> },
-    { id: "ai_editing", label: "AI Editing", price: 500, icon: <Scissors size={20} /> },
-    { id: "livestream", label: "Livestream Production", price: 250, icon: <Radio size={20} /> },
-    { id: "location", label: "Location", price: 250, icon: <MapPin size={20} /> },
-  ];
+  const [services, setServices] = useState<any[]>([]);
+  const [shootTypes, setShootTypes] = useState<any[]>([]);
+  const [addons, setAddons] = useState<any[]>([]);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [loadingShootTypes, setLoadingShootTypes] = useState(false);
 
-  const shootTypes = [
-    { id: "corporate_event", label: "Corporate Event" },
-    { id: "wedding", label: "Wedding" },
-    { id: "private_event", label: "Private Event" },
-    { id: "commercial", label: "Commercial & Advertising" },
-    { id: "social_content", label: "Social Content" },
-    { id: "podcast", label: "Podcast & Shows" },
-  ];
+  const serviceIcons: Record<string, React.ReactNode> = {
+    "videography": <Video size={20} />,
+    "photography": <Camera size={20} />,
+    "ai_editing": <Scissors size={20} />,
+    "livestream": <Radio size={20} />,
+    "location": <MapPin size={20} />,
+  };
+
+  const fetchClients = async (query?: string) => {
+    setLoadingClients(true);
+    try {
+      const res = await salesApi.getClientDropdown(query);
+      if (!res.error && res.data) {
+        setClients(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch clients", error);
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchClients();
+  }, []);
+
+  // Debounced search for clients
+  React.useEffect(() => {
+    if (view !== 'selection') return;
+    const timer = setTimeout(() => {
+      fetchClients(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  React.useEffect(() => {
+    const fetchCatalog = async () => {
+      setLoadingServices(true);
+      try {
+        const res = await salesApi.getQuoteCatalog();
+        if (!res.error && res.data) {
+          const { service, addon, logistics } = res.data;
+
+          if (service) {
+            const mappedServices = service.map((item: any) => ({
+              id: item.catalog_item_id.toString(),
+              label: item.name,
+              price: parseFloat(item.effective_rate) || 0,
+              icon: serviceIcons[item.name.toLowerCase()] || <Plus size={20} />
+            }));
+            setServices(mappedServices);
+          }
+
+          if (addon) {
+            const mappedAddons = addon.map((item: any) => ({
+              id: item.catalog_item_id.toString(),
+              label: item.name,
+              price: parseFloat(item.effective_rate) || 0
+            }));
+            setAddons(mappedAddons);
+          }
+
+          if (logistics) {
+            const mappedLogistics = logistics.map((item: any) => ({
+              id: item.catalog_item_id.toString(),
+              label: item.name,
+              basePrice: parseFloat(item.effective_rate) || 0
+            }));
+            setLogisticsItems(mappedLogistics);
+
+            // Initialize logistics configs
+            const configs: Record<string, { price: number }> = {};
+            mappedLogistics.forEach((item: any) => {
+              configs[item.id] = { price: item.basePrice };
+            });
+            setLogisticsConfigs(configs);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch catalog", error);
+      } finally {
+        setLoadingServices(false);
+      }
+    };
+    fetchCatalog();
+  }, []);
+
+  const fetchShootTypes = async (ids: string[]) => {
+    let typeParam = 0;
+    const hasVideo = ids.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || ids.includes("videography");
+    const hasPhoto = ids.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "photography") || ids.includes("photography");
+
+    if (hasVideo && hasPhoto) typeParam = 3;
+    else if (hasVideo) typeParam = 1;
+    else if (hasPhoto) typeParam = 2;
+
+    if (typeParam === 0) {
+      setShootTypes([]);
+      return;
+    }
+
+    setLoadingShootTypes(true);
+    try {
+      const res = await salesApi.getShootTypes(typeParam);
+      if (!res.error && res.data) {
+        const mappedShootTypes = res.data.map((item: any) => ({
+          id: item.shoot_type_id.toString(),
+          label: item.name
+        }));
+        setShootTypes(mappedShootTypes);
+
+        // Select first one if current selection is invalid
+        if (mappedShootTypes.length > 0) {
+          const isValid = mappedShootTypes.some((t: any) => t.id === selectedShootType);
+          if (!isValid) {
+            setSelectedShootType(mappedShootTypes[0].id);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch shoot types", error);
+    } finally {
+      setLoadingShootTypes(false);
+    }
+  };
 
   const editingTypes = [
     { id: "social_media_reel_15_30", label: "Social Media Reel (15 sec-30 sec)" },
@@ -145,17 +249,6 @@ export default function CreateQuotePage() {
     { id: "mini_highlight_video", label: "Mini Highlight Video (1-2 mins)" },
     { id: "highlight_video", label: "Highlight Video (4-7 min)" },
     { id: "feature_video", label: "Feature Video (30-40 min)" },
-  ];
-
-  const addons = [
-    { id: "4k_upgrade", label: "4K Camera Upgrade", price: 500 },
-    { id: "drone_footage", label: "Drone Footage", price: 800 },
-    { id: "additional_crew", label: "Additional Crew Member", price: 300 },
-    { id: "lightning_package", label: "Lightning Package", price: 600 },
-    { id: "audio_kit", label: "Audio Recording Kit", price: 400 },
-    { id: "green_screen", label: "Green Screen Setup", price: 600 },
-    { id: "teleprompter", label: "Teleprompter", price: 200 },
-    { id: "hair_makeup", label: "Hair and Makeup Artist", price: 450 },
   ];
 
   const handleConfigUpdate = (serviceId: string, field: string, value: number) => {
@@ -181,15 +274,15 @@ export default function CreateQuotePage() {
   const handleServiceSelect = (serviceId: string, price: number) => {
     setSelectedServices(prev => {
       const isSelected = prev.includes(serviceId);
+      let newSelected;
       if (isSelected) {
-        const newSelected = prev.filter(id => id !== serviceId);
+        newSelected = prev.filter(id => id !== serviceId);
         // Remove config if no services selected
         if (newSelected.length === 0) {
           setServiceConfigs({});
         }
-        return newSelected;
       } else {
-        const newSelected = [...prev, serviceId];
+        newSelected = [...prev, serviceId];
         // Initialize config for the new service
         if (!serviceConfigs[serviceId]) {
           setServiceConfigs(prevConfigs => ({
@@ -197,8 +290,12 @@ export default function CreateQuotePage() {
             [serviceId]: { quantity: 1, duration: 4, crewSize: 1, estimatedPrice: price }
           }));
         }
-        return newSelected;
       }
+
+      // Fetch shoot types if video or photo is selected
+      fetchShootTypes(newSelected);
+
+      return newSelected;
     });
   };
 
@@ -207,9 +304,7 @@ export default function CreateQuotePage() {
     setDiscountEnabled(newState);
   };
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredClients = clients; // Now filtered by API
 
   const handleValiditySelect = (days: number | 'custom') => {
     setValidityDays(days);
@@ -729,7 +824,11 @@ export default function CreateQuotePage() {
 
                 <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-4 lg:space-y-8 ">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-                    {(services || []).map((service) => (
+                    {loadingServices ? (
+                      <div className="col-span-3 py-10 flex justify-center items-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]"></div>
+                      </div>
+                    ) : (services || []).map((service) => (
                       <button
                         key={service.id}
                         onClick={() => handleServiceSelect(service.id, service.price)}
@@ -825,7 +924,11 @@ export default function CreateQuotePage() {
                                 className="overflow-hidden"
                               >
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                  {(shootTypes || []).map((type) => (
+                                  {loadingShootTypes ? (
+                                    <div className="col-span-4 py-5 flex justify-center items-center">
+                                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
+                                    </div>
+                                  ) : (shootTypes || []).map((type) => (
                                     <button
                                       key={type.id}
                                       onClick={() => setSelectedShootType(type.id)}
@@ -1140,24 +1243,51 @@ export default function CreateQuotePage() {
                           transition={{ duration: 0.2 }}
                           className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0F0F0F] border border-zinc-800 rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.6)]"
                         >
-                          <div className="max-h-80 overflow-y-auto custom-scrollbar p-3">
-                            {(filteredClients || []).map((client) => (
+                          {/* Search input inside dropdown */}
+                          <div className="p-3 border-b border-zinc-800">
+                            <div className="flex items-center gap-2 bg-[#1A1A1F] border border-[#3B3B46] rounded-xl px-4 py-2.5">
+                              <Search size={16} className="text-[#6B6B6B] shrink-0" />
+                              <input
+                                type="text"
+                                placeholder="Search clients..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-[#6B6B6B]"
+                                autoFocus
+                              />
+                              {searchQuery && (
+                                <button onClick={() => setSearchQuery("")} className="text-[#6B6B6B] hover:text-white">
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="max-h-72 overflow-y-auto custom-scrollbar p-3">
+                            {loadingClients ? (
+                              <div className="py-8 flex justify-center items-center">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
+                              </div>
+                            ) : (filteredClients || []).length === 0 ? (
+                              <div className="py-6 text-center text-[#6B6B6B] text-sm">No clients found</div>
+                            ) : (filteredClients || []).map((client) => (
                               <div
-                                key={client.id}
+                                key={client.client_id}
                                 onClick={() => {
                                   setSelectedClient(client);
                                   setIsDropdownOpen(false);
+                                  setSearchQuery("");
                                 }}
-                                className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${selectedClient?.id === client.id
+                                className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${selectedClient?.client_id === client.client_id
                                   ? 'bg-[#FFFCE8] text-[#171717]'
                                   : 'hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]'
                                   }`}
                               >
-                                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedClient?.id === client.id
+                                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedClient?.client_id === client.client_id
                                   ? 'border-[#E8D1AB] bg-[#E8D1AB]'
                                   : 'border-[#FFFFFF85] group-hover:border-[#171717]'
                                   }`}>
-                                  {selectedClient?.id === client.id && (
+                                  {selectedClient?.client_id === client.client_id && (
                                     <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
                                   )}
                                 </div>

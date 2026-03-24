@@ -32,6 +32,7 @@ import {
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { SortDateButton } from "@/components/admin/SortDateButton";
+import { salesApi } from "@/lib/api";
 
 const chartData = [
   { name: "Jan", value: 35 },
@@ -143,6 +144,25 @@ export default function QuotesPage() {
 
   // State for expandable rows on mobile
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchDashboard = async () => {
+      setLoading(true);
+      try {
+        const res = await salesApi.getQuotesDashboard();
+        if (res.success && res.data) {
+          setDashboardData(res.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, []);
 
   const toggleRow = (id: number) => {
     setExpandedRows(prev => ({
@@ -151,32 +171,27 @@ export default function QuotesPage() {
     }));
   };
 
-  const stats = [
-    {
-      title: "Total Quotes",
-      value: "26",
-      change: "+3%",
-      icon: (isSelected: boolean) => <CircleDollarSign className={"fill-[#E8D1AB] stroke-black"} size={20} />,
-    },
-    {
-      title: "Accepted Quotes",
-      value: "10",
-      change: "+3%",
-      icon: (isSelected: boolean) => <BadgeCheck className={"fill-[#E8D1AB] stroke-black"} size={20} />,
-    },
-    {
-      title: "Pending Quotes",
-      value: "16",
-      change: "+3%",
-      icon: (isSelected: boolean) => <Clock className={"fill-[#E8D1AB] stroke-black"} size={20} />,
-    },
-    {
-      title: "Draft Quotes",
-      value: "08",
-      change: "+3%",
-      icon: (isSelected: boolean) => <Calendar className={"fill-[#E8D1AB] stroke-black"} size={20} />,
-    }
+  const statsIcons: Record<string, any> = {
+    "Total Quotes": <CircleDollarSign className={"fill-[#E8D1AB] stroke-black"} size={20} />,
+    "Accepted Quotes": <BadgeCheck className={"fill-[#E8D1AB] stroke-black"} size={20} />,
+    "Pending Quotes": <Clock className={"fill-[#E8D1AB] stroke-black"} size={20} />,
+    "Draft Quotes": <Calendar className={"fill-[#E8D1AB] stroke-black"} size={20} />,
+  };
+
+  const displayStats = dashboardData?.overview ? [
+    { title: "Total Quotes", value: dashboardData.overview.total_quotes?.toString() || "0", change: "+0%" },
+    { title: "Accepted Quotes", value: dashboardData.overview.accepted_quotes?.toString() || "0", change: "+0%" },
+    { title: "Pending Quotes", value: dashboardData.overview.pending_quotes?.toString() || "0", change: "+0%" },
+    { title: "Draft Quotes", value: dashboardData.overview.draft_quotes?.toString() || "0", change: "+0%" }
+  ] : [
+    { title: "Total Quotes", value: "26", change: "+3%" },
+    { title: "Accepted Quotes", value: "10", change: "+3%" },
+    { title: "Pending Quotes", value: "16", change: "+3%" },
+    { title: "Draft Quotes", value: "08", change: "+3%" }
   ];
+
+  const displayChartData = (dashboardData?.chart && dashboardData.chart.length > 0) ? dashboardData.chart : chartData;
+  const displayQuotesData = dashboardData?.quotes || quotesData;
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white overflow-hidden ">
@@ -221,7 +236,7 @@ export default function QuotesPage() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 bg-[#101010] p-4 rounded-xl">
-            {stats.map((stat, idx) => {
+            {displayStats.map((stat: any, idx: number) => {
               const isSelected = selectedStat === stat.title;
               const bgColor = isSelected ? "bg-[#E5D5B8]" : "bg-[#161616]";
               const textColor = isSelected ? "text-[#101010]" : "text-white";
@@ -236,7 +251,7 @@ export default function QuotesPage() {
                   <div className="flex justify-between items-start">
                     <span className="text-sm font-medium opacity-80">{stat.title}</span>
                     <div className={`${iconBg} text-[#E8D1AB] p-2 rounded-full`}>
-                      {stat.icon(isSelected)}
+                      {statsIcons[stat.title] || <CircleDollarSign size={20} />}
                     </div>
                   </div>
                   <div>
@@ -254,7 +269,7 @@ export default function QuotesPage() {
           {/* Chart */}
           <div className="h-80 w-full mt-10">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+              <AreaChart data={displayChartData}>
                 <defs>
                   <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#E5D5B8" stopOpacity={0.3} />
@@ -330,7 +345,7 @@ export default function QuotesPage() {
               </tr>
             </thead>
             <tbody className="text-sm">
-              {quotesData.map((quote) => {
+              {displayQuotesData.map((quote: any) => {
                 const isExpanded = !!expandedRows[quote.id];
                 return (
                   <React.Fragment key={quote.id}>

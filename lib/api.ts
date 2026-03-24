@@ -1574,4 +1574,57 @@ export const salesApi = {
       };
     }
   },
+  getQuotesDashboard: async () => {
+    try {
+      const response = await api.get('/sales/quotes/dashboard');
+      return response.data;
+    } catch (error) {
+      console.error('Get Quotes Dashboard Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch quotes dashboard data',
+      };
+    }
+  },
+  getQuoteCatalog: async () => {
+    try {
+      const response = await api.get('/sales/quotes/catalog');
+      return response.data;
+    } catch (error) {
+      console.error('Get Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch quote catalog',
+      };
+    }
+  },
+  getShootTypes: async (id: number | string) => {
+    try {
+      const response = await api.get(`/sales/quotes/shoot-types/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get Shoot Types Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch shoot types',
+      };
+    }
+  },
+  getClientDropdown: async (search?: string) => {
+    try {
+      const url = search ? `/sales/client-dropdown?search=${search}` : '/sales/client-dropdown';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Dropdown Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch client dropdown',
+      };
+    }
+  },
 };
