@@ -27,7 +27,6 @@ import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import DottedDivider from "@/components/admin/DottedDivider";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, parseISO, isValid } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
@@ -256,7 +255,7 @@ export default function CreateQuotePage() {
       setView('tax');
     } else {
       // Logic for next major step (Step 4)
-      console.log("Moving to Step 4...");
+      router.push("/sales/quotes/preview")
     }
   };
 
@@ -317,7 +316,7 @@ export default function CreateQuotePage() {
           "create": "Creating New Quote"
         }}
         actions={
-          <Button onClick={() => router.push("/admin/quotes/summary")} className="bg-[#E5D5B8] text-black">
+          <Button onClick={() => router.push("/sales/quotes/summary")} className="bg-[#E5D5B8] text-black">
             View Quote Summary
           </Button>
         }

@@ -188,7 +188,7 @@ export default function QuotesPage() {
               <Download size={18} className="mr-2" />
               Export
             </Button>
-            <Link href="/admin/quotes/create">
+            <Link href="/sales/quotes/create">
               <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
                 Create New Quote
               </Button>
@@ -357,7 +357,7 @@ export default function QuotesPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="hidden md:table-cell px-6 py-4 text-white text-ellipsis">{quote.project}</td>
+                      <td className="hidden md:table-cell px-6 py-4 text-white">{quote.project}</td>
                       <td className="hidden md:table-cell px-6 py-4 font-medium">${quote.amount}</td>
                       <td className="px-4 md:px-6 py-4 text-right md:text-left">
                         <span className={`px-3 py-1 rounded-full text-[12px] md:text-base font-medium border ${quote.statusColor}`}>
@@ -417,15 +417,15 @@ export default function QuotesPage() {
         </div>
       </div>
 
-        {/* --- FLOATING MOBILE BUTTON --- */}
-        <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
-          <Button
-            onClick={() => router.push('/sales/quotes/create')}
-            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-          >
-            Create New Quote
-          </Button>
-        </div>
+      {/* --- FLOATING MOBILE BUTTON --- */}
+      <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+        <Button
+          onClick={() => router.push('/sales/quotes/create')}
+          className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+        >
+          Create New Quote
+        </Button>
+      </div>
     </div>
   );
 }
