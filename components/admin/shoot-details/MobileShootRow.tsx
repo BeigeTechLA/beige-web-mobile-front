@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "next-themes";
 
 interface ShootRecord {
   id: string;
@@ -54,9 +55,20 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 export const MobileShootRow = ({ shoot, onRowClick }: MobileShootRowProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+
+  if (!mounted) return null;
 
   return (
-    <div className="bg-[#171717] rounded-lg border border-white/5 overflow-hidden">
+    <div className={`rounded-lg  transition-all duration-300 ${isDark ? "bg-[#171717] border border-white/5" : ((isExpanded ? "bg-[#F9F9F9]" : "bg-white"))
+      }`}>
       {/* Header - Always Visible */}
       <div
         className="flex items-center justify-between p-3 cursor-pointer"
@@ -64,16 +76,22 @@ export const MobileShootRow = ({ shoot, onRowClick }: MobileShootRowProps) => {
       >
         <div className="flex items-center gap-4">
           {/* Circular Chevron Toggle */}
-          <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-transform duration-300 ${isExpanded ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'border-white/10 text-white/60'}`}>
-            <ChevronDown size={16} className="" />
+          <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-300 shrink-0 ${isExpanded
+              ? (isDark ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'rotate-180 border-[#000000] text-[#000000]')
+              : (isDark ? 'border-white/10 text-white/60' : 'border-[#E5E5E5] text-[#999]')
+            }`}>
+            <ChevronDown size={16} />
           </div>
 
           {/* Customer Avatar & Name */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-sm bg-[#F5F5F5] flex items-center justify-center text-black font-semibold text-sm">
+            <div className={`w-8 h-8 rounded-sm flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#F5F5F5] text-black" : "bg-[#FDF8EE] text-[#B18A00]"
+              }`}>
               {shoot.initials}
             </div>
-            <span className="text-sm font-medium text-white">{shoot.customerName}</span>
+            <span className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+              {shoot.customerName}
+            </span>
           </div>
         </div>
 
@@ -88,31 +106,33 @@ export const MobileShootRow = ({ shoot, onRowClick }: MobileShootRowProps) => {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="border-t border-white/5 bg-black/10"
+            className={`transition-colors duration-300 ${isDark ? "border-t border-white/5 bg-black/10" : "border-[#E5E5E5] bg-[#F9F9F9]"
+              }`}
           >
             <div className="p-3 space-y-4">
               {/* Data Grid: 2 Columns */}
               <div className="grid grid-cols-2 gap-y-3">
                 <div>
-                  <p className="text-white/40 text-sm mb-0.5">Shoot ID</p>
-                  <p className="text-white text-sm">{shoot.id}</p>
+                  <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Shoot ID</p>
+                  <p className={`text-sm ${isDark ? "text-white" : "text-[#333]"}`}>{shoot.id}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-white/40 text-sm mb-0.5">Price</p>
-                  <p className="text-white text-sm font-medium">{shoot.price}</p>
+                  <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Price</p>
+                  <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#333]"}`}>{shoot.price}</p>
                 </div>
                 <div>
-                  <p className="text-white/40 text-sm mb-0.5">Category</p>
-                  <p className="text-white text-sm">{shoot.category}</p>
+                  <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Category</p>
+                  <p className={`text-sm ${isDark ? "text-white" : "text-[#333]"}`}>{shoot.category}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-white/40 text-sm mb-0.5">Action</p>
+                  <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Action</p>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onRowClick(shoot.id);
                     }}
-                    className="text-[#E5D5B8] text-sm font-medium underline underline-offset-4"
+                    className={`text-sm font-medium underline underline-offset-4 ${isDark ? "text-[#E5D5B8]" : "text-[#B18A00]"
+                      }`}
                   >
                     Details
                   </button>

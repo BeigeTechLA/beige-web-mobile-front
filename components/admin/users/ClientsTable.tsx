@@ -15,6 +15,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useTheme } from 'next-themes';
 
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 
@@ -46,6 +47,8 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
 };
 
 export const ClientsTable = () => {
+    const { theme } = useTheme();
+    const [mounted, setMounted] = useState(false);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -61,6 +64,9 @@ export const ClientsTable = () => {
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const debouncedSearch = useDebounce(searchQuery, 500);
     const router = useRouter();
+
+    useEffect(() => setMounted(true), []);
+    const isDark = !mounted || theme === "dark";
 
     // Handle single date selection from theme datepicker
     const handleDateSort = (date: Date | null) => {
@@ -93,7 +99,7 @@ export const ClientsTable = () => {
                     params.end_date = formattedDate;
                 }
 
-                const response = await adminApi.getClients(params);
+                const response = await adminApi.getAdminClients(params);
                 if (response && response.data) {
                     const pagination = response.pagination;
                     setTotalRecords(pagination?.total_records || 0);
@@ -110,7 +116,7 @@ export const ClientsTable = () => {
                         };
 
                         return {
-                            id: `#${client.client_id || client.id || client.user_id}`, 
+                            id: `#${client.client_id || client.id || client.user_id}`,
                             name: fullName,
                             email: client.email || "No Email",
                             status: statusMapping(client.status || client.is_active),
@@ -138,16 +144,16 @@ export const ClientsTable = () => {
     // };
 
     const handleRowClick = (id: string) => {
-    const cleanId = id.replace('#', '');
-    router.push(`/admin/users/clients/${cleanId}`);
-};
+        const cleanId = id.replace('#', '');
+        router.push(`/admin/users/clients/${cleanId}`);
+    };
 
     return (
         <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-white mb-2">Users</h1>
-                <p className="text-[#888]">Manage and review all registered users in one place.</p>
+                <h1 className={`text-lg lg:text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>Users</h1>
+                <p className={isDark ? "text-[#888]" : "text-[#666]"}>Manage and review all registered users in one place.</p>
             </div>
 
             {/* Toolbar */}
@@ -155,13 +161,14 @@ export const ClientsTable = () => {
                 <div className="flex flex-wrap items-center gap-4 flex-1 w-full">
                     {/* Search */}
                     <div className="relative flex-1 max-w-md min-w-[240px]">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" size={18} />
+                        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
                         <input
                             type="text"
                             placeholder="Search name or email..."
                             value={searchQuery}
                             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                            className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-[#555] transition-colors"
+                            className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
+                                }`}
                         />
                     </div>
 
@@ -184,10 +191,11 @@ export const ClientsTable = () => {
                         if (val !== "custom") setSelectedDate(null);
                         setCurrentPage(1);
                     }}>
-                        <SelectTrigger className="w-[140px] bg-[#111] border-[#333] text-white rounded-lg h-[46px] focus:ring-0 capitalize">
+                        <SelectTrigger className={`w-[180px] rounded-lg h-[46px] capitalize transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
+                            }`}>
                             <SelectValue placeholder="Range" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#111] border-[#333] text-white">
+                        <SelectContent className={isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}>
                             <SelectItem value="all">All Time</SelectItem>
                             <SelectItem value="week">This Week</SelectItem>
                             <SelectItem value="month">This Month</SelectItem>
@@ -206,11 +214,12 @@ export const ClientsTable = () => {
             </div>
 
             {/* Table */}
-            <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">
+            <div className={`w-full rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"
+                }`}>
                 <div className="w-full overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-[#888] text-sm font-normal border-b border-[#333]">
+                            <tr className={`text-sm font-normal border-b ${isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
                                 <th className="py-5 px-6 font-medium">User ID</th>
                                 <th className="py-5 px-6 font-medium">User Name</th>
                                 <th className="py-5 px-6 font-medium">Email ID</th>
@@ -240,9 +249,9 @@ export const ClientsTable = () => {
                                     <tr
                                         key={idx}
                                         onClick={() => handleRowClick(client.id)}
-                                        className="border-b border-[#222] hover:bg-white/[0.02] transition-colors last:border-0 cursor-pointer"
-                                    >
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{client.id}</td>
+                                        className={`border-b cursor-pointer transition-colors ${isDark ? "border-[#222] hover:bg-white/[0.02] text-[#E0E0E0]" : "border-[#F0F0F0] hover:bg-black/[0.01] text-[#000]"
+                                            }`}>
+                                        <td className="py-5 px-6 text-[15px]">{client.id}</td>
                                         <td className="py-5 px-6">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-xl bg-[#F5F5F5] overflow-hidden flex items-center justify-center text-black font-semibold text-sm relative">
@@ -264,20 +273,20 @@ export const ClientsTable = () => {
                                                     )}
                                                 </div>
                                                 <div>
-                                                    <p className="text-[#E0E0E0] font-medium text-[15px]">{client.name}</p>
-                                                    <p className="text-[#666666] text-[10px] mt-0.5 uppercase tracking-wider font-bold">{client.joinDate}</p>
+                                                    <p className="font-medium text-[15px]">{client.name}</p>
+                                                    <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-[10px] mt-0.5 uppercase tracking-wider font-bold`}>{client.joinDate}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">{client.email}</td>
-                                        <td className="py-5 px-6 text-[#E0E0E0] text-[15px]">
+                                        <td className="py-5 px-6 text-[15px]">{client.email}</td>
+                                        <td className="py-5 px-6 text-[15px]">
                                             {client.phoneNumber}
                                         </td>
                                         <td className="py-5 px-6">
                                             <StatusBadge status={client.status} />
                                         </td>
                                         <td className="py-5 px-6 text-right">
-                                            <button className="text-[#666] hover:text-white transition-colors">
+                                            <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                                                 <ChevronRight size={20} />
                                             </button>
                                         </td>

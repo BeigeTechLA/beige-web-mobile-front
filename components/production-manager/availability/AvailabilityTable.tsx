@@ -32,9 +32,12 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
     );
 };
 
+interface AvailabilityTableProps {
+  isDark?: boolean;
+}
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
-export const AvailabilityTable = () => {
+export const AvailabilityTable = ({ isDark = true }: AvailabilityTableProps) => {
     const [users, setUsers] = useState<CreativePartner[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
