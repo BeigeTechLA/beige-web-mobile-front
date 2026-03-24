@@ -81,7 +81,7 @@ export function LeadsStatusBadge({ status }: StatusBadgeProps) {
 
   return (
     <span
-      className={`text-nowrap px-3 py-2 rounded-full text-sm lg:text-base font-medium ${style.bg} ${style.text}`}
+      className={`text-nowrap px-2 py-1.5 lg:px-3 lg:py-2 rounded-full text-xs lg:text-base font-medium ${style.bg} ${style.text}`}
     >
       {displayStatus}
     </span>

@@ -1,20 +1,31 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from "framer-motion";
+import { useTheme } from "next-themes"; // Integrated theme hook
 
 import Sidebar from "@/components/admin/Sidebar";
-
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
-// import Topbar from '@/components/admin/Topbar';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => setMounted(true), []);
+
+  // Default to dark logic as per instructions
+  const isDark = !mounted || theme === "dark";
 
   return (
-    <div className="flex flex-1 overflow-hidden relative">
-      <div className="hidden lg:block h-full"><Sidebar /></div>
+    <div className={`flex flex-1 overflow-hidden relative transition-colors duration-300 ${
+      isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
+    }`}>
+      <div className="hidden lg:block h-full border-r border-transparent">
+        <Sidebar />
+      </div>
 
       <AnimatePresence>
         {isOpen && (
@@ -46,9 +57,21 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const isDark = !mounted || theme === "dark";
+
   return (
     <SidebarProvider>
-      <div className="flex flex-col h-screen bg-[#0f0f0f] text-white overflow-hidden">
+      {/* Root container handles base text and background colors */}
+      <div className={`flex flex-col h-screen overflow-hidden transition-colors duration-300 ${
+        isDark 
+          ? "bg-[#0f0f0f] text-white" 
+          : "bg-[#F4F5F7] text-[#000000]"
+      }`}>
         <LayoutContent>{children}</LayoutContent>
       </div>
     </SidebarProvider>

@@ -1,26 +1,20 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCards } from "swiper/modules";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import { CircleDollarSign, DollarSign, TrendingUp } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
+import { CircleDollarSign, TrendingUp } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import "swiper/css";
 import "swiper/css/effect-cards";
 
 import { adminApi } from "@/lib/api";
-import { useEffect, useState } from "react";
 
-const CardWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="w-full max-w-[1100px] min-h-[450px] lg:h-[340px] bg-[#101010] rounded-2xl border border-[#3D3D3D] p-5 text-white overflow-hidden">
+const CardWrapper = ({ children, isDark }: { children: React.ReactNode; isDark: boolean }) => (
+  <div className={`w-full max-w-[1100px] lg:h-[340px] rounded-2xl border p-5 overflow-hidden transition-colors duration-300 ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-[#F4F5F7] border-[#D7D7D7] text-[#323232]"
+    }`}>
     {children}
   </div>
 );
@@ -37,49 +31,60 @@ const StatsLayout = ({
   growthLabel = "Last 30 Days",
   hasInfoCard = false,
   isLoading = false,
+  isDark = true,
   chartConfig = [
     { key: "base_revenue", color: "#55BF61", stackId: "a", radius: [0, 0, 6, 6] },
     { key: "margin_revenue", color: "#FF8484", stackId: "a", radius: [6, 6, 0, 0] }
   ]
 }: any) => (
-  <div className="bg-[#101010] flex flex-col lg:flex-row gap-6 h-full lg:max-h-[400px] items-stretch lg:items-center">
+  <div className={`flex flex-col lg:flex-row gap-6 h-full items-stretch lg:items-center ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}`}>
     {/* Left */}
-    <div className="lg:w-1/4 flex flex-col justify-between shrink-0">
+    <div className="lg:w-1/4 flex flex-col justify-between shrink-0 h-full">
       <div className="flex items-center gap-2">
         <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-        <h3 className="">{title}</h3>
+        <h3>{title}</h3>
       </div>
       <div>
         <h2 className="text-[26px] font-semibold mb-2">
           {isLoading ? (
-            <div className="h-8 w-32 bg-white/10 animate-pulse rounded" />
+            <div className={`h-8 w-32 animate-pulse rounded ${isDark ? "bg-white/10" : "bg-zinc-200"}`} />
           ) : (
             value || "$0"
           )}
         </h2>
-        <p className="text-white/40 text-base">{subtitle}</p>
+        <p className={`text-base ${isDark ? "text-white/40" : "text-[#36363666]"}`}>{subtitle}</p>
       </div>
     </div>
 
     {/* Chart */}
-    <div className={`${hasInfoCard ? "lg:w-1/2" : "lg:w-3/4"} bg-[#161616] rounded-2xl p-4 border border-white/5 h-[300px]`}>
+    <div className={`${hasInfoCard ? "lg:w-1/2" : "lg:w-3/4"} rounded-2xl p-4 border h-[300px] transition-colors ${isDark ? "bg-[#161616] border-white/5" : "bg-[#FFFFFF] border-[#E3E3E3]"
+      }`}>
       <div className="flex items-center gap-2 mb-2">
         <div className="w-[3px] h-6 bg-[#E5D5B8]" />
         <h3 className="text-sm lg:text-base ">{graphTitle}</h3>
       </div>
 
       <ResponsiveContainer width="100%" height="85%">
-        <BarChart data={chartData.length > 0 ? chartData : []} >
-          <XAxis dataKey="name" axisLine={true} tickLine={false} />
-          <YAxis axisLine={false} tickLine={false} />
-          {/* <Tooltip cursor={{ fill: "transparent" }} /> */}
-          {chartConfig.map((config: any, index: number) => (
+        <BarChart data={chartData}>
+          <CartesianGrid vertical={false} stroke={isDark ? "#27272a" : "#E3E3E3"} strokeDasharray="3 3" />
+          <XAxis
+            dataKey="name"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: isDark ? '#ffffff66' : '#32323266', fontSize: 12 }}
+          />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: isDark ? '#ffffff66' : '#32323266', fontSize: 12 }}
+          />
+          {chartConfig.map((config: any) => (
             <Bar
               key={config.key}
               dataKey={config.key}
               stackId={config.stackId}
               fill={config.color}
-              barSize={window?.innerWidth < 768 ? 20 : 30}
+              barSize={typeof window !== 'undefined' && window.innerWidth < 768 ? 20 : 30}
               radius={config.radius}
             />
           ))}
@@ -87,9 +92,8 @@ const StatsLayout = ({
       </ResponsiveContainer>
     </div>
 
-    {/* Right */}
-    {
-      hasInfoCard &&
+    {/* Right Info Card */}
+    {hasInfoCard && (
       <div className="w-full lg:w-1/4">
         <div className="bg-[#ECD7B4] rounded-[28px] p-4 lg:p-6 text-black h-[200px] flex flex-col justify-between">
           <div className="flex items-center gap-3">
@@ -115,25 +119,25 @@ const StatsLayout = ({
           </div>
         </div>
       </div>
-    }
+    )}
   </div>
 );
 
 export default function StackedDashboard() {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [revenueData, setRevenueData] = useState<any>(null);
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [weeklyData, setWeeklyData] = useState<any>(null);
-
-  // New states
   const [payoutTotal, setPayoutTotal] = useState<any>(null);
   const [payoutWeekly, setPayoutWeekly] = useState<any>([]);
   const [payoutPending, setPayoutPending] = useState<any>(null);
   const [cpCount, setCpCount] = useState<any>(null);
   const [cpCategoryCount, setCpCategoryCount] = useState<any>([]);
-
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setMounted(true);
     const fetchAllData = async () => {
       try {
         const [
@@ -210,9 +214,10 @@ export default function StackedDashboard() {
         setIsLoading(false);
       }
     };
-
     fetchAllData();
   }, []);
+
+  const isDark = !mounted || theme === "dark";
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -231,8 +236,8 @@ export default function StackedDashboard() {
   };
 
   return (
-    <div className="dashboard-stack-container w-full bg-[#171717] rounded-2xl border border-[#3D3D3D] p-4">
-      {/* SIDE MASK */}
+    <div className={`dashboard-stack-container w-full rounded-2xl border p-3 lg:p-5 transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#FFF] border-[#E3E3E3]"
+      }`}>
       <div className="relative overflow-hidden px-3 lg:px-10">
         <Swiper
           effect="cards"
@@ -246,8 +251,9 @@ export default function StackedDashboard() {
           }}
         >
           <SwiperSlide>
-            <CardWrapper>
+            <CardWrapper isDark={isDark}>
               <StatsLayout
+                isDark={isDark}
                 title="Total Revenue"
                 subtitle="This Is Sales Revenue Overview"
                 graphTitle="Month On Month Revenue Growth"
@@ -264,8 +270,9 @@ export default function StackedDashboard() {
           </SwiperSlide>
 
           <SwiperSlide>
-            <CardWrapper>
+            <CardWrapper isDark={isDark}>
               <StatsLayout
+                isDark={isDark}
                 title="No Of Creative Partners"
                 subtitle="This Is Overall Creative Partners Overview"
                 graphTitle="Category Wise Creative Partners"
@@ -283,8 +290,9 @@ export default function StackedDashboard() {
           </SwiperSlide>
 
           <SwiperSlide>
-            <CardWrapper>
+            <CardWrapper isDark={isDark}>
               <StatsLayout
+                isDark={isDark}
                 title="Total Pay-Out"
                 subtitle="This Is Overall Payout Overview"
                 graphTitle="Weekly Graph Payments"
@@ -294,7 +302,6 @@ export default function StackedDashboard() {
                 chartData={payoutWeekly}
                 chartConfig={[
                   { key: "amount", color: "#FF8484", stackId: "a", radius: [6, 6, 0, 0] }
-                  // Adjust key 'amount' based on actual API response for graph
                 ]}
                 hasInfoCard={true}
                 isLoading={isLoading}

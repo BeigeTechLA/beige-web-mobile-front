@@ -15,6 +15,7 @@ import {
 } from "@/lib/redux/features/sales/salesApi";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils/discountHelpers";
+import { useTheme } from "next-themes";
 
 interface ActionMenuProps {
   isOpen: boolean;
@@ -35,6 +36,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
 }) => {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme, resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark" || theme === "dark";
 
   const [generatePaymentLink, { isLoading: generatingLink }] =
     useGeneratePaymentLinkMutation();
@@ -87,7 +90,11 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
 
       {/* Menu Container */}
       <div
-        className="fixed z-50 w-[220px] overflow-hidden rounded-[20px] border border-white/10 bg-[#0A0A0A] shadow-2xl"
+        className={`fixed z-50 w-[220px] overflow-hidden rounded-[20px] border shadow-2xl transition-all duration-200 ${
+          isDark 
+          ? "border-white/10 bg-[#0A0A0A] shadow-black/50" 
+          : "border-[#E5E5E5] bg-white shadow-xl"
+        }`}
         style={{
           top: `${anchor.y}px`,
           left: `${anchor.x}px`,
@@ -99,11 +106,13 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
             icon={<FolderOpen size={18} />}
             label="View Details"
             onClick={handleOpenFolder}
+            isDark={isDark}
           />
           <MenuButton
             icon={<TicketPercent size={18} />}
             label="Generate Discount"
             onClick={handleOpenFolder}
+            isDark={isDark}
           />
           {/* <MenuButton
             icon={<LinkIcon size={18} />}
@@ -114,7 +123,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
         </div>
 
         {/* Divider */}
-        <div className="h-[1px] w-full bg-white/10" />
+        <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#F0F0F0]"}`} />
 
         {/* Section 2: Sharing */}
         {/* <div className="flex flex-col p-1.5">
@@ -126,7 +135,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
         </div> */}
 
         {/* Divider */}
-        <div className="h-[1px] w-full bg-white/10" />
+         <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#F0F0F0]"}`} />
 
         {/* Section 3: Danger Zone */}
         <div className="flex flex-col p-1.5">
@@ -135,6 +144,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
             label="Delete"
             variant="danger"
             onClick={onClose}
+            isDark={isDark}
           />
         </div>
       </div>
@@ -149,28 +159,44 @@ const MenuButton = ({
   onClick,
   variant = "default",
   disabled = false,
+  isDark = true,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   variant?: "default" | "danger";
   disabled?: boolean;
-}) => (
+  isDark?: boolean;
+}) => {
+  const getColors = () => {
+    if (variant === "danger") {
+      return isDark 
+        ? "text-[#F04438] hover:bg-[#F04438]/10" 
+        : "text-[#D92D20] hover:bg-[#FEF3F2]";
+    }
+    return isDark 
+      ? "text-white hover:bg-white/5" 
+      : "text-[#171717] hover:bg-black/5";
+  };
+
+  const getIconColor = () => {
+    if (variant === "danger") return isDark ? "text-[#F04438]" : "text-[#D92D20]";
+    // Use the theme's accent color for standard icons in light mode
+    return isDark ? "text-white/70" : "text-[#BFA780]";
+  };
+
+  return (
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[15px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-      ${variant === "danger"
-        ? "text-[#F04438] hover:bg-[#F04438]/10"
-        : "text-white hover:bg-white/5"
-      }
-    `}
+      className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[14px] lg:text-[15px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${getColors()}`}
   >
-    <span className={variant === "danger" ? "text-[#F04438]" : "text-white/70"}>
+      <span className={getIconColor()}>
       {icon}
     </span>
     {label}
   </button>
 );
+};
 
 export default ActionMenu;

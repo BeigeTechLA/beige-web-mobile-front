@@ -322,24 +322,32 @@ export default function CreateQuotePage() {
         }
       />
 
-      <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
+      <div className="px-4 pb-30 pt-6 lg:px-9 lg:pb-12 lg:pt-8 mx-auto">
         {/* Navigation & Progress Header */}
         <div className="flex justify-between items-center mb-7">
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 text-[15px] text-[#D4D4D4] hover:text-white transition-colors"
+            className="flex items-center gap-2 text-base text-[#D4D4D4] hover:text-white transition-colors"
           >
             <ArrowLeft size={18} />
             Back
           </button>
 
           <div className="text-right">
-            <span className="text-[15px] font-semibold text-white">
+            <Button onClick={() => router.push("/admin/quotes/summary")} className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black">
+              View Quote Summary
+            </Button>
+            <span className="hidden lg:block text-base font-semibold text-white">
               Step {stepNumber} - {progressLabel} Completed
             </span>
           </div>
         </div>
 
+        <div className="block lg:hidden mb-2">
+          <span className="text-sm font-semibold text-white">
+            Step {stepNumber} - {progressLabel} Completed
+          </span>
+        </div>
         {/* Progress Bars */}
         <div className="flex gap-3 mb-8 lg:mb-9">
           <div className="h-1 flex-1 bg-[#5B5B5B] rounded-full overflow-hidden relative">
@@ -378,15 +386,17 @@ export default function CreateQuotePage() {
                   {logisticsItems.map((item) => {
                     const config = logisticsConfigs[item.id];
                     return (
-                      <div key={item.id} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hidden">
-                        <div className="flex justify-between items-center">
-                          <div className="space-y-1">
-                            <h3 className="text-[15px] font-medium text-white leading-none">{item.label}</h3>
+                      <div key={item.id} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-4 lg:p-5 relative overflow-hidden">
+                        <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
+                          <div className="flex lg:flex-col justify-between lg:gap-1">
+                            <h3 className="text-sm lg:text-base font-medium text-white leading-none">{item.label}</h3>
                             <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">${item.basePrice.toFixed(2)}</p>
                           </div>
 
+                          <hr className="lg:hidden border-t border-[#3D3D3D]" />
+
                           <div className="flex items-center gap-6">
-                            <div className="relative w-36">
+                            <div className="relative w-2/3 lg:w-36">
                               <Input
                                 value={`$ ${config?.price || 0}`}
                                 onChange={(e) => {
@@ -396,7 +406,7 @@ export default function CreateQuotePage() {
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                               />
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-6 lg:gap-4">
                               <button
                                 onClick={() => {
                                   setLogisticsItems(prev => prev.filter(i => i.id !== item.id));
@@ -427,38 +437,38 @@ export default function CreateQuotePage() {
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-7">
                     <div className="md:col-span-8 relative">
                       <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-[12px] text-[#8A8A8A] font-normal">Item Name</span>
+                        <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
                       </div>
                       <Input
                         placeholder="Eg : Cleaning Services"
                         value={customLogisticsName}
                         onChange={(e) => setCustomLogisticsName(e.target.value)}
-                        className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
                     <div className="md:col-span-4 relative">
                       <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-[12px] text-[#8A8A8A] font-normal">Cost</span>
+                        <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
                       </div>
                       <Input
                         placeholder="$ 0.00"
                         value={customLogisticsCost}
                         onChange={(e) => setCustomLogisticsCost(e.target.value)}
-                        className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
                   </div>
                   <Button
                     onClick={handleAddLogisticsItem}
-                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[40px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                    className="w-full lg:w-fit bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
                   >
                     <Plus size={16} strokeWidth={3} />
                     Add Item
                   </Button>
                 </div>
 
-                <div className="m-4 lg:m-9 mt-0 lg:mt-0 bg-[#282727] rounded-[12px] p-6 flex justify-between items-center border border-zinc-800/50">
-                  <span className="lg:text-xl font-medium text-[#FFF]">Total Logistics Cost</span>
+                <div className="m-4 lg:m-9 mt-0 lg:mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-zinc-800/50">
+                  <span className="text-sm lg:text-xl font-medium text-[#FFF]">Total Logistics Cost</span>
                   <span className="text-lg lg:text-2xl font-bold text-[#E8D1AB] tracking-tight">
                     ${Object.values(logisticsConfigs).reduce((acc, curr) => acc + curr.price, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
@@ -469,13 +479,12 @@ export default function CreateQuotePage() {
             <div className="">
               <section>
                 <div className="p-4 pt-5 lg:p-8 lg:pt-10">
-                  <h2 className="text-xl font-medium leading-none mb-2 text-white">Add-ons</h2>
+                  <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">Add-ons</h2>
                   <p className="text-[#A1A1AA] text-sm font-normal leading-none">Select additional items to enhance your service offering</p>
                 </div>
-                {/* <DottedDivider className="mb-9 opacity-10" /> */}
                 <hr className="border-t border-[#3D3D3D]" />
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 lg:p-9">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-9">
                   {(addons || []).map((addon) => (
                     <button
                       key={addon.id}
@@ -496,7 +505,7 @@ export default function CreateQuotePage() {
                           }));
                         }
                       }}
-                      className={`relative flex flex-col items-start p-6 rounded-[16px] border transition-all h-[98px] text-left group ${selectedAddons.includes(addon.id)
+                      className={`relative flex flex-col items-start p-5 lg:p-6 rounded-xl lg:rounded-2xl border transition-all h-[78px] lg:h-[98px] text-left group ${selectedAddons.includes(addon.id)
                         ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
                         : 'bg-transparent border-[#303030] hover:border-zinc-700'
                         }`}
@@ -509,7 +518,7 @@ export default function CreateQuotePage() {
                           {selectedAddons.includes(addon.id) && <Check size={14} strokeWidth={4} />}
                         </div>
                         <div className="space-y-2">
-                          <div className="font-medium text-[15px] text-white leading-none">{addon.label}</div>
+                          <div className="font-medium text-base text-white leading-none">{addon.label}</div>
                           <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
                             ${addon.price.toFixed(2)}
                           </div>
@@ -522,7 +531,7 @@ export default function CreateQuotePage() {
                 <div className="space-y-6 p-4 lg:p-9 pt-0">
                   <Button
                     onClick={() => setShowAddAddonForm(!showAddAddonForm)}
-                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[40px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                   >
                     <Plus size={16} strokeWidth={3} />
                     Add More Add-ons
@@ -538,24 +547,24 @@ export default function CreateQuotePage() {
                       >
                         <div className="md:col-span-8 relative">
                           <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                            <span className="text-[12px] text-[#8A8A8A] font-normal">Add-on Name</span>
+                            <span className="text-xs text-[#8A8A8A] font-normal">Add-on Name</span>
                           </div>
                           <Input
                             placeholder="Eg : 4K RAW Recording"
                             value={customAddonName}
                             onChange={(e) => setCustomAddonName(e.target.value)}
-                            className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                            className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                           />
                         </div>
                         <div className="md:col-span-4 relative">
                           <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                            <span className="text-[12px] text-[#8A8A8A] font-normal">Cost</span>
+                            <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
                           </div>
                           <Input
                             placeholder="$ 0.00"
                             value={customAddonCost}
                             onChange={(e) => setCustomAddonCost(e.target.value)}
-                            className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                            className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                           />
                         </div>
                       </motion.div>
@@ -581,10 +590,11 @@ export default function CreateQuotePage() {
 
                         return (
                           <div key={addonId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hidden">
-                            <div className="flex justify-between items-center">
+                            {/* desktop version */}
+                            <div className="hidden lg:flex justify-between items-center">
                               <div className="space-y-1">
-                                <h3 className="text-[15px] font-medium text-white leading-none">{addon.label}</h3>
-                                <p className="text-[#8A8A8A] text-[12px] font-normal">${addon.price.toFixed(2)}</p>
+                                <h3 className="text-base font-medium text-white leading-none">{addon.label}</h3>
+                                <p className="text-[#8A8A8A] text-xs font-normal">${addon.price.toFixed(2)}</p>
                               </div>
 
                               <div className="flex items-center gap-6">
@@ -639,6 +649,66 @@ export default function CreateQuotePage() {
                                 </div>
                               </div>
                             </div>
+
+                            {/* mobile version */}
+                            <div className="flex flex-col lg:hidden gap-4">
+                              <div className="flex justify-between">
+                                <h3 className="text-sm font-medium text-white leading-none">{addon.label}</h3>
+                                <p className="text-[#E8D1AB] text-sm font-semibold">${addon.price.toFixed(2)}</p>
+                              </div>
+                              <hr className="border-t border-[#3D3D3D]" />
+                              <div className="flex gap-4 items-center">
+                                {/* Price Override */}
+                                <div className="relative w-3/4">
+                                  <Input
+                                    value={`$ ${config.price}`}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
+                                      handleAddonConfigUpdate(addonId, 'price', val);
+                                    }}
+                                    className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                                  />
+                                </div>
+
+                                <button
+                                  onClick={() => {
+                                    setSelectedAddons(prev => prev.filter(id => id !== addonId));
+                                    setAddonConfigs(prev => {
+                                      const newConfigs = { ...prev };
+                                      delete newConfigs[addonId];
+                                      return newConfigs;
+                                    });
+                                  }}
+                                  className="text-red-500 hover:text-red-400 transition-colors"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                                <div className="text-green-500">
+                                  <Check size={18} strokeWidth={3} />
+                                </div>
+                              </div>
+
+                              <hr className="border-t border-[#3D3D3D]" />
+                              {/* Quantity Controls */}
+                              <div className="flex items-center gap-2 h-9">
+                                <button
+                                  onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity - 1)}
+                                  className="w-9 h-9 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                >
+                                  <Minus size={16} strokeWidth={2.5} />
+                                </button>
+                                <div className="w-full h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-zinc-400 font-normal text-sm">
+                                  Qty
+                                </div>
+                                <button
+                                  onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity + 1)}
+                                  className="w-9 h-9 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                >
+                                  <Plus size={16} strokeWidth={2.5} />
+                                </button>
+                              </div>
+
+                            </div>
                           </div>
                         );
                       })}
@@ -651,26 +721,26 @@ export default function CreateQuotePage() {
             <div className="">
               {/* Services Section */}
               <section>
-                <div className="px-7 pt-7 lg:px-8 lg:pt-8 mb-7">
-                  <h2 className="text-xl font-medium leading-none mb-2 text-white">Services</h2>
+                <div className="px-5 pt-5 lg:px-8 lg:pt-8 mb-7">
+                  <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">Services</h2>
                   <p className="text-[#A1A1AA] text-sm font-normal leading-none">Select services and configure pricing</p>
                 </div>
-                <div className="my-8 border-t border-[#FFFFFF80]" />
+                <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
-                <div className="px-4 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-4 lg:space-y-8 ">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-4 lg:space-y-8 ">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                     {(services || []).map((service) => (
                       <button
                         key={service.id}
                         onClick={() => handleServiceSelect(service.id, service.price)}
-                        className={`relative flex flex-col items-start p-6 rounded-[16px] border transition-all h-[98px] text-left group ${selectedServices.includes(service.id)
+                        className={`relative flex flex-col items-start p-5 lg:p-6 rounded-xl lg:rounded-2xl border transition-all h-[78px] lg:h-[98px] text-left group ${selectedServices.includes(service.id)
                           ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
                           : 'bg-transparent border-[#303030] hover:border-zinc-700'
                           }`}
                       >
-                        <div className="font-medium text-[16px] text-white mb-2 leading-none">{service.label}</div>
+                        <div className="font-medium text-base text-white mb-2 leading-none">{service.label}</div>
                         <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
-                          ${service.price.toFixed(2)} <span className="text-[#7B7B85] font-normal text-[11px] lowercase ml-1">per hour</span>
+                          ${service.price.toFixed(2)} <span className="text-[#71717B] font-medium text-xs lowercase ml-1">per hour</span>
                         </div>
                         {selectedServices.includes(service.id) && (
                           <div className="absolute top-6 right-6 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none">
@@ -681,10 +751,10 @@ export default function CreateQuotePage() {
                     ))}
                   </div>
 
-                  <div className="mt-7 space-y-6">
+                  <div className="mt-5 lg:mt-7 space-y-6">
                     <Button
                       onClick={() => setShowAddServiceForm(!showAddServiceForm)}
-                      className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[42px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                      className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[42px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                     >
                       <Plus size={16} strokeWidth={3} />
                       Add Services
@@ -700,24 +770,24 @@ export default function CreateQuotePage() {
                         >
                           <div className="md:col-span-8 relative">
                             <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                              <span className="text-[12px] text-[#8A8A8A] font-normal">Service Name</span>
+                              <span className="text-xs text-[#8A8A8A] font-normal">Service Name</span>
                             </div>
                             <Input
                               placeholder="Eg : Post Production Editing"
                               value={customServiceName}
                               onChange={(e) => setCustomServiceName(e.target.value)}
-                              className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
                             />
                           </div>
                           <div className="md:col-span-4 relative">
                             <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                              <span className="text-[12px] text-[#8A8A8A] font-normal">Cost</span>
+                              <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
                             </div>
                             <Input
                               placeholder="$ 0.00"
                               value={customServiceCost}
                               onChange={(e) => setCustomServiceCost(e.target.value)}
-                              className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
                             />
                           </div>
                         </motion.div>
@@ -730,7 +800,7 @@ export default function CreateQuotePage() {
               {/* Conditional Sections based on selection */}
               {selectedServices.length > 0 && (
                 <>
-                  <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="space-y-4 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {/* Shoot Type Section */}
                     {(selectedServices.includes('videography') || selectedServices.includes('photography')) && (
                       <section className="">
@@ -740,7 +810,7 @@ export default function CreateQuotePage() {
                             onClick={() => setIsShootTypeExpanded(!isShootTypeExpanded)}
                             className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
                           >
-                            <h2 className="text-xl font-medium text-white">Video Shoot Type</h2>
+                            <h2 className="text-base lg:text-xl font-medium text-white">Video Shoot Type</h2>
                             <div className="text-zinc-600 transition-transform duration-300">
                               {isShootTypeExpanded ? <ChevronDown size={22} className="rotate-180" /> : <ChevronDown size={22} />}
                             </div>
@@ -772,7 +842,7 @@ export default function CreateQuotePage() {
                                 <div className="mt-8 space-y-6">
                                   <Button
                                     onClick={() => setShowAddShootTypeForm(!showAddShootTypeForm)}
-                                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[40px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
                                   >
                                     <Plus size={16} strokeWidth={3} />
                                     Add Video Shoot Type
@@ -787,13 +857,13 @@ export default function CreateQuotePage() {
                                         className="relative"
                                       >
                                         <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                          <span className="text-[12px] text-[#8A8A8A] font-normal">Video Shoot Type Name</span>
+                                          <span className="text-xs text-[#8A8A8A] font-normal">Video Shoot Type Name</span>
                                         </div>
                                         <Input
                                           placeholder="Eg : Real Estate.."
                                           value={customShootType}
                                           onChange={(e) => setCustomShootType(e.target.value)}
-                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                                          className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                                         />
                                       </motion.div>
                                     )}
@@ -815,7 +885,7 @@ export default function CreateQuotePage() {
                             onClick={() => setIsEditingTypeExpanded(!isEditingTypeExpanded)}
                             className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
                           >
-                            <h2 className="text-xl font-medium text-white">AI Editing Types</h2>
+                            <h2 className="text-base lg:text-xl font-medium text-white">AI Editing Types</h2>
                             <div className="text-zinc-600 transition-transform duration-300">
                               {isEditingTypeExpanded ? <ChevronDown size={22} className="rotate-180" /> : <ChevronDown size={22} />}
                             </div>
@@ -834,8 +904,8 @@ export default function CreateQuotePage() {
                                     <button
                                       key={type.id}
                                       onClick={() => setSelectedEditingType(type.id)}
-                                      className={`h-[52px] px-6 rounded-[14px] font-normal transition-all border text-sm text-left leading-tight tracking-tight ${selectedEditingType === type.id
-                                        ? 'bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner'
+                                      className={`h-10 lg:h-[52px] px-6 rounded-xl font-normal transition-all border text-sm text-center lg:text-left leading-tight tracking-tight ${selectedEditingType === type.id
+                                        ? 'bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner'
                                         : 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700'
                                         }`}
                                     >
@@ -847,7 +917,7 @@ export default function CreateQuotePage() {
                                 <div className="mt-8 space-y-6">
                                   <Button
                                     onClick={() => setShowAddEditingTypeForm(!showAddEditingTypeForm)}
-                                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[40px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
                                   >
                                     <Plus size={16} strokeWidth={3} />
                                     Add Editing Types
@@ -862,13 +932,13 @@ export default function CreateQuotePage() {
                                         className="relative"
                                       >
                                         <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                          <span className="text-[12px] text-[#8A8A8A] font-normal">Editing Type Name</span>
+                                          <span className="text-xs text-[#8A8A8A] font-normal">Editing Type Name</span>
                                         </div>
                                         <Input
                                           placeholder="Eg : Reel Editing..."
                                           value={customEditingType}
                                           onChange={(e) => setCustomEditingType(e.target.value)}
-                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                                         />
                                       </motion.div>
                                     )}
@@ -884,12 +954,12 @@ export default function CreateQuotePage() {
                     {/* Configure Selected Services */}
                     <>
                       <hr className="border-t border-[#3D3D3D]" />
-                      <section className="px-4 pt-4 pb-5 lg:pt-8 lg:px-8 lg:pb-10">
-                        <div className="mb-8">
-                          <h2 className="text-xl font-medium text-white">Configure Selected Services</h2>
+                      <section className="px-4 pb-5 lg:pt-8 lg:px-8 lg:pb-10">
+                        <div className="mb-4 lg:mb-8">
+                          <h2 className="text-base lg:text-xl font-medium text-white">Configure Selected Services</h2>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-4 lg:space-y-6">
                           {(selectedServices || []).map(serviceId => {
                             const service = services.find(s => s.id === serviceId);
                             const config = serviceConfigs[serviceId];
@@ -900,7 +970,7 @@ export default function CreateQuotePage() {
 
                             return (
                               <div key={serviceId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden">
-                                <div className="flex justify-between items-start mb-8">
+                                <div className="flex justify-between items-start mb-4 lg:mb-8">
                                   <div className="space-y-2">
                                     <h3 className="text-[16px] font-medium text-white flex items-center gap-1.5 leading-none">
                                       {serviceId === 'ai_editing' ? (
@@ -909,11 +979,11 @@ export default function CreateQuotePage() {
                                         <>{service.label} - <span className="text-[#8E826A]">({shootTypeLabel})</span></>
                                       )}
                                     </h3>
-                                    <p className="text-[#8A8A8A] text-[12px] font-normal">Base: ${service.price.toFixed(2)} per hour</p>
+                                    <p className="text-[#8A8A8A] text-xs font-normal">Base: ${service.price.toFixed(2)} per hour</p>
                                   </div>
                                   <div className="flex items-center gap-5">
-                                    <div className="flex flex-col items-end gap-1">
-                                      <span className="text-[#7B7B85] text-[10px] font-normal">Total</span>
+                                    <div className="hidden lg:flex flex-col items-end gap-1">
+                                      <span className="text-[#7B7B85] text-xs font-normal">Total</span>
                                       <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">${(config.quantity * config.duration * config.crewSize * config.estimatedPrice).toLocaleString()}</span>
                                     </div>
                                     <button
@@ -925,12 +995,18 @@ export default function CreateQuotePage() {
                                   </div>
                                 </div>
 
-                                <div className="my-8 border-t border-dashed border-[#303030]" />
+                                <div className="my-4 lg:my-8 border-t border-[#303030]" />
+
+                                <div className="flex lg:hidden justify-between  items-center gap-1">
+                                  <span className="text-[#7B7B85] text-sm font-normal">Total</span>
+                                  <span className="font-semibold text-[#F0DCB1] tracking-tight leading-none">${(config.quantity * config.duration * config.crewSize * config.estimatedPrice).toLocaleString()}</span>
+                                </div>
+                                <div className="lg:hidden my-4 lg:my-8 border-t border-[#303030]" />
 
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 lg:gap-6">
                                   {/* Quantity */}
                                   <div className="space-y-3">
-                                    <span className="text-[11px] font-normal text-[#9A9AA4]">Quantity</span>
+                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Quantity</span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'quantity', config.quantity - 1)}
@@ -952,7 +1028,7 @@ export default function CreateQuotePage() {
 
                                   {/* Duration */}
                                   <div className="space-y-3">
-                                    <span className="text-[11px] font-normal text-[#9A9AA4]">Duration (hours)</span>
+                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Duration (hours)</span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'duration', config.duration - 1)}
@@ -974,7 +1050,7 @@ export default function CreateQuotePage() {
 
                                   {/* Crew Size */}
                                   <div className="space-y-3">
-                                    <span className="text-[11px] font-normal text-[#9A9AA4]">Crew Size</span>
+                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Crew Size</span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'crewSize', config.crewSize - 1)}
@@ -996,7 +1072,7 @@ export default function CreateQuotePage() {
 
                                   {/* Estimated Pricing */}
                                   <div className="space-y-3">
-                                    <span className="text-[11px] font-normal text-[#9A9AA4]">Estimated Pricing</span>
+                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Estimated Pricing</span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice - 50)}
@@ -1036,7 +1112,7 @@ export default function CreateQuotePage() {
                 <p className="text-sm text-[#A1A1AA]">Select an existing client or create a new one</p>
               </div>
 
-              <div className="my-8 border-t border-[#FFFFFF80]" />
+              <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
               <div className="px-7 pb-9 lg:px-8 lg:pb-10">
                 <div className="relative max-w-full">
@@ -1072,14 +1148,14 @@ export default function CreateQuotePage() {
                                   setSelectedClient(client);
                                   setIsDropdownOpen(false);
                                 }}
-                                className={`flex items-center gap-4 px-5 py-4 rounded-xl cursor-pointer transition-all mb-1 ${selectedClient?.id === client.id
-                                  ? 'bg-[#FFF9EE] text-[#101010]'
-                                  : 'hover:bg-white/5 text-zinc-400'
+                                className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${selectedClient?.id === client.id
+                                  ? 'bg-[#FFFCE8] text-[#171717]'
+                                  : 'hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]'
                                   }`}
                               >
                                 <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedClient?.id === client.id
-                                  ? 'border-[#101010]'
-                                  : 'border-zinc-700'
+                                  ? 'border-[#E8D1AB] bg-[#E8D1AB]'
+                                  : 'border-[#FFFFFF85] group-hover:border-[#171717]'
                                   }`}>
                                   {selectedClient?.id === client.id && (
                                     <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
@@ -1090,8 +1166,8 @@ export default function CreateQuotePage() {
                             ))}
 
                             <button className="w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 border-t border-zinc-800/50 pt-6">
-                              <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#1D1A15]">
-                                <Plus size={16} />
+                              <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
+                                <Plus size={16} className="text-[#171717]" />
                               </div>
                               <span className="font-semibold text-lg">Create New Client</span>
                             </button>
@@ -1114,30 +1190,30 @@ export default function CreateQuotePage() {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-7">
                   <div className="md:col-span-8 relative">
                     <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                      <span className="text-[12px] text-[#8A8A8A] font-normal">Item Name</span>
+                      <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
                     </div>
                     <Input
                       placeholder="Eg : Cleaning Services"
                       value={customItemName}
                       onChange={(e) => setCustomItemName(e.target.value)}
-                      className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                      className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                     />
                   </div>
                   <div className="md:col-span-4 relative">
                     <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                      <span className="text-[12px] text-[#8A8A8A] font-normal">Cost</span>
+                      <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
                     </div>
                     <Input
                       placeholder="$ 0.00"
                       value={customItemCost}
                       onChange={(e) => setCustomItemCost(e.target.value)}
-                      className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                      className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                     />
                   </div>
                 </div>
                 <Button
                   onClick={handleAddLineItem}
-                  className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[40px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                  className="w-full lg:w-fit bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
                 >
                   <Plus size={16} strokeWidth={3} />
                   Add Item
@@ -1145,15 +1221,17 @@ export default function CreateQuotePage() {
               </div>
 
               <hr className="border-t border-[#3D3D3D]" />
-              <div className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hiddenm-4 lg:m-9 mt-0 ">
-                <div className="flex justify-between items-center">
-                  <div className="space-y-1">
-                    <h3 className="text-[15px] font-medium text-white leading-none">Rush Delivery</h3>
+              <div className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hiddenm-4 m-5 lg:m-9 lg:mt-0 ">
+                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+                  <div className="flex lg:flex-col justify-between lg:gap-1">
+                    <h3 className="text-base font-medium text-white leading-none">Rush Delivery</h3>
                     <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">$1,500.00</p>
                   </div>
 
+                  <hr className="lg:hidden border-t border-[#3D3D3D]" />
+
                   <div className="flex items-center gap-6">
-                    <div className="relative w-36">
+                    <div className="relative w-2/3 lg:w-36">
                       <Input
                         value={`$ ${0}`}
                         onChange={(e) => {
@@ -1194,13 +1272,13 @@ export default function CreateQuotePage() {
               </div>
               <hr className="border-t border-[#3D3D3D]" />
 
-              <div className=" p-4 lg:p-9">
+              <div className="p-4 lg:p-9">
                 <div
-                  className={`w-full p-5 rounded-2xl border transition-colors duration-300 flex items-center justify-between bg-[#171717] border-[#222222]`}
+                  className={`w-full p-4 lg:p-5 rounded-2xl border transition-colors duration-300 flex items-center justify-between bg-[#171717] border-[#222222]`}
                   style={{ fontFamily: 'var(--font-instrument-sans), sans-serif' }}
                 >
-                  <div className="space-y-1">
-                    <h3 className={`text-lg font-medium tracking-tight text-white`}>
+                  <div className="lg:space-y-1">
+                    <h3 className={`text-sm lg:text-lg font-medium tracking-tight text-white`}>
                       Apply Discount
                     </h3>
                     <p className={`text-sm text-[#888888]`}>
@@ -1228,11 +1306,11 @@ export default function CreateQuotePage() {
                 <>
                   <hr className="border-t border-[#3D3D3D]" />
                   <div className="p-4 lg:p-9">
-                    <h3 className={`text-lg font-medium tracking-tight text-white`}>
+                    <h3 className={`text-base lg:text-lg font-medium tracking-tight text-white`}>
                       Discount Type
                     </h3>
 
-                    <div className="flex flex-col md:flex-row gap-4 mt-3 lg:mt-6 mb-4 lg:mb-8">
+                    <div className="flex flex-col md:flex-row gap-4 mt-3 lg:mt-6 mb-6 lg:mb-8">
                       {/* Percentage Option */}
                       <button
                         onClick={() => handleDiscountTypeSelect("percentage")}
@@ -1241,9 +1319,9 @@ export default function CreateQuotePage() {
                           : "bg-[#171717] border-[#222222] hover:border-[#333333]"
                           }`}
                       >
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${discountType === "percentage"
+                        <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-colors ${discountType === "percentage"
                           ? "bg-[#E8D1AB] text-black"
-                          : "bg-[#1A1A1A] text-[#888888]"
+                          : "bg-[#3F3F47] text-[#888888]"
                           }`}>
                           <Percent size={20} strokeWidth={2.5} />
                         </div>
@@ -1265,9 +1343,9 @@ export default function CreateQuotePage() {
                           : "bg-[#171717] border-[#222222] hover:border-[#333333]"
                           }`}
                       >
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${discountType === "fixed"
+                        <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-colors ${discountType === "fixed"
                           ? "bg-[#E8D1AB] text-black"
-                          : "bg-[#1A1A1A] text-[#888888]"
+                          : "bg-[#3F3F47] text-[#888888]"
                           }`}>
                           <DollarSign size={20} strokeWidth={2.5} />
                         </div>
@@ -1284,13 +1362,13 @@ export default function CreateQuotePage() {
 
                     <div className="md:col-span-8 relative">
                       <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-[12px] text-[#8A8A8A] font-normal">Discount Value</span>
+                        <span className="text-xs text-[#8A8A8A] font-normal">Discount Value</span>
                       </div>
                       <Input
                         placeholder="0.00"
                         value={discountValue}
                         onChange={(e) => setDiscountValue(parseInt(e.target.value))}
-                        className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
 
@@ -1305,9 +1383,9 @@ export default function CreateQuotePage() {
                       </div>
                     </div>
 
-                    <div className="bg-[#282727] rounded-[12px] p-6 flex justify-between items-center ">
-                      <span className="text-xl font-medium text-white">After Discount</span>
-                      <span className="text-2xl font-semibold text-[#E8D1AB] tracking-tight">
+                    <div className="bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center ">
+                      <span className="text-sm lg:text-xl font-medium text-white">After Discount</span>
+                      <span className="text-lg lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
                         {/* This needs to be updated  */}
                         $ 2000.00
                       </span>
@@ -1338,59 +1416,59 @@ export default function CreateQuotePage() {
               <hr className="border-t border-[#3D3D3D]" />
 
               <div className="p-4 lg:p-9">
-                <h3 className={`text-lg font-medium tracking-tight text-white`}>
+                <h3 className={`text-base lg:text-lg font-medium tracking-tight text-white`}>
                   Common Tax Rates
                 </h3>
 
-                <div className="flex flex-col md:flex-row gap-4 mt-3 lg:mt-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-3 lg:mt-6 ">
                   <button
                     onClick={() => setSelectedTax(0)}
-                    className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 0
+                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 0
                       ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
                       : "bg-[#171717] border-[#222222] hover:border-[#333333]"
                       }`}
                   >
                     <div>
-                      <p className={`${selectedTax === 0 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-base `}>
+                      <p className={`${selectedTax === 0 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
                         0 %
                       </p>
                     </div>
                   </button>
                   <button
                     onClick={() => setSelectedTax(5)}
-                    className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 5
+                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 5
                       ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
                       : "bg-[#171717] border-[#222222] hover:border-[#333333]"
                       }`}
                   >
                     <div>
-                      <p className={`${selectedTax === 5 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-base `}>
+                      <p className={`${selectedTax === 5 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
                         5 %
                       </p>
                     </div>
                   </button>
                   <button
                     onClick={() => setSelectedTax(8.5)}
-                    className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 8.5
+                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 8.5
                       ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
                       : "bg-[#171717] border-[#222222] hover:border-[#333333]"
                       }`}
                   >
                     <div>
-                      <p className={`${selectedTax === 8.5 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-base `}>
+                      <p className={`${selectedTax === 8.5 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
                         8.5 %
                       </p>
                     </div>
                   </button>
                   <button
                     onClick={() => setSelectedTax(10)}
-                    className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 10
+                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 10
                       ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
                       : "bg-[#171717] border-[#222222] hover:border-[#333333]"
                       }`}
                   >
                     <div>
-                      <p className={`${selectedTax === 10 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-base `}>
+                      <p className={`${selectedTax === 10 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
                         10 %
                       </p>
                     </div>
@@ -1400,37 +1478,36 @@ export default function CreateQuotePage() {
 
               <hr className="border-t border-[#3D3D3D]" />
               <div className="p-4 lg:p-9">
-                <h3 className={`text-lg font-medium tracking-tight text-white mb-3 lg:mb-6`}>
+                <h3 className={`text-base lg:text-lg font-medium tracking-tight text-white mb-3 lg:mb-6`}>
                   Tax Calculation
                 </h3>
 
-                <div className="bg-[#282727] rounded-[12px] p-6 ">
-
+                <div className="bg-[#282727] rounded-xl p-4 lg:p-6 ">
                   <div className="flex justify-between items-center ">
-                    <span className="text-base text-[#9F9FA9]">Subtotal</span>
-                    <span className="text-base text-[#9F9FA9] tracking-tight">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">Subtotal</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
                       $5,550.00
                     </span>
                   </div>
-                  <div className="my-6 border-t border-[#FFFFFF33]" />
+                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-base text-white font-medium">Subtotal</span>
-                    <span className="text-base text-white font-medium tracking-tight">
+                    <span className="text-sm lg:text-base text-white font-medium">Amount Before Tax</span>
+                    <span className="text-sm lg:text-base text-white font-medium tracking-tight">
                       $5,550.00
                     </span>
                   </div>
                   <div className="flex justify-between items-center ">
-                    <span className="text-base text-[#9F9FA9]">Sales Tax (8.5%)</span>
-                    <span className="text-base text-[#9F9FA9] tracking-tight">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">Sales Tax (8.5%)</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
                       $471.75
                     </span>
                   </div>
 
-                  <div className="my-6 border-t border-[#FFFFFF33]" />
+                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
 
                   <div className="flex justify-between items-center ">
-                    <span className="text-xl font-medium text-white">Final Total</span>
-                    <span className="text-2xl font-semibold text-[#E8D1AB] tracking-tight">
+                    <span className="text-sm lg:text-xl font-medium text-white">Final Total</span>
+                    <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
                       $ 2000.00
                     </span>
                   </div>
@@ -1439,27 +1516,27 @@ export default function CreateQuotePage() {
               </div>
 
               <hr className="border-t border-[#3D3D3D]" />
-              <div className="flex gap-3 w-full p-4 lg:p-9">
+              <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full p-4 pt-6 lg:p-9">
                 <div className="w-full relative">
                   <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                    <span className="text-[12px] text-[#8A8A8A] font-normal">Tax Rate (%)</span>
+                    <span className="text-xs text-[#8A8A8A] font-normal">Tax Rate (%)</span>
                   </div>
                   <Input
                     placeholder="0.00"
                     value={taxRate}
                     onChange={(e) => setTaxRate(parseInt(e.target.value))}
-                    className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                    className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                   />
                 </div>
                 <div className="w-full relative">
                   <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                    <span className="text-[12px] text-[#8A8A8A] font-normal">Tax Type</span>
+                    <span className="text-xs text-[#8A8A8A] font-normal">Tax Type</span>
                   </div>
                   <Input
                     placeholder="Sales Tax"
                     value={taxtType}
                     onChange={(e) => setTaxType(e.target.value)}
-                    className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-[15px] text-white placeholder:text-[#666666]"
+                    className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                   />
                 </div>
               </div>
@@ -1467,78 +1544,90 @@ export default function CreateQuotePage() {
           ) : (
             /* Client Details View */
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className="px-7 pt-7 lg:px-8 lg:pt-8">
+              <div className="px-5 pt-5 lg:px-8 lg:pt-8">
                 <h2 className="text-base lg:text-xl font-medium text-white mb-1">Client Information</h2>
                 <p className="text-sm text-[#A1A1AA]">Select an existing client or create a new one</p>
               </div>
-              <div className="my-8 border-t border-[#FFFFFF80]" />
+              <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
-              <div className="px-4 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-4 lg:space-y-8 ">
+              <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-6 lg:space-y-8 ">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-xs text-zinc-400 font-medium">Client Name*</span>
+                      <span className="text-sm text-[#FFFFFF99] font-medium">Client Name*</span>
                     </div>
                     <Input
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6"
+                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-xs text-zinc-400 font-medium">Email ID*</span>
+                      <span className="text-sm text-[#FFFFFF99] font-medium">Email ID*</span>
                     </div>
                     <Input
                       value={emailId}
                       onChange={(e) => setEmailId(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6"
+                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-xs text-zinc-400 font-medium">Phone Number*</span>
+                      <span className="text-sm text-[#FFFFFF99] font-medium">Phone Number*</span>
                     </div>
                     <Input
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6"
+                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
                 </div>
 
                 <div className="relative">
                   <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-xs text-zinc-400 font-medium">Address*</span>
+                    <span className="text-sm text-[#FFFFFF99] font-medium">Address*</span>
                   </div>
                   <Input
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="567 Mission Street, San Francisco, CA 94105"
-                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6"
+                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                   />
                 </div>
 
                 <div className="relative">
                   <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-xs text-zinc-400 font-medium">Project Description*</span>
+                    <span className="text-sm text-[#FFFFFF99] font-medium">Project Description*</span>
                   </div>
                   <Textarea
                     value={projectDescription}
                     onChange={(e) => setProjectDescription(e.target.value)}
                     placeholder="Describe the project scope and requirements....."
-                    className="min-h-[120px] bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8"
+                    className="min-h-[120px] bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8 text-sm lg:text-base"
                   />
                 </div>
-
-                <div className="">
-                  <h3 className="text-xl font-semibold mb-6">Quote Validity</h3>
+                {/* <div className="relative">
+                  <div className="absolute -top-3 left-4 z-10 px-2 bg-[#0A0A0A]">
+                    <span className="text-xs text-zinc-400 font-medium">Phone Number*</span>
+                  </div>
+                  <Input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E5D5B8]/50 transition-all pl-6"
+                  />
+                </div> */}
+                <div>
+                  <h3 className="lg:text-xl font-semibold mb-6">Quote Validity</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     {[3, 5, 7].map((days: number) => (
                       <button
                         key={days}
                         onClick={() => handleValiditySelect(days)}
-                        className={`h-14 rounded-xl font-semibold transition-all border ${validityDays === days
+                        className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === days
                           ? 'bg-[#1D1A15] border-[#E8D1AB]/40 text-[#E8D1AB]'
                           : 'bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700'
                           }`}
@@ -1548,7 +1637,7 @@ export default function CreateQuotePage() {
                     ))}
                     <button
                       onClick={() => handleValiditySelect('custom')}
-                      className={`h-14 rounded-xl font-semibold transition-all border ${validityDays === 'custom'
+                      className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === 'custom'
                         ? 'bg-[#1D1A15] border-[#E8D1AB]/40 text-[#E8D1AB]'
                         : 'bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700'
                         }`}
@@ -1623,15 +1712,16 @@ export default function CreateQuotePage() {
                 </div>
               </div>
             </div>
+            // </div>
           )}
         </div>
 
         {/* Footer Actions */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-8 pb-4">
+        <div className="hidden lg:flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mt-8 pb-4">
           <div className="flex gap-4">
             <Button
               variant="outline"
-              className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-[17px] font-medium bg-transparent transition-all"
+              className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
               onClick={handleBack}
             >
               Back
@@ -1642,7 +1732,7 @@ export default function CreateQuotePage() {
                   view === 'details' ? clientName :
                     view === 'services' ? selectedServices.length > 0 :
                       true // Add-ons are optional
-              ) ? 'bg-[#E8D1AB] text-[#101010]' : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-[62px] min-w-[166px] rounded-xl text-[17px] font-bold transition-all shadow-md`}
+              ) ? 'bg-[#E8D1AB] text-[#101010]' : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
               disabled={!(
                 view === 'selection' ? selectedClient :
                   view === 'details' ? clientName :
@@ -1655,11 +1745,47 @@ export default function CreateQuotePage() {
             </Button>
           </div>
 
-          <Button className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-[62px] px-8 rounded-xl flex items-center gap-3 text-[17px] font-bold transition-all group border-0 shadow-lg self-start sm:self-auto">
+          <Button className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg self-start sm:self-auto">
             <div className="flex items-center justify-center">
               <Save size={20} className="group-hover:scale-110 transition-transform" />
             </div>
             Save as Draft
+          </Button>
+        </div>
+      </div>
+
+      {/* --- FLOATING MOBILE BUTTON --- */}
+      <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f] items-center">
+        <Button className="underline text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all">
+          <div className="flex items-center justify-center">
+            <Save size={20} className="group-hover:scale-110 transition-transform" />
+          </div>
+          Save as Draft
+        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
+            onClick={handleBack}
+          >
+            Back
+          </Button>
+          <Button
+            className={`${(
+              view === 'selection' ? selectedClient :
+                view === 'details' ? clientName :
+                  view === 'services' ? selectedServices.length > 0 :
+                    true // Add-ons are optional
+            ) ? 'bg-[#E8D1AB] text-[#101010]' : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
+            disabled={!(
+              view === 'selection' ? selectedClient :
+                view === 'details' ? clientName :
+                  view === 'services' ? selectedServices.length > 0 :
+                    true
+            )}
+            onClick={handleContinue}
+          >
+            {view === "tax" ? "Preview Quote" : "Continue"}
           </Button>
         </div>
       </div>
