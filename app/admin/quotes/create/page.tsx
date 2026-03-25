@@ -34,6 +34,7 @@ import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
 import { salesApi } from "@/lib/api";
 import { toast } from "react-hot-toast";
+import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
 const clients = [
 // Dynamic client fetching replaces hardcoded array
@@ -118,6 +119,11 @@ export default function CreateQuotePage() {
   const [addons, setAddons] = useState<any[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingShootTypes, setLoadingShootTypes] = useState(false);
+
+  // Delete Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'service' | 'addon'; label: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const serviceIcons: Record<string, React.ReactNode> = {
     "videography": <Video size={20} />,
@@ -462,26 +468,43 @@ export default function CreateQuotePage() {
     }
   };
 
-  const handleDeleteCatalogItem = async (id: string, type: 'service' | 'addon') => {
-    if (!confirm(`Are you sure you want to delete this ${type}? This action cannot be undone.`)) return;
+  const handleDeleteCatalogItem = (id: string, type: 'service' | 'addon') => {
+    const item = type === 'service' 
+      ? services.find(s => s.id === id) 
+      : addons.find(a => a.id === id);
+    
+    if (item) {
+      setItemToDelete({ id, type, label: item.label });
+      setIsDeleteModalOpen(true);
+    }
+  };
 
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+
+    setIsDeleting(true);
     try {
-      const res = await salesApi.deleteQuoteCatalog(id);
+      const res = await salesApi.deleteQuoteCatalog(itemToDelete.id);
       if (res && !res.error) {
+        toast.success(`${itemToDelete.type === 'service' ? 'Project Type' : 'Add-on'} deleted successfully`);
         // Refresh catalog
         await fetchCatalog();
         // Remove from selected if it was selected
-        if (type === 'service') {
-          setSelectedServices(prev => prev.filter(sid => sid !== id));
+        if (itemToDelete.type === 'service') {
+          setSelectedServices(prev => prev.filter(sid => sid !== itemToDelete.id));
         } else {
-          setSelectedAddons(prev => prev.filter(aid => aid !== id));
+          setSelectedAddons(prev => prev.filter(aid => aid !== itemToDelete.id));
         }
+        setIsDeleteModalOpen(false);
+        setItemToDelete(null);
       } else {
-        console.error(`Failed to delete ${type}:`, res?.error || "Unknown error");
-        alert(`Failed to delete ${type}: ${res?.error || "Unknown error"}`);
+        toast.error(`Failed to delete: ${res?.error || "Unknown error"}`);
       }
     } catch (error) {
-      console.error(`Error deleting ${type}:`, error);
+      console.error(`Error deleting item:`, error);
+      toast.error("An error occurred while deleting the item");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -752,6 +775,15 @@ export default function CreateQuotePage() {
                         : 'bg-transparent border-[#303030] hover:border-zinc-700'
                         }`}
                     >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCatalogItem(addon.id, 'addon');
+                        }}
+                        className="absolute top-6 right-6 text-zinc-500 hover:text-red-500 transition-colors z-10"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                       <div className="flex items-start gap-4 w-full">
                         <div className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
                           ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black'
@@ -2153,6 +2185,18 @@ export default function CreateQuotePage() {
           </Button>
         </div>
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setItemToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title={`Delete ${itemToDelete?.type === 'service' ? 'Project Type' : 'Add-on'}`}
+        description={`Are you sure you want to delete this ${itemToDelete?.type === 'service' ? 'project type' : 'add-on'}? This action cannot be undone.`}
+        isLoading={isDeleting}
+      />
     </div>
   );
 }
