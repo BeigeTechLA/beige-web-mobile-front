@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   ChevronLeft,
   ChevronDown,
@@ -42,7 +43,8 @@ const clients = [
 export default function CreateQuotePage() {
   const pathname = usePathname();
   const router = useRouter();
-
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   // Views: 'selection' | 'details' | 'services' | 'addons' | 'logistics'
   const [view, setView] = useState<'selection' | 'details' | 'services' | 'addons' | 'logistics' | 'customlineitems' | 'discounts' | 'tax'>('selection');
 
@@ -157,6 +159,10 @@ export default function CreateQuotePage() {
     { id: "teleprompter", label: "Teleprompter", price: 200 },
     { id: "hair_makeup", label: "Hair and Makeup Artist", price: 450 },
   ];
+
+  useEffect(() => setMounted(true), []);
+  // Constant default to dark
+  const isDark = !mounted || theme === "dark";
 
   const handleConfigUpdate = (serviceId: string, field: string, value: number) => {
     setServiceConfigs(prev => ({
@@ -309,7 +315,7 @@ export default function CreateQuotePage() {
   // };
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white">
+    <div className={`min-h-screen overflow-hidden ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
       <Topbar
         pathname={pathname}
         breadcrumbOverrides={{
@@ -327,7 +333,7 @@ export default function CreateQuotePage() {
         <div className="flex justify-between items-center mb-7">
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 text-base text-[#D4D4D4] hover:text-white transition-colors"
+            className={`flex items-center gap-2 transition-colors ${isDark ? "text-[#D4D4D4] hover:text-white" : "text-black hover:text-black/70"}`}
           >
             <ArrowLeft size={18} />
             Back
@@ -337,32 +343,32 @@ export default function CreateQuotePage() {
             <Button onClick={() => router.push("/admin/quotes/summary")} className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black">
               View Quote Summary
             </Button>
-            <span className="hidden lg:block text-base font-semibold text-white">
+            <span className={`hidden lg:block text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
               Step {stepNumber} - {progressLabel} Completed
             </span>
           </div>
         </div>
 
         <div className="block lg:hidden mb-2">
-          <span className="text-sm font-semibold text-white">
+          <span className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
             Step {stepNumber} - {progressLabel} Completed
           </span>
         </div>
         {/* Progress Bars */}
         <div className="flex gap-3 mb-8 lg:mb-9">
-          <div className="h-1 flex-1 bg-[#5B5B5B] rounded-full overflow-hidden relative">
+          <div className={`h-1 flex-1 rounded-full overflow-hidden relative ${isDark ? "bg-[#5B5B5B]" : "bg-[#5B5B5B]/50"}`}>
             <div
               className="h-full bg-[#E8D1AB] transition-all duration-500 rounded-full"
               style={{ width: view === 'selection' ? '0%' : view === 'details' ? '20%' : '100%' }}
             />
           </div>
-          <div className="h-1 flex-1 bg-[#5B5B5B] rounded-full overflow-hidden relative">
+          <div className={`h-1 flex-1 rounded-full overflow-hidden relative ${isDark ? "bg-[#5B5B5B]" : "bg-[#5B5B5B]/50"}`}>
             <div
               className="h-full bg-[#E8D1AB] transition-all duration-500 rounded-full"
               style={{ width: view === 'services' ? '20%' : view === 'addons' ? '100%' : '0%' }}
             />
           </div>
-          <div className="h-1 flex-1 bg-[#5B5B5B] rounded-full overflow-hidden relative">
+          <div className={`h-1 flex-1 rounded-full overflow-hidden relative ${isDark ? "bg-[#5B5B5B]" : "bg-[#5B5B5B]/50"}`}>
             <div
               className="h-full bg-[#E8D1AB] transition-all duration-500 rounded-full"
               style={{ width: view === 'addons' ? '20%' : '0%' }}
@@ -372,28 +378,28 @@ export default function CreateQuotePage() {
 
         {/* Main Card */}
         {/* <div className={`border rounded-[18px] mb-8 bg-[#171717] border-[#3D3D3D] ${view === 'selection' ? 'overflow-visible' : 'p-10 overflow-hidden'}`}> */}
-        <div className={`border rounded-[18px] mb-8 bg-[#171717] border-[#3D3D3D] overflow-visible`}>
+        <div className={`border rounded-[18px] mb-8 overflow-visible ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#DFDDDD]"}`}>
           {view === 'logistics' ? (
             <div className="">
               <section>
                 <div className="p-4 pt-5 lg:p-8 lg:pt-10">
-                  <h2 className="lg:text-xl font-medium leading-none mb-2 text-white">Logistics</h2>
-                  <p className="text-[#A1A1AA] text-sm font-normal leading-none">Manage travel, equipment, permits, and other logistical costs</p>
+                  <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>Logistics</h2>
+                  <p className={`text-sm ${isDark ? "text-[#A1A1AA]" : "text-[#000000B2]"}`}>Manage travel, equipment, permits, and other logistical costs</p>
                 </div>
-                <hr className="border-t border-[#3D3D3D]" />
+                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
                 <div className="space-y-4 p-4 lg:p-9">
                   {logisticsItems.map((item) => {
                     const config = logisticsConfigs[item.id];
                     return (
-                      <div key={item.id} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-4 lg:p-5 relative overflow-hidden">
+                      <div key={item.id}
+                        className={`border rounded-[14px] p-4 lg:p-5 relative overflow-hidden ${isDark ? "bg-[#0F0F0F] border-[#4A4A4A]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
                         <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
                           <div className="flex lg:flex-col justify-between lg:gap-1">
-                            <h3 className="text-sm lg:text-base font-medium text-white leading-none">{item.label}</h3>
-                            <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">${item.basePrice.toFixed(2)}</p>
+                            <h3 className={`text-base lg:text-lg font-medium leading-none ${isDark ? " text-white" : "text-black"}`}>{item.label}</h3>
+                            <p className={`text-sm lg:text-lg font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#D4A75D]"}`}>${item.basePrice.toFixed(2)}</p>
                           </div>
-
-                          <hr className="lg:hidden border-t border-[#3D3D3D]" />
+                          <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
                           <div className="flex items-center gap-6">
                             <div className="relative w-2/3 lg:w-36">
@@ -403,7 +409,7 @@ export default function CreateQuotePage() {
                                   const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
                                   setLogisticsConfigs(prev => ({ ...prev, [item.id]: { price: val } }));
                                 }}
-                                className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                                className={`h-9 rounded-lg text-sm pl-3 ${isDark ? "bg-[#1A1A1F] border-[#3B3B46] text-white " : "bg-white border-[#d7d7d7] text-black"}`}
                               />
                             </div>
                             <div className="flex items-center gap-6 lg:gap-4">
@@ -430,46 +436,46 @@ export default function CreateQuotePage() {
                     );
                   })}
                 </div>
-                <hr className="border-t border-[#3D3D3D]" />
+                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
                 <div className="p-4 lg:p-9">
-                  <h3 className="lg:text-xl font-medium text-white mb-6">Add Custom Logistics Item</h3>
+                  <h3 className={`lg:text-xl font-medium mb-6 ${isDark ? "text-white" : "text-black"}`}>Add Custom Logistics Item</h3>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-7">
                     <div className="md:col-span-8 relative">
-                      <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
+                      <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                        <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Item Name</span>
                       </div>
                       <Input
                         placeholder="Eg : Cleaning Services"
                         value={customLogisticsName}
                         onChange={(e) => setCustomLogisticsName(e.target.value)}
-                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                       />
                     </div>
                     <div className="md:col-span-4 relative">
-                      <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                      <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                        <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Cost</span>
                       </div>
                       <Input
                         placeholder="$ 0.00"
                         value={customLogisticsCost}
                         onChange={(e) => setCustomLogisticsCost(e.target.value)}
-                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                       />
                     </div>
                   </div>
                   <Button
                     onClick={handleAddLogisticsItem}
-                    className="w-full lg:w-fit bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                    className="bg-[#E8D1AB] text-black hover:bg-[#e7d09e] h-11 px-5 rounded-lg flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                   >
                     <Plus size={16} strokeWidth={3} />
                     Add Item
                   </Button>
                 </div>
 
-                <div className="m-4 lg:m-9 mt-0 lg:mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-zinc-800/50">
-                  <span className="text-sm lg:text-xl font-medium text-[#FFF]">Total Logistics Cost</span>
-                  <span className="text-lg lg:text-2xl font-bold text-[#E8D1AB] tracking-tight">
+                <div className={`m-4 lg:m-9 mt-0 lg:mt-0 rounded-xl p-4 lg:p-6 flex justify-between items-center border ${isDark ? "bg-[#282727] border-zinc-800/50" : "border-[#E8D1AB] bg-[#FFF7E6]"}`}>
+                  <span className={`text-sm lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>Total Logistics Cost</span>
+                  <span className={`text-lg lg:text-2xl font-bold tracking-tight ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
                     ${Object.values(logisticsConfigs).reduce((acc, curr) => acc + curr.price, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -479,10 +485,10 @@ export default function CreateQuotePage() {
             <div className="">
               <section>
                 <div className="p-4 pt-5 lg:p-8 lg:pt-10">
-                  <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">Add-ons</h2>
-                  <p className="text-[#A1A1AA] text-sm font-normal leading-none">Select additional items to enhance your service offering</p>
+                  <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>Add-ons</h2>
+                  <p className={`text-sm  ${isDark ? "text-[#A1A1AA]" : "text-[#000000B2]"}`}>Select additional items to enhance your service offering</p>
                 </div>
-                <hr className="border-t border-[#3D3D3D]" />
+                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-9">
                   {(addons || []).map((addon) => (
@@ -506,20 +512,20 @@ export default function CreateQuotePage() {
                         }
                       }}
                       className={`relative flex flex-col items-start p-5 lg:p-6 rounded-xl lg:rounded-2xl border transition-all h-[78px] lg:h-[98px] text-left group ${selectedAddons.includes(addon.id)
-                        ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
-                        : 'bg-transparent border-[#303030] hover:border-zinc-700'
+                        ? (isDark ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]' : 'bg-[#FFF7E6] border-[#E8D1AB] shadow-sm')
+                        : (isDark ? 'bg-transparent border-[#303030] hover:border-zinc-700' : 'bg-[#F4F5F7] border-[#d7d7d7] hover:border-zinc-400')
                         }`}
                     >
                       <div className="flex items-start gap-4 w-full">
                         <div className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
-                          ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black'
-                          : 'border-zinc-700 bg-transparent'
+                          ? (isDark ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black' : 'bg-black text-[#E8D1AB] border-black')
+                          : (isDark ? 'border-zinc-700 bg-transparent' : 'border-[#3d3d3d]')
                           }`}>
                           {selectedAddons.includes(addon.id) && <Check size={14} strokeWidth={4} />}
                         </div>
                         <div className="space-y-2">
-                          <div className="font-medium text-base text-white leading-none">{addon.label}</div>
-                          <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                          <div className={`font-medium text-base lg:text-lg leading-none ${isDark ? "text-white" : "text-black"}`}>{addon.label}</div>
+                          <div className={`${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"} text-sm lg:text-lg font-semibold tracking-tight leading-none `}>
                             ${addon.price.toFixed(2)}
                           </div>
                         </div>
@@ -528,10 +534,10 @@ export default function CreateQuotePage() {
                   ))}
                 </div>
 
-                <div className="space-y-6 p-4 lg:p-9 pt-0">
+                <div className="space-y-6 p-4 lg:p-9 pt-0 lg:pt-0">
                   <Button
                     onClick={() => setShowAddAddonForm(!showAddAddonForm)}
-                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
+                    className="bg-[#E8D1AB] text-black hover:bg-[#e7d09e] h-11 px-5 rounded-lg flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                   >
                     <Plus size={16} strokeWidth={3} />
                     Add More Add-ons
@@ -546,25 +552,25 @@ export default function CreateQuotePage() {
                         className="grid grid-cols-1 md:grid-cols-12 gap-6"
                       >
                         <div className="md:col-span-8 relative">
-                          <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                            <span className="text-xs text-[#8A8A8A] font-normal">Add-on Name</span>
+                          <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                            <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Add-on Name</span>
                           </div>
                           <Input
                             placeholder="Eg : 4K RAW Recording"
                             value={customAddonName}
                             onChange={(e) => setCustomAddonName(e.target.value)}
-                            className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                            className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                           />
                         </div>
                         <div className="md:col-span-4 relative">
-                          <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                            <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                          <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                            <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Cost</span>
                           </div>
                           <Input
                             placeholder="$ 0.00"
                             value={customAddonCost}
                             onChange={(e) => setCustomAddonCost(e.target.value)}
-                            className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                            className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                           />
                         </div>
                       </motion.div>
@@ -576,10 +582,10 @@ export default function CreateQuotePage() {
               {/* Selected Add-Ons Section */}
               {selectedAddons.length > 0 && (
                 <>
-                  <hr className="border-t border-[#3D3D3D]" />
+                  <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
                   <section className="p-4 lg:p-9">
-                    <div className="mb-8">
-                      <h2 className="text-xl font-medium text-white">Selected Add-Ons</h2>
+                    <div className="mb-4 lg:mb-8">
+                      <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>Selected Add-Ons</h2>
                     </div>
 
                     <div className="space-y-4">
@@ -589,12 +595,12 @@ export default function CreateQuotePage() {
                         if (!addon || !config) return null;
 
                         return (
-                          <div key={addonId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hidden">
+                          <div key={addonId} className={`border rounded-[14px] p-5 relative overflow-hidden ${isDark ? "bg-[#0F0F0F] border-[#4A4A4A]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
                             {/* desktop version */}
                             <div className="hidden lg:flex justify-between items-center">
                               <div className="space-y-1">
-                                <h3 className="text-base font-medium text-white leading-none">{addon.label}</h3>
-                                <p className="text-[#8A8A8A] text-xs font-normal">${addon.price.toFixed(2)}</p>
+                                <h3 className={`text-base lg:text-lg font-medium leading-none ${isDark ? "text-white" : "text-black"}`}>{addon.label}</h3>
+                                <p className={`text-sm lg:text-lg font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#D4A75D]"}`}>${addon.price.toFixed(2)}</p>
                               </div>
 
                               <div className="flex items-center gap-6">
@@ -602,16 +608,16 @@ export default function CreateQuotePage() {
                                 <div className="flex items-center gap-2 h-9">
                                   <button
                                     onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity - 1)}
-                                    className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                    className={`w-10 h-full flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                   >
                                     <Minus size={16} strokeWidth={2.5} />
                                   </button>
-                                  <div className="w-16 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-zinc-400 font-normal text-sm">
+                                  <div className={`w-24 flex-1 h-full flex items-center justify-center border rounded-lg font-normal text-sm ${isDark ? "border-[#3B3B46] bg-[#1A1A1F] text-white" : "bg-white text-black border-[#D7D7D7]"}`}>
                                     Qty
                                   </div>
                                   <button
                                     onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity + 1)}
-                                    className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                    className={`w-10 h-full flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                   >
                                     <Plus size={16} strokeWidth={2.5} />
                                   </button>
@@ -625,7 +631,7 @@ export default function CreateQuotePage() {
                                       const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
                                       handleAddonConfigUpdate(addonId, 'price', val);
                                     }}
-                                    className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                                    className={`h-9 rounded-lg text-sm pl-3 ${isDark ? "bg-[#1A1A1F] border-[#3B3B46] text-white " : "bg-white border-[#d7d7d7] text-black"}`}
                                   />
                                 </div>
 
@@ -653,10 +659,10 @@ export default function CreateQuotePage() {
                             {/* mobile version */}
                             <div className="flex flex-col lg:hidden gap-4">
                               <div className="flex justify-between">
-                                <h3 className="text-sm font-medium text-white leading-none">{addon.label}</h3>
+                                <h3 className={`text-sm font-medium leading-none ${isDark ? "text-white" : "text-black"}`}>{addon.label}</h3>
                                 <p className="text-[#E8D1AB] text-sm font-semibold">${addon.price.toFixed(2)}</p>
                               </div>
-                              <hr className="border-t border-[#3D3D3D]" />
+                              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
                               <div className="flex gap-4 items-center">
                                 {/* Price Override */}
                                 <div className="relative w-3/4">
@@ -666,7 +672,7 @@ export default function CreateQuotePage() {
                                       const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
                                       handleAddonConfigUpdate(addonId, 'price', val);
                                     }}
-                                    className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                                    className={`h-9 rounded-lg text-sm pl-3 ${isDark ? "bg-[#1A1A1F] border-[#3B3B46] text-white " : "bg-white border-[#d7d7d7] text-black"}`}
                                   />
                                 </div>
 
@@ -688,21 +694,21 @@ export default function CreateQuotePage() {
                                 </div>
                               </div>
 
-                              <hr className="border-t border-[#3D3D3D]" />
+                              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
                               {/* Quantity Controls */}
                               <div className="flex items-center gap-2 h-9">
                                 <button
                                   onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity - 1)}
-                                  className="w-9 h-9 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                  className={`shrink-0 w-10 h-10 flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                 >
                                   <Minus size={16} strokeWidth={2.5} />
                                 </button>
-                                <div className="w-full h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-zinc-400 font-normal text-sm">
+                                <div className={`w-full h-full flex items-center justify-center border rounded-lg font-normal text-sm ${isDark ? "border-[#3B3B46] bg-[#1A1A1F] text-white" : "bg-white text-black border-[#D7D7D7]"}`}>
                                   Qty
                                 </div>
                                 <button
                                   onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity + 1)}
-                                  className="w-9 h-9 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                  className={`shrink-0 w-10 h-10 flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                 >
                                   <Plus size={16} strokeWidth={2.5} />
                                 </button>
@@ -722,10 +728,10 @@ export default function CreateQuotePage() {
               {/* Services Section */}
               <section>
                 <div className="px-5 pt-5 lg:px-8 lg:pt-8 mb-7">
-                  <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">Services</h2>
-                  <p className="text-[#A1A1AA] text-sm font-normal leading-none">Select services and configure pricing</p>
+                  <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>Services</h2>
+                  <p className={`text-sm  ${isDark ? "text-[#A1A1AA]" : "text-[#000000B2]"}`}>Select services and configure pricing</p>
                 </div>
-                <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
+                <hr className={`my-4 lg:my-8 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
                 <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-4 lg:space-y-8 ">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
@@ -734,12 +740,12 @@ export default function CreateQuotePage() {
                         key={service.id}
                         onClick={() => handleServiceSelect(service.id, service.price)}
                         className={`relative flex flex-col items-start p-5 lg:p-6 rounded-xl lg:rounded-2xl border transition-all h-[78px] lg:h-[98px] text-left group ${selectedServices.includes(service.id)
-                          ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
-                          : 'bg-transparent border-[#303030] hover:border-zinc-700'
+                          ? (isDark ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]' : 'bg-[#FFF7E6] border-[#E8D1AB] shadow-sm')
+                          : (isDark ? 'bg-transparent border-[#303030] hover:border-zinc-700' : 'bg-[#F4F5F7] border-[#d7d7d7] hover:border-zinc-400')
                           }`}
                       >
-                        <div className="font-medium text-base text-white mb-2 leading-none">{service.label}</div>
-                        <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                        <div className={`font-medium text-base lg:text-lg mb-2 leading-none ${isDark ? "text-white" : "text-black"}`}>{service.label}</div>
+                        <div className={`${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"} text-sm lg:text-lg font-semibold tracking-tight leading-none `}>
                           ${service.price.toFixed(2)} <span className="text-[#71717B] font-medium text-xs lowercase ml-1">per hour</span>
                         </div>
                         {selectedServices.includes(service.id) && (
@@ -751,10 +757,10 @@ export default function CreateQuotePage() {
                     ))}
                   </div>
 
-                  <div className="mt-5 lg:mt-7 space-y-6">
+                  <div className="mt-5 lg:mt-7 space-y-6 lg:space-y-8">
                     <Button
                       onClick={() => setShowAddServiceForm(!showAddServiceForm)}
-                      className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[42px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
+                      className="bg-[#E8D1AB] text-black hover:bg-[#e7d09e] h-11 px-5 rounded-lg flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                     >
                       <Plus size={16} strokeWidth={3} />
                       Add Services
@@ -769,25 +775,25 @@ export default function CreateQuotePage() {
                           className="grid grid-cols-1 md:grid-cols-12 gap-6"
                         >
                           <div className="md:col-span-8 relative">
-                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                              <span className="text-xs text-[#8A8A8A] font-normal">Service Name</span>
+                            <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                              <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Service Name</span>
                             </div>
                             <Input
                               placeholder="Eg : Post Production Editing"
                               value={customServiceName}
                               onChange={(e) => setCustomServiceName(e.target.value)}
-                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
+                              className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                             />
                           </div>
                           <div className="md:col-span-4 relative">
-                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                              <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                            <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                              <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Cost</span>
                             </div>
                             <Input
                               placeholder="$ 0.00"
                               value={customServiceCost}
                               onChange={(e) => setCustomServiceCost(e.target.value)}
-                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
+                              className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                             />
                           </div>
                         </motion.div>
@@ -804,13 +810,13 @@ export default function CreateQuotePage() {
                     {/* Shoot Type Section */}
                     {(selectedServices.includes('videography') || selectedServices.includes('photography')) && (
                       <section className="">
-                        <hr className="border-t border-[#3D3D3D] mb-4 lg:mb-9" />
+                        <hr className={`mb-4 lg:mb-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
                         <div className="px-4 pt-4 pb-5 lg:px-8 lg:pb-10">
                           <button
                             onClick={() => setIsShootTypeExpanded(!isShootTypeExpanded)}
                             className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
                           >
-                            <h2 className="text-base lg:text-xl font-medium text-white">Video Shoot Type</h2>
+                            <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>Video Shoot Type</h2>
                             <div className="text-zinc-600 transition-transform duration-300">
                               {isShootTypeExpanded ? <ChevronDown size={22} className="rotate-180" /> : <ChevronDown size={22} />}
                             </div>
@@ -830,8 +836,8 @@ export default function CreateQuotePage() {
                                       key={type.id}
                                       onClick={() => setSelectedShootType(type.id)}
                                       className={`h-[52px] rounded-[14px] font-normal transition-all border text-sm tracking-tight ${selectedShootType === type.id
-                                        ? 'bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner'
-                                        : 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700'
+                                        ? (isDark ? 'bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner' : 'bg-[#FFF7E6] border-[#E8D1AB] text-[#000]')
+                                        : (isDark ? 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700' : 'bg-transparent border-[#d7d7d7] text-[#00000099] hover:border-zinc-400')
                                         }`}
                                     >
                                       {type.label}
@@ -842,7 +848,7 @@ export default function CreateQuotePage() {
                                 <div className="mt-8 space-y-6">
                                   <Button
                                     onClick={() => setShowAddShootTypeForm(!showAddShootTypeForm)}
-                                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                                    className="bg-[#E8D1AB] text-black hover:bg-[#e7d09e] h-11 px-5 rounded-lg flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                                   >
                                     <Plus size={16} strokeWidth={3} />
                                     Add Video Shoot Type
@@ -856,14 +862,14 @@ export default function CreateQuotePage() {
                                         exit={{ opacity: 0, y: -10 }}
                                         className="relative"
                                       >
-                                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                          <span className="text-xs text-[#8A8A8A] font-normal">Video Shoot Type Name</span>
+                                        <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                                          <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Video Shoot Type Name</span>
                                         </div>
                                         <Input
                                           placeholder="Eg : Real Estate.."
                                           value={customShootType}
                                           onChange={(e) => setCustomShootType(e.target.value)}
-                                          className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                                          className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                                         />
                                       </motion.div>
                                     )}
@@ -879,13 +885,13 @@ export default function CreateQuotePage() {
                     {/* AI Editing Types Section - Only shown if AI Editing is selected */}
                     {selectedServices.includes("ai_editing") && (
                       <div className="">
-                        <hr className="border-t border-[#3D3D3D]" />
+                        <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
                         <section className="px-4 pt-4 pb-5 lg:pt-8 lg:px-8 lg:pb-10">
                           <button
                             onClick={() => setIsEditingTypeExpanded(!isEditingTypeExpanded)}
                             className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
                           >
-                            <h2 className="text-base lg:text-xl font-medium text-white">AI Editing Types</h2>
+                            <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>AI Editing Types</h2>
                             <div className="text-zinc-600 transition-transform duration-300">
                               {isEditingTypeExpanded ? <ChevronDown size={22} className="rotate-180" /> : <ChevronDown size={22} />}
                             </div>
@@ -904,9 +910,9 @@ export default function CreateQuotePage() {
                                     <button
                                       key={type.id}
                                       onClick={() => setSelectedEditingType(type.id)}
-                                      className={`h-10 lg:h-[52px] px-6 rounded-xl font-normal transition-all border text-sm text-center lg:text-left leading-tight tracking-tight ${selectedEditingType === type.id
-                                        ? 'bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner'
-                                        : 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700'
+                                      className={`h-[52px] rounded-[14px] font-normal transition-all border text-sm tracking-tight ${selectedShootType === type.id
+                                        ? (isDark ? 'bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner' : 'bg-[#FFF7E6] border-[#E8D1AB] text-[#000]')
+                                        : (isDark ? 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700' : 'bg-transparent border-[#d7d7d7] text-[#00000099] hover:border-zinc-400')
                                         }`}
                                     >
                                       {type.label}
@@ -917,7 +923,7 @@ export default function CreateQuotePage() {
                                 <div className="mt-8 space-y-6">
                                   <Button
                                     onClick={() => setShowAddEditingTypeForm(!showAddEditingTypeForm)}
-                                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                                    className="bg-[#E8D1AB] text-black hover:bg-[#e7d09e] h-11 px-5 rounded-lg flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                                   >
                                     <Plus size={16} strokeWidth={3} />
                                     Add Editing Types
@@ -931,14 +937,14 @@ export default function CreateQuotePage() {
                                         exit={{ opacity: 0, y: -10 }}
                                         className="relative"
                                       >
-                                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                          <span className="text-xs text-[#8A8A8A] font-normal">Editing Type Name</span>
+                                        <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                                          <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Editing Type Name</span>
                                         </div>
                                         <Input
                                           placeholder="Eg : Reel Editing..."
                                           value={customEditingType}
                                           onChange={(e) => setCustomEditingType(e.target.value)}
-                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                                          className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                                         />
                                       </motion.div>
                                     )}
@@ -953,10 +959,10 @@ export default function CreateQuotePage() {
 
                     {/* Configure Selected Services */}
                     <>
-                      <hr className="border-t border-[#3D3D3D]" />
+                      <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
                       <section className="px-4 pb-5 lg:pt-8 lg:px-8 lg:pb-10">
                         <div className="mb-4 lg:mb-8">
-                          <h2 className="text-base lg:text-xl font-medium text-white">Configure Selected Services</h2>
+                          <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>Configure Selected Services</h2>
                         </div>
 
                         <div className="space-y-4 lg:space-y-6">
@@ -969,39 +975,38 @@ export default function CreateQuotePage() {
                             const editingTypeLabel = editingTypes.find(t => t.id === selectedEditingType)?.label;
 
                             return (
-                              <div key={serviceId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden">
+                              <div key={serviceId} className={`border rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden ${isDark ? "bg-[#0F0F0F] border-[#4A4A4A]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
                                 <div className="flex justify-between items-start mb-4 lg:mb-8">
                                   <div className="space-y-2">
-                                    <h3 className="text-[16px] font-medium text-white flex items-center gap-1.5 leading-none">
+                                    <h3 className={`text-base font-medium flex items-center gap-1.5 leading-none ${isDark ? "text-white" : "text-black"}`}>
                                       {serviceId === 'ai_editing' ? (
-                                        <>AI Editing Type - <span className="text-[#8E826A]">{editingTypeLabel}</span></>
+                                        <>AI Editing Type - <span className={isDark ? "text-[#8E826A]" : "text-black"}>{editingTypeLabel}</span></>
                                       ) : (
-                                        <>{service.label} - <span className="text-[#8E826A]">({shootTypeLabel})</span></>
+                                        <>{service.label} - <span className={isDark ? "text-[#8E826A]" : "text-black"}>({shootTypeLabel})</span></>
                                       )}
                                     </h3>
-                                    <p className="text-[#8A8A8A] text-xs font-normal">Base: ${service.price.toFixed(2)} per hour</p>
+                                    <p className={`text-xs lg:text-sm ${isDark ? "text-[#8A8A8A]" : "text-[#727272]"}`}>Base: ${service.price.toFixed(2)} per hour</p>
                                   </div>
                                   <div className="flex items-center gap-5">
                                     <div className="hidden lg:flex flex-col items-end gap-1">
-                                      <span className="text-[#7B7B85] text-xs font-normal">Total</span>
-                                      <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">${(config.quantity * config.duration * config.crewSize * config.estimatedPrice).toLocaleString()}</span>
+                                      <span className={`${isDark ? "text-[#7B7B85]" : "text-[#71717B]"} text-xs lg:text-sm`}>Total</span>
+                                      <span className={`text-xl font-semibold ${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"} tracking-tight leading-none`}>${(config.quantity * config.duration * config.crewSize * config.estimatedPrice).toLocaleString()}</span>
                                     </div>
                                     <button
                                       onClick={() => setSelectedServices(prev => prev.filter(id => id !== serviceId))}
-                                      className="w-10 h-10 rounded-full bg-[#2A2A2A] border border-transparent flex items-center justify-center text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                                      className={`w-10 h-10 rounded-full border border-transparent flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 transition-all ${isDark ? "bg-[#2A2A2A] text-zinc-500 " : "bg-[#FFFFFF] text-[#FF6467]"}`}
                                     >
                                       <Trash2 size={18} />
                                     </button>
                                   </div>
                                 </div>
-
-                                <div className="my-4 lg:my-8 border-t border-[#303030]" />
+                                <hr className={`my-4 lg:my-8 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
                                 <div className="flex lg:hidden justify-between  items-center gap-1">
-                                  <span className="text-[#7B7B85] text-sm font-normal">Total</span>
-                                  <span className="font-semibold text-[#F0DCB1] tracking-tight leading-none">${(config.quantity * config.duration * config.crewSize * config.estimatedPrice).toLocaleString()}</span>
+                                  <span className={`${isDark ? "text-[#7B7B85]" : "text-[#71717B]"} text-xs lg:text-sm`}>Total</span>
+                                  <span className={`text-xl font-semibold ${isDark ? "text-[#F0DCB1]" : "text-[#D4A75D]"} tracking-tight leading-none`}>${(config.quantity * config.duration * config.crewSize * config.estimatedPrice).toLocaleString()}</span>
                                 </div>
-                                <div className="lg:hidden my-4 lg:my-8 border-t border-[#303030]" />
+                                <hr className={`lg:hidden my-4 lg:my-8 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 lg:gap-6">
                                   {/* Quantity */}
@@ -1010,16 +1015,16 @@ export default function CreateQuotePage() {
                                     <div className="flex items-center gap-2 h-9">
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'quantity', config.quantity - 1)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        className={`w-10 h-full flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
-                                      <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
+                                      <div className={`flex-1 h-full flex items-center justify-center border rounded-lg font-normal text-sm ${isDark ? "border-[#3B3B46] bg-[#1A1A1F] text-white" : "bg-white text-black border-[#D7D7D7]"}`}>
                                         {config.quantity}
                                       </div>
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'quantity', config.quantity + 1)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        className={`w-10 h-full flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                       >
                                         <Plus size={16} strokeWidth={2.5} />
                                       </button>
@@ -1032,16 +1037,16 @@ export default function CreateQuotePage() {
                                     <div className="flex items-center gap-2 h-9">
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'duration', config.duration - 1)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        className={`w-10 h-full flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
-                                      <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
+                                      <div className={`flex-1 h-full flex items-center justify-center border rounded-lg font-normal text-sm ${isDark ? "border-[#3B3B46] bg-[#1A1A1F] text-white" : "bg-white text-black border-[#D7D7D7]"}`}>
                                         {config.duration}
                                       </div>
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'duration', config.duration + 1)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        className={`w-10 h-full flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                       >
                                         <Plus size={16} strokeWidth={2.5} />
                                       </button>
@@ -1054,16 +1059,16 @@ export default function CreateQuotePage() {
                                     <div className="flex items-center gap-2 h-9">
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'crewSize', config.crewSize - 1)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        className={`w-10 h-full flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
-                                      <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
+                                      <div className={`flex-1 h-full flex items-center justify-center border rounded-lg font-normal text-sm ${isDark ? "border-[#3B3B46] bg-[#1A1A1F] text-white" : "bg-white text-black border-[#D7D7D7]"}`}>
                                         {config.crewSize}
                                       </div>
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'crewSize', config.crewSize + 1)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        className={`w-10 h-full flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                       >
                                         <Plus size={16} strokeWidth={2.5} />
                                       </button>
@@ -1076,16 +1081,16 @@ export default function CreateQuotePage() {
                                     <div className="flex items-center gap-2 h-9">
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice - 50)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        className={`w-10 h-full flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
-                                      <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
+                                      <div className={`flex-1 h-full flex items-center justify-center border rounded-lg font-normal text-sm ${isDark ? "border-[#3B3B46] bg-[#1A1A1F] text-white" : "bg-white text-black border-[#D7D7D7]"}`}>
                                         ${config.estimatedPrice}
                                       </div>
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice + 50)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        className={`w-10 h-full flex items-center justify-center rounded-lg hover:opacity-90 transition-all active:scale-95 ${isDark ? "bg-[#F0DCB1]" : "bg-[#E8D1AB]"}`}
                                       >
                                         <Plus size={16} strokeWidth={2.5} />
                                       </button>
@@ -1098,37 +1103,34 @@ export default function CreateQuotePage() {
                         </div>
                       </section>
                     </>
-
                   </div>
                 </>
-
               )}
             </div>
           ) : view === 'selection' ? (
             /* Client Selector View */
             <div>
               <div className="px-7 pt-7 lg:px-8 lg:pt-8">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">Client Information</h2>
-                <p className="text-sm text-[#A1A1AA]">Select an existing client or create a new one</p>
+                <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>Client Information</h2>
+                <p className={`text-sm  ${isDark ? "text-[#A1A1AA]" : "text-[#000000B2]"}`}>Select an existing client or create a new one</p>
               </div>
-
-              <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
+              <hr className={`my-4 lg:my-8 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
               <div className="px-7 pb-9 lg:px-8 lg:pb-10">
                 <div className="relative max-w-full">
-                  <div className="absolute -top-3 left-5 z-10 px-3 bg-[#171717]">
-                    <span className="text-sm text-[#A1A1AA] font-normal tracking-[0.01em]">Select Client</span>
+                  <div className={`absolute -top-3 left-5 z-10 px-3 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`text-sm font-normal tracking-[0.01em] ${isDark ? "text-[#A1A1AA]" : "text-[#000000B2]"}`}>Select Client</span>
                   </div>
 
-                  <div className="relative border border-[#4A4A4A] rounded-[14px] bg-transparent">
+                  <div className={`relative border rounded-[14px] bg-transparent ${isDark ? "border-[#4A4A4A]" : "border-[#00000080]"}`}>
                     <button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                       className={`w-full group bg-transparent rounded-[14px] px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen ? 'ring-1 ring-[#8E826A]/30' : ''}`}
                     >
-                      <span className={selectedClient ? "text-white text-[16px] font-normal" : "text-[#6B6B6B] text-[16px] font-normal"}>
+                      <span className={`text-base ${selectedClient ? (isDark ? "text-white" : "text-black") : "text-[#6B6B6B]"}`}>
                         {selectedClient ? selectedClient.name : "Choose a Client..."}
                       </span>
-                      <ChevronDown size={20} className={`text-[#E5E5E5] transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown size={20} className={` ${isDark ? "text-[#E5E5E5]" : "text-[#000000]"} transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     <AnimatePresence>
@@ -1138,7 +1140,7 @@ export default function CreateQuotePage() {
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.99, y: -5 }}
                           transition={{ duration: 0.2 }}
-                          className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0F0F0F] border border-zinc-800 rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.6)]"
+                          className={`absolute top-[calc(100%+8px)] left-0 right-0 border rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.6)] ${isDark ? "bg-[#0F0F0F] border-zinc-800" : "bg-white border-[#00000033]"}`}
                         >
                           <div className="max-h-80 overflow-y-auto custom-scrollbar p-3">
                             {(filteredClients || []).map((client) => (
@@ -1149,23 +1151,23 @@ export default function CreateQuotePage() {
                                   setIsDropdownOpen(false);
                                 }}
                                 className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${selectedClient?.id === client.id
-                                  ? 'bg-[#FFFCE8] text-[#171717]'
-                                  : 'hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]'
+                                  ? (isDark ? 'bg-[#FFFCE8] text-[#171717]' : 'bg-[#E8D1AB] text-[#000000]')
+                                  : (isDark ? 'hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]' : 'hover:bg-[#E8D1AB] hover:text-[#000000] text-[#00000085]')
                                   }`}
                               >
                                 <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedClient?.id === client.id
-                                  ? 'border-[#E8D1AB] bg-[#E8D1AB]'
-                                  : 'border-[#FFFFFF85] group-hover:border-[#171717]'
+                                  ? (isDark ? 'border-[#E8D1AB] bg-[#E8D1AB]' : 'border-[#000000] bg-[#000000]')
+                                  : (isDark ? 'border-[#FFFFFF85] group-hover:border-[#171717]' : 'border-[#00000085] group-hover:border-[#171717]')
                                   }`}>
                                   {selectedClient?.id === client.id && (
-                                    <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
+                                    <div className={`w-2.5 h-2.5 rounded-sm ${isDark ? "bg-[#101010] " : "bg-[#E8D1AB]"}`} />
                                   )}
                                 </div>
-                                <span className="font-semibold text-lg">{client.name}</span>
+                                <span className="lg:text-lg">{client.name}</span>
                               </div>
                             ))}
 
-                            <button className="w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 border-t border-zinc-800/50 pt-6">
+                            <button className={`w-full flex items-center gap-4 px-5 py-4 transition-all rounded-xl ${isDark ? "text-[#E8D1AB] hover:bg-[#E8D1AB]/5 border-zinc-800/50" : "text-[#000000] hover:bg-[#E8D1AB] "}`}>
                               <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
                                 <Plus size={16} className="text-[#171717]" />
                               </div>
@@ -1182,53 +1184,53 @@ export default function CreateQuotePage() {
           ) : view === 'customlineitems' ? (
             <div>
               <div className="p-4 pt-5 lg:p-8 lg:pt-10">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">Custom Line Items</h2>
-                <p className="text-sm text-[#A1A1AA]">Add any custom charges or fees not covered by services or add-ons</p>
+                <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>Custom Line Items</h2>
+                <p className={`text-sm  ${isDark ? "text-[#A1A1AA]" : "text-[#000000B2]"}`}>Add any custom charges or fees not covered by services or add-ons</p>
               </div>
-              <hr className="border-t border-[#3D3D3D]" />
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
               <div className=" p-4 lg:p-9">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-7">
                   <div className="md:col-span-8 relative">
-                    <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                      <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
+                    <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Item Name</span>
                     </div>
                     <Input
                       placeholder="Eg : Cleaning Services"
                       value={customItemName}
                       onChange={(e) => setCustomItemName(e.target.value)}
-                      className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                      className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                     />
                   </div>
                   <div className="md:col-span-4 relative">
-                    <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                      <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                    <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Cost</span>
                     </div>
                     <Input
                       placeholder="$ 0.00"
                       value={customItemCost}
                       onChange={(e) => setCustomItemCost(e.target.value)}
-                      className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                      className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                     />
                   </div>
                 </div>
                 <Button
                   onClick={handleAddLineItem}
-                  className="w-full lg:w-fit bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                  className="bg-[#E8D1AB] text-black hover:bg-[#e7d09e] h-11 px-5 rounded-lg flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                 >
                   <Plus size={16} strokeWidth={3} />
                   Add Item
                 </Button>
               </div>
 
-              <hr className="border-t border-[#3D3D3D]" />
-              <div className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hiddenm-4 m-5 lg:m-9 lg:mt-0 ">
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
+              <div className={`border rounded-[14px] p-5 relative overflow-hiddenm-4 m-5 lg:m-9  ${isDark ? "bg-[#0F0F0F] border-[#4A4A4A]" : "border-[#D7D7D7] bg-[#F4F5F7]"}`}>
                 <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
                   <div className="flex lg:flex-col justify-between lg:gap-1">
-                    <h3 className="text-base font-medium text-white leading-none">Rush Delivery</h3>
-                    <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">$1,500.00</p>
+                    <h3 className={`text-base font-medium leading-none ${isDark ? "text-white" : "text-black"}`}>Rush Delivery</h3>
+                    <p className={`text-sm lg:text-lg font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#D4A75D]"}`}>$1,500.00</p>
                   </div>
 
-                  <hr className="lg:hidden border-t border-[#3D3D3D]" />
+                  <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
                   <div className="flex items-center gap-6">
                     <div className="relative w-2/3 lg:w-36">
@@ -1238,7 +1240,7 @@ export default function CreateQuotePage() {
                           const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
                           // setLineItemConfigs(prev => ({ ...prev, [item.id]: { price: val } }));
                         }}
-                        className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                        className={`h-9 rounded-lg text-sm pl-3 ${isDark ? "bg-[#1A1A1F] border-[#3B3B46] text-white " : "bg-white border-[#d7d7d7] text-black"}`}
                       />
                     </div>
                     <div className="flex items-center gap-4">
@@ -1267,21 +1269,21 @@ export default function CreateQuotePage() {
           ) : view === 'discounts' ? (
             <div>
               <div className="p-4 pt-5 lg:p-8 lg:pt-10">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">Discounts</h2>
-                <p className="text-sm text-[#A1A1AA]">Add any custom charges or fees not covered by services or add-ons</p>
+                <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>Discounts</h2>
+                <p className={`text-sm ${isDark ? "text-[#A1A1AA]" : "text-[#000000B2]"}`}>Add any custom charges or fees not covered by services or add-ons</p>
               </div>
-              <hr className="border-t border-[#3D3D3D]" />
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
               <div className="p-4 lg:p-9">
                 <div
-                  className={`w-full p-4 lg:p-5 rounded-2xl border transition-colors duration-300 flex items-center justify-between bg-[#171717] border-[#222222]`}
+                  className={`w-full p-4 lg:p-5 rounded-2xl border transition-colors duration-300 flex items-center justify-between ${isDark ? "bg-[#171717] border-[#222222] " : "bg-[#F4F5F7] border-[#D7D7D7]"}`}
                   style={{ fontFamily: 'var(--font-instrument-sans), sans-serif' }}
                 >
                   <div className="lg:space-y-1">
-                    <h3 className={`text-sm lg:text-lg font-medium tracking-tight text-white`}>
+                    <h3 className={`text-sm lg:text-lg font-medium tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                       Apply Discount
                     </h3>
-                    <p className={`text-sm text-[#888888]`}>
+                    <p className={`text-sm ${isDark ? "text-[#888888]" : "text-[#7D7D7D]"}`}>
                       Add a discount to this quotation
                     </p>
                   </div>
@@ -1304,9 +1306,9 @@ export default function CreateQuotePage() {
 
               {discountEnabled ? (
                 <>
-                  <hr className="border-t border-[#3D3D3D]" />
+                  <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
                   <div className="p-4 lg:p-9">
-                    <h3 className={`text-base lg:text-lg font-medium tracking-tight text-white`}>
+                    <h3 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                       Discount Type
                     </h3>
 
@@ -1315,21 +1317,21 @@ export default function CreateQuotePage() {
                       <button
                         onClick={() => handleDiscountTypeSelect("percentage")}
                         className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${discountType === "percentage"
-                          ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                          : "bg-[#171717] border-[#222222] hover:border-[#333333]"
+                          ? (isDark ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]" : 'bg-[#FFF7E6] border-[#E8D1AB]')
+                          : (isDark ? "bg-[#171717] border-[#222222] hover:border-[#333333]" : "bg-[#F4F5F7] border-[#D7D7D7] hover:border-[#333333]/50")
                           }`}
                       >
                         <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-colors ${discountType === "percentage"
-                          ? "bg-[#E8D1AB] text-black"
-                          : "bg-[#3F3F47] text-[#888888]"
+                          ? (isDark ? "bg-[#E8D1AB] text-black" : "bg-white text-[#09090B]")
+                          : (isDark ? "bg-[#3F3F47] text-[#888888]" : "bg-white text-[#9F9FA9]")
                           }`}>
-                          <Percent size={20} strokeWidth={2.5} />
+                          <Percent size={20} strokeWidth={1.5} />
                         </div>
                         <div>
-                          <h4 className={`font-semibold text-base text-white`}>
+                          <h4 className={`font-medium text-base ${isDark ? "text-white " : "text-black"}`}>
                             Percentage
                           </h4>
-                          <p className={`text-xs mt-0.5 text-[#888888]`}>
+                          <p className={`text-xs mt-0.5 ${isDark ? "text-[#888888]" : "text-[#7D7D7D]"}`}>
                             % off subtotal
                           </p>
                         </div>
@@ -1339,21 +1341,21 @@ export default function CreateQuotePage() {
                       <button
                         onClick={() => handleDiscountTypeSelect("fixed")}
                         className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${discountType === "fixed"
-                          ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                          : "bg-[#171717] border-[#222222] hover:border-[#333333]"
+                          ? (isDark ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]" : 'bg-[#FFF7E6] border-[#E8D1AB]')
+                          : (isDark ? "bg-[#171717] border-[#222222] hover:border-[#333333]" : "bg-[#F4F5F7] border-[#D7D7D7] hover:border-[#333333]/50")
                           }`}
                       >
                         <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-colors ${discountType === "fixed"
-                          ? "bg-[#E8D1AB] text-black"
-                          : "bg-[#3F3F47] text-[#888888]"
+                          ? (isDark ? "bg-[#E8D1AB] text-black" : "bg-white text-[#09090B]")
+                          : (isDark ? "bg-[#3F3F47] text-[#888888]" : "bg-white text-[#9F9FA9]")
                           }`}>
-                          <DollarSign size={20} strokeWidth={2.5} />
+                          <DollarSign size={20} strokeWidth={1.5} />
                         </div>
                         <div>
-                          <h4 className={`font-semibold text-base text-white`}>
+                          <h4 className={`font-medium text-base ${isDark ? "text-white " : "text-black"}`}>
                             Fixed Amount
                           </h4>
-                          <p className={`text-xs mt-0.5 text-[#888888]`}>
+                          <p className={`text-xs mt-0.5 ${isDark ? "text-[#888888]" : "text-[#7D7D7D]"}`}>
                             $ off subtotal
                           </p>
                         </div>
@@ -1361,47 +1363,46 @@ export default function CreateQuotePage() {
                     </div>
 
                     <div className="md:col-span-8 relative">
-                      <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-xs text-[#8A8A8A] font-normal">Discount Value</span>
+                      <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                        <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Discount Value</span>
                       </div>
                       <Input
                         placeholder="0.00"
                         value={discountValue}
                         onChange={(e) => setDiscountValue(parseInt(e.target.value))}
-                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                       />
                     </div>
 
                     <div className="my-6 flex flex-col gap-2">
-                      <div className="flex justify-between text-[#9F9FA9] ">
+                      <div className={`flex justify-between ${isDark ? "text-[#9F9FA9]" : "text-[#000000]"}`}>
                         <p>Subtotal</p>
                         <p>$ 2211.00</p>
                       </div>
-                      <div className="flex justify-between text-[#E8D1AB] font-medium ">
+                      <div className={`flex justify-between font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>
                         <p>Discount Applied </p>
                         <p>- $ 211.00</p>
                       </div>
                     </div>
 
-                    <div className="bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center ">
-                      <span className="text-sm lg:text-xl font-medium text-white">After Discount</span>
-                      <span className="text-lg lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
+                    <div className={`rounded-xl p-4 lg:p-6 flex justify-between items-center ${isDark ? "bg-[#282727] " : "bg-[#FFF7E6] border border-[#E8D1AB]"}`}>
+                      <span className={`text-sm lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>After Discount</span>
+                      <span className={`text-lg lg:text-2xl font-semibold tracking-tight ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
                         {/* This needs to be updated  */}
                         $ 2000.00
                       </span>
                     </div>
                   </div>
                 </>
-
               ) : (
                 <div className="flex flex-col gap-5 items-center justify-center my-4 lg:my-12">
                   <Image
-                    src={"/images/misc/DiscountTag.svg"}
+                    src={isDark ? "/images/misc/DiscountTag.svg" : "/images/misc/DiscountTagWhite.svg"}
                     width={132}
                     height={132}
                     alt="Discount Tag"
                   />
-                  <p className="text-white text-base">
+                  <p className={isDark ? "text-white" : "text-black"}>
                     No discount applied to this quote
                   </p>
                 </div>
@@ -1410,13 +1411,13 @@ export default function CreateQuotePage() {
           ) : view === 'tax' ? (
             <div>
               <div className="p-4 pt-5 lg:p-8 lg:pt-10">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">Tax</h2>
-                <p className="text-sm text-[#A1A1AA]">Configure tax rate and type for this quotation</p>
+                <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>Tax</h2>
+                <p className={`text-sm  ${isDark ? "text-[#A1A1AA]" : "text-[#000000B2]"}`}>Configure tax rate and type for this quotation</p>
               </div>
-              <hr className="border-t border-[#3D3D3D]" />
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
               <div className="p-4 lg:p-9">
-                <h3 className={`text-base lg:text-lg font-medium tracking-tight text-white`}>
+                <h3 className={`text-base lg:text-lg font-medium tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                   Common Tax Rates
                 </h3>
 
@@ -1424,12 +1425,12 @@ export default function CreateQuotePage() {
                   <button
                     onClick={() => setSelectedTax(0)}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 0
-                      ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                      : "bg-[#171717] border-[#222222] hover:border-[#333333]"
+                      ? (isDark ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]" : "bg-[#FFF7E6] border-[#E8D1AB]")
+                      : (isDark ? "bg-[#171717] border-[#222222] hover:border-[#333333]" : "bg-white border-[#d7d7d7]")
                       }`}
                   >
                     <div>
-                      <p className={`${selectedTax === 0 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                      <p className={`${selectedTax === 0 ? (isDark ? "text-[#E8D1AB]" : "text-black") : (isDark ? "text-white" : "text-[#00000099]")} font-semibold text-sm lg:text-base `}>
                         0 %
                       </p>
                     </div>
@@ -1437,12 +1438,12 @@ export default function CreateQuotePage() {
                   <button
                     onClick={() => setSelectedTax(5)}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 5
-                      ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                      : "bg-[#171717] border-[#222222] hover:border-[#333333]"
+                      ? (isDark ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]" : "bg-[#FFF7E6] border-[#E8D1AB]")
+                      : (isDark ? "bg-[#171717] border-[#222222] hover:border-[#333333]" : "bg-white border-[#d7d7d7]")
                       }`}
                   >
                     <div>
-                      <p className={`${selectedTax === 5 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                      <p className={`${selectedTax === 0 ? (isDark ? "text-[#E8D1AB]" : "text-black") : (isDark ? "text-white" : "text-[#00000099]")} font-semibold text-sm lg:text-base `}>
                         5 %
                       </p>
                     </div>
@@ -1450,12 +1451,12 @@ export default function CreateQuotePage() {
                   <button
                     onClick={() => setSelectedTax(8.5)}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 8.5
-                      ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                      : "bg-[#171717] border-[#222222] hover:border-[#333333]"
+                      ? (isDark ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]" : "bg-[#FFF7E6] border-[#E8D1AB]")
+                      : (isDark ? "bg-[#171717] border-[#222222] hover:border-[#333333]" : "bg-white border-[#d7d7d7]")
                       }`}
                   >
                     <div>
-                      <p className={`${selectedTax === 8.5 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                      <p className={`${selectedTax === 0 ? (isDark ? "text-[#E8D1AB]" : "text-black") : (isDark ? "text-white" : "text-[#00000099]")} font-semibold text-sm lg:text-base `}>
                         8.5 %
                       </p>
                     </div>
@@ -1463,12 +1464,12 @@ export default function CreateQuotePage() {
                   <button
                     onClick={() => setSelectedTax(10)}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 10
-                      ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                      : "bg-[#171717] border-[#222222] hover:border-[#333333]"
+                      ? (isDark ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]" : "bg-[#FFF7E6] border-[#E8D1AB]")
+                      : (isDark ? "bg-[#171717] border-[#222222] hover:border-[#333333]" : "bg-white border-[#d7d7d7]")
                       }`}
                   >
                     <div>
-                      <p className={`${selectedTax === 10 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                      <p className={`${selectedTax === 0 ? (isDark ? "text-[#E8D1AB]" : "text-black") : (isDark ? "text-white" : "text-[#00000099]")} font-semibold text-sm lg:text-base `}>
                         10 %
                       </p>
                     </div>
@@ -1476,67 +1477,65 @@ export default function CreateQuotePage() {
                 </div>
               </div>
 
-              <hr className="border-t border-[#3D3D3D]" />
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
               <div className="p-4 lg:p-9">
-                <h3 className={`text-base lg:text-lg font-medium tracking-tight text-white mb-3 lg:mb-6`}>
+                <h3 className={`text-base lg:text-lg font-medium tracking-tight ${isDark ? "text-white" : "text-black"} mb-3 lg:mb-6`}>
                   Tax Calculation
                 </h3>
 
-                <div className="bg-[#282727] rounded-xl p-4 lg:p-6 ">
+                <div className={`rounded-xl p-4 lg:p-6 ${isDark ? "bg-[#282727]" : "bg-[#F4F5F7] border border-[#D7D7D7]"}`}>
                   <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">Subtotal</span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                    <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-black"}`}>Subtotal</span>
+                    <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-black"} tracking-tight `}>
                       $5,550.00
                     </span>
                   </div>
-                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                  <div className={`my-4 lg:my-6 border-t ${isDark ? "border-[#FFFFFF33]" : "border-[#00000033]"}`} />
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm lg:text-base text-white font-medium">Amount Before Tax</span>
-                    <span className="text-sm lg:text-base text-white font-medium tracking-tight">
+                    <span className={`text-sm lg:text-base font-medium ${isDark ? "text-text" : "text-black"}`}>Amount Before Tax</span>
+                    <span className={`text-sm lg:text-base font-medium tracking-light ${isDark ? "text-text" : "text-black"}`}>
                       $5,550.00
                     </span>
                   </div>
                   <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">Sales Tax (8.5%)</span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                    <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#565656]"}`}>Sales Tax (8.5%)</span>
+                    <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#565656]"} tracking-tight `}>
                       $471.75
                     </span>
                   </div>
-
-                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                  <div className={`my-4 lg:my-6 border-t ${isDark ? "border-[#FFFFFF33]" : "border-[#00000033]"}`} />
 
                   <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-xl font-medium text-white">Final Total</span>
-                    <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
+                    <span className={`text-sm lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>Final Total</span>
+                    <span className={`text-sm lg:text-2xl font-semibold tracking-tight ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
                       $ 2000.00
                     </span>
                   </div>
-
                 </div>
               </div>
 
-              <hr className="border-t border-[#3D3D3D]" />
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
               <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full p-4 pt-6 lg:p-9">
                 <div className="w-full relative">
-                  <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                    <span className="text-xs text-[#8A8A8A] font-normal">Tax Rate (%)</span>
+                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Tax Rate (%)</span>
                   </div>
                   <Input
                     placeholder="0.00"
                     value={taxRate}
                     onChange={(e) => setTaxRate(parseInt(e.target.value))}
-                    className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                    className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                   />
                 </div>
                 <div className="w-full relative">
-                  <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                    <span className="text-xs text-[#8A8A8A] font-normal">Tax Type</span>
+                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm"`}>Tax Type</span>
                   </div>
                   <Input
                     placeholder="Sales Tax"
                     value={taxtType}
                     onChange={(e) => setTaxType(e.target.value)}
-                    className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                    className={`h-15 lg:h-[84px] bg-transparent rounded-[14px] pl-7 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-[#4A4A4A] focus:border-[#A78857] placeholder:text-[#666666]" : "border-[#00000080] text-black placeholder:text-[#0000004D]"}`}
                   />
                 </div>
               </div>
@@ -1545,66 +1544,66 @@ export default function CreateQuotePage() {
             /* Client Details View */
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="px-5 pt-5 lg:px-8 lg:pt-8">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">Client Information</h2>
-                <p className="text-sm text-[#A1A1AA]">Select an existing client or create a new one</p>
+                <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>Client Information</h2>
+                <p className={`text-sm  ${isDark ? "text-[#A1A1AA]" : "text-[#000000B2]"}`}>Select an existing client or create a new one</p>
               </div>
-              <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
+              <hr className={`my-4 lg:my-8 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000033]"}`} />
 
               <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-6 lg:space-y-8 ">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="relative">
-                    <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#FFFFFF99] font-medium">Client Name*</span>
+                    <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm font-medium"`}>Client Name*</span>
                     </div>
                     <Input
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                      className={`h-16 bg-transparent rounded-xl transition-all pl-6 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-zinc-800 " : "border-[#00000080] text-black"}`}
                     />
                   </div>
                   <div className="relative">
-                    <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#FFFFFF99] font-medium">Email ID*</span>
+                    <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm font-medium"`}>Email ID*</span>
                     </div>
                     <Input
                       value={emailId}
                       onChange={(e) => setEmailId(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                      className={`h-16 bg-transparent rounded-xl transition-all pl-6 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-zinc-800 " : "border-[#00000080] text-black"}`}
                     />
                   </div>
                   <div className="relative">
-                    <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#FFFFFF99] font-medium">Phone Number*</span>
+                    <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                      <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm font-medium"`}>Phone Number*</span>
                     </div>
                     <Input
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                      className={`h-16 bg-transparent rounded-xl transition-all pl-6 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-zinc-800 " : "border-[#00000080] text-black"}`}
                     />
                   </div>
                 </div>
 
                 <div className="relative">
-                  <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#FFFFFF99] font-medium">Address*</span>
+                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} text-sm font-medium`}>Address*</span>
                   </div>
                   <Input
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="567 Mission Street, San Francisco, CA 94105"
-                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                    className={`h-16 bg-transparent rounded-xl transition-all pl-6 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-zinc-800 " : "border-[#00000080] text-black"}`}
                   />
                 </div>
 
                 <div className="relative">
-                  <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#FFFFFF99] font-medium">Project Description*</span>
+                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`${isDark ? "text-[#FFFFFF99]" : "text-[#00000099]"} "text-sm font-medium"`}>Project Description*</span>
                   </div>
                   <Textarea
                     value={projectDescription}
                     onChange={(e) => setProjectDescription(e.target.value)}
                     placeholder="Describe the project scope and requirements....."
-                    className="min-h-[120px] bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8 text-sm lg:text-base"
+                    className={`min-h-[120px] bg-transparent rounded-xl transition-all p-6 pt-8 text-sm lg:text-base ${isDark ? "text-white focus:border-[#E8D1AB]/50 border-zinc-800 " : "border-[#00000080] text-black"}`}
                   />
                 </div>
                 {/* <div className="relative">
@@ -1628,8 +1627,8 @@ export default function CreateQuotePage() {
                         key={days}
                         onClick={() => handleValiditySelect(days)}
                         className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === days
-                          ? 'bg-[#1D1A15] border-[#E8D1AB]/40 text-[#E8D1AB]'
-                          : 'bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                          ? (isDark ? 'bg-[#1D1A15] border-[#E8D1AB]/40 text-[#E8D1AB]' : 'bg-[#FFF7E6] border-[#E8D1AB] text-[#000]')
+                          : (isDark ? 'bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700' : 'bg-white border-[#00000080] text-[#00000099]')
                           }`}
                       >
                         {days} Days
@@ -1638,8 +1637,8 @@ export default function CreateQuotePage() {
                     <button
                       onClick={() => handleValiditySelect('custom')}
                       className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === 'custom'
-                        ? 'bg-[#1D1A15] border-[#E8D1AB]/40 text-[#E8D1AB]'
-                        : 'bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                        ? (isDark ? 'bg-[#1D1A15] border-[#E8D1AB]/40 text-[#E8D1AB]' : 'bg-[#FFF7E6] border-[#E8D1AB] text-[#000]')
+                        : (isDark ? 'bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700' : 'bg-white border-[#00000080] text-[#00000099]')
                         }`}
                     >
                       Add Custom Date
@@ -1647,8 +1646,8 @@ export default function CreateQuotePage() {
                   </div>
 
                   <div className="flex items-center gap-2 text-zinc-400 text-sm mb-8">
-                    <Check size={16} className="text-[#E8D1AB]" />
-                    <span className="text-[#E8D1AB]/80 font-medium">This quote is valid for {validityDays === 'custom' ? 'X' : validityDays} days from today.</span>
+                    <Check size={16} className={isDark ? "text-[#E8D1AB]" : "text-[#C99642]"} />
+                    <span className={`font-medium ${isDark ? "text-[#E8D1AB]/80" : "text-[#C99642]"}`}>This quote is valid for {validityDays === 'custom' ? 'X' : validityDays} days from today.</span>
                   </div>
 
                   <div className="relative pt-4">
@@ -1660,16 +1659,17 @@ export default function CreateQuotePage() {
                           setValidUntil(format(date, "yyyy-MM-dd"));
                         }
                       }}
+                      isDark={isDark}
                       disabled={validityDays !== 'custom'}
                       format="dd-MM-yyyy"
                       colors={{
                         inputBackground: "transparent",
-                        inputText: "#F5F5F5",
-                        inputDisabled: "rgba(214, 195, 157, 0.9)",
-                        iconColor: "#FFFFFF",
-                        labelText: "rgba(113, 113, 122, 1)",
-                        inputBorder: "rgba(39, 39, 42, 1)",
-                        inputBorderFocus: "rgba(229, 213, 184, 0.5)",
+                        inputText: isDark ? "#F5F5F5" : "#171717",
+                        inputDisabled: isDark ? "rgba(214, 195, 157, 0.9)" : "#171717",
+                        iconColor: isDark ? "#FFFFFF" : "#171717",
+                        labelText: isDark ? "rgba(113, 113, 122, 1)" : "rgba(113, 113, 122, 1)",
+                        inputBorder: isDark ? "rgba(39, 39, 42, 1)" : "#00000080",
+                        inputBorderFocus: isDark ? "rgba(229, 213, 184, 0.5)" : "#E8D1AB",
                       }}
                       sx={{
                         height: "64px", // h-16
@@ -1677,22 +1677,29 @@ export default function CreateQuotePage() {
                         "& .MuiOutlinedInput-root": {
                           borderRadius: "12px",
                           paddingLeft: "10px",
+                          backgroundColor: isDark ? "transparent" : "#FFFFFF",
                           "& fieldset": {
                             borderWidth: '1px',
+                            borderColor: isDark ? "rgba(39, 39, 42, 1)" : "#00000080",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: isDark ? "rgba(229, 213, 184, 0.5)" : "#E8D1AB",
                           }
                         },
                         "& .MuiInputBase-input": {
                           fontSize: "16px",
                           fontWeight: "500", // font-medium
-                          color: validityDays === 'custom' ? "white" : "rgba(113, 113, 122, 1)", // text-zinc-500
+                          color: validityDays === 'custom'
+                            ? (isDark ? "white" : "#171717")
+                            : "rgba(113, 113, 122, 1)",
                         },
                         "& .MuiInputBase-input.Mui-disabled": {
-                          WebkitTextFillColor: "rgba(214, 195, 157, 0.9)",
-                          color: "rgba(214, 195, 157, 0.9)",
+                          WebkitTextFillColor: isDark ? "rgba(214, 195, 157, 0.9)" : "rgba(161, 161, 170, 0.8)",
+                          color: isDark ? "rgba(214, 195, 157, 0.9)" : "rgba(161, 161, 170, 0.8)",
                           opacity: 1,
                         },
                         "& .Mui-disabled .MuiSvgIcon-root": {
-                          color: "#FFFFFF",
+                          color: isDark ? "#FFFFFF" : "rgba(161, 161, 170, 0.6)",
                           opacity: 1,
                         },
                       }}
@@ -1701,7 +1708,7 @@ export default function CreateQuotePage() {
                         top: "-10px",
                         left: "16px",
                         zIndex: 10,
-                        backgroundColor: "#0A0A0A",
+                        backgroundColor: isDark ? "#0A0A0A" : "#FFFFFF",
                         padding: "0 8px",
                         fontSize: "12px", // text-xs
                         fontWeight: "500", // font-medium
@@ -1721,18 +1728,28 @@ export default function CreateQuotePage() {
           <div className="flex gap-4">
             <Button
               variant="outline"
-              className="border border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818] h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all"
+              className={`border h-[62px] min-w-[166px] rounded-xl text-xl font-medium bg-transparent transition-all ${isDark ? "border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818]" : "bg-white border-[#e5e5e5] hover:bg-[#FFFFFF80] text-black"}`}
               onClick={handleBack}
             >
               Back
             </Button>
             <Button
-              className={`${(
-                view === 'selection' ? selectedClient :
-                  view === 'details' ? clientName :
-                    view === 'services' ? selectedServices.length > 0 :
-                      true // Add-ons are optional
-              ) ? 'bg-[#E8D1AB] text-[#101010]' : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
+              className={`h-[62px] min-w-[166px] rounded-xl text-xl font-medium transition-all shadow-md hover:opacity-90
+                ${(() => {
+                  const isEnabled = (
+                    view === 'selection' ? selectedClient :
+                      view === 'details' ? clientName :
+                        view === 'services' ? selectedServices.length > 0 :
+                          true
+                  );
+                  if (isEnabled) {
+                    return 'bg-[#E8D1AB] text-[#101010] cursor-pointer';
+                  } else {
+                    return isDark
+                      ? 'bg-[#2A2B2D] text-zinc-600 cursor-not-allowed'
+                      : 'bg-[#E8D1AB]/60 text-black/60 border border-[#E8D1AB]/60 cursor-not-allowed';
+                  }
+                })()}  `}
               disabled={!(
                 view === 'selection' ? selectedClient :
                   view === 'details' ? clientName :
@@ -1745,7 +1762,7 @@ export default function CreateQuotePage() {
             </Button>
           </div>
 
-          <Button className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg self-start sm:self-auto">
+          <Button className={`h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-medium transition-all group shadow-lg self-start sm:self-auto ${isDark ? "bg-white text-[#1B1B1B] hover:bg-zinc-100" : "bg-black text-white hover:bg-black/80 "}`}>
             <div className="flex items-center justify-center">
               <Save size={20} className="group-hover:scale-110 transition-transform" />
             </div>
@@ -1755,28 +1772,38 @@ export default function CreateQuotePage() {
       </div>
 
       {/* --- FLOATING MOBILE BUTTON --- */}
-      <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f] items-center">
-        <Button className="underline text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all">
+      <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] items-center ${isDark ? "bg-[#0f0f0f]" : "bg-[#F3F4F6]"}`}>
+        <Button className={`underline h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all ${isDark ? "text-white hover:text-[#181818]" : "text-black"}`}>
           <div className="flex items-center justify-center">
-            <Save size={20} className="group-hover:scale-110 transition-transform" />
+            <Save size={24} className="transition-transform" />
           </div>
           Save as Draft
         </Button>
         <div className="flex gap-2">
           <Button
             variant="outline"
-            className="border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
+            className={`border h-14 min-w-[166px] rounded-xl text-sm font-semibold bg-transparent transition-all ${isDark ? "border-[#363636] text-[#7A7A7A] hover:text-white hover:bg-[#181818]" : "bg-white border-[#e5e5e5] hover:bg-[#FFFFFF80] text-black"}`}
             onClick={handleBack}
           >
             Back
           </Button>
           <Button
-            className={`${(
-              view === 'selection' ? selectedClient :
-                view === 'details' ? clientName :
-                  view === 'services' ? selectedServices.length > 0 :
-                    true // Add-ons are optional
-            ) ? 'bg-[#E8D1AB] text-[#101010]' : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
+            className={`h-14 min-w-[166px] rounded-xl text-sm font-semibold transition-all shadow-md hover:opacity-90
+              ${(() => {
+                const isEnabled = (
+                  view === 'selection' ? selectedClient :
+                    view === 'details' ? clientName :
+                      view === 'services' ? selectedServices.length > 0 :
+                        true
+                );
+                if (isEnabled) {
+                  return 'bg-[#E8D1AB] text-[#101010] cursor-pointer';
+                } else {
+                  return isDark
+                    ? 'bg-[#2A2B2D] text-zinc-600 cursor-not-allowed'
+                    : 'bg-[#E8D1AB]/60 text-black/60 border border-[#E8D1AB]/60 cursor-not-allowed';
+                }
+              })()}  `}
             disabled={!(
               view === 'selection' ? selectedClient :
                 view === 'details' ? clientName :

@@ -248,13 +248,12 @@ export default function QuoteSummaryPage() {
       </div>
 
       {/* --- FLOATING MOBILE BUTTON --- */}
-      <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f] items-center">
-        <Button onClick={() => console.log("Copy Link")} className="bg-[#202020] text-white hover:bg-[#202020]/50 border border-[#FFFFFF33]">
+      <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 p-6 z-[40] ${isDark ? "bg-[#0f0f0f]":"bg-[#F3F4F6]"} items-center`}>
+        <Button onClick={() => console.log("Copy Link")} className={isDark ?`text-white hover:text-white/80`:`text-black hover:text-black/80`}>
           <Copy />Copy Link
         </Button>
         <div className="flex gap-2">
-
-          <Button onClick={() => console.log("Download PDF")} className="bg-[#202020] text-white hover:bg-[#202020]/50 border border-[#FFFFFF33]">
+          <Button onClick={() => console.log("Download PDF")} className={isDark ?`bg-[#202020] text-white hover:bg-[#202020]/50 border border-[#FFFFFF33]`:`bg-[#FFFFFF] text-black hover:bg-[#FFFFFF]/50 border border-[#00000033]`}>
             <ArrowDownToLine /> Download PDF
           </Button>
           <Button onClick={() => router.push("/admin/quotes/preview")} className="bg-[#E5D5B8] text-black">
