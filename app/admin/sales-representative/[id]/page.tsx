@@ -694,7 +694,7 @@ export default function LeadDetailPage() {
               <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
                 {/* <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Base Price</span>
-                  <span className="text-sm lg:text-base text-white">${basePrice.toLocaleString()}</span>
+                  <span className="text-xs lg:text-base font-medium text-white">${basePrice.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Editing Fee</span>
@@ -707,31 +707,31 @@ export default function LeadDetailPage() {
                 {[["Base Price", basePrice], ["Editing Fee", editingCost], ["Additional Creatives", additionalCreatives]].map(([label, val]) => (
                   <div key={label as string} className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">{label}</span>
-                    <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>${(val as number).toLocaleString()}</span>
+                    <span className={`text-xs lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>${(val as number).toLocaleString()}</span>
                   </div>
                 ))}
                 {discountCodeValue && (
                   <div className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">Discount Code</span>
-                    <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>{discountCodeValue}</span>
+                    <span className={`text-xs lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>{discountCodeValue}</span>
                   </div>
                 )}
                 {discountCodeDiscount > 0 && (
                   <div className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">Discount Code Discount</span>
-                    <span className="text-sm lg:text-base text-red-400">-${discountCodeDiscount.toLocaleString()}</span>
+                    <span className="text-xs lg:text-base font-medium text-red-400">-${discountCodeDiscount.toLocaleString()}</span>
                   </div>
                 )}
                 {referralInfo.code && (
                   <div className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">Referral Code</span>
-                    <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>{referralInfo.code}</span>
+                    <span className={`text-xs lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>{referralInfo.code}</span>
                   </div>
                 )}
                 {referralDiscountAmount > 0 && (
                   <div className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">Referral Discount</span>
-                    <span className="text-sm lg:text-base text-red-400">-${referralDiscountAmount.toLocaleString()}</span>
+                    <span className="text-xs lg:text-base font-medium text-red-400">-${referralDiscountAmount.toLocaleString()}</span>
                   </div>
                 )}
               </div>

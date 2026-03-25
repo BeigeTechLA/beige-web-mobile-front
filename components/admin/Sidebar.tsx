@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { Settings } from "@mui/icons-material";
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
@@ -22,6 +23,8 @@ const menuItems = [
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
+  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions' },
+
   // { name: 'Quotes', icon: FileText, link: '/admin/quotes' },
 ];
 

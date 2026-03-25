@@ -236,7 +236,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         </div >
 
         {/* Right Sidebar (Timeline) */}
-        < div className="hidden lg:block" >
+        < div className="hidden lg:block overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]" >
           <ProjectTimeline />
         </div >
 
