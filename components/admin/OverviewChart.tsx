@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Camera, Film, Users, UsersRound, Video } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from "next-themes";
 import {

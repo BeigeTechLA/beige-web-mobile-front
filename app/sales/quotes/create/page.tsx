@@ -23,15 +23,16 @@ import {
   DollarSign,
   ArrowLeft
 } from "lucide-react";
-import Topbar from "@/components/admin/Topbar";
+import Topbar from "@/components/sales/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
-import { format, addDays, parseISO, isValid } from "date-fns";
+import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
 import { salesApi } from "@/lib/api";
+import { toast } from "react-hot-toast";
 
 const clients = [
 // Dynamic client fetching replaces hardcoded array
@@ -96,11 +97,11 @@ export default function CreateQuotePage() {
   type DiscountType = "percentage" | "fixed";
   const [discountEnabled, setDiscountEnabled] = useState(false);
   const [discountType, setDiscountType] = useState<DiscountType>("percentage");
-  const [discountValue, setDiscountValue] = useState(0)
+  const [discountValue, setDiscountValue] = useState<number | string>(0)
 
   // Step 7: Discount 
   const [selectedTax, setSelectedTax] = useState<0 | 5 | 8.5 | 10>(0);
-  const [taxRate, setTaxRate] = useState(0)
+  const [taxRate, setTaxRate] = useState<number | string>(0)
   const [taxtType, setTaxType] = useState("")
 
   // Configuration for each selected service
@@ -122,7 +123,7 @@ export default function CreateQuotePage() {
     "photography": <Camera size={20} />,
     "ai_editing": <Scissors size={20} />,
     "livestream": <Radio size={20} />,
-    "location": <MapPin size={20} />,
+    "studio": <MapPin size={20} />,
   };
 
   const fetchClients = async (query?: string) => {
@@ -153,54 +154,6 @@ export default function CreateQuotePage() {
   }, [searchQuery]);
 
   React.useEffect(() => {
-    const fetchCatalog = async () => {
-      setLoadingServices(true);
-      try {
-        const res = await salesApi.getQuoteCatalog();
-        if (!res.error && res.data) {
-          const { service, addon, logistics } = res.data;
-
-          if (service) {
-            const mappedServices = service.map((item: any) => ({
-              id: item.catalog_item_id.toString(),
-              label: item.name,
-              price: parseFloat(item.effective_rate) || 0,
-              icon: serviceIcons[item.name.toLowerCase()] || <Plus size={20} />
-            }));
-            setServices(mappedServices);
-          }
-
-          if (addon) {
-            const mappedAddons = addon.map((item: any) => ({
-              id: item.catalog_item_id.toString(),
-              label: item.name,
-              price: parseFloat(item.effective_rate) || 0
-            }));
-            setAddons(mappedAddons);
-          }
-
-          if (logistics) {
-            const mappedLogistics = logistics.map((item: any) => ({
-              id: item.catalog_item_id.toString(),
-              label: item.name,
-              basePrice: parseFloat(item.effective_rate) || 0
-            }));
-            setLogisticsItems(mappedLogistics);
-
-            // Initialize logistics configs
-            const configs: Record<string, { price: number }> = {};
-            mappedLogistics.forEach((item: any) => {
-              configs[item.id] = { price: item.basePrice };
-            });
-            setLogisticsConfigs(configs);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch catalog", error);
-      } finally {
-        setLoadingServices(false);
-      }
-    };
     fetchCatalog();
   }, []);
 
@@ -222,8 +175,8 @@ export default function CreateQuotePage() {
     try {
       const res = await salesApi.getShootTypes(typeParam);
       if (!res.error && res.data) {
-        const mappedShootTypes = res.data.map((item: any) => ({
-          id: item.shoot_type_id.toString(),
+        const mappedShootTypes = res.data.map((item: any, idx: number) => ({
+          id: (item.shoot_type_id || `st-${idx}`).toString(),
           label: item.name
         }));
         setShootTypes(mappedShootTypes);
@@ -291,10 +244,10 @@ export default function CreateQuotePage() {
           }));
         }
       }
-
+      
       // Fetch shoot types if video or photo is selected
       fetchShootTypes(newSelected);
-
+      
       return newSelected;
     });
   };
@@ -351,6 +304,7 @@ export default function CreateQuotePage() {
     } else {
       // Logic for next major step (Step 4)
       router.push("/sales/quotes/preview")
+      console.log("Moving to Step 4...");
     }
   };
 
@@ -399,9 +353,198 @@ export default function CreateQuotePage() {
     setDiscountType(type);
   };
 
+  const handleWholeNumberInput = (value: string) => {
+    return value.replace(/\D/g, "");
+  };
+
+  const handleDecimalInput = (value: string) => {
+    const normalizedValue = value.replace(/[^\d.]/g, "");
+    const firstDecimalIndex = normalizedValue.indexOf(".");
+
+    if (firstDecimalIndex === -1) {
+      return normalizedValue;
+    }
+
+    const integerPart = normalizedValue.slice(0, firstDecimalIndex + 1);
+    const decimalPart = normalizedValue.slice(firstDecimalIndex + 1).replace(/\./g, "");
+    return `${integerPart}${decimalPart}`;
+  };
+
   // const handleTaxRate = (taxRate) => {
   //   setDiscountType(taxRate);
   // };
+
+  const hasVideoService = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || selectedServices.includes("videography");
+  const hasPhotoService = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "photography") || selectedServices.includes("photography");
+  const hasAiEditingService = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "ai editing") || selectedServices.includes("ai_editing");
+  const [isSubmittingService, setIsSubmittingService] = React.useState(false);
+
+  const fetchCatalog = async () => {
+    setLoadingServices(true);
+    try {
+      const res = await salesApi.getQuoteCatalog();
+      if (!res.error && res.data) {
+        const { service, addon, logistics } = res.data;
+
+        if (service) {
+          const mappedServices = service.map((item: any, idx: number) => {
+            const name = item.name.toLowerCase() === "location" ? "Studio" : item.name;
+            return {
+              id: (item.catalog_item_id || `svc-${idx}`).toString(),
+              label: name,
+              price: parseFloat(item.effective_rate) || 0,
+              icon: serviceIcons[name.toLowerCase()] || <Plus size={20} />
+            };
+          });
+          setServices(mappedServices);
+        }
+
+        if (addon) {
+          const mappedAddons = addon.map((item: any, idx: number) => ({
+            id: (item.catalog_item_id || `add-${idx}`).toString(),
+            label: item.name,
+            price: parseFloat(item.effective_rate) || 0
+          }));
+          setAddons(mappedAddons);
+        }
+
+        if (logistics) {
+          const mappedLogistics = logistics.map((item: any, idx: number) => ({
+            id: (item.catalog_item_id || `log-${idx}`).toString(),
+            label: item.name,
+            basePrice: parseFloat(item.effective_rate) || 0
+          }));
+          setLogisticsItems(mappedLogistics);
+          
+          // Initialize logistics configs
+          const configs: Record<string, { price: number }> = {};
+          mappedLogistics.forEach((item: any) => {
+            configs[item.id] = { price: item.basePrice };
+          });
+          setLogisticsConfigs(configs);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch catalog", error);
+    } finally {
+      setLoadingServices(false);
+    }
+  };
+
+  const handleCreateService = async () => {
+    if (!customServiceName || !customServiceCost) return;
+
+    setIsSubmittingService(true);
+    try {
+      const res = await salesApi.createQuoteCatalog({
+        section_type: "service",
+        name: customServiceName,
+        default_rate: parseFloat(customServiceCost.replace(/[^0-9.]/g, '')) || 0,
+        rate_type: "per_hour",
+        rate_unit: "per hour"
+      });
+
+      if (res && !res.error) {
+        // Success
+        setCustomServiceName("");
+        setCustomServiceCost("");
+        setShowAddServiceForm(false);
+        // Refetch the catalog to show the new service
+        await fetchCatalog();
+      } else {
+        console.error("Failed to create service:", res?.error || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Error creating service:", error);
+    } finally {
+      setIsSubmittingService(false);
+    }
+  };
+
+  const handleDeleteCatalogItem = async (id: string, type: 'service' | 'addon') => {
+    if (!confirm(`Are you sure you want to delete this ${type}? This action cannot be undone.`)) return;
+
+    try {
+      const res = await salesApi.deleteQuoteCatalog(id);
+      if (res && !res.error) {
+        // Refresh catalog
+        await fetchCatalog();
+        // Remove from selected if it was selected
+        if (type === 'service') {
+          setSelectedServices(prev => prev.filter(sid => sid !== id));
+        } else {
+          setSelectedAddons(prev => prev.filter(aid => aid !== id));
+        }
+      } else {
+        console.error(`Failed to delete ${type}:`, res?.error || "Unknown error");
+        alert(`Failed to delete ${type}: ${res?.error || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error(`Error deleting ${type}:`, error);
+    }
+  };
+
+  const [isSubmittingShootType, setIsSubmittingShootType] = React.useState(false);
+
+  const handleCreateShootType = async () => {
+    if (!customShootType) return;
+
+    setIsSubmittingShootType(true);
+    try {
+      // Determine content_type based on active services
+      const hasVideo = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || selectedServices.includes("videography");
+      const contentType = hasVideo ? 1 : 2;
+
+      const res = await salesApi.createShootType({
+        name: customShootType,
+        content_type: contentType
+      });
+
+      if (res && !res.error) {
+        setCustomShootType("");
+        setShowAddShootTypeForm(false);
+        // Refresh shoot types list
+        await fetchShootTypes(selectedServices);
+      } else {
+        console.error("Failed to create shoot type:", res?.error || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Error creating shoot type:", error);
+    } finally {
+      setIsSubmittingShootType(false);
+    }
+  };
+
+  const [isSubmittingAddon, setIsSubmittingAddon] = React.useState(false);
+
+  const handleCreateAddon = async () => {
+    if (!customAddonName || !customAddonCost) return;
+
+    setIsSubmittingAddon(true);
+    try {
+      const res = await salesApi.createQuoteCatalog({
+        section_type: "addon",
+        name: customAddonName,
+        default_rate: parseFloat(customAddonCost.replace(/[^0-9.]/g, '')) || 0,
+        rate_type: "fixed",
+        rate_unit: "fixed"
+      });
+
+      if (res && !res.error) {
+        setCustomAddonName("");
+        setCustomAddonCost("");
+        setShowAddAddonForm(false);
+        // Refresh catalog
+        await fetchCatalog();
+      } else {
+        console.error("Failed to create addon:", res?.error || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Error creating addon:", error);
+    } finally {
+      setIsSubmittingAddon(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white">
@@ -429,7 +572,7 @@ export default function CreateQuotePage() {
           </button>
 
           <div className="text-right">
-            <Button onClick={() => router.push("/admin/quotes/summary")} className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black">
+            <Button onClick={() => router.push("/sales/quotes/summary")} className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black">
               View Quote Summary
             </Button>
             <span className="hidden lg:block text-base font-semibold text-white">
@@ -515,9 +658,12 @@ export default function CreateQuotePage() {
                               >
                                 <Trash2 size={18} />
                               </button>
-                              <div className="text-green-500">
+                              <button
+                                onClick={() => toast.success(`${item.label} changes applied!`)}
+                                className="text-green-500 hover:text-green-400 transition-colors"
+                              >
                                 <Check size={18} strokeWidth={3} />
-                              </div>
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -640,27 +786,44 @@ export default function CreateQuotePage() {
                         exit={{ opacity: 0, y: -10 }}
                         className="grid grid-cols-1 md:grid-cols-12 gap-6"
                       >
-                        <div className="md:col-span-8 relative">
-                          <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                            <span className="text-xs text-[#8A8A8A] font-normal">Add-on Name</span>
+                        <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
+                          <div className="flex-1 relative w-full">
+                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                              <span className="text-xs text-[#8A8A8A] font-normal">Add-on Name</span>
+                            </div>
+                            <Input
+                              placeholder="Eg : 4K RAW Recording"
+                              value={customAddonName}
+                              onChange={(e) => setCustomAddonName(e.target.value)}
+                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                            />
                           </div>
-                          <Input
-                            placeholder="Eg : 4K RAW Recording"
-                            value={customAddonName}
-                            onChange={(e) => setCustomAddonName(e.target.value)}
-                            className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                          />
-                        </div>
-                        <div className="md:col-span-4 relative">
-                          <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                            <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                          <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
+                            <div className="flex-1 relative">
+                              <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                                <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                              </div>
+                              <Input
+                                placeholder="$ 0.00"
+                                value={customAddonCost}
+                                onChange={(e) => setCustomAddonCost(e.target.value)}
+                                className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                              />
+                            </div>
+                            <button
+                              onClick={handleCreateAddon}
+                              disabled={isSubmittingAddon || !customAddonName || !customAddonCost}
+                              className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${isSubmittingAddon || !customAddonName || !customAddonCost 
+                                ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50' 
+                                : 'bg-[#0DC752] text-black hover:bg-[#0bb54a]'}`}
+                            >
+                              {isSubmittingAddon ? (
+                                <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                              ) : (
+                                <Check size={24} strokeWidth={3} />
+                              )}
+                            </button>
                           </div>
-                          <Input
-                            placeholder="$ 0.00"
-                            value={customAddonCost}
-                            onChange={(e) => setCustomAddonCost(e.target.value)}
-                            className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                          />
                         </div>
                       </motion.div>
                     )}
@@ -673,8 +836,8 @@ export default function CreateQuotePage() {
                 <>
                   <hr className="border-t border-[#3D3D3D]" />
                   <section className="p-4 lg:p-9">
-                    <div className="mb-8">
-                      <h2 className="text-xl font-medium text-white">Selected Add-Ons</h2>
+                    <div className="mb-4 lg:mb-8">
+                      <h2 className="text-base lg:text-xl font-medium text-white">Selected Add-Ons</h2>
                     </div>
 
                     <div className="space-y-4">
@@ -702,7 +865,7 @@ export default function CreateQuotePage() {
                                     <Minus size={16} strokeWidth={2.5} />
                                   </button>
                                   <div className="w-16 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-zinc-400 font-normal text-sm">
-                                    Qty
+                                    {config.quantity}
                                   </div>
                                   <button
                                     onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity + 1)}
@@ -738,9 +901,12 @@ export default function CreateQuotePage() {
                                   >
                                     <Trash2 size={18} />
                                   </button>
-                                  <div className="text-green-500">
+                                  <button
+                                    onClick={() => toast.success(`${addon.label} changes applied!`)}
+                                    className="text-green-500 hover:text-green-400 transition-colors"
+                                  >
                                     <Check size={18} strokeWidth={3} />
-                                  </div>
+                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -778,9 +944,12 @@ export default function CreateQuotePage() {
                                 >
                                   <Trash2 size={18} />
                                 </button>
-                                <div className="text-green-500">
+                                <button
+                                  onClick={() => toast.success(`${addon.label} changes applied!`)}
+                                  className="text-green-500 hover:text-green-400 transition-colors"
+                                >
                                   <Check size={18} strokeWidth={3} />
-                                </div>
+                                </button>
                               </div>
 
                               <hr className="border-t border-[#3D3D3D]" />
@@ -793,7 +962,7 @@ export default function CreateQuotePage() {
                                   <Minus size={16} strokeWidth={2.5} />
                                 </button>
                                 <div className="w-full h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-zinc-400 font-normal text-sm">
-                                  Qty
+                                  {config.quantity}
                                 </div>
                                 <button
                                   onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity + 1)}
@@ -842,10 +1011,19 @@ export default function CreateQuotePage() {
                           ${service.price.toFixed(2)} <span className="text-[#71717B] font-medium text-xs lowercase ml-1">per hour</span>
                         </div>
                         {selectedServices.includes(service.id) && (
-                          <div className="absolute top-6 right-6 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none">
+                          <div className="absolute top-6 right-12 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none">
                             Selected
                           </div>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCatalogItem(service.id, 'service');
+                          }}
+                          className="absolute top-6 right-6 text-zinc-500 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </button>
                     ))}
                   </div>
@@ -867,27 +1045,44 @@ export default function CreateQuotePage() {
                           exit={{ opacity: 0, y: -10 }}
                           className="grid grid-cols-1 md:grid-cols-12 gap-6"
                         >
-                          <div className="md:col-span-8 relative">
-                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                              <span className="text-xs text-[#8A8A8A] font-normal">Service Name</span>
+                          <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
+                            <div className="flex-1 relative w-full">
+                              <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                                <span className="text-xs text-[#8A8A8A] font-normal">Service Name</span>
+                              </div>
+                              <Input
+                                placeholder="Eg : Post Production Editing"
+                                value={customServiceName}
+                                onChange={(e) => setCustomServiceName(e.target.value)}
+                                className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
+                              />
                             </div>
-                            <Input
-                              placeholder="Eg : Post Production Editing"
-                              value={customServiceName}
-                              onChange={(e) => setCustomServiceName(e.target.value)}
-                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
-                            />
-                          </div>
-                          <div className="md:col-span-4 relative">
-                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                              <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                            <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
+                              <div className="flex-1 relative">
+                                <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                                  <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                                </div>
+                                <Input
+                                  placeholder="$ 0.00"
+                                  value={customServiceCost}
+                                  onChange={(e) => setCustomServiceCost(e.target.value)}
+                                  className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
+                                />
+                              </div>
+                              <button
+                                onClick={handleCreateService}
+                                disabled={isSubmittingService || !customServiceName || !customServiceCost}
+                                className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${isSubmittingService || !customServiceName || !customServiceCost 
+                                  ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50' 
+                                  : 'bg-[#0DC752] text-black hover:bg-[#0bb54a]'}`}
+                              >
+                                {isSubmittingService ? (
+                                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                ) : (
+                                  <Check size={24} strokeWidth={3} />
+                                )}
+                              </button>
                             </div>
-                            <Input
-                              placeholder="$ 0.00"
-                              value={customServiceCost}
-                              onChange={(e) => setCustomServiceCost(e.target.value)}
-                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
-                            />
                           </div>
                         </motion.div>
                       )}
@@ -901,7 +1096,7 @@ export default function CreateQuotePage() {
                 <>
                   <div className="space-y-4 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {/* Shoot Type Section */}
-                    {(selectedServices.includes('videography') || selectedServices.includes('photography')) && (
+                    {(hasVideoService || hasPhotoService) && (
                       <section className="">
                         <hr className="border-t border-[#3D3D3D] mb-4 lg:mb-9" />
                         <div className="px-4 pt-4 pb-5 lg:px-8 lg:pb-10">
@@ -951,26 +1146,46 @@ export default function CreateQuotePage() {
                                     Add Video Shoot Type
                                   </Button>
 
-                                  <AnimatePresence>
-                                    {showAddShootTypeForm && (
-                                      <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="relative"
-                                      >
-                                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                          <span className="text-xs text-[#8A8A8A] font-normal">Video Shoot Type Name</span>
-                                        </div>
-                                        <Input
-                                          placeholder="Eg : Real Estate.."
-                                          value={customShootType}
-                                          onChange={(e) => setCustomShootType(e.target.value)}
-                                          className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                                        />
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
+                                    <AnimatePresence>
+                                      {showAddShootTypeForm && (
+                                        <motion.div
+                                          initial={{ opacity: 0, y: -10 }}
+                                          animate={{ opacity: 1, y: 0 }}
+                                          exit={{ opacity: 0, y: -10 }}
+                                          className="flex gap-4 items-end"
+                                        >
+                                          <div className="flex-1 relative">
+                                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                                              <span className="text-xs text-[#8A8A8A] font-normal">
+                                                {selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || selectedServices.includes("videography")
+                                                  ? "Video Shoot Type Name"
+                                                  : "Photography Shoot Type Name"
+                                                }
+                                              </span>
+                                            </div>
+                                            <Input
+                                              placeholder="Eg : Real Estate.."
+                                              value={customShootType}
+                                              onChange={(e) => setCustomShootType(e.target.value)}
+                                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                                            />
+                                          </div>
+                                          <button
+                                            onClick={handleCreateShootType}
+                                            disabled={isSubmittingShootType || !customShootType}
+                                            className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${isSubmittingShootType || !customShootType 
+                                              ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50' 
+                                              : 'bg-[#0DC752] text-black hover:bg-[#0bb54a]'}`}
+                                          >
+                                            {isSubmittingShootType ? (
+                                              <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                            ) : (
+                                              <Check size={24} strokeWidth={3} />
+                                            )}
+                                          </button>
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
                                 </div>
                               </motion.div>
                             )}
@@ -980,7 +1195,7 @@ export default function CreateQuotePage() {
                     )}
 
                     {/* AI Editing Types Section - Only shown if AI Editing is selected */}
-                    {selectedServices.includes("ai_editing") && (
+                    {hasAiEditingService && (
                       <div className="">
                         <hr className="border-t border-[#3D3D3D]" />
                         <section className="px-4 pt-4 pb-5 lg:pt-8 lg:px-8 lg:pb-10">
@@ -1275,8 +1490,12 @@ export default function CreateQuotePage() {
                                 key={client.client_id}
                                 onClick={() => {
                                   setSelectedClient(client);
+                                  setClientName(client.name);
+                                  setEmailId(client.email || "");
+                                  setPhoneNumber(client.phone || "");
                                   setIsDropdownOpen(false);
                                   setSearchQuery("");
+                                  setView('details');
                                 }}
                                 className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${selectedClient?.client_id === client.client_id
                                   ? 'bg-[#FFFCE8] text-[#171717]'
@@ -1295,7 +1514,18 @@ export default function CreateQuotePage() {
                               </div>
                             ))}
 
-                            <button className="w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 border-t border-zinc-800/50 pt-6">
+                            <button
+                              onClick={() => {
+                                setSelectedClient(null);
+                                setClientName("");
+                                setEmailId("");
+                                setPhoneNumber("");
+                                setIsDropdownOpen(false);
+                                setSearchQuery("");
+                                setView('details');
+                              }}
+                              className="w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 border-t border-zinc-800/50 pt-6"
+                            >
                               <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
                                 <Plus size={16} className="text-[#171717]" />
                               </div>
@@ -1385,9 +1615,12 @@ export default function CreateQuotePage() {
                       >
                         <Trash2 size={18} />
                       </button>
-                      <div className="text-green-500">
+                      <button
+                        onClick={() => toast.success("Line item changes applied!")}
+                        className="text-green-500 hover:text-green-400 transition-colors"
+                      >
                         <Check size={18} strokeWidth={3} />
-                      </div>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1497,7 +1730,7 @@ export default function CreateQuotePage() {
                       <Input
                         placeholder="0.00"
                         value={discountValue}
-                        onChange={(e) => setDiscountValue(parseInt(e.target.value))}
+                        onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
                         className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
@@ -1654,7 +1887,7 @@ export default function CreateQuotePage() {
                   <Input
                     placeholder="0.00"
                     value={taxRate}
-                    onChange={(e) => setTaxRate(parseInt(e.target.value))}
+                    onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
                     className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                   />
                 </div>
@@ -1684,7 +1917,7 @@ export default function CreateQuotePage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#FFFFFF99] font-medium">Client Name*</span>
+                      <span className="text-sm text-[#D3D3D3] font-medium">Client Name*</span>
                     </div>
                     <Input
                       value={clientName}
@@ -1694,7 +1927,7 @@ export default function CreateQuotePage() {
                   </div>
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#FFFFFF99] font-medium">Email ID*</span>
+                      <span className="text-sm text-[#D3D3D3] font-medium">Email ID*</span>
                     </div>
                     <Input
                       value={emailId}
@@ -1704,7 +1937,7 @@ export default function CreateQuotePage() {
                   </div>
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                      <span className="text-sm text-[#FFFFFF99] font-medium">Phone Number*</span>
+                      <span className="text-sm text-[#D3D3D3] font-medium">Phone Number*</span>
                     </div>
                     <Input
                       value={phoneNumber}
@@ -1716,25 +1949,25 @@ export default function CreateQuotePage() {
 
                 <div className="relative">
                   <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#FFFFFF99] font-medium">Address*</span>
+                    <span className="text-sm text-[#D3D3D3] font-medium">Address*</span>
                   </div>
                   <Input
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="567 Mission Street, San Francisco, CA 94105"
-                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base text-[#F4F4F5]"
                   />
                 </div>
 
                 <div className="relative">
                   <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#FFFFFF99] font-medium">Project Description*</span>
+                    <span className="text-sm text-[#D3D3D3] font-medium">Project Description*</span>
                   </div>
                   <Textarea
                     value={projectDescription}
                     onChange={(e) => setProjectDescription(e.target.value)}
                     placeholder="Describe the project scope and requirements....."
-                    className="min-h-[120px] bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8 text-sm lg:text-base"
+                    className="min-h-[120px] border-zinc-800 bg-[#111111] dark:bg-[#111111] rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8 text-sm lg:text-base"
                   />
                 </div>
                 {/* <div className="relative">
@@ -1778,7 +2011,7 @@ export default function CreateQuotePage() {
 
                   <div className="flex items-center gap-2 text-zinc-400 text-sm mb-8">
                     <Check size={16} className="text-[#E8D1AB]" />
-                    <span className="text-[#E8D1AB]/80 font-medium">This quote is valid for {validityDays === 'custom' ? 'X' : validityDays} days from today.</span>
+                    <span className="text-[#E8D1AB]/80 font-medium">This quote is valid for {validityDays === 'custom' ? differenceInDays(startOfDay(parseISO(validUntil)), startOfDay(new Date())) : validityDays} days from today.</span>
                   </div>
 
                   <div className="relative pt-4">

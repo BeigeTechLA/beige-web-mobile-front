@@ -190,8 +190,15 @@ export default function QuotesPage() {
     { title: "Draft Quotes", value: "08", change: "+3%" }
   ];
 
-  const displayChartData = (dashboardData?.chart && dashboardData.chart.length > 0) ? dashboardData.chart : chartData;
+  const displayChartData = dashboardData ? (dashboardData.chart || []) : chartData;
   const displayQuotesData = dashboardData?.quotes || quotesData;
+
+  const hasOverviewData = dashboardData?.overview && (
+    (dashboardData.overview.total_quotes || 0) > 0 ||
+    (dashboardData.overview.accepted_quotes || 0) > 0 ||
+    (dashboardData.overview.pending_quotes || 0) > 0 ||
+    (dashboardData.overview.draft_quotes || 0) > 0
+  );
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white overflow-hidden ">
@@ -223,86 +230,88 @@ export default function QuotesPage() {
         </div>
 
         {/* content area with border */}
-        <div className="border border-[#3D3D3D] rounded-3xl p-6 bg-[#171717]">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-1 h-4 bg-[#E5D5B8] rounded-full"></div>
-            <span className="text-sm font-medium">Overview</span>
-            <div className="ml-auto">
-              <button className="flex items-center gap-2 px-3 py-1 bg-zinc-900 border border-[#807E7E] rounded-full text-[10px] text-zinc-400">
-                Month <ChevronDown size={12} />
-              </button>
+        {hasOverviewData && (
+          <div className="border border-[#3D3D3D] rounded-3xl p-6 bg-[#171717]">
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-1 h-4 bg-[#E5D5B8] rounded-full"></div>
+              <span className="text-sm font-medium">Overview</span>
+              <div className="ml-auto">
+                <button className="flex items-center gap-2 px-3 py-1 bg-zinc-900 border border-[#807E7E] rounded-full text-[10px] text-zinc-400">
+                  Month <ChevronDown size={12} />
+                </button>
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 bg-[#101010] p-4 rounded-xl">
+              {displayStats.map((stat: any, idx: number) => {
+                const isSelected = selectedStat === stat.title;
+                const bgColor = isSelected ? "bg-[#E5D5B8]" : "bg-[#161616]";
+                const textColor = isSelected ? "text-[#101010]" : "text-white";
+                const iconBg = isSelected ? "bg-[#171717]" : "bg-white/5";
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedStat(stat.title)}
+                    className={`${bgColor} ${textColor} p-6 rounded-2xl flex flex-col justify-between h-40 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium opacity-80">{stat.title}</span>
+                      <div className={`${iconBg} text-[#E8D1AB] p-2 rounded-full`}>
+                        {statsIcons[stat.title] || <CircleDollarSign size={20} />}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-2xl lg:text-4xl font-bold mb-1">{stat.value}</div>
+                      <div className="flex items-center gap-1">
+                        <span className={isSelected ? 'text-green-700 font-bold' : 'text-green-500'}>{stat.change}</span>
+                        <span className="text-xs opacity-60">from last month</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Chart */}
+            <div className="h-80 w-full mt-10">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={displayChartData}>
+                  <defs>
+                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#E5D5B8" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#E5D5B8" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#222" />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#555', fontSize: 12 }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#555', fontSize: 12 }}
+                  />
+                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#E5D5B8', strokeWidth: 1 }} />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#E5D5B8"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorValue)"
+                    activeDot={{ r: 6, fill: '#fff', stroke: '#E5D5B8', strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 bg-[#101010] p-4 rounded-xl">
-            {displayStats.map((stat: any, idx: number) => {
-              const isSelected = selectedStat === stat.title;
-              const bgColor = isSelected ? "bg-[#E5D5B8]" : "bg-[#161616]";
-              const textColor = isSelected ? "text-[#101010]" : "text-white";
-              const iconBg = isSelected ? "bg-[#171717]" : "bg-white/5";
-
-              return (
-                <div
-                  key={idx}
-                  onClick={() => setSelectedStat(stat.title)}
-                  className={`${bgColor} ${textColor} p-6 rounded-2xl flex flex-col justify-between h-40 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]`}
-                >
-                  <div className="flex justify-between items-start">
-                    <span className="text-sm font-medium opacity-80">{stat.title}</span>
-                    <div className={`${iconBg} text-[#E8D1AB] p-2 rounded-full`}>
-                      {statsIcons[stat.title] || <CircleDollarSign size={20} />}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl lg:text-4xl font-bold mb-1">{stat.value}</div>
-                    <div className="flex items-center gap-1">
-                      <span className={isSelected ? 'text-green-700 font-bold' : 'text-green-500'}>{stat.change}</span>
-                      <span className="text-xs opacity-60">from last month</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Chart */}
-          <div className="h-80 w-full mt-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={displayChartData}>
-                <defs>
-                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#E5D5B8" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#E5D5B8" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#222" />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#555', fontSize: 12 }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#555', fontSize: 12 }}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#E5D5B8', strokeWidth: 1 }} />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#E5D5B8"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorValue)"
-                  activeDot={{ r: 6, fill: '#fff', stroke: '#E5D5B8', strokeWidth: 2 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        )}
 
         {/* Filter Bar */}
         <div className="flex flex-col md:flex-row gap-4 mt-8 mb-6">

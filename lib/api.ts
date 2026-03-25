@@ -1600,6 +1600,38 @@ export const salesApi = {
       };
     }
   },
+  createQuoteCatalog: async (data: {
+    section_type: string;
+    name: string;
+    default_rate: number;
+    rate_type: string;
+    rate_unit: string;
+  }) => {
+    try {
+      const response = await api.post('/sales/quotes/catalog', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create catalog item',
+      };
+    }
+  },
+  createShootType: async (data: { name: string; content_type: number }) => {
+    try {
+      const response = await api.post('/sales/quotes/shoot-types', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Shoot Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create shoot type',
+      };
+    }
+  },
   getShootTypes: async (id: number | string) => {
     try {
       const response = await api.get(`/sales/quotes/shoot-types/${id}`);
@@ -1627,4 +1659,18 @@ export const salesApi = {
       };
     }
   },
+  deleteQuoteCatalog: async (id: number | string) => {
+    try {
+      const response = await api.delete(`/sales/quotes/catalog/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete catalog item',
+      };
+    }
+  },
 };
+
