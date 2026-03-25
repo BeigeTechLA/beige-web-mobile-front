@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 
 const salesMenuItems = [
   { name: 'Sales', icon: LayoutDashboard, link: '/sales/dashboard' },
@@ -24,7 +25,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Users"]);
+
+  useEffect(() => setMounted(true), []);
+
+  const isDark = !mounted || theme === "dark";
 
   const handleLinkClick = (link: string) => {
     if (link !== "#") {
@@ -57,7 +64,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <aside className="w-full lg:w-64 border-r border-zinc-800 flex flex-col justify-between py-6 lg:py-9 px-5 bg-[#0A0A0A] h-full overflow-hidden">
+    <aside className={`
+      w-full lg:w-64 border-r flex flex-col justify-between py-6 lg:py-9 px-5 h-full overflow-hidden transition-colors duration-100
+      ${isDark
+        ? "border-zinc-800 bg-[#0A0A0A]"
+        : "border-[#D8D8D8] bg-white shadow-[0_8px_24px_0_rgba(149,157,165,0.10)]"
+      }
+    `}>
       {/* Mobile Header with Logo and Close Button */}
       <div className="flex items-center justify-between lg:justify-center mb-8">
         <Link href="/" className="relative flex items-center">
@@ -67,12 +80,14 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             width={100}
             height={20}
           />
-          <span className="absolute right-0 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
+          {/* Beta Tag - Preserved & Theme Adjusted */}
+          <span className={`absolute right-0 -bottom-3 text-[8px] font-medium tracking-wide py-[1px] px-1 rounded-full border backdrop-blur-xs overflow-hidden ${isDark ? "text-white border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)]" : "text-black border-black/20 shadow-sm"
+            }`}>
             Beta
             <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
           </span>
         </Link>
-        <button onClick={onClose} className=" lg:hidden p-2 bg-zinc-900 rounded-full text-white">
+        <button onClick={onClose} className={`lg:hidden p-2 rounded-full ${isDark ? "bg-zinc-900 text-white" : "bg-zinc-100 text-black"}`}>
           <X size={20} />
         </button>
       </div>
@@ -83,13 +98,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             const active = isActiveLink(item.link);
             const isDisabled = item.isDisabled;
 
+            const baseClass = `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium`;
+            const activeClass = "bg-[#E5D5B8] text-[#171717]";
+            const inactiveClass = isDark ? "text-[#676767] hover:text-white" : "text-[#676767] hover:text-[#101010]";
+
             return (
               <div key={item.name}>
                 {isDisabled ? (
                   /* Render a DIV instead of a LINK if disabled */
-                  <div
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-700 cursor-not-allowed select-none group"
-                  >
+                   <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
                     <div className="flex items-center gap-3">
                       <item.icon size={20} />
                       <span className="font-medium">{item.name}</span>
@@ -98,8 +115,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 ) : (
                   <Link
                     href={item.link || '#'}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm ${active ? 'bg-[#E5D5B8] text-black' : 'text-zinc-500 hover:text-white'
-                      }`}
+                    className={`${baseClass} ${active ? activeClass : inactiveClass} ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     <item.icon size={20} />
                     <span className="font-medium">{item.name}</span>
@@ -111,23 +127,23 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         </nav>
       </div>
 
-      {/* User Profile and Logout Button */}
-      <div className="pt-6 border-t border-white/10 flex-shrink-0 bg-[#0A0A0A]">
+      {/* User Profile and Logout */}
+      <div className={`pt-6 border-t flex-shrink-0 transition-colors ${isDark ? "border-white/10 bg-[#0A0A0A]" : "border-zinc-200 bg-white"}`}>
         <div className="flex items-center gap-3 mb-6 px-2">
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#E5D5B8] to-[#C4A470] flex items-center justify-center text-black font-bold text-lg shrink-0">
             {user?.name?.[0] || "S"}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-semibold text-white truncate">{user?.name || "Sales User"}</p>
+            <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#101010]"}`}>{user?.name || "Sales User"}</p>
             <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center w-full gap-2 px-3 py-2 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors text-sm font-medium"
+          className={`flex items-center w-full gap-2 px-3 py-2 rounded-lg ${isDark ? "text-[#171717] bg-[#FFFFFF]" : "text-[#FFFFFF] bg-[#171717]"} transition-colors text-sm font-medium`}
         >
           <LogOut size={16} />
-          <span>Sign Out</span>
+          <span>Logout</span>
         </button>
       </div>
     </aside>
