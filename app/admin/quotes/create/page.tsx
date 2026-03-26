@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -33,12 +33,126 @@ import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
 import { salesApi } from "@/lib/api";
+import { buildQuoteDraftPayload } from "@/lib/quoteDraft";
 import { toast } from "react-hot-toast";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
 const clients = [
 // Dynamic client fetching replaces hardcoded array
 ];
+
+type CatalogSectionItem = {
+  catalog_item_id?: string | number | null;
+  name?: string;
+  effective_rate?: string | number | null;
+  created_at?: string | null;
+};
+
+type ShootTypeApiItem = {
+  shoot_type_id?: string | number | null;
+  shootTypeId?: string | number | null;
+  id?: string | number | null;
+  project_type_id?: string | number | null;
+  projectTypeId?: string | number | null;
+  quote_shoot_type_id?: string | number | null;
+  name?: string | null;
+  created_at?: string | null;
+};
+
+const PROTECTED_SERVICE_ORDER = [
+  "videography",
+  "photography",
+  "ai editing",
+  "livestream production",
+  "studio",
+] as const;
+
+const PROTECTED_ADDON_LABELS = [
+  "4k camera upgrade",
+  "drone footage",
+  "additional crew member",
+  "lighting package",
+  "audio recording kit",
+  "green screen setup",
+  "teleprompter",
+  "hair and makeup artist",
+  "hair & makeup artist",
+] as const;
+
+const PROTECTED_LOGISTICS_LABELS = [
+  "travel and transportation",
+  "travel & transportation",
+  "equipment rental",
+  "studio rental",
+  "permits and licenses",
+] as const;
+
+const PROTECTED_LINE_ITEM_LABELS = [
+  "rush delivery",
+] as const;
+
+const LINE_ITEM_SECTION_KEYS = [
+  "line_item",
+  "line_items",
+  "custom_line_item",
+  "custom_line_items",
+  "customlineitems",
+  "customLineItems",
+] as const;
+
+const normalizeServiceLabel = (label: string) => label.trim().toLowerCase();
+const normalizeAddonLabel = (label: string) => label.trim().toLowerCase();
+const normalizeLogisticsLabel = (label: string) => label.trim().toLowerCase();
+const normalizeLineItemLabel = (label: string) => label.trim().toLowerCase();
+
+const formatCurrency = (value: number) =>
+  `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const resolveShootTypeApiId = (item: ShootTypeApiItem) => {
+  const preferredId = item.shoot_type_id
+    ?? item.shootTypeId
+    ?? item.project_type_id
+    ?? item.projectTypeId
+    ?? item.quote_shoot_type_id
+    ?? item.id;
+
+  const preferredNumericId = Number(preferredId);
+  if (Number.isInteger(preferredNumericId) && preferredNumericId > 0) {
+    return String(preferredNumericId);
+  }
+
+  for (const [key, value] of Object.entries(item)) {
+    if (!/(^id$|shoot.*id|type.*id)/i.test(key)) continue;
+
+    const numericValue = Number(value);
+    if (Number.isInteger(numericValue) && numericValue > 0) {
+      return String(numericValue);
+    }
+  }
+
+  return null;
+};
+
+const resolveShootTypeId = (item: ShootTypeApiItem, idx: number) => {
+  return resolveShootTypeApiId(item) ?? `st-${idx}`;
+};
+
+const isValidShootTypeId = (id: string | number) => {
+  const numericId = Number(id);
+  return Number.isInteger(numericId) && numericId > 0;
+};
+
+const isProtectedServiceLabel = (label: string) =>
+  PROTECTED_SERVICE_ORDER.includes(normalizeServiceLabel(label) as typeof PROTECTED_SERVICE_ORDER[number]);
+
+const isProtectedAddonLabel = (label: string) =>
+  PROTECTED_ADDON_LABELS.includes(normalizeAddonLabel(label) as typeof PROTECTED_ADDON_LABELS[number]);
+
+const isProtectedLogisticsLabel = (label: string) =>
+  PROTECTED_LOGISTICS_LABELS.includes(normalizeLogisticsLabel(label) as typeof PROTECTED_LOGISTICS_LABELS[number]);
+
+const isProtectedLineItemLabel = (label: string) =>
+  PROTECTED_LINE_ITEM_LABELS.includes(normalizeLineItemLabel(label) as typeof PROTECTED_LINE_ITEM_LABELS[number]);
 
 export default function CreateQuotePage() {
   const pathname = usePathname();
@@ -79,6 +193,7 @@ export default function CreateQuotePage() {
   // Step 3: Add-ons State
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [addonConfigs, setAddonConfigs] = useState<Record<string, { quantity: number; price: number }>>({});
+  const [appliedAddonConfigs, setAppliedAddonConfigs] = useState<Record<string, { quantity: number; price: number }>>({});
   const [showAddAddonForm, setShowAddAddonForm] = useState(false);
   const [customAddonName, setCustomAddonName] = useState("");
   const [customAddonCost, setCustomAddonCost] = useState("");
@@ -86,6 +201,7 @@ export default function CreateQuotePage() {
   // Step 4: Logistics State
   const [logisticsItems, setLogisticsItems] = useState<any[]>([]);
   const [logisticsConfigs, setLogisticsConfigs] = useState<Record<string, { price: number }>>({});
+  const [appliedLogisticsConfigs, setAppliedLogisticsConfigs] = useState<Record<string, { price: number }>>({});
   const [customLogisticsName, setCustomLogisticsName] = useState("");
   const [customLogisticsCost, setCustomLogisticsCost] = useState("");
 
@@ -94,6 +210,7 @@ export default function CreateQuotePage() {
   const [customItemCost, setCustomItemCost] = useState("");
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [lineItemConfigs, setLineItemConfigs] = useState<Record<string, { price: number }>>({});
+  const [appliedLineItemConfigs, setAppliedLineItemConfigs] = useState<Record<string, { price: number }>>({});
 
   // Step 6: Discount 
   type DiscountType = "percentage" | "fixed";
@@ -122,14 +239,16 @@ export default function CreateQuotePage() {
 
   // Delete Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'service' | 'addon'; label: string } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'service' | 'addon' | 'logistics' | 'line_item' | 'shoot_type'; label: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const serviceIcons: Record<string, React.ReactNode> = {
     "videography": <Video size={20} />,
     "photography": <Camera size={20} />,
     "ai_editing": <Scissors size={20} />,
+    "ai editing": <Scissors size={20} />,
     "livestream": <Radio size={20} />,
+    "livestream production": <Radio size={20} />,
     "studio": <MapPin size={20} />,
   };
 
@@ -182,17 +301,43 @@ export default function CreateQuotePage() {
     try {
       const res = await salesApi.getShootTypes(typeParam);
       if (!res.error && res.data) {
-        const mappedShootTypes = res.data.map((item: any, idx: number) => ({
-          id: (item.shoot_type_id || `st-${idx}`).toString(),
-          label: item.name
-        }));
-        setShootTypes(mappedShootTypes);
+        const mappedShootTypes = res.data.map((item: ShootTypeApiItem, idx: number) => {
+          const apiId = resolveShootTypeApiId(item);
+
+          return {
+            id: apiId ?? resolveShootTypeId(item, idx),
+            apiId,
+            label: item.name || "",
+            createdAt: item.created_at || null,
+            originalIndex: idx,
+          };
+        });
+
+        const sortedShootTypes = [...mappedShootTypes].sort((a, b) => {
+          const aCreatedAt = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
+          const bCreatedAt = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
+
+          if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+            return aCreatedAt - bCreatedAt;
+          }
+
+          const aNumericId = Number(a.id);
+          const bNumericId = Number(b.id);
+
+          if (Number.isFinite(aNumericId) && Number.isFinite(bNumericId) && aNumericId !== bNumericId) {
+            return aNumericId - bNumericId;
+          }
+
+          return a.originalIndex - b.originalIndex;
+        });
+
+        setShootTypes(sortedShootTypes);
 
         // Select first one if current selection is invalid
-        if (mappedShootTypes.length > 0) {
-          const isValid = mappedShootTypes.some((t: any) => t.id === selectedShootType);
+        if (sortedShootTypes.length > 0) {
+          const isValid = sortedShootTypes.some((t: any) => t.id === selectedShootType);
           if (!isValid) {
-            setSelectedShootType(mappedShootTypes[0].id);
+            setSelectedShootType(sortedShootTypes[0].id);
           }
         }
       }
@@ -222,13 +367,136 @@ export default function CreateQuotePage() {
   };
 
   const handleAddonConfigUpdate = (addonId: string, field: string, value: number) => {
+    const nextValue = field === 'quantity' ? Math.max(1, value) : Math.max(0, value);
+
     setAddonConfigs(prev => ({
       ...prev,
       [addonId]: {
         ...prev[addonId],
-        [field]: Math.max(0, value)
+        [field]: nextValue
       }
     }));
+  };
+
+  const removeSelectedAddon = (addonId: string) => {
+    setSelectedAddons(prev => prev.filter(id => id !== addonId));
+    setAddonConfigs(prev => {
+      const newConfigs = { ...prev };
+      delete newConfigs[addonId];
+      return newConfigs;
+    });
+    setAppliedAddonConfigs(prev => {
+      const newConfigs = { ...prev };
+      delete newConfigs[addonId];
+      return newConfigs;
+    });
+  };
+
+  const applyAddonChanges = (addonId: string, addonLabel: string) => {
+    const config = addonConfigs[addonId];
+    if (!config) return;
+
+    setAppliedAddonConfigs(prev => ({
+      ...prev,
+      [addonId]: { ...config }
+    }));
+    toast.success(`${addonLabel} changes applied!`);
+  };
+
+  const hasPendingAddonChanges = (addonId: string) => {
+    const draftConfig = addonConfigs[addonId];
+    const appliedConfig = appliedAddonConfigs[addonId];
+
+    if (!draftConfig) return false;
+    if (!appliedConfig) return true;
+
+    return draftConfig.quantity !== appliedConfig.quantity || draftConfig.price !== appliedConfig.price;
+  };
+
+  const getAddonDraftTotal = (addonId: string) => {
+    const config = addonConfigs[addonId];
+    if (!config) return 0;
+    return config.quantity * config.price;
+  };
+
+  const handleAddonTotalUpdate = (addonId: string, value: string) => {
+    const config = addonConfigs[addonId];
+    if (!config) return;
+
+    const quantity = Math.max(1, config.quantity);
+    const totalValue = parseFloat(value.replace(/\$/g, '').trim()) || 0;
+
+    handleAddonConfigUpdate(addonId, 'price', totalValue / quantity);
+  };
+
+  const removeLogisticsItem = (itemId: string) => {
+    setLogisticsItems(prev => prev.filter(item => item.id !== itemId));
+    setLogisticsConfigs(prev => {
+      const newConfigs = { ...prev };
+      delete newConfigs[itemId];
+      return newConfigs;
+    });
+    setAppliedLogisticsConfigs(prev => {
+      const newConfigs = { ...prev };
+      delete newConfigs[itemId];
+      return newConfigs;
+    });
+  };
+
+  const applyLogisticsChanges = (itemId: string, itemLabel: string) => {
+    const config = logisticsConfigs[itemId];
+    if (!config) return;
+
+    setAppliedLogisticsConfigs(prev => ({
+      ...prev,
+      [itemId]: { ...config }
+    }));
+    toast.success(`${itemLabel} changes applied!`);
+  };
+
+  const hasPendingLogisticsChanges = (itemId: string) => {
+    const draftConfig = logisticsConfigs[itemId];
+    const appliedConfig = appliedLogisticsConfigs[itemId];
+
+    if (!draftConfig) return false;
+    if (!appliedConfig) return true;
+
+    return draftConfig.price !== appliedConfig.price;
+  };
+
+  const removeLineItem = (itemId: string) => {
+    setLineItems(prev => prev.filter(item => item.id !== itemId));
+    setLineItemConfigs(prev => {
+      const newConfigs = { ...prev };
+      delete newConfigs[itemId];
+      return newConfigs;
+    });
+    setAppliedLineItemConfigs(prev => {
+      const newConfigs = { ...prev };
+      delete newConfigs[itemId];
+      return newConfigs;
+    });
+  };
+
+  const applyLineItemChanges = (itemId: string, itemLabel: string) => {
+    const config = lineItemConfigs[itemId];
+    if (!config) return;
+
+    setAppliedLineItemConfigs(prev => ({
+      ...prev,
+      [itemId]: { ...config }
+    }));
+    toast.success(`${itemLabel} changes applied!`);
+  };
+
+  const hasPendingLineItemChanges = (itemId: string) => {
+    const draftConfig = lineItemConfigs[itemId];
+    const appliedConfig = appliedLineItemConfigs[itemId];
+
+    if (!draftConfig) return false;
+    if (!appliedConfig) return true;
+
+    return draftConfig.price !== appliedConfig.price;
   };
 
   const handleServiceSelect = (serviceId: string, price: number) => {
@@ -290,7 +558,7 @@ export default function CreateQuotePage() {
     ['selection', 'details', 'services', 'addons'].includes(view) ? 1 :
       ['logistics', 'customlineitems'].includes(view) ? 2 : 3;
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (view === 'selection' && selectedClient) {
       setClientName(selectedClient.name);
       setEmailId(selectedClient.email || "");
@@ -309,9 +577,7 @@ export default function CreateQuotePage() {
     } else if (view === 'discounts') {
       setView('tax');
     } else {
-      // Logic for next major step (Step 4)
-      router.push("/admin/quotes/preview")
-      console.log("Moving to Step 4...");
+      await handlePreviewQuote();
     }
   };
 
@@ -331,28 +597,6 @@ export default function CreateQuotePage() {
       // Further steps to be added form customlineitems on wards
     } else {
       router.back();
-    }
-  };
-
-  const handleAddLogisticsItem = () => {
-    if (customLogisticsName && customLogisticsCost) {
-      const newId = `custom_${Date.now()}`;
-      const cost = parseFloat(customLogisticsCost) || 0;
-      setLogisticsItems(prev => [...prev, { id: newId, label: customLogisticsName, basePrice: cost }]);
-      setLogisticsConfigs(prev => ({ ...prev, [newId]: { price: cost } }));
-      setCustomLogisticsName("");
-      setCustomLogisticsCost("");
-    }
-  };
-
-  const handleAddLineItem = () => {
-    if (customItemName && customItemCost) {
-      const newId = `custom_${Date.now()}`;
-      const cost = parseFloat(customItemCost) || 0;
-      setLineItems(prev => [...prev, { id: newId, label: customLogisticsName, basePrice: cost }]);
-      setLineItemConfigs(prev => ({ ...prev, [newId]: { price: cost } }));
-      setCustomItemName("");
-      setCustomItemCost("");
     }
   };
 
@@ -384,7 +628,94 @@ export default function CreateQuotePage() {
   const hasVideoService = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || selectedServices.includes("videography");
   const hasPhotoService = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "photography") || selectedServices.includes("photography");
   const hasAiEditingService = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "ai editing") || selectedServices.includes("ai_editing");
+  const totalAddOnsCost = selectedAddons.reduce((total, addonId) => {
+    const config = appliedAddonConfigs[addonId];
+    if (!config) return total;
+    return total + (config.quantity * config.price);
+  }, 0);
+  const totalLogisticsCost = logisticsItems.reduce((total, item) => {
+    const config = appliedLogisticsConfigs[item.id];
+    if (!config) return total;
+    return total + config.price;
+  }, 0);
+  const totalLineItemsCost = lineItems.reduce((total, item) => {
+    const config = appliedLineItemConfigs[item.id];
+    if (!config) return total;
+    return total + config.price;
+  }, 0);
+  const totalServicesCost = selectedServices.reduce((total, serviceId) => {
+    const config = serviceConfigs[serviceId];
+    if (!config) return total;
+    return total + (config.quantity * config.duration * config.crewSize * config.estimatedPrice);
+  }, 0);
+  const quoteSubtotal = totalServicesCost + totalAddOnsCost + totalLogisticsCost + totalLineItemsCost;
+  const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
+  const taxAmount = quoteSubtotal * (normalizedTaxRate / 100);
+  const totalAfterTax = quoteSubtotal + taxAmount;
+  const normalizedDiscountValue = Math.max(0, Number(discountValue) || 0);
+  const rawDiscountAmount = !discountEnabled
+    ? 0
+    : discountType === "percentage"
+      ? totalAfterTax * (normalizedDiscountValue / 100)
+      : normalizedDiscountValue;
+  const discountAmount = Math.min(rawDiscountAmount, totalAfterTax);
+  const totalAfterDiscount = Math.max(totalAfterTax - discountAmount, 0);
+  const taxLabel = taxtType.trim() || "Sales Tax";
   const [isSubmittingService, setIsSubmittingService] = React.useState(false);
+  const [isCreatingQuoteDraft, setIsCreatingQuoteDraft] = React.useState(false);
+
+  const handlePreviewQuote = async () => {
+    if (isCreatingQuoteDraft) return;
+
+    const payload = buildQuoteDraftPayload({
+      selectedClient,
+      clientName,
+      emailId,
+      phoneNumber,
+      address,
+      projectDescription,
+      validityDays,
+      validUntil,
+      discountEnabled,
+      discountType,
+      discountValue,
+      taxLabel,
+      normalizedTaxRate,
+      selectedShootType,
+      shootTypes,
+      selectedServices,
+      services,
+      serviceConfigs,
+      selectedAddons,
+      addons,
+      appliedAddonConfigs,
+      logisticsItems,
+      appliedLogisticsConfigs,
+      lineItems,
+      appliedLineItemConfigs,
+    });
+
+    setIsCreatingQuoteDraft(true);
+    try {
+      const res = await salesApi.createQuoteDraft(payload);
+
+      if (res?.error || res?.success === false) {
+        throw new Error(
+          typeof res?.error === "string" ? res.error : "Failed to create quote draft"
+        );
+      }
+
+      toast.success("Quote draft created successfully");
+      router.push("/admin/quotes/preview");
+    } catch (error) {
+      console.error("Failed to create quote draft", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create quote draft"
+      );
+    } finally {
+      setIsCreatingQuoteDraft(false);
+    }
+  };
 
   const fetchCatalog = async () => {
     setLoadingServices(true);
@@ -400,35 +731,200 @@ export default function CreateQuotePage() {
               id: (item.catalog_item_id || `svc-${idx}`).toString(),
               label: name,
               price: parseFloat(item.effective_rate) || 0,
-              icon: serviceIcons[name.toLowerCase()] || <Plus size={20} />
+              icon: serviceIcons[name.toLowerCase()] || <Plus size={20} />,
+              createdAt: item.created_at || null,
+              originalIndex: idx,
             };
           });
-          setServices(mappedServices);
+
+          const sortedServices = [...mappedServices].sort((a, b) => {
+            const aLabel = normalizeServiceLabel(a.label);
+            const bLabel = normalizeServiceLabel(b.label);
+            const aProtected = isProtectedServiceLabel(a.label);
+            const bProtected = isProtectedServiceLabel(b.label);
+
+            if (aProtected && bProtected) {
+              return PROTECTED_SERVICE_ORDER.indexOf(aLabel as typeof PROTECTED_SERVICE_ORDER[number]) -
+                PROTECTED_SERVICE_ORDER.indexOf(bLabel as typeof PROTECTED_SERVICE_ORDER[number]);
+            }
+
+            if (aProtected !== bProtected) {
+              return aProtected ? -1 : 1;
+            }
+
+            const aCreatedAt = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
+            const bCreatedAt = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
+
+            if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+              return aCreatedAt - bCreatedAt;
+            }
+
+            const aNumericId = Number(a.id);
+            const bNumericId = Number(b.id);
+
+            if (Number.isFinite(aNumericId) && Number.isFinite(bNumericId) && aNumericId !== bNumericId) {
+              return aNumericId - bNumericId;
+            }
+
+            return a.originalIndex - b.originalIndex;
+          });
+
+          setServices(sortedServices);
         }
 
         if (addon) {
           const mappedAddons = addon.map((item: any, idx: number) => ({
             id: (item.catalog_item_id || `add-${idx}`).toString(),
             label: item.name,
-            price: parseFloat(item.effective_rate) || 0
+            price: parseFloat(item.effective_rate) || 0,
+            createdAt: item.created_at || null,
+            originalIndex: idx,
           }));
-          setAddons(mappedAddons);
+
+          const sortedAddons = [...mappedAddons].sort((a, b) => {
+            const aProtected = isProtectedAddonLabel(a.label);
+            const bProtected = isProtectedAddonLabel(b.label);
+
+            if (aProtected !== bProtected) {
+              return aProtected ? -1 : 1;
+            }
+
+            if (aProtected && bProtected) {
+              return a.originalIndex - b.originalIndex;
+            }
+
+            const aCreatedAt = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
+            const bCreatedAt = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
+
+            if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+              return aCreatedAt - bCreatedAt;
+            }
+
+            const aNumericId = Number(a.id);
+            const bNumericId = Number(b.id);
+
+            if (Number.isFinite(aNumericId) && Number.isFinite(bNumericId) && aNumericId !== bNumericId) {
+              return aNumericId - bNumericId;
+            }
+
+            return a.originalIndex - b.originalIndex;
+          });
+
+          setAddons(sortedAddons);
         }
 
         if (logistics) {
           const mappedLogistics = logistics.map((item: any, idx: number) => ({
             id: (item.catalog_item_id || `log-${idx}`).toString(),
             label: item.name,
-            basePrice: parseFloat(item.effective_rate) || 0
+            basePrice: parseFloat(item.effective_rate) || 0,
+            createdAt: item.created_at || null,
+            originalIndex: idx,
           }));
-          setLogisticsItems(mappedLogistics);
+
+          const sortedLogistics = [...mappedLogistics].sort((a, b) => {
+            const aCreatedAt = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
+            const bCreatedAt = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
+
+            if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+              return aCreatedAt - bCreatedAt;
+            }
+
+            const aNumericId = Number(a.id);
+            const bNumericId = Number(b.id);
+
+            if (Number.isFinite(aNumericId) && Number.isFinite(bNumericId) && aNumericId !== bNumericId) {
+              return aNumericId - bNumericId;
+            }
+
+            return a.originalIndex - b.originalIndex;
+          });
+
+          setLogisticsItems(sortedLogistics);
           
           // Initialize logistics configs
           const configs: Record<string, { price: number }> = {};
-          mappedLogistics.forEach((item: any) => {
+          sortedLogistics.forEach((item: any) => {
             configs[item.id] = { price: item.basePrice };
           });
           setLogisticsConfigs(configs);
+          setAppliedLogisticsConfigs(configs);
+        }
+
+        const lineItemSection = LINE_ITEM_SECTION_KEYS
+          .map((key) => (res.data as Record<string, unknown>)[key])
+          .find((section): section is CatalogSectionItem[] => Array.isArray(section));
+
+        if (lineItemSection) {
+          const mappedLineItems = lineItemSection.map((item: CatalogSectionItem, idx: number) => ({
+            id: (item.catalog_item_id || `line-${idx}`).toString(),
+            label: item.name,
+            basePrice: parseFloat(item.effective_rate) || 0,
+            createdAt: item.created_at || null,
+            originalIndex: idx,
+          }));
+
+          const sortedLineItems = [...mappedLineItems].sort((a, b) => {
+            const aProtected = isProtectedLineItemLabel(a.label);
+            const bProtected = isProtectedLineItemLabel(b.label);
+
+            if (aProtected !== bProtected) {
+              return aProtected ? -1 : 1;
+            }
+
+            if (aProtected && bProtected) {
+              return a.originalIndex - b.originalIndex;
+            }
+
+            const aCreatedAt = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
+            const bCreatedAt = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
+
+            if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+              return aCreatedAt - bCreatedAt;
+            }
+
+            const aNumericId = Number(a.id);
+            const bNumericId = Number(b.id);
+
+            if (Number.isFinite(aNumericId) && Number.isFinite(bNumericId) && aNumericId !== bNumericId) {
+              return aNumericId - bNumericId;
+            }
+
+            return a.originalIndex - b.originalIndex;
+          });
+
+          setLineItems(prev => {
+            const localItems = prev.filter(item => item.id?.startsWith("custom_"));
+            return [...sortedLineItems, ...localItems];
+          });
+
+          setLineItemConfigs(prev => {
+            const configs: Record<string, { price: number }> = {};
+            Object.entries(prev).forEach(([id, value]) => {
+              if (id.startsWith("custom_")) {
+                configs[id] = value;
+              }
+            });
+            sortedLineItems.forEach((item) => {
+              configs[item.id] = { price: item.basePrice };
+            });
+            return configs;
+          });
+
+          setAppliedLineItemConfigs(prev => {
+            const configs: Record<string, { price: number }> = {};
+            Object.entries(prev).forEach(([id, value]) => {
+              if (id.startsWith("custom_")) {
+                configs[id] = value;
+              }
+            });
+            sortedLineItems.forEach((item) => {
+              configs[item.id] = { price: item.basePrice };
+            });
+            return configs;
+          });
+        } else {
+          setLineItems(prev => prev.filter(item => item.id?.startsWith("custom_")));
         }
       }
     } catch (error) {
@@ -468,32 +964,91 @@ export default function CreateQuotePage() {
     }
   };
 
-  const handleDeleteCatalogItem = (id: string, type: 'service' | 'addon') => {
-    const item = type === 'service' 
-      ? services.find(s => s.id === id) 
-      : addons.find(a => a.id === id);
+  const handleDeleteCatalogItem = (id: string, type: 'service' | 'addon' | 'logistics' | 'line_item') => {
+    const item = type === 'service'
+      ? services.find(s => s.id === id)
+      : type === 'addon'
+        ? addons.find(a => a.id === id)
+        : type === 'logistics'
+          ? logisticsItems.find(item => item.id === id)
+          : lineItems.find(item => item.id === id);
     
     if (item) {
+      if (type === 'service' && isProtectedServiceLabel(item.label)) {
+        toast.error("Default services can't be deleted");
+        return;
+      }
+
+      if (type === 'addon' && isProtectedAddonLabel(item.label)) {
+        toast.error("Default add-ons can't be deleted");
+        return;
+      }
+
+      if (type === 'logistics' && isProtectedLogisticsLabel(item.label)) {
+        toast.error("Default logistics items can't be deleted");
+        return;
+      }
+
+      if (type === 'line_item' && isProtectedLineItemLabel(item.label)) {
+        toast.error("Default line items can't be deleted");
+        return;
+      }
+
       setItemToDelete({ id, type, label: item.label });
       setIsDeleteModalOpen(true);
     }
   };
 
+  const handleDeleteShootType = (id: string) => {
+    const item = shootTypes.find(type => type.id === id);
+    if (!item) return;
+
+    const shootTypeId = item.apiId ?? item.id;
+
+    if (!isValidShootTypeId(shootTypeId)) {
+      toast.error("Invalid shoot type id. Please refresh and try again.");
+      return;
+    }
+
+    setItemToDelete({ id: String(shootTypeId), type: 'shoot_type', label: item.label });
+    setIsDeleteModalOpen(true);
+  };
+
   const confirmDelete = async () => {
     if (!itemToDelete) return;
 
+    if (itemToDelete.type === 'line_item' && itemToDelete.id.startsWith("custom_")) {
+      removeLineItem(itemToDelete.id);
+      toast.success("Line item deleted successfully");
+      setIsDeleteModalOpen(false);
+      setItemToDelete(null);
+      return;
+    }
+
     setIsDeleting(true);
     try {
-      const res = await salesApi.deleteQuoteCatalog(itemToDelete.id);
+      const res = itemToDelete.type === 'shoot_type'
+        ? await salesApi.deleteShootType(itemToDelete.id)
+        : await salesApi.deleteQuoteCatalog(itemToDelete.id);
       if (res && !res.error) {
-        toast.success(`${itemToDelete.type === 'service' ? 'Project Type' : 'Add-on'} deleted successfully`);
-        // Refresh catalog
-        await fetchCatalog();
-        // Remove from selected if it was selected
-        if (itemToDelete.type === 'service') {
-          setSelectedServices(prev => prev.filter(sid => sid !== itemToDelete.id));
+        toast.success(
+          `${itemToDelete.type === 'service' ? 'Service' : itemToDelete.type === 'addon' ? 'Add-on' : itemToDelete.type === 'logistics' ? 'Logistics item' : itemToDelete.type === 'shoot_type' ? 'Shoot type' : 'Line item'} deleted successfully`
+        );
+        if (itemToDelete.type === 'shoot_type') {
+          await fetchShootTypes(selectedServices);
         } else {
-          setSelectedAddons(prev => prev.filter(aid => aid !== itemToDelete.id));
+          // Refresh catalog
+          await fetchCatalog();
+          // Remove from selected if it was selected
+          if (itemToDelete.type === 'service') {
+            setSelectedServices(prev => prev.filter(sid => sid !== itemToDelete.id));
+          } else if (itemToDelete.type === 'addon') {
+            removeSelectedAddon(itemToDelete.id);
+          } else if (itemToDelete.type === 'logistics') {
+            removeLogisticsItem(itemToDelete.id);
+          } else {
+            removeLineItem(itemToDelete.id);
+          }
         }
         setIsDeleteModalOpen(false);
         setItemToDelete(null);
@@ -567,6 +1122,65 @@ export default function CreateQuotePage() {
       console.error("Error creating addon:", error);
     } finally {
       setIsSubmittingAddon(false);
+    }
+  };
+
+  const [isSubmittingLogistics, setIsSubmittingLogistics] = React.useState(false);
+
+  const handleCreateLogisticsItem = async () => {
+    if (!customLogisticsName || !customLogisticsCost) return;
+
+    setIsSubmittingLogistics(true);
+    try {
+      const res = await salesApi.createQuoteCatalog({
+        section_type: "logistics",
+        name: customLogisticsName,
+        default_rate: parseFloat(customLogisticsCost.replace(/[^0-9.]/g, '')) || 0,
+        rate_type: "fixed",
+        rate_unit: "fixed"
+      });
+
+      if (res && !res.error) {
+        setCustomLogisticsName("");
+        setCustomLogisticsCost("");
+        await fetchCatalog();
+      } else {
+        console.error("Failed to create logistics item:", res?.error || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Error creating logistics item:", error);
+    } finally {
+      setIsSubmittingLogistics(false);
+    }
+  };
+
+  const [isSubmittingLineItem, setIsSubmittingLineItem] = React.useState(false);
+
+  const handleCreateLineItem = async () => {
+    if (!customItemName || !customItemCost) return;
+
+    setIsSubmittingLineItem(true);
+    try {
+      const newId = `custom_${Date.now()}`;
+      const cost = parseFloat(customItemCost.replace(/[^0-9.]/g, '')) || 0;
+
+      setLineItems(prev => ([
+        ...prev,
+        {
+          id: newId,
+          label: customItemName,
+          basePrice: cost,
+          createdAt: new Date().toISOString(),
+        }
+      ]));
+      setLineItemConfigs(prev => ({ ...prev, [newId]: { price: cost } }));
+      setAppliedLineItemConfigs(prev => ({ ...prev, [newId]: { price: cost } }));
+      setCustomItemName("");
+      setCustomItemCost("");
+    } catch (error) {
+      console.error("Error creating line item:", error);
+    } finally {
+      setIsSubmittingLineItem(false);
     }
   };
 
@@ -647,6 +1261,8 @@ export default function CreateQuotePage() {
                 <div className="space-y-4 p-4 lg:p-9">
                   {logisticsItems.map((item) => {
                     const config = logisticsConfigs[item.id];
+                    const hasPendingChanges = hasPendingLogisticsChanges(item.id);
+                    const isProtectedLogistics = isProtectedLogisticsLabel(item.label);
                     return (
                       <div key={item.id} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-4 lg:p-5 relative overflow-hidden">
                         <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
@@ -669,22 +1285,17 @@ export default function CreateQuotePage() {
                               />
                             </div>
                             <div className="flex items-center gap-6 lg:gap-4">
+                              {!isProtectedLogistics && (
+                                <button
+                                  onClick={() => handleDeleteCatalogItem(item.id, 'logistics')}
+                                  className="text-red-500 hover:text-red-400 transition-colors"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              )}
                               <button
-                                onClick={() => {
-                                  setLogisticsItems(prev => prev.filter(i => i.id !== item.id));
-                                  setLogisticsConfigs(prev => {
-                                    const newConfigs = { ...prev };
-                                    delete newConfigs[item.id];
-                                    return newConfigs;
-                                  });
-                                }}
-                                className="text-red-500 hover:text-red-400 transition-colors"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                              <button
-                                onClick={() => toast.success(`${item.label} changes applied!`)}
-                                className="text-green-500 hover:text-green-400 transition-colors"
+                                onClick={() => applyLogisticsChanges(item.id, item.label)}
+                                className={`transition-colors ${hasPendingChanges ? 'text-green-500 hover:text-green-400' : 'text-green-700/70 hover:text-green-600'}`}
                               >
                                 <Check size={18} strokeWidth={3} />
                               </button>
@@ -699,43 +1310,53 @@ export default function CreateQuotePage() {
 
                 <div className="p-4 lg:p-9">
                   <h3 className="lg:text-xl font-medium text-white mb-6">Add Custom Logistics Item</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-7">
-                    <div className="md:col-span-8 relative">
-                      <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                    <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
+                      <div className="flex-1 relative w-full">
+                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                          <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
+                        </div>
+                        <Input
+                          placeholder="Eg : Cleaning Services"
+                          value={customLogisticsName}
+                          onChange={(e) => setCustomLogisticsName(e.target.value)}
+                          className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        />
                       </div>
-                      <Input
-                        placeholder="Eg : Cleaning Services"
-                        value={customLogisticsName}
-                        onChange={(e) => setCustomLogisticsName(e.target.value)}
-                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                      />
-                    </div>
-                    <div className="md:col-span-4 relative">
-                      <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                        <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                      <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
+                        <div className="flex-1 relative">
+                          <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                            <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                          </div>
+                          <Input
+                            placeholder="$ 0.00"
+                            value={customLogisticsCost}
+                            onChange={(e) => setCustomLogisticsCost(e.target.value)}
+                            className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                          />
+                        </div>
+                        <button
+                          onClick={handleCreateLogisticsItem}
+                          disabled={isSubmittingLogistics || !customLogisticsName || !customLogisticsCost}
+                          className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${isSubmittingLogistics || !customLogisticsName || !customLogisticsCost
+                            ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50'
+                            : 'bg-[#0DC752] text-black hover:bg-[#0bb54a]'}`}
+                        >
+                          {isSubmittingLogistics ? (
+                            <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                          ) : (
+                            <Check size={24} strokeWidth={3} />
+                          )}
+                        </button>
                       </div>
-                      <Input
-                        placeholder="$ 0.00"
-                        value={customLogisticsCost}
-                        onChange={(e) => setCustomLogisticsCost(e.target.value)}
-                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                      />
                     </div>
                   </div>
-                  <Button
-                    onClick={handleAddLogisticsItem}
-                    className="w-full lg:w-fit bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
-                  >
-                    <Plus size={16} strokeWidth={3} />
-                    Add Item
-                  </Button>
                 </div>
 
                 <div className="m-4 lg:m-9 mt-0 lg:mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-zinc-800/50">
                   <span className="text-sm lg:text-xl font-medium text-[#FFF]">Total Logistics Cost</span>
                   <span className="text-lg lg:text-2xl font-bold text-[#E8D1AB] tracking-tight">
-                    ${Object.values(logisticsConfigs).reduce((acc, curr) => acc + curr.price, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${totalLogisticsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               </section>
@@ -750,56 +1371,62 @@ export default function CreateQuotePage() {
                 <hr className="border-t border-[#3D3D3D]" />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-9">
-                  {(addons || []).map((addon) => (
-                    <button
-                      key={addon.id}
-                      onClick={() => {
-                        const isSelected = selectedAddons.includes(addon.id);
-                        if (isSelected) {
-                          setSelectedAddons(prev => prev.filter(id => id !== addon.id));
-                          setAddonConfigs(prev => {
-                            const newConfigs = { ...prev };
-                            delete newConfigs[addon.id];
-                            return newConfigs;
-                          });
-                        } else {
-                          setSelectedAddons(prev => [...prev, addon.id]);
-                          setAddonConfigs(prev => ({
-                            ...prev,
-                            [addon.id]: { quantity: 1, price: addon.price }
-                          }));
-                        }
-                      }}
-                      className={`relative flex flex-col items-start p-5 lg:p-6 rounded-xl lg:rounded-2xl border transition-all h-[78px] lg:h-[98px] text-left group ${selectedAddons.includes(addon.id)
-                        ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
-                        : 'bg-transparent border-[#303030] hover:border-zinc-700'
-                        }`}
-                    >
+                  {(addons || []).map((addon) => {
+                    const isProtectedAddon = isProtectedAddonLabel(addon.label);
+
+                    return (
+                    <div key={addon.id} className="relative">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteCatalogItem(addon.id, 'addon');
+                        type="button"
+                        onClick={() => {
+                          const isSelected = selectedAddons.includes(addon.id);
+                          if (isSelected) {
+                            removeSelectedAddon(addon.id);
+                          } else {
+                            const initialConfig = { quantity: 1, price: addon.price };
+                            setSelectedAddons(prev => [...prev, addon.id]);
+                            setAddonConfigs(prev => ({
+                              ...prev,
+                              [addon.id]: initialConfig
+                            }));
+                            setAppliedAddonConfigs(prev => ({
+                              ...prev,
+                              [addon.id]: initialConfig
+                            }));
+                          }
                         }}
-                        className="absolute top-6 right-6 text-zinc-500 hover:text-red-500 transition-colors z-10"
+                        className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedAddons.includes(addon.id)
+                          ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+                          : 'bg-transparent border-[#303030] hover:border-zinc-700'
+                          }`}
                       >
-                        <Trash2 size={18} />
-                      </button>
-                      <div className="flex items-start gap-4 w-full">
-                        <div className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
-                          ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black'
-                          : 'border-zinc-700 bg-transparent'
-                          }`}>
-                          {selectedAddons.includes(addon.id) && <Check size={14} strokeWidth={4} />}
-                        </div>
-                        <div className="space-y-2">
-                          <div className="font-medium text-base text-white leading-none">{addon.label}</div>
-                          <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
-                            ${addon.price.toFixed(2)}
+                        <div className="flex items-start gap-4 w-full">
+                          <div className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
+                            ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black'
+                            : 'border-zinc-700 bg-transparent'
+                            }`}>
+                            {selectedAddons.includes(addon.id) && <Check size={14} strokeWidth={4} />}
+                          </div>
+                          <div className="space-y-2">
+                            <div className="font-medium text-base text-white leading-none">{addon.label}</div>
+                            <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                              ${addon.price.toFixed(2)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                      {!isProtectedAddon && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCatalogItem(addon.id, 'addon')}
+                          className="absolute top-6 right-6 z-10 text-zinc-500 transition-colors hover:text-red-500"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </div>
+                    );
+                  })}
                 </div>
 
                 <div className="space-y-6 p-4 lg:p-9 pt-0">
@@ -877,6 +1504,7 @@ export default function CreateQuotePage() {
                       {selectedAddons.map(addonId => {
                         const addon = addons.find(a => a.id === addonId);
                         const config = addonConfigs[addonId];
+                        const hasPendingChanges = hasPendingAddonChanges(addonId);
                         if (!addon || !config) return null;
 
                         return (
@@ -911,32 +1539,22 @@ export default function CreateQuotePage() {
                                 {/* Price Override */}
                                 <div className="relative w-28">
                                   <Input
-                                    value={`$ ${config.price}`}
-                                    onChange={(e) => {
-                                      const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
-                                      handleAddonConfigUpdate(addonId, 'price', val);
-                                    }}
+                                    value={`$ ${getAddonDraftTotal(addonId).toFixed(2)}`}
+                                    onChange={(e) => handleAddonTotalUpdate(addonId, e.target.value)}
                                     className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                                   />
                                 </div>
 
                                 <div className="flex items-center gap-4 ml-2">
                                   <button
-                                    onClick={() => {
-                                      setSelectedAddons(prev => prev.filter(id => id !== addonId));
-                                      setAddonConfigs(prev => {
-                                        const newConfigs = { ...prev };
-                                        delete newConfigs[addonId];
-                                        return newConfigs;
-                                      });
-                                    }}
+                                    onClick={() => removeSelectedAddon(addonId)}
                                     className="text-red-500 hover:text-red-400 transition-colors"
                                   >
                                     <Trash2 size={18} />
                                   </button>
                                   <button
-                                    onClick={() => toast.success(`${addon.label} changes applied!`)}
-                                    className="text-green-500 hover:text-green-400 transition-colors"
+                                    onClick={() => applyAddonChanges(addonId, addon.label)}
+                                    className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
                                   >
                                     <Check size={18} strokeWidth={3} />
                                   </button>
@@ -955,31 +1573,21 @@ export default function CreateQuotePage() {
                                 {/* Price Override */}
                                 <div className="relative w-3/4">
                                   <Input
-                                    value={`$ ${config.price}`}
-                                    onChange={(e) => {
-                                      const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
-                                      handleAddonConfigUpdate(addonId, 'price', val);
-                                    }}
+                                    value={`$ ${getAddonDraftTotal(addonId).toFixed(2)}`}
+                                    onChange={(e) => handleAddonTotalUpdate(addonId, e.target.value)}
                                     className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                                   />
                                 </div>
 
                                 <button
-                                  onClick={() => {
-                                    setSelectedAddons(prev => prev.filter(id => id !== addonId));
-                                    setAddonConfigs(prev => {
-                                      const newConfigs = { ...prev };
-                                      delete newConfigs[addonId];
-                                      return newConfigs;
-                                    });
-                                  }}
+                                  onClick={() => removeSelectedAddon(addonId)}
                                   className="text-red-500 hover:text-red-400 transition-colors"
                                 >
                                   <Trash2 size={18} />
                                 </button>
                                 <button
-                                  onClick={() => toast.success(`${addon.label} changes applied!`)}
-                                  className="text-green-500 hover:text-green-400 transition-colors"
+                                  onClick={() => applyAddonChanges(addonId, addon.label)}
+                                  className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
                                 >
                                   <Check size={18} strokeWidth={3} />
                                 </button>
@@ -1010,6 +1618,13 @@ export default function CreateQuotePage() {
                         );
                       })}
                     </div>
+
+                    <div className="mt-4 rounded-[14px] bg-[#2A2A2A] px-5 py-4 lg:px-6 lg:py-5 flex items-center justify-between">
+                      <span className="text-base font-medium text-white">Total Add-Ons</span>
+                      <span className="text-xl font-semibold tracking-tight text-[#F0DCB1]">
+                        ${totalAddOnsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </section>
                 </>
               )}
@@ -1030,35 +1645,41 @@ export default function CreateQuotePage() {
                       <div className="col-span-3 py-10 flex justify-center items-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]"></div>
                       </div>
-                    ) : (services || []).map((service) => (
-                      <button
-                        key={service.id}
-                        onClick={() => handleServiceSelect(service.id, service.price)}
-                        className={`relative flex flex-col items-start p-5 lg:p-6 rounded-xl lg:rounded-2xl border transition-all h-[78px] lg:h-[98px] text-left group ${selectedServices.includes(service.id)
-                          ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
-                          : 'bg-transparent border-[#303030] hover:border-zinc-700'
-                          }`}
-                      >
-                        <div className="font-medium text-base text-white mb-2 leading-none">{service.label}</div>
-                        <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
-                          ${service.price.toFixed(2)} <span className="text-[#71717B] font-medium text-xs lowercase ml-1">per hour</span>
+                    ) : (services || []).map((service) => {
+                      const isProtectedService = isProtectedServiceLabel(service.label);
+
+                      return (
+                        <div key={service.id} className="relative">
+                          <button
+                            type="button"
+                            onClick={() => handleServiceSelect(service.id, service.price)}
+                            className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
+                              ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+                              : 'bg-transparent border-[#303030] hover:border-zinc-700'
+                              }`}
+                          >
+                            <div className="font-medium text-base text-white mb-2 leading-none">{service.label}</div>
+                            <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                              ${service.price.toFixed(2)} <span className="text-[#71717B] font-medium text-xs lowercase ml-1">per hour</span>
+                            </div>
+                            {selectedServices.includes(service.id) && (
+                              <div className={`absolute top-6 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none ${isProtectedService ? 'right-6' : 'right-12'}`}>
+                                Selected
+                              </div>
+                            )}
+                          </button>
+                          {!isProtectedService && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCatalogItem(service.id, 'service')}
+                              className="absolute top-6 right-6 text-zinc-500 transition-colors hover:text-red-500"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
                         </div>
-                        {selectedServices.includes(service.id) && (
-                          <div className="absolute top-6 right-12 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none">
-                            Selected
-                          </div>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteCatalogItem(service.id, 'service');
-                          }}
-                          className="absolute top-6 right-6 text-zinc-500 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="mt-5 lg:mt-7 space-y-6">
@@ -1157,16 +1778,27 @@ export default function CreateQuotePage() {
                                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
                                     </div>
                                   ) : (shootTypes || []).map((type) => (
-                                    <button
-                                      key={type.id}
-                                      onClick={() => setSelectedShootType(type.id)}
-                                      className={`h-[52px] rounded-[14px] font-normal transition-all border text-sm tracking-tight ${selectedShootType === type.id
-                                        ? 'bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner'
-                                        : 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700'
-                                        }`}
-                                    >
-                                      {type.label}
-                                    </button>
+                                    <div key={type.id} className="relative">
+                                      <button
+                                        onClick={() => setSelectedShootType(type.id)}
+                                        className={`h-[52px] w-full rounded-[14px] px-5 pr-11 font-normal transition-all border text-sm tracking-tight text-left flex items-center ${selectedShootType === type.id
+                                          ? 'bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner'
+                                          : 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700'
+                                          }`}
+                                      >
+                                        <span className="truncate">{type.label}</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteShootType(type.id);
+                                        }}
+                                        className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-zinc-500 transition-colors hover:text-red-500"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
                                   ))}
                                 </div>
 
@@ -1505,7 +2137,7 @@ export default function CreateQuotePage() {
                               />
                               {searchQuery && (
                                 <button onClick={() => setSearchQuery("")} className="text-[#6B6B6B] hover:text-white">
-                                  ✕
+                                  âœ•
                                 </button>
                               )}
                             </div>
@@ -1578,87 +2210,112 @@ export default function CreateQuotePage() {
                 <h2 className="text-base lg:text-xl font-medium text-white mb-1">Custom Line Items</h2>
                 <p className="text-sm text-[#A1A1AA]">Add any custom charges or fees not covered by services or add-ons</p>
               </div>
-              <hr className="border-t border-[#3D3D3D]" />
-              <div className=" p-4 lg:p-9">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-7">
-                  <div className="md:col-span-8 relative">
-                    <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                      <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
-                    </div>
-                    <Input
-                      placeholder="Eg : Cleaning Services"
-                      value={customItemName}
-                      onChange={(e) => setCustomItemName(e.target.value)}
-                      className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                    />
-                  </div>
-                  <div className="md:col-span-4 relative">
-                    <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                      <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
-                    </div>
-                    <Input
-                      placeholder="$ 0.00"
-                      value={customItemCost}
-                      onChange={(e) => setCustomItemCost(e.target.value)}
-                      className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                    />
-                  </div>
-                </div>
-                <Button
-                  onClick={handleAddLineItem}
-                  className="w-full lg:w-fit bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
-                >
-                  <Plus size={16} strokeWidth={3} />
-                  Add Item
-                </Button>
-              </div>
+              <div className="border-t border-dashed border-[#3D3D3D]" />
 
-              <hr className="border-t border-[#3D3D3D]" />
-              <div className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hiddenm-4 m-5 lg:m-9 lg:mt-0 ">
-                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-                  <div className="flex lg:flex-col justify-between lg:gap-1">
-                    <h3 className="text-base font-medium text-white leading-none">Rush Delivery</h3>
-                    <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">$1,500.00</p>
-                  </div>
-
-                  <hr className="lg:hidden border-t border-[#3D3D3D]" />
-
-                  <div className="flex items-center gap-6">
-                    <div className="relative w-2/3 lg:w-36">
+              <div className="p-4 lg:p-9">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                  <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
+                    <div className="flex-1 relative w-full">
+                      <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                        <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
+                      </div>
                       <Input
-                        value={`$ ${0}`}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
-                          // setLineItemConfigs(prev => ({ ...prev, [item.id]: { price: val } }));
-                        }}
-                        className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                        placeholder="Eg : Consulting Fee, Rush Delivery..."
+                        value={customItemName}
+                        onChange={(e) => setCustomItemName(e.target.value)}
+                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
+                      <div className="flex-1 relative">
+                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                          <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
+                        </div>
+                        <Input
+                          placeholder="$ 0.00"
+                          value={customItemCost}
+                          onChange={(e) => setCustomItemCost(e.target.value)}
+                          className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        />
+                      </div>
                       <button
-                        onClick={() => {
-                          // setLineItems(prev => prev.filter(i => i.id !== item.id));
-                          // setLineItemConfigs(prev => {
-                          //   const newConfigs = { ...prev };
-                          //   delete newConfigs[item.id];
-                          //   return newConfigs;
-                          // });
-                        }}
-                        className="text-red-500 hover:text-red-400 transition-colors"
+                        onClick={handleCreateLineItem}
+                        disabled={isSubmittingLineItem || !customItemName || !customItemCost}
+                        className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${isSubmittingLineItem || !customItemName || !customItemCost
+                          ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50'
+                          : 'bg-[#0DC752] text-black hover:bg-[#0bb54a]'}`}
                       >
-                        <Trash2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => toast.success("Line item changes applied!")}
-                        className="text-green-500 hover:text-green-400 transition-colors"
-                      >
-                        <Check size={18} strokeWidth={3} />
+                        {isSubmittingLineItem ? (
+                          <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                        ) : (
+                          <Check size={24} strokeWidth={3} />
+                        )}
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
 
+              <div className="border-t border-dashed border-[#3D3D3D]" />
+
+              <div className="space-y-4 p-4 lg:p-9">
+                {lineItems.map((item) => {
+                  const config = lineItemConfigs[item.id];
+                  const hasPendingChanges = hasPendingLineItemChanges(item.id);
+                  const isProtectedLineItem = isProtectedLineItemLabel(item.label);
+
+                  return (
+                    <div key={item.id} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-4 lg:p-5 relative overflow-hidden">
+                      <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
+                        <div className="flex lg:flex-col justify-between lg:gap-1">
+                          <h3 className="text-base font-medium text-white leading-none">{item.label}</h3>
+                          <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                            ${item.basePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+
+                        <hr className="lg:hidden border-t border-[#3D3D3D]" />
+
+                        <div className="flex items-center gap-6">
+                          <div className="relative w-2/3 lg:w-36">
+                            <Input
+                              value={`$ ${config?.price || 0}`}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
+                                setLineItemConfigs(prev => ({ ...prev, [item.id]: { price: val } }));
+                              }}
+                              className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                            />
+                          </div>
+                          <div className="flex items-center gap-4">
+                            {!isProtectedLineItem && (
+                              <button
+                                onClick={() => handleDeleteCatalogItem(item.id, 'line_item')}
+                                className="text-red-500 hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => applyLineItemChanges(item.id, item.label)}
+                              className={`transition-colors ${hasPendingChanges ? 'text-green-500 hover:text-green-400' : 'text-green-700/70 hover:text-green-600'}`}
+                            >
+                              <Check size={18} strokeWidth={3} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="m-4 lg:m-9 mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-zinc-800/50">
+                <span className="text-sm lg:text-xl font-medium text-[#FFF]">Total Custom Line Items</span>
+                <span className="text-lg lg:text-2xl font-bold text-[#E8D1AB] tracking-tight">
+                  ${totalLineItemsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
           ) : view === 'discounts' ? (
             <div>
@@ -1726,7 +2383,7 @@ export default function CreateQuotePage() {
                             Percentage
                           </h4>
                           <p className={`text-xs mt-0.5 text-[#888888]`}>
-                            % off subtotal
+                            % off total after tax
                           </p>
                         </div>
                       </button>
@@ -1750,7 +2407,7 @@ export default function CreateQuotePage() {
                             Fixed Amount
                           </h4>
                           <p className={`text-xs mt-0.5 text-[#888888]`}>
-                            $ off subtotal
+                            $ off total after tax
                           </p>
                         </div>
                       </button>
@@ -1771,19 +2428,26 @@ export default function CreateQuotePage() {
                     <div className="my-6 flex flex-col gap-2">
                       <div className="flex justify-between text-[#9F9FA9] ">
                         <p>Subtotal</p>
-                        <p>$ 2211.00</p>
+                        <p>{formatCurrency(quoteSubtotal)}</p>
+                      </div>
+                      <div className="flex justify-between text-[#9F9FA9] ">
+                        <p>{`${taxLabel} (${normalizedTaxRate}%)`}</p>
+                        <p>{formatCurrency(taxAmount)}</p>
+                      </div>
+                      <div className="flex justify-between text-[#9F9FA9] ">
+                        <p>Total After Tax</p>
+                        <p>{formatCurrency(totalAfterTax)}</p>
                       </div>
                       <div className="flex justify-between text-[#E8D1AB] font-medium ">
                         <p>Discount Applied </p>
-                        <p>- $ 211.00</p>
+                        <p>- {formatCurrency(discountAmount)}</p>
                       </div>
                     </div>
 
                     <div className="bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center ">
                       <span className="text-sm lg:text-xl font-medium text-white">After Discount</span>
                       <span className="text-lg lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
-                        {/* This needs to be updated  */}
-                        $ 2000.00
+                        {formatCurrency(totalAfterDiscount)}
                       </span>
                     </div>
                   </div>
@@ -1818,7 +2482,10 @@ export default function CreateQuotePage() {
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-3 lg:mt-6 ">
                   <button
-                    onClick={() => setSelectedTax(0)}
+                    onClick={() => {
+                      setSelectedTax(0);
+                      setTaxRate(0);
+                    }}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 0
                       ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
                       : "bg-[#171717] border-[#222222] hover:border-[#333333]"
@@ -1831,7 +2498,10 @@ export default function CreateQuotePage() {
                     </div>
                   </button>
                   <button
-                    onClick={() => setSelectedTax(5)}
+                    onClick={() => {
+                      setSelectedTax(5);
+                      setTaxRate(5);
+                    }}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 5
                       ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
                       : "bg-[#171717] border-[#222222] hover:border-[#333333]"
@@ -1844,7 +2514,10 @@ export default function CreateQuotePage() {
                     </div>
                   </button>
                   <button
-                    onClick={() => setSelectedTax(8.5)}
+                    onClick={() => {
+                      setSelectedTax(8.5);
+                      setTaxRate(8.5);
+                    }}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 8.5
                       ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
                       : "bg-[#171717] border-[#222222] hover:border-[#333333]"
@@ -1857,7 +2530,10 @@ export default function CreateQuotePage() {
                     </div>
                   </button>
                   <button
-                    onClick={() => setSelectedTax(10)}
+                    onClick={() => {
+                      setSelectedTax(10);
+                      setTaxRate(10);
+                    }}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 10
                       ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
                       : "bg-[#171717] border-[#222222] hover:border-[#333333]"
@@ -1882,20 +2558,27 @@ export default function CreateQuotePage() {
                   <div className="flex justify-between items-center ">
                     <span className="text-sm lg:text-base text-[#9F9FA9]">Subtotal</span>
                     <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                      $5,550.00
+                      {formatCurrency(quoteSubtotal)}
                     </span>
                   </div>
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm lg:text-base text-white font-medium">Amount Before Tax</span>
+                    <span className="text-sm lg:text-base text-white font-medium">Amount After Tax</span>
                     <span className="text-sm lg:text-base text-white font-medium tracking-tight">
-                      $5,550.00
+                      {formatCurrency(totalAfterTax)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">Sales Tax (8.5%)</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
                     <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                      $471.75
+                      {formatCurrency(taxAmount)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">Discount Applied</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      - {formatCurrency(discountAmount)}
                     </span>
                   </div>
 
@@ -1904,7 +2587,7 @@ export default function CreateQuotePage() {
                   <div className="flex justify-between items-center ">
                     <span className="text-sm lg:text-xl font-medium text-white">Final Total</span>
                     <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
-                      $ 2000.00
+                      {formatCurrency(totalAfterDiscount)}
                     </span>
                   </div>
 
@@ -1920,7 +2603,15 @@ export default function CreateQuotePage() {
                   <Input
                     placeholder="0.00"
                     value={taxRate}
-                    onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const nextTaxRate = parseFloat(e.target.value) || 0;
+                      const presetTaxRate =
+                        nextTaxRate === 5 || nextTaxRate === 8.5 || nextTaxRate === 10
+                          ? (nextTaxRate as 5 | 8.5 | 10)
+                          : 0;
+                      setTaxRate(nextTaxRate);
+                      setSelectedTax(presetTaxRate);
+                    }}
                     className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                   />
                 </div>
@@ -2134,10 +2825,12 @@ export default function CreateQuotePage() {
                   view === 'details' ? clientName :
                     view === 'services' ? selectedServices.length > 0 :
                       true
-              )}
+              ) || isCreatingQuoteDraft}
               onClick={handleContinue}
             >
-              {view === "tax" ? "Preview Quote" : "Continue"}
+              {view === "tax"
+                ? (isCreatingQuoteDraft ? "Creating Draft..." : "Preview Quote")
+                : "Continue"}
             </Button>
           </div>
 
@@ -2178,10 +2871,12 @@ export default function CreateQuotePage() {
                 view === 'details' ? clientName :
                   view === 'services' ? selectedServices.length > 0 :
                     true
-            )}
+            ) || isCreatingQuoteDraft}
             onClick={handleContinue}
           >
-            {view === "tax" ? "Preview Quote" : "Continue"}
+            {view === "tax"
+              ? (isCreatingQuoteDraft ? "Creating Draft..." : "Preview Quote")
+              : "Continue"}
           </Button>
         </div>
       </div>
@@ -2193,10 +2888,11 @@ export default function CreateQuotePage() {
           setItemToDelete(null);
         }}
         onConfirm={confirmDelete}
-        title={`Delete ${itemToDelete?.type === 'service' ? 'Project Type' : 'Add-on'}`}
-        description={`Are you sure you want to delete this ${itemToDelete?.type === 'service' ? 'project type' : 'add-on'}? This action cannot be undone.`}
+        title={`Delete ${itemToDelete?.type === 'service' ? 'Service' : itemToDelete?.type === 'addon' ? 'Add-on' : itemToDelete?.type === 'logistics' ? 'Logistics Item' : itemToDelete?.type === 'shoot_type' ? 'Shoot Type' : 'Line Item'}`}
+        description={`Are you sure you want to delete this ${itemToDelete?.type === 'service' ? 'service' : itemToDelete?.type === 'addon' ? 'add-on' : itemToDelete?.type === 'logistics' ? 'logistics item' : itemToDelete?.type === 'shoot_type' ? 'shoot type' : 'line item'}? This action cannot be undone.`}
         isLoading={isDeleting}
       />
     </div>
   );
 }
+

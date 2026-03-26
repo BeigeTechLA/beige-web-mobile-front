@@ -1574,6 +1574,19 @@ export const salesApi = {
       };
     }
   },
+  createQuoteDraft: async (data: Record<string, unknown>) => {
+    try {
+      const response = await api.post('/sales/quotes', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Quote Draft Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create quote draft',
+      };
+    }
+  },
   getQuotesDashboard: async () => {
     try {
       const response = await api.get('/sales/quotes/dashboard');
@@ -1642,6 +1655,29 @@ export const salesApi = {
         success: false,
         data: null,
         error: 'Failed to fetch shoot types',
+      };
+    }
+  },
+  deleteShootType: async (id: number | string) => {
+    try {
+      const shootTypeId = Number(id);
+
+      if (!Number.isInteger(shootTypeId) || shootTypeId <= 0) {
+        return {
+          success: false,
+          data: null,
+          error: 'Invalid shoot type id',
+        };
+      }
+
+      const response = await api.delete(`/sales/quotes/shoot-types/${shootTypeId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Shoot Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete shoot type',
       };
     }
   },
