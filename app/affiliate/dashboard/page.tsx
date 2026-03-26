@@ -347,14 +347,11 @@ export default function AffiliateDashboardPage() {
         </button>
 
         <button
-          disabled
-          onClick={() => setActiveTab("file-manager")}
+          onClick={() => handleTabChange("file-manager")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "file-manager"
             ? "bg-[#E5D5B8] text-black shadow-lg"
             : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-            }
-            opacity-40 cursor-not-allowed
-            `}
+            }`}
         >
           <FolderOpen size={20} />
           <span className="font-medium">File Manager</span>

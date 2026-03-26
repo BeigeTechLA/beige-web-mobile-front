@@ -160,11 +160,11 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           )}
 
           {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-            <PreProductionTab />
+            <PreProductionTab projectId={id} />
           )}
 
           {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-            <PostProductionTab />
+            <PostProductionTab projectId={id} />
           )}
 
           {activeTab === "Meetings" && (

@@ -112,7 +112,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
 
       {/* Main Content (Left) */}
       <div className="flex-1 p-6 pb-15 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-        <AffiliateShootHeader activeTab={activeTab} project={project} onBack={onBack} />
+        <AffiliateShootHeader activeTab={activeTab} project={project} projectId={shootId} onBack={onBack} />
         <Button
           className="w-full bg-[#202020] text-white hover:bg-[#202020]/50 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 mb-3"
           onClick={() => setIsTimelineOpen(true)}
@@ -134,11 +134,11 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
         )}
 
         {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-          <AffiliatePreProductionTab />
+          <AffiliatePreProductionTab projectId={shootId} />
         )}
 
         {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-          <AffiliatePostProductionTab />
+          <AffiliatePostProductionTab projectId={shootId} />
         )}
 
         {activeTab === "Meetings" && (
@@ -180,15 +180,6 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
         </div>
       )}
 
-      {/* --- FLOATING MOBILE BUTTONS --- */}
-      <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
-        <Button className="w-full bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
-          Cancel Shoot
-        </Button>
-        <Button className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
-          Edit Shoot
-        </Button>
-      </div>
     </div>
   );
 }

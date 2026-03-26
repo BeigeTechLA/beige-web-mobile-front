@@ -1,170 +1,173 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { CloudUpload, X, Folder, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ArrowLeft, ExternalLink, FileText, Folder, Loader2 } from "lucide-react";
+import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
+import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 
-interface UploadedFile {
-  id: string;
-  name: string;
-  size: string;
-  type: string;
-  url: string;
+interface AffiliatePreProductionTabProps {
+  projectId: string;
 }
 
-export default function AffiliatePreProductionTab() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [files, setFiles] = useState<UploadedFile[]>([]);
+const prettifyFolderName = (name?: string) => {
+  const normalized = String(name || "").trim();
+  if (!normalized) return "Folder";
+  return normalized.replace(/-/g, " ");
+};
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
+export default function AffiliatePreProductionTab({ projectId }: AffiliatePreProductionTabProps) {
+  const [currentPath, setCurrentPath] = useState("");
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [folders, setFolders] = useState<any[]>([]);
+  const [files, setFiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [viewerName, setViewerName] = useState("");
+  const [viewerType, setViewerType] = useState("");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+  const loadPreProduction = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fileManagerApi.getExternalWorkspaceFiles(projectId, "pre", currentPath || undefined);
+      setWorkspaceName(response.workspace.folderName || "");
+      setFolders(response.folders || []);
+      setFiles(response.files || []);
+    } catch (err: any) {
+      setError(err?.message || "Failed to load pre-production files");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleUpload = () => {
-    if (!selectedFile) return;
+  useEffect(() => {
+    if (projectId) {
+      loadPreProduction();
+    }
+  }, [projectId, currentPath]);
 
-    const newFile: UploadedFile = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: selectedFile.name,
-      size: formatFileSize(selectedFile.size),
-      type: selectedFile.type,
-      url: URL.createObjectURL(selectedFile)
-    };
-
-    setFiles([newFile, ...files]);
-    setSelectedFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const handleBack = () => {
+    const parts = currentPath.split("/").filter(Boolean);
+    parts.pop();
+    setCurrentPath(parts.join("/"));
   };
 
-  const removeFile = (id: string) => {
-    setFiles(files.filter(f => f.id !== id));
+  const handleOpenFile = async (file: any) => {
+    try {
+      setViewerOpen(true);
+      setViewerUrl(null);
+      setViewerName(file.name);
+      setViewerType(file.contentType || "");
+      const response = await fileManagerApi.getExternalFileViewUrl(file.path);
+      setViewerUrl(response.url || null);
+    } catch (error) {
+      setViewerOpen(false);
+    }
   };
 
   return (
-    <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        className="hidden"
-      />
+    <div className="space-y-6" style={{ fontFamily: "var(--font-instrument-sans)" }}>
+      <div className="bg-[#111111] lg:p-4 rounded-lg lg:rounded-2xl border border-[#222222] min-h-[46px]">
+        <div className="px-6 text-[#666666] text-xs lg:text-base font-medium py-4">
+          {workspaceName ? `View Pre Production files for ${workspaceName}` : "View Pre Production files"}
+        </div>
+      </div>
 
-      {/* Upload Section */}
-      {selectedFile ? (
-        // Selected File UI
-        <div className="flex items-center justify-between bg-[#111111] lg:p-2 rounded-lg lg:rounded-2xl border border-[#222222] h-[46px] lg:h-[72px]">
-          <div className="flex-1 flex justify-start px-4">
-            <div className="bg-[#1A1A1A] lg:rounded-full px-2 lg:pl-2 lg:pr-4 py-2 flex items-center gap-3 lg:min-w-[300px]">
-              {/* Icon based on type */}
-              <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center shrink-0 ${selectedFile.type.startsWith('image/') ? 'bg-[#10B981]' : 'bg-[#2563EB]'}`}>
-                {selectedFile.type.startsWith('image/') ? <ImageIcon size={14} className="text-white" /> : <span className="text-white text-[8px] font-bold">DOC</span>}
-              </div>
+      {currentPath && (
+        <button onClick={handleBack} className="text-white hover:text-white/80 transition-colors flex items-center gap-2">
+          <ArrowLeft size={18} />
+          <span className="text-sm font-medium">Back</span>
+        </button>
+      )}
 
-              <div className="flex flex-col flex-1">
-                <span className="text-white text-sm font-medium leading-none truncate max-w-[100px] lg:max-w-[200px]">{selectedFile.name}</span>
-                <span className="text-[#666666] text-xs leading-none mt-1">{formatFileSize(selectedFile.size)}</span>
-              </div>
-
-              <button
-                onClick={() => {
-                  setSelectedFile(null);
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                }}
-                className="text-[#666666] hover:text-white transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={handleUpload}
-            className="bg-white text-black px-6 h-full rounded-r-lg lg:rounded-xl font-medium flex items-center gap-2 hover:bg-zinc-200 transition-colors"
-          >
-            <CloudUpload size={20} />
-            <span className="text-xs lg:text-base leading-none">Upload File</span>
-          </button>
+      {loading ? (
+        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[220px] flex items-center justify-center">
+          <Loader2 className="animate-spin text-white/50" size={28} />
+        </div>
+      ) : error ? (
+        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[220px] flex items-center justify-center text-red-300 text-sm">
+          {error}
         </div>
       ) : (
-        // Default Upload UI
-        <div onClick={() => fileInputRef.current?.click()} className="flex items-center justify-between bg-[#111111] lg:p-2 rounded-lg lg:rounded-2xl border border-[#222222] h-[46px] lg:h-[72px] cursor-pointer hover:border-[#333] transition-colors">
-          <div className="px-6 text-[#666666] text-xs lg:text-base font-medium">
-            Select a file or drag and drop
-          </div>
-          <button className="bg-white text-black px-6 h-full rounded-r-lg lg:rounded-xl font-medium flex items-center gap-2 hover:bg-zinc-200 transition-colors">
-            <CloudUpload size={20} />
-            <span className="text-xs lg:text-base leading-none">Upload File</span>
-          </button>
+        <div className="space-y-6">
+          {folders.length > 0 && (
+            <div className="bg-[#111111] border border-[#222222] rounded-2xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-[#222222] bg-[#161616]">
+                <h3 className="text-[#E5D5B8] text-base font-medium leading-none">Folders</h3>
+              </div>
+              <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {folders.map((folder) => (
+                  <button
+                    key={folder.path}
+                    onClick={() => {
+                      const nextPath = [currentPath, folder.name].filter(Boolean).join("/");
+                      setCurrentPath(nextPath);
+                    }}
+                    className="text-left flex items-center justify-between rounded-2xl border border-[#222222] bg-[#0A0A0A] px-5 py-4 hover:border-[#444] transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Folder className="text-[#E5D5B8]" size={20} />
+                      <div>
+                        <div className="text-white font-medium">{prettifyFolderName(folder.name)}</div>
+                        <div className="text-xs text-[#888]">{folder.fileCount || 0} files</div>
+                      </div>
+                    </div>
+                    <ExternalLink className="text-white/40" size={16} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {files.length > 0 || folders.length === 0 ? (
+            <div className="bg-[#111111] border border-[#222222] rounded-2xl overflow-hidden min-h-[280px]">
+              <div className="px-6 py-4 border-b border-[#222222] bg-[#161616]">
+                <h3 className="text-[#E5D5B8] text-base font-medium leading-none">Files</h3>
+              </div>
+
+              {files.length > 0 ? (
+                <div className="p-3 lg:p-6 flex gap-6 flex-wrap">
+                  {files.map((file) => (
+                    <button
+                      key={file.id}
+                      onClick={() => handleOpenFile(file)}
+                      className="text-left flex-0 border border-[#222222] bg-[#0A0A0A] rounded-xl p-3 lg:p-5 flex items-center gap-5 w-full lg:w-[420px] group relative hover:border-[#444] transition-colors"
+                    >
+                      <div className="w-12 h-14 bg-[#1A1A1A] rounded-lg relative shrink-0 flex items-center justify-center">
+                        <FileText className="text-[#E5D5B8]" size={20} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-white text-sm lg:text-base font-medium leading-tight mb-1 truncate" title={file.name}>
+                          {file.name}
+                        </h4>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[#E5D5B8] text-sm underline underline-offset-4">View File</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <EmptyFileState
+                  title="No File Uploaded"
+                  description="No files have been uploaded for this project yet."
+                />
+              )}
+            </div>
+          ) : null}
         </div>
       )}
 
-      {/* Uploaded Documents List or Empty State */}
-      <div className="bg-[#111111] border border-[#222222] rounded-2xl overflow-hidden min-h-[400px]">
-        <div className="px-6 py-4 border-b border-[#222222] bg-[#161616] flex justify-between items-center">
-          <h3 className="text-[#E5D5B8] text-base font-medium leading-none">Uploaded Documents</h3>
-        </div>
-
-        {files.length > 0 ? (
-          <div className="p-3 lg:p-6 flex gap-6 flex-wrap">
-            {files.map((file) => (
-              <div key={file.id} className="flex-0 border border-[#222222] bg-[#0A0A0A] rounded-xl p-3 lg:p-5 flex items-center gap-5 w-full lg:w-[420px] group relative">
-                {file.type.startsWith('image/') ? (
-                  <div className="w-12 h-14 bg-[#1A1A1A] rounded-lg overflow-hidden shrink-0">
-                    <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
-                  </div>
-                ) : (
-                  <div className="w-12 h-14 bg-[#2563EB] rounded-lg relative shrink-0 flex items-center justify-center">
-                    <span className="text-white font-bold text-[10px] z-10">DOC</span>
-                    <div className="absolute top-0 right-0 w-4 h-4 bg-[#0A0A0A] opacity-50 rounded-bl-lg" />
-                    <div className="absolute top-0 right-0 w-4 h-4 bg-white/20 rounded-bl-lg" />
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-sm lg:text-base font-medium leading-tight mb-1 truncate" title={file.name}>{file.name}</h4>
-                  <div className="flex items-center gap-3">
-                    <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-[#E5D5B8] text-sm underline underline-offset-4 hover:text-[#D4C3A3]">View File</a>
-                    <span className="text-[#666] text-xs leading-none">• {file.size}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => removeFile(file.id)}
-                  className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 absolute top-2 right-2 p-1 text-[#666] hover:text-red-500 transition-all"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          // Empty State
-          <div className="flex flex-col items-center justify-center h-[300px]">
-            <div className="mb-6 relative">
-              {/* Custom SVG for Folder with Magnifying Glass */}
-              <svg width="80" height="80" viewBox="0 0 100 100" fill="none" stroke="#E5D5B8" strokeWidth="1">
-                <path d="M10 30 L40 30 L50 40 L90 40 L90 80 L10 80 Z" fill="none" rx="4" />
-                <path d="M10 30 L10 25 Q10 20 15 20 L35 20 Q40 20 40 25 L40 30" fill="none" />
-                <path d="M25 10 L65 10 L60 30 L20 30 Z" fill="#1A1A1A" stroke="#E5D5B8" strokeWidth="1" transform="rotate(-15 45 20)" />
-                <circle cx="65" cy="55" r="18" fill="#1A1A1A" stroke="#E5D5B8" strokeWidth="1" />
-                <line x1="78" y1="68" x2="90" y2="80" stroke="#E5D5B8" strokeWidth="3" strokeLinecap="round" />
-              </svg>
-            </div>
-            <h3 className="text-white text-xl font-medium mb-2">No File Uploaded</h3>
-            <p className="text-[#666666] text-sm">No files have been uploaded for this project yet.</p>
-          </div>
-        )}
-      </div>
+      <FileViewerModal
+        isOpen={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        fileName={viewerName}
+        fileUrl={viewerUrl}
+        contentType={viewerType}
+      />
     </div>
   );
 }

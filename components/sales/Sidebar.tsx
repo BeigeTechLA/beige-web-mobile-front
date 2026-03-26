@@ -9,7 +9,7 @@ import Image from "next/image";
 const salesMenuItems = [
   { name: 'Sales', icon: LayoutDashboard, link: '/sales/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', isDisabled: true },
+  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
   { name: 'Messages', icon: MessageCircle, link: '/sales/messages', isDisabled: true },
 ];
 

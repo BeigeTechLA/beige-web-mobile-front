@@ -11,7 +11,7 @@ import {
   mapExternalFoldersToUi,
 } from "@/lib/fileManagerApi";
 
-export default function PreProductionTab({ projectId }: { projectId: string }) {
+export default function SalesPreProductionTab({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [workspaceName, setWorkspaceName] = useState("");
   const [files, setFiles] = useState<any[]>([]);
@@ -30,7 +30,7 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
         mapExternalFoldersToUi(
           response.folders,
           (folder) =>
-            `/admin/file-manager/${projectId}/pre-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
+            `/sales/file-manager/${projectId}/pre-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
         )
       );
       setFiles(mapExternalFilesToUi(response.files));
@@ -111,7 +111,7 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
                   {files.map((file) => (
                     <button
                       key={file.id}
-                      onClick={() => router.push(`/admin/file-manager/${projectId}/pre-production`)}
+                      onClick={() => router.push(`/sales/file-manager/${projectId}/pre-production`)}
                       className="text-left flex-0 border border-[#222222] bg-[#0A0A0A] rounded-xl p-3 lg:p-5 flex items-center gap-5 w-full lg:w-[420px] group relative hover:border-[#444] transition-colors"
                     >
                       <div className="w-12 h-14 bg-[#1A1A1A] rounded-lg relative shrink-0 flex items-center justify-center">

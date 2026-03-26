@@ -11,7 +11,7 @@ import {
   mapExternalFoldersToUi,
 } from "@/lib/fileManagerApi";
 
-export default function PostProductionTab({ projectId }: { projectId: string }) {
+export default function SalesPostProductionTab({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isOpen, setIsOpen] = useState(false);
@@ -28,7 +28,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
         mapExternalFoldersToUi(
           response.folders,
           (folder) =>
-            `/admin/file-manager/${projectId}/post-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
+            `/sales/file-manager/${projectId}/post-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
         )
       );
     } catch (err: any) {

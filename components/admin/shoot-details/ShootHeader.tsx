@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { adminApi } from "@/lib/api";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 import {
   getPaymentStatusMeta,
   getProjectFolderLink,
@@ -26,9 +27,42 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const router = useRouter();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [workspaceFolderLink, setWorkspaceFolderLink] = React.useState("");
+  const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
-  const folderLink = getProjectFolderLink(project);
-  const shootFilesText = getShootFilesText(project);
+  const folderLink = workspaceFolderLink || getProjectFolderLink(project);
+  const shootFilesText =
+    workspaceFileCount != null
+      ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
+      : getShootFilesText(project);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadWorkspaceSummary = async () => {
+      if (!projectId) return;
+
+      try {
+        const response = await fileManagerApi.getExternalWorkspace(projectId);
+        if (!isMounted) return;
+
+        setWorkspaceFolderLink(response.workspace.consoleUrl || "");
+        setWorkspaceFileCount(
+          typeof response.workspace.fileCount === "number" ? response.workspace.fileCount : null
+        );
+      } catch (error) {
+        if (!isMounted) return;
+        setWorkspaceFolderLink("");
+        setWorkspaceFileCount(null);
+      }
+    };
+
+    loadWorkspaceSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId]);
 
   const handleDelete = async () => {
     if (!projectId) return;
@@ -182,7 +216,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
                   )}
                 >
                   {folderLink || "No Link Available"}
-                  {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production") && (
+                  {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production" || activeTab === "Pre Production" || activeTab === "Post Production") && (
                     <span className="text-white"> / {activeTab.replace("_", " ")}</span>
                   )}
                 </a>

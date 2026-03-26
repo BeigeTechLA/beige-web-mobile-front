@@ -1,480 +1,945 @@
 "use client";
 
-import React, { useState } from "react";
-import { Folder, FolderOpen, Grid3X3, History, Link, LinkIcon, List, MoreVertical, Search, Share2, Trash2, Unlink, Upload } from "lucide-react";
-import { AffiliateFolderCard } from "@/components/affiliate/file-manager/AffiliateFolderCard";
+import React, { useEffect, useMemo, useState } from "react";
+import Cookies from "js-cookie";
+import {
+  ArrowLeft,
+  ExternalLink,
+  FolderOpen,
+  Grid3X3,
+  History,
+  Link,
+  LinkIcon,
+  List,
+  Loader2,
+  Search,
+  Share2,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import AffiliateFileActionMenu from "@/components/affiliate/file-manager/AffiliateFileActionMenu";
-import AffiliateLinkToShootModal from "@/components/affiliate/file-manager/AffiliateLinkToShootModal";
-import AffiliateUploadFilesModal from "@/components/affiliate/file-manager/AffiliateUploadFilesModal";
 import { SortDateButton } from "@/components/admin/SortDateButton";
+import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
+import { FolderCard } from "@/components/admin/file-manager/FolderCard";
+import { FileCard } from "@/components/admin/file-manager/FileCard";
+import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
+import { affiliateApi } from "@/lib/api";
+import { fileManagerApi, inferWorkspaceCategory, isRecentWithinHours } from "@/lib/fileManagerApi";
 
-import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
-import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
-
-interface FolderEntry {
-  id: string;
+interface WorkspaceCard {
+  externalId: string;
   title: string;
   fileCount: number;
+  lastOpened: string;
+  userInitials: string;
   category: string;
-  isLinked: boolean;
+  updatedAtRaw?: string;
+  consoleUrl?: string | null;
+}
+
+interface BrowserFolder {
+  name: string;
+  title: string;
+  fileCount: number;
+  lastOpened: string;
+}
+
+interface BrowserFile {
+  id: string;
+  title: string;
+  filepath: string;
+  contentType?: string;
   lastOpened: string;
   userInitials: string;
 }
 
-const folderData = [
-  {
-    id: "1",
-    title: "Corporate_Lana_#123456",
-    fileCount: 2,
-    category: "Corporate Event",
-    isLinked: true,
-    lastOpened: "2 hours ago",
-    userInitials: "DP",
-  },
-  {
-    id: "2",
-    title: "Project_Beige_Final",
-    fileCount: 14,
-    category: "Brands & Products",
-    isLinked: true,
-    lastOpened: "5 hours ago",
-    userInitials: "KA",
-  },
-  {
-    id: "3",
-    title: "Wedding_Vows_Recap",
-    fileCount: 45,
-    category: "Private Events",
-    isLinked: false,
-    lastOpened: "1 day ago",
-    userInitials: "CE",
-  },
-  {
-    id: "4",
-    title: "Commercial_folder_V1",
-    fileCount: 8,
-    category: "Commercial & Advertising",
-    isLinked: true,
-    lastOpened: "3 days ago",
-    userInitials: "DP",
-  },
-  {
-    id: "5",
-    title: "Behind_The_Scenes_2026",
-    fileCount: 120,
-    category: "Behind-the-Scenes",
-    isLinked: false,
-    lastOpened: "1 week ago",
-    userInitials: "JW",
-  },
-  {
-    id: "6",
-    title: "Influencer_Collab_NY",
-    fileCount: 3,
-    category: "Social Content",
-    isLinked: false,
-    lastOpened: "Just now",
-    userInitials: "SK",
-  },
-];
+const prettifyFolderName = (name?: string) => {
+  const normalized = String(name || "").trim();
+  if (!normalized) return "Folder";
+  if (normalized === "Pre-Production") return "Pre Production";
+  if (normalized === "Post-Production") return "Post Production";
+  if (normalized === "Raw Footage") return "Raw Footages";
+  return normalized.replace(/-/g, " ");
+};
 
-const STATUSES = [
-  "Linked",
-  "Unlinked",
-]
+const getInitials = (name?: string | null) => {
+  if (!name) return "FM";
+  return name
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "FM";
+};
 
-import AffiliateFolderDetailsView from "./file-manager/AffiliateFolderDetailsView";
-import AffiliateFileDetailsView from "./file-manager/AffiliateFileDetailsView";
+const formatRelativeTime = (value?: string) => {
+  if (!value) return "recently";
 
-// ... (types and mock data)
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "recently";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes} min${diffMinutes === 1 ? "" : "s"} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+
+  return date.toLocaleDateString();
+};
 
 export default function AffiliateFileManager() {
-  const [view, setView] = useState<"main" | "folder" | "subfolder">("main");
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [selectedSubFolderId, setSelectedSubFolderId] = useState<string | null>(null);
-
-  const [selectedTab, setSelectedTab] = useState("All Files")
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [filteredFolders, setFilteredFolders] = useState<FolderEntry[]>(folderData);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [status, setStatus] = React.useState("")
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  // Inside AdminFolderManagerPage component
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [selectedTab, setSelectedTab] = useState("All Files");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [status, setStatus] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>([]);
 
-  const toggleDropdown = () => setIsOpen(!isOpen);
+  const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceCard | null>(null);
+  const [workspaceFolders, setWorkspaceFolders] = useState<BrowserFolder[]>([]);
+  const [selectedPhase, setSelectedPhase] = useState<"pre" | "post" | null>(null);
+  const [selectedPath, setSelectedPath] = useState("");
+  const [phaseFolders, setPhaseFolders] = useState<BrowserFolder[]>([]);
+  const [phaseFiles, setPhaseFiles] = useState<BrowserFile[]>([]);
+  const [isPhaseLoading, setIsPhaseLoading] = useState(false);
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
-  const handleSelect = (mode: 'grid' | 'list') => {
-    setViewMode(mode);
-    setIsOpen(false);
-  };
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerName, setViewerName] = useState("");
+  const [viewerType, setViewerType] = useState("");
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
 
-  const handleDateSort = (date: Date | null) => {
-    setSelectedDate(date);
-    if (date) {
-      console.log(date);
-    } else {
-      console.log("unfiltered");
+  const loadRoot = async () => {
+    const token = Cookies.get("revure_token");
+    if (!token) {
+      setError("Please log in to view your files.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [shootsResponse, externalWorkspaces] = await Promise.all([
+        affiliateApi.getMyShoots(token, { range: "all" }),
+        fileManagerApi.listExternalWorkspaces(),
+      ]);
+
+      const projects = shootsResponse?.data?.projects || [];
+      const projectMap = new Map<string, any>();
+
+      projects.forEach((item: any) => {
+        const project = item.project || item;
+        const bookingId = String(project?.stream_project_booking_id || project?.booking_id || "");
+        if (bookingId) {
+          projectMap.set(bookingId, project);
+        }
+      });
+
+      const mapped = externalWorkspaces
+        .filter((workspace) => projectMap.has(String(workspace.externalId)))
+        .map((workspace) => {
+          const project = projectMap.get(String(workspace.externalId));
+          return {
+            externalId: String(workspace.externalId),
+            title: project?.project_name || workspace.folderName,
+            fileCount: Number(workspace.fileCount || 0),
+            lastOpened: workspace.updatedAt || workspace.createdAt || "",
+            userInitials: getInitials(project?.project_name || workspace.folderName),
+            category: inferWorkspaceCategory(project?.project_name || workspace.folderName),
+            updatedAtRaw: workspace.updatedAt || workspace.createdAt || "",
+            consoleUrl: workspace.consoleUrl,
+          };
+        });
+
+      setWorkspaces(mapped);
+    } catch (err: any) {
+      setError(err?.message || "Failed to load your file manager");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
-  const [activeFolderTitle, setActiveFolderTitle] = useState<string | null>(null);
+  const loadPhase = async (
+    workspace: WorkspaceCard,
+    phase: "pre" | "post",
+    path = ""
+  ) => {
+    try {
+      setIsPhaseLoading(true);
+      setError(null);
+      const response = await fileManagerApi.getExternalWorkspaceFiles(
+        workspace.externalId,
+        phase,
+        path || undefined
+      );
 
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+      setPhaseFolders(
+        (response.folders || []).map((folder) => ({
+          name: folder.name,
+          title: prettifyFolderName(folder.name),
+          fileCount: Number(folder.fileCount || 0),
+          lastOpened: folder.updatedAt || folder.createdAt || "",
+        }))
+      );
 
-  const handleNavigateToFolder = (id: string) => {
-    setSelectedFolderId(id);
-    setView("folder");
+      setPhaseFiles(
+        (response.files || []).map((file) => ({
+          id: file.id,
+          title: file.name,
+          filepath: file.path,
+          contentType: file.contentType,
+          lastOpened: file.updatedAt || file.createdAt || "",
+          userInitials: getInitials(file.name),
+        }))
+      );
+    } catch (err: any) {
+      setError(err?.message || "Failed to load folder contents");
+    } finally {
+      setIsPhaseLoading(false);
+    }
   };
 
-  const handleNavigateToSubFolder = (id: string) => {
-    setSelectedSubFolderId(id);
-    setView("subfolder");
+  const openWorkspace = async (workspace: WorkspaceCard) => {
+    try {
+      setIsPhaseLoading(true);
+      setSelectedWorkspace(workspace);
+      setSelectedPhase(null);
+      setSelectedPath("");
+      setSearchTerm("");
+      const response = await fileManagerApi.getExternalWorkspace(workspace.externalId);
+      setWorkspaceFolders(
+        (response.folders || []).map((folder) => ({
+          name: folder.name,
+          title: prettifyFolderName(folder.name),
+          fileCount: Number(folder.fileCount || 0),
+          lastOpened: folder.updatedAt || folder.createdAt || "",
+        }))
+      );
+    } catch (err: any) {
+      setError(err?.message || "Failed to load workspace");
+    } finally {
+      setIsPhaseLoading(false);
+    }
   };
 
-  const handleBackToMain = () => {
-    setView("main");
-    setSelectedFolderId(null);
-  };
+  useEffect(() => {
+    loadRoot();
+  }, []);
 
-  const handleBackToFolder = () => {
-    setView("folder");
-    setSelectedSubFolderId(null);
-  };
+  useEffect(() => {
+    if (selectedWorkspace && selectedPhase) {
+      loadPhase(selectedWorkspace, selectedPhase, selectedPath);
+    }
+  }, [selectedWorkspace, selectedPhase, selectedPath]);
 
-  if (view === "folder" && selectedFolderId) {
-    return (
-      <AffiliateFolderDetailsView
-        folderId={selectedFolderId}
-        onBack={handleBackToMain}
-        onNavigateToSubFolder={handleNavigateToSubFolder}
-      />
+  useEffect(() => {
+    const previewableFiles = phaseFiles.filter(
+      (file) =>
+        file.filepath &&
+        (file.contentType?.startsWith("image/") || file.contentType?.startsWith("video/"))
     );
-  }
 
-  if (view === "subfolder" && selectedFolderId && selectedSubFolderId) {
-    return (
-      <AffiliateFileDetailsView
-        folderId={selectedFolderId}
-        subFolderId={selectedSubFolderId}
-        onBack={handleBackToFolder}
-      />
+    if (!previewableFiles.length) return;
+
+    let active = true;
+
+    const loadPreviews = async () => {
+      const entries = await Promise.all(
+        previewableFiles.map(async (file) => {
+          try {
+            const result = await fileManagerApi.getExternalFileViewUrl(file.filepath);
+            return [file.id, result.url] as const;
+          } catch {
+            return [file.id, ""] as const;
+          }
+        })
+      );
+
+      if (!active) return;
+      setPreviewUrls((prev) => ({
+        ...prev,
+        ...Object.fromEntries(entries.filter(([, url]) => !!url)),
+      }));
+    };
+
+    loadPreviews();
+    return () => {
+      active = false;
+    };
+  }, [phaseFiles]);
+
+  const handleOpenFile = async (file: BrowserFile) => {
+    try {
+      setViewerOpen(true);
+      setViewerName(file.title);
+      setViewerType(file.contentType || "");
+      setViewerUrl(null);
+      const response = await fileManagerApi.getExternalFileViewUrl(file.filepath);
+      setViewerUrl(response.url || null);
+    } catch (err) {
+      setViewerOpen(false);
+    }
+  };
+
+  const handleDownloadFile = async (file: BrowserFile) => {
+    if (!file?.filepath) return;
+
+    try {
+      const response = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
+      if (response?.url) {
+        window.open(response.url, "_blank", "noopener,noreferrer");
+      }
+    } catch (err) {
+      console.error("Failed to download file:", err);
+    }
+  };
+
+  const handleBack = () => {
+    if (selectedPath) {
+      const parts = selectedPath.split("/").filter(Boolean);
+      parts.pop();
+      setSelectedPath(parts.join("/"));
+      return;
+    }
+    if (selectedPhase) {
+      setSelectedPhase(null);
+      return;
+    }
+    setSelectedWorkspace(null);
+    setWorkspaceFolders([]);
+  };
+
+  const filteredWorkspaces = useMemo(() => {
+    let items = [...workspaces];
+
+    if (selectedTab === "Linked to folders") {
+      items = items.filter(() => true);
+    } else if (selectedTab === "Recent") {
+      items = items.filter((workspace) => isRecentWithinHours(workspace.updatedAtRaw, 24 * 5));
+    } else if (selectedTab === "Shared" || selectedTab === "Trash") {
+      items = [];
+    }
+
+    if (status === "Linked") {
+      items = items.filter(() => true);
+    } else if (status === "Unlinked") {
+      items = [];
+    }
+
+    if (searchTerm.trim()) {
+      items = items.filter((workspace) =>
+        workspace.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return items;
+  }, [workspaces, searchTerm, selectedTab, status]);
+
+  const filteredFolders = useMemo(() => {
+    return phaseFolders.filter((folder) =>
+      folder.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }
+  }, [phaseFolders, searchTerm]);
 
-  const tabs = [
-    { name: "All Files", icon: Folder },
-    { name: "Linked to folders", icon: Link },
-    { name: "Recent", icon: History },
-    { name: "Shared", icon: Share2 },
-    { name: "Trash", icon: Trash2 },
-  ]
-
-  const onChange = ((val: string) => {
-    setSelectedTab(val);
-  })
-
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-
-    // Filter by Title or Category
-    const filtered = folderData.filter((folder) =>
-      folder.title.toLowerCase().includes(value.toLowerCase()) ||
-      folder.category.toLowerCase().includes(value.toLowerCase())
+  const filteredFiles = useMemo(() => {
+    return phaseFiles.filter((file) =>
+      file.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
+  }, [phaseFiles, searchTerm]);
 
-    setFilteredFolders(filtered);
-  };
+  const breadcrumb = useMemo(() => {
+    const items = ["File Manager"];
+    if (selectedWorkspace) items.push(selectedWorkspace.title);
+    if (selectedPhase) items.push(selectedPhase === "pre" ? "Pre Production" : "Post Production");
+    if (selectedPath) {
+      selectedPath
+        .split("/")
+        .filter(Boolean)
+        .forEach((segment) => items.push(prettifyFolderName(segment)));
+    }
+    return items;
+  }, [selectedWorkspace, selectedPhase, selectedPath]);
 
-  const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>, folderTitle: string) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setActiveFolderTitle(folderTitle);
-
-    const isNearRightEdge = window.innerWidth - rect.right < 250;
-    const isNearBottomEdge = window.innerHeight - rect.bottom < 150;
-
-    setMenuAnchor({
-      x: isNearRightEdge ? rect.left - 210 : rect.right - 10,
-      y: isNearBottomEdge ? rect.top - 230 : rect.top - 20
-    });
-  };
-
-  const handleOpenLinkModal = (folderTitle: string) => {
-    setSelectedFolder(folderTitle);
-    setIsLinkModalOpen(true);
-    setMenuAnchor(null);
-  };
-
-  return (
-    <div className="space-y-3 lg:space-y-6">
-      <div className="flex justify-between items-center mb-3 lg:mb-6 gap-3 ">
-        <div className="text-white">
-          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">File Manager</h1>
-          <p className="text-xs lg:text-sm text-white/70">Here's what's happening with your folders and requests today.</p>
+  const renderRoot = () => {
+    if (loading) {
+      return (
+        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[280px] flex items-center justify-center">
+          <Loader2 className="animate-spin text-white/50" size={28} />
         </div>
-        <SortDateButton
-          selectedDate={selectedDate}
-          onDateChange={handleDateSort}
-        />
-      </div>
+      );
+    }
 
-      <div className="flex flex-col lg:flex-row gap-2 justify-between items-center">
-        <div className="flex flex-nowrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit overflow-x-auto no-scrollbar">
-          {tabs.map((tab, index) => (
-            <Button
-              key={`tab_${index}`}
-              onClick={() => onChange(tab.name)}
-              className={`flex gap-2 px-2 py-[2px] text-sm font-medium transition-all rounded-lg h-7 lg:h-10 ${selectedTab === tab.name ? "bg-white text-black " : "hover:bg-white/10"}
-          `}
+    if (error) {
+      return (
+        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[280px] flex items-center justify-center text-red-300 text-sm">
+          {error}
+        </div>
+      );
+    }
+
+    if (!filteredWorkspaces.length) {
+      return (
+        <EmptyFileState
+          title="No File Uploaded"
+          description="No files have been uploaded for this project yet."
+        />
+      );
+    }
+
+    if (viewMode === "list") {
+      return (
+        <div className="flex flex-col gap-3">
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
+                  <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                  <th className="py-5 px-6 font-medium">Category</th>
+                  <th className="py-5 px-6 font-medium">Files</th>
+                  <th className="py-5 px-6 font-medium">Status</th>
+                  <th className="py-5 px-6 font-medium">Last Updated</th>
+                  <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredWorkspaces.map((workspace) => (
+                  <tr
+                    key={workspace.externalId}
+                    className="items-center cursor-pointer hover:bg-white/[0.02] transition-colors"
+                    onClick={() => openWorkspace(workspace)}
+                  >
+                    <td className="py-5 px-6 text-white flex gap-2 items-center">
+                      <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
+                        <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
+                      </div>
+                      <span className="text-sm font-semibold">{workspace.title}</span>
+                    </td>
+                    <td className="py-5 px-6 text-white text-[15px]">
+                      <span className="px-4 py-1.5 rounded-xl bg-[#171717] text-white text-xs font-medium">
+                        {workspace.category}
+                      </span>
+                    </td>
+                    <td className="py-5 px-6 text-white">{String(workspace.fileCount).padStart(2, "0")}</td>
+                    <td className="py-5 px-6">
+                      <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#6ce9a6]/20 bg-[#D4FFE4] px-2 py-1 text-[11px] font-medium leading-none text-[#16A34A]">
+                        <LinkIcon size={16} />
+                        Linked
+                      </span>
+                    </td>
+                    <td className="py-5 px-6 text-white/80">Updated {formatRelativeTime(workspace.lastOpened)}</td>
+                    <td className="py-5 px-6 text-right">
+                      <ExternalLink className="inline-block text-white/40" size={16} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="lg:hidden space-y-3">
+            {filteredWorkspaces.map((workspace) => (
+              <button
+                key={workspace.externalId}
+                onClick={() => openWorkspace(workspace)}
+                className="w-full bg-[#171717] rounded-xl border border-white/5 overflow-hidden mb-3 text-left"
+              >
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-white/5 flex items-center justify-center rounded-lg">
+                      <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/10" size={20} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-white truncate max-w-[180px]">
+                        {workspace.title}
+                      </div>
+                      <div className="text-white/40 text-xs mt-1">{String(workspace.fileCount).padStart(2, "0")} Files</div>
+                    </div>
+                  </div>
+                  <ExternalLink className="text-white/40" size={18} />
+                </div>
+                <div className="border-t border-white/5 bg-black/20 p-4 grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-white/40 text-xs mb-1">Category</p>
+                    <p className="text-white font-medium">{workspace.category}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/40 text-xs mb-1">Last Updated</p>
+                    <p className="text-white font-medium">Updated {formatRelativeTime(workspace.lastOpened)}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+        {filteredWorkspaces.map((workspace) => (
+          <button
+            key={workspace.externalId}
+            onClick={() => openWorkspace(workspace)}
+            className="w-full lg:max-w-[350px] bg-[#18181b] rounded-xl lg:rounded-3xl border border-white/5 shadow-xl cursor-pointer hover:border-white/20 hover:bg-[#1c1c20] transition-all group text-left"
+          >
+            <div className="p-5">
+              <div className="flex items-start justify-between">
+                <div className="flex gap-3 items-start">
+                  <div>
+                    <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold text-sm leading-tight">{workspace.title}</h3>
+                    <p className="text-[#E8D1AB]/60 text-sm mt-1">
+                      {String(workspace.fileCount).padStart(2, "0")} Files
+                    </p>
+                  </div>
+                </div>
+                <ExternalLink className="text-white/40 mt-1" size={16} />
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-4">
+                <span className="px-4 py-1.5 rounded-full bg-black/40 text-white text-xs font-medium border border-white/5">
+                  {workspace.category}
+                </span>
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#6ce9a6]/20 bg-[#D4FFE4] px-2 py-1 text-[11px] font-medium leading-none text-[#16A34A]">
+                  <LinkIcon size={16} />
+                  Linked
+                </span>
+                <span className="px-2 py-1.5 rounded-full bg-[#1A1A1A] text-[#E8D1AB] text-xs font-medium border border-white/5">
+                  View Only
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center border-t border-t-white/50 p-5 gap-3">
+              <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-[#000] text-base">
+                {workspace.userInitials}
+              </div>
+              <span className="text-[#CDC5C5] text-sm">Updated {formatRelativeTime(workspace.lastOpened)}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const renderWorkspacePhases = () => {
+    if (!selectedWorkspace) return null;
+
+    const preFolder = workspaceFolders.find((folder) => folder.title === "Pre Production");
+    const postFolder = workspaceFolders.find((folder) => folder.title === "Post Production");
+
+    const phaseCards = [
+      { id: "pre", title: "Pre Production", fileCount: preFolder?.fileCount || 0 },
+      { id: "post", title: "Post Production", fileCount: postFolder?.fileCount || 0 },
+    ];
+
+    if (isPhaseLoading) {
+      return (
+        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[280px] flex items-center justify-center">
+          <Loader2 className="animate-spin text-white/50" size={28} />
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-8">
+        <div>
+          <div className="flex items-start gap-5 mb-2 lg:mb-6">
+            <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
+              {selectedWorkspace.userInitials}
+            </div>
+            <div className="min-w-0 text-white max-w-3xl flex-1">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+                <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
+                  {selectedWorkspace.title}
+                </h1>
+                <span className="px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
+                  Active Project
+                </span>
+              </div>
+              <p className="hidden lg:block text-sm text-[#D0D0D0]">
+                <span className="text-[#AAA7A7]">Project Code: </span>
+                {selectedWorkspace.externalId}
+              </p>
+              {selectedWorkspace.consoleUrl ? (
+                <a
+                  href={selectedWorkspace.consoleUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hidden lg:inline-block mt-2 text-xs text-[#E8D1AB] underline underline-offset-4"
+                >
+                  Open Storage Folder
+                </a>
+              ) : null}
+            </div>
+          </div>
+          <p className="lg:hidden text-xs text-[#D0D0D0]">
+            <span className="text-[#AAA7A7]">Project Code: </span>
+            {selectedWorkspace.externalId}
+          </p>
+          {selectedWorkspace.consoleUrl ? (
+            <a
+              href={selectedWorkspace.consoleUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="lg:hidden inline-block mt-2 text-xs text-[#E8D1AB] underline underline-offset-4"
             >
-              <tab.icon size={20} />
-              {tab.name}
-            </Button>
+              Open Storage Folder
+            </a>
+          ) : null}
+        </div>
+
+        <div className="pb-20 lg:pb-0">
+          <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
+            <div className="relative flex-1 max-w-xl">
+              <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+              <input
+                type="text"
+                placeholder="Search folder..."
+                value={searchTerm}
+                className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <BasicDropdown label="Status" value={status} onChange={setStatus} options={["Linked", "Unlinked"]} />
+              <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
+                <Button
+                  onClick={() => setViewMode("grid")}
+                  className={`px-5 py-2.5 rounded-l-lg transition-colors ${
+                    viewMode === "grid"
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      : "bg-transparent text-white/40 hover:text-white"
+                  }`}
+                >
+                  <Grid3X3 size={20} />
+                </Button>
+                <Button
+                  onClick={() => setViewMode("list")}
+                  className={`px-5 py-2.5 rounded-r-lg transition-colors ${
+                    viewMode === "list"
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      : "bg-transparent text-white/40 hover:text-white"
+                  }`}
+                >
+                  <List size={20} />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+          {phaseCards.map((phase) => (
+            <FolderCard
+              key={phase.id}
+              title={phase.title}
+              fileCount={phase.fileCount}
+              lastOpened={formatRelativeTime(
+                (phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) || selectedWorkspace.lastOpened
+              )}
+              userInitials={selectedWorkspace.userInitials}
+              onOpenLinkModal={() => {}}
+              onOpen={() => {
+                setSelectedPhase(phase.id as "pre" | "post");
+                setSelectedPath("");
+                setSearchTerm("");
+              }}
+              showMenu={false}
+            />
           ))}
         </div>
-
-        <div className="w-full flex justify-between lg:justify-end gap-1 text-sm lg:text-base text-[#8F8F8F]">
-          <span>Storage Used:</span> <p><span className="text-[#E8D1AB]">{"24.5GB"}</span> / 100GB</p>
         </div>
       </div>
+    );
+  };
 
-      <div
-        className="h-[1px] w-full my-4 lg:my-9"
-        style={{
-          backgroundImage: `linear-gradient(to right, #3f3f46 50%, transparent 50%)`,
-          backgroundSize: '30px 1px',
-          backgroundRepeat: 'repeat-x'
-        }}
-      />
+  const renderPhaseBrowser = () => {
+    if (isPhaseLoading) {
+      return (
+        <div className="bg-[#111111] border border-[#222222] rounded-2xl min-h-[280px] flex items-center justify-center">
+          <Loader2 className="animate-spin text-white/50" size={28} />
+        </div>
+      );
+    }
 
-      <div className="pb-20 lg:pb-0">
-        <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
-          <div className="relative flex-1 max-w-xl">
-            <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
-            <input
-              type="text"
-              placeholder="Search folder..."
-              value={searchTerm}
-              className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSearch(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2 ">
-            {/* Status dropdown to be added */}
-            <BasicDropdown
-              label="Status"
-              value={status}
-              onChange={(val) => setStatus(val)}
-              options={STATUSES}
-            />
-
-            {/* MOBILE VIEW: Dropdown Button */}
-            <div className="md:hidden relative">
-              <Button
-                onClick={toggleDropdown}
-                className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
-              >
-                {viewMode === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
-              </Button>
-
-              {/* Dropdown Menu */}
-              {isOpen && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
-                  <button
-                    onClick={() => handleSelect('grid')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                      }`}
-                  >
-                    <Grid3X3 size={18} />
-                    Grid View
-                  </button>
-                  <button
-                    onClick={() => handleSelect('list')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                      }`}
-                  >
-                    <List size={18} />
-                    List View
-                  </button>
-                </div>
-              )}
+    return (
+      <div className="space-y-8">
+        <div>
+          <div className="flex items-start gap-5 mb-2 lg:mb-6">
+            <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
+              {selectedWorkspace?.userInitials}
             </div>
-
-            {/* DESKTOP VIEW: Original Toggle */}
-            <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
-              <Button
-                onClick={() => setViewMode('grid')}
-                className={`px-5 py-2.5 rounded-l-lg transition-colors ${viewMode === 'grid'
-                  ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                  : "bg-transparent text-white/40 hover:text-white"
-                  }`}
-              >
-                <Grid3X3 size={20} />
-              </Button>
-              <Button
-                onClick={() => setViewMode('list')}
-                className={`px-5 py-2.5 rounded-r-lg transition-colors ${viewMode === 'list'
-                  ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                  : "bg-transparent text-white/40 hover:text-white"
-                  }`}
-              >
-                <List size={20} />
-              </Button>
+            <div className="min-w-0 text-white max-w-3xl flex-1">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+                <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
+                  {selectedWorkspace?.title}
+                </h1>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 flex items-center gap-1.5 ${
+                  selectedPhase === "post"
+                    ? "bg-[#E8D2FB] text-[#540B94]"
+                    : "bg-[#FDF4FF] text-[#C026D3]"
+                }`}>
+                  {selectedPhase === "post" ? "Post Production" : "Pre Production"}
+                </span>
+                <span className="px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 bg-[#1A1A1A] text-[#E8D1AB]">
+                  View Only
+                </span>
+              </div>
+              <p className="hidden lg:block text-sm text-[#D0D0D0]">
+                <span className="text-[#AAA7A7]">Project Code: </span>
+                {selectedWorkspace?.externalId}
+              </p>
+              {selectedWorkspace?.consoleUrl ? (
+                <a
+                  href={selectedWorkspace.consoleUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hidden lg:inline-block mt-2 text-xs text-[#E8D1AB] underline underline-offset-4"
+                >
+                  Open Storage Folder
+                </a>
+              ) : null}
             </div>
-
           </div>
         </div>
 
-        {
-          viewMode === 'grid' ? (
-            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5`}>
+        {filteredFolders.length > 0 ? (
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Folders</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
               {filteredFolders.map((folder) => (
-                <AffiliateFolderCard
-                  key={folder.id}
+                <FolderCard
+                  key={`${selectedPath}-${folder.name}`}
                   title={folder.title}
                   fileCount={folder.fileCount}
-                  category={folder.category}
-                  isLinked={folder.isLinked}
-                  lastOpened={folder.lastOpened}
-                  userInitials={folder.userInitials}
-                  onOpenLinkModal={() => handleOpenLinkModal(folder.title)}
-                  onClick={() => handleNavigateToFolder(folder.id)}
+                  category="Folder"
+                  isLinked={true}
+                  lastOpened={formatRelativeTime(folder.lastOpened)}
+                  userInitials={getInitials(folder.title)}
+                  onOpenLinkModal={() => {}}
+                  onOpen={() => {
+                    const nextPath = [selectedPath, folder.name].filter(Boolean).join("/");
+                    setSelectedPath(nextPath);
+                  }}
+                  showMenu={false}
                 />
               ))}
             </div>
-          ) : (
-            <div className={`flex flex-col gap-3`}>
-              {/* MOBILE LIST VIEW */}
-              <div className="lg:hidden">
-                {filteredFolders.map((folder) => (
-                  <MobileFolderRow
-                    key={folder.id}
-                    folder={folder}
-                    handleOpenMenu={(e, title) => handleOpenMenu(e, title)}
+          </div>
+        ) : null}
+
+        {filteredFiles.length > 0 || filteredFolders.length === 0 ? (
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
+            {filteredFiles.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                {filteredFiles.map((file) => (
+                  <FileCard
+                    key={file.id}
+                    file={{
+                      ...file,
+                      previewUrl: previewUrls[file.id],
+                      lastOpened: formatRelativeTime(file.lastOpened),
+                    }}
+                    onOpen={() => handleOpenFile(file)}
+                    onDownload={() => handleDownloadFile(file)}
                   />
                 ))}
               </div>
-
-              {/* DESKTOP TABLE VIEW */}
-              <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                      <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
-                      <th className="py-5 px-6 font-medium">Category</th>
-                      <th className="py-5 px-6 font-medium">Files</th>
-                      <th className="py-5 px-6 font-medium">Status</th>
-                      <th className="py-5 px-6 font-medium">Last Updated</th>
-                      <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredFolders.map((folder, idx) => (
-                      <tr key={idx} className="items-center cursor-pointer hover:bg-white/5" onClick={() => handleNavigateToFolder(folder.id)}>
-                        <td className="py-5 px-6 text-white flex gap-2 items-center">
-                          <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
-                            <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
-                          </div>
-                          <span className="text-sm font-semibold">{folder.title}</span>
-                        </td>
-
-                        <td className="py-5 px-6 text-white text-[15px]">
-                          <span className="px-4 py-1.5 rounded-xl bg-[#171717] text-white text-xs font-medium ">
-                            {folder.category}
-                          </span>
-                        </td>
-
-                        <td className="py-5 px-6 ">
-                          <p className="text-white">{folder.fileCount.toString().padStart(2, '0')} </p>
-                        </td>
-
-                        <td className="py-5 px-6 ">
-                          {folder.isLinked ? (
-                            <span className="px-2 py-1.5 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
-                              <LinkIcon size={16} />
-                              Linked
-                            </span>
-                          ) : (
-                            <span className="px-2 py-1.5 rounded-full bg-[#FFF1F2] text-[#F43F5E] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
-                              <Unlink size={16} />
-                              Unlinked
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="py-5 px-6">
-                          {folder.lastOpened}
-                        </td>
-
-                        <td className="py-5 px-6 text-right">
-                          <Button
-                            className="text-white hover:text-white/90 transition-colors bg-transparent p-0"
-                            onClick={(e) => { e.stopPropagation(); handleOpenMenu(e, folder.title); }}
-                          >
-                            <MoreVertical size={30} />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )
-        }
+            ) : (
+              <EmptyFileState
+                title="No File Uploaded"
+                description="No files have been uploaded for this project yet."
+              />
+            )}
+          </div>
+        ) : null}
       </div>
-      {/* GLOBAL MENU OVERLAY */}
-      {menuAnchor && (
-        <AffiliateFileActionMenu
-          folderName={selectedFolder}
-          isOpen={true}
-          onClose={() => setMenuAnchor(null)}
-          onOpenLinkModal={() => handleOpenLinkModal(activeFolderTitle || "")}
-          anchor={menuAnchor}
-        />
+    );
+  };
+
+  return (
+    <div className="space-y-4 lg:space-y-8" style={{ fontFamily: "var(--font-instrument-sans)" }}>
+      <div className="flex justify-between items-center mb-3 lg:mb-6">
+        <div>
+          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1 text-white">File Manager</h1>
+          <p className="text-xs lg:text-sm text-white/70">
+            Live project folders from your booked and paid shoots.
+          </p>
+        </div>
+        <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
+      </div>
+
+      {(selectedWorkspace || selectedPhase) && (
+        <button
+          onClick={handleBack}
+          className="text-white hover:text-white/80 transition-colors flex items-center gap-2"
+        >
+          <ArrowLeft size={18} />
+          <span className="text-sm font-medium">Back</span>
+        </button>
       )}
 
-      <AffiliateLinkToShootModal
-        isOpen={isLinkModalOpen}
-        onClose={() => setIsLinkModalOpen(false)}
-        folderName={selectedFolder || ""}
-      />
-
-      <AffiliateUploadFilesModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        folderName={selectedFolder || ""} //need this logic better figured out
-      />
-
-      {/* CreateFolderModal */}
-      <CreateFolderModal
-        isOpen={isCreateFolderModalOpen}
-        onClose={() => setIsCreateFolderModalOpen(false)}
-        onCreate={(data) => console.log("Creating folder:", data)}
-      />
-
-      {/* --- FLOATING MOBILE BUTTON --- */}
-      <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
-        <Button
-          onClick={() => setIsUploadModalOpen(true)}
-          className="w-full bg-[#202020] text-white hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-        >
-          <Upload size={20} />
-          Upload Files
-        </Button>
-        <Button
-          onClick={() => setIsCreateFolderModalOpen(true)}
-          className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-        >
-          Create New Folder
-        </Button>
+      <div className="flex flex-wrap items-center gap-2 text-sm text-white/60">
+        {breadcrumb.map((item, index) => (
+          <React.Fragment key={`${item}-${index}`}>
+            {index > 0 && <span>/</span>}
+            <span className={index === breadcrumb.length - 1 ? "text-white font-medium" : ""}>{item}</span>
+          </React.Fragment>
+        ))}
       </div>
+
+      {!selectedWorkspace && (
+        <>
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-center w-full mb-4 lg:mb-9">
+            <div className="flex flex-nowrap items-center gap-1.5 lg:gap-3 bg-[#171717] p-1.5 rounded-xl w-full lg:w-fit overflow-x-auto no-scrollbar scroll-smooth">
+              {[
+                { name: "All Files", icon: FolderOpen },
+                { name: "Linked to folders", icon: Link },
+                { name: "Recent", icon: History },
+                { name: "Shared", icon: Share2 },
+                { name: "Trash", icon: Trash2 },
+              ].map((tab) => (
+                <Button
+                  key={tab.name}
+                  onClick={() => setSelectedTab(tab.name)}
+                  className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${
+                    selectedTab === tab.name
+                      ? "bg-white text-black shadow-lg scale-[1.02]"
+                      : "text-white/60 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  <tab.icon size={20} className="shrink-0" />
+                  <span className="leading-none">{tab.name}</span>
+                </Button>
+              ))}
+            </div>
+
+            <div className="w-full lg:w-auto flex justify-between lg:justify-end items-center gap-2 text-sm lg:text-base text-[#8F8F8F] bg-[#171717]/50 px-4 py-2 rounded-lg border border-white/5">
+              <span className="whitespace-nowrap">Projects:</span>
+              <p className="font-medium">
+                <span className="text-[#E8D1AB]">{workspaces.length}</span>
+                <span className="mx-1">total</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
+            <div className="relative flex-1 max-w-xl">
+              <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+              <input
+                type="text"
+                placeholder="Search folder..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+              />
+            </div>
+            <div className="flex gap-2">
+              <BasicDropdown label="Status" value={status} onChange={setStatus} options={["Linked", "Unlinked"]} />
+
+              <div className="md:hidden relative">
+                <Button
+                  onClick={() => setIsViewMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
+                >
+                  {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
+                </Button>
+
+                {isViewMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+                    <button
+                      onClick={() => {
+                        setViewMode("grid");
+                        setIsViewMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                        viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                      }`}
+                    >
+                      <Grid3X3 size={18} />
+                      Grid View
+                    </button>
+                    <button
+                      onClick={() => {
+                        setViewMode("list");
+                        setIsViewMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                        viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                      }`}
+                    >
+                      <List size={18} />
+                      List View
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
+                <Button
+                  onClick={() => setViewMode("grid")}
+                  className={`px-5 py-2.5 rounded-l-lg transition-colors ${
+                    viewMode === "grid"
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      : "bg-transparent text-white/40 hover:text-white"
+                  }`}
+                >
+                  <Grid3X3 size={20} />
+                </Button>
+                <Button
+                  onClick={() => setViewMode("list")}
+                  className={`px-5 py-2.5 rounded-r-lg transition-colors ${
+                    viewMode === "list"
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      : "bg-transparent text-white/40 hover:text-white"
+                  }`}
+                >
+                  <List size={20} />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {selectedWorkspace && (
+        <div className="relative max-w-xl">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
+          <input
+            type="text"
+            placeholder={selectedPhase ? "Search files or folders..." : "Search project folders..."}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-[#18181b] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+          />
+        </div>
+      )}
+
+      {selectedWorkspace ? (
+        selectedPhase ? renderPhaseBrowser() : renderWorkspacePhases()
+      ) : (
+        renderRoot()
+      )}
+
+      <FileViewerModal
+        isOpen={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        fileName={viewerName}
+        fileUrl={viewerUrl}
+        contentType={viewerType}
+      />
     </div>
-  )
+  );
 }

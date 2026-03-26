@@ -188,6 +188,7 @@ function PaymentContent() {
       // Confirm payment and save to database
       const response = await paymentApi.confirmBooking(paymentIntentId, {
         creator_id: creatorId,
+        booking_id: shootId,
         user_id: guestBooking?.user_id,
         hours: bookingData.hours || 1,
         hourly_rate: hourlyRate,

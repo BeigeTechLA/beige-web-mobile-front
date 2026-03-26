@@ -7,7 +7,6 @@ import Cookies from "js-cookie";
 import { affiliateApi, adminApi } from "@/lib/api";
 import { format } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useRouter } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -77,7 +76,6 @@ interface AffiliateShootsTableProps {
 }
 
 export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onShootClick, externalSelectedDate }) => {
-  const router = useRouter();
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -199,13 +197,9 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
     setExpandedId(expandedId === id ? null : id);
   };
 
-  const handleActionClick = (e: React.MouseEvent, bookingId: string, hasQuote: boolean) => {
+  const handleActionClick = (e: React.MouseEvent, bookingId: string) => {
     e.stopPropagation();
-    if (!hasQuote) {
-      router.push(`/affiliate/dashboard/${bookingId}/edit-booking`);
-      return;
-    }
-    router.push(`/search-results/payment?shootId=${bookingId}`);
+    onShootClick(bookingId);
   };
 
   return (
@@ -307,7 +301,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                     <div className="col-span-2 pt-2">
                       {shoot.paymentStatus === "pending" && (
                         <button
-                          onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
+                          onClick={(e) => handleActionClick(e, shoot.bookingId)}
                           className="w-full mb-2 py-2 bg-[#E8D1AB] hover:bg-[#dcb98a] rounded-lg text-black text-sm font-semibold"
                         >
                           {shoot.hasQuote ? "Proceed to Payment" : "Complete Booking"}
@@ -403,7 +397,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                       <div className="flex items-center justify-end gap-2">
                         {shoot.paymentStatus === "pending" && (
                           <button
-                            onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
+                            onClick={(e) => handleActionClick(e, shoot.bookingId)}
                             className="px-3 py-1.5 rounded-lg bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-xs font-semibold"
                           >
                             {shoot.hasQuote ? "Proceed to Payment" : "Complete Booking"}

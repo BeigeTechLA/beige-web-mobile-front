@@ -1,5 +1,170 @@
-import ShootDetailsPage from "@/app/admin/shoots/[id]/page";
+"use client";
+
+import React, { useState, useEffect, use } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Topbar from "@/components/admin/Topbar";
+import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
+import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam";
+import AssignedCP from "@/components/admin/shoot-details/AssignedCP";
+import MeetingSchedule from "@/components/admin/shoot-details/MeetingSchedule";
+import ProjectTimeline from "@/components/admin/shoot-details/ProjectTimeline";
+import ShootTabs from "@/components/admin/shoot-details/ShootTabs";
+import SalesPreProductionTab from "@/components/sales/shoot-details/PreProductionTab";
+import SalesPostProductionTab from "@/components/sales/shoot-details/PostProductionTab";
+import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
+import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
+import { adminApi } from "@/lib/api";
+import { Loader2, X } from "lucide-react";
+import { Button } from "@/src/components/landing/ui/button";
 
 export default function SalesShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-    return <ShootDetailsPage params={params} />;
+  const router = useRouter();
+  const pathname = usePathname();
+  const { id } = use(params);
+  const [activeTab, setActiveTab] = useState("Overview");
+  const [project, setProject] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchProjectAndSkills = async () => {
+      try {
+        const [projectResponse, skillsResponse] = await Promise.all([
+          adminApi.getProjectDetails(id),
+          adminApi.getSkills(),
+        ]);
+
+        const skillsMap: Record<number, string> = {};
+        if (skillsResponse && skillsResponse.data) {
+          const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
+          skillsList.forEach((s: any) => {
+            const name = s.name || s.skill_name || s.title;
+            if (s.id && name) skillsMap[s.id] = name;
+          });
+        }
+
+        let projectData = projectResponse?.data?.project || projectResponse?.data || projectResponse;
+
+        if (projectData) {
+          let skillsText = "";
+          if (projectData.skills_needed) {
+            try {
+              let parsedIds = projectData.skills_needed;
+              if (
+                typeof projectData.skills_needed === "string" &&
+                (projectData.skills_needed.trim().startsWith("[") || projectData.skills_needed.trim().startsWith("{"))
+              ) {
+                try {
+                  parsedIds = JSON.parse(projectData.skills_needed);
+                } catch {
+                  parsedIds = projectData.skills_needed;
+                }
+              }
+
+              if (Array.isArray(parsedIds)) {
+                skillsText = parsedIds
+                  .map((skillId: any) => skillsMap[Number(skillId)])
+                  .filter(Boolean)
+                  .join(", ");
+              } else if (typeof parsedIds === "string") {
+                skillsText = parsedIds;
+              }
+            } catch (e) {
+              console.error("Unexpected error processing skills_needed:", e);
+              skillsText = projectData.skills_needed;
+            }
+          }
+
+          setProject({
+            ...projectData,
+            skills_needed: skillsText || projectData.skills_needed,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch shoot details:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) fetchProjectAndSkills();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center min-h-[500px]">
+        <Loader2 className="animate-spin text-white/50" size={40} />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Topbar pathname={pathname} />
+
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 flex h-full -m-6 lg:-m-10 relative">
+        <div className="flex-1 p-6 pb-15 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+          <ShootHeader activeTab={activeTab} project={project} projectId={id} />
+          <Button
+            className="lg:hidden w-full bg-[#202020] text-white hover:bg-[#202020]/50 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 mb-3"
+            onClick={() => setIsTimelineOpen(true)}
+          >
+            View Project Timeline
+          </Button>
+
+          <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+          {activeTab === "Overview" && (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
+                <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
+                <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
+              </div>
+              <MeetingSchedule />
+            </>
+          )}
+
+          {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
+            <SalesPreProductionTab projectId={id} />
+          )}
+
+          {(activeTab === "Post_Production" || activeTab === "Post Production") && (
+            <SalesPostProductionTab projectId={id} />
+          )}
+
+          {activeTab === "Meetings" && (
+            <>
+              <MeetingSchedule />
+              <MeetingOverviewChart />
+            </>
+          )}
+
+          {activeTab === "Messages" && <MessagesTab />}
+        </div>
+
+        <div className="hidden lg:block">
+          <ProjectTimeline />
+        </div>
+
+        {isTimelineOpen && (
+          <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
+            <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
+
+            <div className="relative w-[85%] max-w-sm bg-[#111111] h-full shadow-2xl animate-in slide-in-from-right duration-300">
+              <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <h2 className="text-white font-semibold">Project Timeline</h2>
+                <button onClick={() => setIsTimelineOpen(false)} className="text-white/60">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="h-full overflow-y-auto">
+                <ProjectTimeline status={project?.status} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
 }

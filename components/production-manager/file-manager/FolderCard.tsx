@@ -12,6 +12,7 @@ interface FolderCardProps {
     lastOpened: string;
     userInitials: string;
     onOpenLinkModal: () => void;
+    href?: string;
 }
 
 export const FolderCard: React.FC<FolderCardProps> = ({
@@ -21,7 +22,8 @@ export const FolderCard: React.FC<FolderCardProps> = ({
     isLinked,
     lastOpened,
     userInitials,
-    onOpenLinkModal
+    onOpenLinkModal,
+    href
 }) => {
     const router = useRouter();
     const pathname = usePathname();
@@ -30,6 +32,11 @@ export const FolderCard: React.FC<FolderCardProps> = ({
 
     const handleOpenFolder = (e: React.MouseEvent) => {
         if ((e.target as HTMLElement).closest('button')) return;
+
+        if (href) {
+            router.push(href);
+            return;
+        }
 
         const folderSlug = title.toString().trim().toLowerCase().split(" ").join("-");
         router.push(`${pathname}/${folderSlug}`);
@@ -118,6 +125,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
                     onClose={() => setMenuAnchor(null)}
                     onOpenLinkModal={onOpenLinkModal}
                     anchor={menuAnchor}
+                    href={href}
                 />
             )}
         </div>
