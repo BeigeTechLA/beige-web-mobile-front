@@ -545,7 +545,6 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
   const photographerTarget = useMemo(() => formData.contentType.includes("photographer") ? (extraTeam["photographer"] || 0) + 1 : 0, [formData.contentType, extraTeam]);
 
   return (
-
     <div className={`text-white font-sans ${isModal ? "" : (isDark ? "bg-[#101010] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-white" : "bg-[#F4F5F7] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-black")}`}>
       {!isModal && (
         <Button onClick={() => router.back()} className={`transition-colors flex items-center gap-2 mb-8 p-0 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}>
@@ -558,7 +557,6 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
         <div className={`w-16 h-16 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl flex items-center justify-center text-xl lg:text-[30px] font-bold shrink-0 overflow-hidden ${isDark ? "bg-[#E8D1AB] text-[#101010] border-[#E8D1AB]" : "bg-[#E8D1AB] text-black border-[#dcb98a]"
           }`}>
           {formData.fullName ? formData.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "IN"}
-
           {/* <div className="flex items-center gap-5 my-4 lg:my-9">
             <div className="w-13 h-13 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#FFF6D9] text-[#000000] flex items-center justify-center text-xl lg:text-[30px] font-semibold shrink-0">
               {formData.fullName ? formData.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "IN"}

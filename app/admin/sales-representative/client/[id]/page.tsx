@@ -402,7 +402,7 @@ export default function LeadDetailPage() {
                       {initials}
                     </div>
                     <div className="flex flex-col gap-2 min-w-0">
-                      <h1 className={`lg:text-[22px] font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{clientName}</h1>
+                      <h1 className={`lg:text-2xl font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{clientName}</h1>
                       <div className=" lg:hidden">
                         <LeadsStatusBadge status={status as any} />
                       </div>
@@ -705,7 +705,7 @@ export default function LeadDetailPage() {
               </div>
               <hr className={`my-4 lg:my-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
               <div className="p-4 !pt-0 lg:p-9">
-                <BookingStatusStepper currentStep={lead.booking_step || 1} />
+                <BookingStatusStepper currentStep={lead.booking_step || 1} isDark={isDark}/>
               </div>
             </div>
 

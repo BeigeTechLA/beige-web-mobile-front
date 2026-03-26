@@ -480,7 +480,7 @@ export default function LeadDetailPage() {
                 </div>
               </div>
 
-              <hr className={`border-dashed my-6 lg:my-9 mx-6 lg:mx-9 ${isDark ? "border-[#3D3D3D]" : "border-[#D8D8D8]"}`} />
+              <hr className={`my-6 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#D8D8D8]"}`} />
 
               <div className="p-6 lg:p-9 !pt-0">
                 <div className="relative">
@@ -775,7 +775,10 @@ export default function LeadDetailPage() {
                           : "bg-white border-[#D8D8D8]"
                           }`}>
                           <button
-                            onClick={() => { setDiscountType("percentage"); setIsDropdownOpen(false); }}
+                            onClick={() => { 
+                              setDiscountType("percentage"); 
+                              setIsDropdownOpen(false); 
+                            }}
                             className={`w-full text-left px-4 py-4 transition-colors border-b ${isDark
                               ? "text-white hover:bg-white/10 border-white/5"
                               : "text-black hover:bg-gray-50 border-gray-100"
