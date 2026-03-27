@@ -23,9 +23,25 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
 
+  const parseDateValue = (value?: string | null) => {
+    if (!value) return null;
+    const trimmed = String(value).trim();
+    if (!trimmed) return null;
+
+    const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch;
+      const date = new Date(Number(year), Number(month) - 1, Number(day));
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    const parsed = new Date(trimmed);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
   const formatShortDate = (value: string) => {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
+    const date = parseDateValue(value);
+    if (!date) return value;
     const parts = new Intl.DateTimeFormat("en-GB", {
       day: "numeric",
       month: "short",
@@ -35,6 +51,30 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
     const month = parts.find((part) => part.type === "month")?.value || "";
     const year = parts.find((part) => part.type === "year")?.value || "";
     return `${day} ${month}, ${year}`;
+  };
+
+  const formatTime = (value?: string | null) => {
+    if (!value) return "";
+    const trimmed = String(value).trim();
+    if (!trimmed) return "";
+
+    if (!trimmed.includes("T")) {
+      const [hours, minutes = "0", seconds = "0"] = trimmed.split(":");
+      const date = new Date(2000, 0, 1, Number(hours), Number(minutes), Number(seconds));
+      if (!Number.isNaN(date.getTime())) {
+        return date.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        });
+      }
+    }
+
+    const parsed = parseDateValue(trimmed);
+    if (!parsed) return trimmed;
+    return parsed.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
   };
 
   const getEditCounts = (items: string[] = []) => {
@@ -197,7 +237,9 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                     <p className="text-white font-medium print:text-black">
                         {formatShortDate(data.date)}
                     </p>
-                    <p className="text-white/50 text-sm print:text-gray-600">{data.start_time.slice(0, 5)} - {data.end_time.slice(0, 5)}</p>
+                    <p className="text-white/50 text-sm print:text-gray-600">
+                      {formatTime(data.start_time)} - {formatTime(data.end_time)}
+                    </p>
                   </div>
                 </div>
 

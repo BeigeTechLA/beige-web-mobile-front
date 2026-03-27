@@ -89,10 +89,26 @@ const formatCurrency = (amount: any) => {
   }).format(numericAmount || 0);
 };
 
+const parseDateValue = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+
+  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 const formatShortDate = (value: string) => {
   if (!value) return "N/A";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  const date = parseDateValue(value);
+  if (!date) return value;
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -128,8 +144,8 @@ const formatTime12 = (value?: string | null) => {
 
   let date: Date | null = null;
   if (raw.includes("T")) {
-    const parsed = new Date(raw);
-    if (!Number.isNaN(parsed.getTime())) date = parsed;
+    const parsed = parseDateValue(raw);
+    if (parsed) date = parsed;
   } else {
     const [hStr, mStr = "0", sStr = "0"] = raw.split(":");
     const h = Number(hStr);
