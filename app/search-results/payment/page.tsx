@@ -93,15 +93,11 @@ const formatShortDate = (value: string) => {
   if (!value) return "N/A";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
+    day: "numeric",
     year: "numeric",
-  }).formatToParts(date);
-  const day = parts.find((part) => part.type === "day")?.value || "";
-  const month = parts.find((part) => part.type === "month")?.value || "";
-  const year = parts.find((part) => part.type === "year")?.value || "";
-  return `${day} ${month}, ${year}`;
+  }).format(date);
 };
 
 const formatDurationHours = (value: unknown) => {
@@ -123,6 +119,50 @@ const formatDurationHours = (value: unknown) => {
   }
 
   return "0";
+};
+
+const formatTime12 = (value?: string | null) => {
+  if (!value) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+
+  let date: Date | null = null;
+  if (raw.includes("T")) {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) date = parsed;
+  } else {
+    const [hStr, mStr = "0", sStr = "0"] = raw.split(":");
+    const h = Number(hStr);
+    const m = Number(mStr);
+    const s = Number(sStr);
+    if (Number.isFinite(h) && Number.isFinite(m)) {
+      date = new Date(2000, 0, 1, h, m, Number.isFinite(s) ? s : 0);
+    }
+  }
+
+  if (!date) return "";
+  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+};
+
+const getTimeRange = (booking?: any) => {
+  const startRaw =
+    booking?.start_time ||
+    booking?.event_start_time ||
+    booking?.booking_days?.[0]?.start_time ||
+    booking?.booking_days?.[0]?.startTime ||
+    null;
+  const endRaw =
+    booking?.end_time ||
+    booking?.event_end_time ||
+    booking?.booking_days?.[0]?.end_time ||
+    booking?.booking_days?.[0]?.endTime ||
+    null;
+
+  const start = formatTime12(startRaw);
+  const end = formatTime12(endRaw);
+  if (start && end) return `${start}-${end}`;
+  if (start) return start;
+  return "";
 };
 
 // Helper for title casing
@@ -1478,7 +1518,10 @@ function MultiCreatorPaymentContent() {
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
-                      <span className="font-medium">{formatDurationHours(booking.duration_hours)} hours</span>
+                      <span className="font-medium">
+                        {formatDurationHours(booking.duration_hours)} Hours
+                        {getTimeRange(booking) ? ` ${getTimeRange(booking)}` : ""}
+                      </span>
                     </div>
                   </div>
                     <div className="flex flex-col justify-between mb-4">
