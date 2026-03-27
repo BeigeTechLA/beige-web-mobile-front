@@ -133,6 +133,18 @@ const toTitleCase = (str: string) => {
   });
 };
 
+const getInitials = (value?: string | null) => {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) return "NA";
+  const parts = cleaned.split(" ").filter(Boolean);
+  const initials = parts.map((part) => part[0]).join("").toUpperCase();
+  if (initials) return initials.substring(0, 2);
+  const emailPart = cleaned.split("@")[0] || "";
+  const first = emailPart[0] || "N";
+  const second = emailPart[1] || "A";
+  return `${first}${second}`.toUpperCase();
+};
+
 const getEditCounts = (items: any[]) => {
   const counts = new Map<string, number>();
   (items || []).forEach((item) => {
@@ -1425,7 +1437,7 @@ function MultiCreatorPaymentContent() {
               <div className="rounded-b-[20px] text-black">
                 <div className="p-6 lg:p-10 border-b border-b-[#FFFFFF5C] flex gap-4 items-center">
                   <div className="w-10 h-10 lg:h-[82px] lg:w-[82px] rounded-full bg-[#333333] flex items-center justify-center text-[#FFFFFF85] font-semibold lg:text-2xl">
-                    {summaryData.client_email.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2)}
+                    {getInitials(summaryData?.client_email || booking?.guest_email)}
                   </div>
                   {/* ProjectName/Shoot Name currently displayed */}
                   <h4 className="font-bold text-base lg:text-2xl text-white">{toTitleCase(booking.shoot_name || "Unnamed Shoot")}</h4>
