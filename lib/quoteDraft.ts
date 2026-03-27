@@ -42,19 +42,19 @@ type QuoteDraftSimplePriceConfig = {
 export interface QuoteDraftPayload {
   pricing_mode: "general";
   client_user_id?: number;
-  client_name: string;
-  client_email: string;
-  client_phone: string;
-  client_address: string;
-  project_description: string;
-  video_shoot_type: string;
-  quote_validity_days: number;
-  discount_type: "percentage" | "fixed";
-  discount_value: number;
-  tax_type: string;
-  tax_rate: number;
-  terms_conditions: string;
-  line_items: QuoteDraftLineItem[];
+  client_name?: string;
+  client_email?: string;
+  client_phone?: string;
+  client_address?: string;
+  project_description?: string;
+  video_shoot_type?: string;
+  quote_validity_days?: number;
+  discount_type?: "percentage" | "fixed";
+  discount_value?: number;
+  tax_type?: string;
+  tax_rate?: number;
+  terms_conditions?: string;
+  line_items?: QuoteDraftLineItem[];
 }
 
 type QuoteDraftLineItem = {
@@ -97,9 +97,30 @@ export interface BuildQuoteDraftPayloadInput {
   lineItems: QuoteDraftCatalogItem[];
   appliedLineItemConfigs: Record<string, QuoteDraftSimplePriceConfig>;
   termsConditions?: string;
+  maxStep?: QuoteDraftStep;
 }
 
+export type QuoteDraftStep =
+  | "selection"
+  | "details"
+  | "services"
+  | "addons"
+  | "logistics"
+  | "customlineitems"
+  | "discounts"
+  | "tax";
+
 const DEFAULT_TERMS = "50% deposit required before production starts.";
+const QUOTE_DRAFT_STEP_ORDER: QuoteDraftStep[] = [
+  "selection",
+  "details",
+  "services",
+  "addons",
+  "logistics",
+  "customlineitems",
+  "discounts",
+  "tax",
+];
 
 export function buildQuoteDraftPayload(
   input: BuildQuoteDraftPayloadInput
@@ -112,29 +133,70 @@ export function buildQuoteDraftPayload(
   const shootTypeLabel =
     input.shootTypes.find((type) => String(type.id) === input.selectedShootType)?.label ??
     toTitleCase(input.selectedShootType);
+  const includeSelection = hasReachedStep(input.maxStep, "selection");
+  const includeDetails = hasReachedStep(input.maxStep, "details");
+  const includeServices = hasReachedStep(input.maxStep, "services");
+  const includeAddons = hasReachedStep(input.maxStep, "addons");
+  const includeLogistics = hasReachedStep(input.maxStep, "logistics");
+  const includeCustomLineItems = hasReachedStep(input.maxStep, "customlineitems");
+  const includeDiscounts = hasReachedStep(input.maxStep, "discounts");
+  const includeTax = hasReachedStep(input.maxStep, "tax");
 
-  return {
+  const lineItems: QuoteDraftLineItem[] = [
+    ...(includeServices
+      ? buildServiceItems(input.selectedServices, input.services, input.serviceConfigs)
+      : []),
+    ...(includeAddons
+      ? buildAddonItems(input.selectedAddons, input.addons, input.appliedAddonConfigs)
+      : []),
+    ...(includeLogistics
+      ? buildSimpleItems("logistics", input.logisticsItems, input.appliedLogisticsConfigs)
+      : []),
+    ...(includeCustomLineItems
+      ? buildSimpleItems("custom", input.lineItems, input.appliedLineItemConfigs)
+      : []),
+  ];
+
+  const payload: QuoteDraftPayload = {
     pricing_mode: "general",
     ...(clientUserId ? { client_user_id: clientUserId } : {}),
-    client_name: input.clientName.trim() || input.selectedClient?.name?.trim() || "",
-    client_email: input.emailId.trim() || input.selectedClient?.email?.trim() || "",
-    client_phone: input.phoneNumber.trim() || input.selectedClient?.phone?.trim() || "",
-    client_address: input.address.trim(),
-    project_description: input.projectDescription.trim(),
-    video_shoot_type: shootTypeLabel,
-    quote_validity_days: resolveQuoteValidityDays(input.validityDays, input.validUntil),
-    discount_type: input.discountType,
-    discount_value: input.discountEnabled ? normalizeNumber(input.discountValue) : 0,
-    tax_type: input.taxLabel.trim() || "Sales Tax",
-    tax_rate: normalizeNumber(input.normalizedTaxRate),
-    terms_conditions: input.termsConditions?.trim() || DEFAULT_TERMS,
-    line_items: [
-      ...buildServiceItems(input.selectedServices, input.services, input.serviceConfigs),
-      ...buildAddonItems(input.selectedAddons, input.addons, input.appliedAddonConfigs),
-      ...buildSimpleItems("logistics", input.logisticsItems, input.appliedLogisticsConfigs),
-      ...buildSimpleItems("custom", input.lineItems, input.appliedLineItemConfigs),
-    ],
   };
+
+  if (includeSelection) {
+    payload.client_name = input.clientName.trim() || input.selectedClient?.name?.trim() || "";
+    payload.client_email = input.emailId.trim() || input.selectedClient?.email?.trim() || "";
+    payload.client_phone = input.phoneNumber.trim() || input.selectedClient?.phone?.trim() || "";
+  }
+
+  if (includeDetails) {
+    payload.client_address = input.address.trim();
+    payload.project_description = input.projectDescription.trim();
+    payload.quote_validity_days = resolveQuoteValidityDays(input.validityDays, input.validUntil);
+  }
+
+  if (includeServices) {
+    payload.video_shoot_type = shootTypeLabel;
+  }
+
+  if (includeDiscounts) {
+    payload.discount_type = input.discountType;
+    payload.discount_value = input.discountEnabled ? normalizeNumber(input.discountValue) : 0;
+  }
+
+  if (includeTax) {
+    payload.tax_type = input.taxLabel.trim() || "Sales Tax";
+    payload.tax_rate = normalizeNumber(input.normalizedTaxRate);
+  }
+
+  if (includeTax || input.maxStep === undefined) {
+    payload.terms_conditions = input.termsConditions?.trim() || DEFAULT_TERMS;
+  }
+
+  if (lineItems.length > 0 || includeServices || includeAddons || includeLogistics || includeCustomLineItems) {
+    payload.line_items = lineItems;
+  }
+
+  return payload;
 }
 
 function buildServiceItems(
@@ -301,4 +363,12 @@ function toTitleCase(value: string): string {
     .trim()
     .replace(/\s+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function hasReachedStep(maxStep: QuoteDraftStep | undefined, targetStep: QuoteDraftStep) {
+  if (!maxStep) {
+    return true;
+  }
+
+  return QUOTE_DRAFT_STEP_ORDER.indexOf(maxStep) >= QUOTE_DRAFT_STEP_ORDER.indexOf(targetStep);
 }

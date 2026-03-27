@@ -31,8 +31,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
-import { salesApi } from "@/lib/api";
+import QuotePreviewModal from "@/components/admin/quotes/QuotePreviewModal";
+import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
 import { buildQuoteDraftPayload } from "@/lib/quoteDraft";
+import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { toast } from "react-hot-toast";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
@@ -78,14 +80,6 @@ const PROTECTED_ADDON_LABELS = [
   "hair & makeup artist",
 ] as const;
 
-const PROTECTED_LOGISTICS_LABELS = [
-  "travel and transportation",
-  "travel & transportation",
-  "equipment rental",
-  "studio rental",
-  "permits and licenses",
-] as const;
-
 const PROTECTED_LINE_ITEM_LABELS = [
   "rush delivery",
 ] as const;
@@ -101,7 +95,6 @@ const LINE_ITEM_SECTION_KEYS = [
 
 const normalizeServiceLabel = (label: string) => label.trim().toLowerCase();
 const normalizeAddonLabel = (label: string) => label.trim().toLowerCase();
-const normalizeLogisticsLabel = (label: string) => label.trim().toLowerCase();
 const normalizeLineItemLabel = (label: string) => label.trim().toLowerCase();
 
 const formatCurrency = (value: number) =>
@@ -147,9 +140,6 @@ const isProtectedServiceLabel = (label: string) =>
 const isProtectedAddonLabel = (label: string) =>
   PROTECTED_ADDON_LABELS.includes(normalizeAddonLabel(label) as typeof PROTECTED_ADDON_LABELS[number]);
 
-const isProtectedLogisticsLabel = (label: string) =>
-  PROTECTED_LOGISTICS_LABELS.includes(normalizeLogisticsLabel(label) as typeof PROTECTED_LOGISTICS_LABELS[number]);
-
 const isProtectedLineItemLabel = (label: string) =>
   PROTECTED_LINE_ITEM_LABELS.includes(normalizeLineItemLabel(label) as typeof PROTECTED_LINE_ITEM_LABELS[number]);
 
@@ -178,6 +168,7 @@ export default function CreateQuotePage() {
   // Step 2: Services & Config State
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [selectedShootType, setSelectedShootType] = useState<string>("private_event");
+  const [userCreatedShootTypeIds, setUserCreatedShootTypeIds] = useState<string[]>([]);
   const [customServiceName, setCustomServiceName] = useState("");
   const [customServiceCost, setCustomServiceCost] = useState("");
   const [customShootType, setCustomShootType] = useState("");
@@ -239,6 +230,9 @@ export default function CreateQuotePage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'service' | 'addon' | 'logistics' | 'line_item' | 'shoot_type'; label: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [previewQuote, setPreviewQuote] = useState<SalesQuoteDetailData | null>(null);
+  const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   const serviceIcons: Record<string, React.ReactNode> = {
     "videography": <Video size={20} />,
@@ -292,7 +286,7 @@ export default function CreateQuotePage() {
 
     if (typeParam === 0) {
       setShootTypes([]);
-      return;
+      return [];
     }
 
     setLoadingShootTypes(true);
@@ -338,12 +332,16 @@ export default function CreateQuotePage() {
             setSelectedShootType(sortedShootTypes[0].id);
           }
         }
+
+        return sortedShootTypes;
       }
     } catch (error) {
       console.error("Failed to fetch shoot types", error);
     } finally {
       setLoadingShootTypes(false);
     }
+
+    return [];
   };
 
   const editingTypes = [
@@ -661,11 +659,10 @@ export default function CreateQuotePage() {
   const taxLabel = taxtType.trim() || "Sales Tax";
   const [isSubmittingService, setIsSubmittingService] = React.useState(false);
   const [isCreatingQuoteDraft, setIsCreatingQuoteDraft] = React.useState(false);
+  const [activeQuoteAction, setActiveQuoteAction] = React.useState<"preview" | "save" | "draft" | null>(null);
 
-  const handlePreviewQuote = async () => {
-    if (isCreatingQuoteDraft) return;
-
-    const payload = buildQuoteDraftPayload({
+  const getQuoteDraftPayload = (maxStep?: typeof view) =>
+    buildQuoteDraftPayload({
       selectedClient,
       clientName,
       emailId,
@@ -691,28 +688,128 @@ export default function CreateQuotePage() {
       appliedLogisticsConfigs,
       lineItems,
       appliedLineItemConfigs,
+      maxStep,
     });
 
-    setIsCreatingQuoteDraft(true);
-    try {
-      const res = await salesApi.createQuoteDraft(payload);
+  const saveQuoteDraft = async (action: "preview" | "save" | "draft") => {
+    if (isCreatingQuoteDraft) return;
 
-      if (res?.error || res?.success === false) {
+    const payload = getQuoteDraftPayload(action === "draft" ? view : undefined);
+
+    setIsCreatingQuoteDraft(true);
+    setActiveQuoteAction(action);
+
+    if (action === "preview") {
+      setPreviewQuote(null);
+      setPreviewQuoteId(null);
+      setIsPreviewModalOpen(true);
+    }
+
+    let savedQuoteId: string | null = null;
+
+    try {
+      const response = await salesApi.createQuoteDraft(payload);
+      const createdQuoteSource =
+        response && typeof response === "object" && "data" in response
+          ? (response.data as SalesQuoteDetailData | null | undefined)
+          : (response as SalesQuoteDetailData | null | undefined);
+      const createdQuote = unwrapSalesQuoteDetail(createdQuoteSource);
+
+      if (response?.error || response?.success === false) {
         throw new Error(
-          typeof res?.error === "string" ? res.error : "Failed to create quote draft"
+          typeof response?.error === "string" ? response.error : "Failed to create quote draft"
         );
       }
 
-      toast.success("Quote draft created successfully");
-      router.push("/sales/quotes/preview");
+      savedQuoteId = extractQuoteIdFromResponse(response) ?? extractQuoteIdFromResponse(createdQuote);
+
+      if (action === "save") {
+        toast.success("Quote saved successfully");
+        return;
+      }
+
+      if (action === "draft") {
+        toast.success("Draft saved successfully");
+        return;
+      }
+
+      if (!savedQuoteId) {
+        if (createdQuote) {
+          setPreviewQuoteId(extractQuoteIdFromResponse(createdQuote));
+          setPreviewQuote(createdQuote);
+          toast.success("Quote preview loaded");
+          return;
+        }
+
+        throw new Error("Quote draft was saved, but no quote id was returned");
+      }
+
+      const detailResponse = await salesApi.getQuoteDetail(savedQuoteId);
+
+      if (detailResponse?.error || detailResponse?.success === false) {
+        if (createdQuote) {
+          setPreviewQuoteId(savedQuoteId);
+          setPreviewQuote(createdQuote);
+          toast.success("Quote preview loaded");
+          return;
+        }
+
+        throw new Error(
+          typeof detailResponse?.error === "string"
+            ? detailResponse.error
+            : "Failed to fetch quote detail"
+        );
+      }
+
+      const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null) ?? createdQuote;
+
+      if (!quoteDetail) {
+        throw new Error("Quote preview could not be loaded");
+      }
+
+      setPreviewQuoteId(savedQuoteId);
+      setPreviewQuote(quoteDetail);
+      toast.success("Quote preview loaded");
     } catch (error) {
-      console.error("Failed to create quote draft", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to create quote draft"
+      console.error(
+        action === "preview"
+          ? "Failed to load quote preview"
+          : action === "draft"
+            ? "Failed to save draft"
+            : "Failed to save quote",
+        error
       );
+
+      if (action === "preview") {
+        setIsPreviewModalOpen(false);
+      }
+
+      const fallbackMessage =
+        action === "preview" && savedQuoteId
+          ? "Quote saved, but preview could not be loaded"
+          : action === "preview"
+            ? "Failed to load quote preview"
+            : action === "draft"
+              ? "Failed to save draft"
+            : "Failed to save quote";
+
+      toast.error(error instanceof Error ? error.message : fallbackMessage);
     } finally {
       setIsCreatingQuoteDraft(false);
+      setActiveQuoteAction(null);
     }
+  };
+
+  const handlePreviewQuote = async () => {
+    await saveQuoteDraft("preview");
+  };
+
+  const handleSaveQuote = async () => {
+    await saveQuoteDraft("save");
+  };
+
+  const handleSaveAsDraft = async () => {
+    await saveQuoteDraft("draft");
   };
 
   const fetchCatalog = async () => {
@@ -977,16 +1074,6 @@ export default function CreateQuotePage() {
         return;
       }
 
-      if (type === 'addon' && isProtectedAddonLabel(item.label)) {
-        toast.error("Default add-ons can't be deleted");
-        return;
-      }
-
-      if (type === 'logistics' && isProtectedLogisticsLabel(item.label)) {
-        toast.error("Default logistics items can't be deleted");
-        return;
-      }
-
       if (type === 'line_item' && isProtectedLineItemLabel(item.label)) {
         toast.error("Default line items can't be deleted");
         return;
@@ -1033,6 +1120,9 @@ export default function CreateQuotePage() {
           `${itemToDelete.type === 'service' ? 'Service' : itemToDelete.type === 'addon' ? 'Add-on' : itemToDelete.type === 'logistics' ? 'Logistics item' : itemToDelete.type === 'shoot_type' ? 'Shoot type' : 'Line item'} deleted successfully`
         );
         if (itemToDelete.type === 'shoot_type') {
+          setUserCreatedShootTypeIds((prev) =>
+            prev.filter((shootTypeId) => shootTypeId !== itemToDelete.id)
+          );
           await fetchShootTypes(selectedServices);
         } else {
           await fetchCatalog();
@@ -1066,6 +1156,8 @@ export default function CreateQuotePage() {
 
     setIsSubmittingShootType(true);
     try {
+      const previousShootTypeIds = new Set(shootTypes.map((type) => String(type.id)));
+
       // Determine content_type based on active services
       const hasVideo = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || selectedServices.includes("videography");
       const contentType = hasVideo ? 1 : 2;
@@ -1079,7 +1171,14 @@ export default function CreateQuotePage() {
         setCustomShootType("");
         setShowAddShootTypeForm(false);
         // Refresh shoot types list
-        await fetchShootTypes(selectedServices);
+        const refreshedShootTypes = await fetchShootTypes(selectedServices);
+        const newShootTypeIds = refreshedShootTypes
+          .map((type) => String(type.id))
+          .filter((typeId) => !previousShootTypeIds.has(typeId));
+
+        if (newShootTypeIds.length > 0) {
+          setUserCreatedShootTypeIds((prev) => Array.from(new Set([...prev, ...newShootTypeIds])));
+        }
       } else {
         console.error("Failed to create shoot type:", res?.error || "Unknown error");
       }
@@ -1258,7 +1357,6 @@ export default function CreateQuotePage() {
                   {logisticsItems.map((item) => {
                     const config = logisticsConfigs[item.id];
                     const hasPendingChanges = hasPendingLogisticsChanges(item.id);
-                    const isProtectedLogistics = isProtectedLogisticsLabel(item.label);
                     return (
                       <div key={item.id} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-4 lg:p-5 relative overflow-hidden">
                         <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
@@ -1281,14 +1379,12 @@ export default function CreateQuotePage() {
                               />
                             </div>
                             <div className="flex items-center gap-6 lg:gap-4">
-                              {!isProtectedLogistics && (
-                                <button
-                                  onClick={() => handleDeleteCatalogItem(item.id, 'logistics')}
-                                  className="text-red-500 hover:text-red-400 transition-colors"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              )}
+                              <button
+                                onClick={() => handleDeleteCatalogItem(item.id, 'logistics')}
+                                className="text-red-500 hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
                               <button
                                 onClick={() => applyLogisticsChanges(item.id, item.label)}
                                 className={`transition-colors ${hasPendingChanges ? 'text-green-500 hover:text-green-400' : 'text-green-700/70 hover:text-green-600'}`}
@@ -1368,8 +1464,6 @@ export default function CreateQuotePage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-9">
                   {(addons || []).map((addon) => {
-                    const isProtectedAddon = isProtectedAddonLabel(addon.label);
-
                     return (
                       <div key={addon.id} className="relative">
                         <button
@@ -1411,15 +1505,13 @@ export default function CreateQuotePage() {
                             </div>
                           </div>
                         </button>
-                        {!isProtectedAddon && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCatalogItem(addon.id, 'addon')}
-                            className="absolute top-6 right-6 z-10 text-zinc-500 transition-colors hover:text-red-500"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCatalogItem(addon.id, 'addon')}
+                          className="absolute top-6 right-6 z-10 text-zinc-500 transition-colors hover:text-red-500"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                     );
                   })}
@@ -1773,29 +1865,35 @@ export default function CreateQuotePage() {
                                     <div className="col-span-4 py-5 flex justify-center items-center">
                                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
                                     </div>
-                                  ) : (shootTypes || []).map((type) => (
-                                    <div key={type.id} className="relative">
-                                      <button
-                                        onClick={() => setSelectedShootType(type.id)}
-                                        className={`h-[52px] w-full rounded-[14px] px-5 pr-11 font-normal transition-all border text-sm tracking-tight text-left flex items-center ${selectedShootType === type.id
-                                          ? 'bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner'
-                                          : 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700'
-                                          }`}
-                                      >
-                                        <span className="truncate">{type.label}</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteShootType(type.id);
-                                        }}
-                                        className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-zinc-500 transition-colors hover:text-red-500"
-                                      >
-                                        <Trash2 size={16} />
-                                      </button>
-                                    </div>
-                                  ))}
+                                  ) : (shootTypes || []).map((type) => {
+                                    const canDeleteShootType = userCreatedShootTypeIds.includes(String(type.id));
+
+                                    return (
+                                      <div key={type.id} className="relative">
+                                        <button
+                                          onClick={() => setSelectedShootType(type.id)}
+                                          className={`h-[52px] w-full rounded-[14px] px-5 pr-11 font-normal transition-all border text-sm tracking-tight text-left flex items-center ${selectedShootType === type.id
+                                            ? 'bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner'
+                                            : 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700'
+                                            }`}
+                                        >
+                                          <span className="truncate">{type.label}</span>
+                                        </button>
+                                        {canDeleteShootType && (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteShootType(type.id);
+                                            }}
+                                            className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-zinc-500 transition-colors hover:text-red-500"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
 
                                 <div className="mt-8 space-y-6">
@@ -2426,14 +2524,6 @@ export default function CreateQuotePage() {
                         <p>Subtotal</p>
                         <p>{formatCurrency(quoteSubtotal)}</p>
                       </div>
-                      <div className="flex justify-between text-[#9F9FA9] ">
-                        <p>{`${taxLabel} (${normalizedTaxRate}%)`}</p>
-                        <p>{formatCurrency(taxAmount)}</p>
-                      </div>
-                      <div className="flex justify-between text-[#9F9FA9] ">
-                        <p>Total After Tax</p>
-                        <p>{formatCurrency(totalAfterTax)}</p>
-                      </div>
                       <div className="flex justify-between text-[#E8D1AB] font-medium ">
                         <p>Discount Applied </p>
                         <p>- {formatCurrency(discountAmount)}</p>
@@ -2558,12 +2648,6 @@ export default function CreateQuotePage() {
                     </span>
                   </div>
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm lg:text-base text-white font-medium">Amount After Tax</span>
-                    <span className="text-sm lg:text-base text-white font-medium tracking-tight">
-                      {formatCurrency(totalAfterTax)}
-                    </span>
-                  </div>
                   <div className="flex justify-between items-center ">
                     <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
                     <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
@@ -2571,7 +2655,14 @@ export default function CreateQuotePage() {
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center mt-2">
+                  <div className="flex justify-between items-center mt-2 mb-2">
+                    <span className="text-sm lg:text-base text-white font-medium">Amount After Tax</span>
+                    <span className="text-sm lg:text-base text-white font-medium tracking-tight">
+                      {formatCurrency(totalAfterTax)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
                     <span className="text-sm lg:text-base text-[#9F9FA9]">Discount Applied</span>
                     <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
                       - {formatCurrency(discountAmount)}
@@ -2675,19 +2766,19 @@ export default function CreateQuotePage() {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="567 Mission Street, San Francisco, CA 94105"
-                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base text-[#F4F4F5]"
+                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                   />
                 </div>
 
                 <div className="relative">
                   <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#D3D3D3] font-medium">Project Description*</span>
+                    <span className="text-sm text-[#A1A1AA] font-medium">Project Description*</span>
                   </div>
                   <Textarea
                     value={projectDescription}
                     onChange={(e) => setProjectDescription(e.target.value)}
                     placeholder="Describe the project scope and requirements....."
-                    className="min-h-[120px] border-zinc-800 bg-[#111111] dark:bg-[#111111] rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8 text-sm lg:text-base"
+                    className="min-h-[120px]0 bg-[#111111] dark:bg-[#171717] rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8 text-sm lg:text-base"
                   />
                 </div>
                 {/* <div className="relative">
@@ -2810,43 +2901,94 @@ export default function CreateQuotePage() {
               Back
             </Button>
             <Button
-              className={`${(
-                view === 'selection' ? selectedClient :
-                  view === 'details' ? clientName :
-                    view === 'services' ? selectedServices.length > 0 :
-                      true // Add-ons are optional
-              ) ? 'bg-[#E8D1AB] text-[#101010]' : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
+              className={`${view === "tax"
+                ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
+                : (
+                  view === 'selection' ? selectedClient :
+                    view === 'details' ? clientName :
+                      view === 'services' ? selectedServices.length > 0 :
+                        true
+                ) ? 'bg-[#E8D1AB] text-[#101010]'
+                  : 'bg-[#2A2B2D] text-zinc-600'
+                } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
               disabled={!(
                 view === 'selection' ? selectedClient :
                   view === 'details' ? clientName :
                     view === 'services' ? selectedServices.length > 0 :
                       true
               ) || isCreatingQuoteDraft}
-              onClick={handleContinue}
+              onClick={view === "tax" ? handleSaveQuote : handleContinue}
             >
               {view === "tax"
-                ? (isCreatingQuoteDraft ? "Creating Draft..." : "Preview Quote")
+                ? (
+                  isCreatingQuoteDraft && activeQuoteAction === "save"
+                    ? "Saving Quote..."
+                    : "Save Quote"
+                )
                 : "Continue"}
             </Button>
           </div>
 
-          <Button className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg self-start sm:self-auto">
-            <div className="flex items-center justify-center">
-              <Save size={20} className="group-hover:scale-110 transition-transform" />
-            </div>
-            Save as Draft
-          </Button>
+          <div className="flex gap-4 self-start sm:self-auto">
+            <Button
+              type="button"
+              onClick={handleSaveAsDraft}
+              disabled={isCreatingQuoteDraft}
+              className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg disabled:opacity-70"
+            >
+              <div className="flex items-center justify-center">
+                <Save size={20} className="group-hover:scale-110 transition-transform" />
+              </div>
+              {isCreatingQuoteDraft && activeQuoteAction === "draft" ? "Saving Draft..." : "Save as Draft"}
+            </Button>
+            {view === "tax" ? (
+              <Button
+                type="button"
+                onClick={handlePreviewQuote}
+                disabled={isCreatingQuoteDraft}
+                className="bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all border-0 shadow-lg disabled:opacity-70"
+              >
+                {isCreatingQuoteDraft && activeQuoteAction === "preview" ? "Loading Preview..." : "Preview Quote"}
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 
       {/* --- FLOATING MOBILE BUTTON --- */}
       <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f] items-center">
-        <Button className="underline text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all">
-          <div className="flex items-center justify-center">
-            <Save size={20} className="group-hover:scale-110 transition-transform" />
+        {view === "tax" ? (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              onClick={handleSaveAsDraft}
+              disabled={isCreatingQuoteDraft}
+              className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            >
+              {isCreatingQuoteDraft && activeQuoteAction === "draft" ? "Saving Draft..." : "Save as Draft"}
+            </Button>
+            <Button
+              type="button"
+              onClick={handlePreviewQuote}
+              disabled={isCreatingQuoteDraft}
+              className="bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            >
+              {isCreatingQuoteDraft && activeQuoteAction === "preview" ? "Loading Preview..." : "Preview Quote"}
+            </Button>
           </div>
-          Save as Draft
-        </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={handleSaveAsDraft}
+            disabled={isCreatingQuoteDraft}
+            className="underline text-[#FFF] hover:text-white hover:bg-[#181818] bg-transparent h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+          >
+            <div className="flex items-center justify-center">
+              <Save size={20} className="group-hover:scale-110 transition-transform" />
+            </div>
+            {isCreatingQuoteDraft && activeQuoteAction === "draft" ? "Saving Draft..." : "Save as Draft"}
+          </Button>
+        )}
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -2861,17 +3003,25 @@ export default function CreateQuotePage() {
                 view === 'details' ? clientName :
                   view === 'services' ? selectedServices.length > 0 :
                     true // Add-ons are optional
-            ) ? 'bg-[#E8D1AB] text-[#101010]' : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
+            ) ? (
+              view === "tax"
+                ? 'bg-white text-[#1B1B1B]'
+                : 'bg-[#E8D1AB] text-[#101010]'
+            ) : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
             disabled={!(
               view === 'selection' ? selectedClient :
                 view === 'details' ? clientName :
                   view === 'services' ? selectedServices.length > 0 :
                     true
             ) || isCreatingQuoteDraft}
-            onClick={handleContinue}
+            onClick={view === "tax" ? handleSaveQuote : handleContinue}
           >
             {view === "tax"
-              ? (isCreatingQuoteDraft ? "Creating Draft..." : "Preview Quote")
+              ? (
+                isCreatingQuoteDraft && activeQuoteAction === "save"
+                  ? "Saving Quote..."
+                  : "Save Quote"
+              )
               : "Continue"}
           </Button>
         </div>
@@ -2887,6 +3037,13 @@ export default function CreateQuotePage() {
         title={`Delete ${itemToDelete?.type === 'service' ? 'Service' : itemToDelete?.type === 'addon' ? 'Add-on' : itemToDelete?.type === 'logistics' ? 'Logistics Item' : itemToDelete?.type === 'shoot_type' ? 'Shoot Type' : 'Line Item'}`}
         description={`Are you sure you want to delete this ${itemToDelete?.type === 'service' ? 'service' : itemToDelete?.type === 'addon' ? 'add-on' : itemToDelete?.type === 'logistics' ? 'logistics item' : itemToDelete?.type === 'shoot_type' ? 'shoot type' : 'line item'}? This action cannot be undone.`}
         isLoading={isDeleting}
+      />
+      <QuotePreviewModal
+        open={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        quote={previewQuote}
+        quoteId={previewQuoteId}
+        isLoading={isCreatingQuoteDraft && activeQuoteAction === "preview"}
       />
     </div>
   );

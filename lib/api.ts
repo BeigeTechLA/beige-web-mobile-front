@@ -286,6 +286,87 @@ export interface QuotesListResponse {
   error?: string;
 }
 
+export interface SalesQuoteDetailLineItem {
+  id?: number | string;
+  line_item_id?: number | string;
+  item_id?: number | string;
+  catalog_item_id?: number | string;
+  section_type?: string;
+  source_type?: string;
+  item_name?: string;
+  name?: string;
+  label?: string;
+  type?: string;
+  category_name?: string;
+  category_slug?: string;
+  quantity?: number | string;
+  duration_hours?: number | string;
+  duration?: number | string;
+  hours?: number | string;
+  crew_size?: number | string;
+  crew?: number | string;
+  crew_count?: number | string;
+  estimated_pricing?: number | string;
+  unit_rate?: number | string;
+  rate?: number | string;
+  effective_rate?: number | string;
+  line_total?: number | string;
+  total_amount?: number | string;
+  amount?: number | string;
+  price?: number | string;
+  rate_type?: string;
+  [key: string]: unknown;
+}
+
+export interface SalesQuoteDetailData {
+  id?: number | string;
+  quote_id?: number | string;
+  quote_number?: string;
+  client_name?: string;
+  client_email?: string;
+  client_phone?: string;
+  guest_email?: string;
+  client_address?: string;
+  address?: string;
+  location?: string;
+  project_description?: string;
+  video_shoot_type?: string;
+  quote_validity_days?: number | string;
+  quote_status?: string;
+  status?: string;
+  valid_until?: string | null;
+  expires_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  tax_type?: string;
+  tax_rate?: number | string;
+  tax_amount?: number | string;
+  sales_tax?: number | string;
+  discount_type?: string;
+  discount_value?: number | string;
+  discount_amount?: number | string;
+  subtotal?: number | string;
+  amount_after_tax?: number | string;
+  total_after_tax?: number | string;
+  total_amount?: number | string;
+  final_total?: number | string;
+  amount_after_discount?: number | string;
+  terms_conditions?: string | string[] | null;
+  line_items?: SalesQuoteDetailLineItem[];
+  items?: SalesQuoteDetailLineItem[];
+  quote_items?: SalesQuoteDetailLineItem[];
+  rows?: SalesQuoteDetailLineItem[];
+  quote?: SalesQuoteDetailData;
+  data?: unknown;
+  [key: string]: unknown;
+}
+
+export interface SalesQuoteDetailResponse {
+  success: boolean;
+  data: SalesQuoteDetailData | null;
+  error?: string;
+}
+
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
   validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
@@ -1683,6 +1764,19 @@ export const salesApi = {
         success: false,
         data: null,
         error: 'Failed to fetch quotes list',
+      };
+    }
+  },
+  getQuoteDetail: async (quoteId: number | string) => {
+    try {
+      const response = await api.get<SalesQuoteDetailResponse>(`/sales/quotes/${quoteId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Detail Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch quote detail',
       };
     }
   },
