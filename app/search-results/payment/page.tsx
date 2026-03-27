@@ -89,19 +89,31 @@ const formatCurrency = (amount: any) => {
   }).format(numericAmount || 0);
 };
 
+const parseDateValue = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+
+  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 const formatShortDate = (value: string) => {
   if (!value) return "N/A";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
+  const date = parseDateValue(value);
+  if (!date) return value;
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
+    day: "numeric",
     year: "numeric",
-  }).formatToParts(date);
-  const day = parts.find((part) => part.type === "day")?.value || "";
-  const month = parts.find((part) => part.type === "month")?.value || "";
-  const year = parts.find((part) => part.type === "year")?.value || "";
-  return `${day} ${month}, ${year}`;
+  }).format(date);
 };
 
 const formatDurationHours = (value: unknown) => {
@@ -125,12 +137,68 @@ const formatDurationHours = (value: unknown) => {
   return "0";
 };
 
+const formatTime12 = (value?: string | null) => {
+  if (!value) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+
+  let date: Date | null = null;
+  if (raw.includes("T")) {
+    const parsed = parseDateValue(raw);
+    if (parsed) date = parsed;
+  } else {
+    const [hStr, mStr = "0", sStr = "0"] = raw.split(":");
+    const h = Number(hStr);
+    const m = Number(mStr);
+    const s = Number(sStr);
+    if (Number.isFinite(h) && Number.isFinite(m)) {
+      date = new Date(2000, 0, 1, h, m, Number.isFinite(s) ? s : 0);
+    }
+  }
+
+  if (!date) return "";
+  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+};
+
+const getTimeRange = (booking?: any) => {
+  const startRaw =
+    booking?.start_time ||
+    booking?.event_start_time ||
+    booking?.booking_days?.[0]?.start_time ||
+    booking?.booking_days?.[0]?.startTime ||
+    null;
+  const endRaw =
+    booking?.end_time ||
+    booking?.event_end_time ||
+    booking?.booking_days?.[0]?.end_time ||
+    booking?.booking_days?.[0]?.endTime ||
+    null;
+
+  const start = formatTime12(startRaw);
+  const end = formatTime12(endRaw);
+  if (start && end) return `${start}-${end}`;
+  if (start) return start;
+  return "";
+};
+
 // Helper for title casing
 const toTitleCase = (str: string) => {
   if (!str) return "";
   return str.replace(/\w\S*/g, (txt) => {
     return txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase();
   });
+};
+
+const getInitials = (value?: string | null) => {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) return "NA";
+  const parts = cleaned.split(" ").filter(Boolean);
+  const initials = parts.map((part) => part[0]).join("").toUpperCase();
+  if (initials) return initials.substring(0, 2);
+  const emailPart = cleaned.split("@")[0] || "";
+  const first = emailPart[0] || "N";
+  const second = emailPart[1] || "A";
+  return `${first}${second}`.toUpperCase();
 };
 
 const getEditCounts = (items: any[]) => {
@@ -150,6 +218,30 @@ const getAuthHeaders = () => {
   if (typeof window === "undefined") return {};
   const token = localStorage.getItem("revure_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const getStoredUserEmail = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const storedUser = localStorage.getItem("revure_user");
+    if (!storedUser) return null;
+    const userObj = JSON.parse(storedUser);
+    return userObj?.email || userObj?.user?.email || null;
+  } catch {
+    return null;
+  }
+};
+
+const resolveGuestEmail = (booking?: any, fallbackEmail?: string | null) => {
+  return (
+    booking?.guest_email ||
+    booking?.guestEmail ||
+    booking?.user?.email ||
+    booking?.client_email ||
+    fallbackEmail ||
+    getStoredUserEmail() ||
+    null
+  );
 };
 
 // Stripe Payment Form Component
@@ -510,7 +602,7 @@ function StripePaymentFormMulti({
         {
           quote_id: quote.quote_id,
           booking_id: shootId,
-          guest_email: booking.guest_email,
+          guest_email: resolveGuestEmail(booking),
         },
         {
           headers: getAuthHeaders(),
@@ -1133,7 +1225,7 @@ function MultiCreatorPaymentContent() {
         {
           booking_id: shootId,
           amount: parseFloat(quote.total),
-          guest_email: booking.guest_email,
+          guest_email: resolveGuestEmail(booking, summaryData?.client_email),
         },
         {
           headers: getAuthHeaders(),
@@ -1425,7 +1517,7 @@ function MultiCreatorPaymentContent() {
               <div className="rounded-b-[20px] text-black">
                 <div className="p-6 lg:p-10 border-b border-b-[#FFFFFF5C] flex gap-4 items-center">
                   <div className="w-10 h-10 lg:h-[82px] lg:w-[82px] rounded-full bg-[#333333] flex items-center justify-center text-[#FFFFFF85] font-semibold lg:text-2xl">
-                    {summaryData.client_email.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2)}
+                    {getInitials(summaryData?.client_email || booking?.guest_email)}
                   </div>
                   {/* ProjectName/Shoot Name currently displayed */}
                   <h4 className="font-bold text-base lg:text-2xl text-white">{toTitleCase(booking.shoot_name || "Unnamed Shoot")}</h4>
@@ -1442,7 +1534,12 @@ function MultiCreatorPaymentContent() {
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
-                      <span className="font-medium">{formatDurationHours(booking.duration_hours)} hours</span>
+                      <span className="font-medium">
+                        <span className="block">{formatDurationHours(booking.duration_hours)} Hours</span>
+                        {getTimeRange(booking) ? (
+                          <span className="block">{getTimeRange(booking)}</span>
+                        ) : null}
+                      </span>
                     </div>
                   </div>
                     <div className="flex flex-col justify-between mb-4">
