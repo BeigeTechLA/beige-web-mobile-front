@@ -1535,8 +1535,10 @@ function MultiCreatorPaymentContent() {
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
                       <span className="font-medium">
-                        {formatDurationHours(booking.duration_hours)} Hours
-                        {getTimeRange(booking) ? ` ${getTimeRange(booking)}` : ""}
+                        <span className="block">{formatDurationHours(booking.duration_hours)} Hours</span>
+                        {getTimeRange(booking) ? (
+                          <span className="block">{getTimeRange(booking)}</span>
+                        ) : null}
                       </span>
                     </div>
                   </div>
