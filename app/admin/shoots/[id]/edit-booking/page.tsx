@@ -5,18 +5,24 @@ import { useRouter, usePathname } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import EditBookingForm from "@/components/admin/EditBookingForm";
 import Topbar from "@/components/admin/Topbar";
-import { Loader2 } from "lucide-react";
 import { useTheme } from "next-themes";
 
 interface EditShootBookingPageProps {
     params: Promise<{ id: string }>;
 }
 
+type ProjectResponse = {
+    project?: Record<string, unknown>;
+    lead_id?: string | number;
+    stream_project_booking_id?: string | number;
+    [key: string]: unknown;
+};
+
 export default function EditShootBookingPage({ params }: EditShootBookingPageProps) {
     const router = useRouter();
     const pathname = usePathname();
     const { id: projectId } = use(params);
-    const [project, setProject] = useState<any>(null);
+    const [project, setProject] = useState<ProjectResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const { theme } = useTheme();
     const [mounted, setMounted] = useState(false);
@@ -27,6 +33,8 @@ export default function EditShootBookingPage({ params }: EditShootBookingPagePro
 
     // Constant default to dark
     const isDark = !mounted || theme === "dark";
+    const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
+
     useEffect(() => {
         const fetchProjectDetails = async () => {
             try {
@@ -73,7 +81,7 @@ export default function EditShootBookingPage({ params }: EditShootBookingPagePro
                     leadId={leadId}
                     projectId={projectId}
                     initialBookingData={project}
-                    onSuccess={() => router.push(`/admin/shoots/${projectId}`)}
+                    onSuccess={() => router.push(`${shootBasePath}/${projectId}`)}
                     onCancel={() => router.back()}
           isDark={isDark}
                 />

@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
-import { ArrowLeft, SlidersHorizontal, Pencil, CheckCircle2, Circle, CircleX, Trash2, Eye } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { ArrowLeft, Eye } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { adminApi } from "@/lib/api";
@@ -17,14 +16,35 @@ import { useTheme } from "next-themes";
 
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
+type ShootHeaderProject = {
+  payment_status?: string | null;
+  payment_id?: string | number | null;
+  project_name?: string;
+  skills_needed?: string;
+  status?: number;
+  description?: string;
+  event_date?: string;
+  start_time?: string;
+  end_time?: string;
+  event_start_time?: string;
+  total_paid_amount?: string | number;
+  event_location?: string;
+  location?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  [key: string]: unknown;
+};
+
 interface ShootHeaderProps {
   activeTab?: string;
-  project?: any;
+  project?: ShootHeaderProject;
   projectId?: string;
 }
 
 export default function ShootHeader({ activeTab = "Overview", project, projectId }: ShootHeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -35,6 +55,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const folderLink = getProjectFolderLink(project);
   const shootFilesText = getShootFilesText(project);
@@ -93,26 +114,15 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
         </div>
 
         <div className="flex gap-3">
-          {/* Action Buttons - Fixed Comment Closure Below */}
-          {/* <Button
+          <Button
             variant="outline"
             className="bg-[#2C2C2C] border-none text-[#E5D5B8] hover:bg-[#3D3D3D] hover:text-[#f0e4d0] rounded-lg h-10 px-4 gap-2"
-            onClick={() => router.push(`/admin/shoots/${projectId}/form-details`)}
+            onClick={() => router.push(`${shootBasePath}/${projectId}/form-details`)}
           >
             <Eye className="w-4 h-4" /> View Form Details
           </Button>
           <Button
-            variant="outline"
-            className="bg-[#2C2C2C] border-none text-red-400 hover:bg-[#3D3D3D] hover:text-red-300 rounded-lg h-10 px-4 gap-2"
-            onClick={() => setIsDeleteModalOpen(true)}
-          >
-            <Trash2 className="w-4 h-4" /> Delete Shoot
-          </Button>
-          {/* <Button variant="outline" className="bg-[#1A1A1A] border border-white/10 text-white hover:bg-[#2C2C2C] rounded-lg h-10 px-4 gap-2">
-            <SlidersHorizontal className="w-4 h-4" /> Filters
-          </Button> */}
-          <Button
-            onClick={() => router.push(`/admin/shoots/${projectId}/edit-booking`)}
+            onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
             className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium"
           >
             Edit Shoot
