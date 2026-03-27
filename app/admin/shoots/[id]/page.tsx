@@ -19,6 +19,37 @@ import { CircleX, Loader2, X, SlidersHorizontal, Eye } from "lucide-react"; // A
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
 
+type SkillOption = {
+  id?: number | string;
+  name?: string;
+  skill_name?: string;
+  title?: string;
+};
+
+type ProjectDetails = {
+  project_name?: string;
+  skills_needed?: string | Array<string | number> | null;
+  status?: number;
+  description?: string;
+  event_date?: string;
+  start_time?: string;
+  end_time?: string;
+  event_start_time?: string;
+  total_paid_amount?: string | number;
+  payment_status?: string | null;
+  payment_id?: string | number | null;
+  event_location?: string;
+  location?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  lead_id?: string | number;
+  assignedCrew?: unknown[];
+  assigned_crews?: unknown[];
+  assigned_post_production_members?: unknown[];
+  [key: string]: unknown;
+};
+
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const pathname = usePathname();
@@ -26,7 +57,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("Overview");
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<ProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
   // State to handle mobile timeline visibility
@@ -37,6 +68,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   }, []);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+  const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
 
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
@@ -49,14 +81,16 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         // 1. Create Skills Map
         const skillsMap: Record<number, string> = {};
         if (skillsResponse && skillsResponse.data) {
-          const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
-            const name = s.name || s.skill_name || s.title;
-            if (s.id && name) skillsMap[s.id] = name;
+          const skillsList: SkillOption[] = Array.isArray(skillsResponse.data)
+            ? skillsResponse.data
+            : (skillsResponse.data?.data || []);
+          skillsList.forEach((skill) => {
+            const name = skill.name || skill.skill_name || skill.title;
+            if (skill.id && name) skillsMap[Number(skill.id)] = name;
           });
         }
 
-        let projectData = projectResponse?.data?.project || projectResponse?.data || projectResponse;
+        const projectData: ProjectDetails | undefined = projectResponse?.data?.project || projectResponse?.data || projectResponse;
 
         if (projectData) {
           // 3. Map Skills Needed to Names
@@ -70,14 +104,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 (projectData.skills_needed.trim().startsWith('[') || projectData.skills_needed.trim().startsWith('{'))) {
                 try {
                   parsedIds = JSON.parse(projectData.skills_needed);
-                } catch (e) {
+                } catch {
                   // If parsing fails, keep it as a string
                   parsedIds = projectData.skills_needed;
                 }
               }
 
               if (Array.isArray(parsedIds)) {
-                skillsText = parsedIds
+                skillsText = (parsedIds as Array<string | number>)
                   .map(id => skillsMap[Number(id)])
                   .filter(Boolean)
                   .join(", ");
@@ -107,21 +141,6 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   }, [id]);
 
   if (!mounted) return null;
-
-  const getInitials = (name: string) => {
-    if (!name) return "??";
-
-    // Split the name into words
-    const words = name.trim().split(/\s+/);
-
-    // Take the first letter of the first word
-    const first = words[0]?.charAt(0) || "";
-
-    // Take the first letter of the second word (if it exists)
-    const second = words[1]?.charAt(0) || "";
-
-    return (first + second).toUpperCase();
-  };
 
   const handleDelete = async () => {
     if (!id) return;
@@ -267,14 +286,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               Cancel Shoot
             </Button>
             <Button
-              onClick={() => router.push(`/admin/shoots/${id}/edit-booking`)}
+              onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
               className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
             >
               Edit Shoot
             </Button>
           </div>
           <Button
-            onClick={() => router.push(`/admin/shoots/${id}/form-details`)}
+            onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
             className="w-full bg-[#111] text-[#E5D5B8] hover:bg-[#151515] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/10 active:scale-[0.98] transition-transform"
           >
             <Eye size={18} /> View Form Details
