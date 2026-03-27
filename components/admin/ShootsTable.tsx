@@ -44,7 +44,17 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   7: "Cancelled",
 };
 
-export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
+interface ShootsTableProps {
+  externalSelectedDate?: Date | null;
+  detailBasePath?: string;
+  enablePriceSort?: boolean;
+}
+
+export const ShootsTable = ({
+  externalSelectedDate,
+  detailBasePath = "/admin/shoots",
+  enablePriceSort = true,
+}: ShootsTableProps) => {
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -210,7 +220,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
   const handleRowClick = (id: string) => {
     const cleanId = id.replace('#', '');
-    router.push(`/admin/shoots/${cleanId}`);
+    router.push(`${detailBasePath}/${cleanId}`);
   };
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {

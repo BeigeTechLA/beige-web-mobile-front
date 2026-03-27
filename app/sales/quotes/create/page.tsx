@@ -23,11 +23,10 @@ import {
   DollarSign,
   ArrowLeft
 } from "lucide-react";
-import Topbar from "@/components/admin/Topbar";
+import Topbar from "@/components/sales/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import DottedDivider from "@/components/admin/DottedDivider";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
@@ -228,7 +227,6 @@ export default function CreateQuotePage() {
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingShootTypes, setLoadingShootTypes] = useState(false);
 
-  // Delete Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'service' | 'addon' | 'logistics' | 'line_item' | 'shoot_type'; label: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -1069,7 +1067,7 @@ export default function CreateQuotePage() {
         : type === 'logistics'
           ? logisticsItems.find(item => item.id === id)
           : lineItems.find(item => item.id === id);
-    
+
     if (item) {
       if (type === 'service' && isProtectedServiceLabel(item.label)) {
         toast.error("Default services can't be deleted");
@@ -1127,9 +1125,7 @@ export default function CreateQuotePage() {
           );
           await fetchShootTypes(selectedServices);
         } else {
-          // Refresh catalog
           await fetchCatalog();
-          // Remove from selected if it was selected
           if (itemToDelete.type === 'service') {
             setSelectedServices(prev => prev.filter(sid => sid !== itemToDelete.id));
           } else if (itemToDelete.type === 'addon') {
@@ -1146,7 +1142,7 @@ export default function CreateQuotePage() {
         toast.error(`Failed to delete: ${res?.error || "Unknown error"}`);
       }
     } catch (error) {
-      console.error(`Error deleting item:`, error);
+      console.error("Error deleting item:", error);
       toast.error("An error occurred while deleting the item");
     } finally {
       setIsDeleting(false);
@@ -1291,7 +1287,7 @@ export default function CreateQuotePage() {
           "create": "Creating New Quote"
         }}
         actions={
-          <Button onClick={() => router.push("/admin/quotes/summary")} className="bg-[#E5D5B8] text-black">
+          <Button onClick={() => router.push("/sales/quotes/summary")} className="bg-[#E5D5B8] text-black">
             View Quote Summary
           </Button>
         }
@@ -1309,7 +1305,7 @@ export default function CreateQuotePage() {
           </button>
 
           <div className="text-right">
-            <Button onClick={() => router.push("/admin/quotes/summary")} className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black">
+            <Button onClick={() => router.push("/sales/quotes/summary")} className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black">
               View Quote Summary
             </Button>
             <span className="hidden lg:block text-base font-semibold text-white">
@@ -1469,54 +1465,54 @@ export default function CreateQuotePage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-9">
                   {(addons || []).map((addon) => {
                     return (
-                    <div key={addon.id} className="relative">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const isSelected = selectedAddons.includes(addon.id);
-                          if (isSelected) {
-                            removeSelectedAddon(addon.id);
-                          } else {
-                            const initialConfig = { quantity: 1, price: addon.price };
-                            setSelectedAddons(prev => [...prev, addon.id]);
-                            setAddonConfigs(prev => ({
-                              ...prev,
-                              [addon.id]: initialConfig
-                            }));
-                            setAppliedAddonConfigs(prev => ({
-                              ...prev,
-                              [addon.id]: initialConfig
-                            }));
-                          }
-                        }}
-                        className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedAddons.includes(addon.id)
-                          ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
-                          : 'bg-transparent border-[#303030] hover:border-zinc-700'
-                          }`}
-                      >
-                        <div className="flex items-start gap-4 w-full">
-                          <div className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
-                            ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black'
-                            : 'border-zinc-700 bg-transparent'
-                            }`}>
-                            {selectedAddons.includes(addon.id) && <Check size={14} strokeWidth={4} />}
-                          </div>
-                          <div className="space-y-2">
-                            <div className="font-medium text-base text-white leading-none">{addon.label}</div>
-                            <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
-                              ${addon.price.toFixed(2)}
+                      <div key={addon.id} className="relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const isSelected = selectedAddons.includes(addon.id);
+                            if (isSelected) {
+                              removeSelectedAddon(addon.id);
+                            } else {
+                              const initialConfig = { quantity: 1, price: addon.price };
+                              setSelectedAddons(prev => [...prev, addon.id]);
+                              setAddonConfigs(prev => ({
+                                ...prev,
+                                [addon.id]: initialConfig
+                              }));
+                              setAppliedAddonConfigs(prev => ({
+                                ...prev,
+                                [addon.id]: initialConfig
+                              }));
+                            }
+                          }}
+                          className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedAddons.includes(addon.id)
+                            ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+                            : 'bg-transparent border-[#303030] hover:border-zinc-700'
+                            }`}
+                        >
+                          <div className="flex items-start gap-4 w-full">
+                            <div className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
+                              ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black'
+                              : 'border-zinc-700 bg-transparent'
+                              }`}>
+                              {selectedAddons.includes(addon.id) && <Check size={14} strokeWidth={4} />}
+                            </div>
+                            <div className="space-y-2">
+                              <div className="font-medium text-base text-white leading-none">{addon.label}</div>
+                              <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                                ${addon.price.toFixed(2)}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCatalogItem(addon.id, 'addon')}
-                        className="absolute top-6 right-6 z-10 text-zinc-500 transition-colors hover:text-red-500"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCatalogItem(addon.id, 'addon')}
+                          className="absolute top-6 right-6 z-10 text-zinc-500 transition-colors hover:text-red-500"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -1745,7 +1741,7 @@ export default function CreateQuotePage() {
                           <button
                             type="button"
                             onClick={() => handleServiceSelect(service.id, service.price)}
-                            className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
+                            className={`relative flex flex-col items-start p-5 lg:p-6 rounded-xl lg:rounded-2xl border transition-all h-[78px] lg:h-[98px] text-left group w-full ${selectedServices.includes(service.id)
                               ? 'bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
                               : 'bg-transparent border-[#303030] hover:border-zinc-700'
                               }`}
@@ -2770,13 +2766,13 @@ export default function CreateQuotePage() {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="567 Mission Street, San Francisco, CA 94105"
-                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base "
+                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                   />
                 </div>
 
                 <div className="relative">
                   <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#D3D3D3] font-medium">Project Description*</span>
+                    <span className="text-sm text-[#A1A1AA] font-medium">Project Description*</span>
                   </div>
                   <Textarea
                     value={projectDescription}

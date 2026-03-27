@@ -9,6 +9,7 @@ import { adminApi } from "@/lib/api";
 import {
   getPaymentStatusMeta,
   getProjectFolderLink,
+  getProjectTimeText,
   getShootFilesText,
 } from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const folderLink = getProjectFolderLink(project);
+  const projectTimeText = getProjectTimeText(project);
   const shootFilesText = getShootFilesText(project);
 
   const handleDelete = async () => {

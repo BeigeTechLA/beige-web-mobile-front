@@ -6,6 +6,7 @@ import { ArrowLeft, SlidersHorizontal, Pencil, CheckCircle2, Circle, CircleX, Tr
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { adminApi } from "@/lib/api";
+import { getProjectTimeText } from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
 
 interface ShootHeaderProps {
@@ -16,6 +17,7 @@ interface ShootHeaderProps {
 
 export default function ShootHeader({ activeTab = "Overview", project, projectId }: ShootHeaderProps) {
     const router = useRouter();
+    const projectTimeText = getProjectTimeText(project);
 
     const handleDelete = async () => {
         if (!projectId) return;
@@ -100,8 +102,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
                             <div className="flex gap-2">
                                 <span>Time :</span>
                                 <span className="text-white font-medium">
-                                    {project?.event_start_time ? new Date(project.event_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A"}
-                                    {/* Duration calc could be here */}
+                                    {projectTimeText}
                                 </span>
                             </div>
                             <div className="hidden lg:block w-px h-5 bg-[#333333]" />
