@@ -164,6 +164,30 @@ const getAuthHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+const getStoredUserEmail = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const storedUser = localStorage.getItem("revure_user");
+    if (!storedUser) return null;
+    const userObj = JSON.parse(storedUser);
+    return userObj?.email || userObj?.user?.email || null;
+  } catch {
+    return null;
+  }
+};
+
+const resolveGuestEmail = (booking?: any, fallbackEmail?: string | null) => {
+  return (
+    booking?.guest_email ||
+    booking?.guestEmail ||
+    booking?.user?.email ||
+    booking?.client_email ||
+    fallbackEmail ||
+    getStoredUserEmail() ||
+    null
+  );
+};
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
   clientSecret,
@@ -522,7 +546,7 @@ function StripePaymentFormMulti({
         {
           quote_id: quote.quote_id,
           booking_id: shootId,
-          guest_email: booking.guest_email,
+          guest_email: resolveGuestEmail(booking),
         },
         {
           headers: getAuthHeaders(),
@@ -1145,7 +1169,7 @@ function MultiCreatorPaymentContent() {
         {
           booking_id: shootId,
           amount: parseFloat(quote.total),
-          guest_email: booking.guest_email,
+          guest_email: resolveGuestEmail(booking, summaryData?.client_email),
         },
         {
           headers: getAuthHeaders(),
