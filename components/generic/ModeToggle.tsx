@@ -16,17 +16,18 @@ export function ModeToggle() {
 
   return (
     <div
-      className="relative flex h-12 w-24 cursor-pointer items-center rounded-full bg-[var(--toggle-bg)] border border-[var(--toggle-border)] p-1  transition-colors"
+      className="relative flex h-12 w-24 cursor-pointer items-center rounded-full bg-[var(--toggle-bg)] border border-[var(--toggle-border)] p-1 transition-all duration-300"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       role="button"
+      aria-label="Toggle Theme"
       tabIndex={0}
     >
       {/* Sliding Indicator */}
       <motion.div
-        className="absolute h-10 w-10 rounded-full bg-[var(--indicator-bg)] z-0"
+        className="absolute h-10 w-10 rounded-full bg-[#E8D1AB] shadow-sm"
         initial={false}
         animate={{
-          x: isDark ? 0 : 48,
+          x: isDark ? 0 : 48, 
         }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
       />

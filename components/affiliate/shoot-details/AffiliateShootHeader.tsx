@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   getPaymentStatusMeta,
   getProjectFolderLink,
+  getProjectTimeText,
   getShootFilesText,
 } from "@/lib/utils/shootDetails";
 
@@ -22,6 +23,7 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
   const router = useRouter();
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const folderLink = getProjectFolderLink(project);
+  const projectTimeText = getProjectTimeText(project);
   const shootFilesText = getShootFilesText(project);
 
   const formatShootDate = (dateValue?: string) => {
@@ -33,21 +35,6 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
       day: "numeric",
       year: "numeric",
     });
-  };
-
-  const formatShootTime = () => {
-    if (project?.start_time && project?.end_time) {
-      return `${project.start_time.split(":").slice(0, 2).join(":")} - ${project.end_time.split(":").slice(0, 2).join(":")}`;
-    }
-
-    if (project?.event_start_time) {
-      const start = new Date(project.event_start_time);
-      if (!Number.isNaN(start.getTime())) {
-        return start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      }
-    }
-
-    return "N/A";
   };
 
   const formatTotalValue = () => {
@@ -145,7 +132,7 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
               <div className="flex gap-2">
                 <span>Time :</span>
                 <span className="text-white font-medium">
-                  {formatShootTime()}
+                  {projectTimeText}
                 </span>
               </div>
               <div className="hidden lg:block w-px h-5 bg-[#333333]" />

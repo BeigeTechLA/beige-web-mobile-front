@@ -7,7 +7,6 @@ import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
-import DottedDivider from '@/components/admin/DottedDivider';
 
 export default function SalesShootsPage() {
   const router = useRouter()
@@ -64,7 +63,11 @@ export default function SalesShootsPage() {
 
         {/* <DottedDivider /> */}
 
-        <SalesShootsTable externalSelectedDate={selectedDate} />
+        <ShootsTable
+          externalSelectedDate={selectedDate}
+          detailBasePath="/sales/shoots"
+          enablePriceSort={false}
+        />
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
