@@ -213,6 +213,79 @@ export interface ReferralHistoryItem {
   } | null;
 }
 
+export interface QuotesDashboardOverview {
+  total_quotes: number;
+  accepted_quotes: number;
+  pending_quotes: number;
+  draft_quotes: number;
+  rejected_quotes: number;
+  expired_quotes: number;
+  total_amount: number;
+}
+
+export interface QuotesDashboardChartItem {
+  label: string;
+  quote_count: number;
+  total_amount: number;
+}
+
+export interface QuotesDashboardData {
+  overview: QuotesDashboardOverview;
+  chart: QuotesDashboardChartItem[];
+}
+
+export interface QuotesDashboardResponse {
+  success: boolean;
+  data: QuotesDashboardData | null;
+  error?: string;
+}
+
+export interface SalesQuoteListItem {
+  id?: number | string;
+  quote_id?: number | string;
+  client_name?: string;
+  client?: string;
+  customer_name?: string;
+  guest_email?: string;
+  client_email?: string;
+  client_address?: string;
+  address?: string;
+  location?: string;
+  project_description?: string;
+  project?: string;
+  description?: string;
+  total_amount?: number | string;
+  total?: number | string;
+  amount?: number | string;
+  status?: string;
+  quote_status?: string;
+  expires_at?: string | null;
+  valid_until?: string | null;
+  salesperson?: string;
+  sales_person?: string;
+  sales_rep?: string;
+  sales_rep_name?: string;
+  created_by_name?: string;
+  [key: string]: unknown;
+}
+
+export interface QuotesListResponse {
+  success: boolean;
+  data:
+    | SalesQuoteListItem[]
+    | {
+        quotes?: SalesQuoteListItem[];
+        items?: SalesQuoteListItem[];
+        results?: SalesQuoteListItem[];
+        rows?: SalesQuoteListItem[];
+        list?: SalesQuoteListItem[];
+        data?: SalesQuoteListItem[];
+        [key: string]: unknown;
+      }
+    | null;
+  error?: string;
+}
+
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
   validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
@@ -1589,7 +1662,7 @@ export const salesApi = {
   },
   getQuotesDashboard: async () => {
     try {
-      const response = await api.get('/sales/quotes/dashboard');
+      const response = await api.get<QuotesDashboardResponse>('/sales/quotes/dashboard');
       return response.data;
     } catch (error) {
       console.error('Get Quotes Dashboard Error:', error);
@@ -1597,6 +1670,19 @@ export const salesApi = {
         success: false,
         data: null,
         error: 'Failed to fetch quotes dashboard data',
+      };
+    }
+  },
+  getQuotesList: async () => {
+    try {
+      const response = await api.get<QuotesListResponse>('/sales/quotes');
+      return response.data;
+    } catch (error) {
+      console.error('Get Quotes List Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch quotes list',
       };
     }
   },
