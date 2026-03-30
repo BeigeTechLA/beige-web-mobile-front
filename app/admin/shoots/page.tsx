@@ -63,7 +63,7 @@ export default function ShootsPage() {
           />
         </div>
 
-        <DottedDivider className="my-0" />
+        {/* <DottedDivider className="my-0" />  */}
 
         <ShootsTable externalSelectedDate={selectedDate} />
 

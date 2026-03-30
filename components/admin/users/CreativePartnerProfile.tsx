@@ -2,21 +2,13 @@
 
 import React, { useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import { adminApi, getStatusCount, GetUpcomingShoots, getPendingProjects, getAvailabilityDetails } from "@/lib/api";
 import { Loader2 } from "lucide-react";
-
-interface ProfileProps {
-  id: string;
-  hideActions?: boolean;
-  isDark?: boolean;
-}
-
-import { Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Calendar, Navigation } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
 
@@ -30,6 +22,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DottedDivider from "../DottedDivider";
 
+interface ProfileProps {
+  id: string;
+  hideActions?: boolean;
+  isDark?: boolean;
+}
 
 // --- PREMIUM UI HELPERS ---
 const formatLocation = (locationInput: string) => {
@@ -187,7 +184,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
             : (Array.isArray(data) ? data : []);
           setAllShoots(shootsData);
         }
-
       } catch (error) {
         console.error("Error fetching partner details:", error);
       } finally {
@@ -268,7 +264,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
           timeOff += 1;
         }
       });
-
       setSummaryData({ availableDays, bookedShoots, timeOff });
     };
 
@@ -1459,6 +1454,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
         </div>
       )}
-    </div >
+    </div>
   );
 };

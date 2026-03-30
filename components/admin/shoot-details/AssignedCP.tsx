@@ -181,7 +181,7 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
             >
               <Plus size={40} className="text-black" />
             </button>
-            <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E5D5B8]" : "text-[#D9C19A]"}`}>
+            <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E5D5B8]" : "text-text-black"}`}>
               Assign Creative Partner
             </h4>
           </div>
