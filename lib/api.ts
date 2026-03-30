@@ -240,20 +240,42 @@ export interface QuotesDashboardResponse {
   error?: string;
 }
 
+export interface SalesQuoteListUser {
+  id?: number | string;
+  name?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
+export interface QuotesListPagination {
+  page?: number;
+  limit?: number;
+  total?: number;
+  total_pages?: number;
+  totalPages?: number;
+  [key: string]: unknown;
+}
+
+export type QuotesListSummary = Record<string, number | string | null | undefined>;
+
 export interface SalesQuoteListItem {
   id?: number | string;
   quote_id?: number | string;
+  sales_quote_id?: number | string;
+  quote_number?: string;
   client_name?: string;
   client?: string;
   customer_name?: string;
   guest_email?: string;
   client_email?: string;
+  client_phone?: string | null;
   client_address?: string;
   address?: string;
   location?: string;
   project_description?: string;
   project?: string;
   description?: string;
+  video_shoot_type?: string;
   total_amount?: number | string;
   total?: number | string;
   amount?: number | string;
@@ -261,28 +283,33 @@ export interface SalesQuoteListItem {
   quote_status?: string;
   expires_at?: string | null;
   valid_until?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   salesperson?: string;
   sales_person?: string;
   sales_rep?: string;
   sales_rep_name?: string;
   created_by_name?: string;
+  assigned_sales_rep?: SalesQuoteListUser | null;
+  created_by?: SalesQuoteListUser | null;
+  [key: string]: unknown;
+}
+
+export interface QuotesListEnvelope {
+  pagination?: QuotesListPagination | null;
+  summary?: QuotesListSummary | null;
+  quotes?: SalesQuoteListItem[];
+  items?: SalesQuoteListItem[];
+  results?: SalesQuoteListItem[];
+  rows?: SalesQuoteListItem[];
+  list?: SalesQuoteListItem[];
+  data?: SalesQuoteListItem[];
   [key: string]: unknown;
 }
 
 export interface QuotesListResponse {
   success: boolean;
-  data:
-    | SalesQuoteListItem[]
-    | {
-        quotes?: SalesQuoteListItem[];
-        items?: SalesQuoteListItem[];
-        results?: SalesQuoteListItem[];
-        rows?: SalesQuoteListItem[];
-        list?: SalesQuoteListItem[];
-        data?: SalesQuoteListItem[];
-        [key: string]: unknown;
-      }
-    | null;
+  data: SalesQuoteListItem[] | QuotesListEnvelope | null;
   error?: string;
 }
 
@@ -321,6 +348,7 @@ export interface SalesQuoteDetailLineItem {
 export interface SalesQuoteDetailData {
   id?: number | string;
   quote_id?: number | string;
+  sales_quote_id?: number | string;
   quote_number?: string;
   client_name?: string;
   client_email?: string;
@@ -348,6 +376,7 @@ export interface SalesQuoteDetailData {
   subtotal?: number | string;
   amount_after_tax?: number | string;
   total_after_tax?: number | string;
+  total?: number | string;
   total_amount?: number | string;
   final_total?: number | string;
   amount_after_discount?: number | string;
@@ -1741,9 +1770,9 @@ export const salesApi = {
       };
     }
   },
-  getQuotesDashboard: async () => {
+  getQuotesDashboard: async (params: { range?: string; date_on?: string } = {}) => {
     try {
-      const response = await api.get<QuotesDashboardResponse>('/sales/quotes/dashboard');
+      const response = await api.get<QuotesDashboardResponse>('/sales/quotes/dashboard', { params });
       return response.data;
     } catch (error) {
       console.error('Get Quotes Dashboard Error:', error);
@@ -1754,9 +1783,11 @@ export const salesApi = {
       };
     }
   },
-  getQuotesList: async () => {
+  getQuotesList: async (
+    params: { page?: number; limit?: number; search?: string; status?: string; range?: string; date_on?: string } = {}
+  ) => {
     try {
-      const response = await api.get<QuotesListResponse>('/sales/quotes');
+      const response = await api.get<QuotesListResponse>('/sales/quotes', { params });
       return response.data;
     } catch (error) {
       console.error('Get Quotes List Error:', error);

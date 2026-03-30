@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronLeft,
   ChevronDown,
@@ -33,7 +33,20 @@ import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
 import QuotePreviewModal from "@/components/admin/quotes/QuotePreviewModal";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
+import {
+  buildQuoteEditorHydrationState,
+  findShootTypeIdByLabel,
+  normalizeQuoteEditorView,
+} from "@/lib/quoteEdit";
 import { buildQuoteDraftPayload } from "@/lib/quoteDraft";
+import {
+  SALES_QUOTE_SUMMARY_STORAGE_KEY,
+  buildQuoteSummarySnapshot,
+  getQuoteValidationMessage,
+  persistQuoteSummarySnapshot,
+  validateQuoteForReview,
+  validateQuoteStep,
+} from "@/lib/quoteSummary";
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { toast } from "react-hot-toast";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
@@ -50,6 +63,7 @@ type CatalogSectionItem = {
 };
 
 type ShootTypeApiItem = {
+  sales_shoot_type_id?: string | number | null;
   shoot_type_id?: string | number | null;
   shootTypeId?: string | number | null;
   id?: string | number | null;
@@ -58,6 +72,8 @@ type ShootTypeApiItem = {
   quote_shoot_type_id?: string | number | null;
   name?: string | null;
   created_at?: string | null;
+  is_system_default?: string | number | boolean | null;
+  isSystemDefault?: string | number | boolean | null;
 };
 
 const PROTECTED_SERVICE_ORDER = [
@@ -101,7 +117,8 @@ const formatCurrency = (value: number) =>
   `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const resolveShootTypeApiId = (item: ShootTypeApiItem) => {
-  const preferredId = item.shoot_type_id
+  const preferredId = item.sales_shoot_type_id
+    ?? item.shoot_type_id
     ?? item.shootTypeId
     ?? item.project_type_id
     ?? item.projectTypeId
@@ -134,6 +151,15 @@ const isValidShootTypeId = (id: string | number) => {
   return Number.isInteger(numericId) && numericId > 0;
 };
 
+const isSystemDefaultShootType = (item: ShootTypeApiItem) =>
+  Number(item.is_system_default ?? item.isSystemDefault ?? 0) === 1;
+
+const canDeleteShootTypeItem = (item: {
+  id?: string | number | null;
+  apiId?: string | number | null;
+  isSystemDefault?: boolean;
+}) => !item.isSystemDefault && isValidShootTypeId(item.apiId ?? item.id ?? "");
+
 const isProtectedServiceLabel = (label: string) =>
   PROTECTED_SERVICE_ORDER.includes(normalizeServiceLabel(label) as typeof PROTECTED_SERVICE_ORDER[number]);
 
@@ -146,6 +172,13 @@ const isProtectedLineItemLabel = (label: string) =>
 export default function CreateQuotePage() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editQuoteId = searchParams.get("quoteId");
+  const isEditMode = Boolean(editQuoteId);
+  const requestedEditView = normalizeQuoteEditorView(
+    searchParams.get("view"),
+    isEditMode ? "details" : "selection"
+  );
 
   // Views: 'selection' | 'details' | 'services' | 'addons' | 'logistics'
   const [view, setView] = useState<'selection' | 'details' | 'services' | 'addons' | 'logistics' | 'customlineitems' | 'discounts' | 'tax'>('selection');
@@ -168,7 +201,6 @@ export default function CreateQuotePage() {
   // Step 2: Services & Config State
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [selectedShootType, setSelectedShootType] = useState<string>("private_event");
-  const [userCreatedShootTypeIds, setUserCreatedShootTypeIds] = useState<string[]>([]);
   const [customServiceName, setCustomServiceName] = useState("");
   const [customServiceCost, setCustomServiceCost] = useState("");
   const [customShootType, setCustomShootType] = useState("");
@@ -233,6 +265,11 @@ export default function CreateQuotePage() {
   const [previewQuote, setPreviewQuote] = useState<SalesQuoteDetailData | null>(null);
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [quoteToEdit, setQuoteToEdit] = React.useState<SalesQuoteDetailData | null>(null);
+  const [isLoadingQuoteToEdit, setIsLoadingQuoteToEdit] = React.useState(false);
+  const [isHydratingQuoteToEdit, setIsHydratingQuoteToEdit] = React.useState(false);
+  const [isCatalogLoaded, setIsCatalogLoaded] = React.useState(false);
+  const hydratedQuoteIdRef = React.useRef<string | null>(null);
 
   const serviceIcons: Record<string, React.ReactNode> = {
     "videography": <Video size={20} />,
@@ -275,10 +312,17 @@ export default function CreateQuotePage() {
     fetchCatalog();
   }, []);
 
-  const fetchShootTypes = async (ids: string[]) => {
+  const fetchShootTypes = async (
+    ids: string[],
+    availableServices: Array<{ id: string; label: string }> = services
+  ) => {
     let typeParam = 0;
-    const hasVideo = ids.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || ids.includes("videography");
-    const hasPhoto = ids.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "photography") || ids.includes("photography");
+    const hasVideo =
+      ids.some(id => availableServices.find(s => s.id === id)?.label.toLowerCase() === "videography") ||
+      ids.includes("videography");
+    const hasPhoto =
+      ids.some(id => availableServices.find(s => s.id === id)?.label.toLowerCase() === "photography") ||
+      ids.includes("photography");
 
     if (hasVideo && hasPhoto) typeParam = 3;
     else if (hasVideo) typeParam = 1;
@@ -301,6 +345,7 @@ export default function CreateQuotePage() {
             apiId,
             label: item.name || "",
             createdAt: item.created_at || null,
+            isSystemDefault: isSystemDefaultShootType(item),
             originalIndex: idx,
           };
         });
@@ -343,6 +388,187 @@ export default function CreateQuotePage() {
 
     return [];
   };
+
+  React.useEffect(() => {
+    if (!editQuoteId) {
+      setQuoteToEdit(null);
+      setIsLoadingQuoteToEdit(false);
+      hydratedQuoteIdRef.current = null;
+      return;
+    }
+
+    let isMounted = true;
+    hydratedQuoteIdRef.current = null;
+    setIsLoadingQuoteToEdit(true);
+
+    const fetchQuoteToEdit = async () => {
+      try {
+        const response = await salesApi.getQuoteDetail(editQuoteId);
+
+        if (response?.error || response?.success === false) {
+          throw new Error(
+            typeof response?.error === "string" ? response.error : "Failed to fetch quote details"
+          );
+        }
+
+        const quoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
+        if (!quoteDetail) {
+          throw new Error("Quote details are unavailable");
+        }
+
+        if (!isMounted) {
+          return;
+        }
+
+        setQuoteToEdit(quoteDetail);
+      } catch (error) {
+        console.error("Failed to load quote for edit", error);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setQuoteToEdit(null);
+        toast.error(error instanceof Error ? error.message : "Failed to load quote details");
+      } finally {
+        if (isMounted) {
+          setIsLoadingQuoteToEdit(false);
+        }
+      }
+    };
+
+    void fetchQuoteToEdit();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editQuoteId]);
+
+  React.useEffect(() => {
+    if (!editQuoteId || !quoteToEdit || !isCatalogLoaded) {
+      return;
+    }
+
+    if (hydratedQuoteIdRef.current === editQuoteId) {
+      return;
+    }
+
+    let isMounted = true;
+    setIsHydratingQuoteToEdit(true);
+
+    const hydrateQuoteEditor = async () => {
+      try {
+        const hydratedState = buildQuoteEditorHydrationState({
+          quote: quoteToEdit,
+          services,
+          addons,
+          logisticsItems,
+          lineItems,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSelectedClient(hydratedState.selectedClient);
+        setClientName(hydratedState.clientName);
+        setEmailId(hydratedState.emailId);
+        setPhoneNumber(hydratedState.phoneNumber);
+        setAddress(hydratedState.address);
+        setProjectDescription(hydratedState.projectDescription);
+        setValidityDays(hydratedState.validityDays);
+        setValidUntil(hydratedState.validUntil);
+        setDiscountEnabled(hydratedState.discountEnabled);
+        setDiscountType(hydratedState.discountType);
+        setDiscountValue(hydratedState.discountValue);
+        setTaxRate(hydratedState.taxRate);
+        setSelectedTax(
+          hydratedState.taxRate === 5 || hydratedState.taxRate === 8.5 || hydratedState.taxRate === 10
+            ? (hydratedState.taxRate as 5 | 8.5 | 10)
+            : 0
+        );
+        setTaxType(hydratedState.taxType);
+        setServices(hydratedState.services);
+        setSelectedServices(hydratedState.selectedServices);
+        setServiceConfigs(hydratedState.serviceConfigs);
+        setAddons(hydratedState.addons);
+        setSelectedAddons(hydratedState.selectedAddons);
+        setAddonConfigs(hydratedState.addonConfigs);
+        setAppliedAddonConfigs(hydratedState.appliedAddonConfigs);
+        setLogisticsItems(hydratedState.logisticsItems);
+        setLogisticsConfigs(hydratedState.logisticsConfigs);
+        setAppliedLogisticsConfigs(hydratedState.appliedLogisticsConfigs);
+        setLineItems(hydratedState.lineItems);
+        setLineItemConfigs(hydratedState.lineItemConfigs);
+        setAppliedLineItemConfigs(hydratedState.appliedLineItemConfigs);
+        setIsDropdownOpen(false);
+        setSearchQuery("");
+
+        const availableShootTypes =
+          hydratedState.selectedServices.length > 0
+            ? await fetchShootTypes(hydratedState.selectedServices, hydratedState.services)
+            : [];
+
+        if (!isMounted) {
+          return;
+        }
+
+        const matchedShootTypeId = findShootTypeIdByLabel(
+          availableShootTypes,
+          hydratedState.shootTypeLabel
+        );
+
+        if (matchedShootTypeId) {
+          setSelectedShootType(matchedShootTypeId);
+        } else if (hydratedState.shootTypeLabel) {
+          const fallbackShootTypeId = `edit_shoot_type_${editQuoteId}`;
+
+          setShootTypes((prev) => {
+            const alreadyExists = prev.some((type) => type.id === fallbackShootTypeId);
+            if (alreadyExists) {
+              return prev;
+            }
+
+            return [
+              ...prev,
+              {
+                id: fallbackShootTypeId,
+                apiId: null,
+                label: hydratedState.shootTypeLabel,
+                createdAt: quoteToEdit.created_at || null,
+                originalIndex: prev.length,
+              },
+            ];
+          });
+          setSelectedShootType(fallbackShootTypeId);
+        }
+
+        setView(requestedEditView);
+        hydratedQuoteIdRef.current = editQuoteId;
+      } catch (error) {
+        console.error("Failed to hydrate quote editor", error);
+        toast.error("Failed to preload quote details");
+      } finally {
+        if (isMounted) {
+          setIsHydratingQuoteToEdit(false);
+        }
+      }
+    };
+
+    void hydrateQuoteEditor();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [addons, editQuoteId, isCatalogLoaded, lineItems, logisticsItems, quoteToEdit, requestedEditView, services]);
+
+  React.useEffect(() => {
+    if (!editQuoteId || hydratedQuoteIdRef.current !== editQuoteId) {
+      return;
+    }
+
+    setView(requestedEditView);
+  }, [editQuoteId, requestedEditView]);
 
   const editingTypes = [
     { id: "social_media_reel_15_30", label: "Social Media Reel (15 sec-30 sec)" },
@@ -554,7 +780,39 @@ export default function CreateQuotePage() {
     ['selection', 'details', 'services', 'addons'].includes(view) ? 1 :
       ['logistics', 'customlineitems'].includes(view) ? 2 : 3;
 
+  const currentStepValidation = validateQuoteStep({
+    view,
+    selectedClient,
+    clientName,
+    emailId,
+    phoneNumber,
+    address,
+    projectDescription,
+    validUntil,
+    selectedServices,
+  });
+
+  const quoteReviewValidation = validateQuoteForReview({
+    selectedClient,
+    clientName,
+    emailId,
+    phoneNumber,
+    address,
+    projectDescription,
+    validUntil,
+    selectedServices,
+  });
+
+  const canContinueToNextStep = currentStepValidation.isValid;
+  const canPrimaryAction = view === "tax" ? quoteReviewValidation.isValid : canContinueToNextStep;
+  const canOpenQuoteSummary = quoteReviewValidation.isValid;
+
   const handleContinue = async () => {
+    if (!currentStepValidation.isValid) {
+      toast.error(getQuoteValidationMessage(currentStepValidation));
+      return;
+    }
+
     if (view === 'selection' && selectedClient) {
       setClientName(selectedClient.name);
       setEmailId(selectedClient.email || "");
@@ -691,10 +949,46 @@ export default function CreateQuotePage() {
       maxStep,
     });
 
+  const getQuoteSummarySnapshot = () =>
+    buildQuoteSummarySnapshot({
+      selectedClient,
+      clientName,
+      emailId,
+      phoneNumber,
+      address,
+      projectDescription,
+      validityDays,
+      validUntil,
+      discountEnabled,
+      discountType,
+      discountValue,
+      taxLabel,
+      normalizedTaxRate,
+      selectedShootType,
+      shootTypes,
+      selectedServices,
+      services,
+      serviceConfigs,
+      selectedAddons,
+      addons,
+      appliedAddonConfigs,
+      logisticsItems,
+      appliedLogisticsConfigs,
+      lineItems,
+      appliedLineItemConfigs,
+    });
+
   const saveQuoteDraft = async (action: "preview" | "save" | "draft") => {
     if (isCreatingQuoteDraft) return;
 
-    const payload = getQuoteDraftPayload(action === "draft" ? view : undefined);
+    const basePayload = getQuoteDraftPayload(action === "draft" ? view : undefined);
+    const payload =
+      action === "save"
+        ? {
+            ...basePayload,
+            is_draft: false,
+          }
+        : basePayload;
 
     setIsCreatingQuoteDraft(true);
     setActiveQuoteAction(action);
@@ -725,6 +1019,7 @@ export default function CreateQuotePage() {
 
       if (action === "save") {
         toast.success("Quote saved successfully");
+        router.push("/sales/quotes");
         return;
       }
 
@@ -801,10 +1096,20 @@ export default function CreateQuotePage() {
   };
 
   const handlePreviewQuote = async () => {
+    if (!quoteReviewValidation.isValid) {
+      toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
     await saveQuoteDraft("preview");
   };
 
   const handleSaveQuote = async () => {
+    if (!quoteReviewValidation.isValid) {
+      toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
     await saveQuoteDraft("save");
   };
 
@@ -812,7 +1117,21 @@ export default function CreateQuotePage() {
     await saveQuoteDraft("draft");
   };
 
+  const handleOpenQuoteSummary = () => {
+    if (!quoteReviewValidation.isValid) {
+      toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
+    persistQuoteSummarySnapshot(
+      SALES_QUOTE_SUMMARY_STORAGE_KEY,
+      getQuoteSummarySnapshot()
+    );
+    router.push("/sales/quotes/summary");
+  };
+
   const fetchCatalog = async () => {
+    setIsCatalogLoaded(false);
     setLoadingServices(true);
     try {
       const res = await salesApi.getQuoteCatalog();
@@ -1026,6 +1345,7 @@ export default function CreateQuotePage() {
       console.error("Failed to fetch catalog", error);
     } finally {
       setLoadingServices(false);
+      setIsCatalogLoaded(true);
     }
   };
 
@@ -1088,9 +1408,14 @@ export default function CreateQuotePage() {
     const item = shootTypes.find(type => type.id === id);
     if (!item) return;
 
+    if (item.isSystemDefault) {
+      toast.error("Default shoot types can't be deleted");
+      return;
+    }
+
     const shootTypeId = item.apiId ?? item.id;
 
-    if (!isValidShootTypeId(shootTypeId)) {
+    if (!canDeleteShootTypeItem(item)) {
       toast.error("Invalid shoot type id. Please refresh and try again.");
       return;
     }
@@ -1110,6 +1435,21 @@ export default function CreateQuotePage() {
       return;
     }
 
+    if (itemToDelete.type === 'shoot_type') {
+      const shootTypeItem = shootTypes.find(
+        (type) =>
+          String(type.id) === itemToDelete.id ||
+          String(type.apiId ?? "") === itemToDelete.id
+      );
+
+      if (shootTypeItem?.isSystemDefault) {
+        toast.error("Default shoot types can't be deleted");
+        setIsDeleteModalOpen(false);
+        setItemToDelete(null);
+        return;
+      }
+    }
+
     setIsDeleting(true);
     try {
       const res = itemToDelete.type === 'shoot_type'
@@ -1120,9 +1460,6 @@ export default function CreateQuotePage() {
           `${itemToDelete.type === 'service' ? 'Service' : itemToDelete.type === 'addon' ? 'Add-on' : itemToDelete.type === 'logistics' ? 'Logistics item' : itemToDelete.type === 'shoot_type' ? 'Shoot type' : 'Line item'} deleted successfully`
         );
         if (itemToDelete.type === 'shoot_type') {
-          setUserCreatedShootTypeIds((prev) =>
-            prev.filter((shootTypeId) => shootTypeId !== itemToDelete.id)
-          );
           await fetchShootTypes(selectedServices);
         } else {
           await fetchCatalog();
@@ -1156,8 +1493,6 @@ export default function CreateQuotePage() {
 
     setIsSubmittingShootType(true);
     try {
-      const previousShootTypeIds = new Set(shootTypes.map((type) => String(type.id)));
-
       // Determine content_type based on active services
       const hasVideo = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || selectedServices.includes("videography");
       const contentType = hasVideo ? 1 : 2;
@@ -1170,15 +1505,7 @@ export default function CreateQuotePage() {
       if (res && !res.error) {
         setCustomShootType("");
         setShowAddShootTypeForm(false);
-        // Refresh shoot types list
-        const refreshedShootTypes = await fetchShootTypes(selectedServices);
-        const newShootTypeIds = refreshedShootTypes
-          .map((type) => String(type.id))
-          .filter((typeId) => !previousShootTypeIds.has(typeId));
-
-        if (newShootTypeIds.length > 0) {
-          setUserCreatedShootTypeIds((prev) => Array.from(new Set([...prev, ...newShootTypeIds])));
-        }
+        await fetchShootTypes(selectedServices);
       } else {
         console.error("Failed to create shoot type:", res?.error || "Unknown error");
       }
@@ -1279,15 +1606,55 @@ export default function CreateQuotePage() {
     }
   };
 
+  const quoteEditorBreadcrumbs = React.useMemo(
+    () => ({
+      create: isEditMode ? "Edit Quote" : "Creating New Quote"
+    }),
+    [isEditMode]
+  );
+
+  if (isEditMode && (isLoadingQuoteToEdit || isHydratingQuoteToEdit)) {
+    return (
+      <div className="min-h-screen bg-[#0f0f0f] text-white">
+        <Topbar
+          pathname={pathname}
+          breadcrumbOverrides={quoteEditorBreadcrumbs}
+          actions={
+            <Button
+              type="button"
+              onClick={handleOpenQuoteSummary}
+              disabled={!canOpenQuoteSummary}
+              className="bg-[#E5D5B8] text-black disabled:opacity-60"
+            >
+              View Quote Summary
+            </Button>
+          }
+        />
+
+        <div className="px-4 pb-12 pt-6 lg:px-9 lg:pt-8">
+          <div className="flex min-h-[420px] items-center justify-center rounded-[18px] border border-[#3D3D3D] bg-[#171717]">
+            <div className="flex items-center gap-3 text-sm text-white/70">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#E8D1AB] border-t-transparent" />
+              Loading quote details...
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white">
       <Topbar
         pathname={pathname}
-        breadcrumbOverrides={{
-          "create": "Creating New Quote"
-        }}
+        breadcrumbOverrides={quoteEditorBreadcrumbs}
         actions={
-          <Button onClick={() => router.push("/sales/quotes/summary")} className="bg-[#E5D5B8] text-black">
+          <Button
+            type="button"
+            onClick={handleOpenQuoteSummary}
+            disabled={!canOpenQuoteSummary}
+            className="bg-[#E5D5B8] text-black disabled:opacity-60"
+          >
             View Quote Summary
           </Button>
         }
@@ -1305,7 +1672,12 @@ export default function CreateQuotePage() {
           </button>
 
           <div className="text-right">
-            <Button onClick={() => router.push("/sales/quotes/summary")} className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black">
+            <Button
+              type="button"
+              onClick={handleOpenQuoteSummary}
+              disabled={!canOpenQuoteSummary}
+              className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black disabled:opacity-60"
+            >
               View Quote Summary
             </Button>
             <span className="hidden lg:block text-base font-semibold text-white">
@@ -1866,7 +2238,7 @@ export default function CreateQuotePage() {
                                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
                                     </div>
                                   ) : (shootTypes || []).map((type) => {
-                                    const canDeleteShootType = userCreatedShootTypeIds.includes(String(type.id));
+                                    const canDeleteShootType = canDeleteShootTypeItem(type);
 
                                     return (
                                       <div key={type.id} className="relative">
@@ -2760,7 +3132,7 @@ export default function CreateQuotePage() {
 
                 <div className="relative">
                   <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#D3D3D3] font-medium">Address*</span>
+                    <span className="text-sm text-[#A1A1AA] font-medium">Address*</span>
                   </div>
                   <Input
                     value={address}
@@ -2796,6 +3168,11 @@ export default function CreateQuotePage() {
                 </div> */}
                 <div>
                   <h3 className="lg:text-xl font-semibold mb-6">Quote Validity</h3>
+                  {(() => {
+                    const isCustomValiditySelected = validityDays === 'custom';
+
+                    return (
+                      <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     {[3, 5, 7].map((days: number) => (
                       <button
@@ -2837,18 +3214,20 @@ export default function CreateQuotePage() {
                       disabled={validityDays !== 'custom'}
                       format="dd-MM-yyyy"
                       colors={{
-                        inputBackground: "transparent",
-                        inputText: "#F5F5F5",
+                        inputBackground: isCustomValiditySelected ? "#1D1A15" : "transparent",
+                        inputText: isCustomValiditySelected ? "#E8D1AB" : "#F5F5F5",
                         inputDisabled: "rgba(214, 195, 157, 0.9)",
-                        iconColor: "#FFFFFF",
-                        labelText: "rgba(113, 113, 122, 1)",
-                        inputBorder: "rgba(39, 39, 42, 1)",
-                        inputBorderFocus: "rgba(229, 213, 184, 0.5)",
+                        iconColor: isCustomValiditySelected ? "#E8D1AB" : "#FFFFFF",
+                        labelText: isCustomValiditySelected ? "#E8D1AB" : "rgba(113, 113, 122, 1)",
+                        inputBorder: isCustomValiditySelected ? "rgba(232, 209, 171, 0.4)" : "rgba(39, 39, 42, 1)",
+                        inputBorderHover: isCustomValiditySelected ? "#E8D1AB" : "rgba(63, 63, 70, 1)",
+                        inputBorderFocus: "#E8D1AB",
                       }}
                       sx={{
                         height: "64px", // h-16
                         borderRadius: "12px", // rounded-xl
                         "& .MuiOutlinedInput-root": {
+                          backgroundColor: isCustomValiditySelected ? "#1D1A15" : "transparent",
                           borderRadius: "12px",
                           paddingLeft: "10px",
                           "& fieldset": {
@@ -2858,12 +3237,15 @@ export default function CreateQuotePage() {
                         "& .MuiInputBase-input": {
                           fontSize: "16px",
                           fontWeight: "500", // font-medium
-                          color: validityDays === 'custom' ? "white" : "rgba(113, 113, 122, 1)", // text-zinc-500
+                          color: isCustomValiditySelected ? "#E8D1AB" : "rgba(113, 113, 122, 1)",
                         },
                         "& .MuiInputBase-input.Mui-disabled": {
                           WebkitTextFillColor: "rgba(214, 195, 157, 0.9)",
                           color: "rgba(214, 195, 157, 0.9)",
                           opacity: 1,
+                        },
+                        "& .MuiSvgIcon-root": {
+                          color: isCustomValiditySelected ? "#E8D1AB" : "#FFFFFF",
                         },
                         "& .Mui-disabled .MuiSvgIcon-root": {
                           color: "#FFFFFF",
@@ -2875,14 +3257,17 @@ export default function CreateQuotePage() {
                         top: "-10px",
                         left: "16px",
                         zIndex: 10,
-                        backgroundColor: "#0A0A0A",
+                        backgroundColor: isCustomValiditySelected ? "#1D1A15" : "#171717",
                         padding: "0 8px",
                         fontSize: "12px", // text-xs
                         fontWeight: "500", // font-medium
-                        color: "rgba(113, 113, 122, 1)", // text-zinc-400
+                        color: isCustomValiditySelected ? "#E8D1AB" : "rgba(113, 113, 122, 1)",
                       }}
                     />
                   </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -2903,20 +3288,10 @@ export default function CreateQuotePage() {
             <Button
               className={`${view === "tax"
                 ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
-                : (
-                  view === 'selection' ? selectedClient :
-                    view === 'details' ? clientName :
-                      view === 'services' ? selectedServices.length > 0 :
-                        true
-                ) ? 'bg-[#E8D1AB] text-[#101010]'
+                : canPrimaryAction ? 'bg-[#E8D1AB] text-[#101010]'
                   : 'bg-[#2A2B2D] text-zinc-600'
                 } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
-              disabled={!(
-                view === 'selection' ? selectedClient :
-                  view === 'details' ? clientName :
-                    view === 'services' ? selectedServices.length > 0 :
-                      true
-              ) || isCreatingQuoteDraft}
+              disabled={!canPrimaryAction || isCreatingQuoteDraft}
               onClick={view === "tax" ? handleSaveQuote : handleContinue}
             >
               {view === "tax"
@@ -2945,7 +3320,7 @@ export default function CreateQuotePage() {
               <Button
                 type="button"
                 onClick={handlePreviewQuote}
-                disabled={isCreatingQuoteDraft}
+                disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
                 className="bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all border-0 shadow-lg disabled:opacity-70"
               >
                 {isCreatingQuoteDraft && activeQuoteAction === "preview" ? "Loading Preview..." : "Preview Quote"}
@@ -2970,7 +3345,7 @@ export default function CreateQuotePage() {
             <Button
               type="button"
               onClick={handlePreviewQuote}
-              disabled={isCreatingQuoteDraft}
+              disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
               className="bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isCreatingQuoteDraft && activeQuoteAction === "preview" ? "Loading Preview..." : "Preview Quote"}
@@ -2998,22 +3373,12 @@ export default function CreateQuotePage() {
             Back
           </Button>
           <Button
-            className={`${(
-              view === 'selection' ? selectedClient :
-                view === 'details' ? clientName :
-                  view === 'services' ? selectedServices.length > 0 :
-                    true // Add-ons are optional
-            ) ? (
+            className={`${canPrimaryAction ? (
               view === "tax"
                 ? 'bg-white text-[#1B1B1B]'
                 : 'bg-[#E8D1AB] text-[#101010]'
             ) : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
-            disabled={!(
-              view === 'selection' ? selectedClient :
-                view === 'details' ? clientName :
-                  view === 'services' ? selectedServices.length > 0 :
-                    true
-            ) || isCreatingQuoteDraft}
+            disabled={!canPrimaryAction || isCreatingQuoteDraft}
             onClick={view === "tax" ? handleSaveQuote : handleContinue}
           >
             {view === "tax"
