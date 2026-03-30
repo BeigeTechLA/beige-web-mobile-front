@@ -221,7 +221,7 @@ export const CreativePartnersTable = () => {
         </div>
         <div>
           <h3 className="text-green-500 font-medium text-base">Shoot request accepted</h3>
-          <p className="text-[#888] text-sm">Youv'e successfully accepted the CP</p>
+          <p className="text-[#888] text-sm">You've successfully accepted the CP</p>
         </div>
         <button onClick={() => toast.dismiss(t)} className="absolute top-4 right-4 text-[#666] hover:text-white transition-colors">
           <X size={20} />
@@ -358,7 +358,7 @@ export const CreativePartnersTable = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className={`text-lg lg:text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>Creative Partners</h1>
+        <h1 className={`text-lg lg:text-2xl font-semibold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>Creative Partners</h1>
         <p className={`${isDark ? "text-[#888]" : "text-[#666]"} text-xs lg:text-base leading-none`}>Manage and review all onboarded creative professionals in one place.</p>
       </div>
 
@@ -420,7 +420,7 @@ export const CreativePartnersTable = () => {
         <div className="hidden lg:block w-full overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className={`text-sm font-normal border-b ${isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
+              <tr className={`text-sm font-medium border-b cursor-pointer leading-none tracking-normal ${isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
                 <th className="py-5 px-6 font-medium">User ID</th>
                 <th className="py-5 px-6 font-medium">Creative Name</th>
                 <th className="py-5 px-6 font-medium">Email ID</th>
@@ -628,7 +628,7 @@ export const CreativePartnersTable = () => {
                               onClick={(e) => handleDeleteClick(user.id, e)}
                               className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors border border-[#EF4444]/20"
                             >
-                              Delete
+                              <Trash2 size={18} />
                             </button>
                             {user.status === 'Pending' && (
                               <>

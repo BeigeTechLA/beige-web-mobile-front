@@ -213,6 +213,189 @@ export interface ReferralHistoryItem {
   } | null;
 }
 
+export interface QuotesDashboardOverview {
+  total_quotes: number;
+  accepted_quotes: number;
+  pending_quotes: number;
+  draft_quotes: number;
+  rejected_quotes: number;
+  expired_quotes: number;
+  total_amount: number;
+}
+
+export interface QuotesDashboardChartItem {
+  label: string;
+  quote_count: number;
+  total_amount: number;
+}
+
+export interface QuotesDashboardData {
+  overview: QuotesDashboardOverview;
+  chart: QuotesDashboardChartItem[];
+}
+
+export interface QuotesDashboardResponse {
+  success: boolean;
+  data: QuotesDashboardData | null;
+  error?: string;
+}
+
+export interface SalesQuoteListUser {
+  id?: number | string;
+  name?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
+export interface QuotesListPagination {
+  page?: number;
+  limit?: number;
+  total?: number;
+  total_pages?: number;
+  totalPages?: number;
+  [key: string]: unknown;
+}
+
+export type QuotesListSummary = Record<string, number | string | null | undefined>;
+
+export interface SalesQuoteListItem {
+  id?: number | string;
+  quote_id?: number | string;
+  sales_quote_id?: number | string;
+  quote_number?: string;
+  client_name?: string;
+  client?: string;
+  customer_name?: string;
+  guest_email?: string;
+  client_email?: string;
+  client_phone?: string | null;
+  client_address?: string;
+  address?: string;
+  location?: string;
+  project_description?: string;
+  project?: string;
+  description?: string;
+  video_shoot_type?: string;
+  total_amount?: number | string;
+  total?: number | string;
+  amount?: number | string;
+  status?: string;
+  quote_status?: string;
+  expires_at?: string | null;
+  valid_until?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  salesperson?: string;
+  sales_person?: string;
+  sales_rep?: string;
+  sales_rep_name?: string;
+  created_by_name?: string;
+  assigned_sales_rep?: SalesQuoteListUser | null;
+  created_by?: SalesQuoteListUser | null;
+  [key: string]: unknown;
+}
+
+export interface QuotesListEnvelope {
+  pagination?: QuotesListPagination | null;
+  summary?: QuotesListSummary | null;
+  quotes?: SalesQuoteListItem[];
+  items?: SalesQuoteListItem[];
+  results?: SalesQuoteListItem[];
+  rows?: SalesQuoteListItem[];
+  list?: SalesQuoteListItem[];
+  data?: SalesQuoteListItem[];
+  [key: string]: unknown;
+}
+
+export interface QuotesListResponse {
+  success: boolean;
+  data: SalesQuoteListItem[] | QuotesListEnvelope | null;
+  error?: string;
+}
+
+export interface SalesQuoteDetailLineItem {
+  id?: number | string;
+  line_item_id?: number | string;
+  item_id?: number | string;
+  catalog_item_id?: number | string;
+  section_type?: string;
+  source_type?: string;
+  item_name?: string;
+  name?: string;
+  label?: string;
+  type?: string;
+  category_name?: string;
+  category_slug?: string;
+  quantity?: number | string;
+  duration_hours?: number | string;
+  duration?: number | string;
+  hours?: number | string;
+  crew_size?: number | string;
+  crew?: number | string;
+  crew_count?: number | string;
+  estimated_pricing?: number | string;
+  unit_rate?: number | string;
+  rate?: number | string;
+  effective_rate?: number | string;
+  line_total?: number | string;
+  total_amount?: number | string;
+  amount?: number | string;
+  price?: number | string;
+  rate_type?: string;
+  [key: string]: unknown;
+}
+
+export interface SalesQuoteDetailData {
+  id?: number | string;
+  quote_id?: number | string;
+  sales_quote_id?: number | string;
+  quote_number?: string;
+  client_name?: string;
+  client_email?: string;
+  client_phone?: string;
+  guest_email?: string;
+  client_address?: string;
+  address?: string;
+  location?: string;
+  project_description?: string;
+  video_shoot_type?: string;
+  quote_validity_days?: number | string;
+  quote_status?: string;
+  status?: string;
+  valid_until?: string | null;
+  expires_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  tax_type?: string;
+  tax_rate?: number | string;
+  tax_amount?: number | string;
+  sales_tax?: number | string;
+  discount_type?: string;
+  discount_value?: number | string;
+  discount_amount?: number | string;
+  subtotal?: number | string;
+  amount_after_tax?: number | string;
+  total_after_tax?: number | string;
+  total?: number | string;
+  total_amount?: number | string;
+  final_total?: number | string;
+  amount_after_discount?: number | string;
+  terms_conditions?: string | string[] | null;
+  line_items?: SalesQuoteDetailLineItem[];
+  items?: SalesQuoteDetailLineItem[];
+  quote_items?: SalesQuoteDetailLineItem[];
+  rows?: SalesQuoteDetailLineItem[];
+  quote?: SalesQuoteDetailData;
+  data?: unknown;
+  [key: string]: unknown;
+}
+
+export interface SalesQuoteDetailResponse {
+  success: boolean;
+  data: SalesQuoteDetailData | null;
+  error?: string;
+}
+
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
   validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
@@ -1574,4 +1757,167 @@ export const salesApi = {
       };
     }
   },
+  createQuoteDraft: async (data: Record<string, unknown>) => {
+    try {
+      const response = await api.post('/sales/quotes', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Quote Draft Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create quote draft',
+      };
+    }
+  },
+  getQuotesDashboard: async (params: { range?: string; date_on?: string } = {}) => {
+    try {
+      const response = await api.get<QuotesDashboardResponse>('/sales/quotes/dashboard', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Get Quotes Dashboard Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch quotes dashboard data',
+      };
+    }
+  },
+  getQuotesList: async (
+    params: { page?: number; limit?: number; search?: string; status?: string; range?: string; date_on?: string } = {}
+  ) => {
+    try {
+      const response = await api.get<QuotesListResponse>('/sales/quotes', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Get Quotes List Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch quotes list',
+      };
+    }
+  },
+  getQuoteDetail: async (quoteId: number | string) => {
+    try {
+      const response = await api.get<SalesQuoteDetailResponse>(`/sales/quotes/${quoteId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Detail Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch quote detail',
+      };
+    }
+  },
+  getQuoteCatalog: async () => {
+    try {
+      const response = await api.get('/sales/quotes/catalog');
+      return response.data;
+    } catch (error) {
+      console.error('Get Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch quote catalog',
+      };
+    }
+  },
+  createQuoteCatalog: async (data: {
+    section_type: string;
+    name: string;
+    default_rate: number;
+    rate_type: string;
+    rate_unit: string;
+  }) => {
+    try {
+      const response = await api.post('/sales/quotes/catalog', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create catalog item',
+      };
+    }
+  },
+  createShootType: async (data: { name: string; content_type: number }) => {
+    try {
+      const response = await api.post('/sales/quotes/shoot-types', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Shoot Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create shoot type',
+      };
+    }
+  },
+  getShootTypes: async (id: number | string) => {
+    try {
+      const response = await api.get(`/sales/quotes/shoot-types/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get Shoot Types Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch shoot types',
+      };
+    }
+  },
+  deleteShootType: async (id: number | string) => {
+    try {
+      const shootTypeId = Number(id);
+
+      if (!Number.isInteger(shootTypeId) || shootTypeId <= 0) {
+        return {
+          success: false,
+          data: null,
+          error: 'Invalid shoot type id',
+        };
+      }
+
+      const response = await api.delete(`/sales/quotes/shoot-types/${shootTypeId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Shoot Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete shoot type',
+      };
+    }
+  },
+  getClientDropdown: async (search?: string) => {
+    try {
+      const url = search ? `/sales/client-dropdown?search=${search}` : '/sales/client-dropdown';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Dropdown Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch client dropdown',
+      };
+    }
+  },
+  deleteQuoteCatalog: async (id: number | string) => {
+    try {
+      const response = await api.delete(`/sales/quotes/catalog/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete catalog item',
+      };
+    }
+  },
 };
+

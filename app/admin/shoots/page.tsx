@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 
 import { ShootsTable } from '@/components/admin/ShootsTable';
-import { ArrowUpToLine, Calendar } from 'lucide-react';
+import { ArrowUpToLine } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
@@ -63,7 +63,7 @@ export default function ShootsPage() {
           />
         </div>
 
-        {/* <DottedDivider /> */}
+        {/* <DottedDivider className="my-0" />  */}
 
         <ShootsTable externalSelectedDate={selectedDate} />
 

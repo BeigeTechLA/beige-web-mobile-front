@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, FileText, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -12,6 +12,7 @@ const salesMenuItems = [
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', isDisabled: true },
   { name: 'Messages', icon: MessageCircle, link: '/sales/messages', isDisabled: true },
+  { name: 'Quotes', icon: Receipt, link: '/sales/quotes' },
 ];
 
 type SalesMenuItem = {
