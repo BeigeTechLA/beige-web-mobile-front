@@ -63,11 +63,7 @@ export default function SalesShootsPage() {
 
         {/* <DottedDivider /> */}
 
-        <ShootsTable
-          externalSelectedDate={selectedDate}
-          detailBasePath="/sales/shoots"
-          enablePriceSort={false}
-        />
+        <SalesShootsTable externalSelectedDate={selectedDate} />
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"

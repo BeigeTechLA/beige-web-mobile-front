@@ -189,7 +189,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
             </Button>
-            <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
+            <Button onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
               Edit Shoot
             </Button>
           </>
@@ -257,7 +257,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         {/* Right Sidebar (Timeline) */}
         < div className="hidden lg:block" >
           <ProjectTimeline />
-        </div >
+        </div>
 
         {/* Mobile Timeline Overlay (Conditional) */}
         {
@@ -280,21 +280,21 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         }
 
         {/* --- FLOATING MOBILE BUTTONS --- */}
-        <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
           <div className="flex gap-2">
-            <Button className="w-full bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
+            <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
               Cancel Shoot
             </Button>
             <Button
               onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
-              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
             >
               Edit Shoot
             </Button>
           </div>
           <Button
             onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
-            className="w-full bg-[#111] text-[#E5D5B8] hover:bg-[#151515] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/10 active:scale-[0.98] transition-transform"
+            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
           >
             <Eye size={18} /> View Form Details
           </Button>
