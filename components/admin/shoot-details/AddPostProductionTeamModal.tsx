@@ -112,14 +112,14 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
                             className="w-full h-14 px-4 bg-transparent border border-zinc-700 rounded-xl flex items-center justify-between group hover:border-zinc-500 transition-colors disabled:opacity-50"
                         >
                             <span className={`text-sm ${selectedMember ? 'text-white' : 'text-zinc-500'}`}>
-                                {loading ? "Loading members..." : (selectedMember?.name || "Select Post Production Member")}
+                                {loading ? "Loading members..." : (selectedMember?.name || "")}
                             </span>
                             <ChevronDown size={20} className={`text-zinc-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         {/* Floating Label */}
                         <span className="absolute -top-2.5 left-4 bg-black px-1 text-xs text-zinc-500">
-                            Select Post Production Member
+                            Select Post Production Team
                         </span>
 
                         {/* Dropdown Options */}
