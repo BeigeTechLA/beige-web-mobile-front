@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,7 @@ interface AssignmentConfirmationModalProps {
   onConfirm: () => void;
   videographerCount: CountProps;
   photographerCount: CountProps;
+  isDark?: boolean;
 }
 
 export const AssignmentConfirmationModal: React.FC<AssignmentConfirmationModalProps> = ({
@@ -21,16 +24,21 @@ export const AssignmentConfirmationModal: React.FC<AssignmentConfirmationModalPr
   onConfirm,
   videographerCount,
   photographerCount,
+  isDark = true
 }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-[#101010] border border-white/10 rounded-2xl p-6 shadow-xl relative">
+      <div
+        className={`w-full max-w-md border rounded-xl p-6 shadow-2xl relative transition-colors duration-300 ${isDark ? "bg-[#101010] border-white/10" : "bg-white border-[#D8D8D8]"
+          }`}
+      >
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors"
+          className={`absolute top-4 right-4 transition-colors ${isDark ? "text-white/50 hover:text-white" : "text-black/40 hover:text-black"
+            }`}
         >
           <X size={20} />
         </button>
@@ -38,40 +46,42 @@ export const AssignmentConfirmationModal: React.FC<AssignmentConfirmationModalPr
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
           <AlertCircle className="text-[#E8D1AB]" size={24} />
-          <h2 className="text-lg font-semibold text-white">Confirm Assignment</h2>
+          <h2 className={`text-lg font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+            Confirm Assignment
+          </h2>
         </div>
 
         {/* Body */}
-        <p className="text-sm text-white/70 mb-6">
+        <p className={`text-sm mb-6 transition-colors ${isDark ? "text-white/70" : "text-black/70"
+          }`}>
           You have selected more creative partners than requested for this lead.
         </p>
 
         {/* Counts Box */}
-        <div className="bg-[#1A1A1A] border border-white/5 rounded-xl p-4 space-y-4 mb-6">
-          
+        <div className={`border rounded-xl p-4 space-y-4 mb-6 transition-colors ${isDark ? "bg-[#1A1A1A] border-white/5" : "bg-gray-50 border-[#E5E5E5]"
+          }`}>
+
           {/* Videographers Row */}
           <div className="flex justify-between items-center text-sm">
-            <span className="text-white/70">Videographers:</span>
+            <span className={isDark ? "text-white/70" : "text-black/60"}>Videographers:</span>
             <span
-              className={`font-medium ${
-                videographerCount.selected > videographerCount.required
-                  ? "text-[#E8D1AB]" // Highlight in gold if over limit
-                  : "text-white"
-              }`}
+              className={`font-medium ${videographerCount.selected > videographerCount.required
+                ? "text-[#E8D1AB]"
+                : (isDark ? "text-white" : "text-black")
+                }`}
             >
               {videographerCount.selected} selected (Required: {videographerCount.required})
             </span>
           </div>
 
           {/* Photographers Row */}
-          <div className="flex justify-between items-center text-sm pt-4 border-t border-white/5">
-            <span className="text-white/70">Photographers:</span>
+          <div className={`flex justify-between items-center text-sm pt-4 border-t transition-colors ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
+            <span className={isDark ? "text-white/70" : "text-black/60"}>Photographers:</span>
             <span
-              className={`font-medium ${
-                photographerCount.selected > photographerCount.required
-                  ? "text-[#E8D1AB]" // Highlight in gold if over limit
-                  : "text-white"
-              }`}
+              className={`font-medium ${photographerCount.selected > photographerCount.required
+                ? "text-[#E8D1AB]" // Highlight in gold if over limit
+                : (isDark ? "text-white" : "text-black")
+                }`}
             >
               {photographerCount.selected} selected (Required: {photographerCount.required})
             </span>
@@ -79,7 +89,9 @@ export const AssignmentConfirmationModal: React.FC<AssignmentConfirmationModalPr
 
         </div>
 
-        <p className="text-xs text-white/40 italic mb-6">
+        <p className={`text-xs italic mb-6 transition-colors ${
+          isDark ? "text-white/40" : "text-black/40"
+        }`}>
           CPs who accept the request first will be assigned to the shoot.
         </p>
 
@@ -88,7 +100,11 @@ export const AssignmentConfirmationModal: React.FC<AssignmentConfirmationModalPr
           <Button
             variant="outline"
             onClick={onClose}
-            className="bg-transparent border-white/10 text-white hover:bg-white/5"
+            className={`bg-transparent border transition-all ${
+              isDark 
+                ? "border-white/10 text-white hover:bg-white/5" 
+                : "border-[#D8D8D8] text-black hover:bg-gray-100"
+            }`}
           >
             Cancel
           </Button>

@@ -5,6 +5,7 @@ import { ChevronRight, Search, User, Camera, ArrowUpDown, ArrowUp, ArrowDown } f
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
+import { useTheme } from 'next-themes';
 import {
     Select,
     SelectContent,
@@ -53,6 +54,9 @@ const StatusBadge = ({ status }: { status: UserStatus }) => {
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 export const UserManagementTabbed = () => {
+    const { theme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+
     const [activeTab, setActiveTab] = useState<UserType>("All");
     const [users, setUsers] = useState<UserData[]>([]);
     const [loading, setLoading] = useState(true);
@@ -65,6 +69,9 @@ export const UserManagementTabbed = () => {
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     const debouncedSearch = useDebounce(searchQuery, 500);
     const router = useRouter();
+
+    useEffect(() => setMounted(true), []);
+    const isDark = !mounted || theme === "dark";
 
     const sortedUsers = useMemo(() => {
         if (!sortConfig) return users;
@@ -130,11 +137,11 @@ export const UserManagementTabbed = () => {
         setSortConfig({ key, direction });
     };
 
-    const getSortIcon = (key: keyof UserData) => {
+    const getSortIcon = (key: keyof UserData, isDark: boolean) => {
         if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
         return sortConfig.direction === 'asc' ?
-            <ArrowUp size={14} className="ml-1 text-[#E5D5B8]" /> :
-            <ArrowDown size={14} className="ml-1 text-[#E5D5B8]" />;
+            <ArrowUp size={14} className={`ml-1 ${isDark ? "text-[#E5D5B8]":" text-[#666]"}`} /> :
+            <ArrowDown size={14} className={`ml-1 ${isDark ? "text-[#E5D5B8]":" text-[#666]"}`} />;
     };
 
     const fetchUsers = async () => {
@@ -161,7 +168,7 @@ export const UserManagementTabbed = () => {
             let paginationData: any = null;
 
             if (shouldFetchClients) {
-                const clientsRes = await adminApi.getClients(params);
+                const clientsRes = await adminApi.getAdminClients(params);
                 if (clientsRes?.data) {
                     const items = Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || []);
                     const mapped = items.map((client: any) => ({
@@ -232,21 +239,21 @@ export const UserManagementTabbed = () => {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-white mb-2">User Management</h1>
-                <p className="text-[#888]">Manage and review all registered users in one place.</p>
+                <h1 className={`text-lg lg:text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>User Management</h1>
+                <p className={isDark ? "text-[#888]" : "text-[#666]"}>Manage and review all registered users in one place.</p>
             </div>
 
-            {/* Tabs */}
-            <div className="flex items-center gap-1 bg-[#111] p-1 rounded-xl w-fit border border-[#333]">
+            {/* Tabs - Following button logic */}
+            <div className={`flex items-center gap-1 p-1 rounded-xl w-fit border transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-[#F0F0F0] border-[#E3E3E3]"
+                }`}>
                 {(["All", "Client", "Creative Partner"] as UserType[]).map((tab) => (
                     <button
                         key={tab}
-                        onClick={() => {
-                            setActiveTab(tab);
-                            setCurrentPage(1);
-                            setStatusFilter("all");
-                        }}
-                        className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab ? "bg-[#E5D5B8] text-black shadow-lg" : "text-[#777] hover:text-white"}`}
+                        onClick={() => { setActiveTab(tab); setCurrentPage(1); setStatusFilter("all"); }}
+                        className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab
+                                ? "bg-[#E5D5B8] text-black shadow-lg"
+                                : isDark ? "text-[#777] hover:text-white" : "text-[#666] hover:text-black"
+                            }`}
                     >
                         {tab === "Creative Partner" ? "Creative Partners" : tab === "Client" ? "Users" : "All Users"}
                     </button>
@@ -257,23 +264,25 @@ export const UserManagementTabbed = () => {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4 w-full md:flex-1">
                     <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" size={18} />
+                        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
                         <input
                             type="text"
                             placeholder="Search users..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-[#111] border border-[#333] text-white pl-10 pr-4 py-2.5 rounded-lg focus:outline-none"
+                            className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
+                                }`}
                         />
                     </div>
 
                     {/* Conditional Select Rendering */}
                     {activeTab !== "Client" && (
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-[180px] bg-[#111] border-[#333] text-white rounded-lg h-[46px] capitalize">
+                            <SelectTrigger className={`w-[180px] rounded-lg h-[46px] capitalize transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
+                                }`}>
                                 <SelectValue placeholder="All Status" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#111] border-[#333] text-white">
+                            <SelectContent className={isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}>
                                 <SelectItem value="all">All Status</SelectItem>
 
                                 {/* Show Active only on the "All" tab */}
@@ -291,23 +300,25 @@ export const UserManagementTabbed = () => {
                 </div>
             </div>
 
-            <div className="w-full bg-[#111] rounded-2xl border border-[#333] overflow-hidden">
+            {/* Table Container */}
+            <div className={`w-full rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"
+                }`}>
                 <div className="w-full overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-[#888] text-sm font-normal border-b border-[#333]">
+                            <tr className={` text-sm font-normal border-b ${isDark ? "text-[#888] border-[#333]":"bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
                                 <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('id')}>
-                                    <div className="flex items-center">User ID {getSortIcon('id')}</div>
+                                    <div className="flex items-center">User ID {getSortIcon('id', isDark)}</div>
                                 </th>
                                 <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('name')}>
-                                    <div className="flex items-center">User Name {getSortIcon('name')}</div>
+                                    <div className="flex items-center">User Name {getSortIcon('name', isDark)}</div>
                                 </th>
                                 <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('type')}>
-                                    <div className="flex items-center">Type {getSortIcon('type')}</div>
+                                    <div className="flex items-center">Type {getSortIcon('type', isDark)}</div>
                                 </th>
                                 <th className="py-5 px-6 font-medium">Contact / Role</th>
                                 <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('status')}>
-                                    <div className="flex items-center">Status {getSortIcon('status')}</div>
+                                    <div className="flex items-center">Status {getSortIcon('status', isDark)}</div>
                                 </th>
                                 <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
@@ -319,30 +330,36 @@ export const UserManagementTabbed = () => {
                                 <tr><td colSpan={6} className="py-10 text-center text-[#888]">No users found.</td></tr>
                             ) : (
                                 sortedUsers.map((user, idx) => (
-                                    <tr key={idx} onClick={() => handleRowClick(user)} className="border-b border-[#222] hover:bg-white/[0.02] cursor-pointer transition-colors">
-                                        <td className="py-5 px-6 text-[#E0E0E0]">{user.id}</td>
+                                    <tr
+                                        key={idx}
+                                        onClick={() => handleRowClick(user)}
+                                        className={`border-b cursor-pointer transition-colors ${isDark ? "border-[#222] hover:bg-white/[0.02] text-[#E0E0E0]" : "border-[#F0F0F0] hover:bg-black/[0.01] text-[#000]"
+                                            }`}>
+                                        <td className="py-5 px-6">{user.id}</td>
                                         <td className="py-5 px-6">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] flex items-center justify-center text-[#E5D5B8] font-semibold border border-white/5 overflow-hidden">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold border overflow-hidden ${
+                                                    isDark ? "bg-[#1A1A1A] text-[#E5D5B8] border-white/5" : "bg-[#F5F5F5] text-[#8B7E66] border-[#E3E3E3]"
+                                                }`}>
                                                     {user.imageUrl ? <img src={user.imageUrl} className="w-full h-full object-cover" alt="" /> : <span>{user.initials}</span>}
                                                 </div>
                                                 <div>
-                                                    <p className="text-[#E0E0E0] font-medium">{user.name}</p>
-                                                    <p className="text-[#666] text-xs">{user.email}</p>
+                                                    <p className={`font-medium`}>{user.name}</p>
+                                                    <p className={isDark ? "text-[#666] text-xs" : "text-[#999] text-xs"}>{user.email}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="py-5 px-6 text-[#888] text-sm">
+                                        <td className={`py-5 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
                                             <div className="flex items-center gap-2">
                                                 {user.type === "Client" ? <User size={14} /> : <Camera size={14} />}
                                                 {user.type}
                                             </div>
                                         </td>
-                                        <td className="py-5 px-6 text-[#E0E0E0]">
-                                            {user.type === "Client" ? user.phoneNumber : <span className="px-2 py-0.5 bg-[#E5D5B8]/10 text-[#E5D5B8] rounded text-xs">{user.role}</span>}
+                                        <td className="py-5 px-6">
+                                            {user.type === "Client" ? user.phoneNumber : <span className={`px-2 py-0.5 rounded text-xs ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]": "bg-transparent text-[#000]"}`}>{user.role}</span>}
                                         </td>
                                         <td className="py-5 px-6"><StatusBadge status={user.status} /></td>
-                                        <td className="py-5 px-6 text-right"><ChevronRight size={20} className="text-[#666]" /></td>
+                                        <td className="py-5 px-6 text-right"><ChevronRight size={20} className={isDark ? "text-[#666]" : "text-[#999]"} /></td>
                                     </tr>
                                 ))
                             )}

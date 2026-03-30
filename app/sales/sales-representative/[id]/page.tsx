@@ -22,6 +22,7 @@ import { LEAD_TYPE_LABELS } from "@/types/sales";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils/discountHelpers";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { parseDate } from "@/src/components/landing/lib/utils";
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
@@ -74,7 +75,7 @@ export default function SalesSalesRepDetailPage({ params: paramsPromise }: { par
   const status = lead ? mapLeadStatusToUI(lead.lead_status) : "Unknown" as any;
 
   const bookingDate = booking?.event_date
-    ? new Date(booking.event_date).toLocaleDateString("en-US", {
+    ? (parseDate(booking.event_date) || new Date(booking.event_date)).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",

@@ -40,6 +40,11 @@ const shootTypeOptions = [
 
 const locationSpecOptions = ["Indoors", "Outdoors", "Both"];
 
+const darkFieldClass =
+    "bg-transparent text-white placeholder:text-white/35 caret-[#E8D1AB] border-0 border-b border-white/10 rounded-none px-0 focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all";
+
+const darkTextareaClass = `${darkFieldClass} min-h-[40px] resize-none`;
+
 const toArray = (value: unknown): string[] => {
     if (Array.isArray(value)) {
         return value.filter(Boolean).map(String);
@@ -829,7 +834,7 @@ export const AffiliateShootDetailsForm = ({
                                                 placeholder="Your email"
                                                 value={formData.email}
                                                 onChange={(e) => updateFormData("email", e.target.value)}
-                                                className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 h-10 focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all"
+                                                className={`${darkFieldClass} h-10`}
                                             />
                                         </div>
                                     </div>
@@ -843,7 +848,7 @@ export const AffiliateShootDetailsForm = ({
                                                 placeholder="Your answer"
                                                 value={formData.onsiteContact}
                                                 onChange={(e) => updateFormData("onsiteContact", e.target.value)}
-                                                className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 h-10 focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all"
+                                                className={`${darkFieldClass} h-10`}
                                             />
                                         </div>
                                     </div>
@@ -897,7 +902,7 @@ export const AffiliateShootDetailsForm = ({
                                             placeholder="Your answer"
                                             value={formData.otherShootType}
                                             onChange={(e) => updateFormData("otherShootType", e.target.value)}
-                                            className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                            className={darkTextareaClass}
                                         />
                                     </div>
                                 )}
@@ -918,7 +923,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.projectOverview}
                                         onChange={(e) => updateFormData("projectOverview", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        className={darkTextareaClass}
                                     />
                                 </div>
 
@@ -935,7 +940,7 @@ export const AffiliateShootDetailsForm = ({
                                             const val = e.target.value.replace(/[^0-9]/g, "");
                                             updateFormData("numPeople", val);
                                         }}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 h-10 focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all"
+                                        className={`${darkFieldClass} h-10`}
                                     />
                                 </div>
 
@@ -963,7 +968,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.agenda}
                                         onChange={(e) => updateFormData("agenda", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        className={darkTextareaClass}
                                     />
                                 </div>
                             </motion.div>
@@ -993,7 +998,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.address}
                                         onChange={(e) => updateFormData("address", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        className={darkTextareaClass}
                                     />
                                 </div>
 
@@ -1035,7 +1040,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.scoutingRefs}
                                         onChange={(e) => updateFormData("scoutingRefs", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        className={darkTextareaClass}
                                     />
                                 </div>
 
@@ -1073,7 +1078,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.shotList}
                                         onChange={(e) => updateFormData("shotList", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        className={darkTextareaClass}
                                     />
                                 </div>
 
@@ -1094,7 +1099,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.visualRefs}
                                         onChange={(e) => updateFormData("visualRefs", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        className={darkTextareaClass}
                                     />
                                 </div>
 
@@ -1111,7 +1116,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.specificInstructions}
                                         onChange={(e) => updateFormData("specificInstructions", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        className={darkTextareaClass}
                                     />
                                 </div>
 
@@ -1128,7 +1133,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.dressCode}
                                         onChange={(e) => updateFormData("dressCode", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 h-10 focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all"
+                                        className={`${darkFieldClass} h-10`}
                                     />
                                 </div>
 
@@ -1145,7 +1150,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.additionalInfo}
                                         onChange={(e) => updateFormData("additionalInfo", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        className={darkTextareaClass}
                                     />
                                 </div>
                             </motion.div>
@@ -1179,7 +1184,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.postProductionIdeas}
                                         onChange={(e) => updateFormData("postProductionIdeas", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        className={darkTextareaClass}
                                     />
                                 </div>
 
@@ -1196,7 +1201,7 @@ export const AffiliateShootDetailsForm = ({
                                         placeholder="Your answer"
                                         value={formData.preferredSongs}
                                         onChange={(e) => updateFormData("preferredSongs", e.target.value)}
-                                        className="bg-transparent border-0 border-b border-white/10 rounded-none px-0 min-h-[40px] focus-visible:ring-0 focus-visible:border-[#E8D1AB] transition-all resize-none"
+                                        className={darkTextareaClass}
                                     />
                                 </div>
                             </motion.div>

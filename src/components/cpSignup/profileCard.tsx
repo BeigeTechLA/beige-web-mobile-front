@@ -173,6 +173,10 @@ const ProfileCard = ({ data }) => {
 
   const skills = data?.skills?.map(skillId => skillOptions.find(option => option.value === skillId)?.label).join(", ");
   const profileImage = data?.profilePreview || "/images/loginsignup/Group.png";
+  const locationLabel =
+    typeof data?.location === "object" && data?.location !== null
+      ? data.location.address
+      : data?.location;
 
   const cleanBio = (value: string) => {
     return value.replace(/[ ]{3,}/g, "  ").replace(/\n{3,}/g, "\n\n")
@@ -200,7 +204,7 @@ const ProfileCard = ({ data }) => {
             <p className="font-semibold text-white truncate">
               {data?.firstName || "John"} {data?.lastName || "Doe"}
             </p>
-            <p className="text-sm text-gray-400 truncate">{data?.location || "New York, USA"}</p>
+            <p className="text-sm text-gray-400 truncate">{locationLabel || "New York, USA"}</p>
           </div>
 
           <button

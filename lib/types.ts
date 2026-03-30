@@ -210,9 +210,12 @@ export interface BookingData {
   edit_type?: string;
   description?: string;
   event_type?: string;
-  start_date_time: string;
+  start_date_time?: string;
+  start_date?: string | null;
+  start_time?: string | null;
+  time_zone?: string | null;
   duration_hours: number;
-  end_time?: string;
+  end_time?: string | null;
   budget_min?: number;
   budget_max?: number;
   expected_viewers?: number;

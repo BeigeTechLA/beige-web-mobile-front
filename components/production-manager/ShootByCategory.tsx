@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { adminApi } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import { useTheme } from "next-themes";
 
 // --- Types ---
 type CategoryData = {
@@ -17,11 +18,14 @@ const COLORS = ['#3B82F6', '#22C55E', '#8B5CF6', '#F59E0B', '#06B6D4', '#EC4899'
 const TABS = ['All', 'Videography', 'Photography'];
 
 export default function ShootByCategory() {
+    const { theme } = useTheme();
+    const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState('All');
     const [currentData, setCurrentData] = useState<CategoryData[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        setMounted(true);
         const fetchData = async () => {
             setLoading(true);
             try {
@@ -49,24 +53,27 @@ export default function ShootByCategory() {
         fetchData();
     }, [activeTab]);
 
+    const isDark = !mounted || theme === "dark";
+
     return (
-        <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl w-full max-w-md text-white h-full flex flex-col">
-            <div className="bg-[#101010] rounded-t-2xl">
+        <div className={`border rounded-2xl w-full max-w-md h-full flex flex-col transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-[#FFF] border-[#E5E5E5] text-[#323232]"
+            }`}>
+            <div className={`rounded-t-2xl ${isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"}`}>
                 {/* Header */}
-                <div className="flex items-center gap-2 p-5 border-b border-b-[#3D3D3D]">
+                <div className={`flex items-center gap-2 p-5 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E5E5E5]"}`}>
                     <div className="w-[3px] h-6 bg-[#E5D5B8]" />
                     <h2 className="">Shoot By Category</h2>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex px-2 border-b border-b-[#3D3D3D]">
+                <div className={`flex px-2 border-b rounded-b-2xl ${isDark ? "border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E5E5E5]"}`}>
                     {TABS.map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`flex-1 pt-5 pb-3.5 px-4 text-sm font-medium transition-all border-b-[3px] ${activeTab === tab
-                                ? 'text-[#E8D1AB] border-b-[#E8D1AB]'
-                                : 'text-white/30 hover:text-white/60 border-b-transparent'
+                                    ? (isDark ? 'text-[#E8D1AB] border-[#E8D1AB]' : 'text-[#000000] border-[#000000]')
+                                    : (isDark ? 'text-white/30 hover:text-white/60' : 'text-[#00000080] hover:text-[#323232]') + ' border-b-transparent'
                                 }`}
                         >
                             {tab}
@@ -121,7 +128,9 @@ export default function ShootByCategory() {
                             {/* Center Text */}
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                 <span className="text-3xl font-bold">{currentData.length.toString().padStart(2, '0')}</span>
-                                <span className="text-white/80 text-lg capitalize tracking-wider">Shoot Types</span>
+                                <span className={`text-lg capitalize tracking-wider ${isDark ? "text-white/80" : "text-[#323232CC]"}`}>
+                                    Shoot Types
+                                </span>
                             </div>
                         </div>
 
@@ -134,11 +143,11 @@ export default function ShootByCategory() {
                                             className="w-3 h-3 rounded-sm"
                                             style={{ backgroundColor: item.color }}
                                         />
-                                        <span className="text-white transition-colors">
+                                        <span className={`transition-colors ${isDark ? "text-white" : "text-[#323232]"}`}>
                                             {item.name}
                                         </span>
                                     </div>
-                                    <span className="text-lg font-semibold text-white/70">
+                                    <span className={`text-lg font-semibold ${isDark ? "text-white/70" : "text-[#323232CC]"}`}>
                                         {item.percentage}%
                                     </span>
                                 </div>
@@ -146,7 +155,7 @@ export default function ShootByCategory() {
                         </div>
                     </>
                 ) : (
-                    <div className="flex-1 flex justify-center items-center text-white/40">
+                    <div className={`flex-1 flex justify-center items-center ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
                         No categories found
                     </div>
                 )}

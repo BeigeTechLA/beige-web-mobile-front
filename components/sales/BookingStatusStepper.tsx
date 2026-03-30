@@ -16,17 +16,26 @@ const steps: Step[] = [
 ];
 
 interface Props {
-  currentStep: number; // e.g., 1, 2, 3, or 4
+  currentStep: number;
+  isDark?: boolean; // Added theme prop
 }
 
-export default function BookingStatusStepper({ currentStep }: Props) {
+export default function BookingStatusStepper({ currentStep, isDark = true }: Props) {
   return (
-    <div className="w-full pb-4 lg:pb-9">
-      <h3 className="lg:text-xl font-medium text-white/50 mb-3 lg:mb-6">Booking Status</h3>
+    <div className="w-full pb-4 lg:pb-9 transition-colors duration-300">
+      <h3 className={cn(
+        "lg:text-xl font-medium mb-3 lg:mb-6 transition-colors duration-300",
+        isDark ? "text-white/50" : "text-black"
+      )}>
+        Booking Status
+      </h3>
 
       <div className="relative flex justify-between items-center w-full px-4">
         {/* Background Connector Line */}
-        <div className="absolute top-1/2 left-0 w-full h-[1px] bg-[#27272A] -translate-y-1/2 z-0" />
+        <div className={cn(
+          "absolute top-1/2 left-0 w-full h-[1px] -translate-y-1/2 z-0 transition-colors duration-300",
+          isDark ? "bg-[#27272A]" : "bg-[#E5E7EB]"
+        )} />
 
         {/* Status Steps */}
         {steps.map((step) => {
@@ -41,7 +50,9 @@ export default function BookingStatusStepper({ currentStep }: Props) {
                   "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300",
                   isActive
                     ? "bg-[#E5D5B8] border-[#E5D5B8] text-black shadow-[0_0_15px_rgba(229,213,184,0.3)]"
-                    : "bg-[#1A1A1A] border-[#27272A] text-[#52525B]"
+                    : isDark
+                      ? "bg-[#1A1A1A] border-[#27272A] text-[#52525B]"
+                      : "bg-white border-[#D8D8D8] text-[#9CA3AF]"
                 )}
               >
                 <span className="text-sm font-semibold">{step.id}</span>
@@ -52,7 +63,9 @@ export default function BookingStatusStepper({ currentStep }: Props) {
                 <span
                   className={cn(
                     "text-xs font-medium transition-colors duration-300",
-                    isActive ? "text-[#E5D5B8]" : "text-[#71717A]"
+                    isActive
+                      ? (isDark ? "text-[#E5D5B8]" : "text-[#B18A00]")
+                      : (isDark ? "text-[#71717A]" : "text-[#6B7280]")
                   )}
                 >
                   {step.label}

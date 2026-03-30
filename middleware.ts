@@ -15,6 +15,8 @@ const PROTECTED_PREFIXES = ['/admin', '/creator', '/affiliate', '/sales', '/prod
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const searchParams = request.nextUrl.searchParams;
+  const isForcedLoginFlow = searchParams.get('adminOnly') === '1' || searchParams.get('reason') === 'role_mismatch';
 
   // 1. Get user data from cookies
   const userCookie = request.cookies.get('revure_user')?.value;
@@ -36,6 +38,13 @@ export function middleware(request: NextRequest) {
     if (isAuthenticated) {
       // If already logged in, redirect to their dashboard
       const userTypeId = user.user_type_id || user.userTypeId;
+      const isAdminUser = userTypeId === 1;
+
+      // Allow logged-in users to access login when explicitly forced (role mismatch/admin only)
+      if (isForcedLoginFlow) {
+        return NextResponse.next();
+      }
+
       const dashboardPath = ROLE_ROUTES[userTypeId] || '/admin/dashboard';
       return NextResponse.redirect(new URL(dashboardPath, request.url));
     }
@@ -60,9 +69,15 @@ export function middleware(request: NextRequest) {
 
     // If user is accessing a dashboard they don't have access to
     if (allowedPrefix && !pathname.startsWith(allowedPrefix)) {
-      // Redirect to their own dashboard
-      const dashboardPath = `${allowedPrefix}/dashboard`;
-      return NextResponse.redirect(new URL(dashboardPath, request.url));
+      const loginUrl = new URL('/login', request.url);
+      if (pathname.startsWith('/admin') && allowedPrefix !== '/admin') {
+        loginUrl.searchParams.set('adminOnly', '1');
+        loginUrl.searchParams.set('reason', 'admin_only');
+      } else {
+        loginUrl.searchParams.set('reason', 'role_mismatch');
+      }
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(loginUrl);
     }
 
     // Special case for role 4 or unknown roles trying to access protected areas

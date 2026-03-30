@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -38,6 +38,23 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false)
   const { login, isLoginLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const hasShownAdminOnlyToast = React.useRef(false)
+
+  React.useEffect(() => {
+    if (hasShownAdminOnlyToast.current) return
+    const adminOnly = searchParams?.get("adminOnly") === "1"
+    const reason = searchParams?.get("reason")
+    if (adminOnly || reason === "admin_only") {
+      toast.error("You are not an admin. Please log in with an admin account to access the admin dashboard.")
+      hasShownAdminOnlyToast.current = true
+      return
+    }
+    if (reason === "role_mismatch") {
+      toast.error("You are not authorized for that dashboard. Please log in with the correct account.")
+      hasShownAdminOnlyToast.current = true
+    }
+  }, [searchParams])
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),

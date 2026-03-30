@@ -1,42 +1,37 @@
 @import "tailwindcss";
 
-:root {
-  --white: #ffffff;
-  --foreground: #171717;
+@import "tailwindcss";
 
-  /* Landing V2 Variables */
-  --landing-background: 0 0% 100%;
-  --landing-foreground: 38 4% 10%;
-  --landing-card: 40 40% 93.3%;
-  --landing-card-foreground: 38 4% 10%;
-  --landing-popover: 0 0% 100%;
-  --landing-popover-foreground: 38 4% 10%;
-  --landing-primary: 38 4% 10%;
-  --landing-primary-foreground: 40 0% 100%;
-  --landing-secondary: 40 40% 93.3%;
-  --landing-secondary-foreground: 38 4% 10%;
-  --landing-muted: 40 40% 93.3%;
-  --landing-muted-foreground: 169 57% 16.5%;
-  --landing-accent: 40 50% 80%;
-  --landing-accent-foreground: 38 4% 10%;
-  --landing-destructive: 169 57% 16.5%;
-  --landing-destructive-foreground: 40 0% 100%;
-  --landing-border: 40 20% 88%;
-  --landing-input: 40 40% 93.3%;
-  --landing-ring: 38 4% 10%;
-  --landing-radius: 0.5rem;
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --toggle-bg: #f0f0f0;
+  --toggle-border: #E3E3E3;
+  --indicator-bg: #e6d5b8;
+}
+
+/* Base Dark Theme (Default) */
+.dark {
+  --background: #171717;
+  --foreground: #ffffff;
+  --toggle-bg: linear-gradient(180deg, #2C2C2B 0%, #000 100%);
+  --toggle-border: #404040;
 }
 
 @theme inline {
-  --color-background: var(--white);
+  --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 body {
+  background: var(--background);
   color: var(--foreground);
-  background: var(--white);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Landing V2 Specific Styles */

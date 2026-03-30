@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { ChevronDown, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { useTheme } from "next-themes";
 import {
   Select,
   SelectContent,
@@ -11,11 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/Datepicker";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
-import { EffectCoverflow } from "swiper/modules";
+import { EffectCoverflow, Mousewheel } from "swiper/modules";
 
 // Swiper styles
 import "swiper/css";
@@ -26,14 +25,17 @@ import { adminApi } from "@/lib/api";
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 export const TopCreatives = () => {
-  const [activeIndex, setActiveIndex] = useState(1); // Default to center
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(1);
   const [partners, setPartners] = useState<any[]>([]);
   const [range, setRange] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    setMounted(true);
     const fetchData = async () => {
       setIsLoading(true);
       try {
@@ -46,7 +48,6 @@ export const TopCreatives = () => {
         const response = await adminApi.getTopCreativePartners(params);
         if (response && response.data) {
           const data = Array.isArray(response.data) ? response.data : [];
-
           const mappedPartners = data.map((partner: any, index: number) => ({
             id: partner.id || index,
             name: partner.name || "Unknown",
@@ -81,13 +82,15 @@ export const TopCreatives = () => {
     fetchData();
   }, [range, startDate, endDate]);
 
+  const isDark = !mounted || theme === "dark";
   const activePartner = partners.length > 0 ? partners[activeIndex % partners.length] : null;
 
-
   return (
-    <div className="w-full bg-[#171717] rounded-2xl overflow-hidden text-white border border-[#3D3D3D]">
+    <div className={`flex-1 w-full rounded-2xl overflow-hidden transition-colors duration-300 border ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"
+      }`}>
       {/* Header section */}
-      <div className="bg-[#101010] rounded-2xl flex justify-between items-center mb-4 border-b border-b-[#3D3D3D] p-5 ">
+      <div className={`flex justify-between items-center border-b p-5 transition-colors duration-300 ${isDark ? "bg-[#101010] border-[#3D3D3D]" : "bg-[#FFFCF6] border-[#E3E3E3]"
+        }`}>
         <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h2 className="">Top Creative Partners</h2>
@@ -122,28 +125,29 @@ export const TopCreatives = () => {
   </div>
 )} */}
           <Select value={range} onValueChange={setRange}>
-            <SelectTrigger className="w-[110px] bg-zinc-900 border-[#3D3D3D] rounded-full h-9 text-xs text-white/70 focus:ring-0">
+            <SelectTrigger className={`w-[110px] rounded-full h-9 text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"
+              }`}>
               <SelectValue placeholder="Range" />
             </SelectTrigger>
-            <SelectContent className="bg-[#111111] border-[#3D3D3D]">
+            <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
               <SelectItem value="all">All time</SelectItem>
               <SelectItem value="week">Week</SelectItem>
               <SelectItem value="month">Month</SelectItem>
               <SelectItem value="year">Year</SelectItem>
-              {/* <SelectItem value="custom">Custom</SelectItem> */}
             </SelectContent>
           </Select>
         </div>
       </div>
 
       {/* Slider Section */}
-      <div className="relative">
+      <div className="relative py-6">
         {isLoading ? (
           <div className="h-[200px] flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]" />
           </div>
         ) : partners.length > 0 ? (
           <Swiper
+            key={partners.length + (isDark ? "dark" : "light")}
             effect={"coverflow"}
             grabCursor={true}
             centeredSlides={true}
@@ -158,7 +162,7 @@ export const TopCreatives = () => {
               modifier: 1,
               slideShadows: false,
             }}
-            modules={[EffectCoverflow]}
+            modules={[EffectCoverflow, Mousewheel]}
             onSlideChange={(swiper) => setActiveIndex(swiper.realIndex)}
             className="w-full"
           >
@@ -178,7 +182,7 @@ export const TopCreatives = () => {
             ))}
           </Swiper>
         ) : (
-          <div className="h-[200px] flex items-center justify-center text-white/50">
+          <div className={`h-[200px] flex items-center justify-center ${isDark ? "text-white/50" : "text-[#32323266]"}`}>
             No partners found.
           </div>
         )}
@@ -191,7 +195,7 @@ export const TopCreatives = () => {
             <h3 className="text-base font-medium leading-tight">
               {activePartner.name}
             </h3>
-            <p className="text-white/40 text-xs leading-tight">
+            <p className={`text-xs leading-tight ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
               {activePartner.email}
             </p>
           </div>
