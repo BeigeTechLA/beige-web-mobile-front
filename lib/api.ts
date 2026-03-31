@@ -1777,6 +1777,19 @@ export const salesApi = {
       };
     }
   },
+  updateQuote: async (quoteId: number | string, data: Record<string, unknown>) => {
+    try {
+      const response = await api.put<SalesQuoteDetailResponse>(`/sales/quotes/${quoteId}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Quote Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update quote',
+      };
+    }
+  },
   getQuotesDashboard: async (params: { range?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get<QuotesDashboardResponse>('/sales/quotes/dashboard', { params });

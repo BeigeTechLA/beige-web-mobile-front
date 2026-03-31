@@ -47,7 +47,10 @@ import {
   normalizeQuoteEditorView,
   readQuoteEditorNavigationCache,
 } from "@/lib/quoteEdit";
-import { buildQuoteDraftPayload } from "@/lib/quoteDraft";
+import {
+  buildQuoteDraftPayload,
+  buildQuoteUpdatePayload,
+} from "@/lib/quoteDraft";
 import {
   ADMIN_QUOTE_SUMMARY_STORAGE_KEY,
   buildQuoteSummarySnapshot,
@@ -1806,6 +1809,36 @@ export default function CreateQuotePage() {
       maxStep,
     });
 
+  const getQuoteUpdatePayload = (maxStep?: typeof view) =>
+    buildQuoteUpdatePayload({
+      selectedClient,
+      clientName,
+      emailId,
+      phoneNumber,
+      address,
+      projectDescription,
+      validityDays,
+      validUntil,
+      discountEnabled,
+      discountType,
+      discountValue,
+      taxLabel,
+      normalizedTaxRate,
+      selectedShootType: quoteDraftSelectedShootType,
+      shootTypes: quoteDraftShootTypes,
+      selectedServices,
+      services,
+      serviceConfigs,
+      selectedAddons,
+      addons,
+      appliedAddonConfigs,
+      logisticsItems,
+      appliedLogisticsConfigs,
+      lineItems,
+      appliedLineItemConfigs,
+      maxStep,
+    });
+
   const getQuoteSummarySnapshot = () =>
     buildQuoteSummarySnapshot({
       selectedClient,
@@ -1838,11 +1871,13 @@ export default function CreateQuotePage() {
   const saveQuoteDraft = async (action: "preview" | "save" | "draft") => {
     if (isCreatingQuoteDraft) return;
 
+    const isUpdatingExistingQuote = Boolean(isEditMode && editQuoteId);
     const basePayload = getQuoteDraftPayload(
       action === "draft" ? view : undefined,
     );
-    const payload =
-      action === "save"
+    const payload = isUpdatingExistingQuote
+      ? getQuoteUpdatePayload(action === "draft" ? view : undefined)
+      : action === "save"
         ? {
             ...basePayload,
             is_draft: false,
@@ -1861,40 +1896,57 @@ export default function CreateQuotePage() {
     let savedQuoteId: string | null = null;
 
     try {
-      const response = await salesApi.createQuoteDraft(payload);
-      const createdQuoteSource =
+      const response = isUpdatingExistingQuote
+        ? await salesApi.updateQuote(editQuoteId as string, payload)
+        : await salesApi.createQuoteDraft(payload);
+      const persistedQuoteSource =
         response && typeof response === "object" && "data" in response
           ? (response.data as SalesQuoteDetailData | null | undefined)
           : (response as SalesQuoteDetailData | null | undefined);
-      const createdQuote = unwrapSalesQuoteDetail(createdQuoteSource);
+      const persistedQuote = unwrapSalesQuoteDetail(persistedQuoteSource);
 
       if (response?.error || response?.success === false) {
         throw new Error(
           typeof response?.error === "string"
             ? response.error
-            : "Failed to create quote draft",
+            : isUpdatingExistingQuote
+              ? "Failed to update quote"
+              : "Failed to create quote draft",
         );
       }
 
       savedQuoteId =
+        (isUpdatingExistingQuote && editQuoteId ? String(editQuoteId) : null) ??
         extractQuoteIdFromResponse(response) ??
-        extractQuoteIdFromResponse(createdQuote);
+        extractQuoteIdFromResponse(persistedQuote);
+
+      if (persistedQuote) {
+        setQuoteToEdit(persistedQuote);
+      }
 
       if (action === "save") {
-        toast.success("Quote saved successfully");
+        toast.success(
+          isUpdatingExistingQuote
+            ? "Quote updated successfully"
+            : "Quote saved successfully",
+        );
         router.push("/admin/quotes");
         return;
       }
 
       if (action === "draft") {
-        toast.success("Draft saved successfully");
+        toast.success(
+          isUpdatingExistingQuote
+            ? "Draft updated successfully"
+            : "Draft saved successfully",
+        );
         return;
       }
 
       if (!savedQuoteId) {
-        if (createdQuote) {
-          setPreviewQuoteId(extractQuoteIdFromResponse(createdQuote));
-          setPreviewQuote(createdQuote);
+        if (persistedQuote) {
+          setPreviewQuoteId(extractQuoteIdFromResponse(persistedQuote));
+          setPreviewQuote(persistedQuote);
           toast.success("Quote preview loaded");
           return;
         }
@@ -1905,9 +1957,9 @@ export default function CreateQuotePage() {
       const detailResponse = await salesApi.getQuoteDetail(savedQuoteId);
 
       if (detailResponse?.error || detailResponse?.success === false) {
-        if (createdQuote) {
+        if (persistedQuote) {
           setPreviewQuoteId(savedQuoteId);
-          setPreviewQuote(createdQuote);
+          setPreviewQuote(persistedQuote);
           toast.success("Quote preview loaded");
           return;
         }
@@ -1920,7 +1972,7 @@ export default function CreateQuotePage() {
       }
 
       const quoteDetail =
-        unwrapSalesQuoteDetail(detailResponse?.data ?? null) ?? createdQuote;
+        unwrapSalesQuoteDetail(detailResponse?.data ?? null) ?? persistedQuote;
 
       if (!quoteDetail) {
         throw new Error("Quote preview could not be loaded");
@@ -1949,8 +2001,12 @@ export default function CreateQuotePage() {
           : action === "preview"
             ? "Failed to load quote preview"
             : action === "draft"
-              ? "Failed to save draft"
-              : "Failed to save quote";
+              ? isUpdatingExistingQuote
+                ? "Failed to update draft"
+                : "Failed to save draft"
+              : isUpdatingExistingQuote
+                ? "Failed to update quote"
+                : "Failed to save quote";
 
       toast.error(error instanceof Error ? error.message : fallbackMessage);
     } finally {

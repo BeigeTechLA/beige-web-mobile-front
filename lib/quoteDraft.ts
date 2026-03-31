@@ -57,6 +57,11 @@ export interface QuoteDraftPayload {
   line_items?: QuoteDraftLineItem[];
 }
 
+export interface QuoteUpdatePayload
+  extends Omit<QuoteDraftPayload, "pricing_mode" | "discount_type"> {
+  discount_type?: "percentage" | "fixed_amount";
+}
+
 type QuoteDraftLineItem = {
   catalog_item_id?: number;
   source_type?: "custom";
@@ -197,6 +202,29 @@ export function buildQuoteDraftPayload(
   }
 
   return payload;
+}
+
+export function buildQuoteUpdatePayload(
+  input: BuildQuoteDraftPayloadInput
+): QuoteUpdatePayload {
+  const draftPayload = buildQuoteDraftPayload(input);
+  const updatePayload = {
+    ...draftPayload,
+  } as Partial<QuoteDraftPayload>;
+  const discountType = updatePayload.discount_type;
+
+  delete updatePayload.pricing_mode;
+  delete updatePayload.discount_type;
+
+  return {
+    ...(updatePayload as QuoteUpdatePayload),
+    ...(discountType
+      ? {
+          discount_type:
+            discountType === "fixed" ? "fixed_amount" : "percentage",
+        }
+      : {}),
+  };
 }
 
 function buildServiceItems(
