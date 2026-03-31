@@ -3044,9 +3044,9 @@ export default function CreateQuotePage() {
                                     <Minus size={16} strokeWidth={2.5} />
                                   </button>
                                   <div className="h-[50px] min-w-[92px] rounded-[14px] border border-[#3B3B46] bg-[#1A1A1F] px-4 flex flex-col items-center justify-center">
-                                    <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-[#8A8A8A]">
+                                    {/* <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-[#8A8A8A]">
                                       Qty
-                                    </span>
+                                    </span> */}
                                     <span className="text-base font-medium text-white leading-none">
                                       {config.quantity}
                                     </span>
@@ -4233,7 +4233,7 @@ export default function CreateQuotePage() {
               <hr className="border-t border-[#3D3D3D]" />
               <div className="w-full p-4 pt-6 lg:p-9">
                 <h2 className="text-base lg:text-xl font-medium text-white mb-5 lg:mb-6">
-                  Custom Type
+                  Custom Tax Rate
                 </h2>
                 <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full">
                   <div className="w-full relative">

@@ -50,7 +50,6 @@ export default function QuoteSummaryPage() {
 
       <QuoteSummaryContent
         snapshot={snapshot}
-        onBack={() => router.back()}
         onPreview={handlePreviewOpen}
         previewDisabled={!snapshot}
         emptyStateAction={() => router.push("/sales/quotes/create")}
