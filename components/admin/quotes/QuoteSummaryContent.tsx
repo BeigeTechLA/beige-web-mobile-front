@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { formatQuoteItemDisplayName } from "@/lib/quoteDetail";
 import { getInitials } from "@/lib/utils";
 import type { QuoteSummaryLineItem, QuoteSummarySnapshot } from "@/lib/quoteSummary";
 
@@ -87,7 +88,9 @@ const SectionCard = ({
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-white lg:text-base">{item.name}</p>
+                <p className="text-sm font-medium text-white lg:text-base">
+                  {formatQuoteItemDisplayName(item.name)}
+                </p>
                 {item.subtitle ? (
                   <p className="mt-1 text-xs text-[#A1A1AA] lg:text-sm">{item.subtitle}</p>
                 ) : null}

@@ -21,7 +21,10 @@ import { toast } from "react-hot-toast";
 import QuotePreviewModal from "@/components/admin/quotes/QuotePreviewModal";
 import { Button } from "@/components/ui/button";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { type QuoteEditorView } from "@/lib/quoteEdit";
+import {
+  persistQuoteEditorNavigationCache,
+  type QuoteEditorView,
+} from "@/lib/quoteEdit";
 import {
   formatQuoteCurrency,
   formatQuoteDate,
@@ -184,20 +187,25 @@ const QuoteTopActions = ({
   onConvert,
   onPreview,
   previewDisabled,
+  rejectDisabled,
+  isRejecting,
 }: {
   onReject: () => void;
   onConvert: () => void;
   onPreview: () => void;
   previewDisabled: boolean;
+  rejectDisabled: boolean;
+  isRejecting: boolean;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
     <Button
       type="button"
       onClick={onReject}
+      disabled={rejectDisabled}
       className="h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90"
     >
-      <XCircle size={18} />
-      Reject Quote
+      {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
+      {isRejecting ? "Rejecting..." : "Reject Quote"}
     </Button>
     <Button
       type="button"
@@ -239,6 +247,7 @@ export default function QuoteDetailsPage({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
+  const [isRejecting, setIsRejecting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -292,6 +301,23 @@ export default function QuoteDetailsPage({
     };
   }, [quoteId]);
 
+  useEffect(() => {
+    const editViews: QuoteEditorView[] = [
+      "details",
+      "services",
+      "addons",
+      "logistics",
+      "customlineitems",
+      "discounts",
+    ];
+
+    editViews.forEach((view) => {
+      router.prefetch(
+        `${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(view)}`
+      );
+    });
+  }, [baseHref, quoteId, router]);
+
   const lineItems = useMemo(
     () => (quote ? normalizeQuoteLineItems(quote) : []),
     [quote]
@@ -339,10 +365,14 @@ export default function QuoteDetailsPage({
   const salesperson = getQuoteSalesperson(quote);
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
+  const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteText(quote?.video_shoot_type);
   const terms = normalizeQuoteTerms(quote?.terms_conditions);
+  const resolvedQuoteId = String(
+    quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? quoteId
+  );
 
   const breadcrumbOverrides = useMemo(
     () => ({
@@ -356,16 +386,58 @@ export default function QuoteDetailsPage({
     toast(`${label} action is not available yet.`);
   };
 
+  const handleRejectQuote = async () => {
+    if (!resolvedQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (["rejected", "cancelled"].includes(normalizedQuoteStatus)) {
+      toast("Quote is already rejected.");
+      return;
+    }
+
+    setIsRejecting(true);
+    try {
+      const response = await salesApi.updateQuoteStatus(resolvedQuoteId, "rejected");
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string" ? response.error : "Failed to reject quote"
+        );
+      }
+
+      const updatedQuote = unwrapSalesQuoteDetail(response?.data ?? null);
+      setQuote((current) =>
+        updatedQuote ?? (current ? { ...current, quote_status: "rejected", status: "rejected" } : current)
+      );
+      toast.success("Quote rejected successfully");
+    } catch (error) {
+      console.error("Failed to reject quote", error);
+      toast.error(error instanceof Error ? error.message : "Failed to reject quote");
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
   const handleEditQuote = (targetView: QuoteEditorView) => {
+    if (quote) {
+      persistQuoteEditorNavigationCache(quoteId, quote);
+    }
+
     router.push(`${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}`);
   };
 
   const topbarActions = (
     <QuoteTopActions
-      onReject={() => handleUnavailableAction("Reject Quote")}
+      onReject={() => {
+        void handleRejectQuote();
+      }}
       onConvert={() => handleUnavailableAction("Convert to Invoice")}
       onPreview={() => setIsPreviewOpen(true)}
       previewDisabled={!quote || loading}
+      rejectDisabled={!quote || loading || isRejecting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      isRejecting={isRejecting}
     />
   );
 
@@ -410,7 +482,11 @@ export default function QuoteDetailsPage({
           </div>
         ) : (
           <div className="space-y-6">
-            <SectionShell title="Client Information">
+            <SectionShell
+              title="Client Information"
+              actionLabel="Edit Details"
+              onAction={() => handleEditQuote("details")}
+            >
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-start gap-4">

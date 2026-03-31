@@ -214,7 +214,7 @@ function buildServiceItems(
       }
 
       const catalogItemId = getPositiveInteger(service.id);
-      const quantity = Math.max(1, normalizeNumber(config.quantity));
+      const quantity = 1;
       const estimatedPricing = Math.max(
         0,
         normalizeNumber(config.estimatedPrice || service.price)

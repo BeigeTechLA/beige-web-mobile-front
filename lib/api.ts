@@ -396,6 +396,13 @@ export interface SalesQuoteDetailResponse {
   error?: string;
 }
 
+export interface SalesQuoteStatusUpdateResponse {
+  success: boolean;
+  data: SalesQuoteDetailData | null;
+  error?: string;
+  message?: string;
+}
+
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
   validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
@@ -1808,6 +1815,22 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch quote detail',
+      };
+    }
+  },
+  updateQuoteStatus: async (quoteId: number | string, status: string) => {
+    try {
+      const response = await api.patch<SalesQuoteStatusUpdateResponse>(
+        `/sales/quotes/${quoteId}/status`,
+        { status }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Quote Status Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update quote status',
       };
     }
   },

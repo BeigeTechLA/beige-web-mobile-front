@@ -685,6 +685,7 @@ export default function QuotesDashboardPage({
   const [selectedSalesperson, setSelectedSalesperson] = useState("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
+  const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -741,6 +742,58 @@ export default function QuotesDashboardPage({
     toast(actionLabel === "Reject Quote"
       ? "Reject quote action is not available yet."
       : `${actionLabel} action is not available yet.`);
+  };
+
+  const handleRejectQuote = async (quoteId: string, currentStatus?: string) => {
+    setOpenActionMenuId(null);
+
+    if (!quoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (rejectingQuoteId === quoteId) {
+      return;
+    }
+
+    if (["rejected", "cancelled"].includes((currentStatus ?? "").toLowerCase())) {
+      toast("Quote is already rejected.");
+      return;
+    }
+
+    setRejectingQuoteId(quoteId);
+    try {
+      const response = await salesApi.updateQuoteStatus(quoteId, "rejected");
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string" ? response.error : "Failed to reject quote"
+        );
+      }
+
+      setQuotes((currentRows) =>
+        currentRows.map((quote) => {
+          const currentId = String(quote.sales_quote_id ?? quote.quote_id ?? quote.id ?? "");
+          if (currentId !== quoteId) {
+            return quote;
+          }
+
+          return {
+            ...quote,
+            quote_status: "rejected",
+            status: "rejected",
+          };
+        })
+      );
+      setDashboardData(null);
+      setQuoteSummary({});
+      toast.success("Quote rejected successfully");
+    } catch (error) {
+      console.error("Failed to reject quote", error);
+      toast.error(error instanceof Error ? error.message : "Failed to reject quote");
+    } finally {
+      setRejectingQuoteId(null);
+    }
   };
 
   const handleViewQuoteDetails = (quoteId: string) => {
@@ -1224,7 +1277,9 @@ export default function QuotesDashboardPage({
                             }}
                             onDuplicate={() => handleUnsupportedQuoteAction("Duplicate")}
                             onEdit={() => handleEditQuote(quote.id)}
-                            onReject={() => handleUnsupportedQuoteAction("Reject Quote")}
+                            onReject={() => {
+                              void handleRejectQuote(quote.id, quote.statusKey);
+                            }}
                           />
                         </td>
                       </tr>
