@@ -77,6 +77,28 @@ type ShootTypeApiItem = {
   isSystemDefault?: string | number | boolean | null;
 };
 
+type ClientDropdownItem = {
+  client_id?: string | number | null;
+  id?: string | number | null;
+  name?: string | number | null;
+  client_name?: string | number | null;
+  full_name?: string | number | null;
+  email?: string | number | null;
+  client_email?: string | number | null;
+  guest_email?: string | number | null;
+  phone?: string | number | null;
+  mobile?: string | number | null;
+  mobile_number?: string | number | null;
+  phone_number?: string | number | null;
+  client_phone?: string | number | null;
+  address?: string | number | null;
+  client_address?: string | number | null;
+  location?: string | number | null;
+  client_location?: string | number | null;
+  street_address?: string | number | null;
+  full_address?: string | number | null;
+};
+
 const PROTECTED_SERVICE_ORDER = [
   "videography",
   "photography",
@@ -116,6 +138,47 @@ const normalizeLineItemLabel = (label: string) => label.trim().toLowerCase();
 
 const formatCurrency = (value: number) =>
   `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const pickFirstClientValue = (...values: Array<string | number | null | undefined>) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+
+    const normalized = String(value).trim();
+    if (normalized.length > 0) {
+      return normalized;
+    }
+  }
+
+  return "";
+};
+
+const getClientDisplayName = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.name, client?.client_name, client?.full_name);
+
+const getClientEmail = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.email, client?.client_email, client?.guest_email);
+
+const getClientPhone = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(
+    client?.phone,
+    client?.mobile,
+    client?.mobile_number,
+    client?.phone_number,
+    client?.client_phone
+  );
+
+const getClientAddress = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(
+    client?.address,
+    client?.client_address,
+    client?.location,
+    client?.client_location,
+    client?.street_address,
+    client?.full_address
+  );
+
+const getClientIdentifier = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.client_id, client?.id, getClientDisplayName(client), getClientEmail(client));
 
 const resolveShootTypeApiId = (item: ShootTypeApiItem) => {
   const preferredId = item.sales_shoot_type_id
@@ -184,10 +247,10 @@ export default function CreateQuotePage() {
   // Views: 'selection' | 'details' | 'services' | 'addons' | 'logistics'
   const [view, setView] = useState<'selection' | 'details' | 'services' | 'addons' | 'logistics' | 'customlineitems' | 'discounts' | 'tax'>('selection');
 
-  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [selectedClient, setSelectedClient] = useState<ClientDropdownItem | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<ClientDropdownItem[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
 
   // Form State
@@ -272,6 +335,11 @@ export default function CreateQuotePage() {
   const [isHydratingQuoteToEdit, setIsHydratingQuoteToEdit] = React.useState(false);
   const [isCatalogLoaded, setIsCatalogLoaded] = React.useState(false);
   const hydratedQuoteIdRef = React.useRef<string | null>(null);
+  const hydratingQuoteIdRef = React.useRef<string | null>(null);
+  const servicesRef = React.useRef(services);
+  const addonsRef = React.useRef(addons);
+  const logisticsItemsRef = React.useRef(logisticsItems);
+  const lineItemsRef = React.useRef(lineItems);
 
   const serviceIcons: Record<string, React.ReactNode> = {
     "videography": <Video size={20} />,
@@ -287,8 +355,8 @@ export default function CreateQuotePage() {
     setLoadingClients(true);
     try {
       const res = await salesApi.getClientDropdown(query);
-      if (!res.error && res.data) {
-        setClients(res.data);
+      if (!res.error && Array.isArray(res.data)) {
+        setClients(res.data as ClientDropdownItem[]);
       }
     } catch (error) {
       console.error("Failed to fetch clients", error);
@@ -296,6 +364,23 @@ export default function CreateQuotePage() {
       setLoadingClients(false);
     }
   };
+
+  const applyClientSelection = React.useCallback((client: ClientDropdownItem | null) => {
+    setSelectedClient(client);
+
+    if (!client) {
+      setClientName("");
+      setEmailId("");
+      setPhoneNumber("");
+      setAddress("");
+      return;
+    }
+
+    setClientName(getClientDisplayName(client));
+    setEmailId(getClientEmail(client));
+    setPhoneNumber(getClientPhone(client));
+    setAddress(getClientAddress(client));
+  }, []);
 
   React.useEffect(() => {
     fetchClients();
@@ -314,7 +399,14 @@ export default function CreateQuotePage() {
     fetchCatalog();
   }, []);
 
-  const fetchShootTypes = async (
+  React.useEffect(() => {
+    servicesRef.current = services;
+    addonsRef.current = addons;
+    logisticsItemsRef.current = logisticsItems;
+    lineItemsRef.current = lineItems;
+  }, [addons, lineItems, logisticsItems, services]);
+
+  const fetchShootTypes = React.useCallback(async (
     ids: string[],
     availableServices: Array<{ id: string; label: string }> = services
   ) => {
@@ -389,18 +481,20 @@ export default function CreateQuotePage() {
     }
 
     return [];
-  };
+  }, [selectedShootType, services]);
 
   React.useEffect(() => {
     if (!editQuoteId) {
       setQuoteToEdit(null);
       setIsLoadingQuoteToEdit(false);
       hydratedQuoteIdRef.current = null;
+      hydratingQuoteIdRef.current = null;
       return;
     }
 
     let isMounted = true;
     hydratedQuoteIdRef.current = null;
+    hydratingQuoteIdRef.current = null;
     setIsLoadingQuoteToEdit(true);
 
     const fetchQuoteToEdit = async () => {
@@ -451,21 +545,25 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (hydratedQuoteIdRef.current === editQuoteId) {
+    if (
+      hydratedQuoteIdRef.current === editQuoteId ||
+      hydratingQuoteIdRef.current === editQuoteId
+    ) {
       return;
     }
 
     let isMounted = true;
+    hydratingQuoteIdRef.current = editQuoteId;
     setIsHydratingQuoteToEdit(true);
 
     const hydrateQuoteEditor = async () => {
       try {
         const hydratedState = buildQuoteEditorHydrationState({
           quote: quoteToEdit,
-          services,
-          addons,
-          logisticsItems,
-          lineItems,
+          services: servicesRef.current,
+          addons: addonsRef.current,
+          logisticsItems: logisticsItemsRef.current,
+          lineItems: lineItemsRef.current,
         });
 
         if (!isMounted) {
@@ -551,6 +649,10 @@ export default function CreateQuotePage() {
         console.error("Failed to hydrate quote editor", error);
         toast.error("Failed to preload quote details");
       } finally {
+        if (hydratingQuoteIdRef.current === editQuoteId) {
+          hydratingQuoteIdRef.current = null;
+        }
+
         if (isMounted) {
           setIsHydratingQuoteToEdit(false);
         }
@@ -562,7 +664,7 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [addons, editQuoteId, isCatalogLoaded, lineItems, logisticsItems, quoteToEdit, requestedEditView, services]);
+  }, [editQuoteId, fetchShootTypes, isCatalogLoaded, quoteToEdit, requestedEditView]);
 
   React.useEffect(() => {
     if (!editQuoteId || hydratedQuoteIdRef.current !== editQuoteId) {
@@ -816,9 +918,7 @@ export default function CreateQuotePage() {
     }
 
     if (view === 'selection' && selectedClient) {
-      setClientName(selectedClient.name);
-      setEmailId(selectedClient.email || "");
-      setPhoneNumber(selectedClient.phone || "");
+      applyClientSelection(selectedClient);
       setView('details');
     } else if (view === 'details') {
       setView('services');
@@ -1977,7 +2077,6 @@ export default function CreateQuotePage() {
                             <div className="hidden lg:flex justify-between items-center">
                               <div className="space-y-1">
                                 <h3 className="text-base font-medium text-white leading-none">{addon.label}</h3>
-                                <p className="text-[#8A8A8A] text-xs font-normal">${addon.price.toFixed(2)}</p>
                               </div>
 
                               <div className="flex items-center gap-6">
@@ -1989,9 +2088,6 @@ export default function CreateQuotePage() {
                                   >
                                     <Minus size={16} strokeWidth={2.5} />
                                   </button>
-                                  <div className="w-16 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-zinc-400 font-normal text-sm">
-                                    {config.quantity}
-                                  </div>
                                   <button
                                     onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity + 1)}
                                     className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
@@ -2028,9 +2124,8 @@ export default function CreateQuotePage() {
 
                             {/* mobile version */}
                             <div className="flex flex-col lg:hidden gap-4">
-                              <div className="flex justify-between">
+                              <div>
                                 <h3 className="text-sm font-medium text-white leading-none">{addon.label}</h3>
-                                <p className="text-[#E8D1AB] text-sm font-semibold">${addon.price.toFixed(2)}</p>
                               </div>
                               <hr className="border-t border-[#3D3D3D]" />
                               <div className="flex gap-4 items-center">
@@ -2066,9 +2161,6 @@ export default function CreateQuotePage() {
                                 >
                                   <Minus size={16} strokeWidth={2.5} />
                                 </button>
-                                <div className="w-full h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-zinc-400 font-normal text-sm">
-                                  {config.quantity}
-                                </div>
                                 <button
                                   onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity + 1)}
                                   className="w-9 h-9 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
@@ -2579,7 +2671,7 @@ export default function CreateQuotePage() {
                       className={`w-full group bg-transparent rounded-[14px] px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen ? 'ring-1 ring-[#8E826A]/30' : ''}`}
                     >
                       <span className={selectedClient ? "text-white text-[16px] font-normal" : "text-[#6B6B6B] text-[16px] font-normal"}>
-                        {selectedClient ? selectedClient.name : "Choose a Client..."}
+                        {selectedClient ? getClientDisplayName(selectedClient) : "Choose a Client..."}
                       </span>
                       <ChevronDown size={20} className={`text-[#E5E5E5] transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
@@ -2620,41 +2712,40 @@ export default function CreateQuotePage() {
                               </div>
                             ) : (filteredClients || []).length === 0 ? (
                               <div className="py-6 text-center text-[#6B6B6B] text-sm">No clients found</div>
-                            ) : (filteredClients || []).map((client) => (
-                              <div
-                                key={client.client_id}
-                                onClick={() => {
-                                  setSelectedClient(client);
-                                  setClientName(client.name);
-                                  setEmailId(client.email || "");
-                                  setPhoneNumber(client.phone || "");
-                                  setIsDropdownOpen(false);
-                                  setSearchQuery("");
-                                  setView('details');
-                                }}
-                                className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${selectedClient?.client_id === client.client_id
-                                  ? 'bg-[#FFFCE8] text-[#171717]'
-                                  : 'hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]'
-                                  }`}
-                              >
-                                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedClient?.client_id === client.client_id
-                                  ? 'border-[#E8D1AB] bg-[#E8D1AB]'
-                                  : 'border-[#FFFFFF85] group-hover:border-[#171717]'
-                                  }`}>
-                                  {selectedClient?.client_id === client.client_id && (
-                                    <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
-                                  )}
+                            ) : (filteredClients || []).map((client) => {
+                              const clientId = getClientIdentifier(client);
+                              const isSelectedClient = getClientIdentifier(selectedClient) === clientId;
+
+                              return (
+                                <div
+                                  key={clientId}
+                                  onClick={() => {
+                                    applyClientSelection(client);
+                                    setIsDropdownOpen(false);
+                                    setSearchQuery("");
+                                    setView('details');
+                                  }}
+                                  className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${isSelectedClient
+                                    ? 'bg-[#FFFCE8] text-[#171717]'
+                                    : 'hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]'
+                                    }`}
+                                >
+                                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelectedClient
+                                    ? 'border-[#E8D1AB] bg-[#E8D1AB]'
+                                    : 'border-[#FFFFFF85] group-hover:border-[#171717]'
+                                    }`}>
+                                    {isSelectedClient && (
+                                      <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
+                                    )}
+                                  </div>
+                                  <span className="font-semibold text-lg">{getClientDisplayName(client)}</span>
                                 </div>
-                                <span className="font-semibold text-lg">{client.name}</span>
-                              </div>
-                            ))}
+                              );
+                            })}
 
                             <button
                               onClick={() => {
-                                setSelectedClient(null);
-                                setClientName("");
-                                setEmailId("");
-                                setPhoneNumber("");
+                                applyClientSelection(null);
                                 setIsDropdownOpen(false);
                                 setSearchQuery("");
                                 setView('details');
