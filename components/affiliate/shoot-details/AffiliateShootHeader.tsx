@@ -16,10 +16,12 @@ import {
 interface AffiliateShootHeaderProps {
   activeTab?: string;
   project?: any;
-  onBack?: () => void;
+  // onBack?: () => void;
 }
 
-export default function AffiliateShootHeader({ activeTab = "Overview", project, onBack }: AffiliateShootHeaderProps) {
+// export default function AffiliateShootHeader({ activeTab = "Overview", project, onBack }: AffiliateShootHeaderProps) {
+export default function AffiliateShootHeader({ activeTab = "Overview", project }: AffiliateShootHeaderProps) {
+
   const router = useRouter();
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const folderLink = getProjectFolderLink(project);
@@ -63,11 +65,11 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
   };
 
   const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
+    // if (onBack) {
+    //   onBack();
+    // } else {
       router.back();
-    }
+    // }
   };
 
   return (

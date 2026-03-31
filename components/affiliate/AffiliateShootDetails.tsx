@@ -19,10 +19,9 @@ import Cookies from "js-cookie";
 
 interface AffiliateShootDetailsProps {
   shootId: string;
-  onBack: () => void;
 }
 
-export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShootDetailsProps) {
+export default function AffiliateShootDetails({ shootId }: AffiliateShootDetailsProps) {
   const [activeTab, setActiveTab] = useState("Overview");
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -112,7 +111,10 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
 
       {/* Main Content (Left) */}
       <div className="flex-1 p-6 pb-15 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-        <AffiliateShootHeader activeTab={activeTab} project={project} onBack={onBack} />
+        <AffiliateShootHeader
+          activeTab={activeTab}
+          project={project}
+        />
         <Button
           className="w-full bg-[#202020] text-white hover:bg-[#202020]/50 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 mb-3"
           onClick={() => setIsTimelineOpen(true)}

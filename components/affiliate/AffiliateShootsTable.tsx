@@ -72,11 +72,13 @@ const parseSkills = (skills: string | number[] | null | undefined, skillMap: Rec
 };
 
 interface AffiliateShootsTableProps {
-  onShootClick: (shootId: string) => void;
+  // onShootClick: (shootId: string) => void;
   externalSelectedDate?: Date | null;
 }
 
-export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onShootClick, externalSelectedDate }) => {
+// export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onShootClick, externalSelectedDate }) => {
+export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ externalSelectedDate }) => {
+
   const router = useRouter();
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,7 +193,8 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   const handleRowClick = (id: string) => {
     // Remove the # from the ID
     const cleanId = id.replace('#', '');
-    onShootClick(cleanId);
+    router.push(`/affiliate/shoots/${cleanId}`);
+    // onShootClick(cleanId);
   };
 
   const toggleExpand = (e: React.MouseEvent, id: string) => {
@@ -202,7 +205,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   const handleActionClick = (e: React.MouseEvent, bookingId: string, hasQuote: boolean) => {
     e.stopPropagation();
     if (!hasQuote) {
-      router.push(`/affiliate/dashboard/${bookingId}/edit-booking`);
+      router.push(`/affiliate/shoots/${bookingId}/edit-booking`);
       return;
     }
     router.push(`/search-results/payment?shootId=${bookingId}`);
