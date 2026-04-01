@@ -492,19 +492,26 @@ export default function LeadDetailPage() {
                     Lead Source : <span className={isDark ? "text-white capitalize" : "text-black capitalize"}>{formatLeadSource(lead.lead_source || lead.intent_source)}</span>
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
-                  <div className="relative flex items-center gap-2 flex-wrap">
-                    <p>
+                  <div className="relative inline-flex items-center gap-2 flex-nowrap overflow-visible">
+                    <p className="whitespace-nowrap">
                       Assigned Sales Rep : <span className={isDark ? "text-white" : "text-black"}>{lead.assigned_sales_rep?.name || "Unassigned"}</span>
                     </p>
-                    {!isEditingSalesRep ? (
-                      <button
-                        type="button"
-                        onClick={() => setIsEditingSalesRep(true)}
-                        className={`inline-flex items-center justify-center rounded-md p-1 transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-black hover:bg-black/5"}`}
-                      >
-                          <Pencil size={14} />
-                      </button>
-                    ) : (
+                    <button
+                      type="button"
+                      aria-label={isEditingSalesRep ? "Close sales representative options" : "Edit assigned sales representative"}
+                      onClick={() => {
+                        if (isEditingSalesRep) {
+                          setSelectedSalesRepId(lead.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
+                          setIsEditingSalesRep(false);
+                          return;
+                        }
+                        setIsEditingSalesRep(true);
+                      }}
+                      className={`relative z-30 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-black hover:bg-black/5"}`}
+                    >
+                      {isEditingSalesRep ? <X size={14} /> : <Pencil size={14} />}
+                    </button>
+                    {isEditingSalesRep && (
                       <>
                         <button
                           type="button"

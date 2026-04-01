@@ -49,6 +49,8 @@ interface UserData {
   imageUrl?: string | null;
   intent?: string;
   bookingStatus?: string;
+  assignedSalesRepName?: string;
+  assignedSalesRepEmail?: string;
 
 }
 
@@ -61,6 +63,8 @@ interface LeadData {
   lastActivity: string;
   date: Date;
   intent: string;
+  assignedSalesRepName?: string;
+  assignedSalesRepEmail?: string;
 }
 
 
@@ -343,6 +347,8 @@ export default function AdminSaleRepManagerPage() {
             imageUrl: client.profile_image || client.image || null,
             intent: client.intent || "N/A",
             bookingStatus: client.booking_status || mapLeadStatusToUI(client.payment_status),
+            assignedSalesRepName: client.assigned_sales_rep?.name || "",
+            assignedSalesRepEmail: client.assigned_sales_rep?.email || "",
           }));
           allUsers = mappedClients;
           pagination = clientsPayload.pagination || clientsRes?.pagination;
@@ -406,6 +412,8 @@ export default function AdminSaleRepManagerPage() {
         lastActivity: formatRelativeTime(lead.last_activity_at),
         date: new Date(lead.created_at),
         intent: lead.intent || "Hot",
+        assignedSalesRepName: lead.assigned_sales_rep?.name || "",
+        assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
       }));
       setDisplayLeads(mapped);
     } else if (leadsApiData) {
@@ -656,7 +664,15 @@ export default function AdminSaleRepManagerPage() {
                   <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
                 </td>
                 <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                  {user.phoneNumber}
+                  <div className="space-y-1 min-w-0">
+                    <p>{user.phoneNumber}</p>
+                    {(user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
+                        {user.assignedSalesRepName || "Unassigned"}
+                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
+                      </p>
+                    )}
+                  </div>
                 </td>
                 <td className="py-5 px-6 text-right">
                   <button
@@ -689,7 +705,15 @@ export default function AdminSaleRepManagerPage() {
                 </div>
                 <div className="text-right">
                   <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Contact Info</p>
-                  <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
+                  <div className="space-y-1">
+                    <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
+                    {(user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-black/50"}`}>
+                        {user.assignedSalesRepName || "Unassigned"}
+                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

@@ -133,6 +133,11 @@ export default function ClientDetailPage() {
   const [salesRepOptions, setSalesRepOptions] = useState<{ value: string; label: string }[]>([]);
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);  
 
+  const getAuthToken = useCallback(() => {
+    if (typeof window === "undefined") return "";
+    return Cookies.get("revure_token") || localStorage.getItem("revure_token") || "";
+  }, []);
+
   const updateData = useCallback((newData: Partial<BookingDataV3 & { selectedCrewIds: number[] }>) => {
     setFormData((prev) => ({ ...prev, ...newData }));
   }, []);
@@ -658,7 +663,7 @@ export default function ClientDetailPage() {
     setIsConfirmModalOpen(false);
     setIsSubmitting(true);
     try {
-      const token = Cookies.get("revure_token");
+      const token = getAuthToken();
       // Parse correctly from local time strings
       const startDate = parseDate(formData.startDate);
       const endDate = parseDate(formData.endDate);
@@ -716,6 +721,7 @@ export default function ClientDetailPage() {
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
