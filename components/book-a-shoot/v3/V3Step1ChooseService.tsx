@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import Image from "next/image";
 import { BookingDataV3 } from "./types";
 import { ContentTypeCheckbox } from "./components/ContentTypeCheckbox";
 import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
+import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse, Minus, Plus } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -41,6 +43,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
 import {getFormattedDateString} from "@/lib/utils";
+import { getPhotoEditSummary, getTotalDurationHours, PHOTO_EDIT_ADDON_SET_SIZE } from "./utils";
 
 interface Props {
   data: BookingDataV3;
@@ -145,8 +148,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const navigationRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
 
-  const [isVideoEditOpen, setIsVideoEditOpen] = useState(false);
-  const [isPhotoEditOpen, setIsPhotoEditOpen] = useState(false);
+  const [openEditPanel, setOpenEditPanel] = useState<"video" | "photo" | null>(null);
   const videoEditDropdownRef = useRef<HTMLDivElement>(null);
   const photoEditDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -155,6 +157,16 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
+
+  const getEditSummaryItems = (
+    counts: Record<string, number>,
+    options: { key: string; value: string }[]
+  ) =>
+    Object.entries(counts).map(([key, count]) => ({
+      key,
+      count,
+      label: options.find((option) => option.key === key)?.value || key,
+    }));
 
   const videoEditCounts = React.useMemo(
     () => buildEditCounts(data.videoEditTypes),
@@ -166,6 +178,48 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     [data.photoEditTypes]
   );
 
+  const durationHours = React.useMemo(
+    () => getTotalDurationHours(data.bookingType, data.startDate, data.endDate, data.bookingDays),
+    [data.bookingType, data.startDate, data.endDate, data.bookingDays]
+  );
+
+  const photoEditSetCount = photoEditCounts.edited_photos || 0;
+  const photoEditSummary = React.useMemo(
+    () =>
+      getPhotoEditSummary({
+        shootType: data.shootType,
+        durationHours,
+        selectedAddOnSets: photoEditSetCount,
+      }),
+    [data.shootType, durationHours, photoEditSetCount]
+  );
+
+  const totalVideoEditsSelected = data.videoEditTypes.length;
+  const totalPhotoEditsSelected = data.photoEditTypes.length;
+  const videoEditSummaryItems = React.useMemo(
+    () => getEditSummaryItems(videoEditCounts, editTypeOptions),
+    [videoEditCounts, editTypeOptions]
+  );
+  const photoEditSummaryItems = React.useMemo(
+    () => getEditSummaryItems(photoEditCounts, photoEditTypeOptions),
+    [photoEditCounts, photoEditTypeOptions]
+  );
+  const receiveSummaryText = [
+    data.contentType.includes("photographer") ? `${photoEditSummary.totalCount} Photos` : null,
+    totalVideoEditsSelected > 0 ? `${totalVideoEditsSelected} Videos` : null,
+  ].filter(Boolean).join(" + ");
+
+  const isVideoEditOpen = openEditPanel === "video";
+  const isPhotoEditOpen = openEditPanel === "photo";
+
+  const handleVideoEditToggle = () => {
+    setOpenEditPanel((prev) => (prev === "video" ? null : "video"));
+  };
+
+  const handlePhotoEditToggle = () => {
+    setOpenEditPanel((prev) => (prev === "photo" ? null : "photo"));
+  };
+
   const updateEditQuantity = (type: "video" | "photo", key: string, nextQty: number) => {
     const base = type === "video" ? data.videoEditTypes : data.photoEditTypes;
     const cleaned = base.filter((k) => k !== key);
@@ -175,14 +229,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     } else {
       updateData({ photoEditTypes: next });
     }
-  };
-
-  const getEditDisplayLabel = (
-    key: string,
-    options: { key: string; value: string }[]
-  ) => {
-    const match = options.find((o) => o.key === key);
-    return match ? match.value : key;
   };
 
   const areBookingDaysEqual = (
@@ -220,25 +266,25 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       const target = event.target as Node;
 
       if (
-        isVideoEditOpen &&
+        openEditPanel === "video" &&
         videoEditDropdownRef.current &&
         !videoEditDropdownRef.current.contains(target)
       ) {
-        setIsVideoEditOpen(false);
+        setOpenEditPanel(null);
       }
 
       if (
-        isPhotoEditOpen &&
+        openEditPanel === "photo" &&
         photoEditDropdownRef.current &&
         !photoEditDropdownRef.current.contains(target)
       ) {
-        setIsPhotoEditOpen(false);
+        setOpenEditPanel(null);
       }
     };
 
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [isVideoEditOpen, isPhotoEditOpen]);
+  }, [openEditPanel]);
 
   useEffect(() => {
     setBookingType(data.bookingType || "single_day");
@@ -1535,7 +1581,12 @@ export const V3Step1ChooseService: React.FC<Props> = ({
               </button>
               <button
                 onClick={() => {
-                  updateData({ editsNeeded: false });
+                  setOpenEditPanel(null);
+                  updateData({
+                    editsNeeded: false,
+                    videoEditTypes: [],
+                    photoEditTypes: [],
+                  });
                   scrollToRef(navigationRef);
                 }}
                 disabled={data.shootType === ""}
@@ -1564,212 +1615,164 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   basic revisions.
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Video Edit Type - Show if videographer or cinematographer selected: Commented cinematographer as it is not being mentioned anywhere in UI */}
-                  {data.contentType.includes("videographer") &&
-                    //|| data.contentType.includes("cinematographer")) &&
-                    editTypeOptions.length > 0 && (
-                      <div>
-                        <div ref={videoEditDropdownRef} className="relative w-full max-w-md">
-                          <div
-                            className="min-h-14 lg:min-h-[82px] relative bg-[#101010] rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40"
-                            onClick={() => setIsVideoEditOpen((p) => !p)}
-                          >
-                            <span className="absolute -top-3 left-4 bg-[#101010] px-3 text-sm lg:text-base text-white/60 rounded">
-                              Video Edit Type
-                            </span>
-                            <div className="flex-1 flex flex-wrap items-center gap-2">
-                              {Object.keys(videoEditCounts).length > 0 ? (
-                                Object.entries(videoEditCounts).map(([key, count]) => (
-                                  <div
-                                    key={key}
-                                    className="flex items-center gap-1.5 bg-[#2A2A2A] px-2 py-1 rounded-md text-white text-xs lg:text-sm"
-                                  >
-                                    <span className="truncate max-w-[140px]">
-                                      {getEditDisplayLabel(key, editTypeOptions)}
-                                    </span>
-                                    <span className="text-white/60">x{count}</span>
-                                  </div>
-                                ))
-                              ) : (
-                                <span className="text-white/40 text-sm lg:text-base">Select Video Edit Type</span>
-                              )}
-                            </div>
-                            {isVideoEditOpen ? (
-                              <ChevronUp className="text-white flex-shrink-0" />
-                            ) : (
-                              <ChevronDown className="text-white flex-shrink-0" />
-                            )}
-                          </div>
-
-                          {isVideoEditOpen && (
-                            <div
-                              className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar"
-                              onClick={(e) => e.stopPropagation()}
-                              onMouseDown={(e) => e.stopPropagation()}
-                            >
-                              {editTypeOptions.map((option) => {
-                                const count = videoEditCounts[option.key] || 0;
-                                return (
-                                  <div
-                                    key={option.key}
-                                    className="flex items-center justify-between gap-3 px-4 py-3 text-white/80 hover:bg-white/5"
-                                  >
-                                    <span className="text-sm lg:text-base">{option.value}</span>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          updateEditQuantity("video", option.key, Math.max(0, count - 1));
-                                        }}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40 grid place-items-center"
-                                      >
-                                        <Minus className="h-3.5 w-3.5" />
-                                      </button>
-                                      <span className="min-w-[28px] text-center text-white tabular-nums">{count}</span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          updateEditQuantity("video", option.key, count + 1);
-                                        }}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40 grid place-items-center"
-                                      >
-                                        <Plus className="h-3.5 w-3.5" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                              {data.videoEditTypes.length > 0 && (
-                                <div className="px-4 py-3 border-t border-white/10">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      updateData({ videoEditTypes: [] });
-                                    }}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    className="text-xs text-white/50 hover:text-white/80 underline"
-                                  >
-                                    Clear all
-                                  </button>
-                                </div>
-                              )}
+                <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
+                  {data.contentType.includes("videographer") && editTypeOptions.length > 0 && (
+                    <div ref={videoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+                      <button
+                        type="button"
+                        className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                        onClick={handleVideoEditToggle}
+                      >
+                        <div className="min-w-0 flex flex-1 items-center gap-3">
+                          <div className="shrink-0 text-base lg:text-lg font-medium text-white">Video Edits</div>
+                          {videoEditSummaryItems.length > 0 && (
+                            <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                              {videoEditSummaryItems.map((item) => (
+                                <span
+                                  key={item.key}
+                                  className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                                >
+                                  <span className="truncate max-w-[180px]">{item.label}</span>
+                                  <span className="shrink-0 text-white/50">x{item.count}</span>
+                                </span>
+                              ))}
                             </div>
                           )}
                         </div>
-                      </div>
-                    )}
-
-                  {/* Photo Edit Type - Show if photographer selected */}
-                  {data.contentType.includes("photographer") &&
-                    photoEditTypeOptions.length > 0 && (
-                      <div>
-                        <div ref={photoEditDropdownRef} className="relative w-full max-w-md">
-                          <div
-                            className="min-h-14 lg:min-h-[82px] relative bg-[#101010] rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40"
-                            onClick={() => setIsPhotoEditOpen((p) => !p)}
-                          >
-                            <span className="absolute -top-3 left-4 bg-[#101010] px-3 text-sm lg:text-base text-white/60 rounded">
-                              Photo Edit Type
-                            </span>
-                            <div className="flex-1 flex flex-wrap items-center gap-2">
-                              {Object.keys(photoEditCounts).length > 0 ? (
-                                Object.entries(photoEditCounts).map(([key, count]) => (
-                                  <div
-                                    key={key}
-                                    className="flex items-center gap-1.5 bg-[#2A2A2A] px-2 py-1 rounded-md text-white text-xs lg:text-sm"
-                                  >
-                                    <span className="truncate max-w-[140px]">
-                                      {getEditDisplayLabel(key, photoEditTypeOptions)}
-                                    </span>
-                                    <span className="text-white/60">x{count}</span>
-                                  </div>
-                                ))
-                              ) : (
-                                <span className="text-white/40 text-sm lg:text-base">Select Photo Edit Type</span>
-                              )}
-                            </div>
-                            {isPhotoEditOpen ? (
-                              <ChevronUp className="text-white flex-shrink-0" />
-                            ) : (
-                              <ChevronDown className="text-white flex-shrink-0" />
-                            )}
-                          </div>
-
-                          {isPhotoEditOpen && (
-                            <div
-                              className="absolute top-16 lg:top-[90px] left-0 w-full mt-3 z-30 bg-[#101010] rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar"
-                              onClick={(e) => e.stopPropagation()}
-                              onMouseDown={(e) => e.stopPropagation()}
-                            >
-                              {photoEditTypeOptions.map((option) => {
-                                const count = photoEditCounts[option.key] || 0;
-                                return (
-                                  <div
-                                    key={option.key}
-                                    className="flex items-center justify-between gap-3 px-4 py-3 text-white/80 hover:bg-white/5"
-                                  >
-                                    <span className="text-sm lg:text-base">{option.value}</span>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          updateEditQuantity("photo", option.key, Math.max(0, count - 1));
-                                        }}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40 grid place-items-center"
-                                      >
-                                        <Minus className="h-3.5 w-3.5" />
-                                      </button>
-                                      <span className="min-w-[28px] text-center text-white tabular-nums">{count}</span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          updateEditQuantity("photo", option.key, count + 1);
-                                        }}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                        className="h-7 w-7 rounded-full border border-white/20 text-white/80 hover:border-white/40 grid place-items-center"
-                                      >
-                                        <Plus className="h-3.5 w-3.5" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                              {data.photoEditTypes.length > 0 && (
-                                <div className="px-4 py-3 border-t border-white/10">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      updateData({ photoEditTypes: [] });
-                                    }}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    className="text-xs text-white/50 hover:text-white/80 underline"
-                                  >
-                                    Clear all
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        {photoEditNote && (
-                          <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
-                            <Info size={16} className="mt-0.5 flex-shrink-0" />
-                            <span>{photoEditNote}</span>
-                          </div>
+                        {isVideoEditOpen ? (
+                          <ChevronUp className="text-white flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="text-white flex-shrink-0" />
                         )}
-                      </div>
-                    )}
+                      </button>
+
+                      {isVideoEditOpen && (
+                        <div className="border-t border-white/10 px-5 py-3">
+                          {editTypeOptions.map((option) => {
+                            const count = videoEditCounts[option.key] || 0;
+                            return (
+                              <div
+                                key={option.key}
+                                className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                              >
+                                <span className="text-sm lg:text-base text-white">{option.value}</span>
+                                <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                  <QuantityControl
+                                    value={count}
+                                    onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                                    onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
+                                    className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                                    buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                                    valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {data.contentType.includes("photographer") && photoEditTypeOptions.length > 0 && (
+                    <div ref={photoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+                      <button
+                        type="button"
+                        className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                        onClick={handlePhotoEditToggle}
+                      >
+                        <div className="min-w-0 flex flex-1 items-center gap-3">
+                          <div className="shrink-0 text-base lg:text-lg font-medium text-white">Photo Edits</div>
+                          {photoEditSummaryItems.length > 0 && (
+                            <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                              {photoEditSummaryItems.map((item) => (
+                                <span
+                                  key={item.key}
+                                  className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                                >
+                                  <span className="truncate max-w-[180px]">{item.label}</span>
+                                  <span className="shrink-0 text-white/50">x{item.count}</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {isPhotoEditOpen ? (
+                          <ChevronUp className="text-white flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="text-white flex-shrink-0" />
+                        )}
+                      </button>
+
+                      {isPhotoEditOpen && (
+                        <div className="border-t border-white/10 px-5 py-3">
+                          {photoEditTypeOptions.map((option) => {
+                            const count = photoEditCounts[option.key] || 0;
+                            return (
+                              <div
+                                key={option.key}
+                                className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                              >
+                                <div>
+                                  <div className="text-sm lg:text-base text-white">{option.value}</div>
+                                  <div className="text-xs text-white/40 mt-1">
+                                    +{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set
+                                  </div>
+                                </div>
+                                <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                  <QuantityControl
+                                    value={count}
+                                    onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                                    onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
+                                    className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                                    buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                                    valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          <div className="flex flex-wrap gap-3 pt-4">
+                            <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                              Includes {photoEditSummary.includedCount} free photo edits
+                            </div>
+                            <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
+                              {durationHours} Hour Duration
+                            </div>
+                            <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                              + {photoEditSummary.extraCount} Added Extra
+                            </div>
+                          </div>
+
+                          {photoEditNote && (
+                            <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                              <Info size={16} className="mt-0.5 flex-shrink-0" />
+                              <span>{photoEditNote}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {receiveSummaryText && (
+                  <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black">
+                    <div className="grid h-10 w-10 place-items-center rounded-full bg-black text-[#E8D1AB]">
+                      <Image
+                        src="/images/misc/booking-sparkle.png"
+                        alt=""
+                        width={18}
+                        height={18}
+                        className="h-[18px] w-[18px]"
+                      />
+                    </div>
+                    <p className="text-sm lg:text-base font-semibold">
+                      You&apos;ll Receive {receiveSummaryText}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

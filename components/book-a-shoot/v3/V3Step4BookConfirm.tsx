@@ -36,15 +36,6 @@ import {
   corporateEventEditTypes,
   privateEventEditTypes,
   socialContentEditTypes,
-  weddingPhotoEditTypes,
-  corporateEventPhotoEditTypes,
-  privateEventPhotoEditTypes,
-  musicPhotoEditTypes,
-  commercialPhotoEditTypes,
-  socialContentPhotoEditTypes,
-  brandProductPhotoEditTypes,
-  peopleTeamsPhotoEditTypes,
-  behindScenesPhotoEditTypes,
   videoShootTypes,
   photoShootTypes,
   hybridShootTypes,
@@ -58,7 +49,7 @@ import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { buildEditTypeCounts } from "./utils";
+import { buildEditTypeCounts, getPhotoEditSummary, getTotalDurationHours } from "./utils";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -165,6 +156,43 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(true);
   const [showSalesPopup, setShowSalesPopup] = useState(false);
+  const photoEditCounts = buildEditTypeCounts(data.photoEditTypes);
+  const photoEditSetCount = photoEditCounts.find((item) => item.slug === "edited_photos")?.quantity || 0;
+  const photoEditSummary = getPhotoEditSummary({
+    shootType: data.shootType,
+    durationHours,
+    selectedAddOnSets: photoEditSetCount,
+  });
+  const totalVideoEditsSelected = data.videoEditTypes.length;
+  const editingSidebarRows = [
+    data.contentType.includes("photographer")
+      ? {
+        label: "Photos Included",
+        value: `${photoEditSummary.includedCount} Photos`,
+        badge: "Free",
+      }
+      : null,
+    photoEditSummary.extraCount > 0
+      ? {
+        label: `Extra Photo Units x${photoEditSetCount}`,
+        value: `${photoEditSummary.extraCount} Photos`,
+      }
+      : null,
+    totalVideoEditsSelected > 0
+      ? {
+        label: "Video Included",
+        value: String(totalVideoEditsSelected).padStart(2, "0"),
+      }
+      : null,
+  ].filter(Boolean) as Array<{ label: string; value: string; badge?: string }>;
+  const receiveSummaryText = [
+    data.contentType.includes("photographer") ? `${photoEditSummary.totalCount} Photos` : null,
+    totalVideoEditsSelected > 0 ? `${totalVideoEditsSelected} Videos Edits` : null,
+  ].filter(Boolean).join(" + ");
+  const totalEditsBadgeText = [
+    data.contentType.includes("photographer") ? `${photoEditSummary.totalCount} Photos` : null,
+    totalVideoEditsSelected > 0 ? `${totalVideoEditsSelected} Videos` : null,
+  ].filter(Boolean).join(" + ");
 
 
   const formatShootTypeLabel = (value: string) => {
@@ -267,32 +295,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
   // Calculate duration in hours
   useEffect(() => {
-    if (data.bookingType === "multi_day" && data.bookingDays && data.bookingDays.length > 0) {
-      const total = data.bookingDays.reduce((sum, d) => {
-        if (!d.startTime || !d.endTime) return sum;
-        const [sh, sm] = d.startTime.split(":").map(Number);
-        const [eh, em] = d.endTime.split(":").map(Number);
-        if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return sum;
-        const startMinutes = sh * 60 + sm;
-        const endMinutes = eh * 60 + em;
-        const diff = endMinutes - startMinutes;
-        if (diff <= 0) return sum;
-        return sum + diff / 60;
-      }, 0);
-      setDurationHours(Math.max(1, Math.round(total)));
-      return;
-    }
-
-    if (!data.startDate || !data.endDate) {
-      setDurationHours(0);
-      return;
-    }
-
-    const start = new Date(data.startDate);
-    const end = new Date(data.endDate);
-    const diffMs = end.getTime() - start.getTime();
-    const hours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
-    setDurationHours(hours);
+    setDurationHours(
+      getTotalDurationHours(data.bookingType, data.startDate, data.endDate, data.bookingDays)
+    );
   }, [data.startDate, data.endDate, data.bookingType, data.bookingDays]);
 
   // Calculate quote when component mounts or data changes
@@ -504,27 +509,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     });
   };
 
-  // Helper to get labels for Photo Edits
-  const getPhotoEditLabels = (keys: string[]) => {
-    // Combine all photo arrays into one for searching
-    const allPhotoOptions = [
-      ...weddingPhotoEditTypes, ...corporateEventPhotoEditTypes, ...privateEventPhotoEditTypes,
-      ...musicPhotoEditTypes, ...commercialPhotoEditTypes, ...socialContentPhotoEditTypes,
-      ...brandProductPhotoEditTypes, ...peopleTeamsPhotoEditTypes, ...behindScenesPhotoEditTypes
-    ];
-
-    const counts = keys.reduce<Record<string, number>>((acc, key) => {
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-
-    return Object.entries(counts).map(([key, count]) => {
-      const match = allPhotoOptions.find(opt => opt.key === key);
-      const label = match ? match.value : key;
-      return count > 1 ? `${label} x${count}` : label;
-    });
-  };
-
   const handleConnectSales = () => {
     // add GA event on connect to sales click
     pushToDataLayer("booking_payment_confirm_sales", {
@@ -664,10 +648,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
               {/* Editing Services */}
               <div className="rounded-[16px] border border-white/5 bg-[#171717]">
-                <div className="p-4 lg:p-[30px] border-b border-b-white/5">
+                <div className="p-4 lg:p-[30px] border-b border-b-white/5 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                   <h4 className="text-white text-base lg:text-xl font-medium capitalize tracking-wide">
                     Editing Services
                   </h4>
+                  <p className="text-[#E8D1AB] text-sm lg:text-base italic font-medium">
+                    {receiveSummaryText ? `You'll Receive ${receiveSummaryText}` : "No edits selected"}
+                  </p>
                 </div>
                 <div className="p-4 lg:p-[30px] space-y-4">
 
@@ -692,15 +679,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     <div className="flex flex-col gap-2 text-sm">
                       <span className="text-white">Photo Edit</span>
                       <div className="flex flex-wrap gap-2">
-                        {data.photoEditTypes.length > 0 ? (
-                          getPhotoEditLabels(data.photoEditTypes).map((label, i) => (
-                            <span key={i} className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
-                              {label}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-white/40">Raw Photos Only (No Edits)</span>
-                        )}
+                        <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
+                          Edited Photos {photoEditSummary.includedCount} Included
+                          {photoEditSummary.extraCount > 0 ? ` + ${photoEditSummary.extraCount} Added` : ""}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -709,6 +691,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   {!data.contentType.includes("videographer") && !data.contentType.includes("photographer") && (
                     <span className="text-white/40 text-sm">No editing services selected.</span>
                   )}
+
                 </div>
               </div>
             </div>
@@ -879,6 +862,39 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                         </span>
                       </div>
                     </div>
+
+                    {(editingSidebarRows.length > 0 || totalEditsBadgeText) && (
+                      <div className="bg-[#101010] rounded-lg p-4 border border-white/5 space-y-3">
+                        <div className="text-xs font-medium text-white/40 uppercase tracking-wide">
+                          + Editing Services
+                        </div>
+                        <div className="space-y-2">
+                          {editingSidebarRows.map((item) => (
+                            <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
+                              <div className="flex items-start gap-3 text-white">
+                                <span>{item.label}</span>
+                                {item.badge && (
+                                  <span className="mt-0.5 rounded-[7px] bg-[#E8D1AB] px-2 py-[2px] text-[10px] font-semibold leading-none text-[#171717]">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-semibold text-[#E8D1AB]">
+                                {item.value}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        {totalEditsBadgeText && (
+                          <div className="flex items-center justify-between rounded-xl border border-[#4D402C] bg-[#1D1812] px-4 py-3 text-sm">
+                            <span className="text-[#E8D1AB]/80">Total Edits</span>
+                            <span className="font-semibold text-[#E8D1AB]">
+                              {totalEditsBadgeText}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Detailed Pricing Breakdown - UPDATED CATEGORIZATION */}
                     {/* Detailed Pricing Breakdown */}
