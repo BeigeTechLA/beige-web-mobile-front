@@ -39,7 +39,7 @@ import {
 } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
-import QuotePreviewModal from "@/components/admin/quotes/QuotePreviewModal";
+import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
 import { formatQuoteItemDisplayName } from "@/lib/quoteDetail";
 import {
@@ -63,7 +63,7 @@ import {
   extractQuoteIdFromResponse,
   unwrapSalesQuoteDetail,
 } from "@/lib/salesQuotePreview";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
 const clients = [
@@ -1132,20 +1132,18 @@ export default function CreateQuotePage() {
     );
   };
 
-  const getAddonDraftTotal = (addonId: string) => {
+  const getAddonDraftPrice = (addonId: string) => {
     const config = addonConfigs[addonId];
     if (!config) return 0;
-    return config.quantity * config.price;
+    return config.price;
   };
 
-  const handleAddonTotalUpdate = (addonId: string, value: string) => {
+  const handleAddonPriceUpdate = (addonId: string, value: string) => {
     const config = addonConfigs[addonId];
     if (!config) return;
 
-    const quantity = Math.max(1, config.quantity);
-    const totalValue = parseFloat(value.replace(/\$/g, "").trim()) || 0;
-
-    handleAddonConfigUpdate(addonId, "price", totalValue / quantity);
+    const nextPrice = parseFloat(value.replace(/\$/g, "").trim()) || 0;
+    handleAddonConfigUpdate(addonId, "price", nextPrice);
   };
 
   const removeLogisticsItem = (itemId: string) => {
@@ -1726,7 +1724,7 @@ export default function CreateQuotePage() {
     ? "__selected_shoot_type__"
     : "";
   const totalAddOnsCost = selectedAddons.reduce((total, addonId) => {
-    const config = appliedAddonConfigs[addonId];
+    const config = addonConfigs[addonId] ?? appliedAddonConfigs[addonId];
     if (!config) return total;
     return total + config.quantity * config.price;
   }, 0);
@@ -1868,6 +1866,9 @@ export default function CreateQuotePage() {
       appliedLineItemConfigs,
     });
 
+  const delayAfterSuccessToast = () =>
+    new Promise((resolve) => window.setTimeout(resolve, 450));
+
   const saveQuoteDraft = async (action: "preview" | "save" | "draft") => {
     if (isCreatingQuoteDraft) return;
 
@@ -1930,6 +1931,7 @@ export default function CreateQuotePage() {
             ? "Quote updated successfully"
             : "Quote saved successfully",
         );
+        await delayAfterSuccessToast();
         router.push("/admin/quotes");
         return;
       }
@@ -3124,9 +3126,9 @@ export default function CreateQuotePage() {
                                 {/* Price Override */}
                                 <div className="relative w-[190px]">
                                   <Input
-                                    value={`$ ${formatAddonDisplayValue(getAddonDraftTotal(addonId))}`}
+                                    value={`$ ${formatAddonDisplayValue(getAddonDraftPrice(addonId))}`}
                                     onChange={(e) =>
-                                      handleAddonTotalUpdate(
+                                      handleAddonPriceUpdate(
                                         addonId,
                                         e.target.value,
                                       )
@@ -3202,9 +3204,9 @@ export default function CreateQuotePage() {
                               <div className="flex gap-3 items-center">
                                 <div className="relative flex-1">
                                   <Input
-                                    value={`$ ${formatAddonDisplayValue(getAddonDraftTotal(addonId))}`}
+                                    value={`$ ${formatAddonDisplayValue(getAddonDraftPrice(addonId))}`}
                                     onChange={(e) =>
-                                      handleAddonTotalUpdate(
+                                      handleAddonPriceUpdate(
                                         addonId,
                                         e.target.value,
                                       )

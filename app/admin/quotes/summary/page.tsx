@@ -4,7 +4,7 @@ import React from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import Topbar from "@/components/admin/Topbar";
-import QuotePreviewModal from "@/components/admin/quotes/QuotePreviewModal";
+import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import QuoteSummaryContent from "@/components/admin/quotes/QuoteSummaryContent";
 import { Button } from "@/components/ui/button";
 import {

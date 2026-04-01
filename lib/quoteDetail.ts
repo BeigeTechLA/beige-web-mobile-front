@@ -1,4 +1,5 @@
 import type { SalesQuoteDetailData, SalesQuoteDetailLineItem } from "@/lib/api";
+import { getDefaultQuoteTerms } from "@/lib/quoteTerms";
 
 export type NormalizedQuoteLineItemSection = "service" | "addon" | "logistics" | "custom";
 
@@ -184,23 +185,48 @@ export const normalizeQuoteLineItems = (
     };
   });
 
-export const normalizeQuoteTerms = (value: unknown) => {
+export const normalizeQuoteTerms = (
+  value: unknown,
+  fallbackTerms: string[] = getDefaultQuoteTerms()
+) => {
   if (Array.isArray(value)) {
-    return value
+    const terms = value
       .map((item) => (typeof item === "string" ? item.trim() : ""))
       .filter(Boolean);
+
+    return terms.length > 0 ? terms : fallbackTerms;
   }
 
   if (typeof value === "string" && value.trim()) {
-    const terms = value
+    const trimmedValue = value.trim();
+
+    if (trimmedValue.startsWith("[") && trimmedValue.endsWith("]")) {
+      try {
+        const parsedValue = JSON.parse(trimmedValue);
+
+        if (Array.isArray(parsedValue)) {
+          const terms = parsedValue
+            .map((item) => (typeof item === "string" ? item.trim() : ""))
+            .filter(Boolean);
+
+          return terms.length > 0 ? terms : fallbackTerms;
+        }
+      } catch {
+        // Fall back to plain-text parsing below.
+      }
+    }
+
+    const normalizedValue = trimmedValue.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+
+    const terms = normalizedValue
       .split(/\r?\n|â€¢|•/)
       .map((item) => item.trim())
       .filter(Boolean);
 
-    return terms.length > 0 ? terms : [value.trim()];
+    return terms.length > 0 ? terms : fallbackTerms;
   }
 
-  return ["50% deposit required before production starts."];
+  return fallbackTerms;
 };
 
 export const getQuoteSalesperson = (quote: SalesQuoteDetailData | null) => {

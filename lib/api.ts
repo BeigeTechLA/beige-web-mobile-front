@@ -13,6 +13,14 @@ const api = axios.create({
   withCredentials: true,
 });
 
+const publicApi = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: false,
+});
+
 // Add request interceptor to include JWT token
 api.interceptors.request.use(
   (config) => {
@@ -223,6 +231,29 @@ export interface QuotesDashboardOverview {
   total_amount: number;
 }
 
+export interface QuotesDashboardGrowthPeriod {
+  total_quotes: number;
+  accepted_quotes: number;
+  pending_quotes: number;
+  draft_quotes: number;
+  rejected_quotes: number;
+  expired_quotes: number;
+  total_amount: number;
+}
+
+export interface QuotesDashboardGrowth {
+  compare_label: string;
+  total_quotes: number;
+  accepted_quotes: number;
+  pending_quotes: number;
+  draft_quotes: number;
+  rejected_quotes: number;
+  expired_quotes: number;
+  total_amount: number;
+  current_period: QuotesDashboardGrowthPeriod;
+  previous_period: QuotesDashboardGrowthPeriod;
+}
+
 export interface QuotesDashboardChartItem {
   label: string;
   quote_count: number;
@@ -231,6 +262,7 @@ export interface QuotesDashboardChartItem {
 
 export interface QuotesDashboardData {
   overview: QuotesDashboardOverview;
+  growth?: QuotesDashboardGrowth | null;
   chart: QuotesDashboardChartItem[];
 }
 
@@ -397,6 +429,13 @@ export interface SalesQuoteDetailResponse {
 }
 
 export interface SalesQuoteStatusUpdateResponse {
+  success: boolean;
+  data: SalesQuoteDetailData | null;
+  error?: string;
+  message?: string;
+}
+
+export interface SalesQuoteSendResponse {
   success: boolean;
   data: SalesQuoteDetailData | null;
   error?: string;
@@ -1828,6 +1867,34 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch quote detail',
+      };
+    }
+  },
+  getPublicQuoteDetail: async (quoteId: number | string) => {
+    try {
+      const response = await publicApi.get<SalesQuoteDetailResponse>(
+        `/sales/quotes/public/${quoteId}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Public Quote Detail Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch public quote detail',
+      };
+    }
+  },
+  sendQuoteProposal: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteSendResponse>(`/sales/quotes/${quoteId}/send`, {});
+      return response.data;
+    } catch (error: any) {
+      console.error('Send Quote Proposal Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to send quote proposal',
       };
     }
   },

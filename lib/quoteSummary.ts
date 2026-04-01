@@ -1,6 +1,7 @@
 import { differenceInCalendarDays, isValid, parseISO, startOfDay } from "date-fns";
 
 import type { SalesQuoteDetailData, SalesQuoteDetailLineItem } from "@/lib/api";
+import { getDefaultQuoteTerms } from "@/lib/quoteTerms";
 
 export const ADMIN_QUOTE_SUMMARY_STORAGE_KEY = "admin-quote-summary";
 export const SALES_QUOTE_SUMMARY_STORAGE_KEY = "sales-quote-summary";
@@ -138,8 +139,6 @@ export interface QuoteValidationResult {
   isValid: boolean;
   missingFields: string[];
 }
-
-const DEFAULT_TERMS = "50% deposit required before production starts.";
 
 const hasText = (value: string) => value.trim().length > 0;
 
@@ -294,12 +293,6 @@ const buildSimpleItems = (
     })
     .filter((item): item is QuoteSummaryLineItem => item !== null);
 
-const normalizeTerms = (value: string) =>
-  value
-    .split(/\r?\n|•/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
 export const buildQuoteSummarySnapshot = (
   input: BuildQuoteSummaryInput
 ): QuoteSummarySnapshot => {
@@ -341,7 +334,7 @@ export const buildQuoteSummarySnapshot = (
       : discountValue;
   const discountAmount = Math.min(rawDiscountAmount, amountAfterTax);
   const quoteValidityDays = resolveValidityDays(input.validityDays, input.validUntil);
-  const termsConditions = normalizeTerms(DEFAULT_TERMS);
+  const termsConditions = getDefaultQuoteTerms(input.validUntil);
 
   return {
     clientName: input.clientName.trim() || input.selectedClient?.name?.trim() || "Client",
