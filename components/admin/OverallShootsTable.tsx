@@ -93,9 +93,11 @@ export const OverallShootsTable = () => {
   const [status, setStatus] = useState<string>("all");
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
-
   useEffect(() => {
     setMounted(true);
+  }, [])
+
+  useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {

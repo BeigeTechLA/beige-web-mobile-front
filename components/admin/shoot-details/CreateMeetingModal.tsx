@@ -55,7 +55,6 @@ export default function CreateMeetingModal({ isOpen, onClose, isDark = true }: C
 
                 {/* Content */}
                 <div className="p-6 pt-2 space-y-5">
-
                     {/* Title Info Box */}
                     <div className={`${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB] shadow-sm"} rounded-xl p-5`}>
                         <p className="text-black font-semibold text-base">

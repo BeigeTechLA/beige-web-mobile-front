@@ -127,7 +127,7 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
             </h3>
 
             <div className={cn(
-                "w-full h-px bg-dashed border-t border-dashed absolute top-20 left-0 transition-colors duration-300",
+                "w-full h-px border-t absolute top-20 left-0 transition-colors duration-300",
                 isDark ? "border-[#333333]" : "border-[#E5E5E5]"
             )} />
 

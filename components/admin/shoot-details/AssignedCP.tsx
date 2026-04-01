@@ -93,7 +93,7 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
         Assigned CP
       </h3>
 
-      <div className={`w-full h-px bg-dashed border-t border-dashed absolute top-20 left-0 transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
+      <div className={`w-full h-px border-t absolute top-20 left-0 transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
         }`} />
       {
         hasCPs ? (
@@ -146,7 +146,7 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
             </div>
 
             {/* Text Info - Added to match ProjectTeam symmetry */}
-            <div className="mt-auto lg:mb-4 text-center z-10 relative">
+            <div className="mt-auto lg:mb-2 text-center z-10 relative">
               <h4 className={`lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300 ${isDark ? "text-white" : "text-black"}`}>
                 {crewMembers[activeIndex]?.crew_member ? `${crewMembers[activeIndex].crew_member.first_name} ${crewMembers[activeIndex].crew_member.last_name}` : "Unknown"}
               </h4>
