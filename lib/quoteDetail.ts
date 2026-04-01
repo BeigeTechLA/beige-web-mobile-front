@@ -31,6 +31,16 @@ export const getQuoteText = (...values: unknown[]) => {
   return "";
 };
 
+export const formatQuoteItemDisplayName = (value: string) => {
+  const normalizedValue = value.trim().toLowerCase().replace(/[_\s]+/g, " ");
+
+  if (normalizedValue === "ai editing") {
+    return "Editing";
+  }
+
+  return value.trim();
+};
+
 export const getQuoteNumber = (...values: unknown[]): number | undefined => {
   for (const value of values) {
     if (typeof value === "number" && Number.isFinite(value)) {
@@ -162,7 +172,9 @@ export const normalizeQuoteLineItems = (
 
     return {
       id: String(item.line_item_id ?? item.catalog_item_id ?? item.item_id ?? item.id ?? index),
-      name: getQuoteText(item.item_name, item.name, item.label, "Line Item"),
+      name: formatQuoteItemDisplayName(
+        getQuoteText(item.item_name, item.name, item.label, "Line Item")
+      ),
       section,
       quantity,
       duration,

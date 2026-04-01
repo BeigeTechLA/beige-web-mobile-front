@@ -2,7 +2,6 @@
 
 import React from "react";
 import {
-  ArrowDownToLine,
   ArrowLeft,
   Copy,
   Loader2,
@@ -28,12 +27,14 @@ const PreviewActionButton = ({
   children,
   onClick,
   className,
+  disabled = false,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   className?: string;
+  disabled?: boolean;
 }) => (
-  <Button type="button" onClick={onClick} className={className}>
+  <Button type="button" onClick={onClick} disabled={disabled} className={className}>
     {children}
   </Button>
 );
@@ -71,12 +72,6 @@ export default function QuotePreviewModal({
     toast.success("Quote link copied");
   };
 
-  const handlePrint = () => {
-    if (typeof window !== "undefined") {
-      window.print();
-    }
-  };
-
   const handleSendQuote = () => {
     toast("Send quote action is not available yet.");
   };
@@ -111,13 +106,20 @@ export default function QuotePreviewModal({
               <Copy size={18} className="mr-2" />
               Copy Link
             </PreviewActionButton>
-            <PreviewActionButton
-              onClick={handlePrint}
-              className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
+            {/* <PreviewActionButton
+              onClick={() => {
+                void handleDownloadPdf();
+              }}
+              disabled={!quoteData || isDownloadingPdf}
+              className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323] disabled:opacity-60"
             >
-              <ArrowDownToLine size={18} className="mr-2" />
-              Download PDF
-            </PreviewActionButton>
+              {isDownloadingPdf ? (
+                <Loader2 size={18} className="mr-2 animate-spin" />
+              ) : (
+                <ArrowDownToLine size={18} className="mr-2" />
+              )}
+              {isDownloadingPdf ? "Downloading..." : "Download PDF"}
+            </PreviewActionButton> */}
             <PreviewActionButton
               onClick={handleSendQuote}
               className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
@@ -154,13 +156,20 @@ export default function QuotePreviewModal({
                     <Copy size={18} className="mr-2" />
                     Copy Link
                   </PreviewActionButton>
-                  <div className="grid grid-cols-2 gap-2">
+                  {/* <div className="grid grid-cols-2 gap-2">
                     <PreviewActionButton
-                      onClick={handlePrint}
-                      className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                      onClick={() => {
+                        void handleDownloadPdf();
+                      }}
+                      disabled={!quoteData || isDownloadingPdf}
+                      className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323] disabled:opacity-60"
                     >
-                      <ArrowDownToLine size={18} className="mr-2" />
-                      PDF
+                      {isDownloadingPdf ? (
+                        <Loader2 size={18} className="mr-2 animate-spin" />
+                      ) : (
+                        <ArrowDownToLine size={18} className="mr-2" />
+                      )}
+                      {isDownloadingPdf ? "Downloading..." : "PDF"}
                     </PreviewActionButton>
                     <PreviewActionButton
                       onClick={handleSendQuote}
@@ -169,7 +178,14 @@ export default function QuotePreviewModal({
                       <Send size={18} className="mr-2" />
                       Send
                     </PreviewActionButton>
-                  </div>
+                  </div> */}
+                  <PreviewActionButton
+                    onClick={handleSendQuote}
+                    className="h-11 rounded-xl bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                  >
+                    <Send size={18} className="mr-2" />
+                    Send
+                  </PreviewActionButton>
                 </div>
 
                 <div>

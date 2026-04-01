@@ -210,7 +210,7 @@ const buildServiceItems = (
         return null;
       }
 
-      const quantity = Math.max(1, normalizeNumber(config.quantity));
+      const quantity = 1;
       const duration = Math.max(0, normalizeNumber(config.duration));
       const crew = Math.max(1, normalizeNumber(config.crewSize));
       const unitRate = Math.max(
@@ -218,6 +218,9 @@ const buildServiceItems = (
         normalizeNumber(config.estimatedPrice || service.price || service.basePrice)
       );
       const serviceName = service.label?.trim() || service.name?.trim() || "Service";
+      const normalizedServiceName = serviceName.toLowerCase();
+      const shouldShowShootTypeSubtitle =
+        normalizedServiceName === "videography" || normalizedServiceName === "photography";
 
       return {
         id: String(service.id),
@@ -227,8 +230,8 @@ const buildServiceItems = (
         duration,
         crew,
         unitRate,
-        amount: quantity * Math.max(duration, 1) * Math.max(crew, 1) * unitRate,
-        subtitle: shootTypeLabel ? `(${shootTypeLabel})` : undefined,
+        amount: Math.max(duration, 1) * Math.max(crew, 1) * unitRate,
+        subtitle: shouldShowShootTypeSubtitle && shootTypeLabel ? `(${shootTypeLabel})` : undefined,
       };
     })
     .filter((item): item is QuoteSummaryLineItem => item !== null);

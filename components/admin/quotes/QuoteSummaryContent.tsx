@@ -2,7 +2,6 @@
 
 import React from "react";
 import {
-  ArrowLeft,
   CalendarDays,
   FileText,
   Film,
@@ -14,12 +13,12 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { formatQuoteItemDisplayName } from "@/lib/quoteDetail";
 import { getInitials } from "@/lib/utils";
 import type { QuoteSummaryLineItem, QuoteSummarySnapshot } from "@/lib/quoteSummary";
 
 type QuoteSummaryContentProps = {
   snapshot: QuoteSummarySnapshot | null;
-  onBack: () => void;
   onPreview: () => void;
   previewDisabled?: boolean;
   emptyStateAction: () => void;
@@ -87,7 +86,9 @@ const SectionCard = ({
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-white lg:text-base">{item.name}</p>
+                <p className="text-sm font-medium text-white lg:text-base">
+                  {formatQuoteItemDisplayName(item.name)}
+                </p>
                 {item.subtitle ? (
                   <p className="mt-1 text-xs text-[#A1A1AA] lg:text-sm">{item.subtitle}</p>
                 ) : null}
@@ -129,7 +130,6 @@ const InfoTile = ({
 
 export default function QuoteSummaryContent({
   snapshot,
-  onBack,
   onPreview,
   previewDisabled = false,
   emptyStateAction,
@@ -137,16 +137,6 @@ export default function QuoteSummaryContent({
 }: QuoteSummaryContentProps) {
   return (
     <div className="px-4 pb-24 pt-6 lg:px-9 lg:pb-12 lg:pt-8">
-      <div className="mb-7 flex items-center justify-between">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-[15px] text-[#D4D4D4] transition-colors hover:text-white"
-        >
-          <ArrowLeft size={18} />
-          Back
-        </button>
-      </div>
-
       {!snapshot ? (
         <div className="rounded-[20px] border border-white/10 bg-[#171717] p-6 text-center lg:p-10">
           <p className="text-xl font-semibold text-white">Quote summary unavailable</p>

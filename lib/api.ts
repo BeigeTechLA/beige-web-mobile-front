@@ -396,6 +396,13 @@ export interface SalesQuoteDetailResponse {
   error?: string;
 }
 
+export interface SalesQuoteStatusUpdateResponse {
+  success: boolean;
+  data: SalesQuoteDetailData | null;
+  error?: string;
+  message?: string;
+}
+
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
   validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
@@ -1770,6 +1777,19 @@ export const salesApi = {
       };
     }
   },
+  updateQuote: async (quoteId: number | string, data: Record<string, unknown>) => {
+    try {
+      const response = await api.put<SalesQuoteDetailResponse>(`/sales/quotes/${quoteId}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Quote Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update quote',
+      };
+    }
+  },
   getQuotesDashboard: async (params: { range?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get<QuotesDashboardResponse>('/sales/quotes/dashboard', { params });
@@ -1808,6 +1828,22 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch quote detail',
+      };
+    }
+  },
+  updateQuoteStatus: async (quoteId: number | string, status: string) => {
+    try {
+      const response = await api.patch<SalesQuoteStatusUpdateResponse>(
+        `/sales/quotes/${quoteId}/status`,
+        { status }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Quote Status Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update quote status',
       };
     }
   },

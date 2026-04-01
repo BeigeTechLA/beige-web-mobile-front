@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ArrowDownToLine, ArrowLeft, Copy, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Copy, Loader2, Send } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 
@@ -33,12 +33,14 @@ const ActionButton = ({
   onClick,
   className,
   children,
+  disabled = false,
 }: {
   onClick: () => void;
   className: string;
   children: React.ReactNode;
+  disabled?: boolean;
 }) => (
-  <Button type="button" onClick={onClick} className={className}>
+  <Button type="button" onClick={onClick} disabled={disabled} className={className}>
     {children}
   </Button>
 );
@@ -154,12 +156,6 @@ export default function QuotePreviewPageShell({
     toast.success("Quote link copied");
   };
 
-  const handlePrint = () => {
-    if (typeof window !== "undefined") {
-      window.print();
-    }
-  };
-
   const handleSendQuote = () => {
     toast("Send quote action is not available yet.");
   };
@@ -183,13 +179,20 @@ export default function QuotePreviewPageShell({
         <Copy size={18} className="mr-2" />
         Copy Link
       </ActionButton>
-      <ActionButton
-        onClick={handlePrint}
-        className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
+      {/* <ActionButton
+        onClick={() => {
+          void handleDownloadPdf();
+        }}
+        className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323] disabled:opacity-60"
+        disabled={!quote || isDownloadingPdf}
       >
-        <ArrowDownToLine size={18} className="mr-2" />
-        Download PDF
-      </ActionButton>
+        {isDownloadingPdf ? (
+          <Loader2 size={18} className="mr-2 animate-spin" />
+        ) : (
+          <ArrowDownToLine size={18} className="mr-2" />
+        )}
+        {isDownloadingPdf ? "Downloading..." : "Download PDF"}
+      </ActionButton> */}
       <ActionButton
         onClick={handleSendQuote}
         className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
@@ -219,13 +222,20 @@ export default function QuotePreviewPageShell({
             <Copy size={18} className="mr-2" />
             Copy Link
           </ActionButton>
-          <div className="grid grid-cols-2 gap-2">
+          {/* <div className="grid grid-cols-2 gap-2">
             <ActionButton
-              onClick={handlePrint}
-              className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+              onClick={() => {
+                void handleDownloadPdf();
+              }}
+              className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323] disabled:opacity-60"
+              disabled={!quote || isDownloadingPdf}
             >
-              <ArrowDownToLine size={18} className="mr-2" />
-              PDF
+              {isDownloadingPdf ? (
+                <Loader2 size={18} className="mr-2 animate-spin" />
+              ) : (
+                <ArrowDownToLine size={18} className="mr-2" />
+              )}
+              {isDownloadingPdf ? "Downloading..." : "PDF"}
             </ActionButton>
             <ActionButton
               onClick={handleSendQuote}
@@ -234,7 +244,14 @@ export default function QuotePreviewPageShell({
               <Send size={18} className="mr-2" />
               Send
             </ActionButton>
-          </div>
+          </div> */}
+          <ActionButton
+            onClick={handleSendQuote}
+            className="h-11 rounded-xl bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+          >
+            <Send size={18} className="mr-2" />
+            Send
+          </ActionButton>
         </div>
 
         <button

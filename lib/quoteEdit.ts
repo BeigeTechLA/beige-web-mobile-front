@@ -20,6 +20,7 @@ export type QuoteEditorClient = {
   name?: string;
   email?: string;
   phone?: string;
+  address?: string;
 };
 
 export type QuoteEditorServiceItem = {
@@ -105,7 +106,14 @@ type BuildQuoteEditorHydrationInput = {
   lineItems: QuoteEditorSimpleItem[];
 };
 
+type QuoteEditorNavigationCacheEntry = {
+  cachedAt: number;
+  quote: SalesQuoteDetailData;
+};
+
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const QUOTE_EDITOR_NAVIGATION_CACHE_PREFIX = "quote-editor-navigation";
+const QUOTE_EDITOR_NAVIGATION_CACHE_TTL_MS = 10 * 60 * 1000;
 
 const EDITOR_VIEW_SET = new Set<QuoteEditorView>([
   "selection",
@@ -267,6 +275,70 @@ const ensureDateInputValue = (value: string | null, fallbackDays = 7) => {
   return format(addDays(new Date(), fallbackDays), "yyyy-MM-dd");
 };
 
+const getQuoteEditorNavigationCacheKey = (quoteId: string) =>
+  `${QUOTE_EDITOR_NAVIGATION_CACHE_PREFIX}:${quoteId}`;
+
+export const persistQuoteEditorNavigationCache = (
+  quoteId: string,
+  quote: SalesQuoteDetailData
+) => {
+  if (typeof window === "undefined" || !quoteId.trim()) {
+    return;
+  }
+
+  try {
+    const cacheEntry: QuoteEditorNavigationCacheEntry = {
+      cachedAt: Date.now(),
+      quote,
+    };
+
+    window.sessionStorage.setItem(
+      getQuoteEditorNavigationCacheKey(quoteId),
+      JSON.stringify(cacheEntry)
+    );
+  } catch (error) {
+    console.error("Failed to store quote editor navigation cache", error);
+  }
+};
+
+export const readQuoteEditorNavigationCache = (quoteId: string) => {
+  if (typeof window === "undefined" || !quoteId.trim()) {
+    return null;
+  }
+
+  try {
+    const rawValue = window.sessionStorage.getItem(
+      getQuoteEditorNavigationCacheKey(quoteId)
+    );
+
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsedValue = JSON.parse(rawValue) as QuoteEditorNavigationCacheEntry;
+    if (
+      !parsedValue ||
+      typeof parsedValue !== "object" ||
+      typeof parsedValue.cachedAt !== "number" ||
+      !parsedValue.quote
+    ) {
+      window.sessionStorage.removeItem(getQuoteEditorNavigationCacheKey(quoteId));
+      return null;
+    }
+
+    if (Date.now() - parsedValue.cachedAt > QUOTE_EDITOR_NAVIGATION_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(getQuoteEditorNavigationCacheKey(quoteId));
+      return null;
+    }
+
+    return parsedValue.quote;
+  } catch (error) {
+    console.error("Failed to read quote editor navigation cache", error);
+    window.sessionStorage.removeItem(getQuoteEditorNavigationCacheKey(quoteId));
+    return null;
+  }
+};
+
 export const normalizeQuoteEditorView = (
   value: string | null | undefined,
   fallback: QuoteEditorView = "details"
@@ -343,7 +415,7 @@ export const buildQuoteEditorHydrationState = ({
       }
 
       serviceConfigs[resolvedService.id] = {
-        quantity: Math.max(1, getQuoteNumber(lineItem.quantity) ?? 1),
+        quantity: 1,
         duration: Math.max(
           0,
           getQuoteNumber(lineItem.duration_hours, lineItem.duration, lineItem.hours) ?? 0
@@ -439,6 +511,7 @@ export const buildQuoteEditorHydrationState = ({
       name: getQuoteText(quote.client_name, clientUser?.name),
       email: getQuoteText(quote.client_email, quote.guest_email, clientUser?.email),
       phone: getQuoteText(quote.client_phone, clientUser?.phone),
+      address: getQuoteText(quote.client_address, quote.address, quote.location),
     },
     clientName: getQuoteText(quote.client_name, clientUser?.name),
     emailId: getQuoteText(quote.client_email, quote.guest_email, clientUser?.email),
