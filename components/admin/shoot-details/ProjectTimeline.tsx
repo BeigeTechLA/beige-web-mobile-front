@@ -24,8 +24,6 @@ export default function ProjectTimeline({ status = 0 }: { status?: number }) {
 
     const isDark = !mounted || (resolvedTheme === "dark" || theme === "dark");
 
-    if (!mounted) return null;
-
     // Mapping project status (0-5) to timeline step indices
     // 0: Initiated -> Step 1
     // 1: Pre Production -> Step 2

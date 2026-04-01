@@ -6,6 +6,7 @@ import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, ChevronD
 import { toast } from "sonner";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
+import Cookies from "js-cookie";
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -126,6 +127,11 @@ export default function ClientDetailPage() {
   // New API State for Crew List
   const [crewList, setCrewList] = useState<any[]>([]);
   const [isLoadingCrew, setIsLoadingCrew] = useState(false);
+
+  const getAuthToken = useCallback(() => {
+    if (typeof window === "undefined") return "";
+    return Cookies.get("revure_token") || localStorage.getItem("revure_token") || "";
+  }, []);
 
 
   const updateData = useCallback((newData: Partial<BookingDataV3 & { selectedCrewIds: number[] }>) => {
@@ -621,6 +627,7 @@ export default function ClientDetailPage() {
     setIsSubmitting(true);
     try {
       // Parse correctly from local time strings
+      const token = getAuthToken();
       const startDate = parseDate(formData.startDate);
       const endDate = parseDate(formData.endDate);
 
@@ -676,8 +683,10 @@ export default function ClientDetailPage() {
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });

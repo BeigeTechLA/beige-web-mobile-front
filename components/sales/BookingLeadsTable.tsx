@@ -16,6 +16,8 @@ interface LeadData {
   lastActivity: string;
   date: Date;
   intent: string;
+  assignedSalesRepName?: string;
+  assignedSalesRepEmail?: string;
 }
 
 interface LeadsTableProps {
@@ -138,7 +140,15 @@ export default function LeadsTable({
               </td>
               <td className={`p-3 lg:py-5 text-sm lg:text-base border-b group-last:border-0 ${isDark ? "text-white/80 border-[#222]" : "text-[#333] border-[#F0F0F0]"
                 }`}>
-                {lead.lastActivity}
+                <div className="space-y-1 min-w-0">
+                  <p>{lead.lastActivity}</p>
+                  {(lead.assignedSalesRepName || lead.assignedSalesRepEmail) && (
+                    <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
+                      {lead.assignedSalesRepName || "Unassigned"}
+                      {lead.assignedSalesRepEmail ? ` • ${lead.assignedSalesRepEmail}` : ""}
+                    </p>
+                  )}
+                </div>
               </td>
               <td className={`p-3 lg:py-5 text-right border-b group-last:border-0 ${isDark ? "border-[#222]" : "border-[#F0F0F0]"
                 }`}>

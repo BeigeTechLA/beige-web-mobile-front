@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronLeft,
   ChevronDown,
@@ -31,11 +31,28 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
-import QuotePreviewModal from "@/components/admin/quotes/QuotePreviewModal";
+import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { buildQuoteDraftPayload } from "@/lib/quoteDraft";
+import { formatQuoteItemDisplayName } from "@/lib/quoteDetail";
+import {
+  buildQuoteEditorHydrationState,
+  normalizeQuoteEditorView,
+  readQuoteEditorNavigationCache,
+} from "@/lib/quoteEdit";
+import {
+  buildQuoteDraftPayload,
+  buildQuoteUpdatePayload,
+} from "@/lib/quoteDraft";
+import {
+  SALES_QUOTE_SUMMARY_STORAGE_KEY,
+  buildQuoteSummarySnapshot,
+  getQuoteValidationMessage,
+  persistQuoteSummarySnapshot,
+  validateQuoteForReview,
+  validateQuoteStep,
+} from "@/lib/quoteSummary";
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
 const clients = [
@@ -50,6 +67,7 @@ type CatalogSectionItem = {
 };
 
 type ShootTypeApiItem = {
+  sales_shoot_type_id?: string | number | null;
   shoot_type_id?: string | number | null;
   shootTypeId?: string | number | null;
   id?: string | number | null;
@@ -58,6 +76,41 @@ type ShootTypeApiItem = {
   quote_shoot_type_id?: string | number | null;
   name?: string | null;
   created_at?: string | null;
+  is_system_default?: string | number | boolean | null;
+  isSystemDefault?: string | number | boolean | null;
+};
+
+type ShootTypeOption = {
+  id: string;
+  apiId: string | null;
+  label: string;
+  createdAt: string | null;
+  isSystemDefault: boolean;
+  originalIndex: number;
+};
+
+type ShootTypeKind = "video" | "photo";
+
+type ClientDropdownItem = {
+  client_id?: string | number | null;
+  id?: string | number | null;
+  name?: string | number | null;
+  client_name?: string | number | null;
+  full_name?: string | number | null;
+  email?: string | number | null;
+  client_email?: string | number | null;
+  guest_email?: string | number | null;
+  phone?: string | number | null;
+  mobile?: string | number | null;
+  mobile_number?: string | number | null;
+  phone_number?: string | number | null;
+  client_phone?: string | number | null;
+  address?: string | number | null;
+  client_address?: string | number | null;
+  location?: string | number | null;
+  client_location?: string | number | null;
+  street_address?: string | number | null;
+  full_address?: string | number | null;
 };
 
 const PROTECTED_SERVICE_ORDER = [
@@ -96,12 +149,58 @@ const LINE_ITEM_SECTION_KEYS = [
 const normalizeServiceLabel = (label: string) => label.trim().toLowerCase();
 const normalizeAddonLabel = (label: string) => label.trim().toLowerCase();
 const normalizeLineItemLabel = (label: string) => label.trim().toLowerCase();
+const getServiceDisplayLabel = (label: string) => formatQuoteItemDisplayName(label);
 
 const formatCurrency = (value: number) =>
   `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const formatAddonDisplayValue = (value: number) =>
+  value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+const pickFirstClientValue = (...values: Array<string | number | null | undefined>) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+
+    const normalized = String(value).trim();
+    if (normalized.length > 0) {
+      return normalized;
+    }
+  }
+
+  return "";
+};
+
+const getClientDisplayName = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.name, client?.client_name, client?.full_name);
+
+const getClientEmail = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.email, client?.client_email, client?.guest_email);
+
+const getClientPhone = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(
+    client?.phone,
+    client?.mobile,
+    client?.mobile_number,
+    client?.phone_number,
+    client?.client_phone
+  );
+
+const getClientAddress = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(
+    client?.address,
+    client?.client_address,
+    client?.location,
+    client?.client_location,
+    client?.street_address,
+    client?.full_address
+  );
+
+const getClientIdentifier = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.client_id, client?.id, getClientDisplayName(client), getClientEmail(client));
+
 const resolveShootTypeApiId = (item: ShootTypeApiItem) => {
-  const preferredId = item.shoot_type_id
+  const preferredId = item.sales_shoot_type_id
+    ?? item.shoot_type_id
     ?? item.shootTypeId
     ?? item.project_type_id
     ?? item.projectTypeId
@@ -134,6 +233,165 @@ const isValidShootTypeId = (id: string | number) => {
   return Number.isInteger(numericId) && numericId > 0;
 };
 
+const isSystemDefaultShootType = (item: ShootTypeApiItem) =>
+  Number(item.is_system_default ?? item.isSystemDefault ?? 0) === 1;
+
+const canDeleteShootTypeItem = (item: {
+  id?: string | number | null;
+  apiId?: string | number | null;
+  isSystemDefault?: boolean;
+}) => !item.isSystemDefault && isValidShootTypeId(item.apiId ?? item.id ?? "");
+
+const isVideoServiceLabel = (label: string) => normalizeServiceLabel(label) === "videography";
+const isPhotoServiceLabel = (label: string) => normalizeServiceLabel(label) === "photography";
+
+const resolveServiceShootTypeKind = (label: string): ShootTypeKind | null => {
+  if (isVideoServiceLabel(label)) return "video";
+  if (isPhotoServiceLabel(label)) return "photo";
+  return null;
+};
+
+const mapShootTypeOptions = (items: ShootTypeApiItem[]): ShootTypeOption[] => {
+  const mappedShootTypes = items.map((item, idx) => {
+    const apiId = resolveShootTypeApiId(item);
+
+    return {
+      id: apiId ?? resolveShootTypeId(item, idx),
+      apiId,
+      label: item.name || "",
+      createdAt: item.created_at || null,
+      isSystemDefault: isSystemDefaultShootType(item),
+      originalIndex: idx,
+    };
+  });
+
+  return [...mappedShootTypes].sort((a, b) => {
+    const aCreatedAt = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
+    const bCreatedAt = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
+
+    if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+      return aCreatedAt - bCreatedAt;
+    }
+
+    const aNumericId = Number(a.id);
+    const bNumericId = Number(b.id);
+
+    if (Number.isFinite(aNumericId) && Number.isFinite(bNumericId) && aNumericId !== bNumericId) {
+      return aNumericId - bNumericId;
+    }
+
+    return a.originalIndex - b.originalIndex;
+  });
+};
+
+const normalizeShootTypeLabelKey = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+
+const findMatchingShootTypeLabel = (
+  shootTypeOptions: Array<{ label: string }>,
+  label: string
+) => {
+  const normalizedLabel = normalizeShootTypeLabelKey(label);
+  if (!normalizedLabel) {
+    return null;
+  }
+
+  return (
+    shootTypeOptions.find(
+      (shootType) => normalizeShootTypeLabelKey(shootType.label) === normalizedLabel
+    )?.label?.trim() || null
+  );
+};
+
+const getSelectedShootTypeLabel = (shootTypeOptions: ShootTypeOption[], selectedId: string) =>
+  shootTypeOptions.find((type) => type.id === selectedId)?.label?.trim() || "";
+
+const parseStoredShootTypeLabels = (value: string) => {
+  const normalizedValue = value.trim();
+  if (!normalizedValue) {
+    return { video: "", photo: "" };
+  }
+
+  const parts = normalizedValue
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  let video = "";
+  let photo = "";
+
+  parts.forEach((part) => {
+    const [rawPrefix, ...restParts] = part.split(":");
+    const prefix = rawPrefix.trim().toLowerCase();
+    const label = restParts.join(":").trim();
+
+    if (!label) {
+      return;
+    }
+
+    if (prefix === "video") {
+      video = label;
+    } else if (prefix === "photo") {
+      photo = label;
+    }
+  });
+
+  if (video && photo) {
+    return { video, photo };
+  }
+
+  if (!video && !photo) {
+    return { video: normalizedValue, photo: normalizedValue };
+  }
+
+  return {
+    video: video || photo,
+    photo: photo || video,
+  };
+};
+
+const buildStoredShootTypeLabel = ({
+  hasVideoService,
+  hasPhotoService,
+  videoShootTypeLabel,
+  photoShootTypeLabel,
+}: {
+  hasVideoService: boolean;
+  hasPhotoService: boolean;
+  videoShootTypeLabel: string;
+  photoShootTypeLabel: string;
+}) => {
+  const normalizedVideoLabel = videoShootTypeLabel.trim();
+  const normalizedPhotoLabel = photoShootTypeLabel.trim();
+
+  if (hasVideoService && hasPhotoService) {
+    if (normalizedVideoLabel && normalizedPhotoLabel) {
+      if (normalizeShootTypeLabelKey(normalizedVideoLabel) === normalizeShootTypeLabelKey(normalizedPhotoLabel)) {
+        return normalizedVideoLabel;
+      }
+
+      return `Video: ${normalizedVideoLabel} | Photo: ${normalizedPhotoLabel}`;
+    }
+
+    return normalizedVideoLabel || normalizedPhotoLabel;
+  }
+
+  if (hasVideoService) {
+    return normalizedVideoLabel;
+  }
+
+  if (hasPhotoService) {
+    return normalizedPhotoLabel;
+  }
+
+  return "";
+};
+
 const isProtectedServiceLabel = (label: string) =>
   PROTECTED_SERVICE_ORDER.includes(normalizeServiceLabel(label) as typeof PROTECTED_SERVICE_ORDER[number]);
 
@@ -146,14 +404,22 @@ const isProtectedLineItemLabel = (label: string) =>
 export default function CreateQuotePage() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editQuoteId = searchParams.get("quoteId");
+  const isEditMode = Boolean(editQuoteId);
+  const requestedEditView = normalizeQuoteEditorView(
+    searchParams.get("view"),
+    isEditMode ? "details" : "selection"
+  );
 
   // Views: 'selection' | 'details' | 'services' | 'addons' | 'logistics'
-  const [view, setView] = useState<'selection' | 'details' | 'services' | 'addons' | 'logistics' | 'customlineitems' | 'discounts' | 'tax'>('selection');
+  const [view, setView] = useState<'selection' | 'details' | 'services' | 'addons' | 'logistics' | 'customlineitems' | 'discounts' | 'tax'>(requestedEditView);
 
-  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [selectedClient, setSelectedClient] = useState<ClientDropdownItem | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDetailsClientDropdownOpen, setIsDetailsClientDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<ClientDropdownItem[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
 
   // Form State
@@ -167,17 +433,18 @@ export default function CreateQuotePage() {
 
   // Step 2: Services & Config State
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [selectedShootType, setSelectedShootType] = useState<string>("private_event");
-  const [userCreatedShootTypeIds, setUserCreatedShootTypeIds] = useState<string[]>([]);
+  const [selectedVideoShootType, setSelectedVideoShootType] = useState<string>("");
+  const [selectedPhotoShootType, setSelectedPhotoShootType] = useState<string>("");
   const [customServiceName, setCustomServiceName] = useState("");
   const [customServiceCost, setCustomServiceCost] = useState("");
   const [customShootType, setCustomShootType] = useState("");
   const [showAddServiceForm, setShowAddServiceForm] = useState(false);
-  const [showAddShootTypeForm, setShowAddShootTypeForm] = useState(false);
+  const [activeShootTypeForm, setActiveShootTypeForm] = useState<ShootTypeKind | null>(null);
   const [selectedEditingType, setSelectedEditingType] = useState<string>("social_media_reel_30_90");
   const [showAddEditingTypeForm, setShowAddEditingTypeForm] = useState(false);
   const [customEditingType, setCustomEditingType] = useState("");
-  const [isShootTypeExpanded, setIsShootTypeExpanded] = useState(true);
+  const [isVideoShootTypeExpanded, setIsVideoShootTypeExpanded] = useState(true);
+  const [isPhotoShootTypeExpanded, setIsPhotoShootTypeExpanded] = useState(true);
   const [isEditingTypeExpanded, setIsEditingTypeExpanded] = useState(true);
 
   // Step 3: Add-ons State
@@ -222,7 +489,8 @@ export default function CreateQuotePage() {
   }>>({});
 
   const [services, setServices] = useState<any[]>([]);
-  const [shootTypes, setShootTypes] = useState<any[]>([]);
+  const [videoShootTypes, setVideoShootTypes] = useState<ShootTypeOption[]>([]);
+  const [photoShootTypes, setPhotoShootTypes] = useState<ShootTypeOption[]>([]);
   const [addons, setAddons] = useState<any[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingShootTypes, setLoadingShootTypes] = useState(false);
@@ -233,6 +501,16 @@ export default function CreateQuotePage() {
   const [previewQuote, setPreviewQuote] = useState<SalesQuoteDetailData | null>(null);
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [quoteToEdit, setQuoteToEdit] = React.useState<SalesQuoteDetailData | null>(null);
+  const [isLoadingQuoteToEdit, setIsLoadingQuoteToEdit] = React.useState(false);
+  const [isHydratingQuoteToEdit, setIsHydratingQuoteToEdit] = React.useState(false);
+  const [isCatalogLoaded, setIsCatalogLoaded] = React.useState(false);
+  const hydratedQuoteIdRef = React.useRef<string | null>(null);
+  const hydratingQuoteIdRef = React.useRef<string | null>(null);
+  const servicesRef = React.useRef(services);
+  const addonsRef = React.useRef(addons);
+  const logisticsItemsRef = React.useRef(logisticsItems);
+  const lineItemsRef = React.useRef(lineItems);
 
   const serviceIcons: Record<string, React.ReactNode> = {
     "videography": <Video size={20} />,
@@ -248,8 +526,8 @@ export default function CreateQuotePage() {
     setLoadingClients(true);
     try {
       const res = await salesApi.getClientDropdown(query);
-      if (!res.error && res.data) {
-        setClients(res.data);
+      if (!res.error && Array.isArray(res.data)) {
+        setClients(res.data as ClientDropdownItem[]);
       }
     } catch (error) {
       console.error("Failed to fetch clients", error);
@@ -258,91 +536,361 @@ export default function CreateQuotePage() {
     }
   };
 
+  const applyClientSelection = React.useCallback((client: ClientDropdownItem | null) => {
+    setSelectedClient(client);
+
+    if (!client) {
+      setClientName("");
+      setEmailId("");
+      setPhoneNumber("");
+      setAddress("");
+      return;
+    }
+
+    setClientName(getClientDisplayName(client));
+    setEmailId(getClientEmail(client));
+    setPhoneNumber(getClientPhone(client));
+    setAddress(getClientAddress(client));
+  }, []);
+
+  React.useEffect(() => {
+    if (!selectedClient) {
+      return;
+    }
+
+    setClientName(getClientDisplayName(selectedClient));
+    setEmailId(getClientEmail(selectedClient));
+    setPhoneNumber(getClientPhone(selectedClient));
+    setAddress(getClientAddress(selectedClient));
+  }, [selectedClient]);
+
   React.useEffect(() => {
     fetchClients();
   }, []);
 
   // Debounced search for clients
   React.useEffect(() => {
-    if (view !== 'selection') return;
+    if (view !== 'selection' && !isDetailsClientDropdownOpen) return;
     const timer = setTimeout(() => {
       fetchClients(searchQuery);
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [isDetailsClientDropdownOpen, searchQuery, view]);
 
   React.useEffect(() => {
     fetchCatalog();
   }, []);
 
-  const fetchShootTypes = async (ids: string[]) => {
-    let typeParam = 0;
-    const hasVideo = ids.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || ids.includes("videography");
-    const hasPhoto = ids.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "photography") || ids.includes("photography");
+  React.useEffect(() => {
+    servicesRef.current = services;
+    addonsRef.current = addons;
+    logisticsItemsRef.current = logisticsItems;
+    lineItemsRef.current = lineItems;
+  }, [addons, lineItems, logisticsItems, services]);
 
-    if (hasVideo && hasPhoto) typeParam = 3;
-    else if (hasVideo) typeParam = 1;
-    else if (hasPhoto) typeParam = 2;
+  const fetchShootTypes = React.useCallback(async (
+    ids: string[],
+    availableServices: Array<{ id: string; label: string }> = services
+  ) => {
+    const hasVideo =
+      ids.some((id) => isVideoServiceLabel(availableServices.find((service) => service.id === id)?.label || "")) ||
+      ids.includes("videography");
+    const hasPhoto =
+      ids.some((id) => isPhotoServiceLabel(availableServices.find((service) => service.id === id)?.label || "")) ||
+      ids.includes("photography");
 
-    if (typeParam === 0) {
-      setShootTypes([]);
-      return [];
+    if (!hasVideo) {
+      setVideoShootTypes([]);
+    }
+
+    if (!hasPhoto) {
+      setPhotoShootTypes([]);
+    }
+
+    if (!hasVideo && !hasPhoto) {
+      return { video: [] as ShootTypeOption[], photo: [] as ShootTypeOption[] };
     }
 
     setLoadingShootTypes(true);
     try {
-      const res = await salesApi.getShootTypes(typeParam);
-      if (!res.error && res.data) {
-        const mappedShootTypes = res.data.map((item: ShootTypeApiItem, idx: number) => {
-          const apiId = resolveShootTypeApiId(item);
+      const [videoResponse, photoResponse] = await Promise.all([
+        hasVideo ? salesApi.getShootTypes(1) : Promise.resolve(null),
+        hasPhoto ? salesApi.getShootTypes(2) : Promise.resolve(null),
+      ]);
 
-          return {
-            id: apiId ?? resolveShootTypeId(item, idx),
-            apiId,
-            label: item.name || "",
-            createdAt: item.created_at || null,
-            originalIndex: idx,
-          };
-        });
+      const nextVideoShootTypes =
+        hasVideo && videoResponse && !videoResponse.error && Array.isArray(videoResponse.data)
+          ? mapShootTypeOptions(videoResponse.data as ShootTypeApiItem[])
+          : [];
+      const nextPhotoShootTypes =
+        hasPhoto && photoResponse && !photoResponse.error && Array.isArray(photoResponse.data)
+          ? mapShootTypeOptions(photoResponse.data as ShootTypeApiItem[])
+          : [];
 
-        const sortedShootTypes = [...mappedShootTypes].sort((a, b) => {
-          const aCreatedAt = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
-          const bCreatedAt = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
-
-          if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
-            return aCreatedAt - bCreatedAt;
-          }
-
-          const aNumericId = Number(a.id);
-          const bNumericId = Number(b.id);
-
-          if (Number.isFinite(aNumericId) && Number.isFinite(bNumericId) && aNumericId !== bNumericId) {
-            return aNumericId - bNumericId;
-          }
-
-          return a.originalIndex - b.originalIndex;
-        });
-
-        setShootTypes(sortedShootTypes);
-
-        // Select first one if current selection is invalid
-        if (sortedShootTypes.length > 0) {
-          const isValid = sortedShootTypes.some((t: any) => t.id === selectedShootType);
-          if (!isValid) {
-            setSelectedShootType(sortedShootTypes[0].id);
-          }
+      setVideoShootTypes(nextVideoShootTypes);
+      setPhotoShootTypes(nextPhotoShootTypes);
+      setSelectedVideoShootType((currentValue) => {
+        if (nextVideoShootTypes.length === 0) {
+          return "";
         }
 
-        return sortedShootTypes;
-      }
+        return nextVideoShootTypes.some((type) => type.id === currentValue)
+          ? currentValue
+          : nextVideoShootTypes[0].id;
+      });
+      setSelectedPhotoShootType((currentValue) => {
+        if (nextPhotoShootTypes.length === 0) {
+          return "";
+        }
+
+        return nextPhotoShootTypes.some((type) => type.id === currentValue)
+          ? currentValue
+          : nextPhotoShootTypes[0].id;
+      });
+
+      return {
+        video: nextVideoShootTypes,
+        photo: nextPhotoShootTypes,
+      };
     } catch (error) {
       console.error("Failed to fetch shoot types", error);
     } finally {
       setLoadingShootTypes(false);
     }
 
-    return [];
-  };
+    return { video: [], photo: [] };
+  }, [services]);
+
+  React.useEffect(() => {
+    if (!editQuoteId) {
+      setQuoteToEdit(null);
+      setIsLoadingQuoteToEdit(false);
+      hydratedQuoteIdRef.current = null;
+      hydratingQuoteIdRef.current = null;
+      return;
+    }
+
+    let isMounted = true;
+    const cachedQuoteToEdit = readQuoteEditorNavigationCache(editQuoteId);
+    hydratedQuoteIdRef.current = null;
+    hydratingQuoteIdRef.current = null;
+    setQuoteToEdit(cachedQuoteToEdit);
+    setIsLoadingQuoteToEdit(!cachedQuoteToEdit);
+
+    const fetchQuoteToEdit = async () => {
+      try {
+        const response = await salesApi.getQuoteDetail(editQuoteId);
+
+        if (response?.error || response?.success === false) {
+          throw new Error(
+            typeof response?.error === "string" ? response.error : "Failed to fetch quote details"
+          );
+        }
+
+        const quoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
+        if (!quoteDetail) {
+          throw new Error("Quote details are unavailable");
+        }
+
+        if (!isMounted) {
+          return;
+        }
+
+        setQuoteToEdit(quoteDetail);
+      } catch (error) {
+        console.error("Failed to load quote for edit", error);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setQuoteToEdit(null);
+        toast.error(error instanceof Error ? error.message : "Failed to load quote details");
+      } finally {
+        if (isMounted) {
+          setIsLoadingQuoteToEdit(false);
+        }
+      }
+    };
+
+    void fetchQuoteToEdit();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editQuoteId]);
+
+  React.useEffect(() => {
+    if (!editQuoteId || !quoteToEdit || !isCatalogLoaded) {
+      return;
+    }
+
+    if (
+      hydratedQuoteIdRef.current === editQuoteId ||
+      hydratingQuoteIdRef.current === editQuoteId
+    ) {
+      return;
+    }
+
+    let isMounted = true;
+    hydratingQuoteIdRef.current = editQuoteId;
+    setIsHydratingQuoteToEdit(true);
+
+    const hydrateQuoteEditor = async () => {
+      try {
+        const hydratedState = buildQuoteEditorHydrationState({
+          quote: quoteToEdit,
+          services: servicesRef.current,
+          addons: addonsRef.current,
+          logisticsItems: logisticsItemsRef.current,
+          lineItems: lineItemsRef.current,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSelectedClient(hydratedState.selectedClient);
+        setClientName(hydratedState.clientName);
+        setEmailId(hydratedState.emailId);
+        setPhoneNumber(hydratedState.phoneNumber);
+        setAddress(hydratedState.address);
+        setProjectDescription(hydratedState.projectDescription);
+        setValidityDays(hydratedState.validityDays);
+        setValidUntil(hydratedState.validUntil);
+        setDiscountEnabled(hydratedState.discountEnabled);
+        setDiscountType(hydratedState.discountType);
+        setDiscountValue(hydratedState.discountValue);
+        setTaxRate(hydratedState.taxRate);
+        setSelectedTax(
+          hydratedState.taxRate === 5 || hydratedState.taxRate === 8.5 || hydratedState.taxRate === 10
+            ? (hydratedState.taxRate as 5 | 8.5 | 10)
+            : 0
+        );
+        setTaxType(hydratedState.taxType);
+        setServices(hydratedState.services);
+        setSelectedServices(hydratedState.selectedServices);
+        setServiceConfigs(hydratedState.serviceConfigs);
+        setAddons(hydratedState.addons);
+        setSelectedAddons(hydratedState.selectedAddons);
+        setAddonConfigs(hydratedState.addonConfigs);
+        setAppliedAddonConfigs(hydratedState.appliedAddonConfigs);
+        setLogisticsItems(hydratedState.logisticsItems);
+        setLogisticsConfigs(hydratedState.logisticsConfigs);
+        setAppliedLogisticsConfigs(hydratedState.appliedLogisticsConfigs);
+        setLineItems(hydratedState.lineItems);
+        setLineItemConfigs(hydratedState.lineItemConfigs);
+        setAppliedLineItemConfigs(hydratedState.appliedLineItemConfigs);
+        setIsDropdownOpen(false);
+        setSearchQuery("");
+
+        const availableShootTypes =
+          hydratedState.selectedServices.length > 0
+            ? await fetchShootTypes(hydratedState.selectedServices, hydratedState.services)
+            : { video: [], photo: [] };
+
+        if (!isMounted) {
+          return;
+        }
+
+        const hydratedHasVideoService =
+          hydratedState.selectedServices.some((id) =>
+            isVideoServiceLabel(hydratedState.services.find((service) => service.id === id)?.label || "")
+          ) || hydratedState.selectedServices.includes("videography");
+        const hydratedHasPhotoService =
+          hydratedState.selectedServices.some((id) =>
+            isPhotoServiceLabel(hydratedState.services.find((service) => service.id === id)?.label || "")
+          ) || hydratedState.selectedServices.includes("photography");
+        const parsedShootTypeLabels = parseStoredShootTypeLabels(hydratedState.shootTypeLabel);
+        const assignHydratedShootType = (kind: ShootTypeKind, options: ShootTypeOption[], label: string) => {
+          const normalizedLabel = label.trim();
+          if (!normalizedLabel) {
+            return;
+          }
+
+          const matchedShootType = options.find(
+            (type) => normalizeShootTypeLabelKey(type.label) === normalizeShootTypeLabelKey(normalizedLabel)
+          );
+
+          if (matchedShootType) {
+            if (kind === "video") {
+              setSelectedVideoShootType(matchedShootType.id);
+            } else {
+              setSelectedPhotoShootType(matchedShootType.id);
+            }
+            return;
+          }
+
+          const fallbackShootTypeId = `edit_${kind}_shoot_type_${editQuoteId}`;
+          const setShootTypeOptions = kind === "video" ? setVideoShootTypes : setPhotoShootTypes;
+          const setSelectedShootType = kind === "video" ? setSelectedVideoShootType : setSelectedPhotoShootType;
+
+          setShootTypeOptions((prev) => {
+            if (findMatchingShootTypeLabel(prev, normalizedLabel)) {
+              return prev;
+            }
+
+            return [
+              ...prev,
+              {
+                id: fallbackShootTypeId,
+                apiId: null,
+                label: normalizedLabel,
+                createdAt: quoteToEdit.created_at || null,
+                isSystemDefault: false,
+                originalIndex: prev.length,
+              },
+            ];
+          });
+          setSelectedShootType(fallbackShootTypeId);
+        };
+
+        if (hydratedHasVideoService) {
+          assignHydratedShootType(
+            "video",
+            availableShootTypes.video,
+            parsedShootTypeLabels.video || hydratedState.shootTypeLabel
+          );
+        }
+
+        if (hydratedHasPhotoService) {
+          assignHydratedShootType(
+            "photo",
+            availableShootTypes.photo,
+            parsedShootTypeLabels.photo || hydratedState.shootTypeLabel
+          );
+        }
+
+        setView(requestedEditView);
+        hydratedQuoteIdRef.current = editQuoteId;
+      } catch (error) {
+        console.error("Failed to hydrate quote editor", error);
+        toast.error("Failed to preload quote details");
+      } finally {
+        if (hydratingQuoteIdRef.current === editQuoteId) {
+          hydratingQuoteIdRef.current = null;
+        }
+
+        if (isMounted) {
+          setIsHydratingQuoteToEdit(false);
+        }
+      }
+    };
+
+    void hydrateQuoteEditor();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editQuoteId, fetchShootTypes, isCatalogLoaded, quoteToEdit, requestedEditView]);
+
+  React.useEffect(() => {
+    if (!editQuoteId || hydratedQuoteIdRef.current !== editQuoteId) {
+      return;
+    }
+
+    setView(requestedEditView);
+  }, [editQuoteId, requestedEditView]);
 
   const editingTypes = [
     { id: "social_media_reel_15_30", label: "Social Media Reel (15 sec-30 sec)" },
@@ -409,20 +957,18 @@ export default function CreateQuotePage() {
     return draftConfig.quantity !== appliedConfig.quantity || draftConfig.price !== appliedConfig.price;
   };
 
-  const getAddonDraftTotal = (addonId: string) => {
+  const getAddonDraftPrice = (addonId: string) => {
     const config = addonConfigs[addonId];
     if (!config) return 0;
-    return config.quantity * config.price;
+    return config.price;
   };
 
-  const handleAddonTotalUpdate = (addonId: string, value: string) => {
+  const handleAddonPriceUpdate = (addonId: string, value: string) => {
     const config = addonConfigs[addonId];
     if (!config) return;
 
-    const quantity = Math.max(1, config.quantity);
-    const totalValue = parseFloat(value.replace(/\$/g, '').trim()) || 0;
-
-    handleAddonConfigUpdate(addonId, 'price', totalValue / quantity);
+    const nextPrice = parseFloat(value.replace(/\$/g, '').trim()) || 0;
+    handleAddonConfigUpdate(addonId, 'price', nextPrice);
   };
 
   const removeLogisticsItem = (itemId: string) => {
@@ -529,6 +1075,237 @@ export default function CreateQuotePage() {
   };
 
   const filteredClients = clients; // Now filtered by API
+  const closeClientDropdowns = () => {
+    setIsDropdownOpen(false);
+    setIsDetailsClientDropdownOpen(false);
+  };
+
+  const renderClientDropdownContent = ({
+    onClose,
+    advanceToDetails,
+  }: {
+    onClose: () => void;
+    advanceToDetails: boolean;
+  }) => (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.99, y: -5 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.99, y: -5 }}
+      transition={{ duration: 0.2 }}
+      className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0F0F0F] border border-zinc-800 rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.6)]"
+    >
+      <div className="p-3 border-b border-zinc-800">
+        <div className="flex items-center gap-2 bg-[#1A1A1F] border border-[#3B3B46] rounded-xl px-4 py-2.5">
+          <Search size={16} className="text-[#6B6B6B] shrink-0" />
+          <input
+            type="text"
+            placeholder="Search clients..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-[#6B6B6B]"
+            autoFocus
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="text-[#6B6B6B] hover:text-white">
+              x
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="max-h-72 overflow-y-auto custom-scrollbar p-3">
+        {loadingClients ? (
+          <div className="py-8 flex justify-center items-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
+          </div>
+        ) : (filteredClients || []).length === 0 ? (
+          <div className="py-6 text-center text-[#6B6B6B] text-sm">No clients found</div>
+        ) : (filteredClients || []).map((client) => {
+          const clientId = getClientIdentifier(client);
+          const isSelectedClient = getClientIdentifier(selectedClient) === clientId;
+
+          return (
+            <div
+              key={clientId}
+              onClick={() => {
+                applyClientSelection(client);
+                onClose();
+                setSearchQuery("");
+                if (advanceToDetails) {
+                  setView('details');
+                }
+              }}
+              className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${isSelectedClient
+                ? 'bg-[#FFFCE8] text-[#171717]'
+                : 'hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]'
+                }`}
+            >
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelectedClient
+                ? 'border-[#E8D1AB] bg-[#E8D1AB]'
+                : 'border-[#FFFFFF85] group-hover:border-[#171717]'
+                }`}>
+                {isSelectedClient && (
+                  <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
+                )}
+              </div>
+              <span className="font-semibold text-lg">{getClientDisplayName(client)}</span>
+            </div>
+          );
+        })}
+
+        <button
+          onClick={() => {
+            applyClientSelection(null);
+            onClose();
+            setSearchQuery("");
+            if (advanceToDetails) {
+              setView('details');
+            }
+          }}
+          className="w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 border-t border-zinc-800/50 pt-6"
+        >
+          <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
+            <Plus size={16} className="text-[#171717]" />
+          </div>
+          <span className="font-semibold text-lg">Create New Client</span>
+        </button>
+      </div>
+    </motion.div>
+  );
+
+  const renderShootTypeSection = ({
+    kind,
+    isExpanded,
+    onToggleExpanded,
+    shootTypeOptions,
+    selectedId,
+  }: {
+    kind: ShootTypeKind;
+    isExpanded: boolean;
+    onToggleExpanded: () => void;
+    shootTypeOptions: ShootTypeOption[];
+    selectedId: string;
+  }) => {
+    const isFormOpen = activeShootTypeForm === kind;
+    const sectionLabel = kind === "video" ? "Video Shoot Type" : "Photo Shoot Type";
+    const fieldLabel =
+      activeShootTypeForm === "photo" ? "Photo Shoot Type Name" : "Video Shoot Type Name";
+
+    return (
+      <section className="px-4 pt-4 pb-5 lg:px-8 lg:pb-10">
+        <button
+          onClick={onToggleExpanded}
+          className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
+        >
+          <h2 className="text-base lg:text-xl font-medium text-white">{sectionLabel}</h2>
+          <div className="text-zinc-600 transition-transform duration-300">
+            {isExpanded ? <ChevronDown size={22} className="rotate-180" /> : <ChevronDown size={22} />}
+          </div>
+        </button>
+
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {loadingShootTypes ? (
+                  <div className="col-span-4 py-5 flex justify-center items-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
+                  </div>
+                ) : shootTypeOptions.length === 0 ? (
+                  <div className="col-span-4 py-5 text-sm text-[#9A9AA4]">No shoot types found.</div>
+                ) : shootTypeOptions.map((type) => {
+                  const canDeleteShootType = canDeleteShootTypeItem(type);
+
+                  return (
+                    <div key={type.id} className="relative">
+                      <button
+                        onClick={() => {
+                          if (kind === "video") {
+                            setSelectedVideoShootType(type.id);
+                          } else {
+                            setSelectedPhotoShootType(type.id);
+                          }
+                        }}
+                        className={`h-[52px] w-full rounded-[14px] px-5 pr-11 font-normal transition-all border text-sm tracking-tight text-left flex items-center ${selectedId === type.id
+                          ? 'bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner'
+                          : 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700'
+                          }`}
+                      >
+                        <span className="truncate">{type.label}</span>
+                      </button>
+                      {canDeleteShootType && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteShootType(kind, type.id);
+                          }}
+                          className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-zinc-500 transition-colors hover:text-red-500"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-8 space-y-6">
+                <Button
+                  onClick={() => setActiveShootTypeForm(isFormOpen ? null : kind)}
+                  className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
+                >
+                  <Plus size={16} strokeWidth={3} />
+                  {`Add ${sectionLabel}`}
+                </Button>
+
+                <AnimatePresence>
+                  {isFormOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex gap-4 items-end"
+                    >
+                      <div className="flex-1 relative">
+                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                          <span className="text-xs text-[#8A8A8A] font-normal">{fieldLabel}</span>
+                        </div>
+                        <Input
+                          placeholder="Eg : Real Estate"
+                          value={customShootType}
+                          onChange={(e) => setCustomShootType(e.target.value)}
+                          className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        />
+                      </div>
+                      <button
+                        onClick={() => activeShootTypeForm && handleCreateShootType(activeShootTypeForm)}
+                        disabled={isSubmittingShootType || !customShootType || !activeShootTypeForm}
+                        className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${isSubmittingShootType || !customShootType || !activeShootTypeForm
+                          ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50'
+                          : 'bg-[#0DC752] text-black hover:bg-[#0bb54a]'}`}
+                      >
+                        {isSubmittingShootType ? (
+                          <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                        ) : (
+                          <Check size={24} strokeWidth={3} />
+                        )}
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+    );
+  };
 
   const handleValiditySelect = (days: number | 'custom') => {
     setValidityDays(days);
@@ -544,21 +1321,77 @@ export default function CreateQuotePage() {
     return isValid(parsedDate) ? format(parsedDate, "dd-MM-yyyy") : validUntil;
   })();
 
-  const progressLabel =
-    view === 'selection' ? '0%' :
-      view === 'details' ? '10%' :
-        view === 'services' ? (selectedServices.length > 0 ? '30%' : '10%') :
-          view === 'addons' ? '50%' : '70%';
+  const progressValue =
+    view === "selection"
+      ? 0
+      : view === "details"
+        ? 10
+        : view === "services"
+          ? selectedServices.length > 0
+            ? 30
+            : 10
+          : view === "addons"
+            ? 50
+            : view === "logistics"
+              ? 65
+              : view === "customlineitems"
+                ? 80
+                : view === "discounts"
+                  ? 90
+                  : 100;
+
+  const progressLabel = `${progressValue}%`;
 
   const stepNumber =
     ['selection', 'details', 'services', 'addons'].includes(view) ? 1 :
       ['logistics', 'customlineitems'].includes(view) ? 2 : 3;
 
+  const progressSegmentWidths = [0, 1, 2].map((segmentIndex) => {
+    const segmentSize = 100 / 3;
+    const segmentStart = segmentIndex * segmentSize;
+    const segmentFill = Math.max(
+      0,
+      Math.min(((progressValue - segmentStart) / segmentSize) * 100, 100)
+    );
+
+    return `${segmentFill}%`;
+  });
+
+  const currentStepValidation = validateQuoteStep({
+    view,
+    selectedClient,
+    clientName,
+    emailId,
+    phoneNumber,
+    address,
+    projectDescription,
+    validUntil,
+    selectedServices,
+  });
+
+  const quoteReviewValidation = validateQuoteForReview({
+    selectedClient,
+    clientName,
+    emailId,
+    phoneNumber,
+    address,
+    projectDescription,
+    validUntil,
+    selectedServices,
+  });
+
+  const canContinueToNextStep = currentStepValidation.isValid;
+  const canPrimaryAction = view === "tax" ? quoteReviewValidation.isValid : canContinueToNextStep;
+  const canOpenQuoteSummary = quoteReviewValidation.isValid;
+
   const handleContinue = async () => {
+    if (!currentStepValidation.isValid) {
+      toast.error(getQuoteValidationMessage(currentStepValidation));
+      return;
+    }
+
     if (view === 'selection' && selectedClient) {
-      setClientName(selectedClient.name);
-      setEmailId(selectedClient.email || "");
-      setPhoneNumber(selectedClient.phone || "");
+      applyClientSelection(selectedClient);
       setView('details');
     } else if (view === 'details') {
       setView('services');
@@ -577,7 +1410,7 @@ export default function CreateQuotePage() {
     }
   };
 
-  const handleBack = () => {
+ const handleBack = () => {
     if (view === 'details') {
       setView('selection');
     } else if (view === 'services') {
@@ -590,6 +1423,8 @@ export default function CreateQuotePage() {
       setView('logistics');
     } else if (view === 'discounts') {
       setView('customlineitems');
+       } else if (view === 'tax') {
+      setView('discounts');
       // Further steps to be added form customlineitems on wards
     } else {
       router.back();
@@ -624,8 +1459,20 @@ export default function CreateQuotePage() {
   const hasVideoService = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || selectedServices.includes("videography");
   const hasPhotoService = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "photography") || selectedServices.includes("photography");
   const hasAiEditingService = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "ai editing") || selectedServices.includes("ai_editing");
+  const selectedVideoShootTypeLabel = getSelectedShootTypeLabel(videoShootTypes, selectedVideoShootType);
+  const selectedPhotoShootTypeLabel = getSelectedShootTypeLabel(photoShootTypes, selectedPhotoShootType);
+  const storedShootTypeLabel = buildStoredShootTypeLabel({
+    hasVideoService,
+    hasPhotoService,
+    videoShootTypeLabel: selectedVideoShootTypeLabel,
+    photoShootTypeLabel: selectedPhotoShootTypeLabel,
+  });
+  const quoteDraftShootTypes = storedShootTypeLabel
+    ? [{ id: "__selected_shoot_type__", label: storedShootTypeLabel }]
+    : [];
+  const quoteDraftSelectedShootType = storedShootTypeLabel ? "__selected_shoot_type__" : "";
   const totalAddOnsCost = selectedAddons.reduce((total, addonId) => {
-    const config = appliedAddonConfigs[addonId];
+    const config = addonConfigs[addonId] ?? appliedAddonConfigs[addonId];
     if (!config) return total;
     return total + (config.quantity * config.price);
   }, 0);
@@ -642,8 +1489,18 @@ export default function CreateQuotePage() {
   const totalServicesCost = selectedServices.reduce((total, serviceId) => {
     const config = serviceConfigs[serviceId];
     if (!config) return total;
-    return total + (config.quantity * config.duration * config.crewSize * config.estimatedPrice);
+    return total + (config.duration * config.crewSize * config.estimatedPrice);
   }, 0);
+
+  React.useEffect(() => {
+    if (activeShootTypeForm === "video" && !hasVideoService) {
+      setActiveShootTypeForm(null);
+    }
+
+    if (activeShootTypeForm === "photo" && !hasPhotoService) {
+      setActiveShootTypeForm(null);
+    }
+  }, [activeShootTypeForm, hasPhotoService, hasVideoService]);
   const quoteSubtotal = totalServicesCost + totalAddOnsCost + totalLogisticsCost + totalLineItemsCost;
   const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
   const taxAmount = quoteSubtotal * (normalizedTaxRate / 100);
@@ -676,8 +1533,8 @@ export default function CreateQuotePage() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
-      selectedShootType,
-      shootTypes,
+      selectedShootType: quoteDraftSelectedShootType,
+      shootTypes: quoteDraftShootTypes,
       selectedServices,
       services,
       serviceConfigs,
@@ -691,10 +1548,81 @@ export default function CreateQuotePage() {
       maxStep,
     });
 
+  const getQuoteUpdatePayload = (maxStep?: typeof view) =>
+    buildQuoteUpdatePayload({
+      selectedClient,
+      clientName,
+      emailId,
+      phoneNumber,
+      address,
+      projectDescription,
+      validityDays,
+      validUntil,
+      discountEnabled,
+      discountType,
+      discountValue,
+      taxLabel,
+      normalizedTaxRate,
+      selectedShootType: quoteDraftSelectedShootType,
+      shootTypes: quoteDraftShootTypes,
+      selectedServices,
+      services,
+      serviceConfigs,
+      selectedAddons,
+      addons,
+      appliedAddonConfigs,
+      logisticsItems,
+      appliedLogisticsConfigs,
+      lineItems,
+      appliedLineItemConfigs,
+      maxStep,
+    });
+
+  const getQuoteSummarySnapshot = () =>
+    buildQuoteSummarySnapshot({
+      selectedClient,
+      clientName,
+      emailId,
+      phoneNumber,
+      address,
+      projectDescription,
+      validityDays,
+      validUntil,
+      discountEnabled,
+      discountType,
+      discountValue,
+      taxLabel,
+      normalizedTaxRate,
+      selectedShootType: quoteDraftSelectedShootType,
+      shootTypes: quoteDraftShootTypes,
+      selectedServices,
+      services,
+      serviceConfigs,
+      selectedAddons,
+      addons,
+      appliedAddonConfigs,
+      logisticsItems,
+      appliedLogisticsConfigs,
+      lineItems,
+      appliedLineItemConfigs,
+    });
+
+  const delayAfterSuccessToast = () =>
+    new Promise((resolve) => window.setTimeout(resolve, 450));
+
   const saveQuoteDraft = async (action: "preview" | "save" | "draft") => {
     if (isCreatingQuoteDraft) return;
 
-    const payload = getQuoteDraftPayload(action === "draft" ? view : undefined);
+    const isUpdatingExistingQuote = Boolean(isEditMode && editQuoteId);
+    const basePayload = getQuoteDraftPayload(action === "draft" ? view : undefined);
+    const payload = isUpdatingExistingQuote
+      ? getQuoteUpdatePayload(action === "draft" ? view : undefined)
+      : action === "save"
+        ? {
+            ...basePayload,
+            is_draft: false,
+          }
+        : basePayload;
 
     setIsCreatingQuoteDraft(true);
     setActiveQuoteAction(action);
@@ -708,35 +1636,58 @@ export default function CreateQuotePage() {
     let savedQuoteId: string | null = null;
 
     try {
-      const response = await salesApi.createQuoteDraft(payload);
-      const createdQuoteSource =
+      const response = isUpdatingExistingQuote
+        ? await salesApi.updateQuote(editQuoteId as string, payload)
+        : await salesApi.createQuoteDraft(payload);
+      const persistedQuoteSource =
         response && typeof response === "object" && "data" in response
           ? (response.data as SalesQuoteDetailData | null | undefined)
           : (response as SalesQuoteDetailData | null | undefined);
-      const createdQuote = unwrapSalesQuoteDetail(createdQuoteSource);
+      const persistedQuote = unwrapSalesQuoteDetail(persistedQuoteSource);
 
       if (response?.error || response?.success === false) {
         throw new Error(
-          typeof response?.error === "string" ? response.error : "Failed to create quote draft"
+          typeof response?.error === "string"
+            ? response.error
+            : isUpdatingExistingQuote
+              ? "Failed to update quote"
+              : "Failed to create quote draft"
         );
       }
 
-      savedQuoteId = extractQuoteIdFromResponse(response) ?? extractQuoteIdFromResponse(createdQuote);
+      savedQuoteId =
+        (isUpdatingExistingQuote && editQuoteId ? String(editQuoteId) : null) ??
+        extractQuoteIdFromResponse(response) ??
+        extractQuoteIdFromResponse(persistedQuote);
+
+      if (persistedQuote) {
+        setQuoteToEdit(persistedQuote);
+      }
 
       if (action === "save") {
-        toast.success("Quote saved successfully");
+        toast.success(
+          isUpdatingExistingQuote
+            ? "Quote updated successfully"
+            : "Quote saved successfully"
+        );
+        await delayAfterSuccessToast();
+        router.push("/sales/quotes");
         return;
       }
 
       if (action === "draft") {
-        toast.success("Draft saved successfully");
+        toast.success(
+          isUpdatingExistingQuote
+            ? "Draft updated successfully"
+            : "Draft saved successfully"
+        );
         return;
       }
 
       if (!savedQuoteId) {
-        if (createdQuote) {
-          setPreviewQuoteId(extractQuoteIdFromResponse(createdQuote));
-          setPreviewQuote(createdQuote);
+        if (persistedQuote) {
+          setPreviewQuoteId(extractQuoteIdFromResponse(persistedQuote));
+          setPreviewQuote(persistedQuote);
           toast.success("Quote preview loaded");
           return;
         }
@@ -747,9 +1698,9 @@ export default function CreateQuotePage() {
       const detailResponse = await salesApi.getQuoteDetail(savedQuoteId);
 
       if (detailResponse?.error || detailResponse?.success === false) {
-        if (createdQuote) {
+        if (persistedQuote) {
           setPreviewQuoteId(savedQuoteId);
-          setPreviewQuote(createdQuote);
+          setPreviewQuote(persistedQuote);
           toast.success("Quote preview loaded");
           return;
         }
@@ -761,7 +1712,7 @@ export default function CreateQuotePage() {
         );
       }
 
-      const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null) ?? createdQuote;
+      const quoteDetail = unwrapSalesQuoteDetail(detailResponse?.data ?? null) ?? persistedQuote;
 
       if (!quoteDetail) {
         throw new Error("Quote preview could not be loaded");
@@ -790,8 +1741,12 @@ export default function CreateQuotePage() {
           : action === "preview"
             ? "Failed to load quote preview"
             : action === "draft"
-              ? "Failed to save draft"
-            : "Failed to save quote";
+              ? isUpdatingExistingQuote
+                ? "Failed to update draft"
+                : "Failed to save draft"
+              : isUpdatingExistingQuote
+                ? "Failed to update quote"
+                : "Failed to save quote";
 
       toast.error(error instanceof Error ? error.message : fallbackMessage);
     } finally {
@@ -801,10 +1756,20 @@ export default function CreateQuotePage() {
   };
 
   const handlePreviewQuote = async () => {
+    if (!quoteReviewValidation.isValid) {
+      toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
     await saveQuoteDraft("preview");
   };
 
   const handleSaveQuote = async () => {
+    if (!quoteReviewValidation.isValid) {
+      toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
     await saveQuoteDraft("save");
   };
 
@@ -812,7 +1777,21 @@ export default function CreateQuotePage() {
     await saveQuoteDraft("draft");
   };
 
+  const handleOpenQuoteSummary = () => {
+    if (!quoteReviewValidation.isValid) {
+      toast.error(getQuoteValidationMessage(quoteReviewValidation));
+      return;
+    }
+
+    persistQuoteSummarySnapshot(
+      SALES_QUOTE_SUMMARY_STORAGE_KEY,
+      getQuoteSummarySnapshot()
+    );
+    router.push("/sales/quotes/summary");
+  };
+
   const fetchCatalog = async () => {
+    setIsCatalogLoaded(false);
     setLoadingServices(true);
     try {
       const res = await salesApi.getQuoteCatalog();
@@ -1026,6 +2005,7 @@ export default function CreateQuotePage() {
       console.error("Failed to fetch catalog", error);
     } finally {
       setLoadingServices(false);
+      setIsCatalogLoaded(true);
     }
   };
 
@@ -1084,13 +2064,19 @@ export default function CreateQuotePage() {
     }
   };
 
-  const handleDeleteShootType = (id: string) => {
-    const item = shootTypes.find(type => type.id === id);
+  const handleDeleteShootType = (kind: ShootTypeKind, id: string) => {
+    const shootTypeOptions = kind === "video" ? videoShootTypes : photoShootTypes;
+    const item = shootTypeOptions.find(type => type.id === id);
     if (!item) return;
+
+    if (item.isSystemDefault) {
+      toast.error("Default shoot types can't be deleted");
+      return;
+    }
 
     const shootTypeId = item.apiId ?? item.id;
 
-    if (!isValidShootTypeId(shootTypeId)) {
+    if (!canDeleteShootTypeItem(item)) {
       toast.error("Invalid shoot type id. Please refresh and try again.");
       return;
     }
@@ -1110,6 +2096,21 @@ export default function CreateQuotePage() {
       return;
     }
 
+    if (itemToDelete.type === 'shoot_type') {
+      const shootTypeItem = [...videoShootTypes, ...photoShootTypes].find(
+        (type) =>
+          String(type.id) === itemToDelete.id ||
+          String(type.apiId ?? "") === itemToDelete.id
+      );
+
+      if (shootTypeItem?.isSystemDefault) {
+        toast.error("Default shoot types can't be deleted");
+        setIsDeleteModalOpen(false);
+        setItemToDelete(null);
+        return;
+      }
+    }
+
     setIsDeleting(true);
     try {
       const res = itemToDelete.type === 'shoot_type'
@@ -1120,9 +2121,6 @@ export default function CreateQuotePage() {
           `${itemToDelete.type === 'service' ? 'Service' : itemToDelete.type === 'addon' ? 'Add-on' : itemToDelete.type === 'logistics' ? 'Logistics item' : itemToDelete.type === 'shoot_type' ? 'Shoot type' : 'Line item'} deleted successfully`
         );
         if (itemToDelete.type === 'shoot_type') {
-          setUserCreatedShootTypeIds((prev) =>
-            prev.filter((shootTypeId) => shootTypeId !== itemToDelete.id)
-          );
           await fetchShootTypes(selectedServices);
         } else {
           await fetchCatalog();
@@ -1151,34 +2149,20 @@ export default function CreateQuotePage() {
 
   const [isSubmittingShootType, setIsSubmittingShootType] = React.useState(false);
 
-  const handleCreateShootType = async () => {
+  const handleCreateShootType = async (kind: ShootTypeKind) => {
     if (!customShootType) return;
 
     setIsSubmittingShootType(true);
     try {
-      const previousShootTypeIds = new Set(shootTypes.map((type) => String(type.id)));
-
-      // Determine content_type based on active services
-      const hasVideo = selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || selectedServices.includes("videography");
-      const contentType = hasVideo ? 1 : 2;
-
       const res = await salesApi.createShootType({
         name: customShootType,
-        content_type: contentType
+        content_type: kind === "video" ? 1 : 2
       });
 
       if (res && !res.error) {
         setCustomShootType("");
-        setShowAddShootTypeForm(false);
-        // Refresh shoot types list
-        const refreshedShootTypes = await fetchShootTypes(selectedServices);
-        const newShootTypeIds = refreshedShootTypes
-          .map((type) => String(type.id))
-          .filter((typeId) => !previousShootTypeIds.has(typeId));
-
-        if (newShootTypeIds.length > 0) {
-          setUserCreatedShootTypeIds((prev) => Array.from(new Set([...prev, ...newShootTypeIds])));
-        }
+        setActiveShootTypeForm(null);
+        await fetchShootTypes(selectedServices);
       } else {
         console.error("Failed to create shoot type:", res?.error || "Unknown error");
       }
@@ -1279,15 +2263,55 @@ export default function CreateQuotePage() {
     }
   };
 
+  const quoteEditorBreadcrumbs = React.useMemo(
+    () => ({
+      create: isEditMode ? "Edit Quote" : "Creating New Quote"
+    }),
+    [isEditMode]
+  );
+
+  if (isEditMode && !quoteToEdit && (isLoadingQuoteToEdit || isHydratingQuoteToEdit)) {
+    return (
+      <div className="min-h-screen bg-[#0f0f0f] text-white">
+        <Topbar
+          pathname={pathname}
+          breadcrumbOverrides={quoteEditorBreadcrumbs}
+          actions={
+            <Button
+              type="button"
+              onClick={handleOpenQuoteSummary}
+              disabled={!canOpenQuoteSummary}
+              className="bg-[#E5D5B8] text-black disabled:opacity-60"
+            >
+              View Quote Summary
+            </Button>
+          }
+        />
+
+        <div className="px-4 pb-12 pt-6 lg:px-9 lg:pt-8">
+          <div className="flex min-h-[420px] items-center justify-center rounded-[18px] border border-[#3D3D3D] bg-[#171717]">
+            <div className="flex items-center gap-3 text-sm text-white/70">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#E8D1AB] border-t-transparent" />
+              Loading quote details...
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white">
       <Topbar
         pathname={pathname}
-        breadcrumbOverrides={{
-          "create": "Creating New Quote"
-        }}
+        breadcrumbOverrides={quoteEditorBreadcrumbs}
         actions={
-          <Button onClick={() => router.push("/sales/quotes/summary")} className="bg-[#E5D5B8] text-black">
+          <Button
+            type="button"
+            onClick={handleOpenQuoteSummary}
+            disabled={!canOpenQuoteSummary}
+            className="bg-[#E5D5B8] text-black disabled:opacity-60"
+          >
             View Quote Summary
           </Button>
         }
@@ -1305,7 +2329,12 @@ export default function CreateQuotePage() {
           </button>
 
           <div className="text-right">
-            <Button onClick={() => router.push("/sales/quotes/summary")} className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black">
+            <Button
+              type="button"
+              onClick={handleOpenQuoteSummary}
+              disabled={!canOpenQuoteSummary}
+              className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black disabled:opacity-60"
+            >
               View Quote Summary
             </Button>
             <span className="hidden lg:block text-base font-semibold text-white">
@@ -1324,19 +2353,19 @@ export default function CreateQuotePage() {
           <div className="h-1 flex-1 bg-[#5B5B5B] rounded-full overflow-hidden relative">
             <div
               className="h-full bg-[#E8D1AB] transition-all duration-500 rounded-full"
-              style={{ width: view === 'selection' ? '0%' : view === 'details' ? '20%' : '100%' }}
+              style={{ width: progressSegmentWidths[0] }}
             />
           </div>
           <div className="h-1 flex-1 bg-[#5B5B5B] rounded-full overflow-hidden relative">
             <div
               className="h-full bg-[#E8D1AB] transition-all duration-500 rounded-full"
-              style={{ width: view === 'services' ? '20%' : view === 'addons' ? '100%' : '0%' }}
+              style={{ width: progressSegmentWidths[1] }}
             />
           </div>
           <div className="h-1 flex-1 bg-[#5B5B5B] rounded-full overflow-hidden relative">
             <div
               className="h-full bg-[#E8D1AB] transition-all duration-500 rounded-full"
-              style={{ width: view === 'addons' ? '20%' : '0%' }}
+              style={{ width: progressSegmentWidths[2] }}
             />
           </div>
         </div>
@@ -1500,7 +2529,7 @@ export default function CreateQuotePage() {
                             <div className="space-y-2">
                               <div className="font-medium text-base text-white leading-none">{addon.label}</div>
                               <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
-                                ${addon.price.toFixed(2)}
+                              ${formatAddonDisplayValue(addon.price)}
                               </div>
                             </div>
                           </div>
@@ -1596,44 +2625,47 @@ export default function CreateQuotePage() {
                         if (!addon || !config) return null;
 
                         return (
-                          <div key={addonId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-5 relative overflow-hidden">
+                          <div key={addonId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-5 lg:px-8 lg:py-7 relative overflow-hidden">
                             {/* desktop version */}
-                            <div className="hidden lg:flex justify-between items-center">
-                              <div className="space-y-1">
-                                <h3 className="text-base font-medium text-white leading-none">{addon.label}</h3>
-                                <p className="text-[#8A8A8A] text-xs font-normal">${addon.price.toFixed(2)}</p>
+                            <div className="hidden lg:flex justify-between items-center gap-6">
+                              <div className="space-y-2 min-w-0">
+                                <h3 className="text-[18px] font-medium text-white leading-none">{addon.label}</h3>
+                                <p className="text-[#F0DCB1] text-[15px] font-semibold tracking-tight leading-none">
+                                  {formatCurrency(addon.price)}
+                                </p>
                               </div>
 
-                              <div className="flex items-center gap-6">
+                              <div className="flex items-center gap-4">
                                 {/* Quantity Controls */}
-                                <div className="flex items-center gap-2 h-9">
+                                <div className="flex items-center gap-4">
                                   <button
                                     onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity - 1)}
-                                    className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                    className="h-[50px] w-[58px] flex items-center justify-center bg-[#F0DCB1] rounded-[14px] text-black hover:opacity-90 transition-all active:scale-95"
                                   >
                                     <Minus size={16} strokeWidth={2.5} />
                                   </button>
-                                  <div className="w-16 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-zinc-400 font-normal text-sm">
-                                    {config.quantity}
+                                  <div className="h-[50px] min-w-[92px] rounded-[14px] border border-[#3B3B46] bg-[#1A1A1F] px-4 flex flex-col items-center justify-center">
+                                    {/* <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-[#8A8A8A]">Qty</span> */}
+                                    <span className="text-base font-medium text-white leading-none">{config.quantity}</span>
                                   </div>
                                   <button
                                     onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity + 1)}
-                                    className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                    className="h-[50px] w-[58px] flex items-center justify-center bg-[#F0DCB1] rounded-[14px] text-black hover:opacity-90 transition-all active:scale-95"
                                   >
                                     <Plus size={16} strokeWidth={2.5} />
                                   </button>
                                 </div>
 
                                 {/* Price Override */}
-                                <div className="relative w-28">
+                                <div className="relative w-[190px]">
                                   <Input
-                                    value={`$ ${getAddonDraftTotal(addonId).toFixed(2)}`}
-                                    onChange={(e) => handleAddonTotalUpdate(addonId, e.target.value)}
-                                    className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                                    value={`$ ${formatAddonDisplayValue(getAddonDraftPrice(addonId))}`}
+                                    onChange={(e) => handleAddonPriceUpdate(addonId, e.target.value)}
+                                    className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-[14px] text-white text-base pl-5"
                                   />
                                 </div>
 
-                                <div className="flex items-center gap-4 ml-2">
+                                <div className="flex items-center gap-5 ml-2">
                                   <button
                                     onClick={() => removeSelectedAddon(addonId)}
                                     className="text-red-500 hover:text-red-400 transition-colors"
@@ -1652,21 +2684,39 @@ export default function CreateQuotePage() {
 
                             {/* mobile version */}
                             <div className="flex flex-col lg:hidden gap-4">
-                              <div className="flex justify-between">
+                              <div className="space-y-1">
                                 <h3 className="text-sm font-medium text-white leading-none">{addon.label}</h3>
-                                <p className="text-[#E8D1AB] text-sm font-semibold">${addon.price.toFixed(2)}</p>
+                                <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                                  {formatCurrency(addon.price)}
+                                </p>
                               </div>
                               <hr className="border-t border-[#3D3D3D]" />
-                              <div className="flex gap-4 items-center">
-                                {/* Price Override */}
-                                <div className="relative w-3/4">
+                              <div className="flex items-center gap-3">
+                                <button
+                                  onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity - 1)}
+                                  className="w-10 h-10 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[10px] text-black hover:opacity-90 transition-all active:scale-95"
+                                >
+                                  <Minus size={16} strokeWidth={2.5} />
+                                </button>
+                                <div className="h-10 min-w-[84px] rounded-[10px] border border-[#3B3B46] bg-[#1A1A1F] px-3 flex flex-col items-center justify-center">
+                                  <span className="text-[10px] font-medium tracking-[0.08em] uppercase text-[#8A8A8A]">Qty</span>
+                                  <span className="text-sm font-medium text-white leading-none">{config.quantity}</span>
+                                </div>
+                                <button
+                                  onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity + 1)}
+                                  className="w-10 h-10 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[10px] text-black hover:opacity-90 transition-all active:scale-95"
+                                >
+                                  <Plus size={16} strokeWidth={2.5} />
+                                </button>
+                              </div>
+                              <div className="flex gap-3 items-center">
+                                <div className="relative flex-1">
                                   <Input
-                                    value={`$ ${getAddonDraftTotal(addonId).toFixed(2)}`}
-                                    onChange={(e) => handleAddonTotalUpdate(addonId, e.target.value)}
-                                    className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                                    value={`$ ${formatAddonDisplayValue(getAddonDraftPrice(addonId))}`}
+                                    onChange={(e) => handleAddonPriceUpdate(addonId, e.target.value)}
+                                    className="h-10 bg-[#1A1A1F] border-[#3B3B46] rounded-[10px] text-white text-sm pl-4"
                                   />
                                 </div>
-
                                 <button
                                   onClick={() => removeSelectedAddon(addonId)}
                                   className="text-red-500 hover:text-red-400 transition-colors"
@@ -1680,27 +2730,6 @@ export default function CreateQuotePage() {
                                   <Check size={18} strokeWidth={3} />
                                 </button>
                               </div>
-
-                              <hr className="border-t border-[#3D3D3D]" />
-                              {/* Quantity Controls */}
-                              <div className="flex items-center gap-2 h-9">
-                                <button
-                                  onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity - 1)}
-                                  className="w-9 h-9 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                >
-                                  <Minus size={16} strokeWidth={2.5} />
-                                </button>
-                                <div className="w-full h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-zinc-400 font-normal text-sm">
-                                  {config.quantity}
-                                </div>
-                                <button
-                                  onClick={() => handleAddonConfigUpdate(addonId, 'quantity', config.quantity + 1)}
-                                  className="w-9 h-9 shrink-0 flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                >
-                                  <Plus size={16} strokeWidth={2.5} />
-                                </button>
-                              </div>
-
                             </div>
                           </div>
                         );
@@ -1710,7 +2739,7 @@ export default function CreateQuotePage() {
                     <div className="mt-4 rounded-[14px] bg-[#2A2A2A] px-5 py-4 lg:px-6 lg:py-5 flex items-center justify-between">
                       <span className="text-base font-medium text-white">Total Add-Ons</span>
                       <span className="text-xl font-semibold tracking-tight text-[#F0DCB1]">
-                        ${totalAddOnsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${formatAddonDisplayValue(totalAddOnsCost)}
                       </span>
                     </div>
                   </section>
@@ -1746,7 +2775,7 @@ export default function CreateQuotePage() {
                               : 'bg-transparent border-[#303030] hover:border-zinc-700'
                               }`}
                           >
-                            <div className="font-medium text-base text-white mb-2 leading-none">{service.label}</div>
+                            <div className="font-medium text-base text-white mb-2 leading-none">{getServiceDisplayLabel(service.label)}</div>
                             <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
                               ${service.price.toFixed(2)} <span className="text-[#71717B] font-medium text-xs lowercase ml-1">per hour</span>
                             </div>
@@ -1839,121 +2868,31 @@ export default function CreateQuotePage() {
                   <div className="space-y-4 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {/* Shoot Type Section */}
                     {(hasVideoService || hasPhotoService) && (
-                      <section className="">
-                        <hr className="border-t border-[#3D3D3D] mb-4 lg:mb-9" />
-                        <div className="px-4 pt-4 pb-5 lg:px-8 lg:pb-10">
-                          <button
-                            onClick={() => setIsShootTypeExpanded(!isShootTypeExpanded)}
-                            className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
-                          >
-                            <h2 className="text-base lg:text-xl font-medium text-white">Video Shoot Type</h2>
-                            <div className="text-zinc-600 transition-transform duration-300">
-                              {isShootTypeExpanded ? <ChevronDown size={22} className="rotate-180" /> : <ChevronDown size={22} />}
-                            </div>
-                          </button>
-
-                          <AnimatePresence>
-                            {isShootTypeExpanded && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                  {loadingShootTypes ? (
-                                    <div className="col-span-4 py-5 flex justify-center items-center">
-                                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
-                                    </div>
-                                  ) : (shootTypes || []).map((type) => {
-                                    const canDeleteShootType = userCreatedShootTypeIds.includes(String(type.id));
-
-                                    return (
-                                      <div key={type.id} className="relative">
-                                        <button
-                                          onClick={() => setSelectedShootType(type.id)}
-                                          className={`h-[52px] w-full rounded-[14px] px-5 pr-11 font-normal transition-all border text-sm tracking-tight text-left flex items-center ${selectedShootType === type.id
-                                            ? 'bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner'
-                                            : 'bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700'
-                                            }`}
-                                        >
-                                          <span className="truncate">{type.label}</span>
-                                        </button>
-                                        {canDeleteShootType && (
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleDeleteShootType(type.id);
-                                            }}
-                                            className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-zinc-500 transition-colors hover:text-red-500"
-                                          >
-                                            <Trash2 size={16} />
-                                          </button>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-
-                                <div className="mt-8 space-y-6">
-                                  <Button
-                                    onClick={() => setShowAddShootTypeForm(!showAddShootTypeForm)}
-                                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none"
-                                  >
-                                    <Plus size={16} strokeWidth={3} />
-                                    Add Video Shoot Type
-                                  </Button>
-
-                                    <AnimatePresence>
-                                      {showAddShootTypeForm && (
-                                        <motion.div
-                                          initial={{ opacity: 0, y: -10 }}
-                                          animate={{ opacity: 1, y: 0 }}
-                                          exit={{ opacity: 0, y: -10 }}
-                                          className="flex gap-4 items-end"
-                                        >
-                                          <div className="flex-1 relative">
-                                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                              <span className="text-xs text-[#8A8A8A] font-normal">
-                                                {selectedServices.some(id => services.find(s => s.id === id)?.label.toLowerCase() === "videography") || selectedServices.includes("videography")
-                                                  ? "Video Shoot Type Name"
-                                                  : "Photography Shoot Type Name"
-                                                }
-                                              </span>
-                                            </div>
-                                            <Input
-                                              placeholder="Eg : Real Estate.."
-                                              value={customShootType}
-                                              onChange={(e) => setCustomShootType(e.target.value)}
-                                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                                            />
-                                          </div>
-                                          <button
-                                            onClick={handleCreateShootType}
-                                            disabled={isSubmittingShootType || !customShootType}
-                                            className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${isSubmittingShootType || !customShootType 
-                                              ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50' 
-                                              : 'bg-[#0DC752] text-black hover:bg-[#0bb54a]'}`}
-                                          >
-                                            {isSubmittingShootType ? (
-                                              <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                                            ) : (
-                                              <Check size={24} strokeWidth={3} />
-                                            )}
-                                          </button>
-                                        </motion.div>
-                                      )}
-                                    </AnimatePresence>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </section>
+                      <div className="">
+                        <hr className="border-t border-[#3D3D3D]" />
+                        {hasVideoService && renderShootTypeSection({
+                          kind: "video",
+                          isExpanded: isVideoShootTypeExpanded,
+                          onToggleExpanded: () => setIsVideoShootTypeExpanded((prev) => !prev),
+                          shootTypeOptions: videoShootTypes,
+                          selectedId: selectedVideoShootType,
+                        })}
+                        {hasPhotoService && (
+                          <>
+                            {hasVideoService && <hr className="border-t border-[#3D3D3D]" />}
+                            {renderShootTypeSection({
+                              kind: "photo",
+                              isExpanded: isPhotoShootTypeExpanded,
+                              onToggleExpanded: () => setIsPhotoShootTypeExpanded((prev) => !prev),
+                              shootTypeOptions: photoShootTypes,
+                              selectedId: selectedPhotoShootType,
+                            })}
+                          </>
+                        )}
+                      </div>
                     )}
 
-                    {/* AI Editing Types Section - Only shown if AI Editing is selected */}
+                    {/* Editing Types Section - Only shown if Editing is selected */}
                     {hasAiEditingService && (
                       <div className="">
                         <hr className="border-t border-[#3D3D3D]" />
@@ -1962,7 +2901,7 @@ export default function CreateQuotePage() {
                             onClick={() => setIsEditingTypeExpanded(!isEditingTypeExpanded)}
                             className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
                           >
-                            <h2 className="text-base lg:text-xl font-medium text-white">AI Editing Types</h2>
+                            <h2 className="text-base lg:text-xl font-medium text-white">Editing Types</h2>
                             <div className="text-zinc-600 transition-transform duration-300">
                               {isEditingTypeExpanded ? <ChevronDown size={22} className="rotate-180" /> : <ChevronDown size={22} />}
                             </div>
@@ -2042,8 +2981,15 @@ export default function CreateQuotePage() {
                             const config = serviceConfigs[serviceId];
                             if (!service || !config) return null;
 
-                            const shootTypeLabel = shootTypes.find(t => t.id === selectedShootType)?.label;
+                            const shootTypeKind = resolveServiceShootTypeKind(service.label);
+                            const shootTypeLabel =
+                              shootTypeKind === "video"
+                                ? selectedVideoShootTypeLabel
+                                : shootTypeKind === "photo"
+                                  ? selectedPhotoShootTypeLabel
+                                  : "";
                             const editingTypeLabel = editingTypes.find(t => t.id === selectedEditingType)?.label;
+                            const serviceTotal = config.duration * config.crewSize * config.estimatedPrice;
 
                             return (
                               <div key={serviceId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden">
@@ -2051,9 +2997,11 @@ export default function CreateQuotePage() {
                                   <div className="space-y-2">
                                     <h3 className="text-[16px] font-medium text-white flex items-center gap-1.5 leading-none">
                                       {serviceId === 'ai_editing' ? (
-                                        <>AI Editing Type - <span className="text-[#8E826A]">{editingTypeLabel}</span></>
+                                        <>Editing Type - <span className="text-[#8E826A]">{editingTypeLabel}</span></>
+                                      ) : shootTypeLabel ? (
+                                        <>{getServiceDisplayLabel(service.label)} - <span className="text-[#8E826A]">({shootTypeLabel})</span></>
                                       ) : (
-                                        <>{service.label} - <span className="text-[#8E826A]">({shootTypeLabel})</span></>
+                                        <>{getServiceDisplayLabel(service.label)}</>
                                       )}
                                     </h3>
                                     <p className="text-[#8A8A8A] text-xs font-normal">Base: ${service.price.toFixed(2)} per hour</p>
@@ -2061,7 +3009,7 @@ export default function CreateQuotePage() {
                                   <div className="flex items-center gap-5">
                                     <div className="hidden lg:flex flex-col items-end gap-1">
                                       <span className="text-[#7B7B85] text-xs font-normal">Total</span>
-                                      <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">${(config.quantity * config.duration * config.crewSize * config.estimatedPrice).toLocaleString()}</span>
+                                      <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">${serviceTotal.toLocaleString()}</span>
                                     </div>
                                     <button
                                       onClick={() => setSelectedServices(prev => prev.filter(id => id !== serviceId))}
@@ -2076,33 +3024,11 @@ export default function CreateQuotePage() {
 
                                 <div className="flex lg:hidden justify-between  items-center gap-1">
                                   <span className="text-[#7B7B85] text-sm font-normal">Total</span>
-                                  <span className="font-semibold text-[#F0DCB1] tracking-tight leading-none">${(config.quantity * config.duration * config.crewSize * config.estimatedPrice).toLocaleString()}</span>
+                                  <span className="font-semibold text-[#F0DCB1] tracking-tight leading-none">${serviceTotal.toLocaleString()}</span>
                                 </div>
                                 <div className="lg:hidden my-4 lg:my-8 border-t border-[#303030]" />
 
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 lg:gap-6">
-                                  {/* Quantity */}
-                                  <div className="space-y-3">
-                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Quantity</span>
-                                    <div className="flex items-center gap-2 h-9">
-                                      <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'quantity', config.quantity - 1)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Minus size={16} strokeWidth={2.5} />
-                                      </button>
-                                      <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
-                                        {config.quantity}
-                                      </div>
-                                      <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'quantity', config.quantity + 1)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Plus size={16} strokeWidth={2.5} />
-                                      </button>
-                                    </div>
-                                  </div>
-
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-6">
                                   {/* Duration */}
                                   <div className="space-y-3">
                                     <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Duration (hours)</span>
@@ -2199,100 +3125,23 @@ export default function CreateQuotePage() {
 
                   <div className="relative border border-[#4A4A4A] rounded-[14px] bg-transparent">
                     <button
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      onClick={() => {
+                        setIsDetailsClientDropdownOpen(false);
+                        setIsDropdownOpen(!isDropdownOpen);
+                      }}
                       className={`w-full group bg-transparent rounded-[14px] px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen ? 'ring-1 ring-[#8E826A]/30' : ''}`}
                     >
                       <span className={selectedClient ? "text-white text-[16px] font-normal" : "text-[#6B6B6B] text-[16px] font-normal"}>
-                        {selectedClient ? selectedClient.name : "Choose a Client..."}
+                        {selectedClient ? getClientDisplayName(selectedClient) : "Choose a Client..."}
                       </span>
                       <ChevronDown size={20} className={`text-[#E5E5E5] transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     <AnimatePresence>
-                      {isDropdownOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.99, y: -5 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.99, y: -5 }}
-                          transition={{ duration: 0.2 }}
-                          className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0F0F0F] border border-zinc-800 rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.6)]"
-                        >
-                          {/* Search input inside dropdown */}
-                          <div className="p-3 border-b border-zinc-800">
-                            <div className="flex items-center gap-2 bg-[#1A1A1F] border border-[#3B3B46] rounded-xl px-4 py-2.5">
-                              <Search size={16} className="text-[#6B6B6B] shrink-0" />
-                              <input
-                                type="text"
-                                placeholder="Search clients..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-[#6B6B6B]"
-                                autoFocus
-                              />
-                              {searchQuery && (
-                                <button onClick={() => setSearchQuery("")} className="text-[#6B6B6B] hover:text-white">
-                                  âœ•
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="max-h-72 overflow-y-auto custom-scrollbar p-3">
-                            {loadingClients ? (
-                              <div className="py-8 flex justify-center items-center">
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
-                              </div>
-                            ) : (filteredClients || []).length === 0 ? (
-                              <div className="py-6 text-center text-[#6B6B6B] text-sm">No clients found</div>
-                            ) : (filteredClients || []).map((client) => (
-                              <div
-                                key={client.client_id}
-                                onClick={() => {
-                                  setSelectedClient(client);
-                                  setClientName(client.name);
-                                  setEmailId(client.email || "");
-                                  setPhoneNumber(client.phone || "");
-                                  setIsDropdownOpen(false);
-                                  setSearchQuery("");
-                                  setView('details');
-                                }}
-                                className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${selectedClient?.client_id === client.client_id
-                                  ? 'bg-[#FFFCE8] text-[#171717]'
-                                  : 'hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]'
-                                  }`}
-                              >
-                                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedClient?.client_id === client.client_id
-                                  ? 'border-[#E8D1AB] bg-[#E8D1AB]'
-                                  : 'border-[#FFFFFF85] group-hover:border-[#171717]'
-                                  }`}>
-                                  {selectedClient?.client_id === client.client_id && (
-                                    <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
-                                  )}
-                                </div>
-                                <span className="font-semibold text-lg">{client.name}</span>
-                              </div>
-                            ))}
-
-                            <button
-                              onClick={() => {
-                                setSelectedClient(null);
-                                setClientName("");
-                                setEmailId("");
-                                setPhoneNumber("");
-                                setIsDropdownOpen(false);
-                                setSearchQuery("");
-                                setView('details');
-                              }}
-                              className="w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 border-t border-zinc-800/50 pt-6"
-                            >
-                              <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
-                                <Plus size={16} className="text-[#171717]" />
-                              </div>
-                              <span className="font-semibold text-lg">Create New Client</span>
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
+                      {isDropdownOpen && renderClientDropdownContent({
+                        onClose: closeClientDropdowns,
+                        advanceToDetails: true,
+                      })}
                     </AnimatePresence>
                   </div>
                 </div>
@@ -2682,36 +3531,39 @@ export default function CreateQuotePage() {
               </div>
 
               <hr className="border-t border-[#3D3D3D]" />
-              <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full p-4 pt-6 lg:p-9">
-                <div className="w-full relative">
-                  <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                    <span className="text-xs text-[#8A8A8A] font-normal">Tax Rate (%)</span>
+              <div className="w-full p-4 pt-6 lg:p-9">
+                <h2 className="text-base lg:text-xl font-medium text-white mb-5 lg:mb-6">Custom Tax Rate</h2>
+                <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full">
+                  <div className="w-full relative">
+                    <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                      <span className="text-xs text-[#8A8A8A] font-normal">Tax Rate (%)</span>
+                    </div>
+                    <Input
+                      placeholder="0.00"
+                      value={taxRate}
+                      onChange={(e) => {
+                        const nextTaxRate = parseFloat(e.target.value) || 0;
+                        const presetTaxRate =
+                          nextTaxRate === 5 || nextTaxRate === 8.5 || nextTaxRate === 10
+                            ? (nextTaxRate as 5 | 8.5 | 10)
+                            : 0;
+                        setTaxRate(nextTaxRate);
+                        setSelectedTax(presetTaxRate);
+                      }}
+                      className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                    />
                   </div>
-                  <Input
-                    placeholder="0.00"
-                    value={taxRate}
-                    onChange={(e) => {
-                      const nextTaxRate = parseFloat(e.target.value) || 0;
-                      const presetTaxRate =
-                        nextTaxRate === 5 || nextTaxRate === 8.5 || nextTaxRate === 10
-                          ? (nextTaxRate as 5 | 8.5 | 10)
-                          : 0;
-                      setTaxRate(nextTaxRate);
-                      setSelectedTax(presetTaxRate);
-                    }}
-                    className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                  />
-                </div>
-                <div className="w-full relative">
-                  <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                    <span className="text-xs text-[#8A8A8A] font-normal">Tax Type</span>
+                  <div className="w-full relative">
+                    <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                      <span className="text-xs text-[#8A8A8A] font-normal">Tax Type</span>
+                    </div>
+                    <Input
+                      placeholder="Sales Tax"
+                      value={taxtType}
+                      onChange={(e) => setTaxType(e.target.value)}
+                      className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                    />
                   </div>
-                  <Input
-                    placeholder="Sales Tax"
-                    value={taxtType}
-                    onChange={(e) => setTaxType(e.target.value)}
-                    className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                  />
                 </div>
               </div>
             </div>
@@ -2733,8 +3585,27 @@ export default function CreateQuotePage() {
                     <Input
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 pr-14 text-sm lg:text-base"
                     />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        setIsDetailsClientDropdownOpen((prev) => !prev);
+                      }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[#E5E5E5] transition-colors hover:text-white"
+                    >
+                      <ChevronDown
+                        size={18}
+                        className={`transition-transform duration-300 ${isDetailsClientDropdownOpen ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                    <AnimatePresence>
+                      {isDetailsClientDropdownOpen && renderClientDropdownContent({
+                        onClose: closeClientDropdowns,
+                        advanceToDetails: false,
+                      })}
+                    </AnimatePresence>
                   </div>
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
@@ -2760,7 +3631,7 @@ export default function CreateQuotePage() {
 
                 <div className="relative">
                   <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#D3D3D3] font-medium">Address*</span>
+                    <span className="text-sm text-[#A1A1AA] font-medium">Address*</span>
                   </div>
                   <Input
                     value={address}
@@ -2796,6 +3667,11 @@ export default function CreateQuotePage() {
                 </div> */}
                 <div>
                   <h3 className="lg:text-xl font-semibold mb-6">Quote Validity</h3>
+                  {(() => {
+                    const isCustomValiditySelected = validityDays === 'custom';
+
+                    return (
+                      <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     {[3, 5, 7].map((days: number) => (
                       <button
@@ -2837,18 +3713,20 @@ export default function CreateQuotePage() {
                       disabled={validityDays !== 'custom'}
                       format="dd-MM-yyyy"
                       colors={{
-                        inputBackground: "transparent",
-                        inputText: "#F5F5F5",
+                        inputBackground: isCustomValiditySelected ? "#1D1A15" : "transparent",
+                        inputText: isCustomValiditySelected ? "#E8D1AB" : "#F5F5F5",
                         inputDisabled: "rgba(214, 195, 157, 0.9)",
-                        iconColor: "#FFFFFF",
-                        labelText: "rgba(113, 113, 122, 1)",
-                        inputBorder: "rgba(39, 39, 42, 1)",
-                        inputBorderFocus: "rgba(229, 213, 184, 0.5)",
+                        iconColor: isCustomValiditySelected ? "#E8D1AB" : "#FFFFFF",
+                        labelText: isCustomValiditySelected ? "#E8D1AB" : "rgba(113, 113, 122, 1)",
+                        inputBorder: isCustomValiditySelected ? "rgba(232, 209, 171, 0.4)" : "rgba(39, 39, 42, 1)",
+                        inputBorderHover: isCustomValiditySelected ? "#E8D1AB" : "rgba(63, 63, 70, 1)",
+                        inputBorderFocus: "#E8D1AB",
                       }}
                       sx={{
                         height: "64px", // h-16
                         borderRadius: "12px", // rounded-xl
                         "& .MuiOutlinedInput-root": {
+                          backgroundColor: isCustomValiditySelected ? "#1D1A15" : "transparent",
                           borderRadius: "12px",
                           paddingLeft: "10px",
                           "& fieldset": {
@@ -2858,12 +3736,15 @@ export default function CreateQuotePage() {
                         "& .MuiInputBase-input": {
                           fontSize: "16px",
                           fontWeight: "500", // font-medium
-                          color: validityDays === 'custom' ? "white" : "rgba(113, 113, 122, 1)", // text-zinc-500
+                          color: isCustomValiditySelected ? "#E8D1AB" : "rgba(113, 113, 122, 1)",
                         },
                         "& .MuiInputBase-input.Mui-disabled": {
                           WebkitTextFillColor: "rgba(214, 195, 157, 0.9)",
                           color: "rgba(214, 195, 157, 0.9)",
                           opacity: 1,
+                        },
+                        "& .MuiSvgIcon-root": {
+                          color: isCustomValiditySelected ? "#E8D1AB" : "#FFFFFF",
                         },
                         "& .Mui-disabled .MuiSvgIcon-root": {
                           color: "#FFFFFF",
@@ -2875,14 +3756,17 @@ export default function CreateQuotePage() {
                         top: "-10px",
                         left: "16px",
                         zIndex: 10,
-                        backgroundColor: "#0A0A0A",
+                        backgroundColor: isCustomValiditySelected ? "#1D1A15" : "#171717",
                         padding: "0 8px",
                         fontSize: "12px", // text-xs
                         fontWeight: "500", // font-medium
-                        color: "rgba(113, 113, 122, 1)", // text-zinc-400
+                        color: isCustomValiditySelected ? "#E8D1AB" : "rgba(113, 113, 122, 1)",
                       }}
                     />
                   </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -2903,20 +3787,10 @@ export default function CreateQuotePage() {
             <Button
               className={`${view === "tax"
                 ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
-                : (
-                  view === 'selection' ? selectedClient :
-                    view === 'details' ? clientName :
-                      view === 'services' ? selectedServices.length > 0 :
-                        true
-                ) ? 'bg-[#E8D1AB] text-[#101010]'
+                : canPrimaryAction ? 'bg-[#E8D1AB] text-[#101010]'
                   : 'bg-[#2A2B2D] text-zinc-600'
                 } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
-              disabled={!(
-                view === 'selection' ? selectedClient :
-                  view === 'details' ? clientName :
-                    view === 'services' ? selectedServices.length > 0 :
-                      true
-              ) || isCreatingQuoteDraft}
+              disabled={!canPrimaryAction || isCreatingQuoteDraft}
               onClick={view === "tax" ? handleSaveQuote : handleContinue}
             >
               {view === "tax"
@@ -2945,7 +3819,7 @@ export default function CreateQuotePage() {
               <Button
                 type="button"
                 onClick={handlePreviewQuote}
-                disabled={isCreatingQuoteDraft}
+                disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
                 className="bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all border-0 shadow-lg disabled:opacity-70"
               >
                 {isCreatingQuoteDraft && activeQuoteAction === "preview" ? "Loading Preview..." : "Preview Quote"}
@@ -2970,7 +3844,7 @@ export default function CreateQuotePage() {
             <Button
               type="button"
               onClick={handlePreviewQuote}
-              disabled={isCreatingQuoteDraft}
+              disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
               className="bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isCreatingQuoteDraft && activeQuoteAction === "preview" ? "Loading Preview..." : "Preview Quote"}
@@ -2998,22 +3872,12 @@ export default function CreateQuotePage() {
             Back
           </Button>
           <Button
-            className={`${(
-              view === 'selection' ? selectedClient :
-                view === 'details' ? clientName :
-                  view === 'services' ? selectedServices.length > 0 :
-                    true // Add-ons are optional
-            ) ? (
+            className={`${canPrimaryAction ? (
               view === "tax"
                 ? 'bg-white text-[#1B1B1B]'
                 : 'bg-[#E8D1AB] text-[#101010]'
             ) : 'bg-[#2A2B2D] text-zinc-600'} hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
-            disabled={!(
-              view === 'selection' ? selectedClient :
-                view === 'details' ? clientName :
-                  view === 'services' ? selectedServices.length > 0 :
-                    true
-            ) || isCreatingQuoteDraft}
+            disabled={!canPrimaryAction || isCreatingQuoteDraft}
             onClick={view === "tax" ? handleSaveQuote : handleContinue}
           >
             {view === "tax"

@@ -167,25 +167,21 @@ export const AvailabilityTable = ({ isDark = true }: AvailabilityTableProps) => 
                         placeholder="Search name, email or ID..."
                         value={searchQuery}
                         onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                        className={`w-full border pl-10 pr-4 py-2.5 rounded-lg focus:outline-none transition-all ${
-                            isDark 
-                                ? "bg-[#111] border-[#333] text-white focus:border-[#555]" 
+                        className={`w-full border pl-10 pr-4 py-2.5 rounded-lg focus:outline-none transition-all ${isDark
+                                ? "bg-[#111] border-[#333] text-white focus:border-[#555]"
                                 : "bg-white border-[#D8D8D8] text-black focus:border-black"
-                        }`}
+                            }`}
                     />
                 </div>
                 <SortDateButton selectedDate={selectedDate} onDateChange={handleDateSort} />
             </div>
 
-            <div className={`w-full rounded-2xl border overflow-hidden transition-colors ${
-                isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#D8D8D8]"
-            }`}>
+            <div className={`w-full rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#D8D8D8]"}`}>
                 <div className="w-full overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className={`text-sm font-normal border-b transition-colors ${
-                                isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-black border-[#E5E5E5]"
-                            }`}>
+                            <tr className={`text-sm font-normal border-b transition-colors ${isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-black border-[#E5E5E5]"
+                                }`}>
                                 <th className="py-5 px-6 font-medium cursor-pointer group" onClick={() => toggleSort('crew_member_id')}>
                                     <div className={`flex items-center gap-2 transition-colors ${isDark ? "group-hover:text-white" : "group-hover:text-black"}`}>
                                         User ID {getSortIcon('crew_member_id')}
@@ -223,15 +219,13 @@ export const AvailabilityTable = ({ isDark = true }: AvailabilityTableProps) => 
                             ) : (
                                 users.map((user, idx) => (
                                     <tr key={idx} onClick={() => router.push(`/admin/availability/${user.id.replace('#', '')}`)}
-                                        className={`border-b cursor-pointer transition-colors last:border-0 ${
-                                            isDark ? "border-[#222] hover:bg-white/[0.04]" : "border-[#F5F5F5] hover:bg-black/[0.02]"
-                                        }`}>
+                                        className={`border-b cursor-pointer transition-colors last:border-0 ${isDark ? "border-[#222] hover:bg-white/[0.04]" : "border-[#F5F5F5] hover:bg-black/[0.02]"
+                                            }`}>
                                         <td className={`py-5 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.id}</td>
                                         <td className="py-5 px-6">
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center font-semibold text-sm ${
-                                                    isDark ? "bg-[#F5F5F5] text-black" : "bg-gray-100 text-black"
-                                                }`}>
+                                                <div className={`w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#F5F5F5] text-black" : "bg-gray-100 text-black"
+                                                    }`}>
                                                     {user.imageUrl ? <img src={user.imageUrl} alt="" className="w-full h-full object-cover" /> : user.initials}
                                                 </div>
                                                 <div>
@@ -244,9 +238,8 @@ export const AvailabilityTable = ({ isDark = true }: AvailabilityTableProps) => 
                                         <td className={`py-5 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.role}</td>
                                         <td className="py-5 px-6"><StatusBadge status={user.status} /></td>
                                         <td className="py-5 px-6 text-center">
-                                            <button className={`w-8 h-8 flex items-center justify-center rounded-full border transition-colors ${
-                                                isDark ? "border-white/20 text-white/80 hover:bg-white/10" : "border-black/10 text-black/60 hover:bg-black/5"
-                                            }`}>
+                                            <button className={`w-8 h-8 flex items-center justify-center rounded-full border transition-colors ${isDark ? "border-white/20 text-white/80 hover:bg-white/10" : "border-black/10 text-black/60 hover:bg-black/5"
+                                                }`}>
                                                 <Eye size={16} />
                                             </button>
                                         </td>
@@ -258,34 +251,30 @@ export const AvailabilityTable = ({ isDark = true }: AvailabilityTableProps) => 
                 </div>
 
                 {!loading && totalPages > 1 && (
-                    <div className={`flex justify-between items-center p-6 border-t transition-colors ${
-                        isDark ? "border-[#333]" : "border-[#E5E5E5]"
-                    }`}>
+                    <div className={`flex justify-between items-center p-6 border-t transition-colors ${isDark ? "border-[#333]" : "border-[#E5E5E5]"
+                        }`}>
                         <div className={`text-sm ${isDark ? "text-[#666]" : "text-black/50"}`}>
                             Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalRecords)} of {totalRecords}
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                                className={`px-4 py-2 text-sm rounded-lg border disabled:opacity-30 transition-all ${
-                                    isDark ? "bg-[#1A1A1A] text-white/60 border-[#333]" : "bg-white text-black/60 border-[#D8D8D8]"
-                                }`}>
+                                className={`px-4 py-2 text-sm rounded-lg border disabled:opacity-30 transition-all ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333]" : "bg-white text-black/60 border-[#D8D8D8]"
+                                    }`}>
                                 Previous
                             </button>
                             {/* Simple pagination numbers */}
                             {[...Array(totalPages)].map((_, i) => (
                                 <button key={i} onClick={() => setCurrentPage(i + 1)}
-                                    className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
-                                        currentPage === i + 1 
+                                    className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${currentPage === i + 1
                                             ? "bg-[#E5D5B8] text-black"
                                             : (isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-black/5")
-                                    }`}>
+                                        }`}>
                                     {i + 1}
                                 </button>
                             ))}
                             <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                                className={`px-4 py-2 text-sm rounded-lg border disabled:opacity-30 transition-all ${
-                                    isDark ? "bg-[#1A1A1A] text-white/60 border-[#333]" : "bg-white text-black/60 border-[#D8D8D8]"
-                                }`}>
+                                className={`px-4 py-2 text-sm rounded-lg border disabled:opacity-30 transition-all ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333]" : "bg-white text-black/60 border-[#D8D8D8]"
+                                    }`}>
                                 Next
                             </button>
                         </div>
