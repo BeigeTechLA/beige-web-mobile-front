@@ -9,10 +9,12 @@ import { adminApi } from "@/lib/api";
 import {
   getPaymentStatusMeta,
   getProjectFolderLink,
+  getProjectTimeText,
   getShootFilesText,
 } from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
+import { getInitials } from "@/lib/utils"
 
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
@@ -58,6 +60,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const folderLink = getProjectFolderLink(project);
+  const projectTimeText = getProjectTimeText(project);
   const shootFilesText = getShootFilesText(project);
 
   const handleDelete = async () => {
@@ -79,14 +82,6 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
     }
-  };
-
-  const getInitials = (name: string) => {
-    if (!name) return "NA";
-    const words = name.trim().split(/\s+/);
-    const firstLetter = words[0]?.charAt(0) || "";
-    const secondLetter = words[1]?.charAt(0) || "";
-    return (firstLetter + secondLetter).toUpperCase();
   };
 
   if (!mounted) return null;
@@ -165,76 +160,76 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
         </div>
 
         <div>
-            <div className={`hidden lg:block w-full h-px my-6 transition-colors ${isDark ? "bg-[#222222]" : "bg-[#E5E5E5]"}`} />
-            <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-4 lg:mt-0 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"
-              }`}>
-              <div className="flex gap-2">
-                <span>Shoot Date :</span>
-                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  {project?.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ""}
-                </span>
-              </div>
-              <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
-              <div className="flex gap-2">
-                <span>Time :</span>
-               <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  {project?.start_time && project?.end_time ? (
-                    `${project.start_time.split(':').slice(0, 2).join(':')} - ${project.end_time.split(':').slice(0, 2).join(':')}`
-                  ) : project?.event_start_time ? (
-                    new Date(project.event_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                  ) : ""}
-                </span>
-              </div>
-              <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
-              <div className="flex gap-2">
-                <span>Total Value :</span>
-                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  {project?.total_paid_amount ? `$${parseFloat(project.total_paid_amount).toLocaleString()}` : "$0.00"}
-                </span>
-              </div>
-              <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
-              <div className="flex gap-2">
-                <span>Payment Status :</span>
-                <span className={cn("font-medium", paymentStatus.className)}>
-                  {paymentStatus.label}
-                </span>
-              </div>
-            </div>
-
-            <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-2 lg:mt-4 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"
-              }`}>
-              <div className="flex gap-2">
-                <span>Folder Link :</span>
-                <a
-                  href={folderLink || "#"}
-                  target={folderLink ? "_blank" : undefined}
-                  rel={folderLink ? "noopener noreferrer" : undefined}
-                  className={cn(
-                    "underline underline-offset-4 transition-all",
-                    folderLink
-                      ? isDark ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]" : "text-[#B18A00] decoration-[#B18A00]/30 hover:decoration-[#B18A00]"
-                      : isDark ?"text-white/50 decoration-white/10 pointer-events-none" : "text-black/50 decoration-black/10 pointer-events-none"
-                  )}
-                >
-                  {folderLink || "No Link Available"}
-                  {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production") && (
-                    <span className={isDark ? "text-white" : "text-black"}> / {activeTab.replace("_", " ")}</span>
-                  )}
-                </a>
-              </div>
-              <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
-              <div className="flex gap-2">
-                <span>Shoot Files :</span>
-                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
-              </div>
-            </div>
-
-            <div className={`mt-2 lg:mt-4 text-sm lg:text-base flex gap-2 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
-              <span>Location :</span>
-              <span className={`${isDark ? "text-white" : "text-black"} font-medium whitespace-pre-wrap`}>
-                {project?.event_location || [project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") || "No location specified"}
+          <div className={`hidden lg:block w-full h-px my-6 transition-colors ${isDark ? "bg-[#222222]" : "bg-[#E5E5E5]"}`} />
+          <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-4 lg:mt-0 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"
+            }`}>
+            <div className="flex gap-2">
+              <span>Shoot Date :</span>
+              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                {project?.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ""}
               </span>
             </div>
+            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
+            <div className="flex gap-2">
+              <span>Time :</span>
+              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                {project?.start_time && project?.end_time ? (
+                  `${project.start_time.split(':').slice(0, 2).join(':')} - ${project.end_time.split(':').slice(0, 2).join(':')}`
+                ) : project?.event_start_time ? (
+                  new Date(project.event_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                ) : ""}
+              </span>
+            </div>
+            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
+            <div className="flex gap-2">
+              <span>Total Value :</span>
+              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                {project?.total_paid_amount ? `$${parseFloat(project.total_paid_amount).toLocaleString()}` : "$0.00"}
+              </span>
+            </div>
+            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
+            <div className="flex gap-2">
+              <span>Payment Status :</span>
+              <span className={cn("font-medium", paymentStatus.className)}>
+                {paymentStatus.label}
+              </span>
+            </div>
+          </div>
+
+          <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-2 lg:mt-4 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"
+            }`}>
+            <div className="flex gap-2">
+              <span>Folder Link :</span>
+              <a
+                href={folderLink || "#"}
+                target={folderLink ? "_blank" : undefined}
+                rel={folderLink ? "noopener noreferrer" : undefined}
+                className={cn(
+                  "underline underline-offset-4 transition-all",
+                  folderLink
+                    ? isDark ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]" : "text-[#B18A00] decoration-[#B18A00]/30 hover:decoration-[#B18A00]"
+                    : isDark ? "text-white/50 decoration-white/10 pointer-events-none" : "text-black/50 decoration-black/10 pointer-events-none"
+                )}
+              >
+                {folderLink || "No Link Available"}
+                {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production") && (
+                  <span className={isDark ? "text-white" : "text-black"}> / {activeTab.replace("_", " ")}</span>
+                )}
+              </a>
+            </div>
+            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
+            <div className="flex gap-2">
+              <span>Shoot Files :</span>
+              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
+            </div>
+          </div>
+
+          <div className={`mt-2 lg:mt-4 text-sm lg:text-base flex gap-2 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
+            <span>Location :</span>
+            <span className={`${isDark ? "text-white" : "text-black"} font-medium whitespace-pre-wrap`}>
+              {project?.event_location || [project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") || "No location specified"}
+            </span>
+          </div>
         </div>
       </div>
     </div>

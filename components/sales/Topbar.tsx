@@ -1,10 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Upload, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
 import Link from "next/link";
 import { useSidebar } from "@/context/SidebarContext";
 import { ModeToggle } from "../generic/ModeToggle";
@@ -16,9 +13,11 @@ interface TopbarProps {
   actions?: React.ReactNode;
   /** Optional override for the title (defaults to breadcrumb logic) */
   title?: string;
+  /** Optional overrides for specific breadcrumb path segments */
+  breadcrumbOverrides?: Record<string, string>;
 }
 
-export default function SalesTopbar({ pathname, actions, title }: TopbarProps) {
+export default function SalesTopbar({ pathname, actions, title, breadcrumbOverrides }: TopbarProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -89,10 +88,12 @@ export default function SalesTopbar({ pathname, actions, title }: TopbarProps) {
             <nav className={`flex items-center gap-2 text-xs whitespace-nowrap ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
               {paths.map((path, index) => {
                 const isLast = index === paths.length - 1;
+                const displayText =
+                  breadcrumbOverrides?.[path] || path.split("-").join(" ");
                 return (
                   <React.Fragment key={index}>
                     <span className={`capitalize ${isLast ? (isDark ? "text-white font-bold" : "text-[#101010] font-bold") : ""}`}>
-                      {path.split("-").join(" ")}
+                      {displayText}
                     </span>
                     {!isLast && <span className="mx-1">/</span>}
                   </React.Fragment>
@@ -115,10 +116,12 @@ export default function SalesTopbar({ pathname, actions, title }: TopbarProps) {
             <nav className={`flex items-center gap-4 text-sm ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
               {paths.map((path, index) => {
                 const isLast = index === paths.length - 1;
+                const displayText =
+                  breadcrumbOverrides?.[path] || path.split("-").join(" ");
                 return (
                   <React.Fragment key={index}>
                     <span className={`capitalize ${isLast ? (isDark ? "text-white font-bold" : "text-[#101010] font-bold") : ""}`}>
-                      {path.split("-").join(" ")}
+                      {displayText}
                     </span>
                     {!isLast && <span className="mx-2">/</span>}
                   </React.Fragment>

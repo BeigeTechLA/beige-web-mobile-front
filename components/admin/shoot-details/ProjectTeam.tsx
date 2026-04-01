@@ -136,6 +136,7 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
                 projectId={projectId}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={handleMemberAdded}
+                isDark={isDark}
             />
 
             {!hasTeam && (

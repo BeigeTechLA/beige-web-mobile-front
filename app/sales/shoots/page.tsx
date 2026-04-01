@@ -7,7 +7,6 @@ import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
-import DottedDivider from '@/components/admin/DottedDivider';
 
 export default function SalesShootsPage() {
   const router = useRouter()

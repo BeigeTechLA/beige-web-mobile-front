@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { toast } from "sonner";
-import { adminApi } from "@/lib/api";
+import { adminApi, salesApi as salesService } from "@/lib/api";
 import { useTheme } from "next-themes";
 import {
   Select,
@@ -49,6 +49,8 @@ interface UserData {
   imageUrl?: string | null;
   intent?: string;
   bookingStatus?: string;
+  assignedSalesRepName?: string;
+  assignedSalesRepEmail?: string;
 
 }
 
@@ -61,6 +63,8 @@ interface LeadData {
   lastActivity: string;
   date: Date;
   intent: string;
+  assignedSalesRepName?: string;
+  assignedSalesRepEmail?: string;
 }
 
 
@@ -114,6 +118,9 @@ const tabs: { label: string; value: TabType }[] = [
   { label: "Creative Partner Signup", value: "Creative Partner" },
 ];
 
+const SALES_REP_PAGE_FILTERS_KEY = "sales-rep-management-filters";
+const SALES_REP_PRESERVE_KEY = "sales-rep-management-preserve";
+
 const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
   "Signed Up - Lead Created",
   "Book a shoot - Lead Created",
@@ -131,6 +138,7 @@ export default function AdminSaleRepManagerPage() {
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const hasRestoredFiltersRef = useRef(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [sortBy, setSortBy] = React.useState("");
@@ -150,6 +158,13 @@ export default function AdminSaleRepManagerPage() {
   const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
   const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
+  const [assignedRepIdFilter, setAssignedRepIdFilter] = useState<string>("all");
+  const [assignedRepLabelFilter, setAssignedRepLabelFilter] = useState<string>("All Representatives");
+  const [clientAssignedRepIdFilter, setClientAssignedRepIdFilter] = useState<string>("all");
+  const [clientAssignedRepLabelFilter, setClientAssignedRepLabelFilter] = useState<string>("All Representatives");
+  const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([
+    { label: "All Representatives", value: "all" },
+  ]);
 
   // --- USERS STATE (Client/CP Tabs) ---
   const [users, setUsers] = useState<UserData[]>([]);
@@ -167,6 +182,34 @@ export default function AdminSaleRepManagerPage() {
 
   useEffect(() => {
     setMounted(true);
+
+    try {
+      const shouldPreserveFilters = window.sessionStorage.getItem(SALES_REP_PRESERVE_KEY) === "true";
+
+      if (!shouldPreserveFilters) {
+        window.sessionStorage.removeItem(SALES_REP_PAGE_FILTERS_KEY);
+        return;
+      }
+
+      const savedFilters = window.sessionStorage.getItem(SALES_REP_PAGE_FILTERS_KEY);
+      if (!savedFilters) return;
+
+      const parsed = JSON.parse(savedFilters);
+      if (parsed.activeTab) setActiveTab(parsed.activeTab);
+      if (typeof parsed.searchQuery === "string") setSearchQuery(parsed.searchQuery);
+      if (parsed.leadTypeFilter) setLeadTypeFilter(parsed.leadTypeFilter);
+      if (parsed.statusFilter) setStatusFilter(parsed.statusFilter);
+      if (parsed.intentFilter) setIntentFilter(parsed.intentFilter);
+      if (parsed.assignedRepIdFilter) setAssignedRepIdFilter(parsed.assignedRepIdFilter);
+      if (parsed.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(parsed.clientAssignedRepIdFilter);
+      if (parsed.leadsCurrentPage) setLeadsCurrentPage(parsed.leadsCurrentPage);
+      if (parsed.usersCurrentPage) setUsersCurrentPage(parsed.usersCurrentPage);
+    } catch (error) {
+      console.error("Failed to restore sales representative page filters:", error);
+    } finally {
+      window.sessionStorage.removeItem(SALES_REP_PRESERVE_KEY);
+      hasRestoredFiltersRef.current = true;
+    }
   }, []);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
@@ -175,7 +218,75 @@ export default function AdminSaleRepManagerPage() {
   // Reset pagination when any lead filter changes
   useEffect(() => {
     setLeadsCurrentPage(1);
-  }, [leadTypeFilter, statusFilter, intentFilter, debouncedSearch]);
+  }, [leadTypeFilter, statusFilter, intentFilter, assignedRepIdFilter, debouncedSearch]);
+
+  useEffect(() => {
+    setUsersCurrentPage(1);
+  }, [usersStatusFilter, clientAssignedRepIdFilter, debouncedSearch]);
+
+  useEffect(() => {
+    const fetchSalesReps = async () => {
+      try {
+        const result = await salesService.getSalesReps();
+        if (result.success && Array.isArray(result.data)) {
+          const mappedOptions = result.data.map((rep: any) => ({
+            label: rep.name || `${rep.first_name || ""} ${rep.last_name || ""}`.trim() || `Representative #${rep.id}`,
+            value: String(rep.id),
+          }));
+          setSalesRepOptions([{ label: "All Representatives", value: "all" }, ...mappedOptions]);
+        } else {
+          setSalesRepOptions([{ label: "All Representatives", value: "all" }]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch sales representatives:", error);
+        setSalesRepOptions([{ label: "All Representatives", value: "all" }]);
+      }
+    };
+
+    fetchSalesReps();
+  }, []);
+
+  useEffect(() => {
+    const selectedBookingRep = salesRepOptions.find((option) => option.value === assignedRepIdFilter);
+    setAssignedRepLabelFilter(selectedBookingRep?.label || "All Representatives");
+
+    const selectedClientRep = salesRepOptions.find((option) => option.value === clientAssignedRepIdFilter);
+    setClientAssignedRepLabelFilter(selectedClientRep?.label || "All Representatives");
+  }, [salesRepOptions, assignedRepIdFilter, clientAssignedRepIdFilter]);
+
+  useEffect(() => {
+    if (!mounted || !hasRestoredFiltersRef.current) return;
+
+    try {
+      window.sessionStorage.setItem(
+        SALES_REP_PAGE_FILTERS_KEY,
+        JSON.stringify({
+          activeTab,
+          searchQuery,
+          leadTypeFilter,
+          statusFilter,
+          intentFilter,
+          assignedRepIdFilter,
+          clientAssignedRepIdFilter,
+          leadsCurrentPage,
+          usersCurrentPage,
+        })
+      );
+    } catch (error) {
+      console.error("Failed to persist sales representative page filters:", error);
+    }
+  }, [
+    mounted,
+    activeTab,
+    searchQuery,
+    leadTypeFilter,
+    statusFilter,
+    intentFilter,
+    assignedRepIdFilter,
+    clientAssignedRepIdFilter,
+    leadsCurrentPage,
+    usersCurrentPage,
+  ]);
 
   // --- LEADS API CALL WITH FILTERS ---
   const { data: leadsApiData, isLoading: leadsIsLoading, isFetching: leadsIsFetching } = useGetLeadsQuery({
@@ -185,6 +296,7 @@ export default function AdminSaleRepManagerPage() {
     // Mapping the filters to API keys
     lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
     status: statusFilter === "All" ? undefined : statusFilter,
+    assigned_to: assignedRepIdFilter === "all" ? undefined : assignedRepIdFilter,
     // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
     intent: intentFilter === "All" ? undefined : intentFilter,
   });
@@ -200,6 +312,9 @@ export default function AdminSaleRepManagerPage() {
       };
       if (debouncedSearch) params.search = debouncedSearch;
       if (usersStatusFilter !== "all") params.status = usersStatusFilter;
+      if (activeTab === "Client" && clientAssignedRepIdFilter !== "all") {
+        params.assigned_to = clientAssignedRepIdFilter;
+      }
 
       let allUsers: UserData[] = [];
       let pagination: any = null;
@@ -232,6 +347,8 @@ export default function AdminSaleRepManagerPage() {
             imageUrl: client.profile_image || client.image || null,
             intent: client.intent || "N/A",
             bookingStatus: client.booking_status || mapLeadStatusToUI(client.payment_status),
+            assignedSalesRepName: client.assigned_sales_rep?.name || "",
+            assignedSalesRepEmail: client.assigned_sales_rep?.email || "",
           }));
           allUsers = mappedClients;
           pagination = clientsPayload.pagination || clientsRes?.pagination;
@@ -281,7 +398,7 @@ export default function AdminSaleRepManagerPage() {
     if (activeTab !== "Booking") {
       fetchUsers();
     }
-  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter]);
+  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter]);
 
   // Smooth transition effect for Leads mapping
   useEffect(() => {
@@ -295,6 +412,8 @@ export default function AdminSaleRepManagerPage() {
         lastActivity: formatRelativeTime(lead.last_activity_at),
         date: new Date(lead.created_at),
         intent: lead.intent || "Hot",
+        assignedSalesRepName: lead.assigned_sales_rep?.name || "",
+        assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
       }));
       setDisplayLeads(mapped);
     } else if (leadsApiData) {
@@ -310,6 +429,7 @@ export default function AdminSaleRepManagerPage() {
   };
 
   const handleUserRowClick = (user: UserData) => {
+    window.sessionStorage.setItem(SALES_REP_PRESERVE_KEY, "true");
     const rawId = user.id.replace('#', '');
     const basePath = activeTab === "Client"
       ? "/admin/sales-representative/client"
@@ -337,6 +457,7 @@ export default function AdminSaleRepManagerPage() {
   };
 
   const handleRowClick = (leadId: number) => {
+    window.sessionStorage.setItem(SALES_REP_PRESERVE_KEY, "true");
     router.push(`/admin/sales-representative/${leadId}`);
   };
 
@@ -423,6 +544,7 @@ export default function AdminSaleRepManagerPage() {
 
             {activeTab === "Booking" && (
               <div className="flex flex-wrap gap-2 lg:gap-4">
+                
                 <BasicDropdown
                   label="Lead Type"
                   value={leadTypeFilter}
@@ -430,16 +552,40 @@ export default function AdminSaleRepManagerPage() {
                   onChange={(val) => setLeadTypeFilter(val)}
                 />
                 <BasicDropdown
+                  label="Client Representative"
+                  value={assignedRepIdFilter}
+                  options={salesRepOptions}
+                  onChange={(val) => {
+                    setAssignedRepIdFilter(val);
+                  }}
+                  openAlign={"right"}
+                />
+                <BasicDropdown
                   label="Intent Type"
                   value={intentFilter}
                   options={["All", "Hot", "Warm", "Cold"]}
                   onChange={(val) => setIntentFilter(val as any)}
                 />
+                
                 <BasicDropdown
                   label="All Statuses"
                   value={statusFilter}
                   options={["All", ...BOOKING_STATUS_OPTIONS]}
                   onChange={(val) => setStatusFilter(val as any)}
+                  openAlign={"right"}
+                />
+              </div>
+            )}
+
+            {activeTab === "Client" && (
+              <div className="flex flex-wrap gap-2 lg:gap-4">
+                <BasicDropdown
+                  label="Client Representative"
+                  value={clientAssignedRepIdFilter}
+                  options={salesRepOptions}
+                  onChange={(val) => {
+                    setClientAssignedRepIdFilter(val);
+                  }}
                   openAlign={"right"}
                 />
               </div>
@@ -518,7 +664,15 @@ export default function AdminSaleRepManagerPage() {
                   <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
                 </td>
                 <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                  {user.phoneNumber}
+                  <div className="space-y-1 min-w-0">
+                    <p>{user.phoneNumber}</p>
+                    {(user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
+                        {user.assignedSalesRepName || "Unassigned"}
+                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
+                      </p>
+                    )}
+                  </div>
                 </td>
                 <td className="py-5 px-6 text-right">
                   <button
@@ -551,7 +705,15 @@ export default function AdminSaleRepManagerPage() {
                 </div>
                 <div className="text-right">
                   <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Contact Info</p>
-                  <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
+                  <div className="space-y-1">
+                    <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
+                    {(user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-black/50"}`}>
+                        {user.assignedSalesRepName || "Unassigned"}
+                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
