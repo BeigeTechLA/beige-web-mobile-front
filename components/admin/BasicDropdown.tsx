@@ -58,6 +58,10 @@ export const BasicDropdown = ({
     return opt;
   };
 
+  const normalizedOptions = options.map(normalizeOption);
+  const selectedOption = normalizedOptions.find((opt) => opt.value === value);
+  const triggerLabel = selectedOption?.label || value || label || "Status";
+
   const handleSelect = (v: string) => {
     onChange(v);
     setOpen(false);
@@ -77,7 +81,7 @@ export const BasicDropdown = ({
           }`}
       >
         <span className="">
-          {value || "Status"}
+          {triggerLabel}
         </span>
         <ChevronDown
           size={18}
@@ -92,8 +96,7 @@ export const BasicDropdown = ({
             ? "bg-[#18181b] border-white/10"
             : "bg-white border-black/10"
           }`}>
-          {options.map((opt) => {
-            const normalized = normalizeOption(opt);
+          {normalizedOptions.map((normalized) => {
             const isSelected = normalized.value === value;
             return (
               <div

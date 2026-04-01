@@ -1531,7 +1531,7 @@ export const adminApi = {
       };
     }
   },
-  getClients: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
+  getClients: async (params: { page?: number; limit?: number; search?: string; status?: string; assigned_to?: string } = {}) => {
     try {
       const response = await api.get('sales/client-leads', { params });
       return response.data;
@@ -2006,6 +2006,49 @@ export const salesApi = {
         success: false,
         data: null,
         error: 'Failed to fetch client dropdown',
+      };
+    }
+  },
+  getSalesReps: async () => {
+    try {
+      const response = await api.get('/sales/sales-reps');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Sales Reps Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch sales representatives',
+      };
+    }
+  },
+  changeLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
+    try {
+      const response = await api.put(`/sales/leads/${leadId}/change-sales-rep`, {
+        sales_rep_id: Number(sales_rep_id),
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Change Lead Sales Rep Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update assigned sales representative',
+      };
+    }
+  },
+  changeClientLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
+    try {
+      const response = await api.put(`/sales/client-leads/${leadId}/change-sales-rep`, {
+        sales_rep_id: Number(sales_rep_id),
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Change Client Lead Sales Rep Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update assigned sales representative',
       };
     }
   },
