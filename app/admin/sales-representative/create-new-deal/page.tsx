@@ -6,6 +6,7 @@ import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, ChevronD
 import { toast } from "sonner";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
+import Cookies from "js-cookie";
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { salesApi } from "@/lib/api";
 import DottedDivider from "@/components/admin/DottedDivider";
 import { ContentTypeCheckbox } from "@/components/book-a-shoot/v3/components/ContentTypeCheckbox";
 import { MultiSelectDropdown } from "@/components/book-a-shoot";
@@ -127,6 +129,14 @@ export default function ClientDetailPage() {
   const [crewList, setCrewList] = useState<any[]>([]);
   const [isLoadingCrew, setIsLoadingCrew] = useState(false);
 
+  const [salesRepId, setSalesRepId] = useState<string>("");
+  const [salesRepOptions, setSalesRepOptions] = useState<{ value: string; label: string }[]>([]);
+  const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);  
+
+  const getAuthToken = useCallback(() => {
+    if (typeof window === "undefined") return "";
+    return Cookies.get("revure_token") || localStorage.getItem("revure_token") || "";
+  }, []);
 
   const updateData = useCallback((newData: Partial<BookingDataV3 & { selectedCrewIds: number[] }>) => {
     setFormData((prev) => ({ ...prev, ...newData }));
@@ -163,6 +173,7 @@ export default function ClientDetailPage() {
 
     setIsLoadingCrew(true);
     try {
+      const token = Cookies.get("revure_token");
       const dateObj = parseDate(formData.startDate);
       const dateStr = dateObj ? format(dateObj, "yyyy-MM-dd") : "";
       const roles = formData.contentType.filter(t => t !== 'editing').join(',');
@@ -176,7 +187,13 @@ export default function ClientDetailPage() {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
+        `${API_BASE_URL}/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
       );
       const result = await response.json();
 
@@ -200,6 +217,32 @@ export default function ClientDetailPage() {
     return () => clearTimeout(timer);
   }, [formData.startDate, formData.contentType, formData.location, fetchAvailableCrew]);
 
+
+  const fetchSalesReps = useCallback(async () => {
+    setIsLoadingSalesReps(true);
+    try {
+      const result = await salesApi.getSalesReps();
+      if (result.success && Array.isArray(result.data)) {
+        setSalesRepOptions(
+          result.data.map((rep: any) => ({
+            value: String(rep.id),
+            label: `${rep.name}`,
+          }))
+        );
+      } else {
+        setSalesRepOptions([]);
+      }
+    } catch (error) {
+      console.error("Error fetching sales reps:", error);
+      setSalesRepOptions([]);
+    } finally {
+      setIsLoadingSalesReps(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSalesReps();
+  }, [fetchSalesReps]);
 
   // 1. Generate Time Options on Mount
   useEffect(() => {
@@ -599,8 +642,8 @@ export default function ClientDetailPage() {
   }, [formData.contentType, extraTeam]);
 
   const handleContinueClick = async () => {
-    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent || !formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
-      toast.error("Please fill in all Booking information fields");
+    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent || !salesRepId || !formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
+      toast.error("Please fill in all booking information fields.");
       return;
     }
 
@@ -620,6 +663,7 @@ export default function ClientDetailPage() {
     setIsConfirmModalOpen(false);
     setIsSubmitting(true);
     try {
+      const token = getAuthToken();
       // Parse correctly from local time strings
       const startDate = parseDate(formData.startDate);
       const endDate = parseDate(formData.endDate);
@@ -644,6 +688,7 @@ export default function ClientDetailPage() {
         guest_email: clientEmail,
         phone: clientPhone,
         intent: intent,
+        sales_rep_id: salesRepId ? Number(salesRepId) : undefined,
         lead_source: thumbtack,
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
@@ -676,8 +721,10 @@ export default function ClientDetailPage() {
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -790,6 +837,16 @@ export default function ClientDetailPage() {
               required
               isDark={isDark}
             />
+            <FloatingLabelDropdown
+              label="Assign Sales Person"
+              value={salesRepId}
+              options={salesRepOptions}
+              onChange={(val) => setSalesRepId(val)}
+              placeholder="Choose a representative..."
+              labelBg={isDark ? "bg-[#000]" : "bg-[#F4F5F7]"}
+              required
+              isDark={isDark}
+            />
           </div>
         </div>
         {/* <DottedDivider /> */}
@@ -846,6 +903,7 @@ export default function ClientDetailPage() {
             isDark={isDark}
           />
         </div>
+
         {/* <DottedDivider /> */}
 
         {/* Booking Type */}

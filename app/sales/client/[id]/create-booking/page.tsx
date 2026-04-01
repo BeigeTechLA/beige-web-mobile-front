@@ -6,6 +6,7 @@ import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2,
 import { toast } from "sonner";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
+import Cookies from "js-cookie";
 
 import { Button } from "@/components/ui/button";
 import DottedDivider from "@/components/admin/DottedDivider";
@@ -110,6 +111,11 @@ export default function ClientDetailPage() {
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
   const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0 });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+
+  const getAuthToken = useCallback(() => {
+    if (typeof window === "undefined") return "";
+    return Cookies.get("revure_token") || localStorage.getItem("revure_token") || "";
+  }, []);
 
   const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
   const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(formData.bookingType || "multi_day");
@@ -590,6 +596,8 @@ export default function ClientDetailPage() {
   const executeFinalizeDeal = async () => {
     setIsSubmitting(true);
     try {
+      const token = getAuthToken();
+
       const crewRoles: Record<string, number> = {};
       if (formData.contentType.includes("videographer")) {
         crewRoles["videographer"] = 1 + (extraTeam["videographer"] || 0);
@@ -654,7 +662,11 @@ export default function ClientDetailPage() {
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
 

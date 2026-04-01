@@ -1,5 +1,7 @@
 import { differenceInCalendarDays, isValid, parseISO, startOfDay } from "date-fns";
 
+import { getDefaultQuoteTermsText } from "@/lib/quoteTerms";
+
 type QuoteDraftSectionType = "service" | "addon" | "logistics" | "custom";
 
 type QuoteDraftCatalogItem = {
@@ -115,7 +117,6 @@ export type QuoteDraftStep =
   | "discounts"
   | "tax";
 
-const DEFAULT_TERMS = "50% deposit required before production starts.";
 const QUOTE_DRAFT_STEP_ORDER: QuoteDraftStep[] = [
   "selection",
   "details",
@@ -194,7 +195,8 @@ export function buildQuoteDraftPayload(
   }
 
   if (includeTax || input.maxStep === undefined) {
-    payload.terms_conditions = input.termsConditions?.trim() || DEFAULT_TERMS;
+    payload.terms_conditions =
+      input.termsConditions?.trim() || getDefaultQuoteTermsText(input.validUntil);
   }
 
   if (lineItems.length > 0 || includeServices || includeAddons || includeLogistics || includeCustomLineItems) {

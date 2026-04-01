@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-import QuotePreviewModal from "@/components/admin/quotes/QuotePreviewModal";
+import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { Button } from "@/components/ui/button";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
 import {
@@ -425,7 +425,10 @@ export default function QuoteDetailsPage({
       persistQuoteEditorNavigationCache(quoteId, quote);
     }
 
-    router.push(`${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}`);
+    toast.success("Opening quote editor");
+    window.setTimeout(() => {
+      router.push(`${baseHref}/create?quoteId=${encodeURIComponent(quoteId)}&view=${encodeURIComponent(targetView)}`);
+    }, 450);
   };
 
   const topbarActions = (

@@ -1,6 +1,6 @@
 "use client";
 
-import QuotePreviewPageShell from "@/components/admin/quotes/QuotePreviewPageShell";
+import QuotePreviewPageShell from "@/components/quotes/QuotePreviewPageShell";
 import Topbar from "@/components/admin/Topbar";
 import { ADMIN_QUOTE_SUMMARY_STORAGE_KEY } from "@/lib/quoteSummary";
 

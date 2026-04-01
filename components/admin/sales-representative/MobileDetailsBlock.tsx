@@ -14,6 +14,8 @@ interface LeadData {
   bookingStatus: "Paid" | "In-Progress" | BookingStatus; //update with code change
   lastActivity: string;
   date: Date;
+  assignedSalesRepName?: string;
+  assignedSalesRepEmail?: string;
 }
 
 interface MobileLeadRowProps {
@@ -85,9 +87,17 @@ export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
                   <p className={`text-xs mb-1 uppercase tracking-wider font-semibold ${isDark ? "text-white/40" : "text-[#999]"}`}>
                     Last Activity
                   </p>
-                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#444]"}`}>
-                    {lead.lastActivity}
-                  </p>
+                  <div className="space-y-1">
+                    <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#444]"}`}>
+                      {lead.lastActivity}
+                    </p>
+                    {(lead.assignedSalesRepName || lead.assignedSalesRepEmail) && (
+                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
+                        {lead.assignedSalesRepName || "Unassigned"}
+                        {lead.assignedSalesRepEmail ? ` • ${lead.assignedSalesRepEmail}` : ""}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className={`text-xs mb-1 uppercase tracking-wider font-semibold ${isDark ? "text-white/40" : "text-[#999]"}`}>

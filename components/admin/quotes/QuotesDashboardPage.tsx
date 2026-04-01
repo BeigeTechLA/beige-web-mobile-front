@@ -41,7 +41,6 @@ import {
   YAxis,
 } from "recharts";
 import {
-  BadgeCheck,
   Calendar,
   Clock,
   Copy,
@@ -119,7 +118,13 @@ type QuoteOverview = {
 };
 
 type QuoteChartRange = "all" | "week" | "month" | "custom";
-type QuoteChartMetricKey = "total" | "accepted" | "pending" | "draft";
+type QuoteChartMetricKey =
+  | "total"
+  | "accepted"
+  | "pending"
+  | "draft"
+  | "rejected"
+  | "expired";
 
 type QuoteChartBucket = {
   key: string;
@@ -344,6 +349,16 @@ const formatLabel = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(" ");
 
+const formatGrowthValue = (value: number) => {
+  const roundedValue = Number(value.toFixed(2));
+
+  if (roundedValue > 0) {
+    return `+${roundedValue}%`;
+  }
+
+  return `${roundedValue}%`;
+};
+
 const getChartMetricKey = (selectedStat: string): QuoteChartMetricKey => {
   switch (selectedStat) {
     case "Accepted Quotes":
@@ -352,8 +367,49 @@ const getChartMetricKey = (selectedStat: string): QuoteChartMetricKey => {
       return "pending";
     case "Draft Quotes":
       return "draft";
+    case "Rejected Quotes":
+      return "rejected";
+    case "Expired Quotes":
+      return "expired";
     default:
       return "total";
+  }
+};
+
+const getStatusFilterForStat = (selectedStat: string) => {
+  switch (selectedStat) {
+    case "Accepted Quotes":
+      return "accepted";
+    case "Pending Quotes":
+      return "pending";
+    case "Draft Quotes":
+      return "draft";
+    case "Rejected Quotes":
+      return "rejected";
+    case "Expired Quotes":
+      return "expired";
+    default:
+      return "all";
+  }
+};
+
+const getSelectedStatForStatus = (statusFilter: string) => {
+  switch (statusFilter) {
+    case "accepted":
+    case "confirmed":
+      return "Accepted Quotes";
+    case "pending":
+    case "sent":
+      return "Pending Quotes";
+    case "draft":
+      return "Draft Quotes";
+    case "rejected":
+    case "cancelled":
+      return "Rejected Quotes";
+    case "expired":
+      return "Expired Quotes";
+    default:
+      return "Total Quotes";
   }
 };
 
@@ -818,7 +874,7 @@ export default function QuotesDashboardPage({
 
   const statsIcons: Record<string, React.ReactNode> = {
     "Total Quotes": <FileText className="fill-[#E8D1AB] stroke-black" size={20} />,
-    "Accepted Quotes": <BadgeCheck className="fill-[#E8D1AB] stroke-black" size={20} />,
+    "Rejected Quotes": <XCircle className="fill-[#E8D1AB] stroke-black" size={20} />,
     "Pending Quotes": <Clock className="fill-[#E8D1AB] stroke-black" size={20} />,
     "Draft Quotes": <Calendar className="fill-[#E8D1AB] stroke-black" size={20} />,
   };
@@ -855,12 +911,30 @@ export default function QuotesDashboardPage({
   }, [quotePagination, quoteSummary, quotes]);
 
   const overviewData = dashboardData?.overview ?? fallbackOverview;
+  const growthData = dashboardData?.growth;
+  const growthCompareLabel = growthData?.compare_label ?? "vs previous period";
 
   const displayStats = [
-    { title: "Total Quotes", value: String(overviewData.total_quotes ?? 0) },
-    { title: "Accepted Quotes", value: String(overviewData.accepted_quotes ?? 0) },
-    { title: "Pending Quotes", value: String(overviewData.pending_quotes ?? 0) },
-    { title: "Draft Quotes", value: String(overviewData.draft_quotes ?? 0) },
+    {
+      title: "Total Quotes",
+      value: String(overviewData.total_quotes ?? 0),
+      growth: Number(growthData?.total_quotes ?? 0),
+    },
+    {
+      title: "Rejected Quotes",
+      value: String(overviewData.rejected_quotes ?? 0),
+      growth: Number(growthData?.rejected_quotes ?? 0),
+    },
+    {
+      title: "Pending Quotes",
+      value: String(overviewData.pending_quotes ?? 0),
+      growth: Number(growthData?.pending_quotes ?? 0),
+    },
+    {
+      title: "Draft Quotes",
+      value: String(overviewData.draft_quotes ?? 0),
+      growth: Number(growthData?.draft_quotes ?? 0),
+    },
   ];
 
   const displayQuotesData = useMemo(
@@ -925,7 +999,13 @@ export default function QuotesDashboardPage({
   const statusOptions = useMemo(
     () =>
       Array.from(
-        new Set(["accepted", "pending", "draft", ...displayQuotesData.map((quote) => quote.statusKey)])
+        new Set([
+          "accepted",
+          "pending",
+          "draft",
+          "rejected",
+          ...displayQuotesData.map((quote) => quote.statusKey),
+        ])
       )
         .filter(Boolean)
         .sort((left, right) => left.localeCompare(right)),
@@ -1034,21 +1114,21 @@ export default function QuotesDashboardPage({
                 const bgColor = isSelected ? "bg-[#E5D5B8]" : "bg-[#161616]";
                 const textColor = isSelected ? "text-[#101010]" : "text-white";
                 const iconBg = isSelected ? "bg-[#171717]" : "bg-white/5";
+                const growthToneClass =
+                  stat.growth > 0
+                    ? "text-[#16A34A]"
+                    : stat.growth < 0
+                      ? "text-[#F04438]"
+                      : isSelected
+                        ? "text-[#101010]/70"
+                        : "text-white/60";
 
                 return (
                   <div
                     key={stat.title}
                     onClick={() => {
                       setSelectedStat(stat.title);
-                      setSelectedStatusFilter(
-                        stat.title === "Accepted Quotes"
-                          ? "accepted"
-                          : stat.title === "Pending Quotes"
-                            ? "pending"
-                            : stat.title === "Draft Quotes"
-                              ? "draft"
-                              : "all"
-                      );
+                      setSelectedStatusFilter(getStatusFilterForStat(stat.title));
                     }}
                     className={`${bgColor} ${textColor} flex h-40 cursor-pointer flex-col justify-between rounded-2xl p-6 transition-all hover:scale-[1.02] active:scale-[0.98]`}
                   >
@@ -1060,9 +1140,14 @@ export default function QuotesDashboardPage({
                     </div>
                     <div>
                       <div className="mb-1 text-2xl font-bold lg:text-4xl">{stat.value}</div>
-                      <span className={`text-xs ${isSelected ? "text-[#101010]/70" : "text-white/60"}`}>
-                        Live data
-                      </span>
+                      <div className="flex items-center gap-2 text-xs lg:text-sm">
+                        <span className={`font-semibold ${growthToneClass}`}>
+                          {formatGrowthValue(stat.growth)}
+                        </span>
+                        <span className={isSelected ? "text-[#101010]/70" : "text-white/60"}>
+                          {growthCompareLabel}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1176,17 +1261,7 @@ export default function QuotesDashboardPage({
                   value={selectedStatusFilter}
                   onValueChange={(value) => {
                     setSelectedStatusFilter(value);
-                    setSelectedStat(
-                      value === "accepted"
-                        ? "Accepted Quotes"
-                        : value === "pending"
-                          ? "Pending Quotes"
-                          : value === "draft"
-                            ? "Draft Quotes"
-                            : value === "all"
-                              ? "Total Quotes"
-                              : ""
-                    );
+                    setSelectedStat(getSelectedStatForStatus(value));
                   }}
                 >
                   <SelectTrigger className="min-w-[170px] rounded-xl border-[#3D3D3D] bg-[#161616] text-sm text-white/70 focus:ring-[#E5D5B8]/40">
