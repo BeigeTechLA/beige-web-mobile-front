@@ -12,7 +12,7 @@ const salesMenuItems = [
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', isDisabled: true },
   { name: 'Messages', icon: MessageCircle, link: '/sales/messages', isDisabled: true },
-  // { name: 'Quotes', icon: Receipt, link: '/sales/quotes' },
+  { name: 'Quotes', icon: Receipt, link: '/sales/quotes' },
 ];
 
 type SalesMenuItem = {
