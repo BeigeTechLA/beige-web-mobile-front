@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronRight, ChevronDown, ChevronUp, Loader2, Trash2 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { format } from "date-fns";
@@ -75,6 +76,7 @@ const parseSkills = (skills: string | number[] | null | undefined, skillMap: Rec
 };
 
 export const OverallShootsTable = () => {
+  const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
@@ -188,6 +190,11 @@ export const OverallShootsTable = () => {
     }
   };
 
+  const handleRowClick = (id: string) => {
+    const cleanId = id.replace('#', '');
+    router.push(`/admin/shoots/${cleanId}`);
+  };
+
   return (
     <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-[#FFF] border-[#E3E3E3]"
       }`}>
@@ -283,7 +290,9 @@ export const OverallShootsTable = () => {
                         >
                           <Trash2 size={16} />
                         </button>
-                        <button className="text-[#E5D5B8] text-sm font-medium">Details</button>
+                        <button
+                          onClick={() => handleRowClick(shoot.id)}
+                          className="text-[#E5D5B8] text-sm font-medium">Details</button>
                       </div>
                     </div>
                   </div>
@@ -318,7 +327,11 @@ export const OverallShootsTable = () => {
               </tr>
             ) : currentShoots.length > 0 ? (
               currentShoots.map((shoot, idx) => (
-                <tr key={idx} className={`group transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}>
+                <tr
+                  key={idx}
+                  onClick={() => handleRowClick(shoot.id)}
+                  className={`group transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
+                >
                   {/* ID */}
                   <td className={`py-2 px-4 font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>{shoot.id}</td>
 
