@@ -81,7 +81,13 @@ export function LeadsStatusBadge({ status }: StatusBadgeProps) {
 
   return (
     <span
-      className={`text-nowrap px-2 py-1.5 lg:px-3 lg:py-2 rounded-full text-xs lg:text-base font-medium ${style.bg} ${style.text}`}
+      className={`
+        inline-block max-w-[150px] lg:max-w-none
+        text-nowrap px-2 py-1.5 lg:px-3 lg:py-2 rounded-full 
+        text-xs lg:text-base font-medium truncate 
+        ${style.bg} ${style.text}
+      `}
+      title={displayStatus} // Good UX: shows full status on hover
     >
       {displayStatus}
     </span>

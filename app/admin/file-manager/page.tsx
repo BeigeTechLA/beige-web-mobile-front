@@ -200,8 +200,8 @@ export default function AdminFolderManagerPage() {
                 key={`tab_${index}`}
                 onClick={() => onChange(tab.name)}
                 className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${selectedTab === tab.name
-                    ? "bg-white text-black shadow-lg scale-[1.02]"
-                    : "text-white/60 hover:bg-white/10 hover:text-white"
+                  ? "bg-white text-black shadow-lg scale-[1.02]"
+                  : "text-white/60 hover:bg-white/10 hover:text-white"
                   }`}
               >
                 <tab.icon size={20} className="shrink-0" />
@@ -441,7 +441,7 @@ export default function AdminFolderManagerPage() {
         />
 
         {/* --- FLOATING MOBILE BUTTON --- */}
-        <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
           <Button
             onClick={() => setIsUploadModalOpen(true)}
             className="w-full bg-[#202020] text-white hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
