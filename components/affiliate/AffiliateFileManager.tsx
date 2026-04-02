@@ -213,17 +213,6 @@ export default function AffiliateFileManager() {
 
   return (
     <div className="space-y-3 lg:space-y-6">
-      <div className="flex justify-between items-center mb-3 lg:mb-6 gap-3 ">
-        <div className="text-white">
-          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">File Manager</h1>
-          <p className="text-xs lg:text-sm text-white/70">Here's what's happening with your folders and requests today.</p>
-        </div>
-        <SortDateButton
-          selectedDate={selectedDate}
-          onDateChange={handleDateSort}
-        />
-      </div>
-
       <div className="flex flex-col lg:flex-row gap-2 justify-between items-center">
         <div className="flex flex-nowrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit overflow-x-auto no-scrollbar">
           {tabs.map((tab, index) => (

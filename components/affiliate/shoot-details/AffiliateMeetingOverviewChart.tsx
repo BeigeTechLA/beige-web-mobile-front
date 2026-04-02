@@ -37,16 +37,20 @@ const Legend = () => {
     );
 };
 
-export default function AffiliateMeetingOverviewChart() {
+interface MeetingOverviewChartProps {
+    isDark?: boolean;
+}
+
+export default function AffiliateMeetingOverviewChart({ isDark = true }: MeetingOverviewChartProps) {
     return (
-        <div className="bg-[#111111] border border-[#222222] rounded-2xl p-6 mt-6">
+        <div className={` border rounded-2xl p-6 mt-6 ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#E3E3E3]"}`}>
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                     <div className="w-1 h-6 bg-[#E5D5B8] rounded-full" />
-                    <h3 className="text-white text-lg font-semibold">Meeting Overview</h3>
+                    <h3 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Meeting Overview</h3>
                 </div>
-                <button className="flex items-center gap-2 bg-[#1A1A1A] border border-[#222222] px-4 py-2 rounded-lg text-sm text-[#E0E0E0] hover:bg-[#222222] transition-colors">
+                <button className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm transition-colors ${isDark ? "bg-[#1A1A1A] border-[#222222] text-[#E0E0E0] hover:bg-[#222222]" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232] hover:bg-[#E8E8E8]/60"}`}>
                     Sort by <ChevronDown size={14} />
                 </button>
             </div>

@@ -44,13 +44,12 @@ export default function AdminDashboardPage() {
         }
       />
 
-      <div className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <div className="overflow-hidden pb-30 p-4 lg:p-6 lg:px-10 lg:py-9" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="flex justify-between items-center">
           <div className="text-white">
             <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
               }`}>Welcome back, Admin !</h1>
-            <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"
-              }`}>Monitor revenue, shoots, Users, and performance metrics in one centralized dashboard.</p>
+            <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Monitor revenue, shoots, Users, and performance metrics in one centralized dashboard.</p>
           </div>
           <SortDateButton
             selectedDate={selectedDate}
@@ -58,7 +57,7 @@ export default function AdminDashboardPage() {
           />
         </div>
 
-        <DottedDivider />
+        {/* <DottedDivider /> */}
         <OverviewChart externalSelectedDate={selectedDate} />
 
         <div className="flex flex-col lg:flex-row gap-4 mt-5">

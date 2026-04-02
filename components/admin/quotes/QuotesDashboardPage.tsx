@@ -54,6 +54,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -725,6 +726,7 @@ export default function QuotesDashboardPage({
   createHref,
   TopbarComponent,
 }: QuotesDashboardPageProps) {
+  const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const router = useRouter();
   const detailBaseHref = createHref.endsWith("/create")
@@ -1053,14 +1055,18 @@ export default function QuotesDashboardPage({
   const showEmptyState = !loading && !hasOverviewData && displayQuotesData.length === 0;
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#0f0f0f] text-white">
+    <div className={`min-h-screen overflow-hidden ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
       <TopbarComponent
         pathname={pathname}
         actions={
           <div className="flex gap-3">
             <Button
               variant="outline"
-              className="border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#202020]/50"
+              className={
+                isDark
+                  ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#202020]/50"
+                  : "border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+              }
             >
               <Download size={18} className="mr-2" />
               Export
@@ -1078,7 +1084,7 @@ export default function QuotesDashboardPage({
         <div className="mb-8 flex items-start justify-between">
           <div className="max-w-1/2">
             <h1 className="mb-2 font-semibold lg:text-2xl">Quotes Module</h1>
-            <p className="text-xs text-[#FFFFFFB2] lg:text-sm">
+            <p className={`text-xs lg:text-sm ${isDark ? "text-[#FFFFFFB2]" : "text-[#000000B2]"}`}>
               Manage and track all your client quotations.
             </p>
           </div>
@@ -1086,7 +1092,11 @@ export default function QuotesDashboardPage({
         </div>
 
         {hasOverviewData && (
-          <div className="rounded-3xl border border-[#3D3D3D] bg-[#171717] p-6">
+          <div
+            className={`rounded-3xl p-6 ${
+              isDark ? "border border-[#3D3D3D] bg-[#171717]" : "border border-[#E5E5E5] bg-white"
+            }`}
+          >
             <div className="mb-6 flex items-center gap-2">
               <div className="h-4 w-1 rounded-full bg-[#E5D5B8]" />
               <span className="text-sm font-medium">Overview</span>
@@ -1095,10 +1105,22 @@ export default function QuotesDashboardPage({
                   value={activeChartRange}
                   onValueChange={(value) => setChartRange(value as QuoteChartRange)}
                 >
-                  <SelectTrigger className="h-9 w-[130px] rounded-full border-[#3D3D3D] bg-zinc-900 text-[10px] text-zinc-400 focus:ring-0 lg:text-xs">
+                  <SelectTrigger
+                    className={`h-9 w-[130px] rounded-full text-[10px] focus:ring-0 lg:text-xs ${
+                      isDark
+                        ? "border-[#3D3D3D] bg-zinc-900 text-zinc-400"
+                        : "border-[#E3E3E3] bg-[#F9F9F9] text-[#444444]"
+                    }`}
+                  >
                     <SelectValue placeholder="Range" />
                   </SelectTrigger>
-                  <SelectContent className="border-[#3D3D3D] bg-[#111111] text-white">
+                  <SelectContent
+                    className={
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#111111] text-white"
+                        : "border-[#E3E3E3] bg-white text-black"
+                    }
+                  >
                     <SelectItem value="all">Last 6 Months</SelectItem>
                     <SelectItem value="week">This Week</SelectItem>
                     <SelectItem value="month">This Month</SelectItem>
@@ -1108,12 +1130,22 @@ export default function QuotesDashboardPage({
               </div>
             </div>
 
-            <div className="mb-8 grid grid-cols-1 gap-4 rounded-xl bg-[#101010] p-4 md:grid-cols-2 lg:grid-cols-4">
+            <div
+              className={`mb-8 grid grid-cols-1 gap-4 rounded-xl p-4 md:grid-cols-2 lg:grid-cols-4 ${
+                isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"
+              }`}
+            >
               {displayStats.map((stat) => {
                 const isSelected = selectedStat === stat.title;
-                const bgColor = isSelected ? "bg-[#E5D5B8]" : "bg-[#161616]";
-                const textColor = isSelected ? "text-[#101010]" : "text-white";
-                const iconBg = isSelected ? "bg-[#171717]" : "bg-white/5";
+                const bgColor = isSelected
+                  ? isDark
+                    ? "bg-[#E5D5B8]"
+                    : "bg-[#ECD7B4]"
+                  : isDark
+                    ? "bg-[#161616]"
+                    : "bg-white";
+                const textColor = isSelected ? "text-[#101010]" : isDark ? "text-white" : "text-black";
+                const iconBg = isSelected ? "bg-[#171717]" : isDark ? "bg-white/5" : "bg-[#F4F5F7]";
                 const growthToneClass =
                   stat.growth > 0
                     ? "text-[#16A34A]"
@@ -1121,7 +1153,9 @@ export default function QuotesDashboardPage({
                       ? "text-[#F04438]"
                       : isSelected
                         ? "text-[#101010]/70"
-                        : "text-white/60";
+                        : isDark
+                          ? "text-white/60"
+                          : "text-black/60";
 
                 return (
                   <div
@@ -1144,7 +1178,7 @@ export default function QuotesDashboardPage({
                         <span className={`font-semibold ${growthToneClass}`}>
                           {formatGrowthValue(stat.growth)}
                         </span>
-                        <span className={isSelected ? "text-[#101010]/70" : "text-white/60"}>
+                        <span className={isSelected ? "text-[#101010]/70" : isDark ? "text-white/60" : "text-black/60"}>
                           {growthCompareLabel}
                         </span>
                       </div>
@@ -1170,25 +1204,29 @@ export default function QuotesDashboardPage({
                         <stop offset="95%" stopColor="#E5D5B8" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid vertical={false} stroke="#27272a" strokeDasharray="3 3" />
+                    <CartesianGrid
+                      vertical={false}
+                      stroke={isDark ? "#27272a" : "#E3E3E3"}
+                      strokeDasharray="3 3"
+                    />
                     <XAxis
                       dataKey="name"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "#ffffff66", fontSize: 12 }}
+                      tick={{ fill: isDark ? "#ffffff66" : "#32323266", fontSize: 12 }}
                       dy={10}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "#ffffff66", fontSize: 12 }}
+                      tick={{ fill: isDark ? "#ffffff66" : "#32323266", fontSize: 12 }}
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#1A1A1A",
+                        backgroundColor: isDark ? "#1A1A1A" : "#FFFFFF",
                         borderRadius: "8px",
-                        border: "1px solid #3D3D3D",
-                        color: "#fff",
+                        border: `1px solid ${isDark ? "#3D3D3D" : "#E3E3E3"}`,
+                        color: isDark ? "#fff" : "#171717",
                       }}
                       itemStyle={{ color: "#BFA780" }}
                       formatter={(value: number | string) => [
@@ -1200,16 +1238,27 @@ export default function QuotesDashboardPage({
                     <Area
                       type="monotone"
                       dataKey={activeChartMetric}
-                      stroke="#E5D5B8"
+                      stroke={isDark ? "#E5D5B8" : "#00000066"}
                       strokeWidth={2}
                       fillOpacity={1}
                       fill="url(#quotesChartGradient)"
-                      activeDot={{ r: 6, fill: "#121212", stroke: "#E5D5B8", strokeWidth: 2 }}
+                      activeDot={{
+                        r: 6,
+                        fill: isDark ? "#121212" : "#FFFFFF",
+                        stroke: "#E5D5B8",
+                        strokeWidth: 2,
+                      }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-[#3D3D3D] bg-[#101010] text-sm text-white/45">
+                <div
+                  className={`flex h-full items-center justify-center rounded-2xl border border-dashed text-sm ${
+                    isDark
+                      ? "border-[#3D3D3D] bg-[#101010] text-white/45"
+                      : "border-[#E3E3E3] bg-[#FAFAFA] text-black/45"
+                  }`}
+                >
                   No chart data available yet.
                 </div>
               )}
@@ -1218,8 +1267,12 @@ export default function QuotesDashboardPage({
         )}
 
         {loading ? (
-          <div className="mt-8 flex min-h-[320px] items-center justify-center rounded-[32px] border border-[#3D3D3D] bg-[#161616]">
-            <div className="flex items-center gap-3 text-sm text-white/70">
+          <div
+            className={`mt-8 flex min-h-[320px] items-center justify-center rounded-[32px] ${
+              isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"
+            }`}
+          >
+            <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/70" : "text-black/70"}`}>
               <Loader2 size={18} className="animate-spin text-[#E5D5B8]" />
               Loading quotes...
             </div>
@@ -1231,7 +1284,7 @@ export default function QuotesDashboardPage({
             <div className="mb-6 mt-8 flex flex-col gap-4 md:flex-row">
               <div className="relative flex-1">
                 <Search
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"
+                  className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? "text-zinc-500" : "text-black/70"}`}
                   size={18}
                 />
                 <input
@@ -1239,15 +1292,31 @@ export default function QuotesDashboardPage({
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   placeholder="Search by client name, quote number or project..."
-                  className="w-full rounded-xl border border-[#FFFFFF33] bg-[#202020] py-3 pl-12 pr-4 text-sm transition-colors focus:border-[#E5D5B8]/50 focus:outline-none"
+                  className={`w-full rounded-xl border py-3 pl-12 pr-4 text-sm transition-colors focus:outline-none ${
+                    isDark
+                      ? "border-[#FFFFFF33] bg-[#202020] focus:border-[#E5D5B8]/50"
+                      : "border-[#E3E3E3] bg-white focus:border-[#A4A5A6]"
+                  }`}
                 />
               </div>
               <div className="flex flex-col gap-4 sm:flex-row">
                 <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
-                  <SelectTrigger className="min-w-[170px] rounded-xl border-[#3D3D3D] bg-[#161616] text-sm text-white/70 focus:ring-[#E5D5B8]/40">
+                  <SelectTrigger
+                    className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#161616] text-white/70"
+                        : "border-[#E3E3E3] bg-white text-black/70"
+                    }`}
+                  >
                     <SelectValue placeholder="All Salesperson" />
                   </SelectTrigger>
-                  <SelectContent className="border-[#3D3D3D] bg-[#161616] text-white">
+                  <SelectContent
+                    className={
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#161616] text-white"
+                        : "border-[#E3E3E3] bg-white text-black"
+                    }
+                  >
                     <SelectItem value="all">All Salesperson</SelectItem>
                     {salespersonOptions.map((salesperson) => (
                       <SelectItem key={salesperson} value={salesperson.toLowerCase()}>
@@ -1264,10 +1333,22 @@ export default function QuotesDashboardPage({
                     setSelectedStat(getSelectedStatForStatus(value));
                   }}
                 >
-                  <SelectTrigger className="min-w-[170px] rounded-xl border-[#3D3D3D] bg-[#161616] text-sm text-white/70 focus:ring-[#E5D5B8]/40">
+                  <SelectTrigger
+                    className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#161616] text-white/70"
+                        : "border-[#E3E3E3] bg-white text-black/70"
+                    }`}
+                  >
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
-                  <SelectContent className="border-[#3D3D3D] bg-[#161616] text-white">
+                  <SelectContent
+                    className={
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#161616] text-white"
+                        : "border-[#E3E3E3] bg-white text-black"
+                    }
+                  >
                     <SelectItem value="all">All Status</SelectItem>
                     {statusOptions.map((status) => (
                       <SelectItem key={status} value={status}>
@@ -1279,10 +1360,20 @@ export default function QuotesDashboardPage({
               </div>
             </div>
 
-            <div className="mb-20 overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#161616] md:mb-0">
+            <div
+              className={`mb-20 overflow-hidden rounded-2xl md:mb-0 ${
+                isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"
+              }`}
+            >
               <table className="w-full text-left">
                 <thead>
-                  <tr className="hidden rounded-b-lg border-b border-[#3D3D3D] bg-[#101010] text-sm capitalize text-[#E8D1AB] md:table-row">
+                  <tr
+                    className={`hidden rounded-b-lg border-b text-sm capitalize md:table-row ${
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                        : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                    }`}
+                  >
                     <th className="px-6 py-4 font-medium">Client Name</th>
                     <th className="px-6 py-4 font-medium">Project</th>
                     <th className="px-6 py-4 font-medium">Amount</th>
@@ -1291,7 +1382,13 @@ export default function QuotesDashboardPage({
                     <th className="px-6 py-4 font-medium">Salesperson</th>
                     <th className="px-6 py-4 text-right font-medium">Action</th>
                   </tr>
-                  <tr className="border-b border-[#3D3D3D] bg-[#101010] text-sm text-[#E8D1AB] md:hidden">
+                  <tr
+                    className={`border-b text-sm md:hidden ${
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                        : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                    }`}
+                  >
                     <th className="px-4 py-4 font-medium">Client Name</th>
                     <th className="px-4 py-4 text-right font-medium">Quote Status</th>
                   </tr>
@@ -1302,7 +1399,11 @@ export default function QuotesDashboardPage({
                       <tr
                         key={quote.id}
                         onClick={() => handleViewQuoteDetails(quote.id)}
-                        className="group cursor-pointer border-b border-[#3D3D3D]/50 transition-colors hover:bg-white/5"
+                        className={`group cursor-pointer border-b transition-colors ${
+                          isDark
+                            ? "border-[#3D3D3D]/50 hover:bg-white/5"
+                            : "border-[#E3E3E3] hover:bg-black/5"
+                        }`}
                       >
                         <td className="px-4 py-4 md:px-6">
                           <div className="flex items-center gap-3">
@@ -1313,18 +1414,18 @@ export default function QuotesDashboardPage({
                             </div>
                             <div>
                               <div className="font-medium">{quote.client}</div>
-                              <div className="text-sm text-white/40 md:block">
+                              <div className={`text-sm md:block ${isDark ? "text-white/40" : "text-black/45"}`}>
                                 {quote.location}
                               </div>
                               {quote.quoteNumber && (
-                                <div className="text-xs text-white/25 md:block">
+                                <div className={`text-xs md:block ${isDark ? "text-white/25" : "text-black/30"}`}>
                                   {quote.quoteNumber}
                                 </div>
                               )}
                             </div>
                           </div>
                         </td>
-                        <td className="hidden px-6 py-4 text-white md:table-cell">
+                        <td className={`hidden px-6 py-4 md:table-cell ${isDark ? "text-white" : "text-black"}`}>
                           <p className="truncate">{quote.project}</p>
                         </td>
                         <td className="hidden px-6 py-4 font-medium md:table-cell">
@@ -1337,10 +1438,10 @@ export default function QuotesDashboardPage({
                             {quote.status}
                           </span>
                         </td>
-                        <td className="hidden px-6 py-4 text-white md:table-cell">
+                        <td className={`hidden px-6 py-4 md:table-cell ${isDark ? "text-white" : "text-black"}`}>
                           {quote.validUntil}
                         </td>
-                        <td className="hidden px-6 py-4 text-white md:table-cell">
+                        <td className={`hidden px-6 py-4 md:table-cell ${isDark ? "text-white" : "text-black"}`}>
                           {quote.salesperson}
                         </td>
                         <td className="hidden px-6 py-4 text-right md:table-cell">
@@ -1361,7 +1462,10 @@ export default function QuotesDashboardPage({
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="px-6 py-16 text-center text-sm text-white/45">
+                      <td
+                        colSpan={7}
+                        className={`px-6 py-16 text-center text-sm ${isDark ? "text-white/45" : "text-black/45"}`}
+                      >
                         No quotes matched the current search or filters.
                       </td>
                     </tr>
@@ -1374,7 +1478,11 @@ export default function QuotesDashboardPage({
       </div>
 
       {!loading && !showEmptyState && (
-        <div className="fixed bottom-0 left-0 right-0 z-[40] flex gap-2 bg-[#0f0f0f] px-6 pb-6 lg:hidden">
+        <div
+          className={`fixed bottom-0 left-0 right-0 z-[40] flex gap-2 px-6 pb-6 lg:hidden ${
+            isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
+          }`}
+        >
           <Button
             onClick={() => router.push(createHref)}
             className="h-14 w-full rounded-md border border-white/20 bg-[#E5D5B8] text-sm font-semibold text-black shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:bg-[#d4c3a3] active:scale-[0.98]"
