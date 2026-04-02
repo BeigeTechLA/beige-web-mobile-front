@@ -100,7 +100,7 @@ export function LoginForm() {
         router.push('/creator/dashboard')
       } else if (userTypeId === 3) {
         router.push('/affiliate/dashboard')
-      } else if (userTypeId === 4 || userTypeId === 5) {
+      } else if (userTypeId === 4 || userTypeId === 5 || userTypeId === 7) {
         router.push('/sales/dashboard')
       }
       else if (userTypeId === 6) {

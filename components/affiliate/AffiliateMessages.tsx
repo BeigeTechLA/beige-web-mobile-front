@@ -65,15 +65,6 @@ export default function AffiliateMessages() {
                 onClose={() => setShowManageModal(false)}
             />
 
-            <div className="flex items-center justify-between mb-6 shrink-0">
-                <div>
-                    <h1 className="text-3xl font-bold mb-1 text-white">Messages</h1>
-                    <p className="text-zinc-500 text-sm">
-                        Communicate with clients and manage all your conversation in one place
-                    </p>
-                </div>
-            </div>
-
             <div className="border border-zinc-900 rounded-3xl flex flex-1 overflow-hidden bg-[#0A0A0A] shadow-2xl">
 
                 <div className="w-[380px] border-r border-zinc-900 flex flex-col bg-[#0A0A0A]">
