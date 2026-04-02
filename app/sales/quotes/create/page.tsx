@@ -3830,7 +3830,7 @@ export default function CreateQuotePage() {
       </div>
 
       {/* --- FLOATING MOBILE BUTTON --- */}
-      <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f] items-center">
+      <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f] items-center">
         {view === "tax" ? (
           <div className="flex gap-2">
             <Button

@@ -44,7 +44,7 @@ export default function AdminDashboardPage() {
         }
       />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <div className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="flex justify-between items-center">
           <div className="text-white">
             <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
@@ -72,7 +72,7 @@ export default function AdminDashboardPage() {
         </div>
         <OverallShootsTable />
 
-        <div className="flex flex-col lg:flex-row gap-4 mt-5 pb-20 lg:pb-0">
+        <div className="flex flex-col lg:flex-row gap-4 mt-5 lg:pb-0">
           <div className="lg:w-3/4">
             <ShootStatusChart />
           </div>
@@ -84,7 +84,7 @@ export default function AdminDashboardPage() {
         <LeadsShootsTable />
 
         {/* --- FLOATING MOBILE BUTTON --- */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
             onClick={() => router.push("/book-a-shoot")}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, FileText, Receipt } from 'lucide-react';
 import Link from 'next/link';
@@ -27,16 +27,27 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
+
+  const initialPath = useRef(pathname);
+
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Users"]);
 
   useEffect(() => setMounted(true), []);
 
+  useEffect(() => {
+    // Only trigger onClose if the current pathname is different 
+    // from the one we had when the sidebar opened.
+    if (onClose && pathname !== initialPath.current) {
+      onClose();
+    }
+  }, [pathname, onClose]);
+
   const isDark = !mounted || theme === "dark";
 
-  const handleLinkClick = (link: string) => {
-    if (link !== "#") {
-      if (onClose) onClose();
+  // Shared helper to handle navigation and closing sidebar
+  const handleNavigation = (link: string) => {
+    if (link && link !== "#") {
       router.push(link);
     }
   };
@@ -107,20 +118,20 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               <div key={item.name}>
                 {isDisabled ? (
                   /* Render a DIV instead of a LINK if disabled */
-                   <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
+                  <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
                     <div className="flex items-center gap-3">
                       <item.icon size={20} />
                       <span className="font-medium">{item.name}</span>
                     </div>
                   </div>
                 ) : (
-                  <Link
-                    href={item.link || '#'}
+                  <button
+                    onClick={() => handleNavigation(item.link || '#')}
                     className={`${baseClass} ${active ? activeClass : inactiveClass} ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     <item.icon size={20} />
                     <span className="font-medium">{item.name}</span>
-                  </Link>
+                  </button>
                 )}
               </div>
             );

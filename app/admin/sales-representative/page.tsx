@@ -504,7 +504,7 @@ export default function AdminSaleRepManagerPage() {
         }
       />
 
-      <div className={`min-h-screen pb-40 p-4 lg:p-6 lg:px-10 lg:py-9 transition-colors duration-300 ${isDark ? "bg-transparent" : "bg-[#F3F4F6]"}`}>
+      <div className={`min-h-screen pb-30 p-4 lg:p-6 lg:px-10 lg:py-9 transition-colors duration-300 ${isDark ? "bg-transparent" : "bg-[#F3F4F6]"}`}>
         <div className="flex flex-col lg:flex-row gap-6 justify-between items-start w-full">
           <div>
             <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
@@ -544,7 +544,7 @@ export default function AdminSaleRepManagerPage() {
 
             {activeTab === "Booking" && (
               <div className="flex flex-wrap gap-2 lg:gap-4">
-                
+
                 <BasicDropdown
                   label="Lead Type"
                   value={leadTypeFilter}
@@ -566,7 +566,7 @@ export default function AdminSaleRepManagerPage() {
                   options={["All", "Hot", "Warm", "Cold"]}
                   onChange={(val) => setIntentFilter(val as any)}
                 />
-                
+
                 <BasicDropdown
                   label="All Statuses"
                   value={statusFilter}
@@ -736,6 +736,16 @@ export default function AdminSaleRepManagerPage() {
             }
           />
         )}
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => router.push("/admin/sales-representative/create-new-deal")}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
+            Create new lead
+          </Button>
+        </div>
       </div>
     </>
   );

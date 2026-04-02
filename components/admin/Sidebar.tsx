@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, Receipt } from 'lucide-react';
 import Link from 'next/link';
@@ -39,16 +39,27 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
+
+  const initialPath = useRef(pathname);
+
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Users"]);
 
   useEffect(() => setMounted(true), []);
 
+  useEffect(() => {
+    // Only trigger onClose if the current pathname is different 
+    // from the one we had when the sidebar opened.
+    if (onClose && pathname !== initialPath.current) {
+      onClose();
+    }
+  }, [pathname, onClose]);
+
   const isDark = !mounted || theme === "dark";
 
-  const handleLinkClick = (link: string) => {
-    if (link !== "#") {
-      if (onClose) onClose();
+  // Shared helper to handle navigation and closing sidebar
+  const handleNavigation = (link: string) => {
+    if (link && link !== "#") {
       router.push(link);
     }
   };
@@ -143,15 +154,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     <span>{item.name}</span>
                   </div>
                 ) : (
-                  <Link
-                    href={item.link || '#'}
+                  <button
+                    onClick={() => handleNavigation(item.link || '#')}
                     className={`${baseClass} ${active ? activeClass : inactiveClass}`}
                   >
                     <div className="flex items-center gap-3">
                       <item.icon size={20} />
                       <span className="font-medium">{item.name}</span>
                     </div>
-                  </Link>
+                  </button>
                 )}
 
                 {/* Submenu */}
@@ -160,17 +171,16 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     {item.children!.map((child) => {
                       const isChildActive = isActiveLink(child.link);
                       return (
-                        <Link
+                        <button
                           key={child.name}
-                          href={child.link}
-                          onClick={() => handleLinkClick(child.link)}
+                          onClick={() => handleNavigation(child.link)}
                           className={`block px-4 py-2 text-sm rounded-lg transition-colors ${isChildActive
-                              ? (isDark ? "text-white font-medium" : "text-[#101010] font-bold")
-                              : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
+                            ? (isDark ? "text-white font-medium" : "text-[#101010] font-bold")
+                            : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
                             }`}
                         >
                           {child.name}
-                        </Link>
+                        </button>
                       );
                     })}
                   </div>
