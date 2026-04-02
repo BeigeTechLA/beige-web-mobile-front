@@ -18,7 +18,8 @@ import {
   Plus,
   X,
   Clock,
-  Circle
+  Circle,
+  Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CreativePartnerProfile } from "@/components/admin/users/CreativePartnerProfile";
+import { salesApi as salesService } from "@/lib/api";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -124,10 +126,57 @@ export default function LeadDetailPage() {
   const [generatedDiscountId, setGeneratedDiscountId] = useState<number | undefined>(undefined);
   const [isCPModalOpen, setIsCPModalOpen] = useState(false);
   const [selectedCPId, setSelectedCPId] = useState<string | null>(null);
+  const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
+  const [isEditingSalesRep, setIsEditingSalesRep] = useState(false);
+  const [isUpdatingSalesRep, setIsUpdatingSalesRep] = useState(false);
+  const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
+  const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([]);
+  const [selectedSalesRepId, setSelectedSalesRepId] = useState<string>("");
 
   useEffect(() => {
     setMounted(true);
+
+    try {
+      const storedUser = localStorage.getItem("revure_user");
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      const userTypeId = parsedUser?.user_type_id ?? parsedUser?.userTypeId;
+      setIsUserTypeSeven(userTypeId === 7);
+    } catch (error) {
+      console.error("Failed to read logged in user from localStorage:", error);
+      setIsUserTypeSeven(false);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!isUserTypeSeven) {
+      setSalesRepOptions([]);
+      return;
+    }
+
+    const fetchSalesReps = async () => {
+      setIsLoadingSalesReps(true);
+      try {
+        const result = await salesService.getSalesReps();
+        if (result.success && Array.isArray(result.data)) {
+          setSalesRepOptions(
+            result.data.map((rep: any) => ({
+              label: rep.name || `${rep.first_name || ""} ${rep.last_name || ""}`.trim() || `Representative #${rep.id}`,
+              value: String(rep.id),
+            }))
+          );
+        } else {
+          setSalesRepOptions([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch sales representatives:", error);
+        setSalesRepOptions([]);
+      } finally {
+        setIsLoadingSalesReps(false);
+      }
+    };
+
+    fetchSalesReps();
+  }, [isUserTypeSeven]);
 
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
@@ -151,6 +200,10 @@ export default function LeadDetailPage() {
 
   const lead = leadData as SalesLeadDetails;
   const booking = lead?.booking;
+
+  useEffect(() => {
+    setSelectedSalesRepId(lead?.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
+  }, [lead?.assigned_sales_rep?.id]);
 
   // Filtered and Mapped CPs
   const filteredCPs = useMemo(() => {
@@ -177,6 +230,35 @@ export default function LeadDetailPage() {
   }, [booking, statusFilter]);
 
   const activePartner = filteredCPs[activeCPIndex % (filteredCPs.length || 1)];
+
+  const handleUpdateSalesRep = async (salesRepId: string) => {
+    if (!salesRepId) {
+      toast.error("Please choose a representative");
+      return;
+    }
+
+    if (salesRepId === String(lead?.assigned_sales_rep?.id || "")) {
+      setIsEditingSalesRep(false);
+      return;
+    }
+
+    setIsUpdatingSalesRep(true);
+    try {
+      const result = await salesService.changeClientLeadSalesRep(leadId, salesRepId);
+      if (result.success) {
+        toast.success("Assigned sales representative updated successfully");
+        setIsEditingSalesRep(false);
+        refetch();
+      } else {
+        toast.error(result.error || result.message || "Failed to update assigned sales representative");
+      }
+    } catch (error) {
+      console.error("Failed to update assigned sales representative:", error);
+      toast.error("Failed to update assigned sales representative");
+    } finally {
+      setIsUpdatingSalesRep(false);
+    }
+  };
 
   const formatTime = (timeStr: string | undefined) => {
     if (!timeStr) return null;
@@ -437,10 +519,79 @@ export default function LeadDetailPage() {
                   <p>
                     Created Date : <span className={isDark ? "text-white" : "text-black"}>{formatDateUI(lead.created_at) || "N/A"}</span>
                   </p>
-                  <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
-                  <p>
-                    Assigned Sales Rep :<span className={isDark ? "text-white" : "text-black"}>{lead.assigned_sales_rep?.name || "Unassigned"}</span>
-                  </p>
+                  {!isUserTypeSeven && (
+                    <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
+                  )}
+                  {isUserTypeSeven ? (
+                    <div className="relative flex w-full items-center gap-2 overflow-visible">
+                      <p>
+                        Assigned Sales Rep : <span className={isDark ? "text-white" : "text-black"}>{lead.assigned_sales_rep?.name || "Unassigned"}</span>
+                      </p>
+                      <button
+                        type="button"
+                        aria-label={isEditingSalesRep ? "Close sales representative options" : "Edit assigned sales representative"}
+                        onClick={() => {
+                          if (isEditingSalesRep) {
+                            setSelectedSalesRepId(lead.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
+                            setIsEditingSalesRep(false);
+                            return;
+                          }
+                          setIsEditingSalesRep(true);
+                        }}
+                        className={`relative z-30 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors ${isDark ? "text-[#E8D1AB] hover:bg-white/10" : "text-black hover:bg-black/5"}`}
+                      >
+                        {isEditingSalesRep ? <X size={14} /> : <Pencil size={14} />}
+                      </button>
+                      {isEditingSalesRep && (
+                        <>
+                          <button
+                            type="button"
+                            aria-label="Close sales representative options"
+                            onClick={() => {
+                              setSelectedSalesRepId(lead.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
+                              setIsEditingSalesRep(false);
+                            }}
+                            className="fixed inset-0 z-20 cursor-default"
+                          />
+                          <div className={`absolute top-full left-0 mt-2 z-50 min-w-[260px] max-w-[320px] rounded-xl border overflow-hidden shadow-xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+                            {isLoadingSalesReps ? (
+                              <div className={`px-4 py-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                                Loading...
+                              </div>
+                            ) : (
+                              <div className="py-1.5">
+                                {salesRepOptions.map((option) => {
+                                  const isSelected = option.value === selectedSalesRepId;
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => {
+                                        if (isUpdatingSalesRep) return;
+                                        setSelectedSalesRepId(option.value);
+                                        handleUpdateSalesRep(option.value);
+                                      }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                                        isSelected
+                                          ? (isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-black/5 text-black font-medium")
+                                          : (isDark ? "text-white/80 hover:bg-white/10" : "text-black/80 hover:bg-black/5")
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <p>
+                      Assigned Sales Rep :<span className={isDark ? "text-white" : "text-black"}>{lead.assigned_sales_rep?.name || "Unassigned"}</span>
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

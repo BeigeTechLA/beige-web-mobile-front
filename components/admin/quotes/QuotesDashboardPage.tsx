@@ -1374,13 +1374,13 @@ export default function QuotesDashboardPage({
                         : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
                     }`}
                   >
-                    <th className="px-6 py-4 font-medium">Client Name</th>
-                    <th className="px-6 py-4 font-medium">Project</th>
-                    <th className="px-6 py-4 font-medium">Amount</th>
-                    <th className="px-6 py-4 font-medium">Quote Status</th>
-                    <th className="px-6 py-4 font-medium">Valid Until</th>
-                    <th className="px-6 py-4 font-medium">Salesperson</th>
-                    <th className="px-6 py-4 text-right font-medium">Action</th>
+                    <th className="px-6 py-4 font-medium w-[25%]">Client Name</th>
+                    <th className="px-6 py-4 font-medium w-[10%]">Project</th>
+                    <th className="px-6 py-4 font-medium w-[10%]">Amount</th>
+                    <th className="px-6 py-4 font-medium w-[17%]">Quote Status</th>
+                    <th className="px-6 py-4 font-medium w-[16%]">Valid Until</th>
+                    <th className="px-6 py-4 font-mediumw-[13%]">Salesperson</th>
+                    <th className="px-6 py-4 text-right font-mediumw-[10%]">Action</th>
                   </tr>
                   <tr
                     className={`border-b text-sm md:hidden ${
@@ -1425,7 +1425,7 @@ export default function QuotesDashboardPage({
                             </div>
                           </div>
                         </td>
-                        <td className={`hidden px-6 py-4 md:table-cell ${isDark ? "text-white" : "text-black"}`}>
+                        <td className={`hidden px-6 py-4 md:table-cell max-w-0 w-full ${isDark ? "text-white" : "text-black"}`}>
                           <p className="truncate">{quote.project}</p>
                         </td>
                         <td className="hidden px-6 py-4 font-medium md:table-cell">

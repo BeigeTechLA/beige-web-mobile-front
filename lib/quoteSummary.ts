@@ -163,6 +163,9 @@ const toTitleCase = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(" ");
 
+const isEditingServiceLabel = (label: string) =>
+  /\bedit(?:ing)?\b/.test(label.trim().toLowerCase());
+
 const resolveValidityDays = (validityDays: number | "custom", validUntil: string) => {
   if (validityDays !== "custom") {
     return Math.max(0, normalizeNumber(validityDays));
@@ -194,13 +197,59 @@ const resolveShootTypeLabel = (
   shootTypes.find((item) => String(item.id) === selectedShootType)?.label?.trim() ||
   toTitleCase(selectedShootType);
 
+const parseShootTypeLabels = (value: string) => {
+  const normalizedValue = value.trim();
+  if (!normalizedValue) {
+    return { video: "", photo: "", editing: "" };
+  }
+
+  const parts = normalizedValue
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  let video = "";
+  let photo = "";
+  let editing = "";
+
+  parts.forEach((part) => {
+    const [rawPrefix, ...restParts] = part.split(":");
+    const prefix = rawPrefix.trim().toLowerCase();
+    const label = restParts.join(":").trim();
+
+    if (!label) {
+      return;
+    }
+
+    if (prefix === "video") {
+      video = label;
+    } else if (prefix === "photo") {
+      photo = label;
+    } else if (prefix === "editing") {
+      editing = label;
+    }
+  });
+
+  if (video || photo || editing) {
+    return { video, photo, editing };
+  }
+
+  return {
+    video: normalizedValue,
+    photo: normalizedValue,
+    editing: normalizedValue,
+  };
+};
+
 const buildServiceItems = (
   selectedServices: string[],
   services: QuoteCatalogItem[],
   serviceConfigs: Record<string, QuoteServiceConfig>,
   shootTypeLabel: string
-): QuoteSummaryLineItem[] =>
-  selectedServices
+) => {
+  const parsedShootTypeLabels = parseShootTypeLabels(shootTypeLabel);
+
+  return selectedServices
     .map((serviceId) => {
       const service = services.find((item) => String(item.id) === serviceId);
       const config = serviceConfigs[serviceId];
@@ -218,8 +267,22 @@ const buildServiceItems = (
       );
       const serviceName = service.label?.trim() || service.name?.trim() || "Service";
       const normalizedServiceName = serviceName.toLowerCase();
-      const shouldShowShootTypeSubtitle =
-        normalizedServiceName === "videography" || normalizedServiceName === "photography";
+      const serviceShootTypeLabel =
+        normalizedServiceName === "videography"
+          ? parsedShootTypeLabels.video
+          : normalizedServiceName === "photography"
+            ? parsedShootTypeLabels.photo
+            : isEditingServiceLabel(normalizedServiceName)
+              ? parsedShootTypeLabels.editing
+              : "";
+      const shouldShowShootTypeSubtitle = Boolean(
+        serviceShootTypeLabel &&
+          (
+            normalizedServiceName === "videography" ||
+            normalizedServiceName === "photography" ||
+            isEditingServiceLabel(normalizedServiceName)
+          )
+      );
 
       return {
         id: String(service.id),
@@ -230,10 +293,14 @@ const buildServiceItems = (
         crew,
         unitRate,
         amount: Math.max(duration, 1) * Math.max(crew, 1) * unitRate,
-        subtitle: shouldShowShootTypeSubtitle && shootTypeLabel ? `(${shootTypeLabel})` : undefined,
+        subtitle:
+          shouldShowShootTypeSubtitle && serviceShootTypeLabel
+            ? `(${serviceShootTypeLabel})`
+            : undefined,
       };
     })
     .filter((item): item is QuoteSummaryLineItem => item !== null);
+};
 
 const buildAddonItems = (
   selectedAddons: string[],
