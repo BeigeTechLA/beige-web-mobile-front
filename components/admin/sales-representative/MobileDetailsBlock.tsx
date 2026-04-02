@@ -29,28 +29,25 @@ export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
   const isDark = resolvedTheme === "dark" || theme === "dark";
 
   return (
-    <div className={`overflow-hidden mb-3 transition-colors duration-300 rounded-xl ${
-      isDark ? "bg-[#171717]" : "bg-white"
-    }`}>
+    <div className={`overflow-hidden mb-3 transition-colors duration-300 rounded-xl ${isDark ? "bg-[#171717]" : "bg-white"
+      }`}>
       {/* Header - Always Visible */}
       <div
-        className="flex flex-wrap gap-2 items-center justify-between p-4 cursor-pointer"
+        className="flex gap-3 items-center justify-between p-4 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-3">
-          <div className={`p-1 rounded-full border transition-all duration-300 ${
-            isExpanded ? 'rotate-180 border-[#E8D1AB]' : isDark ? 'border-white/10' : 'border-black/10'
-          }`}>
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className={`p-1 rounded-full border transition-all duration-300 ${isExpanded ? 'rotate-180 border-[#E8D1AB]' : isDark ? 'border-white/10' : 'border-black/10'
+            }`}>
             <ChevronDown size={16} className={isDark ? "text-white/60" : "text-black/60"} />
           </div>
-          <div className="w-6 h-6 rounded-sm bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-xs">
+          <div className="shrink-0 w-6 h-6 rounded-sm bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-xs">
             {lead.clientName.split(" ").map(n => n[0]).join("")}
           </div>
-          <span className={`text-sm font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
+          <span className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-[#171717]"}`}>
             {lead.clientName}
           </span>
         </div>
-
         <LeadsStatusBadge status={lead.bookingStatus || "Unknown"} />
       </div>
 
@@ -61,9 +58,8 @@ export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className={`border-t transition-colors duration-300 ${
-              isDark ? "border-white/5 bg-black/20" : "border-[#F0F0F0] bg-[#FFFCF6]"
-            }`}
+            className={`border-t transition-colors duration-300 ${isDark ? "border-white/5 bg-black/20" : "border-[#F0F0F0] bg-[#FFFCF6]"
+              }`}
           >
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -108,9 +104,8 @@ export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
                       e.stopPropagation(); // Prevent closing when clicking action
                       onOpenMenu(e);
                     }}
-                    className={`p-1 rounded-md transition-colors ${
-                      isDark ? "hover:bg-white/5" : "hover:bg-black/5"
-                    }`}
+                    className={`p-1 rounded-md transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"
+                      }`}
                   >
                     <MoreHorizontal size={24} className={isDark ? "text-white" : "text-[#171717]"} />
                   </button>
