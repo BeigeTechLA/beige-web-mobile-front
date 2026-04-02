@@ -81,35 +81,6 @@ export default function QuotePreviewModal({
     return null;
   }
 
-  const handleCopy = async () => {
-    if (typeof navigator === "undefined" || !navigator.clipboard) {
-      toast.error("Copy is not supported in this browser");
-      return;
-    }
-
-    try {
-      const shareValue = resolvedQuoteId
-        ? buildAbsoluteQuotePreviewUrl(resolvedQuoteId)
-        : quoteNumber;
-
-      await navigator.clipboard.writeText(shareValue);
-      setCopied(true);
-
-      if (copyResetTimeoutRef.current) {
-        window.clearTimeout(copyResetTimeoutRef.current);
-      }
-
-      copyResetTimeoutRef.current = window.setTimeout(() => {
-        setCopied(false);
-      }, 1800);
-
-      toast.success("Quote link copied successfully");
-    } catch (error) {
-      console.error("Failed to copy quote preview link", error);
-      toast.error("Failed to copy quote link");
-    }
-  };
-
   const handleSendQuote = async () => {
     if (!resolvedQuoteId) {
       toast.error("Save the quote before sending it.");
@@ -165,9 +136,6 @@ export default function QuotePreviewModal({
 
           <div className="hidden items-center gap-3 md:flex">
             <PreviewActionButton
-              onClick={() => {
-                void handleCopy();
-              }}
               className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
             >
               {copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
@@ -210,9 +178,6 @@ export default function QuotePreviewModal({
               <div className="mb-6 flex flex-col gap-4 lg:mb-8">
                 <div className="flex flex-col gap-2 md:hidden">
                   <PreviewActionButton
-                    onClick={() => {
-                      void handleCopy();
-                    }}
                     className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
                   >
                     {copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
