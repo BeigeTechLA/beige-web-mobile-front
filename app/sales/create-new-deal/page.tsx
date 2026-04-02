@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight, X, MapPinHouse } from "lucide-react";
+import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight, X, MapPinHouse, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { salesApi } from "@/lib/api";
 import DottedDivider from "@/components/admin/DottedDivider";
 import { ContentTypeCheckbox } from "@/components/book-a-shoot/v3/components/ContentTypeCheckbox";
 import { MultiSelectDropdown } from "@/components/book-a-shoot";
@@ -70,6 +71,55 @@ const intentOptions = [
   { value: "Cold", label: "Cold" },
 ];
 
+type ClientDropdownItem = {
+  client_id?: string | number | null;
+  id?: string | number | null;
+  name?: string | number | null;
+  client_name?: string | number | null;
+  full_name?: string | number | null;
+  email?: string | number | null;
+  client_email?: string | number | null;
+  guest_email?: string | number | null;
+  phone?: string | number | null;
+  mobile?: string | number | null;
+  mobile_number?: string | number | null;
+  phone_number?: string | number | null;
+  client_phone?: string | number | null;
+};
+
+const pickFirstClientValue = (
+  ...values: Array<string | number | null | undefined>
+) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+
+    const normalized = String(value).trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+};
+
+const getClientDisplayName = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.name, client?.client_name, client?.full_name);
+
+const getClientEmail = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.email, client?.client_email, client?.guest_email);
+
+const getClientPhone = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(
+    client?.phone,
+    client?.mobile,
+    client?.mobile_number,
+    client?.phone_number,
+    client?.client_phone,
+  );
+
+const getClientIdentifier = (client: ClientDropdownItem | null | undefined) =>
+  pickFirstClientValue(client?.client_id, client?.id, getClientDisplayName(client));
+
 export default function ClientDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -88,6 +138,7 @@ export default function ClientDetailPage() {
   const bookingTypeRef = useRef<HTMLDivElement>(null);
   const reelRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const clientSuggestionRef = useRef<HTMLDivElement>(null);
 
   // MultiSelect references
   const isDraggingReel = useRef(false);
@@ -122,11 +173,19 @@ export default function ClientDetailPage() {
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+  const [clientSuggestions, setClientSuggestions] = useState<ClientDropdownItem[]>([]);
+  const [selectedClientSuggestion, setSelectedClientSuggestion] = useState<ClientDropdownItem | null>(null);
+  const [isClientSuggestionOpen, setIsClientSuggestionOpen] = useState(false);
+  const [isLoadingClientSuggestions, setIsLoadingClientSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New API State for Crew List
   const [crewList, setCrewList] = useState<any[]>([]);
   const [isLoadingCrew, setIsLoadingCrew] = useState(false);
+  const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
+  const [salesRepId, setSalesRepId] = useState<string>("");
+  const [salesRepOptions, setSalesRepOptions] = useState<{ value: string; label: string }[]>([]);
+  const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
 
   const getAuthToken = useCallback(() => {
     if (typeof window === "undefined") return "";
@@ -206,6 +265,49 @@ export default function ClientDetailPage() {
     return () => clearTimeout(timer);
   }, [formData.startDate, formData.contentType, formData.location, fetchAvailableCrew]);
 
+  useEffect(() => {
+    const trimmedQuery = clientName.trim();
+
+    if (!isClientSuggestionOpen || trimmedQuery.length === 0) {
+      setClientSuggestions([]);
+      setIsLoadingClientSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsLoadingClientSuggestions(true);
+      try {
+        const result = await salesApi.getClientDropdown(trimmedQuery);
+        if (!result.error && Array.isArray(result.data)) {
+          setClientSuggestions(result.data as ClientDropdownItem[]);
+        } else {
+          setClientSuggestions([]);
+        }
+      } catch (error) {
+        console.error("Error fetching client suggestions:", error);
+        setClientSuggestions([]);
+      } finally {
+        setIsLoadingClientSuggestions(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [clientName, isClientSuggestionOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        clientSuggestionRef.current &&
+        !clientSuggestionRef.current.contains(event.target as Node)
+      ) {
+        setIsClientSuggestionOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
 
   // 1. Generate Time Options on Mount
   useEffect(() => {
@@ -223,7 +325,48 @@ export default function ClientDetailPage() {
     }
     setTimeOptions(options);
     setMounted(true);
+
+    try {
+      const storedUser = localStorage.getItem("revure_user");
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      const userTypeId = parsedUser?.user_type_id ?? parsedUser?.userTypeId;
+      setIsUserTypeSeven(userTypeId === 7);
+    } catch (error) {
+      console.error("Failed to read logged in user from localStorage:", error);
+      setIsUserTypeSeven(false);
+    }
   }, []);
+
+  const fetchSalesReps = useCallback(async () => {
+    if (!isUserTypeSeven) {
+      setSalesRepOptions([]);
+      return;
+    }
+
+    setIsLoadingSalesReps(true);
+    try {
+      const result = await salesApi.getSalesReps();
+      if (result.success && Array.isArray(result.data)) {
+        setSalesRepOptions(
+          result.data.map((rep: any) => ({
+            value: String(rep.id),
+            label: `${rep.name}`,
+          }))
+        );
+      } else {
+        setSalesRepOptions([]);
+      }
+    } catch (error) {
+      console.error("Error fetching sales reps:", error);
+      setSalesRepOptions([]);
+    } finally {
+      setIsLoadingSalesReps(false);
+    }
+  }, [isUserTypeSeven]);
+
+  useEffect(() => {
+    fetchSalesReps();
+  }, [fetchSalesReps]);
 
   useEffect(() => {
     const primaryDate = formData.startDate || formData.endDate;
@@ -605,7 +748,7 @@ export default function ClientDetailPage() {
   }, [formData.contentType, extraTeam]);
 
   const handleContinueClick = async () => {
-    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent || !formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
+    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent || (isUserTypeSeven && !salesRepId) || !formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
       toast.error("Please fill in all Booking information fields");
       return;
     }
@@ -655,6 +798,7 @@ export default function ClientDetailPage() {
         guest_email: clientEmail,
         phone: clientPhone,
         intent: intent,
+        sales_rep_id: isUserTypeSeven && salesRepId ? Number(salesRepId) : undefined,
         lead_source: thumbtack,
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
@@ -709,6 +853,23 @@ export default function ClientDetailPage() {
 
   const availableRolesToAdd = TEAM_ROLES.filter(role => formData.contentType.includes(role.id as any));
 
+  const handleClientSuggestionSelect = (client: ClientDropdownItem) => {
+    setSelectedClientSuggestion(client);
+    setClientName(getClientDisplayName(client));
+    setClientEmail(getClientEmail(client));
+    setClientPhone(getClientPhone(client));
+    setClientSuggestions([]);
+    setIsClientSuggestionOpen(false);
+  };
+
+  const handleCreateNewClient = () => {
+    setSelectedClientSuggestion(null);
+    setClientEmail("");
+    setClientPhone("");
+    setClientSuggestions([]);
+    setIsClientSuggestionOpen(false);
+  };
+
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
 
@@ -736,15 +897,90 @@ export default function ClientDetailPage() {
         <div className="space-y-6 my-4 lg:my-9">
           <h3 className={`text-base lg:text-xl font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>Client Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
-            <div className="relative space-y-2">
+            <div ref={clientSuggestionRef} className="relative space-y-2">
               <Label htmlFor="name" className={`absolute -top-2 lg:-top-3 left-4 px-2 text-sm lg:text-base ${isDark ? "bg-[#101010] text-white/60" : "bg-[#F4F5F7] text-black/60 "} `}>Client Name</Label>
               <Input
                 id="name"
                 type="text"
                 value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
+                onFocus={() => {
+                  if (clientName.trim()) {
+                    setIsClientSuggestionOpen(true);
+                  }
+                }}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setClientName(value);
+                  setSelectedClientSuggestion(null);
+                  setIsClientSuggestionOpen(Boolean(value.trim()));
+                }}
                 className={`h-14 lg:h-[82px] w-full rounded-[12px] border p-4 text-white outline-none resize-none text-sm lg:text-base ${isDark ? "border-white/30 bg-[#101010] focus:border-[#1A1A1A] " : "bg-transparent border-[#0000004D] text-[#2C2C2C] focus:border-[#000000]/20"}`}
               />
+              {isClientSuggestionOpen && (
+                <div className={`absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-[12px] border shadow-lg ${isDark ? "border-white/10 bg-[#171717]" : "border-black/10 bg-white"}`}>
+                  <div className="max-h-72 overflow-y-auto py-2">
+                    {isLoadingClientSuggestions ? (
+                      <div className={`px-4 py-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                        Searching clients...
+                      </div>
+                    ) : clientSuggestions.length > 0 ? (
+                      clientSuggestions.map((client) => {
+                        const clientId = getClientIdentifier(client);
+                        const displayName = getClientDisplayName(client) || "Unnamed client";
+                        const email = getClientEmail(client);
+                        const phone = getClientPhone(client);
+                        const isSelected = getClientIdentifier(selectedClientSuggestion) === clientId;
+
+                        return (
+                          <button
+                            key={clientId}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleClientSuggestionSelect(client)}
+                            className={`flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors ${isSelected
+                              ? isDark ? "bg-[#E8D1AB] text-black" : "bg-[#F5E7CC] text-black"
+                              : isDark ? "text-white hover:bg-white/5" : "text-black hover:bg-black/5"
+                              }`}
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{displayName}</p>
+                              {(email || phone) && (
+                                <p className={`mt-1 truncate text-xs ${isSelected ? "text-black/70" : isDark ? "text-white/50" : "text-black/50"}`}>
+                                  {[email, phone].filter(Boolean).join(" • ")}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className={`px-4 py-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                        No matching clients found.
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={handleCreateNewClient}
+                      className={`mt-2 flex w-full items-center gap-3 border-t px-4 py-4 text-left transition-colors ${
+                        isDark
+                          ? "border-white/10 text-[#E8D1AB] hover:bg-[#E8D1AB]/5"
+                          : "border-black/10 text-black hover:bg-black/5"
+                      }`}
+                    >
+                      <div className={`flex h-6 w-6 items-center justify-center rounded border ${
+                        isDark
+                          ? "border-[#E8D1AB]/40 bg-[#E8D1AB] text-black"
+                          : "border-black/20 bg-black text-white"
+                      }`}>
+                        <Plus size={14} />
+                      </div>
+                      <span className="text-sm font-semibold">Create New Client</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="relative space-y-2">
@@ -799,6 +1035,18 @@ export default function ClientDetailPage() {
               required
               isDark={isDark}
             />
+            {isUserTypeSeven && (
+              <FloatingLabelDropdown
+                label="Assign Sales Person"
+                value={salesRepId}
+                options={salesRepOptions}
+                onChange={(val) => setSalesRepId(val)}
+                placeholder={isLoadingSalesReps ? "Loading representatives..." : "Choose a representative..."}
+                labelBg={isDark ? "bg-[#000]" : "bg-[#F4F5F7]"}
+                required
+                isDark={isDark}
+              />
+            )}
           </div>
         </div>
         {/* <DottedDivider /> */}

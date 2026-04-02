@@ -9,6 +9,7 @@ export const ROLE_ROUTE_PREFIXES: Record<number, string> = {
   3: "/affiliate",
   4: "/sales",
   5: "/sales",
+  7: "/sales",
   6: "/production-manager",
 };
 
@@ -18,6 +19,7 @@ export const ROLE_DASHBOARD_ROUTES: Record<number, string> = {
   3: "/affiliate/dashboard",
   4: "/sales/dashboard",
   5: "/sales/dashboard",
+  7: "/sales/dashboard",
   6: "/production-manager/dashboard",
 };
 

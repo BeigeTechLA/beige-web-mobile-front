@@ -1,30 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, ArrowUpRight, User, Camera, Users, Check, X, ArrowUpToLine } from "lucide-react";
+import { MoreVertical, Search, Target, ChartLine, Calendar, Users } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
-import { LeadStatus, SalesLead, LEAD_TYPE_LABELS } from "@/types/sales";
 import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
-import { StatusBadge } from "@/components/admin/StatusBadge";
 import { toast } from "sonner";
-import { adminApi } from "@/lib/api";
+import { adminApi, salesApi as salesService } from "@/lib/api";
 import { useTheme } from "next-themes";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import DottedDivider from "@/components/admin/DottedDivider";
-import MetricCards from "@/components/admin/OverviewMetricCards";
 import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
 import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
 import { BookingStatus, LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
@@ -49,6 +37,8 @@ interface UserData {
   imageUrl?: string | null;
   intent?: string;
   bookingStatus?: string;
+  assignedSalesRepName?: string;
+  assignedSalesRepEmail?: string;
 }
 
 interface LeadData {
@@ -60,10 +50,15 @@ interface LeadData {
   lastActivity: string;
   date: Date;
   intent: string;
+  assignedSalesRepName?: string;
+  assignedSalesRepEmail?: string;
 }
 
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+const SALES_DASHBOARD_FILTERS_KEY = "sales-dashboard-filters";
+const SALES_DASHBOARD_PRESERVE_KEY = "sales-dashboard-preserve";
+
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (
   paymentStatus: string,
@@ -129,9 +124,9 @@ export default function SalesLeadsPage() {
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const hasRestoredFiltersRef = useRef(false);
+  const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [sortBy, setSortBy] = React.useState("");
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
@@ -148,6 +143,11 @@ export default function SalesLeadsPage() {
   const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
   const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
+  const [assignedRepIdFilter, setAssignedRepIdFilter] = useState<string>("all");
+  const [clientAssignedRepIdFilter, setClientAssignedRepIdFilter] = useState<string>("all");
+  const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([
+    { label: "All Representatives", value: "all" },
+  ]);
 
   // --- USERS STATE (Client/CP Tabs) ---
   const [users, setUsers] = useState<UserData[]>([]);
@@ -165,6 +165,49 @@ export default function SalesLeadsPage() {
 
   useEffect(() => {
     setMounted(true);
+
+    try {
+      const storedUser = localStorage.getItem("revure_user");
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      const userTypeId = parsedUser?.user_type_id ?? parsedUser?.userTypeId;
+      const canManageFilters = userTypeId === 7;
+
+      setIsUserTypeSeven(canManageFilters);
+
+      const shouldPreserveFilters = window.sessionStorage.getItem(SALES_DASHBOARD_PRESERVE_KEY) === "true";
+
+      if (!shouldPreserveFilters) {
+        window.sessionStorage.removeItem(SALES_DASHBOARD_FILTERS_KEY);
+        hasRestoredFiltersRef.current = true;
+        return;
+      }
+
+      const savedFilters = window.sessionStorage.getItem(SALES_DASHBOARD_FILTERS_KEY);
+      if (!savedFilters) {
+        hasRestoredFiltersRef.current = true;
+        return;
+      }
+
+      const parsedFilters = JSON.parse(savedFilters);
+      if (parsedFilters.activeTab) setActiveTab(parsedFilters.activeTab);
+      if (typeof parsedFilters.searchQuery === "string") setSearchQuery(parsedFilters.searchQuery);
+      if (parsedFilters.leadTypeFilter) setLeadTypeFilter(parsedFilters.leadTypeFilter);
+      if (parsedFilters.statusFilter) setStatusFilter(parsedFilters.statusFilter);
+      if (parsedFilters.intentFilter) setIntentFilter(parsedFilters.intentFilter);
+
+      if (canManageFilters) {
+        if (parsedFilters.assignedRepIdFilter) setAssignedRepIdFilter(parsedFilters.assignedRepIdFilter);
+        if (parsedFilters.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(parsedFilters.clientAssignedRepIdFilter);
+      }
+
+      if (parsedFilters.leadsCurrentPage) setLeadsCurrentPage(parsedFilters.leadsCurrentPage);
+      if (parsedFilters.usersCurrentPage) setUsersCurrentPage(parsedFilters.usersCurrentPage);
+    } catch (error) {
+      console.error("Failed to restore sales dashboard filters:", error);
+    } finally {
+      window.sessionStorage.removeItem(SALES_DASHBOARD_PRESERVE_KEY);
+      hasRestoredFiltersRef.current = true;
+    }
   }, []);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
@@ -173,7 +216,72 @@ export default function SalesLeadsPage() {
   // Reset pagination when any lead filter changes
   useEffect(() => {
     setLeadsCurrentPage(1);
-  }, [leadTypeFilter, statusFilter, intentFilter, debouncedSearch]);
+  }, [leadTypeFilter, statusFilter, intentFilter, assignedRepIdFilter, debouncedSearch]);
+
+  useEffect(() => {
+    setUsersCurrentPage(1);
+  }, [usersStatusFilter, clientAssignedRepIdFilter, debouncedSearch]);
+
+  useEffect(() => {
+    if (!isUserTypeSeven) {
+      setSalesRepOptions([{ label: "All Representatives", value: "all" }]);
+      return;
+    }
+
+    const fetchSalesReps = async () => {
+      try {
+        const result = await salesService.getSalesReps();
+        if (result.success && Array.isArray(result.data)) {
+          const mappedOptions = result.data.map((rep: any) => ({
+            label: rep.name || `${rep.first_name || ""} ${rep.last_name || ""}`.trim() || `Representative #${rep.id}`,
+            value: String(rep.id),
+          }));
+          setSalesRepOptions([{ label: "All Representatives", value: "all" }, ...mappedOptions]);
+        } else {
+          setSalesRepOptions([{ label: "All Representatives", value: "all" }]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch sales representatives:", error);
+        setSalesRepOptions([{ label: "All Representatives", value: "all" }]);
+      }
+    };
+
+    fetchSalesReps();
+  }, [isUserTypeSeven]);
+
+  useEffect(() => {
+    if (!mounted || !hasRestoredFiltersRef.current) return;
+
+    try {
+      window.sessionStorage.setItem(
+        SALES_DASHBOARD_FILTERS_KEY,
+        JSON.stringify({
+          activeTab,
+          searchQuery,
+          leadTypeFilter,
+          statusFilter,
+          intentFilter,
+          assignedRepIdFilter,
+          clientAssignedRepIdFilter,
+          leadsCurrentPage,
+          usersCurrentPage,
+        })
+      );
+    } catch (error) {
+      console.error("Failed to persist sales dashboard filters:", error);
+    }
+  }, [
+    mounted,
+    activeTab,
+    searchQuery,
+    leadTypeFilter,
+    statusFilter,
+    intentFilter,
+    assignedRepIdFilter,
+    clientAssignedRepIdFilter,
+    leadsCurrentPage,
+    usersCurrentPage,
+  ]);
 
   // --- LEADS API CALL WITH FILTERS ---
   const { data: leadsApiData, isLoading: leadsIsLoading, isFetching: leadsIsFetching } = useGetLeadsQuery({
@@ -183,8 +291,9 @@ export default function SalesLeadsPage() {
     // Mapping the filters to API keys
     lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
     status: statusFilter === "All" ? undefined : statusFilter,
+    assigned_to: isUserTypeSeven && assignedRepIdFilter !== "all" ? assignedRepIdFilter : undefined,
     // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
-    intent: intentFilter === "All" ? undefined : intentFilter, 
+    intent: intentFilter === "All" ? undefined : intentFilter,
   });
 
   // Fetch users for Client and Creative Partner tabs
@@ -198,6 +307,9 @@ export default function SalesLeadsPage() {
       };
       if (debouncedSearch) params.search = debouncedSearch;
       if (usersStatusFilter !== "all") params.status = usersStatusFilter;
+      if (activeTab === "Client" && isUserTypeSeven && clientAssignedRepIdFilter !== "all") {
+        params.assigned_to = clientAssignedRepIdFilter;
+      }
 
       let allUsers: UserData[] = [];
       let pagination: any = null;
@@ -230,6 +342,8 @@ export default function SalesLeadsPage() {
             imageUrl: client.profile_image || client.image || null,
             intent: client.intent || "N/A",
             bookingStatus: client.booking_status || mapLeadStatusToUI(client.payment_status),
+            assignedSalesRepName: client.assigned_sales_rep?.name || "",
+            assignedSalesRepEmail: client.assigned_sales_rep?.email || "",
           }));
           allUsers = mappedClients;
           pagination = clientsPayload.pagination || clientsRes?.pagination;
@@ -279,7 +393,7 @@ export default function SalesLeadsPage() {
     if (activeTab !== "Booking") {
       fetchUsers();
     }
-  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter]);
+  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter, isUserTypeSeven]);
 
   // Smooth transition effect for Leads mapping
   useEffect(() => {
@@ -293,6 +407,8 @@ export default function SalesLeadsPage() {
         lastActivity: formatRelativeTime(lead.last_activity_at),
         date: new Date(lead.created_at),
         intent: lead.intent || "Hot",
+        assignedSalesRepName: lead.assigned_sales_rep?.name || "",
+        assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
       }));
       setDisplayLeads(mapped);
     } else if (leadsApiData) {
@@ -303,11 +419,8 @@ export default function SalesLeadsPage() {
   const leadsTotalRecords = leadsApiData?.pagination?.total || 0;
   const leadsTotalPages = Math.ceil(leadsTotalRecords / leadsLimit);
 
-  const handleDateSort = (date: Date | null) => {
-    setSelectedDate(date);
-  };
-
   const handleUserRowClick = (user: UserData) => {
+    window.sessionStorage.setItem(SALES_DASHBOARD_PRESERVE_KEY, "true");
     const rawId = user.id.replace('#', '');
     const basePath = activeTab === "Client"
       ? "/sales/client"
@@ -336,6 +449,7 @@ export default function SalesLeadsPage() {
   };
 
   const handleRowClick = (leadId: number) => {
+    window.sessionStorage.setItem(SALES_DASHBOARD_PRESERVE_KEY, "true");
     router.push(`/sales/leads/${leadId}`);
   };
 
@@ -428,6 +542,15 @@ export default function SalesLeadsPage() {
                   options={["All Leads", "Self-Serve", "Sales Assisted"]}
                   onChange={(val) => setLeadTypeFilter(val)}
                 />
+                {isUserTypeSeven && (
+                  <BasicDropdown
+                    label="Client Representative"
+                    value={assignedRepIdFilter}
+                    options={salesRepOptions}
+                    onChange={(val) => setAssignedRepIdFilter(val)}
+                    openAlign={"right"}
+                  />
+                )}
                 <BasicDropdown
                   label="Intent Type"
                   value={intentFilter}
@@ -439,6 +562,18 @@ export default function SalesLeadsPage() {
                   value={statusFilter}
                   options={["All", ...BOOKING_STATUS_OPTIONS]}
                   onChange={(val) => setStatusFilter(val as any)}
+                  openAlign={"right"}
+                />
+              </div>
+            )}
+
+            {activeTab === "Client" && isUserTypeSeven && (
+              <div className="flex flex-wrap gap-2 lg:gap-4">
+                <BasicDropdown
+                  label="Client Representative"
+                  value={clientAssignedRepIdFilter}
+                  options={salesRepOptions}
+                  onChange={(val) => setClientAssignedRepIdFilter(val)}
                   openAlign={"right"}
                 />
               </div>
@@ -517,7 +652,15 @@ export default function SalesLeadsPage() {
                   <LeadsStatusBadge status={(user.bookingStatus as any) || "Booking In Progress"} />
                 </td>
                 <td className={`py-5 px-6 text-[14px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                  {user.phoneNumber}
+                  <div className="space-y-1 min-w-0">
+                    <p>{user.phoneNumber}</p>
+                    {isUserTypeSeven && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
+                        {user.assignedSalesRepName || "Unassigned"}
+                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
+                      </p>
+                    )}
+                  </div>
                 </td>
                 <td className="py-5 px-6 text-right">
                   <button
@@ -550,13 +693,20 @@ export default function SalesLeadsPage() {
                 </div>
                 <div className="text-right">
                   <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Contact Info</p>
-                  <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
+                  <div className="space-y-1">
+                    <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
+                    {isUserTypeSeven && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                      <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-black/50"}`}>
+                        {user.assignedSalesRepName || "Unassigned"}
+                        {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
           />
         )}
-
         {menuAnchor && selectedLeadId && (
           <ActionMenu
             client={selectedClient}
