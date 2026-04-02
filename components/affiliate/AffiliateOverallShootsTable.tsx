@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronRight, ChevronDown, ChevronUp, Loader2, Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import Cookies from "js-cookie";
 import { affiliateApi, adminApi } from "@/lib/api";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
 import {
   Select,
   SelectContent,
@@ -73,6 +75,9 @@ const parseSkills = (skills: string | number[] | null | undefined, skillMap: Rec
 };
 
 export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
+  const router = useRouter();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -91,6 +96,10 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
       setRange("month");
     }
   }, [externalSelectedDate]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -148,6 +157,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
     fetchData();
   }, [range, statusFilter, externalSelectedDate]);
 
+  const isDark = !mounted || theme === "dark";
   const totalPages = Math.ceil(shoots.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentShoots = shoots.slice(startIndex, startIndex + itemsPerPage);
@@ -183,13 +193,20 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
     }
   };
 
+  const handleRowClick = (id: string) => {
+    const cleanId = id.replace('#', '');
+    router.push(`/affiliate/shoots/${cleanId}`);
+  };
+
   return (
-    <div className="w-full bg-[#171717] rounded-2xl border border-white/5 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col">
+    <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-[#FFF] border-[#E3E3E3]"
+      }`}>
       {/* Table Header Controls */}
-      <div className="bg-[#101010] flex flex-row justify-between items-center p-5 border-b border-b-[#3D3D3D] gap-4">
+      <div className={`flex flex-row justify-between items-center p-5 border-b transition-colors duration-300 gap-4 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"
+        }`}>
         <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-          <h3 className="">Overall Shoots</h3>
+          <h3 className={isDark ? "text-white" : "text-[#323232]"}>Overall Shoots</h3>
         </div>
 
         <div className="flex gap-3">
@@ -207,10 +224,11 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
                     </Select> */}
 
           <Select value={range} onValueChange={setRange}>
-            <SelectTrigger className="w-[110px] bg-[#1A1A1A] border-white/10 rounded-full h-8 text-[10px] text-white/70 focus:ring-0 px-3">
+            <SelectTrigger className={`flex-1 sm:w-[110px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"
+              }`}>
               <SelectValue placeholder="Range" />
             </SelectTrigger>
-            <SelectContent className="bg-[#111111] border-white/10">
+            <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
               <SelectItem value="all">All time</SelectItem>
               <SelectItem value="week">Week</SelectItem>
               <SelectItem value="month">Month</SelectItem>
@@ -227,17 +245,18 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
           <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#E8D1AB]" /></div>
         ) : currentShoots.length > 0 ? (
           <>
-            <div className="flex justify-between text-[#E8D1AB] text-sm font-medium p-4 mb-4 bg-[#101010] rounded-b-2xl border-b border-b-white/5">
+            <div className={`flex justify-between text-sm font-medium p-4 mb-4 rounded-b-2xl border-b ${isDark ? "text-[#E8D1AB] bg-[#101010] border-b-white/5" : "text-[#BFA780] bg-[#FFFCF6] border-b-[#E3E3E3]"
+              }`}>
               <span>Customer Name</span>
               <span>Status</span>
             </div>
             {currentShoots.map((shoot) => (
-              <div key={shoot.id} className="px-4 border-b border-white/5 pb-4 last:border-0">
+              <div key={shoot.id} className={`px-4 border-b pb-4 last:border-0 ${isDark ? "border-white/5" : "border-[#E3E3E3]"}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <button
                       onClick={(e) => toggleExpand(e, shoot.id)}
-                      className={`w-6 h-6 flex items-center justify-center rounded-full border ${expandedId === shoot.id ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'border-white/10 text-white/60'} shrink-0`}
+                      className={`w-6 h-6 flex items-center justify-center rounded-full border ${expandedId === shoot.id ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'} shrink-0`}
                     >
                       <ChevronDown size={16} className="" />
                     </button>
@@ -245,7 +264,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
                       <Image src={shoot.customerImage} alt="" fill className="object-cover" />
                     </div>
                     <div>
-                      <p className="text-white text-sm font-medium">{shoot.customerName}</p>
+                      <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>{shoot.customerName}</p>
                     </div>
                   </div>
                   <StatusBadge status={shoot.status} mobile />
@@ -256,26 +275,28 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
                   <div className="mt-4 grid grid-cols-2 gap-y-4 px-2">
                     <div>
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Shoot ID</p>
-                      <p className="text-white text-sm">{shoot.id}</p>
+                      <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>{shoot.id}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Price</p>
-                      <p className="text-white text-sm">{shoot.price}</p>
+                      <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>{shoot.price}</p>
                     </div>
                     <div>
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Category</p>
-                      <p className="text-white text-sm truncate pr-2">{shoot.category}</p>
+                      <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"} pr-2`}>{shoot.category}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-[#666] text-[10px] uppercase tracking-wider">Action</p>
                       <div className="flex justify-end gap-2 mt-1">
                         <button
                           onClick={(e) => handleDelete(e, shoot.id)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-[#666] hover:text-red-500 transition-colors"
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-[#666]" : "hover:bg-black/10 text-[#32323266]"} hover:text-red-500`}
                         >
                           <Trash2 size={16} />
                         </button>
-                        <button className="text-[#E5D5B8] text-sm font-medium">Details</button>
+                        <button
+                          onClick={() => handleRowClick(shoot.id)}
+                          className="text-[#E5D5B8] text-sm font-medium">Details</button>
                       </div>
                     </div>
                   </div>
@@ -291,20 +312,14 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
       {/*  DESKTOP VIEW (Standard Table)  */}
       <div className="hidden lg:block w-full overflow-x-auto flex-grow">
         <table className="w-full text-left">
-          <thead className="bg-[#101010] ">
-            <tr className="text-[#E8D1AB] text-sm font-medium rounded-b-xl">
-              <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D] ">Shoot ID</th>
-              <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Customer Name</th>
-              <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Category</th>
-              <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Price</th>
-              <th className="pb-4 px-4 bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Status</th>
-              <th className="pb-4 px-4 text-right bg-[#101010] py-4 px-4 
-               border-b border-b-[#3D3D3D]">Action</th>
+          <thead className={isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"}>
+            <tr className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>
+              <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Shoot ID</th>
+              <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Customer Name</th>
+              <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Category</th>
+              <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Price</th>
+              <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Status</th>
+              <th className={`py-4 px-4 text-right border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Action</th>
             </tr>
           </thead>
           <tbody className="p-5">
@@ -318,9 +333,12 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
               </tr>
             ) : currentShoots.length > 0 ? (
               currentShoots.map((shoot, idx) => (
-                <tr key={idx} className="group hover:bg-white/[0.02] transition-colors rounded-2xl">
+                <tr key={idx}
+                  onClick={() => handleRowClick(shoot.id)}
+                  className={`group transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
+                >
                   {/* ID */}
-                  <td className="py-2 px-4 text-white font-medium">{shoot.id}</td>
+                  <td className={`py-2 px-4 font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>{shoot.id}</td>
 
                   {/* Customer Info */}
                   <td className="py-2 px-4">
@@ -334,17 +352,17 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
                         />
                       </div>
                       <div>
-                        <p className="text-white font-semibold text-base max-w-[200px] truncate" title={shoot.customerName}>{shoot.customerName}</p>
-                        <p className="text-[#666666] text-sm mt-0.5">{shoot.date}</p>
+                        <p className={`font-semibold text-base max-w-[200px] truncate ${isDark ? "text-white" : "text-[#323232]"}`} title={shoot.customerName}>{shoot.customerName}</p>
+                        <p className={`${isDark ? "text-[#666666]" : "text-[#32323266]"} text-sm mt-0.5`}>{shoot.date}</p>
                       </div>
                     </div>
                   </td>
 
                   {/* Category */}
-                  <td className="py-2 px-4 text-white/90 text-base">{shoot.category}</td>
+                  <td className={`py-2 px-4 text-base ${isDark ? "text-white/90" : "text-[#323232]"}`}>{shoot.category}</td>
 
                   {/* Price */}
-                  <td className="py-2 px-4 text-white/90 text-base font-medium">{shoot.price}</td>
+                  <td className={`py-2 px-4 text-base font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`}>{shoot.price}</td>
 
                   {/* Status */}
                   <td className="py-2 px-4">
@@ -353,7 +371,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
 
                   {/* Action */}
                   <td className="py-2 px-4 text-right">
-                    <button className="p-2 text-white/40 hover:text-white transition-colors">
+                    <button className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#32323266] hover:text-[#323232]"}`}>
                       <ChevronRight size={24} />
                     </button>
                   </td>
@@ -372,19 +390,20 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
 
       {/* Pagination Controls */}
       {!loading && shoots.length > 0 && (
-        <div className="flex justify-between items-center p-4 border-t border-white/5 bg-[#101010]">
-          <div className="hidden lg:block text-sm text-white/40">
+        <div className={`flex justify-between items-center p-4 border-t transition-colors duration-300 ${isDark ? "bg-[#101010] border-white/5" : "bg-white border-[#E3E3E3]"
+          }`}>
+          <div className={`hidden lg:block text-sm ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
             Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, shoots.length)} of {shoots.length} entries
           </div>
           <div className="flex gap-2 items-center">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#1A1A1A] text-white/60 border border-white/5 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border disabled:opacity-30 disabled:cursor-not-allowed transition-all ${isDark ? "bg-[#1A1A1A] text-white/60 border-white/5 hover:bg-white/10" : "bg-white text-[#323232] border-[#E3E3E3] hover:bg-zinc-50"
+                }`}
             >
               Previous
             </button>
-
             <div className="flex gap-1">
               {(() => {
                 const range = [];
@@ -409,7 +428,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
                       onClick={() => handlePageChange(page as number)}
                       className={`min-w-[32px] h-8 flex items-center justify-center text-xs font-medium rounded-lg transition-all border ${currentPage === page
                         ? "bg-[#E5D5B8] text-black border-[#E5D5B8]"
-                        : "bg-transparent text-white/60 border-transparent hover:bg-white/5 hover:text-white"
+                        : isDark ? "bg-transparent text-white/60 border-transparent hover:bg-white/5" : "bg-transparent text-[#323232] border-transparent hover:bg-black/5"
                         }`}
                     >
                       {page}
@@ -422,7 +441,8 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#1A1A1A] text-white/60 border border-white/5 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed transition-all${isDark ? "bg-[#1A1A1A] text-white/60 border-white/5 hover:bg-white/10" : "bg-white text-[#323232] border-[#E3E3E3] hover:bg-zinc-50"
+                }`}
             >
               Next
             </button>

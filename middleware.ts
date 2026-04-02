@@ -1,17 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/request';
-
-// Role to route prefix mapping
-const ROLE_ROUTES: Record<number, string> = {
-  1: '/admin',
-  2: '/creator',
-  3: '/affiliate',
-  5: '/sales',
-  6: '/production-manager',
-};
-
-// All protected route prefixes
-const PROTECTED_PREFIXES = ['/admin', '/creator', '/affiliate', '/sales', '/production-manager'];
+import {
+  PROTECTED_PREFIXES,
+  getAllowedPrefixForUser,
+  getDashboardPathForUser,
+} from '@/lib/auth-routing';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -37,15 +30,12 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname === '/creator-signup') {
     if (isAuthenticated) {
       // If already logged in, redirect to their dashboard
-      const userTypeId = user.user_type_id || user.userTypeId;
-      const isAdminUser = userTypeId === 1;
-
       // Allow logged-in users to access login when explicitly forced (role mismatch/admin only)
       if (isForcedLoginFlow) {
         return NextResponse.next();
       }
 
-      const dashboardPath = ROLE_ROUTES[userTypeId] || '/admin/dashboard';
+      const dashboardPath = getDashboardPathForUser(user);
       return NextResponse.redirect(new URL(dashboardPath, request.url));
     }
     return NextResponse.next();
@@ -64,8 +54,7 @@ export function middleware(request: NextRequest) {
     }
 
     // Role-based authorization
-    const userTypeId = user.user_type_id || user.userTypeId;
-    const allowedPrefix = ROLE_ROUTES[userTypeId];
+    const allowedPrefix = getAllowedPrefixForUser(user);
 
     // If user is accessing a dashboard they don't have access to
     if (allowedPrefix && !pathname.startsWith(allowedPrefix)) {
@@ -82,12 +71,8 @@ export function middleware(request: NextRequest) {
 
     // Special case for role 4 or unknown roles trying to access protected areas
     if (!allowedPrefix) {
-      // If role is 4 (Sales Rep) and they don't have a prefix yet, maybe they belong to /sales
-      if (userTypeId === 4) {
-        return NextResponse.redirect(new URL('/sales/dashboard', request.url));
-      }
       // Fallback for unknown authenticated users
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect(new URL(getDashboardPathForUser(user), request.url));
     }
   }
 
