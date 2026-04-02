@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -58,11 +58,13 @@ import {
   persistQuoteSummarySnapshot,
   validateQuoteForReview,
   validateQuoteStep,
+  buildPreviewQuoteFromSummary,
 } from "@/lib/quoteSummary";
 import {
   extractQuoteIdFromResponse,
   unwrapSalesQuoteDetail,
 } from "@/lib/salesQuotePreview";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
@@ -270,6 +272,62 @@ const isVideoServiceLabel = (label: string) =>
   normalizeServiceLabel(label) === "videography";
 const isPhotoServiceLabel = (label: string) =>
   normalizeServiceLabel(label) === "photography";
+const isEditingServiceLabel = (label: string) => {
+  const normalizedLabel = normalizeServiceLabel(label);
+  return /\bedit(?:ing)?\b/.test(normalizedLabel);
+};
+
+const getServiceIcon = (label: string) => {
+  const normalizedLabel = normalizeServiceLabel(label);
+
+  if (isVideoServiceLabel(normalizedLabel)) return <Video size={20} />;
+  if (isPhotoServiceLabel(normalizedLabel)) return <Camera size={20} />;
+  if (isEditingServiceLabel(normalizedLabel)) return <Scissors size={20} />;
+  if (normalizedLabel.includes("livestream")) return <Radio size={20} />;
+  if (normalizedLabel === "studio" || normalizedLabel === "location") {
+    return <MapPin size={20} />;
+  }
+
+  return <Plus size={20} />;
+};
+
+const getPositiveCatalogItemId = (value: string | number | null | undefined) => {
+  const numericValue = Number(value);
+  return Number.isInteger(numericValue) && numericValue > 0
+    ? numericValue
+    : null;
+};
+
+const resolveSelectedServiceContentTypeId = ({
+  kind,
+  selectedIds,
+  availableServices,
+}: {
+  kind: ShootTypeKind | "editing";
+  selectedIds: string[];
+  availableServices: Array<{
+    id: string;
+    label: string;
+    catalogItemId?: string | number | null;
+    catalog_item_id?: string | number | null;
+  }>;
+}) => {
+  const matcher =
+    kind === "video"
+      ? isVideoServiceLabel
+      : kind === "photo"
+        ? isPhotoServiceLabel
+        : isEditingServiceLabel;
+  const selectedService = availableServices.find(
+    (service) => selectedIds.includes(service.id) && matcher(service.label),
+  );
+
+  return getPositiveCatalogItemId(
+    selectedService?.catalogItemId ??
+      selectedService?.catalog_item_id ??
+      selectedService?.id,
+  );
+};
 
 const resolveServiceShootTypeKind = (label: string): ShootTypeKind | null => {
   if (isVideoServiceLabel(label)) return "video";
@@ -355,10 +413,50 @@ const getSelectedShootTypeLabel = (
 ) =>
   shootTypeOptions.find((type) => type.id === selectedId)?.label?.trim() || "";
 
+const mergeShootTypeOptions = (
+  currentOptions: ShootTypeOption[],
+  nextOption: ShootTypeOption,
+) => {
+  const mergedOptions = [
+    ...currentOptions.filter((option) => option.id !== nextOption.id),
+    nextOption,
+  ];
+
+  return [...mergedOptions].sort((a, b) => {
+    const aCreatedAt = a.createdAt
+      ? new Date(a.createdAt).getTime()
+      : Number.NaN;
+    const bCreatedAt = b.createdAt
+      ? new Date(b.createdAt).getTime()
+      : Number.NaN;
+
+    if (
+      Number.isFinite(aCreatedAt) &&
+      Number.isFinite(bCreatedAt) &&
+      aCreatedAt !== bCreatedAt
+    ) {
+      return aCreatedAt - bCreatedAt;
+    }
+
+    const aNumericId = Number(a.id);
+    const bNumericId = Number(b.id);
+
+    if (
+      Number.isFinite(aNumericId) &&
+      Number.isFinite(bNumericId) &&
+      aNumericId !== bNumericId
+    ) {
+      return aNumericId - bNumericId;
+    }
+
+    return a.originalIndex - b.originalIndex;
+  });
+};
+
 const parseStoredShootTypeLabels = (value: string) => {
   const normalizedValue = value.trim();
   if (!normalizedValue) {
-    return { video: "", photo: "" };
+    return { video: "", photo: "", editing: "" };
   }
 
   const parts = normalizedValue
@@ -368,6 +466,7 @@ const parseStoredShootTypeLabels = (value: string) => {
 
   let video = "";
   let photo = "";
+  let editing = "";
 
   parts.forEach((part) => {
     const [rawPrefix, ...restParts] = part.split(":");
@@ -382,61 +481,65 @@ const parseStoredShootTypeLabels = (value: string) => {
       video = label;
     } else if (prefix === "photo") {
       photo = label;
+    } else if (prefix === "editing") {
+      editing = label;
     }
   });
 
-  if (video && photo) {
-    return { video, photo };
-  }
-
-  if (!video && !photo) {
-    return { video: normalizedValue, photo: normalizedValue };
+  if (video || photo || editing) {
+    return { video, photo, editing };
   }
 
   return {
-    video: video || photo,
-    photo: photo || video,
+    video: normalizedValue,
+    photo: normalizedValue,
+    editing: normalizedValue,
   };
 };
 
 const buildStoredShootTypeLabel = ({
   hasVideoService,
   hasPhotoService,
+  hasEditingService,
   videoShootTypeLabel,
   photoShootTypeLabel,
+  editingShootTypeLabel,
 }: {
   hasVideoService: boolean;
   hasPhotoService: boolean;
+  hasEditingService: boolean;
   videoShootTypeLabel: string;
   photoShootTypeLabel: string;
+  editingShootTypeLabel: string;
 }) => {
-  const normalizedVideoLabel = videoShootTypeLabel.trim();
-  const normalizedPhotoLabel = photoShootTypeLabel.trim();
+  const entries = [
+    hasVideoService
+      ? { prefix: "Video", label: videoShootTypeLabel.trim() }
+      : null,
+    hasPhotoService
+      ? { prefix: "Photo", label: photoShootTypeLabel.trim() }
+      : null,
+    hasEditingService
+      ? { prefix: "Editing", label: editingShootTypeLabel.trim() }
+      : null,
+  ].filter(
+    (entry): entry is { prefix: string; label: string } =>
+      Boolean(entry?.label),
+  );
 
-  if (hasVideoService && hasPhotoService) {
-    if (normalizedVideoLabel && normalizedPhotoLabel) {
-      if (
-        normalizeShootTypeLabelKey(normalizedVideoLabel) ===
-        normalizeShootTypeLabelKey(normalizedPhotoLabel)
-      ) {
-        return normalizedVideoLabel;
-      }
-
-      return `Video: ${normalizedVideoLabel} | Photo: ${normalizedPhotoLabel}`;
-    }
-
-    return normalizedVideoLabel || normalizedPhotoLabel;
+  if (entries.length === 0) {
+    return "";
   }
 
-  if (hasVideoService) {
-    return normalizedVideoLabel;
+  const normalizedLabels = new Set(
+    entries.map((entry) => normalizeShootTypeLabelKey(entry.label)),
+  );
+
+  if (normalizedLabels.size === 1 || entries.length === 1) {
+    return entries[0].label;
   }
 
-  if (hasPhotoService) {
-    return normalizedPhotoLabel;
-  }
-
-  return "";
+  return entries.map((entry) => `${entry.prefix}: ${entry.label}`).join(" | ");
 };
 
 const isProtectedServiceLabel = (label: string) =>
@@ -460,6 +563,7 @@ export default function CreateQuotePage() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isDark } = useResolvedTheme();
   const editQuoteId = searchParams.get("quoteId");
   const isEditMode = Boolean(editQuoteId);
   const requestedEditView = normalizeQuoteEditorView(
@@ -511,9 +615,7 @@ export default function CreateQuotePage() {
   const [showAddServiceForm, setShowAddServiceForm] = useState(false);
   const [activeShootTypeForm, setActiveShootTypeForm] =
     useState<ShootTypeKind | null>(null);
-  const [selectedEditingType, setSelectedEditingType] = useState<string>(
-    "social_media_reel_30_90",
-  );
+  const [selectedEditingType, setSelectedEditingType] = useState<string>("");
   const [showAddEditingTypeForm, setShowAddEditingTypeForm] = useState(false);
   const [customEditingType, setCustomEditingType] = useState("");
   const [isVideoShootTypeExpanded, setIsVideoShootTypeExpanded] =
@@ -583,9 +685,13 @@ export default function CreateQuotePage() {
   const [services, setServices] = useState<any[]>([]);
   const [videoShootTypes, setVideoShootTypes] = useState<ShootTypeOption[]>([]);
   const [photoShootTypes, setPhotoShootTypes] = useState<ShootTypeOption[]>([]);
+  const [editingTypeOptions, setEditingTypeOptions] = useState<
+    ShootTypeOption[]
+  >([]);
   const [addons, setAddons] = useState<any[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingShootTypes, setLoadingShootTypes] = useState(false);
+  const [loadingEditingTypes, setLoadingEditingTypes] = useState(false);
 
   // Delete Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -612,16 +718,6 @@ export default function CreateQuotePage() {
   const addonsRef = React.useRef(addons);
   const logisticsItemsRef = React.useRef(logisticsItems);
   const lineItemsRef = React.useRef(lineItems);
-
-  const serviceIcons: Record<string, React.ReactNode> = {
-    videography: <Video size={20} />,
-    photography: <Camera size={20} />,
-    ai_editing: <Scissors size={20} />,
-    "ai editing": <Scissors size={20} />,
-    livestream: <Radio size={20} />,
-    "livestream production": <Radio size={20} />,
-    studio: <MapPin size={20} />,
-  };
 
   const fetchClients = async (query?: string) => {
     setLoadingClients(true);
@@ -695,7 +791,12 @@ export default function CreateQuotePage() {
   const fetchShootTypes = React.useCallback(
     async (
       ids: string[],
-      availableServices: Array<{ id: string; label: string }> = services,
+      availableServices: Array<{
+        id: string;
+        label: string;
+        catalogItemId?: string | number | null;
+        catalog_item_id?: string | number | null;
+      }> = services,
     ) => {
       const hasVideo =
         ids.some((id) =>
@@ -725,11 +826,30 @@ export default function CreateQuotePage() {
         };
       }
 
+      const videoContentTypeId = hasVideo
+        ? resolveSelectedServiceContentTypeId({
+            kind: "video",
+            selectedIds: ids,
+            availableServices,
+          })
+        : null;
+      const photoContentTypeId = hasPhoto
+        ? resolveSelectedServiceContentTypeId({
+            kind: "photo",
+            selectedIds: ids,
+            availableServices,
+          })
+        : null;
+
       setLoadingShootTypes(true);
       try {
         const [videoResponse, photoResponse] = await Promise.all([
-          hasVideo ? salesApi.getShootTypes(1) : Promise.resolve(null),
-          hasPhoto ? salesApi.getShootTypes(2) : Promise.resolve(null),
+          videoContentTypeId
+            ? salesApi.getShootTypes(videoContentTypeId)
+            : Promise.resolve(null),
+          photoContentTypeId
+            ? salesApi.getShootTypes(photoContentTypeId)
+            : Promise.resolve(null),
         ]);
 
         const nextVideoShootTypes =
@@ -779,6 +899,71 @@ export default function CreateQuotePage() {
       }
 
       return { video: [], photo: [] };
+    },
+    [services],
+  );
+
+  const fetchEditingTypes = React.useCallback(
+    async (
+      ids: string[],
+      availableServices: Array<{
+        id: string;
+        label: string;
+        catalogItemId?: string | number | null;
+        catalog_item_id?: string | number | null;
+      }> = services,
+    ) => {
+      const hasEditingService = ids.some((id) =>
+        isEditingServiceLabel(
+          availableServices.find((service) => service.id === id)?.label || "",
+        ),
+      );
+
+      if (!hasEditingService) {
+        setEditingTypeOptions([]);
+        setSelectedEditingType("");
+        return [] as ShootTypeOption[];
+      }
+
+      const editingContentTypeId = resolveSelectedServiceContentTypeId({
+        kind: "editing",
+        selectedIds: ids,
+        availableServices,
+      });
+
+      if (!editingContentTypeId) {
+        setEditingTypeOptions([]);
+        setSelectedEditingType("");
+        return [] as ShootTypeOption[];
+      }
+
+      setLoadingEditingTypes(true);
+      try {
+        const response = await salesApi.getShootTypes(editingContentTypeId);
+        const nextEditingTypes =
+          response && !response.error && Array.isArray(response.data)
+            ? mapShootTypeOptions(response.data as ShootTypeApiItem[])
+            : [];
+
+        setEditingTypeOptions(nextEditingTypes);
+        setSelectedEditingType((currentValue) => {
+          if (nextEditingTypes.length === 0) {
+            return "";
+          }
+
+          return nextEditingTypes.some((type) => type.id === currentValue)
+            ? currentValue
+            : nextEditingTypes[0].id;
+        });
+
+        return nextEditingTypes;
+      } catch (error) {
+        console.error("Failed to fetch editing types", error);
+      } finally {
+        setLoadingEditingTypes(false);
+      }
+
+      return [] as ShootTypeOption[];
     },
     [services],
   );
@@ -921,6 +1106,13 @@ export default function CreateQuotePage() {
                 hydratedState.services,
               )
             : { video: [], photo: [] };
+        let availableEditingTypes: ShootTypeOption[] = [];
+        if (hydratedState.selectedServices.length > 0) {
+          availableEditingTypes = await fetchEditingTypes(
+            hydratedState.selectedServices,
+            hydratedState.services,
+          );
+        }
 
         if (!isMounted) {
           return;
@@ -940,6 +1132,13 @@ export default function CreateQuotePage() {
                 ?.label || "",
             ),
           ) || hydratedState.selectedServices.includes("photography");
+        const hydratedHasEditingService =
+          hydratedState.selectedServices.some((id) =>
+            isEditingServiceLabel(
+              hydratedState.services.find((service) => service.id === id)
+                ?.label || "",
+            ),
+          ) || hydratedState.selectedServices.includes("ai_editing");
         const parsedShootTypeLabels = parseStoredShootTypeLabels(
           hydratedState.shootTypeLabel,
         );
@@ -1012,6 +1211,45 @@ export default function CreateQuotePage() {
           );
         }
 
+        if (hydratedHasEditingService) {
+          const editingLabel =
+            parsedShootTypeLabels.editing || hydratedState.shootTypeLabel;
+          const normalizedEditingLabel = editingLabel.trim();
+
+          if (normalizedEditingLabel) {
+            const matchedEditingType = availableEditingTypes.find(
+              (type) =>
+                normalizeShootTypeLabelKey(type.label) ===
+                normalizeShootTypeLabelKey(normalizedEditingLabel),
+            );
+
+            if (matchedEditingType) {
+              setSelectedEditingType(matchedEditingType.id);
+            } else {
+              const fallbackEditingTypeId = `edit_editing_shoot_type_${editQuoteId}`;
+
+              setEditingTypeOptions((prev) => {
+                if (findMatchingShootTypeLabel(prev, normalizedEditingLabel)) {
+                  return prev;
+                }
+
+                return [
+                  ...prev,
+                  {
+                    id: fallbackEditingTypeId,
+                    apiId: null,
+                    label: normalizedEditingLabel,
+                    createdAt: quoteToEdit.created_at || null,
+                    isSystemDefault: false,
+                    originalIndex: prev.length,
+                  },
+                ];
+              });
+              setSelectedEditingType(fallbackEditingTypeId);
+            }
+          }
+        }
+
         setView(requestedEditView);
         hydratedQuoteIdRef.current = editQuoteId;
       } catch (error) {
@@ -1035,6 +1273,7 @@ export default function CreateQuotePage() {
     };
   }, [
     editQuoteId,
+    fetchEditingTypes,
     fetchShootTypes,
     isCatalogLoaded,
     quoteToEdit,
@@ -1048,20 +1287,6 @@ export default function CreateQuotePage() {
 
     setView(requestedEditView);
   }, [editQuoteId, requestedEditView]);
-
-  const editingTypes = [
-    {
-      id: "social_media_reel_15_30",
-      label: "Social Media Reel (15 sec-30 sec)",
-    },
-    {
-      id: "social_media_reel_30_90",
-      label: "Social Media Reel (30 sec-90 sec)",
-    },
-    { id: "mini_highlight_video", label: "Mini Highlight Video (1-2 mins)" },
-    { id: "highlight_video", label: "Highlight Video (4-7 min)" },
-    { id: "feature_video", label: "Feature Video (30-40 min)" },
-  ];
 
   const handleConfigUpdate = (
     serviceId: string,
@@ -1242,8 +1467,8 @@ export default function CreateQuotePage() {
         }
       }
 
-      // Fetch shoot types if video or photo is selected
-      fetchShootTypes(newSelected);
+      void fetchShootTypes(newSelected);
+      void fetchEditingTypes(newSelected);
 
       return newSelected;
     });
@@ -1272,23 +1497,35 @@ export default function CreateQuotePage() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.99, y: -5 }}
       transition={{ duration: 0.2 }}
-      className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0F0F0F] border border-zinc-800 rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.6)]"
+      className={`absolute top-[calc(100%+8px)] left-0 right-0 rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.18)] ${
+        isDark
+          ? "bg-[#0F0F0F] border border-zinc-800"
+          : "bg-white border border-[#D7D7D7]"
+      }`}
     >
-      <div className="p-3 border-b border-zinc-800">
-        <div className="flex items-center gap-2 bg-[#1A1A1F] border border-[#3B3B46] rounded-xl px-4 py-2.5">
+      <div className={`p-3 ${isDark ? "border-b border-zinc-800" : "border-b border-[#E5E5E5]"}`}>
+        <div
+          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 ${
+            isDark
+              ? "bg-[#1A1A1F] border border-[#3B3B46]"
+              : "bg-[#F4F5F7] border border-[#D7D7D7]"
+          }`}
+        >
           <Search size={16} className="text-[#6B6B6B] shrink-0" />
           <input
             type="text"
             placeholder="Search clients..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-[#6B6B6B]"
+            className={`bg-transparent text-sm outline-none flex-1 placeholder:text-[#6B6B6B] ${
+              isDark ? "text-white" : "text-black"
+            }`}
             autoFocus
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="text-[#6B6B6B] hover:text-white"
+              className={`text-[#6B6B6B] ${isDark ? "hover:text-white" : "hover:text-black"}`}
             >
               x
             </button>
@@ -1325,14 +1562,18 @@ export default function CreateQuotePage() {
                 className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${
                   isSelectedClient
                     ? "bg-[#FFFCE8] text-[#171717]"
-                    : "hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]"
+                    : isDark
+                      ? "hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]"
+                      : "hover:bg-[#FFFCE8] hover:text-[#171717] text-black"
                 }`}
               >
                 <div
                   className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
                     isSelectedClient
                       ? "border-[#E8D1AB] bg-[#E8D1AB]"
-                      : "border-[#FFFFFF85] group-hover:border-[#171717]"
+                      : isDark
+                        ? "border-[#FFFFFF85] group-hover:border-[#171717]"
+                        : "border-[#8A8A8A] group-hover:border-[#171717]"
                   }`}
                 >
                   {isSelectedClient && (
@@ -1356,7 +1597,9 @@ export default function CreateQuotePage() {
               setView("details");
             }
           }}
-          className="w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 border-t border-zinc-800/50 pt-6"
+          className={`w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 pt-6 ${
+            isDark ? "border-t border-zinc-800/50" : "border-t border-[#E5E5E5]"
+          }`}
         >
           <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
             <Plus size={16} className="text-[#171717]" />
@@ -1698,10 +1941,10 @@ export default function CreateQuotePage() {
         services.find((s) => s.id === id)?.label.toLowerCase() ===
         "photography",
     ) || selectedServices.includes("photography");
-  const hasAiEditingService =
+  const hasEditingService =
     selectedServices.some(
       (id) =>
-        services.find((s) => s.id === id)?.label.toLowerCase() === "ai editing",
+        isEditingServiceLabel(services.find((s) => s.id === id)?.label || ""),
     ) || selectedServices.includes("ai_editing");
   const selectedVideoShootTypeLabel = getSelectedShootTypeLabel(
     videoShootTypes,
@@ -1711,11 +1954,17 @@ export default function CreateQuotePage() {
     photoShootTypes,
     selectedPhotoShootType,
   );
+  const selectedEditingTypeLabel = getSelectedShootTypeLabel(
+    editingTypeOptions,
+    selectedEditingType,
+  );
   const storedShootTypeLabel = buildStoredShootTypeLabel({
     hasVideoService,
     hasPhotoService,
+    hasEditingService,
     videoShootTypeLabel: selectedVideoShootTypeLabel,
     photoShootTypeLabel: selectedPhotoShootTypeLabel,
+    editingShootTypeLabel: selectedEditingTypeLabel,
   });
   const quoteDraftShootTypes = storedShootTypeLabel
     ? [{ id: "__selected_shoot_type__", label: storedShootTypeLabel }]
@@ -1754,22 +2003,34 @@ export default function CreateQuotePage() {
     }
   }, [activeShootTypeForm, hasPhotoService, hasVideoService]);
 
+  React.useEffect(() => {
+    if (hasEditingService) {
+      return;
+    }
+
+    setSelectedEditingType("");
+    setEditingTypeOptions([]);
+    setCustomEditingType("");
+    setShowAddEditingTypeForm(false);
+  }, [hasEditingService]);
+
   const quoteSubtotal =
     totalServicesCost +
     totalAddOnsCost +
     totalLogisticsCost +
     totalLineItemsCost;
-  const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
-  const taxAmount = quoteSubtotal * (normalizedTaxRate / 100);
-  const totalAfterTax = quoteSubtotal + taxAmount;
   const normalizedDiscountValue = Math.max(0, Number(discountValue) || 0);
   const rawDiscountAmount = !discountEnabled
     ? 0
     : discountType === "percentage"
-      ? totalAfterTax * (normalizedDiscountValue / 100)
+      ? quoteSubtotal * (normalizedDiscountValue / 100)
       : normalizedDiscountValue;
-  const discountAmount = Math.min(rawDiscountAmount, totalAfterTax);
-  const totalAfterDiscount = Math.max(totalAfterTax - discountAmount, 0);
+  const discountAmount = Math.min(rawDiscountAmount, quoteSubtotal);
+  const discountedSubtotal = Math.max(quoteSubtotal - discountAmount, 0);
+  const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
+  const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
+  const totalAfterTax = discountedSubtotal + taxAmount;
+  const totalAfterDiscount = totalAfterTax;
   const taxLabel = taxtType.trim() || "Sales Tax";
   const [isSubmittingService, setIsSubmittingService] = React.useState(false);
   const [isCreatingQuoteDraft, setIsCreatingQuoteDraft] = React.useState(false);
@@ -2023,7 +2284,12 @@ export default function CreateQuotePage() {
       return;
     }
 
-    await saveQuoteDraft("preview");
+    const summarySnapshot = getQuoteSummarySnapshot();
+    const localQuotePreview = buildPreviewQuoteFromSummary(summarySnapshot);
+
+    setPreviewQuote(localQuotePreview);
+    setPreviewQuoteId(editQuoteId || null);
+    setIsPreviewModalOpen(true);
   };
 
   const handleSaveQuote = async () => {
@@ -2066,9 +2332,10 @@ export default function CreateQuotePage() {
               item.name.toLowerCase() === "location" ? "Studio" : item.name;
             return {
               id: (item.catalog_item_id || `svc-${idx}`).toString(),
+              catalogItemId: item.catalog_item_id ?? null,
               label: name,
               price: parseFloat(item.effective_rate) || 0,
-              icon: serviceIcons[name.toLowerCase()] || <Plus size={20} />,
+              icon: getServiceIcon(name),
               createdAt: item.created_at || null,
               originalIndex: idx,
             };
@@ -2397,9 +2664,13 @@ export default function CreateQuotePage() {
     }
   };
 
-  const handleDeleteShootType = (kind: ShootTypeKind, id: string) => {
+  const handleDeleteShootType = (kind: ShootTypeKind | "editing", id: string) => {
     const shootTypeOptions =
-      kind === "video" ? videoShootTypes : photoShootTypes;
+      kind === "video"
+        ? videoShootTypes
+        : kind === "photo"
+          ? photoShootTypes
+          : editingTypeOptions;
     const item = shootTypeOptions.find((type) => type.id === id);
     if (!item) return;
 
@@ -2438,7 +2709,11 @@ export default function CreateQuotePage() {
     }
 
     if (itemToDelete.type === "shoot_type") {
-      const shootTypeItem = [...videoShootTypes, ...photoShootTypes].find(
+      const shootTypeItem = [
+        ...videoShootTypes,
+        ...photoShootTypes,
+        ...editingTypeOptions,
+      ].find(
         (type) =>
           String(type.id) === itemToDelete.id ||
           String(type.apiId ?? "") === itemToDelete.id,
@@ -2463,7 +2738,10 @@ export default function CreateQuotePage() {
           `${itemToDelete.type === "service" ? "Service" : itemToDelete.type === "addon" ? "Add-on" : itemToDelete.type === "logistics" ? "Logistics item" : itemToDelete.type === "shoot_type" ? "Shoot type" : "Line item"} deleted successfully`,
         );
         if (itemToDelete.type === "shoot_type") {
-          await fetchShootTypes(selectedServices);
+          await Promise.all([
+            fetchShootTypes(selectedServices),
+            fetchEditingTypes(selectedServices),
+          ]);
         } else {
           // Refresh catalog
           await fetchCatalog();
@@ -2495,31 +2773,100 @@ export default function CreateQuotePage() {
 
   const [isSubmittingShootType, setIsSubmittingShootType] =
     React.useState(false);
+  const [isSubmittingEditingType, setIsSubmittingEditingType] =
+    React.useState(false);
 
   const handleCreateShootType = async (kind: ShootTypeKind) => {
-    if (!customShootType) return;
+    const shootTypeName = customShootType.trim();
+    if (!shootTypeName) return;
+
+    const contentTypeId = resolveSelectedServiceContentTypeId({
+      kind,
+      selectedIds: selectedServices,
+      availableServices: services,
+    });
+    if (!contentTypeId) {
+      toast.error("Select the matching service first");
+      return;
+    }
 
     setIsSubmittingShootType(true);
     try {
       const res = await salesApi.createShootType({
-        name: customShootType,
-        content_type: kind === "video" ? 1 : 2,
+        name: shootTypeName,
+        content_type: contentTypeId,
       });
 
       if (res && !res.error) {
         setCustomShootType("");
         setActiveShootTypeForm(null);
         await fetchShootTypes(selectedServices);
+        toast.success("Shoot type added");
       } else {
         console.error(
           "Failed to create shoot type:",
           res?.error || "Unknown error",
         );
+        toast.error("Failed to add shoot type");
       }
     } catch (error) {
       console.error("Error creating shoot type:", error);
+      toast.error("Failed to add shoot type");
     } finally {
       setIsSubmittingShootType(false);
+    }
+  };
+
+  const handleCreateEditingType = async () => {
+    const editingTypeName = customEditingType.trim();
+    if (!editingTypeName) return;
+
+    const contentTypeId = resolveSelectedServiceContentTypeId({
+      kind: "editing",
+      selectedIds: selectedServices,
+      availableServices: services,
+    });
+    if (!contentTypeId) {
+      toast.error("Select Editing service first");
+      return;
+    }
+
+    setIsSubmittingEditingType(true);
+    try {
+      const res = await salesApi.createShootType({
+        name: editingTypeName,
+        content_type: contentTypeId,
+      });
+
+      if (res && !res.error && res.data) {
+        const createdOption = mapShootTypeOptions([
+          res.data as ShootTypeApiItem,
+        ])[0];
+
+        if (createdOption) {
+          setEditingTypeOptions((prev) =>
+            mergeShootTypeOptions(prev, createdOption),
+          );
+          setSelectedEditingType(createdOption.id);
+        } else {
+          await fetchEditingTypes(selectedServices);
+        }
+
+        setCustomEditingType("");
+        setShowAddEditingTypeForm(false);
+        toast.success("Editing type added");
+      } else {
+        console.error(
+          "Failed to create editing type:",
+          res?.error || "Unknown error",
+        );
+        toast.error("Failed to add editing type");
+      }
+    } catch (error) {
+      console.error("Error creating editing type:", error);
+      toast.error("Failed to add editing type");
+    } finally {
+      setIsSubmittingEditingType(false);
     }
   };
 
@@ -2623,14 +2970,20 @@ export default function CreateQuotePage() {
 
   const quoteEditorBreadcrumbs = React.useMemo(
     () => ({
-      create: isEditMode ? "Edit Quote" : "Creating New Quote",
+      create: isEditMode ? "Edit Quote" : "Create Quote",
     }),
     [isEditMode],
   );
 
   if (isEditMode && !quoteToEdit && (isLoadingQuoteToEdit || isHydratingQuoteToEdit)) {
     return (
-      <div className="min-h-screen bg-[#0f0f0f] text-white">
+      <div
+        className={`quote-editor-theme min-h-screen ${
+          isDark
+            ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
+            : "quote-editor-theme-light bg-[#F4F5F7] text-black"
+        }`}
+      >
         <Topbar
           pathname={pathname}
           breadcrumbOverrides={quoteEditorBreadcrumbs}
@@ -2659,7 +3012,13 @@ export default function CreateQuotePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white">
+    <div
+      className={`quote-editor-theme min-h-screen ${
+        isDark
+          ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
+          : "quote-editor-theme-light bg-[#F4F5F7] text-black"
+      }`}
+    >
       <Topbar
         pathname={pathname}
         breadcrumbOverrides={quoteEditorBreadcrumbs}
@@ -3434,8 +3793,8 @@ export default function CreateQuotePage() {
                       </div>
                     )}
 
-                    {/* Editing Types Section - Only shown if Editing is selected */}
-                    {hasAiEditingService && (
+                    {/* Editing Types Section - Only shown if an editing service is selected */}
+                    {hasEditingService && (
                       <div className="">
                         <hr className="border-t border-[#3D3D3D]" />
                         <section className="px-4 pt-4 pb-5 lg:pt-8 lg:px-8 lg:pb-10">
@@ -3466,21 +3825,49 @@ export default function CreateQuotePage() {
                                 className="overflow-hidden"
                               >
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                  {(editingTypes || []).map((type) => (
-                                    <button
-                                      key={type.id}
-                                      onClick={() =>
-                                        setSelectedEditingType(type.id)
-                                      }
-                                      className={`h-10 lg:h-[52px] px-6 rounded-xl font-normal transition-all border text-sm text-center lg:text-left leading-tight tracking-tight ${
-                                        selectedEditingType === type.id
-                                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                                          : "bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700"
-                                      }`}
-                                    >
-                                      {type.label}
-                                    </button>
-                                  ))}
+                                  {loadingEditingTypes ? (
+                                    <div className="col-span-full flex justify-center py-8">
+                                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#E8D1AB]" />
+                                    </div>
+                                  ) : editingTypeOptions.length === 0 ? (
+                                    <div className="col-span-full rounded-xl border border-dashed border-[#4A4A4A] px-5 py-6 text-sm text-[#8A8A8A]">
+                                      No editing types found.
+                                    </div>
+                                  ) : (
+                                    editingTypeOptions.map((type) => {
+                                      const canDeleteShootType =
+                                        canDeleteShootTypeItem(type);
+
+                                      return (
+                                        <div key={type.id} className="relative">
+                                          <button
+                                            onClick={() =>
+                                              setSelectedEditingType(type.id)
+                                            }
+                                            className={`h-10 w-full lg:h-[52px] px-6 pr-11 rounded-xl font-normal transition-all border text-sm text-center lg:text-left leading-tight tracking-tight ${
+                                              selectedEditingType === type.id
+                                                ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                                                : "bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700"
+                                            }`}
+                                          >
+                                            <span className="truncate">{type.label}</span>
+                                          </button>
+                                          {canDeleteShootType && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteShootType("editing", type.id);
+                                              }}
+                                              className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-zinc-500 transition-colors hover:text-red-500"
+                                            >
+                                              <Trash2 size={16} />
+                                            </button>
+                                          )}
+                                        </div>
+                                      );
+                                    })
+                                  )}
                                 </div>
 
                                 <div className="mt-8 space-y-6">
@@ -3502,21 +3889,43 @@ export default function CreateQuotePage() {
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}
-                                        className="relative"
+                                        className="flex gap-4 items-end"
                                       >
-                                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                                          <span className="text-xs text-[#8A8A8A] font-normal">
-                                            Editing Type Name
-                                          </span>
+                                        <div className="flex-1 relative">
+                                          <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                                            <span className="text-xs text-[#8A8A8A] font-normal">
+                                              Editing Type Name
+                                            </span>
+                                          </div>
+                                          <Input
+                                            placeholder="Eg : Reel Editing..."
+                                            value={customEditingType}
+                                            onChange={(e) =>
+                                              setCustomEditingType(e.target.value)
+                                            }
+                                            className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                                          />
                                         </div>
-                                        <Input
-                                          placeholder="Eg : Reel Editing..."
-                                          value={customEditingType}
-                                          onChange={(e) =>
-                                            setCustomEditingType(e.target.value)
+                                        <button
+                                          type="button"
+                                          onClick={handleCreateEditingType}
+                                          disabled={
+                                            isSubmittingEditingType ||
+                                            !customEditingType.trim()
                                           }
-                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                                        />
+                                          className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${
+                                            isSubmittingEditingType ||
+                                            !customEditingType.trim()
+                                              ? "bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50"
+                                              : "bg-[#0DC752] text-black hover:bg-[#0bb54a]"
+                                          }`}
+                                        >
+                                          {isSubmittingEditingType ? (
+                                            <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                          ) : (
+                                            <Check size={22} strokeWidth={3} />
+                                          )}
+                                        </button>
                                       </motion.div>
                                     )}
                                   </AnimatePresence>
@@ -3555,7 +3964,7 @@ export default function CreateQuotePage() {
                                 : shootTypeKind === "photo"
                                   ? selectedPhotoShootTypeLabel
                                   : "";
-                            const editingTypeLabel = editingTypes.find(
+                            const editingTypeLabel = editingTypeOptions.find(
                               (t) => t.id === selectedEditingType,
                             )?.label;
                             const serviceTotal =
@@ -3571,7 +3980,7 @@ export default function CreateQuotePage() {
                                 <div className="flex justify-between items-start mb-4 lg:mb-8">
                                   <div className="space-y-2">
                                     <h3 className="text-[16px] font-medium text-white flex items-center gap-1.5 leading-none">
-                                      {serviceId === "ai_editing" ? (
+                                      {isEditingServiceLabel(service.label) ? (
                                         <>
                                           Editing Type -{" "}
                                           <span className="text-[#8E826A]">
@@ -4250,6 +4659,14 @@ export default function CreateQuotePage() {
                     </span>
                   </div>
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">
+                      Discount Applied
+                    </span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      - {formatCurrency(discountAmount)}
+                    </span>
+                  </div>
                   <div className="flex justify-between items-center ">
                     <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
                     <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
@@ -4263,15 +4680,6 @@ export default function CreateQuotePage() {
                     </span>
                     <span className="text-sm lg:text-base text-white font-medium tracking-tight">
                       {formatCurrency(totalAfterTax)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">
-                      Discount Applied
-                    </span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                      - {formatCurrency(discountAmount)}
                     </span>
                   </div>
 
@@ -4407,8 +4815,8 @@ export default function CreateQuotePage() {
                 </div>
 
                 <div className="relative">
-                  <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#D3D3D3] font-medium">
+                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`text-sm font-medium ${isDark ? "text-[#D3D3D3]" : "text-[#71717B]"}`}>
                       Address*
                     </span>
                   </div>
@@ -4416,21 +4824,31 @@ export default function CreateQuotePage() {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="567 Mission Street, San Francisco, CA 94105"
-                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/30 transition-all pl-6 text-sm lg:text-base placeholder-zinc-600"
+                    className={`h-16 rounded-xl transition-all pl-6 text-sm lg:text-base ${
+                      isDark
+                        ? "bg-transparent border-zinc-800 text-white placeholder-zinc-600 focus:border-[#E8D1AB]/30"
+                        : "bg-white border-[#D7D7D7] text-black placeholder:text-[#71717B] focus:border-[#E8D1AB]"
+                    }`}
                   />
                 </div>
 
                 <div className="relative">
-                  <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#D3D3D3] font-medium">
+                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`text-sm font-medium ${isDark ? "text-[#D3D3D3]" : "text-[#71717B]"}`}>
                       Project Description*
                     </span>
                   </div>
                   <Textarea
                     value={projectDescription}
                     onChange={(e) => setProjectDescription(e.target.value)}
+                    autoComplete="off"
+                    data-1p-ignore="true"
                     placeholder="Describe the project scope and requirements....."
-                    className="min-h-[120px]0 bg-[#111111] dark:bg-[#171717] rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8 text-sm lg:text-base"
+                    className={`min-h-[120px] rounded-xl p-6 pt-8 text-sm lg:text-base ${
+                      isDark
+                        ? "bg-transparent border-zinc-800 text-white placeholder:text-zinc-600 focus:border-[#E8D1AB]/30"
+                        : "bg-white border-[#D7D7D7] text-black placeholder:text-[#71717B] focus:border-[#E8D1AB] hover:border-[#C9A86A] dark:bg-white dark:border-[#D7D7D7] dark:text-black dark:placeholder:text-[#71717B] dark:hover:bg-white dark:hover:border-[#C9A86A] dark:hover:shadow-[0_0_0_4px_rgba(232,216,184,0.35)] dark:focus:bg-white dark:focus:border-[#E8D1AB] dark:focus:text-black dark:focus:shadow-none"
+                    }`}
                   />
                 </div>
                 {/* <div className="relative">
@@ -4495,9 +4913,22 @@ export default function CreateQuotePage() {
                           </span>
                         </div>
 
-                        <div className="relative pt-4">
+                        <div className="relative">
+                          <div
+                            className={`absolute -top-3 left-4 z-10 px-2 ${
+                              isDark ? "bg-[#171717]" : "bg-white"
+                            }`}
+                          >
+                            <span
+                              className={`text-sm font-medium ${
+                                isDark ? "text-[#D3D3D3]" : "text-[#71717B]"
+                              }`}
+                            >
+                              Quote Valid Until*
+                            </span>
+                          </div>
                           <DatePicker
-                            label="Quote Valid Until*"
+                            label=""
                             value={parseISO(validUntil)}
                             onChange={(date) => {
                               if (date && isValid(date)) {
@@ -4508,24 +4939,42 @@ export default function CreateQuotePage() {
                             format="dd-MM-yyyy"
                             colors={{
                               inputBackground: isCustomValiditySelected
-                                ? "#1D1A15"
+                                ? isDark
+                                  ? "#1D1A15"
+                                  : "#FFF7E6"
                                 : "transparent",
                               inputText: isCustomValiditySelected
-                                ? "#E8D1AB"
-                                : "#F5F5F5",
-                              inputDisabled: "rgba(214, 195, 157, 0.9)",
+                                ? isDark
+                                  ? "#E8D1AB"
+                                  : "#171717"
+                                : isDark
+                                  ? "#F5F5F5"
+                                  : "#171717",
+                              inputDisabled: isDark
+                                ? "rgba(214, 195, 157, 0.9)"
+                                : "rgba(23, 23, 23, 0.65)",
                               iconColor: isCustomValiditySelected
                                 ? "#E8D1AB"
-                                : "#FFFFFF",
+                                : isDark
+                                  ? "#FFFFFF"
+                                  : "#171717",
                               labelText: isCustomValiditySelected
-                                ? "#E8D1AB"
+                                ? isDark
+                                  ? "#E8D1AB"
+                                  : "#171717"
                                 : "rgba(113, 113, 122, 1)",
                               inputBorder: isCustomValiditySelected
-                                ? "rgba(232, 209, 171, 0.4)"
-                                : "rgba(39, 39, 42, 1)",
+                                ? isDark
+                                  ? "rgba(232, 209, 171, 0.4)"
+                                  : "#E8D1AB"
+                                : isDark
+                                  ? "rgba(39, 39, 42, 1)"
+                                  : "#D7D7D7",
                               inputBorderHover: isCustomValiditySelected
                                 ? "#E8D1AB"
-                                : "rgba(63, 63, 70, 1)",
+                                : isDark
+                                  ? "rgba(63, 63, 70, 1)"
+                                  : "#BEBEBE",
                               inputBorderFocus: "#E8D1AB",
                             }}
                             sx={{
@@ -4533,7 +4982,9 @@ export default function CreateQuotePage() {
                               borderRadius: "12px", // rounded-xl
                               "& .MuiOutlinedInput-root": {
                                 backgroundColor: isCustomValiditySelected
-                                  ? "#1D1A15"
+                                  ? isDark
+                                    ? "#1D1A15"
+                                    : "#FFF7E6"
                                   : "transparent",
                                 borderRadius: "12px",
                                 paddingLeft: "10px",
@@ -4545,21 +4996,29 @@ export default function CreateQuotePage() {
                                 fontSize: "16px",
                                 fontWeight: "500", // font-medium
                                 color: isCustomValiditySelected
-                                  ? "#E8D1AB"
+                                  ? isDark
+                                    ? "#E8D1AB"
+                                    : "#171717"
                                   : "rgba(113, 113, 122, 1)",
                               },
                               "& .MuiInputBase-input.Mui-disabled": {
-                                WebkitTextFillColor: "rgba(214, 195, 157, 0.9)",
-                                color: "rgba(214, 195, 157, 0.9)",
+                                WebkitTextFillColor: isDark
+                                  ? "rgba(214, 195, 157, 0.9)"
+                                  : "rgba(23, 23, 23, 0.65)",
+                                color: isDark
+                                  ? "rgba(214, 195, 157, 0.9)"
+                                  : "rgba(23, 23, 23, 0.65)",
                                 opacity: 1,
                               },
                               "& .MuiSvgIcon-root": {
                                 color: isCustomValiditySelected
                                   ? "#E8D1AB"
-                                  : "#FFFFFF",
+                                  : isDark
+                                    ? "#FFFFFF"
+                                    : "#171717",
                               },
                               "& .Mui-disabled .MuiSvgIcon-root": {
-                                color: "#FFFFFF",
+                                color: isDark ? "#FFFFFF" : "#171717",
                                 opacity: 1,
                               },
                             }}
@@ -4569,13 +5028,17 @@ export default function CreateQuotePage() {
                               left: "16px",
                               zIndex: 10,
                               backgroundColor: isCustomValiditySelected
-                                ? "#1D1A15"
-                                : "#171717",
+                                ? isDark
+                                  ? "#1D1A15"
+                                  : "#FFF7E6"
+                                : "#FFFFFF",
                               padding: "0 8px",
                               fontSize: "12px", // text-xs
                               fontWeight: "500", // font-medium
                               color: isCustomValiditySelected
-                                ? "#E8D1AB"
+                                ? isDark
+                                  ? "#E8D1AB"
+                                  : "#171717"
                                 : "rgba(113, 113, 122, 1)",
                             }}
                           />
@@ -4606,7 +5069,9 @@ export default function CreateQuotePage() {
                   ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
                   : canPrimaryAction
                     ? "bg-[#E8D1AB] text-[#101010]"
-                    : "bg-[#2A2B2D] text-zinc-600"
+                    : isDark
+                      ? "bg-[#2A2B2D] text-zinc-600"
+                      : "bg-[#A4A5A6] text-white"
               } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
               disabled={!canPrimaryAction || isCreatingQuoteDraft}
               onClick={view === "tax" ? handleSaveQuote : handleContinue}
@@ -4711,7 +5176,9 @@ export default function CreateQuotePage() {
                 ? view === "tax"
                   ? "bg-white text-[#1B1B1B]"
                   : "bg-[#E8D1AB] text-[#101010]"
-                : "bg-[#2A2B2D] text-zinc-600"
+                : isDark
+                  ? "bg-[#2A2B2D] text-zinc-600"
+                  : "bg-[#A4A5A6] text-white"
             } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
             disabled={!canPrimaryAction || isCreatingQuoteDraft}
             onClick={view === "tax" ? handleSaveQuote : handleContinue}

@@ -36,6 +36,7 @@ import {
   type NormalizedQuoteLineItem,
 } from "@/lib/quoteDetail";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
 
 type TopbarComponentProps = {
@@ -240,6 +241,7 @@ export default function QuoteDetailsPage({
   baseHref,
   TopbarComponent,
 }: QuoteDetailsPageProps) {
+  const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const router = useRouter();
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
@@ -445,7 +447,13 @@ export default function QuoteDetailsPage({
   );
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white">
+    <div
+      className={`quote-editor-theme min-h-screen ${
+        isDark
+          ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
+          : "quote-editor-theme-light bg-[#F4F5F7] text-black"
+      }`}
+    >
       <TopbarComponent pathname={pathname} actions={topbarActions} breadcrumbOverrides={breadcrumbOverrides} />
 
       <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-14 lg:pt-8">

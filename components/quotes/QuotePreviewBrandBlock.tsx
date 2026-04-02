@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
+
 type QuotePreviewBrandBlockProps = {
   title?: string;
   logoHref?: string;
@@ -29,6 +31,8 @@ export default function QuotePreviewBrandBlock({
   title = "Quote Preview",
   logoHref = "/",
 }: QuotePreviewBrandBlockProps) {
+  const { isDark } = useResolvedTheme();
+
   return (
     <div className="flex select-none flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       {logoHref ? (
@@ -41,7 +45,9 @@ export default function QuotePreviewBrandBlock({
 
       <div className="text-left sm:text-right">
         <p className="text-[11px] uppercase tracking-[0.24em] text-[#8B8B90]">Preview</p>
-        <h1 className="text-[22px] font-medium text-white lg:text-[28px]">{title}</h1>
+        <h1 className={`text-[22px] font-medium lg:text-[28px] ${isDark ? "text-white" : "text-black"}`}>
+          {title}
+        </h1>
       </div>
     </div>
   );
