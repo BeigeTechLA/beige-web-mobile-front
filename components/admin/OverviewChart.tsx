@@ -180,8 +180,7 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
   const stopOpacityStart = isDark ? 0.3 : 0.4;
 
   return (
-    <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-[#FFFFFF] border-[#E5E5E5] text-[#202020]"
-      }`}>
+    <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-[#FFFFFF] border-[#E5E5E5] text-[#202020]"}`}>
       {/* Header */}
       <div className="flex justify-between items-center mb-5 lg:mb-8">
         <div className="flex items-center gap-2">
@@ -280,8 +279,8 @@ export default function OverviewChart({ externalSelectedDate }: OverviewChartPro
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-               <stop offset="5%" stopColor={stopColor} stopOpacity={stopOpacityStart} />
-    <stop offset="95%" stopColor={stopColor} stopOpacity={0} />
+                <stop offset="5%" stopColor={stopColor} stopOpacity={stopOpacityStart} />
+                <stop offset="95%" stopColor={stopColor} stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke={isDark ? "#27272a" : "#E3E3E3"} strokeDasharray="3 3" />

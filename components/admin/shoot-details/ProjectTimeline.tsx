@@ -65,10 +65,10 @@ export default function ProjectTimeline({ status = 0 }: { status?: number }) {
                             {/* Icon Column */}
                             <div className="flex flex-col items-center">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 ${isActive
-                                        ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black scale-110 shadow-lg shadow-[#E8D1AB]/10'
-                                        : isDark
-                                            ? 'bg-transparent border-[#333333] text-[#666666]'
-                                            : 'bg-transparent border-[#CCCCCC] text-[#999999]'
+                                    ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black scale-110 shadow-lg shadow-[#E8D1AB]/10'
+                                    : isDark
+                                        ? 'bg-transparent border-[#333333] text-[#666666]'
+                                        : 'bg-transparent border-[#CCCCCC] text-[#999999]'
                                     }`}>
                                     <step.icon size={18} />
                                 </div>
@@ -82,8 +82,8 @@ export default function ProjectTimeline({ status = 0 }: { status?: number }) {
                             {/* Label Column */}
                             <div className="pt-2">
                                 <p className={`text-base font-medium leading-none transition-colors ${isActive
-                                        ? (isDark ? 'text-white' : 'text-black')
-                                        : 'text-[#666666]'
+                                    ? (isDark ? 'text-white' : 'text-black')
+                                    : 'text-[#666666]'
                                     }`}>
                                     {step.label}
                                 </p>
