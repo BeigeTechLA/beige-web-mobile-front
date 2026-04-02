@@ -7,12 +7,21 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
+const CustomQuotesIcon = ({ size = 24 }) => (
+  <img
+    src="/images/misc/Quotes.svg"
+    width={size}
+    height={size}
+    alt="video"
+  />
+);
+
 const salesMenuItems = [
   { name: 'Sales', icon: LayoutDashboard, link: '/sales/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', isDisabled: true },
   { name: 'Messages', icon: MessageCircle, link: '/sales/messages', isDisabled: true },
-  { name: 'Quotes', icon: Receipt, link: '/sales/quotes' },
+  { name: 'Quotes', icon: CustomQuotesIcon, link: '/sales/quotes' },
 ];
 
 type SalesMenuItem = {
@@ -92,7 +101,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             width={100}
             height={20}
           />
-          {/* Beta Tag - Preserved & Theme Adjusted */}
+          {/* Beta Tag */}
           <span className={`absolute right-0 -bottom-3 text-[8px] font-medium tracking-wide py-[1px] px-1 rounded-full border backdrop-blur-xs overflow-hidden ${isDark ? "text-white border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)]" : "text-black border-black/20 shadow-sm"
             }`}>
             Beta
@@ -103,8 +112,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
           <X size={20} />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto my-6 pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-        {/* Navigation Items */}
+
+      <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2">
           {salesMenuItems.map((item) => {
             const active = isActiveLink(item.link);

@@ -7,6 +7,15 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
+const CustomQuotesIcon = ({ size = 24 }) => (
+  <img
+    src="/images/misc/Quotes.svg"
+    width={size}
+    height={size}
+    alt="video"
+  />
+);
+
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
@@ -23,7 +32,7 @@ const menuItems = [
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
-  { name: 'Quotes', icon: Receipt, link: '/admin/quotes' },
+  { name: 'Quotes', icon: CustomQuotesIcon, link: '/admin/quotes' },
 ];
 
 type MenuItem = {

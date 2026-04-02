@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -29,14 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import DottedDivider from "@/components/admin/DottedDivider";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  format,
-  addDays,
-  parseISO,
-  isValid,
-  differenceInDays,
-  startOfDay,
-} from "date-fns";
+import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
@@ -737,16 +730,16 @@ export default function CreateQuotePage() {
 
         const nextVideoShootTypes =
           hasVideo &&
-          videoResponse &&
-          !videoResponse.error &&
-          Array.isArray(videoResponse.data)
+            videoResponse &&
+            !videoResponse.error &&
+            Array.isArray(videoResponse.data)
             ? mapShootTypeOptions(videoResponse.data as ShootTypeApiItem[])
             : [];
         const nextPhotoShootTypes =
           hasPhoto &&
-          photoResponse &&
-          !photoResponse.error &&
-          Array.isArray(photoResponse.data)
+            photoResponse &&
+            !photoResponse.error &&
+            Array.isArray(photoResponse.data)
             ? mapShootTypeOptions(photoResponse.data as ShootTypeApiItem[])
             : [];
 
@@ -920,9 +913,9 @@ export default function CreateQuotePage() {
         const availableShootTypes =
           hydratedState.selectedServices.length > 0
             ? await fetchShootTypes(
-                hydratedState.selectedServices,
-                hydratedState.services,
-              )
+              hydratedState.selectedServices,
+              hydratedState.services,
+            )
             : { video: [], photo: [] };
 
         if (!isMounted) {
@@ -1275,19 +1268,17 @@ export default function CreateQuotePage() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.99, y: -5 }}
       transition={{ duration: 0.2 }}
-      className={`absolute top-[calc(100%+8px)] left-0 right-0 rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.18)] ${
-        isDark
-          ? "bg-[#0F0F0F] border border-zinc-800"
-          : "bg-white border border-[#D7D7D7]"
-      }`}
+      className={`absolute top-[calc(100%+8px)] left-0 right-0 rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.18)] ${isDark
+        ? "bg-[#0F0F0F] border border-[#FFFFFF80]"
+        : "bg-white border border-[#D7D7D7]"
+        }`}
     >
-      <div className={`p-3 ${isDark ? "border-b border-zinc-800" : "border-b border-[#E5E5E5]"}`}>
+      <div className={`p-3 ${isDark ? "border-b border-[#FFFFFF80]" : "border-b border-[#E5E5E5]"}`}>
         <div
-          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 ${
-            isDark
-              ? "bg-[#1A1A1F] border border-[#3B3B46]"
-              : "bg-[#F4F5F7] border border-[#D7D7D7]"
-          }`}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 ${isDark
+            ? "bg-[#1A1A1F] border border-[#3B3B46]"
+            : "bg-[#F4F5F7] border border-[#D7D7D7]"
+            }`}
         >
           <Search size={16} className="text-[#6B6B6B] shrink-0" />
           <input
@@ -1295,9 +1286,8 @@ export default function CreateQuotePage() {
             placeholder="Search clients..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`bg-transparent text-sm outline-none flex-1 placeholder:text-[#6B6B6B] ${
-              isDark ? "text-white" : "text-black"
-            }`}
+            className={`bg-transparent text-sm outline-none flex-1 placeholder:text-[#6B6B6B] ${isDark ? "text-white" : "text-black"
+              }`}
             autoFocus
           />
           {searchQuery && (
@@ -1337,22 +1327,20 @@ export default function CreateQuotePage() {
                     setView("details");
                   }
                 }}
-                className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${
-                  isSelectedClient
-                    ? "bg-[#FFFCE8] text-[#171717]"
-                    : isDark
-                      ? "hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]"
-                      : "hover:bg-[#FFFCE8] hover:text-[#171717] text-black"
-                }`}
+                className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${isSelectedClient
+                  ? "bg-[#FFFCE8] text-[#171717]"
+                  : isDark
+                    ? "hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]"
+                    : "hover:bg-[#FFFCE8] hover:text-[#171717] text-black"
+                  }`}
               >
                 <div
-                  className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                    isSelectedClient
-                      ? "border-[#E8D1AB] bg-[#E8D1AB]"
-                      : isDark
-                        ? "border-[#FFFFFF85] group-hover:border-[#171717]"
-                        : "border-[#8A8A8A] group-hover:border-[#171717]"
-                  }`}
+                  className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelectedClient
+                    ? "border-[#E8D1AB] bg-[#E8D1AB]"
+                    : isDark
+                      ? "border-[#FFFFFF85] group-hover:border-[#171717]"
+                      : "border-[#8A8A8A] group-hover:border-[#171717]"
+                    }`}
                 >
                   {isSelectedClient && (
                     <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
@@ -1375,9 +1363,8 @@ export default function CreateQuotePage() {
               setView("details");
             }
           }}
-          className={`w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 pt-6 ${
-            isDark ? "border-t border-zinc-800/50" : "border-t border-[#E5E5E5]"
-          }`}
+          className={`w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 pt-6 ${isDark ? "border-t border-[#FFFFFF80]/50" : "border-t border-[#E5E5E5]"
+            }`}
         >
           <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
             <Plus size={16} className="text-[#171717]" />
@@ -1458,11 +1445,10 @@ export default function CreateQuotePage() {
                               setSelectedPhotoShootType(type.id);
                             }
                           }}
-                          className={`h-[52px] w-full rounded-[14px] px-5 pr-11 font-normal transition-all border text-sm tracking-tight text-left flex items-center ${
-                            selectedId === type.id
-                              ? "bg-[#262118] border-[#9F7B43] text-[#E1C48B] shadow-inner"
-                              : "bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700"
-                          }`}
+                          className={`h-[52px] w-full rounded-xl px-5 pr-11 font-medium transition-all border text-sm lg:text-base tracking-tight text-left flex items-center ${selectedId === type.id
+                            ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                            : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                            }`}
                         >
                           <span className="truncate">{type.label}</span>
                         </button>
@@ -1513,7 +1499,7 @@ export default function CreateQuotePage() {
                           placeholder="Eg : Real Estate"
                           value={customShootType}
                           onChange={(e) => setCustomShootType(e.target.value)}
-                          className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                         />
                       </div>
                       <button
@@ -1526,13 +1512,12 @@ export default function CreateQuotePage() {
                           !customShootType ||
                           !activeShootTypeForm
                         }
-                        className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${
-                          isSubmittingShootType ||
+                        className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingShootType ||
                           !customShootType ||
                           !activeShootTypeForm
-                            ? "bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50"
-                            : "bg-[#0DC752] text-black hover:bg-[#0bb54a]"
-                        }`}
+                          ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                          : "bg-[#101010] text-[#16A34A]"
+                          }`}
                       >
                         {isSubmittingShootType ? (
                           <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
@@ -1659,7 +1644,7 @@ export default function CreateQuotePage() {
     }
   };
 
- const handleBack = () => {
+  const handleBack = () => {
     if (view === 'details') {
       setView('selection');
     } else if (view === 'services') {
@@ -1672,7 +1657,7 @@ export default function CreateQuotePage() {
       setView('logistics');
     } else if (view === 'discounts') {
       setView('customlineitems');
-       } else if (view === 'tax') {
+    } else if (view === 'tax') {
       setView('discounts');
       // Further steps to be added form customlineitems on wards
     } else {
@@ -1902,9 +1887,9 @@ export default function CreateQuotePage() {
       ? getQuoteUpdatePayload(action === "draft" ? view : undefined)
       : action === "save"
         ? {
-            ...basePayload,
-            is_draft: false,
-          }
+          ...basePayload,
+          is_draft: false,
+        }
         : basePayload;
 
     setIsCreatingQuoteDraft(true);
@@ -2658,11 +2643,10 @@ export default function CreateQuotePage() {
   if (isEditMode && !quoteToEdit && (isLoadingQuoteToEdit || isHydratingQuoteToEdit)) {
     return (
       <div
-        className={`quote-editor-theme min-h-screen ${
-          isDark
-            ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
-            : "quote-editor-theme-light bg-[#F4F5F7] text-black"
-        }`}
+        className={`quote-editor-theme min-h-screen ${isDark
+          ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
+          : "quote-editor-theme-light bg-[#F4F5F7] text-black"
+          }`}
       >
         <Topbar
           pathname={pathname}
@@ -2693,11 +2677,10 @@ export default function CreateQuotePage() {
 
   return (
     <div
-      className={`quote-editor-theme min-h-screen ${
-        isDark
-          ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
-          : "quote-editor-theme-light bg-[#F4F5F7] text-black"
-      }`}
+      className={`quote-editor-theme min-h-screen ${isDark
+        ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
+        : "quote-editor-theme-light bg-[#F4F5F7] text-black"
+        }`}
     >
       <Topbar
         pathname={pathname}
@@ -2795,7 +2778,7 @@ export default function CreateQuotePage() {
                     return (
                       <div
                         key={item.id}
-                        className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-4 lg:p-5 relative overflow-hidden"
+                        className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-5 relative overflow-hidden"
                       >
                         <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
                           <div className="flex lg:flex-col justify-between lg:gap-1">
@@ -2870,7 +2853,7 @@ export default function CreateQuotePage() {
                           onChange={(e) =>
                             setCustomLogisticsName(e.target.value)
                           }
-                          className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                         />
                       </div>
                       <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
@@ -2886,7 +2869,7 @@ export default function CreateQuotePage() {
                             onChange={(e) =>
                               setCustomLogisticsCost(e.target.value)
                             }
-                            className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                            className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                           />
                         </div>
                         <button
@@ -2896,13 +2879,12 @@ export default function CreateQuotePage() {
                             !customLogisticsName ||
                             !customLogisticsCost
                           }
-                          className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${
-                            isSubmittingLogistics ||
+                          className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingLogistics ||
                             !customLogisticsName ||
                             !customLogisticsCost
-                              ? "bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50"
-                              : "bg-[#0DC752] text-black hover:bg-[#0bb54a]"
-                          }`}
+                            ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                            : "bg-[#101010] text-[#16A34A]"
+                            }`}
                         >
                           {isSubmittingLogistics ? (
                             <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
@@ -2915,7 +2897,7 @@ export default function CreateQuotePage() {
                   </div>
                 </div>
 
-                <div className="m-4 lg:m-9 mt-0 lg:mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-zinc-800/50">
+                <div className="m-4 lg:m-9 mt-0 lg:mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50">
                   <span className="text-sm lg:text-xl font-medium text-[#FFF]">
                     Total Logistics Cost
                   </span>
@@ -2970,19 +2952,17 @@ export default function CreateQuotePage() {
                               }));
                             }
                           }}
-                          className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${
-                            selectedAddons.includes(addon.id)
-                              ? "bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
-                              : "bg-transparent border-[#303030] hover:border-zinc-700"
-                          }`}
+                          className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedAddons.includes(addon.id)
+                            ? "bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
+                            : "bg-transparent border-[#303030] hover:border-zinc-700"
+                            }`}
                         >
                           <div className="flex items-start gap-4 w-full">
                             <div
-                              className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${
-                                selectedAddons.includes(addon.id)
-                                  ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
-                                  : "border-zinc-700 bg-transparent"
-                              }`}
+                              className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
+                                ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                                : "border-zinc-700 bg-transparent"
+                                }`}
                             >
                               {selectedAddons.includes(addon.id) && (
                                 <Check size={14} strokeWidth={4} />
@@ -3042,7 +3022,7 @@ export default function CreateQuotePage() {
                               onChange={(e) =>
                                 setCustomAddonName(e.target.value)
                               }
-                              className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                              className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                             />
                           </div>
                           <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
@@ -3058,7 +3038,7 @@ export default function CreateQuotePage() {
                                 onChange={(e) =>
                                   setCustomAddonCost(e.target.value)
                                 }
-                                className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                                className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                               />
                             </div>
                             <button
@@ -3068,13 +3048,12 @@ export default function CreateQuotePage() {
                                 !customAddonName ||
                                 !customAddonCost
                               }
-                              className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${
-                                isSubmittingAddon ||
+                              className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingAddon ||
                                 !customAddonName ||
                                 !customAddonCost
-                                  ? "bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50"
-                                  : "bg-[#0DC752] text-black hover:bg-[#0bb54a]"
-                              }`}
+                                ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                                : "bg-[#101010] text-[#16A34A]"
+                                }`}
                             >
                               {isSubmittingAddon ? (
                                 <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
@@ -3136,11 +3115,11 @@ export default function CreateQuotePage() {
                                         config.quantity - 1,
                                       )
                                     }
-                                    className="h-[50px] w-[58px] flex items-center justify-center bg-[#F0DCB1] rounded-[14px] text-black hover:opacity-90 transition-all active:scale-95"
+                                    className="h-[50px] w-[58px] flex items-center justify-center bg-[#F0DCB1] rounded-xl text-black hover:opacity-90 transition-all active:scale-95"
                                   >
                                     <Minus size={16} strokeWidth={2.5} />
                                   </button>
-                                  <div className="h-[50px] min-w-[92px] rounded-[14px] border border-[#3B3B46] bg-[#1A1A1F] px-4 flex flex-col items-center justify-center">
+                                  <div className="h-[50px] min-w-[92px] rounded-xl border border-[#3B3B46] bg-[#1A1A1F] px-4 flex flex-col items-center justify-center">
                                     {/* <span className="text-[11px] font-medium tracking-[0.08em] uppercase text-[#8A8A8A]">
                                       Qty
                                     </span> */}
@@ -3156,7 +3135,7 @@ export default function CreateQuotePage() {
                                         config.quantity + 1,
                                       )
                                     }
-                                    className="h-[50px] w-[58px] flex items-center justify-center bg-[#F0DCB1] rounded-[14px] text-black hover:opacity-90 transition-all active:scale-95"
+                                    className="h-[50px] w-[58px] flex items-center justify-center bg-[#F0DCB1] rounded-xl text-black hover:opacity-90 transition-all active:scale-95"
                                   >
                                     <Plus size={16} strokeWidth={2.5} />
                                   </button>
@@ -3172,7 +3151,7 @@ export default function CreateQuotePage() {
                                         e.target.value,
                                       )
                                     }
-                                    className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-[14px] text-white text-base pl-5"
+                                    className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-xl text-white text-base pl-5"
                                   />
                                 </div>
 
@@ -3274,7 +3253,7 @@ export default function CreateQuotePage() {
                       })}
                     </div>
 
-                    <div className="mt-4 rounded-[14px] bg-[#2A2A2A] px-5 py-4 lg:px-6 lg:py-5 flex items-center justify-between">
+                    <div className="mt-4 rounded-xl bg-[#2A2A2A] px-5 py-4 lg:px-6 lg:py-5 flex items-center justify-between">
                       <span className="text-base font-medium text-white">
                         Total Add-Ons
                       </span>
@@ -3319,11 +3298,10 @@ export default function CreateQuotePage() {
                               onClick={() =>
                                 handleServiceSelect(service.id, service.price)
                               }
-                              className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${
-                                selectedServices.includes(service.id)
-                                  ? "bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
-                                  : "bg-transparent border-[#303030] hover:border-zinc-700"
-                              }`}
+                              className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
+                                ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
+                                : "bg-[#101010] border-[#FFFFFF80] hover:border-white/80"
+                                }`}
                             >
                               <div className="font-medium text-base text-white mb-2 leading-none">
                                 {getServiceDisplayLabel(service.label)}
@@ -3389,7 +3367,7 @@ export default function CreateQuotePage() {
                                 onChange={(e) =>
                                   setCustomServiceName(e.target.value)
                                 }
-                                className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
+                                className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
                               />
                             </div>
                             <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
@@ -3405,7 +3383,7 @@ export default function CreateQuotePage() {
                                   onChange={(e) =>
                                     setCustomServiceCost(e.target.value)
                                   }
-                                  className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
+                                  className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
                                 />
                               </div>
                               <button
@@ -3415,13 +3393,12 @@ export default function CreateQuotePage() {
                                   !customServiceName ||
                                   !customServiceCost
                                 }
-                                className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${
-                                  isSubmittingService ||
+                                className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingService ||
                                   !customServiceName ||
                                   !customServiceCost
-                                    ? "bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50"
-                                    : "bg-[#0DC752] text-black hover:bg-[#0bb54a]"
-                                }`}
+                                  ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                                  : "bg-[#101010] text-[#16A34A]"
+                                  }`}
                               >
                                 {isSubmittingService ? (
                                   <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
@@ -3511,11 +3488,10 @@ export default function CreateQuotePage() {
                                       onClick={() =>
                                         setSelectedEditingType(type.id)
                                       }
-                                      className={`h-10 lg:h-[52px] px-6 rounded-xl font-normal transition-all border text-sm text-center lg:text-left leading-tight tracking-tight ${
-                                        selectedEditingType === type.id
-                                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                                          : "bg-transparent border-[#4A4A4A] text-[#A1A1AA] hover:border-zinc-700"
-                                      }`}
+                                      className={`h-10 lg:h-[52px] px-6 rounded-xl font-medium transition-all border text-sm lg:text-base text-center lg:text-left leading-tight tracking-tight ${selectedEditingType === type.id
+                                        ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                                        : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                                        }`}
                                     >
                                       {type.label}
                                     </button>
@@ -3554,7 +3530,7 @@ export default function CreateQuotePage() {
                                           onChange={(e) =>
                                             setCustomEditingType(e.target.value)
                                           }
-                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                                          className="h-[84px] bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                                         />
                                       </motion.div>
                                     )}
@@ -3807,13 +3783,13 @@ export default function CreateQuotePage() {
                     </span>
                   </div>
 
-                  <div className="relative border border-[#4A4A4A] rounded-[14px] bg-transparent">
+                  <div className="relative border border-[#4A4A4A] rounded-xl bg-transparent">
                     <button
                       onClick={() => {
                         setIsDetailsClientDropdownOpen(false);
                         setIsDropdownOpen(!isDropdownOpen);
                       }}
-                      className={`w-full group bg-transparent rounded-[14px] px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen ? "ring-1 ring-[#8E826A]/30" : ""}`}
+                      className={`w-full group bg-transparent rounded-xl px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen ? "ring-1 ring-[#8E826A]/30" : ""}`}
                     >
                       <span
                         className={
@@ -3869,7 +3845,7 @@ export default function CreateQuotePage() {
                         placeholder="Eg : Consulting Fee, Rush Delivery..."
                         value={customItemName}
                         onChange={(e) => setCustomItemName(e.target.value)}
-                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
                     <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
@@ -3883,7 +3859,7 @@ export default function CreateQuotePage() {
                           placeholder="$ 0.00"
                           value={customItemCost}
                           onChange={(e) => setCustomItemCost(e.target.value)}
-                          className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                         />
                       </div>
                       <button
@@ -3893,13 +3869,12 @@ export default function CreateQuotePage() {
                           !customItemName ||
                           !customItemCost
                         }
-                        className={`flex-none w-[52px] h-[52px] lg:w-[84px] lg:h-[84px] rounded-[14px] flex items-center justify-center transition-all ${
-                          isSubmittingLineItem ||
+                        className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingLineItem ||
                           !customItemName ||
                           !customItemCost
-                            ? "bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50"
-                            : "bg-[#0DC752] text-black hover:bg-[#0bb54a]"
-                        }`}
+                          ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                          : "bg-[#101010] text-[#16A34A]"
+                          }`}
                       >
                         {isSubmittingLineItem ? (
                           <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
@@ -3925,7 +3900,7 @@ export default function CreateQuotePage() {
                   return (
                     <div
                       key={item.id}
-                      className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[14px] p-4 lg:p-5 relative overflow-hidden"
+                      className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-5 relative overflow-hidden"
                     >
                       <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
                         <div className="flex lg:flex-col justify-between lg:gap-1">
@@ -3987,7 +3962,7 @@ export default function CreateQuotePage() {
                 })}
               </div>
 
-              <div className="m-4 lg:m-9 mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-zinc-800/50">
+              <div className="m-4 lg:m-9 !mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50">
                 <span className="text-sm lg:text-xl font-medium text-[#FFF]">
                   Total Custom Line Items
                 </span>
@@ -4015,7 +3990,7 @@ export default function CreateQuotePage() {
 
               <div className="p-4 lg:p-9">
                 <div
-                  className={`w-full p-4 lg:p-5 rounded-2xl border transition-colors duration-300 flex items-center justify-between bg-[#171717] border-[#222222]`}
+                  className={`w-full p-4 lg:p-5 rounded-2xl border transition-colors duration-300 flex items-center justify-between bg-[#101010] border-[#FFFFFF80]`}
                   style={{
                     fontFamily: "var(--font-instrument-sans), sans-serif",
                   }}
@@ -4034,9 +4009,8 @@ export default function CreateQuotePage() {
                   {/* Custom Toggle Switch */}
                   <button
                     onClick={handleDiscountToggle}
-                    className={`relative w-12 h-[28px] rounded-lg p-1 transition-colors duration-300 flex items-center ${
-                      discountEnabled ? "bg-[#E8D1AB]" : "bg-[#333333]"
-                    }`}
+                    className={`relative w-12 h-[28px] rounded-lg p-1 transition-colors duration-300 flex items-center ${discountEnabled ? "bg-[#E8D1AB]" : "bg-[#333333]"
+                      }`}
                   >
                     <motion.div
                       animate={{ x: discountEnabled ? 24 : 0 }}
@@ -4045,9 +4019,8 @@ export default function CreateQuotePage() {
                         stiffness: 500,
                         damping: 30,
                       }}
-                      className={`w-5 h-5 rounded-md shadow-sm transition-colors duration-300 ${
-                        discountEnabled ? "bg-white" : "bg-white"
-                      }`}
+                      className={`w-5 h-5 rounded-md shadow-sm transition-colors duration-300 ${discountEnabled ? "bg-white" : "bg-white"
+                        }`}
                     />
                   </button>
                 </div>
@@ -4067,18 +4040,18 @@ export default function CreateQuotePage() {
                       {/* Percentage Option */}
                       <button
                         onClick={() => handleDiscountTypeSelect("percentage")}
-                        className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${
-                          discountType === "percentage"
-                            ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                            : "bg-[#171717] border-[#222222] hover:border-[#333333]"
-                        }`}
+                        className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${discountType === "percentage"
+                          // ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
+                          // : "bg-[#171717] border-[#222222] hover:border-[#333333]"
+                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          }`}
                       >
                         <div
-                          className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-colors ${
-                            discountType === "percentage"
-                              ? "bg-[#E8D1AB] text-black"
-                              : "bg-[#3F3F47] text-[#888888]"
-                          }`}
+                          className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-colors ${discountType === "percentage"
+                            ? "bg-[#E8D1AB] text-black"
+                            : "bg-[#3F3F47] text-[#888888]"
+                            }`}
                         >
                           <Percent size={20} strokeWidth={2.5} />
                         </div>
@@ -4095,18 +4068,16 @@ export default function CreateQuotePage() {
                       {/* Fixed Amount Option */}
                       <button
                         onClick={() => handleDiscountTypeSelect("fixed")}
-                        className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${
-                          discountType === "fixed"
-                            ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                            : "bg-[#171717] border-[#222222] hover:border-[#333333]"
-                        }`}
+                        className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${discountType === "fixed"
+                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          }`}
                       >
                         <div
-                          className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-colors ${
-                            discountType === "fixed"
-                              ? "bg-[#E8D1AB] text-black"
-                              : "bg-[#3F3F47] text-[#888888]"
-                          }`}
+                          className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-colors ${discountType === "fixed"
+                            ? "bg-[#E8D1AB] text-black"
+                            : "bg-[#3F3F47] text-[#888888]"
+                            }`}
                         >
                           <DollarSign size={20} strokeWidth={2.5} />
                         </div>
@@ -4133,7 +4104,7 @@ export default function CreateQuotePage() {
                         onChange={(e) =>
                           setDiscountValue(parseFloat(e.target.value) || 0)
                         }
-                        className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
 
@@ -4197,11 +4168,12 @@ export default function CreateQuotePage() {
                       setSelectedTax(0);
                       setTaxRate(0);
                     }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${
-                      selectedTax === 0
-                        ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                        : "bg-[#171717] border-[#222222] hover:border-[#333333]"
-                    }`}
+                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 0
+                      // ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
+                      // : "bg-[#171717] border-[#222222] hover:border-[#333333]"
+                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                      }`}
                   >
                     <div>
                       <p
@@ -4216,11 +4188,9 @@ export default function CreateQuotePage() {
                       setSelectedTax(5);
                       setTaxRate(5);
                     }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${
-                      selectedTax === 5
-                        ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                        : "bg-[#171717] border-[#222222] hover:border-[#333333]"
-                    }`}
+                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 5
+                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner" : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"}
+                      `}
                   >
                     <div>
                       <p
@@ -4235,11 +4205,10 @@ export default function CreateQuotePage() {
                       setSelectedTax(8.5);
                       setTaxRate(8.5);
                     }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${
-                      selectedTax === 8.5
-                        ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                        : "bg-[#171717] border-[#222222] hover:border-[#333333]"
-                    }`}
+                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 8.5
+                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                      }`}
                   >
                     <div>
                       <p
@@ -4254,11 +4223,10 @@ export default function CreateQuotePage() {
                       setSelectedTax(10);
                       setTaxRate(10);
                     }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${
-                      selectedTax === 10
-                        ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                        : "bg-[#171717] border-[#222222] hover:border-[#333333]"
-                    }`}
+                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 10
+                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                      }`}
                   >
                     <div>
                       <p
@@ -4345,14 +4313,14 @@ export default function CreateQuotePage() {
                         const nextTaxRate = parseFloat(e.target.value) || 0;
                         const presetTaxRate =
                           nextTaxRate === 5 ||
-                          nextTaxRate === 8.5 ||
-                          nextTaxRate === 10
+                            nextTaxRate === 8.5 ||
+                            nextTaxRate === 10
                             ? (nextTaxRate as 5 | 8.5 | 10)
                             : 0;
                         setTaxRate(nextTaxRate);
                         setSelectedTax(presetTaxRate);
                       }}
-                      className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                      className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                     />
                   </div>
                   <div className="w-full relative">
@@ -4365,7 +4333,7 @@ export default function CreateQuotePage() {
                       placeholder="Sales Tax"
                       value={taxtType}
                       onChange={(e) => setTaxType(e.target.value)}
-                      className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                      className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                     />
                   </div>
                 </div>
@@ -4395,7 +4363,7 @@ export default function CreateQuotePage() {
                     <Input
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 pr-14 text-sm lg:text-base"
+                      className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 pr-14 text-sm lg:text-base"
                     />
                     <button
                       type="button"
@@ -4427,7 +4395,7 @@ export default function CreateQuotePage() {
                     <Input
                       value={emailId}
                       onChange={(e) => setEmailId(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                      className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
                   <div className="relative">
@@ -4439,7 +4407,7 @@ export default function CreateQuotePage() {
                     <Input
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
+                      className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E8D1AB]/50 transition-all pl-6 text-sm lg:text-base"
                     />
                   </div>
                 </div>
@@ -4454,11 +4422,10 @@ export default function CreateQuotePage() {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="567 Mission Street, San Francisco, CA 94105"
-                    className={`h-16 rounded-xl transition-all pl-6 text-sm lg:text-base ${
-                      isDark
-                        ? "bg-transparent border-zinc-800 text-white placeholder-zinc-600 focus:border-[#E8D1AB]/30"
-                        : "bg-white border-[#D7D7D7] text-black placeholder:text-[#71717B] focus:border-[#E8D1AB]"
-                    }`}
+                    className={`h-16 rounded-xl transition-all pl-6 text-sm lg:text-base ${isDark
+                      ? "bg-transparent border-[#FFFFFF80] text-white placeholder-zinc-600 focus:border-[#E8D1AB]/30"
+                      : "bg-white border-[#D7D7D7] text-black placeholder:text-[#71717B] focus:border-[#E8D1AB]"
+                      }`}
                   />
                 </div>
 
@@ -4474,11 +4441,11 @@ export default function CreateQuotePage() {
                     autoComplete="off"
                     data-1p-ignore="true"
                     placeholder="Describe the project scope and requirements....."
-                    className={`min-h-[120px] rounded-xl p-6 pt-8 text-sm lg:text-base ${
-                      isDark
-                        ? "bg-[#111111] border-zinc-800 text-white placeholder:text-zinc-600 focus:border-[#E8D1AB]/50"
-                        : "bg-white border-[#D7D7D7] text-black placeholder:text-[#71717B] focus:border-[#E8D1AB] hover:border-[#C9A86A] dark:bg-white dark:border-[#D7D7D7] dark:text-black dark:placeholder:text-[#71717B] dark:hover:bg-white dark:hover:border-[#C9A86A] dark:hover:shadow-[0_0_0_4px_rgba(232,216,184,0.35)] dark:focus:bg-white dark:focus:border-[#E8D1AB] dark:focus:text-black dark:focus:shadow-none"
-                    }`}
+                    className={`min-h-[120px] rounded-xl p-6 pt-8 text-sm lg:text-base ${isDark
+                      // ? "bg-[#171717] border-[#FFFFFF80] text-white placeholder:text-[#FFFFFF4D] focus:border-[#E8D1AB]/50"
+                      ? "!border-[#FFFFFF80] !bg-[#171717] !text-white !placeholder:text-[#FFFFFF4D] !focus:border-[#E8D1AB]/50"
+                      : "!bg-white !border-[#D7D7D7] !text-black !placeholder:text-[#71717B] !focus:border-[#E8D1AB] !hover:border-[#C9A86A]"
+                      }`}
                   />
                 </div>
                 {/* <div className="relative">
@@ -4491,7 +4458,7 @@ export default function CreateQuotePage() {
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     inputMode="tel"
                     autoComplete="tel"
-                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E5D5B8]/50 transition-all pl-6"
+                    className="h-16 bg-transparent border-[#FFFFFF80] rounded-xl focus:border-[#E5D5B8]/50 transition-all pl-6"
                   />
                 </div> */}
                 <div>
@@ -4508,22 +4475,20 @@ export default function CreateQuotePage() {
                             <button
                               key={days}
                               onClick={() => handleValiditySelect(days)}
-                              className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${
-                                validityDays === days
-                                  ? "bg-[#1D1A15] border-[#E8D1AB]/40 text-[#E8D1AB]"
-                                  : "bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700"
-                              }`}
+                              className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === days
+                                ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]"
+                                : "bg-transparent border-[#FFFFFF80] text-zinc-500 hover:border-zinc-700"
+                                }`}
                             >
                               {days} Days
                             </button>
                           ))}
                           <button
                             onClick={() => handleValiditySelect("custom")}
-                            className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${
-                              validityDays === "custom"
-                                ? "bg-[#1D1A15] border-[#E8D1AB]/40 text-[#E8D1AB]"
-                                : "bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-700"
-                            }`}
+                            className={`text-sm lg:text-base h-12 lg:h-14 rounded-xl font-semibold transition-all border ${validityDays === "custom"
+                              ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]"
+                              : "bg-transparent border-[#FFFFFF80] text-zinc-500 hover:border-zinc-700"
+                              }`}
                           >
                             Add Custom Date
                           </button>
@@ -4535,9 +4500,9 @@ export default function CreateQuotePage() {
                             This quote is valid for{" "}
                             {validityDays === "custom"
                               ? differenceInDays(
-                                  startOfDay(parseISO(validUntil)),
-                                  startOfDay(new Date()),
-                                )
+                                startOfDay(parseISO(validUntil)),
+                                startOfDay(new Date()),
+                              )
                               : validityDays}{" "}
                             days from today.
                           </span>
@@ -4580,18 +4545,19 @@ export default function CreateQuotePage() {
                                   ? "#E8D1AB"
                                   : "#171717"
                                 : "rgba(113, 113, 122, 1)",
-                              inputBorder: isCustomValiditySelected
-                                ? isDark
-                                  ? "rgba(232, 209, 171, 0.4)"
-                                  : "#E8D1AB"
-                                : isDark
-                                  ? "rgba(39, 39, 42, 1)"
-                                  : "#D7D7D7",
-                              inputBorderHover: isCustomValiditySelected
-                                ? "#E8D1AB"
-                                : isDark
-                                  ? "rgba(63, 63, 70, 1)"
-                                  : "#BEBEBE",
+                              inputBorder: isDark ? "#FFFFFF80" : "#E8D1AB",
+                              inputBorderHover: isDark ? "#FFFFFF" : "#BEBEBE",
+                              // inputBorder: isDark
+                              //     ? "#FFFFFF80"
+                              //     : "#E8D1AB",
+                              //   // : isDark
+                              //   //   ? "rgba(39, 39, 42, 1)"
+                              //   //   : "#D7D7D7",
+                              // inputBorderHover: isCustomValiditySelected
+                              //   ? "#E8D1AB"
+                              //   : isDark
+                              //     ? "rgba(63, 63, 70, 1)"
+                              //     : "#BEBEBE",
                               inputBorderFocus: "#E8D1AB",
                             }}
                             sx={{
@@ -4606,7 +4572,15 @@ export default function CreateQuotePage() {
                                 borderRadius: "12px",
                                 paddingLeft: "10px",
                                 "& fieldset": {
-                                  borderWidth: "1px",
+                                  borderColor: isDark ? "#FFFFFF80 !important" : "#E8D1AB !important",
+                                  borderWidth: "1px !important",
+                                },
+                                "&:hover fieldset": {
+                                  borderColor: isDark ? "#FFFFFF !important" : "#BEBEBE !important",
+                                },
+                                "&.Mui-focused fieldset": {
+                                  borderColor: "#E8D1AB !important",
+                                  borderWidth: "2px !important",
                                 },
                               },
                               "& .MuiInputBase-input": {
@@ -4644,11 +4618,7 @@ export default function CreateQuotePage() {
                               top: "-10px",
                               left: "16px",
                               zIndex: 10,
-                              backgroundColor: isCustomValiditySelected
-                                ? isDark
-                                  ? "#1D1A15"
-                                  : "#FFF7E6"
-                                : "#FFFFFF",
+                              backgroundColor: isDark ? "#171717" : "#FFFFFF",
                               padding: "0 8px",
                               fontSize: "12px", // text-xs
                               fontWeight: "500", // font-medium
@@ -4681,15 +4651,14 @@ export default function CreateQuotePage() {
               Back
             </Button>
             <Button
-              className={`${
-                view === "tax"
-                  ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
-                  : canPrimaryAction
-                    ? "bg-[#E8D1AB] text-[#101010]"
-                    : isDark
-                      ? "bg-[#2A2B2D] text-zinc-600"
-                      : "bg-[#A4A5A6] text-white"
-              } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
+              className={`${view === "tax"
+                ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
+                : canPrimaryAction
+                  ? "bg-[#E8D1AB] text-[#101010]"
+                  : isDark
+                    ? "bg-[#2A2B2D] text-zinc-600"
+                    : "bg-[#A4A5A6] text-white"
+                } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
               disabled={!canPrimaryAction || isCreatingQuoteDraft}
               onClick={view === "tax" ? handleSaveQuote : handleContinue}
             >
@@ -4788,15 +4757,14 @@ export default function CreateQuotePage() {
             Back
           </Button>
           <Button
-            className={`${
-              canPrimaryAction
-                ? view === "tax"
-                  ? "bg-white text-[#1B1B1B]"
-                  : "bg-[#E8D1AB] text-[#101010]"
-                : isDark
-                  ? "bg-[#2A2B2D] text-zinc-600"
-                  : "bg-[#A4A5A6] text-white"
-            } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
+            className={`${canPrimaryAction
+              ? view === "tax"
+                ? "bg-white text-[#1B1B1B]"
+                : "bg-[#E8D1AB] text-[#101010]"
+              : isDark
+                ? "bg-[#2A2B2D] text-zinc-600"
+                : "bg-[#A4A5A6] text-white"
+              } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
             disabled={!canPrimaryAction || isCreatingQuoteDraft}
             onClick={view === "tax" ? handleSaveQuote : handleContinue}
           >

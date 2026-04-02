@@ -119,9 +119,11 @@ const ServiceTable = ({
     <section className="space-y-4">
       <SectionTitle isDark={isDark}>Services</SectionTitle>
       <div
-        className={`hidden grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] border-b pb-3 text-sm font-medium md:grid ${
-          isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
-        }`}
+        // className={`hidden grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] border-b pb-3 text-sm font-medium md:grid ${
+        //   isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
+        // }`}
+        className={`hidden grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-sm font-medium md:grid ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
+          }`}
       >
         <p>Description</p>
         <p className="text-center">Qty</p>
@@ -133,12 +135,20 @@ const ServiceTable = ({
         {items.map((item) => (
           <div
             key={item.id}
-            className={`grid gap-2 text-sm md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-[18px] ${
-              isDark ? "text-white/90" : "text-black/80"
-            }`}
+            // className={`grid gap-2 text-sm md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-[18px] ${
+            //   isDark ? "text-white/90" : "text-black/80"
+            // }`}
+            className={`grid gap-2 text-sm md:grid-cols-[10fr_3fr_4fr_3fr_4fr] md:items-center lg:text-[18px] ${isDark ? "text-white/90" : "text-black/80"
+              }`}
           >
             <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-              {shootTypeLabel ? `${item.name} - (${shootTypeLabel})` : item.name}
+              {shootTypeLabel ? (
+                <>
+                  {item.name} - <span className="text-[#E8D1AB]">({shootTypeLabel})</span>
+                </>
+              ) : (
+                item.name
+              )}
             </p>
             <p className="md:text-center">{formatCount(item.quantity)}</p>
             <p className="md:text-center">{formatDuration(item.duration)}</p>
@@ -208,9 +218,9 @@ export default function QuotePreviewDocument({
   );
   const normalizedTerms = normalizeQuoteTerms(
     quoteData.terms_conditions ??
-      quoteData["terms_and_conditions"] ??
-      quoteData["terms"] ??
-      quoteData["termsConditions"],
+    quoteData["terms_and_conditions"] ??
+    quoteData["terms"] ??
+    quoteData["termsConditions"],
     fallbackTerms
   );
   const terms = isLegacyDefaultQuoteTerms(normalizedTerms) ? fallbackTerms : normalizedTerms;
@@ -223,9 +233,8 @@ export default function QuotePreviewDocument({
 
   return (
     <div
-      className={`rounded-[24px] px-5 py-5 lg:px-10 lg:py-9 ${
-        isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
-      }`}
+      className={`rounded-[24px] px-5 py-5 lg:px-10 lg:py-9 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
+        }`}
     >
       <div className="flex flex-col gap-8 lg:gap-10">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
@@ -277,9 +286,8 @@ export default function QuotePreviewDocument({
         </section>
 
         <div
-          className={`rounded-[18px] px-5 py-4 text-[#18181B] lg:px-6 lg:py-5 ${
-            isDark ? "bg-[#F5F5F5]" : "border border-[#D7D7D7] bg-[#F4F5F7]"
-          }`}
+          className={`rounded-[18px] px-5 py-4 text-[#18181B] lg:px-6 lg:py-5 ${isDark ? "bg-[#F5F5F5]" : "border border-[#D7D7D7] bg-[#F4F5F7]"
+            }`}
         >
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#777781] lg:text-sm">
             Project Description
@@ -334,9 +342,8 @@ export default function QuotePreviewDocument({
         <section className="space-y-4">
           <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
           <ul
-            className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-[16px] ${
-              isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
-            }`}
+            className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-[16px] ${isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
+              }`}
           >
             {terms.map((term, index) => (
               <li key={`${term}-${index}`}>{term}</li>
