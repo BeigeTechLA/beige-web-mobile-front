@@ -14,6 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { formatQuoteItemDisplayName } from "@/lib/quoteDetail";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
 import type { QuoteSummaryLineItem, QuoteSummarySnapshot } from "@/lib/quoteSummary";
 
@@ -51,10 +52,12 @@ const SectionCard = ({
   title,
   items,
   icon,
+  isDark,
 }: {
   title: string;
   items: QuoteSummaryLineItem[];
   icon: React.ReactNode;
+  isDark: boolean;
 }) => {
   if (items.length === 0) {
     return null;
@@ -63,14 +66,18 @@ const SectionCard = ({
   const total = items.reduce((sum, item) => sum + item.amount, 0);
 
   return (
-    <div className="rounded-[18px] border border-white/10 bg-[#202020] p-4 lg:p-6">
+    <div
+      className={`rounded-[18px] p-4 lg:p-6 ${
+        isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
+      }`}
+    >
       <div className="mb-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
             {icon}
           </div>
           <div>
-            <p className="text-base font-semibold text-white">{title}</p>
+            <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>{title}</p>
             <p className="text-sm text-[#8B8B90]">{items.length} item{items.length === 1 ? "" : "s"}</p>
           </div>
         </div>
@@ -82,11 +89,13 @@ const SectionCard = ({
         {items.map((item) => (
           <div
             key={`${title}-${item.id}`}
-            className="rounded-2xl border border-white/10 bg-[#151515] px-4 py-3"
+            className={`rounded-2xl px-4 py-3 ${
+              isDark ? "border border-white/10 bg-[#151515]" : "border border-[#E9E9E9] bg-[#F4F5F7]"
+            }`}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-white lg:text-base">
+                <p className={`text-sm font-medium lg:text-base ${isDark ? "text-white" : "text-black"}`}>
                   {formatQuoteItemDisplayName(item.name)}
                 </p>
                 {item.subtitle ? (
@@ -99,7 +108,7 @@ const SectionCard = ({
                 </p>
               </div>
 
-              <p className="text-sm font-semibold text-white lg:text-base">
+              <p className={`text-sm font-semibold lg:text-base ${isDark ? "text-white" : "text-black"}`}>
                 {formatCurrency(item.amount)}
               </p>
             </div>
@@ -114,17 +123,29 @@ const InfoTile = ({
   icon,
   label,
   value,
+  isDark,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  isDark: boolean;
 }) => (
-  <div className="rounded-[18px] border border-white/10 bg-[#202020] p-4">
-    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#2A2A2A] text-[#E8D1AB]">
+  <div
+    className={`rounded-[18px] p-4 ${
+      isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
+    }`}
+  >
+    <div
+      className={`mb-3 flex h-10 w-10 items-center justify-center rounded-2xl text-[#E8D1AB] ${
+        isDark ? "bg-[#2A2A2A]" : "bg-[#F4F5F7]"
+      }`}
+    >
       {icon}
     </div>
     <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">{label}</p>
-    <p className="mt-2 text-sm font-medium text-white lg:text-base">{value || "N/A"}</p>
+    <p className={`mt-2 text-sm font-medium lg:text-base ${isDark ? "text-white" : "text-black"}`}>
+      {value || "N/A"}
+    </p>
   </div>
 );
 
@@ -135,11 +156,19 @@ export default function QuoteSummaryContent({
   emptyStateAction,
   emptyStateLabel = "Back to Quote Form",
 }: QuoteSummaryContentProps) {
+  const { isDark } = useResolvedTheme();
+
   return (
     <div className="px-4 pb-24 pt-6 lg:px-9 lg:pb-12 lg:pt-8">
       {!snapshot ? (
-        <div className="rounded-[20px] border border-white/10 bg-[#171717] p-6 text-center lg:p-10">
-          <p className="text-xl font-semibold text-white">Quote summary unavailable</p>
+        <div
+          className={`rounded-[20px] p-6 text-center lg:p-10 ${
+            isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
+          }`}
+        >
+          <p className={`text-xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
+            Quote summary unavailable
+          </p>
           <p className="mx-auto mt-3 max-w-[520px] text-sm text-[#A1A1AA]">
             Open this page from the quote form after filling the required fields so the latest
             summary can be generated.
@@ -154,23 +183,39 @@ export default function QuoteSummaryContent({
         </div>
       ) : (
         <>
-          <div className="rounded-[20px] border border-white/10 bg-[#171717]">
-            <div className="border-b border-white/10 px-5 py-5 lg:px-8 lg:py-7">
-              <h1 className="text-[20px] font-semibold text-white lg:text-[24px]">Quote Summary</h1>
+          <div
+            className={`rounded-[20px] ${
+              isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
+            }`}
+          >
+            <div className={`px-5 py-5 lg:px-8 lg:py-7 ${isDark ? "border-b border-white/10" : "border-b border-[#DFDDDD]"}`}>
+              <h1 className={`text-[20px] font-semibold lg:text-[24px] ${isDark ? "text-white" : "text-black"}`}>
+                Quote Summary
+              </h1>
               <p className="mt-2 text-sm text-[#A1A1AA]">
                 Review the live quote breakdown before previewing or saving it.
               </p>
             </div>
 
             <div className="space-y-6 px-5 py-5 lg:px-8 lg:py-8">
-              <div className="rounded-[18px] border border-white/10 bg-[#202020] p-5 lg:p-6">
+              <div
+                className={`rounded-[18px] p-5 lg:p-6 ${
+                  isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-[#F4F5F7]"
+                }`}
+              >
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#333333] text-xl font-medium text-[#FFFFFF85] lg:h-20 lg:w-20 lg:text-2xl">
+                    <div
+                      className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-medium lg:h-20 lg:w-20 lg:text-2xl ${
+                        isDark ? "bg-[#333333] text-[#FFFFFF85]" : "bg-white text-[#00000085]"
+                      }`}
+                    >
                       {getInitials(snapshot.clientName)}
                     </div>
                     <div>
-                      <p className="text-xl font-semibold text-white lg:text-2xl">{snapshot.clientName}</p>
+                      <p className={`text-xl font-semibold lg:text-2xl ${isDark ? "text-white" : "text-black"}`}>
+                        {snapshot.clientName}
+                      </p>
                       <div className="mt-2 flex flex-col gap-2 text-sm text-[#A1A1AA]">
                         <span className="flex items-center gap-2">
                           <Mail size={15} className="text-[#E8D1AB]" />
@@ -184,9 +229,13 @@ export default function QuoteSummaryContent({
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-[#151515] px-4 py-3 lg:min-w-[260px]">
+                  <div
+                    className={`rounded-2xl px-4 py-3 lg:min-w-[260px] ${
+                      isDark ? "border border-white/10 bg-[#151515]" : "border border-[#DFDDDD] bg-white"
+                    }`}
+                  >
                     <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">Generated</p>
-                    <p className="mt-2 text-sm font-medium text-white">
+                    <p className={`mt-2 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
                       {formatDate(snapshot.generatedAt)}
                     </p>
                   </div>
@@ -198,59 +247,63 @@ export default function QuoteSummaryContent({
                   icon={<CalendarDays size={18} />}
                   label="Valid Until"
                   value={`${formatDate(snapshot.validUntil)} (${snapshot.quoteValidityDays} day${snapshot.quoteValidityDays === 1 ? "" : "s"})`}
+                  isDark={isDark}
                 />
                 <InfoTile
                   icon={<Film size={18} />}
                   label="Shoot Type"
                   value={snapshot.shootTypeLabel || "N/A"}
+                  isDark={isDark}
                 />
                 <InfoTile
                   icon={<MapPin size={18} />}
                   label="Address"
                   value={snapshot.clientAddress || "N/A"}
+                  isDark={isDark}
                 />
                 <InfoTile
                   icon={<FileText size={18} />}
                   label="Project"
                   value={snapshot.projectDescription || "N/A"}
+                  isDark={isDark}
                 />
               </div>
 
               <div className="space-y-4">
-                <SectionCard title="Services Included" items={snapshot.services} icon={<Film size={18} />} />
-                <SectionCard title="Add-ons" items={snapshot.addons} icon={<Wrench size={18} />} />
-                <SectionCard title="Logistics" items={snapshot.logistics} icon={<Truck size={18} />} />
-                <SectionCard title="Custom Line Items" items={snapshot.customLineItems} icon={<FileText size={18} />} />
+                <SectionCard title="Services Included" items={snapshot.services} icon={<Film size={18} />} isDark={isDark} />
+                <SectionCard title="Add-ons" items={snapshot.addons} icon={<Wrench size={18} />} isDark={isDark} />
+                <SectionCard title="Logistics" items={snapshot.logistics} icon={<Truck size={18} />} isDark={isDark} />
+                <SectionCard title="Custom Line Items" items={snapshot.customLineItems} icon={<FileText size={18} />} isDark={isDark} />
               </div>
 
-              <div className="rounded-[18px] border border-white/10 bg-[#202020] p-4 lg:p-6">
+              <div
+                className={`rounded-[18px] p-4 lg:p-6 ${
+                  isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
+                }`}
+              >
                 <div className="mb-5 flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
                     <FileText size={18} />
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-white">Totals</p>
+                    <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Totals</p>
                     <p className="text-sm text-[#8B8B90]">Final quote amount</p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm text-[#D4D4D8] lg:text-base">
+                  <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
                     <span>Subtotal</span>
                     <span>{formatCurrency(snapshot.subtotal)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm text-[#D4D4D8] lg:text-base">
+                  <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
+                    <span>{snapshot.discountEnabled ? `Discount ${snapshot.discountType === "percentage" ? `(${snapshot.discountValue}%)` : ""}` : "Discount"}</span>
+                    <span>{snapshot.discountEnabled ? `- ${formatCurrency(snapshot.discountAmount)}` : formatCurrency(0)}</span>
+                  </div>
+                  <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
                     <span>{`${snapshot.taxLabel} (${snapshot.taxRate}%)`}</span>
                     <span>{formatCurrency(snapshot.taxAmount)}</span>
                   </div>
-                  {snapshot.discountEnabled ? (
-                    <div className="flex items-center justify-between text-sm text-[#E8D1AB] lg:text-base">
-                      <span>
-                        Discount {snapshot.discountType === "percentage" ? `(${snapshot.discountValue}%)` : ""}
-                      </span>
-                      <span>- {formatCurrency(snapshot.discountAmount)}</span>
-                    </div>
-                  ) : null}
                   <div className="mt-4 flex items-center justify-between rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black lg:px-5">
                     <span className="text-sm font-semibold lg:text-base">Final Total</span>
                     <span className="text-xl font-semibold lg:text-2xl">
@@ -260,18 +313,24 @@ export default function QuoteSummaryContent({
                 </div>
               </div>
 
-              <div className="rounded-[18px] border border-white/10 bg-[#202020] p-4 lg:p-6">
+              <div
+                className={`rounded-[18px] p-4 lg:p-6 ${
+                  isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
+                }`}
+              >
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
                     <FileText size={18} />
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-white">Terms & Conditions</p>
+                    <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                      Terms & Conditions
+                    </p>
                     <p className="text-sm text-[#8B8B90]">Included with this quote</p>
                   </div>
                 </div>
 
-                <div className="space-y-2 text-sm text-[#D4D4D8]">
+                <div className={`space-y-2 text-sm ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
                   {snapshot.termsConditions.map((term, index) => (
                     <p key={`${term}-${index}`}>{term}</p>
                   ))}
@@ -280,7 +339,7 @@ export default function QuoteSummaryContent({
             </div>
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#0f0f0f] px-6 pb-6 pt-4 lg:hidden">
+          <div className={`fixed bottom-0 left-0 right-0 z-40 px-6 pb-6 pt-4 lg:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
             <Button
               type="button"
               onClick={onPreview}
