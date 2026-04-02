@@ -240,17 +240,13 @@ export default function QuoteSummaryContent({
                     <span>{formatCurrency(snapshot.subtotal)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-[#D4D4D8] lg:text-base">
+                    <span>{snapshot.discountEnabled ? `Discount ${snapshot.discountType === "percentage" ? `(${snapshot.discountValue}%)` : ""}` : "Discount"}</span>
+                    <span>{snapshot.discountEnabled ? `- ${formatCurrency(snapshot.discountAmount)}` : formatCurrency(0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-[#D4D4D8] lg:text-base">
                     <span>{`${snapshot.taxLabel} (${snapshot.taxRate}%)`}</span>
                     <span>{formatCurrency(snapshot.taxAmount)}</span>
                   </div>
-                  {snapshot.discountEnabled ? (
-                    <div className="flex items-center justify-between text-sm text-[#E8D1AB] lg:text-base">
-                      <span>
-                        Discount {snapshot.discountType === "percentage" ? `(${snapshot.discountValue}%)` : ""}
-                      </span>
-                      <span>- {formatCurrency(snapshot.discountAmount)}</span>
-                    </div>
-                  ) : null}
                   <div className="mt-4 flex items-center justify-between rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black lg:px-5">
                     <span className="text-sm font-semibold lg:text-base">Final Total</span>
                     <span className="text-xl font-semibold lg:text-2xl">

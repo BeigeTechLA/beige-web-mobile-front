@@ -323,16 +323,17 @@ export const buildQuoteSummarySnapshot = (
     (sum, item) => sum + item.amount,
     0
   );
-  const taxRate = Math.max(0, normalizeNumber(input.normalizedTaxRate));
-  const taxAmount = subtotal * (taxRate / 100);
-  const amountAfterTax = subtotal + taxAmount;
   const discountValue = Math.max(0, normalizeNumber(input.discountValue));
   const rawDiscountAmount = !input.discountEnabled
     ? 0
     : input.discountType === "percentage"
-      ? amountAfterTax * (discountValue / 100)
+      ? subtotal * (discountValue / 100)
       : discountValue;
-  const discountAmount = Math.min(rawDiscountAmount, amountAfterTax);
+  const discountAmount = Math.min(rawDiscountAmount, subtotal);
+  const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
+  const taxRate = Math.max(0, normalizeNumber(input.normalizedTaxRate));
+  const taxAmount = discountedSubtotal * (taxRate / 100);
+  const amountAfterTax = discountedSubtotal + taxAmount;
   const quoteValidityDays = resolveValidityDays(input.validityDays, input.validUntil);
   const termsConditions = getDefaultQuoteTerms(input.validUntil);
 
@@ -354,7 +355,7 @@ export const buildQuoteSummarySnapshot = (
     discountType: input.discountType,
     discountValue: input.discountEnabled ? discountValue : 0,
     discountAmount,
-    finalTotal: Math.max(amountAfterTax - discountAmount, 0),
+    finalTotal: amountAfterTax,
     services,
     addons,
     logistics,

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -58,6 +58,7 @@ import {
   persistQuoteSummarySnapshot,
   validateQuoteForReview,
   validateQuoteStep,
+  buildPreviewQuoteFromSummary,
 } from "@/lib/quoteSummary";
 import {
   extractQuoteIdFromResponse,
@@ -1759,17 +1760,18 @@ export default function CreateQuotePage() {
     totalAddOnsCost +
     totalLogisticsCost +
     totalLineItemsCost;
-  const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
-  const taxAmount = quoteSubtotal * (normalizedTaxRate / 100);
-  const totalAfterTax = quoteSubtotal + taxAmount;
   const normalizedDiscountValue = Math.max(0, Number(discountValue) || 0);
   const rawDiscountAmount = !discountEnabled
     ? 0
     : discountType === "percentage"
-      ? totalAfterTax * (normalizedDiscountValue / 100)
+      ? quoteSubtotal * (normalizedDiscountValue / 100)
       : normalizedDiscountValue;
-  const discountAmount = Math.min(rawDiscountAmount, totalAfterTax);
-  const totalAfterDiscount = Math.max(totalAfterTax - discountAmount, 0);
+  const discountAmount = Math.min(rawDiscountAmount, quoteSubtotal);
+  const discountedSubtotal = Math.max(quoteSubtotal - discountAmount, 0);
+  const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
+  const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
+  const totalAfterTax = discountedSubtotal + taxAmount;
+  const totalAfterDiscount = totalAfterTax;
   const taxLabel = taxtType.trim() || "Sales Tax";
   const [isSubmittingService, setIsSubmittingService] = React.useState(false);
   const [isCreatingQuoteDraft, setIsCreatingQuoteDraft] = React.useState(false);
@@ -2023,7 +2025,12 @@ export default function CreateQuotePage() {
       return;
     }
 
-    await saveQuoteDraft("preview");
+    const summarySnapshot = getQuoteSummarySnapshot();
+    const localQuotePreview = buildPreviewQuoteFromSummary(summarySnapshot);
+
+    setPreviewQuote(localQuotePreview);
+    setPreviewQuoteId(editQuoteId || null);
+    setIsPreviewModalOpen(true);
   };
 
   const handleSaveQuote = async () => {
@@ -4250,6 +4257,14 @@ export default function CreateQuotePage() {
                     </span>
                   </div>
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">
+                      Discount Applied
+                    </span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      - {formatCurrency(discountAmount)}
+                    </span>
+                  </div>
                   <div className="flex justify-between items-center ">
                     <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
                     <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
@@ -4263,15 +4278,6 @@ export default function CreateQuotePage() {
                     </span>
                     <span className="text-sm lg:text-base text-white font-medium tracking-tight">
                       {formatCurrency(totalAfterTax)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">
-                      Discount Applied
-                    </span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                      - {formatCurrency(discountAmount)}
                     </span>
                   </div>
 
