@@ -64,6 +64,7 @@ import {
   extractQuoteIdFromResponse,
   unwrapSalesQuoteDetail,
 } from "@/lib/salesQuotePreview";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
@@ -461,6 +462,7 @@ export default function CreateQuotePage() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isDark } = useResolvedTheme();
   const editQuoteId = searchParams.get("quoteId");
   const isEditMode = Boolean(editQuoteId);
   const requestedEditView = normalizeQuoteEditorView(
@@ -1273,23 +1275,35 @@ export default function CreateQuotePage() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.99, y: -5 }}
       transition={{ duration: 0.2 }}
-      className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0F0F0F] border border-zinc-800 rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.6)]"
+      className={`absolute top-[calc(100%+8px)] left-0 right-0 rounded-2xl overflow-hidden z-50 shadow-[0_30px_60px_rgba(0,0,0,0.18)] ${
+        isDark
+          ? "bg-[#0F0F0F] border border-zinc-800"
+          : "bg-white border border-[#D7D7D7]"
+      }`}
     >
-      <div className="p-3 border-b border-zinc-800">
-        <div className="flex items-center gap-2 bg-[#1A1A1F] border border-[#3B3B46] rounded-xl px-4 py-2.5">
+      <div className={`p-3 ${isDark ? "border-b border-zinc-800" : "border-b border-[#E5E5E5]"}`}>
+        <div
+          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 ${
+            isDark
+              ? "bg-[#1A1A1F] border border-[#3B3B46]"
+              : "bg-[#F4F5F7] border border-[#D7D7D7]"
+          }`}
+        >
           <Search size={16} className="text-[#6B6B6B] shrink-0" />
           <input
             type="text"
             placeholder="Search clients..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-[#6B6B6B]"
+            className={`bg-transparent text-sm outline-none flex-1 placeholder:text-[#6B6B6B] ${
+              isDark ? "text-white" : "text-black"
+            }`}
             autoFocus
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="text-[#6B6B6B] hover:text-white"
+              className={`text-[#6B6B6B] ${isDark ? "hover:text-white" : "hover:text-black"}`}
             >
               x
             </button>
@@ -1326,14 +1340,18 @@ export default function CreateQuotePage() {
                 className={`group flex items-center gap-4 px-5 py-3 lg:py-4 rounded-xl cursor-pointer transition-all mb-1 ${
                   isSelectedClient
                     ? "bg-[#FFFCE8] text-[#171717]"
-                    : "hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]"
+                    : isDark
+                      ? "hover:bg-[#FFFCE8] hover:text-[#171717] text-[#FFFFFF85]"
+                      : "hover:bg-[#FFFCE8] hover:text-[#171717] text-black"
                 }`}
               >
                 <div
                   className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
                     isSelectedClient
                       ? "border-[#E8D1AB] bg-[#E8D1AB]"
-                      : "border-[#FFFFFF85] group-hover:border-[#171717]"
+                      : isDark
+                        ? "border-[#FFFFFF85] group-hover:border-[#171717]"
+                        : "border-[#8A8A8A] group-hover:border-[#171717]"
                   }`}
                 >
                   {isSelectedClient && (
@@ -1357,7 +1375,9 @@ export default function CreateQuotePage() {
               setView("details");
             }
           }}
-          className="w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 border-t border-zinc-800/50 pt-6"
+          className={`w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 pt-6 ${
+            isDark ? "border-t border-zinc-800/50" : "border-t border-[#E5E5E5]"
+          }`}
         >
           <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
             <Plus size={16} className="text-[#171717]" />
@@ -2630,14 +2650,20 @@ export default function CreateQuotePage() {
 
   const quoteEditorBreadcrumbs = React.useMemo(
     () => ({
-      create: isEditMode ? "Edit Quote" : "Creating New Quote",
+      create: isEditMode ? "Edit Quote" : "Create Quote",
     }),
     [isEditMode],
   );
 
   if (isEditMode && !quoteToEdit && (isLoadingQuoteToEdit || isHydratingQuoteToEdit)) {
     return (
-      <div className="min-h-screen bg-[#0f0f0f] text-white">
+      <div
+        className={`quote-editor-theme min-h-screen ${
+          isDark
+            ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
+            : "quote-editor-theme-light bg-[#F4F5F7] text-black"
+        }`}
+      >
         <Topbar
           pathname={pathname}
           breadcrumbOverrides={quoteEditorBreadcrumbs}
@@ -2666,7 +2692,13 @@ export default function CreateQuotePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white">
+    <div
+      className={`quote-editor-theme min-h-screen ${
+        isDark
+          ? "quote-editor-theme-dark bg-[#0f0f0f] text-white"
+          : "quote-editor-theme-light bg-[#F4F5F7] text-black"
+      }`}
+    >
       <Topbar
         pathname={pathname}
         breadcrumbOverrides={quoteEditorBreadcrumbs}
@@ -4413,8 +4445,8 @@ export default function CreateQuotePage() {
                 </div>
 
                 <div className="relative">
-                  <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#D3D3D3] font-medium">
+                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`text-sm font-medium ${isDark ? "text-[#D3D3D3]" : "text-[#71717B]"}`}>
                       Address*
                     </span>
                   </div>
@@ -4422,21 +4454,31 @@ export default function CreateQuotePage() {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="567 Mission Street, San Francisco, CA 94105"
-                    className="h-16 bg-transparent border-zinc-800 rounded-xl focus:border-[#E8D1AB]/30 transition-all pl-6 text-sm lg:text-base placeholder-zinc-600"
+                    className={`h-16 rounded-xl transition-all pl-6 text-sm lg:text-base ${
+                      isDark
+                        ? "bg-transparent border-zinc-800 text-white placeholder-zinc-600 focus:border-[#E8D1AB]/30"
+                        : "bg-white border-[#D7D7D7] text-black placeholder:text-[#71717B] focus:border-[#E8D1AB]"
+                    }`}
                   />
                 </div>
 
                 <div className="relative">
-                  <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
-                    <span className="text-sm text-[#D3D3D3] font-medium">
+                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
+                    <span className={`text-sm font-medium ${isDark ? "text-[#D3D3D3]" : "text-[#71717B]"}`}>
                       Project Description*
                     </span>
                   </div>
                   <Textarea
                     value={projectDescription}
                     onChange={(e) => setProjectDescription(e.target.value)}
+                    autoComplete="off"
+                    data-1p-ignore="true"
                     placeholder="Describe the project scope and requirements....."
-                    className="min-h-[120px]0 bg-[#111111] dark:bg-[#171717] rounded-xl focus:border-[#E8D1AB]/50 transition-all p-6 pt-8 text-sm lg:text-base"
+                    className={`min-h-[120px] rounded-xl p-6 pt-8 text-sm lg:text-base ${
+                      isDark
+                        ? "bg-[#111111] border-zinc-800 text-white placeholder:text-zinc-600 focus:border-[#E8D1AB]/50"
+                        : "bg-white border-[#D7D7D7] text-black placeholder:text-[#71717B] focus:border-[#E8D1AB] hover:border-[#C9A86A] dark:bg-white dark:border-[#D7D7D7] dark:text-black dark:placeholder:text-[#71717B] dark:hover:bg-white dark:hover:border-[#C9A86A] dark:hover:shadow-[0_0_0_4px_rgba(232,216,184,0.35)] dark:focus:bg-white dark:focus:border-[#E8D1AB] dark:focus:text-black dark:focus:shadow-none"
+                    }`}
                   />
                 </div>
                 {/* <div className="relative">
@@ -4514,24 +4556,42 @@ export default function CreateQuotePage() {
                             format="dd-MM-yyyy"
                             colors={{
                               inputBackground: isCustomValiditySelected
-                                ? "#1D1A15"
+                                ? isDark
+                                  ? "#1D1A15"
+                                  : "#FFF7E6"
                                 : "transparent",
                               inputText: isCustomValiditySelected
-                                ? "#E8D1AB"
-                                : "#F5F5F5",
-                              inputDisabled: "rgba(214, 195, 157, 0.9)",
+                                ? isDark
+                                  ? "#E8D1AB"
+                                  : "#171717"
+                                : isDark
+                                  ? "#F5F5F5"
+                                  : "#171717",
+                              inputDisabled: isDark
+                                ? "rgba(214, 195, 157, 0.9)"
+                                : "rgba(23, 23, 23, 0.65)",
                               iconColor: isCustomValiditySelected
                                 ? "#E8D1AB"
-                                : "#FFFFFF",
+                                : isDark
+                                  ? "#FFFFFF"
+                                  : "#171717",
                               labelText: isCustomValiditySelected
-                                ? "#E8D1AB"
+                                ? isDark
+                                  ? "#E8D1AB"
+                                  : "#171717"
                                 : "rgba(113, 113, 122, 1)",
                               inputBorder: isCustomValiditySelected
-                                ? "rgba(232, 209, 171, 0.4)"
-                                : "rgba(39, 39, 42, 1)",
+                                ? isDark
+                                  ? "rgba(232, 209, 171, 0.4)"
+                                  : "#E8D1AB"
+                                : isDark
+                                  ? "rgba(39, 39, 42, 1)"
+                                  : "#D7D7D7",
                               inputBorderHover: isCustomValiditySelected
                                 ? "#E8D1AB"
-                                : "rgba(63, 63, 70, 1)",
+                                : isDark
+                                  ? "rgba(63, 63, 70, 1)"
+                                  : "#BEBEBE",
                               inputBorderFocus: "#E8D1AB",
                             }}
                             sx={{
@@ -4539,7 +4599,9 @@ export default function CreateQuotePage() {
                               borderRadius: "12px", // rounded-xl
                               "& .MuiOutlinedInput-root": {
                                 backgroundColor: isCustomValiditySelected
-                                  ? "#1D1A15"
+                                  ? isDark
+                                    ? "#1D1A15"
+                                    : "#FFF7E6"
                                   : "transparent",
                                 borderRadius: "12px",
                                 paddingLeft: "10px",
@@ -4551,21 +4613,29 @@ export default function CreateQuotePage() {
                                 fontSize: "16px",
                                 fontWeight: "500", // font-medium
                                 color: isCustomValiditySelected
-                                  ? "#E8D1AB"
+                                  ? isDark
+                                    ? "#E8D1AB"
+                                    : "#171717"
                                   : "rgba(113, 113, 122, 1)",
                               },
                               "& .MuiInputBase-input.Mui-disabled": {
-                                WebkitTextFillColor: "rgba(214, 195, 157, 0.9)",
-                                color: "rgba(214, 195, 157, 0.9)",
+                                WebkitTextFillColor: isDark
+                                  ? "rgba(214, 195, 157, 0.9)"
+                                  : "rgba(23, 23, 23, 0.65)",
+                                color: isDark
+                                  ? "rgba(214, 195, 157, 0.9)"
+                                  : "rgba(23, 23, 23, 0.65)",
                                 opacity: 1,
                               },
                               "& .MuiSvgIcon-root": {
                                 color: isCustomValiditySelected
                                   ? "#E8D1AB"
-                                  : "#FFFFFF",
+                                  : isDark
+                                    ? "#FFFFFF"
+                                    : "#171717",
                               },
                               "& .Mui-disabled .MuiSvgIcon-root": {
-                                color: "#FFFFFF",
+                                color: isDark ? "#FFFFFF" : "#171717",
                                 opacity: 1,
                               },
                             }}
@@ -4575,13 +4645,17 @@ export default function CreateQuotePage() {
                               left: "16px",
                               zIndex: 10,
                               backgroundColor: isCustomValiditySelected
-                                ? "#1D1A15"
-                                : "#171717",
+                                ? isDark
+                                  ? "#1D1A15"
+                                  : "#FFF7E6"
+                                : "#FFFFFF",
                               padding: "0 8px",
                               fontSize: "12px", // text-xs
                               fontWeight: "500", // font-medium
                               color: isCustomValiditySelected
-                                ? "#E8D1AB"
+                                ? isDark
+                                  ? "#E8D1AB"
+                                  : "#171717"
                                 : "rgba(113, 113, 122, 1)",
                             }}
                           />
@@ -4612,7 +4686,9 @@ export default function CreateQuotePage() {
                   ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
                   : canPrimaryAction
                     ? "bg-[#E8D1AB] text-[#101010]"
-                    : "bg-[#2A2B2D] text-zinc-600"
+                    : isDark
+                      ? "bg-[#2A2B2D] text-zinc-600"
+                      : "bg-[#A4A5A6] text-white"
               } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
               disabled={!canPrimaryAction || isCreatingQuoteDraft}
               onClick={view === "tax" ? handleSaveQuote : handleContinue}
@@ -4717,7 +4793,9 @@ export default function CreateQuotePage() {
                 ? view === "tax"
                   ? "bg-white text-[#1B1B1B]"
                   : "bg-[#E8D1AB] text-[#101010]"
-                : "bg-[#2A2B2D] text-zinc-600"
+                : isDark
+                  ? "bg-[#2A2B2D] text-zinc-600"
+                  : "bg-[#A4A5A6] text-white"
             } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
             disabled={!canPrimaryAction || isCreatingQuoteDraft}
             onClick={view === "tax" ? handleSaveQuote : handleContinue}

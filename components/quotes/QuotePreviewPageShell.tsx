@@ -17,6 +17,7 @@ import {
   readQuoteSummarySnapshot,
 } from "@/lib/quoteSummary";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 export type QuotePreviewTopbarProps = {
   pathname: string;
@@ -68,6 +69,7 @@ export default function QuotePreviewPageShell({
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryQuoteId = searchParams.get("quoteId");
+  const { isDark } = useResolvedTheme();
 
   const [quote, setQuote] = React.useState<SalesQuoteDetailData | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -264,7 +266,11 @@ export default function QuotePreviewPageShell({
         onClick={() => {
           void handleCopy();
         }}
-        className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
+        className={`h-11 rounded-xl px-4 ${
+          isDark
+            ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+            : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+        }`}
       >
         {copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
         {copied ? "Copied" : "Copy Link"}
@@ -289,7 +295,7 @@ export default function QuotePreviewPageShell({
   ) : undefined;
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white">
+    <div className={`min-h-screen ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
       <TopbarComponent
         pathname={pathname}
         actions={topbarActions}
@@ -303,7 +309,11 @@ export default function QuotePreviewPageShell({
               onClick={() => {
                 void handleCopy();
               }}
-              className="h-11 rounded-xl border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+              className={`h-11 rounded-xl ${
+                isDark
+                  ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                  : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+              }`}
             >
               {copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
               {copied ? "Copied" : "Copy Link"}
@@ -331,7 +341,9 @@ export default function QuotePreviewPageShell({
           <button
             type="button"
             onClick={handleBack}
-            className="mb-6 flex items-center gap-2 text-[15px] text-[#D4D4D4] transition-colors hover:text-white"
+            className={`mb-6 flex items-center gap-2 text-[15px] transition-colors ${
+              isDark ? "text-[#D4D4D4] hover:text-white" : "text-black/70 hover:text-black"
+            }`}
           >
             <ArrowLeft size={18} />
             Back
@@ -339,22 +351,40 @@ export default function QuotePreviewPageShell({
         ) : null}
 
         {showIntroHeader ? (
-          <div className="mb-6 rounded-[24px] border border-white/10 bg-[#171717] px-5 py-5 lg:mb-8 lg:px-7 lg:py-6">
+          <div
+            className={`mb-6 rounded-[24px] px-5 py-5 lg:mb-8 lg:px-7 lg:py-6 ${
+              isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
+            }`}
+          >
             <QuotePreviewBrandBlock />
           </div>
         ) : null}
 
         {loading ? (
-          <div className="flex min-h-[420px] items-center justify-center rounded-[24px] border border-white/10 bg-[#171717] text-[#CFCFD3]">
+          <div
+            className={`flex min-h-[420px] items-center justify-center rounded-[24px] ${
+              isDark
+                ? "border border-white/10 bg-[#171717] text-[#CFCFD3]"
+                : "border border-[#DFDDDD] bg-white text-[#60646C]"
+            }`}
+          >
             <Loader2 className="mr-3 h-5 w-5 animate-spin" />
             Loading quote preview...
           </div>
         ) : quote ? (
           <QuotePreviewDocument quote={quote} quoteId={queryQuoteId} />
         ) : (
-          <div className="flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-[24px] border border-dashed border-white/10 bg-[#151515] px-6 text-center">
-            <p className="text-lg font-semibold text-white">Preview data unavailable</p>
-            <p className="max-w-[480px] text-sm text-[#8B8B90]">
+          <div
+            className={`flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-[24px] px-6 text-center ${
+              isDark
+                ? "border border-dashed border-white/10 bg-[#151515]"
+                : "border border-dashed border-[#DFDDDD] bg-white"
+            }`}
+          >
+            <p className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>
+              Preview data unavailable
+            </p>
+            <p className={`max-w-[480px] text-sm ${isDark ? "text-[#8B8B90]" : "text-[#60646C]"}`}>
               {errorMessage || "The quote preview could not be loaded."}
             </p>
             {createHref ? (

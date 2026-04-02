@@ -14,6 +14,7 @@ import {
 } from "@/lib/quoteDetail";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { getDefaultQuoteTerms, isLegacyDefaultQuoteTerms } from "@/lib/quoteTerms";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type QuotePreviewDocumentProps = {
   quote: SalesQuoteDetailData;
@@ -56,8 +57,14 @@ const BeigeMark = () => (
   </svg>
 );
 
-const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#707078] lg:text-sm">
+const SectionTitle = ({
+  children,
+  isDark,
+}: {
+  children: React.ReactNode;
+  isDark: boolean;
+}) => (
+  <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] lg:text-sm ${isDark ? "text-[#707078]" : "text-[#71717B]"}`}>
     {children}
   </p>
 );
@@ -65,9 +72,11 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
 const PreviewAmountList = ({
   title,
   items,
+  isDark,
 }: {
   title: string;
   items: NormalizedQuoteLineItem[];
+  isDark: boolean;
 }) => {
   if (items.length === 0) {
     return null;
@@ -75,15 +84,17 @@ const PreviewAmountList = ({
 
   return (
     <section className="space-y-4">
-      <SectionTitle>{title}</SectionTitle>
+      <SectionTitle isDark={isDark}>{title}</SectionTitle>
       <div className="space-y-4">
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center justify-between gap-6 text-sm text-white/90 lg:text-[18px]"
+            className={`flex items-center justify-between gap-6 text-sm lg:text-[18px] ${isDark ? "text-white/90" : "text-black/85"}`}
           >
             <p className="min-w-0 truncate">{item.name}</p>
-            <p className="shrink-0 text-right text-white/65">{formatQuoteCurrency(item.amount)}</p>
+            <p className={`shrink-0 text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
+              {formatQuoteCurrency(item.amount)}
+            </p>
           </div>
         ))}
       </div>
@@ -94,9 +105,11 @@ const PreviewAmountList = ({
 const ServiceTable = ({
   items,
   shootTypeLabel,
+  isDark,
 }: {
   items: NormalizedQuoteLineItem[];
   shootTypeLabel: string;
+  isDark: boolean;
 }) => {
   if (items.length === 0) {
     return null;
@@ -104,8 +117,12 @@ const ServiceTable = ({
 
   return (
     <section className="space-y-4">
-      <SectionTitle>Services</SectionTitle>
-      <div className="hidden grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] border-b border-white/10 pb-3 text-sm font-medium text-white/75 md:grid">
+      <SectionTitle isDark={isDark}>Services</SectionTitle>
+      <div
+        className={`hidden grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] border-b pb-3 text-sm font-medium md:grid ${
+          isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
+        }`}
+      >
         <p>Description</p>
         <p className="text-center">Qty</p>
         <p className="text-center">Duration</p>
@@ -116,15 +133,19 @@ const ServiceTable = ({
         {items.map((item) => (
           <div
             key={item.id}
-            className="grid gap-2 text-sm text-white/90 md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-[18px]"
+            className={`grid gap-2 text-sm md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-[18px] ${
+              isDark ? "text-white/90" : "text-black/80"
+            }`}
           >
-            <p className="font-medium text-white">
+            <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
               {shootTypeLabel ? `${item.name} - (${shootTypeLabel})` : item.name}
             </p>
             <p className="md:text-center">{formatCount(item.quantity)}</p>
             <p className="md:text-center">{formatDuration(item.duration)}</p>
             <p className="md:text-center">{item.crew > 0 ? formatCount(item.crew) : "-"}</p>
-            <p className="font-medium text-white/65 md:text-right">{formatQuoteCurrency(item.amount)}</p>
+            <p className={`font-medium md:text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
+              {formatQuoteCurrency(item.amount)}
+            </p>
           </div>
         ))}
       </div>
@@ -136,6 +157,7 @@ export default function QuotePreviewDocument({
   quote,
   quoteId,
 }: QuotePreviewDocumentProps) {
+  const { isDark } = useResolvedTheme();
   const quoteData = unwrapSalesQuoteDetail(quote);
 
   if (!quoteData) {
@@ -200,7 +222,11 @@ export default function QuotePreviewDocument({
     getQuoteText(assignedSalesRep?.email, createdBy?.email, COMPANY_PROFILE.email) || COMPANY_PROFILE.email;
 
   return (
-    <div className="rounded-[24px] border border-white/10 bg-[#171717] px-5 py-5 lg:px-10 lg:py-9">
+    <div
+      className={`rounded-[24px] px-5 py-5 lg:px-10 lg:py-9 ${
+        isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
+      }`}
+    >
       <div className="flex flex-col gap-8 lg:gap-10">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-5">
@@ -212,11 +238,13 @@ export default function QuotePreviewDocument({
                 <p className="text-[22px] font-semibold text-[#E8D1AB] lg:text-[28px]">
                   {COMPANY_PROFILE.name}
                 </p>
-                <p className="text-sm text-white/85 lg:text-[18px]">{COMPANY_PROFILE.subtitle}</p>
+                <p className={`text-sm lg:text-[18px] ${isDark ? "text-white/85" : "text-[#020202]"}`}>
+                  {COMPANY_PROFILE.subtitle}
+                </p>
               </div>
             </div>
 
-            <div className="space-y-1 text-sm leading-7 text-white/75 lg:text-[16px]">
+            <div className={`space-y-1 text-sm leading-7 lg:text-[16px] ${isDark ? "text-white/75" : "text-[#606060]"}`}>
               {COMPANY_PROFILE.addressLines.map((line) => (
                 <p key={line}>{line}</p>
               ))}
@@ -225,10 +253,10 @@ export default function QuotePreviewDocument({
           </div>
 
           <div className="text-left lg:text-right">
-            <h3 className="text-[38px] font-bold tracking-tight text-white lg:text-[64px]">
+            <h3 className={`text-[38px] font-bold tracking-tight lg:text-[64px] ${isDark ? "text-white" : "text-[#101010]"}`}>
               QUOTATION
             </h3>
-            <div className="mt-4 space-y-1 text-sm text-white/65 lg:text-[16px]">
+            <div className={`mt-4 space-y-1 text-sm lg:text-[16px] ${isDark ? "text-white/65" : "text-[#00000080]"}`}>
               <p>Quote #: {quoteNumber}</p>
               <p>Date: {formatQuoteDate(quoteData.created_at)}</p>
               <p>Valid Until: {formatQuoteDate(quoteData.valid_until ?? quoteData.expires_at)}</p>
@@ -236,34 +264,38 @@ export default function QuotePreviewDocument({
           </div>
         </div>
 
-        <div className="border-t border-white/10" />
+        <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
         <section className="space-y-4">
-          <SectionTitle>Bill To</SectionTitle>
-          <div className="space-y-1 text-sm leading-7 text-white/75 lg:text-[16px]">
-            <p className="text-[24px] font-semibold leading-tight text-white">{clientName}</p>
+          <SectionTitle isDark={isDark}>Bill To</SectionTitle>
+          <div className={`space-y-1 text-sm leading-7 lg:text-[16px] ${isDark ? "text-white/75" : "text-black/75"}`}>
+            <p className={`text-[24px] font-semibold leading-tight ${isDark ? "text-white" : "text-black"}`}>{clientName}</p>
             <p>{clientAddress}</p>
             <p>{clientEmail}</p>
             <p>{clientPhone}</p>
           </div>
         </section>
 
-        <div className="rounded-[18px] bg-[#F5F5F5] px-5 py-4 text-[#18181B] lg:px-6 lg:py-5">
+        <div
+          className={`rounded-[18px] px-5 py-4 text-[#18181B] lg:px-6 lg:py-5 ${
+            isDark ? "bg-[#F5F5F5]" : "border border-[#D7D7D7] bg-[#F4F5F7]"
+          }`}
+        >
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#777781] lg:text-sm">
             Project Description
           </p>
           <p className="mt-2 text-sm leading-7 lg:text-[16px]">{projectDescription}</p>
         </div>
 
-        <div className="border-t border-white/10" />
+        <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
-        <ServiceTable items={serviceItems} shootTypeLabel={shootTypeLabel} />
+        <ServiceTable items={serviceItems} shootTypeLabel={shootTypeLabel} isDark={isDark} />
 
         {addonItems.length > 0 || logisticsItems.length > 0 || customItems.length > 0 ? (
-          <div className="space-y-8 border-t border-white/10 pt-8">
-            <PreviewAmountList title="Add-ons" items={addonItems} />
-            <PreviewAmountList title="Logistics" items={logisticsItems} />
-            <PreviewAmountList title="Custom Items" items={customItems} />
+          <div className={`space-y-8 border-t pt-8 ${isDark ? "border-white/10" : "border-[#00000014]"}`}>
+            <PreviewAmountList title="Add-ons" items={addonItems} isDark={isDark} />
+            <PreviewAmountList title="Logistics" items={logisticsItems} isDark={isDark} />
+            <PreviewAmountList title="Custom Items" items={customItems} isDark={isDark} />
           </div>
         ) : null}
 
@@ -285,30 +317,36 @@ export default function QuotePreviewDocument({
             </div>
           </div>
 
-          <div className="mt-5 rounded-[16px] bg-[#171717] px-4 py-4 lg:px-5">
+          <div className={`mt-5 rounded-[16px] px-4 py-4 lg:px-5 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
             <div className="flex items-center justify-between gap-6">
-              <span className="text-[28px] font-semibold text-white lg:text-[36px]">Total</span>
-              <span className="text-[28px] font-semibold text-[#E8D1AB] lg:text-[36px]">
+              <span className={`text-[28px] font-semibold lg:text-[36px] ${isDark ? "text-white" : "text-black"}`}>
+                Total
+              </span>
+              <span className={`text-[28px] font-semibold lg:text-[36px] ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
                 {formatQuoteCurrency(finalTotal)}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-white/10" />
+        <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
         <section className="space-y-4">
-          <SectionTitle>Terms & Conditions</SectionTitle>
-          <ul className="list-disc space-y-3 pl-5 text-sm leading-7 text-white/60 marker:text-white/45 lg:text-[16px]">
+          <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
+          <ul
+            className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-[16px] ${
+              isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
+            }`}
+          >
             {terms.map((term, index) => (
               <li key={`${term}-${index}`}>{term}</li>
             ))}
           </ul>
         </section>
 
-        <div className="border-t border-white/10" />
+        <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
-        <p className="pt-2 text-center text-sm text-white/70 lg:text-[16px]">
+        <p className={`pt-2 text-center text-sm lg:text-[16px] ${isDark ? "text-white/70" : "text-black/70"}`}>
           Thank you for your business! For questions, contact {footerContactName} at {footerContactEmail}
         </p>
       </div>

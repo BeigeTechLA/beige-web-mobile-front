@@ -4,13 +4,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
+
 interface QuotesEmptyStateProps {
   createHref: string;
 }
 
 export default function QuotesEmptyState({ createHref }: QuotesEmptyStateProps) {
+  const { isDark } = useResolvedTheme();
+
   return (
-    <div className="mt-8 rounded-[32px] border border-[#3D3D3D] bg-[#161616] px-6 py-14 md:px-10 md:py-20">
+    <div
+      className={`mt-8 rounded-[32px] px-6 py-14 md:px-10 md:py-20 ${
+        isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"
+      }`}
+    >
       <div className="mx-auto flex max-w-[420px] flex-col items-center text-center">
         <p className="mb-4 text-sm font-medium text-[#8C8C8C]">Empty State</p>
 
@@ -26,10 +34,10 @@ export default function QuotesEmptyState({ createHref }: QuotesEmptyStateProps) 
           />
         </div>
 
-        <h2 className="text-3xl font-semibold tracking-tight text-white">
+        <h2 className={`text-3xl font-semibold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
           You haven&apos;t created any quotes yet
         </h2>
-        <p className="mt-4 max-w-[320px] text-base leading-7 text-[#A1A1A1]">
+        <p className={`mt-4 max-w-[320px] text-base leading-7 ${isDark ? "text-[#A1A1A1]" : "text-[#666666]"}`}>
           Quotes you create will appear here and can be shared directly with clients.
         </p>
 
