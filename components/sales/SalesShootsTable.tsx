@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useMemo, useEffect, useState } from "react";
-import Image from "next/image";
-import { ChevronRight, Loader2, Trash2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ChevronRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
-import { toast } from "sonner";
 import { format } from "date-fns";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import {
@@ -40,34 +38,22 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   5: "Cancelled",
 };
 
-const parseSkills = (skills: string | number[] | null | undefined, skillMap: Record<number, string>): string => {
-  if (!skills) return "N/A";
+const getCategoryFromContentType = (contentType: string | null | undefined): string => {
+  if (!contentType) return "N/A";
 
-  let parsedSkills: any[] = [];
+  const normalizedTypes = contentType
+    .split(",")
+    .map((type) => type.trim().toLowerCase())
+    .filter(Boolean);
 
-  if (Array.isArray(skills)) {
-    parsedSkills = skills;
-  } else if (typeof skills === "string") {
-    try {
-      if (skills.trim().startsWith("[") && skills.trim().endsWith("]")) {
-        parsedSkills = JSON.parse(skills);
-      } else {
-        parsedSkills = skills.split(',').map(s => s.trim());
-      }
-    } catch (e) {
-      parsedSkills = [skills.replace(/[\[\]"]/g, "")];
-    }
-  }
+  const hasPhotographer = normalizedTypes.includes("photographer");
+  const hasVideographer = normalizedTypes.includes("videographer");
 
-  const skillNames = parsedSkills.map(skill => {
-    const skillId = Number(skill);
-    if (!isNaN(skillId) && skillMap[skillId]) {
-      return skillMap[skillId];
-    }
-    return String(skill).replace(/["]/g, "");
-  });
+  if (hasPhotographer && hasVideographer) return "Photography & Videography";
+  if (hasPhotographer) return "Photography";
+  if (hasVideographer) return "Videography";
 
-  return skillNames.join(", ");
+  return "N/A";
 };
 
 export default function SalesShootsTable({ externalSelectedDate }: { externalSelectedDate?: Date | null }) {
@@ -108,22 +94,7 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
-        const [projectsResponse, skillsResponse] = await Promise.all([
-          adminApi.getProjects(params),
-          adminApi.getSkills()
-        ]);
-
-        // Create Skill Map: ID -> Name
-        const skillMap: Record<number, string> = {};
-        if (skillsResponse && skillsResponse.data) {
-          const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
-            const name = s.name || s.skill_name || s.title;
-            if (s.id && name) {
-              skillMap[s.id] = name;
-            }
-          });
-        }
+        const projectsResponse = await adminApi.getProjects(params);
 
         const projectsList = projectsResponse?.data?.projects || [];
 
@@ -138,8 +109,8 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
             customerName,
             initials,
             date: project.event_date ? (parseDate(project.event_date) || new Date(project.event_date)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-            category: parseSkills(project.skills_needed, skillMap),
-            price: project.budget ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
+            category: getCategoryFromContentType(project.content_type),
+            price: project.total_paid_amount ? `$${parseFloat(project.total_paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
             status: statusLabel,
           };
         });
