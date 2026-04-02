@@ -211,7 +211,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-fit lg:w-[200px] bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+              className="h-14 lg:h-[72px] bg-[#E8D1AB] text-black font-medium text-lg rounded-xl flex-1 min-w-[140px] lg:min-w-[240px]"
             >
               {isLoading ? "Updating Password..." : "Update Password"}
             </Button>

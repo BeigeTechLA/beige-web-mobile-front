@@ -199,7 +199,7 @@ export default function AffiliateOverviewPage() {
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
         {/* Header */}
-        <div className="flex justify-between items-start lg:items-end">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end">
           <div>
             <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>
               Affiliate Overview
@@ -267,7 +267,7 @@ export default function AffiliateOverviewPage() {
                   <div className="relative group flex items-center">
                     <button
                       onClick={() => setIsEditingCode(true)}
-                      className="text-white/40 hover:text-[#E8D1AB] transition-colors"
+                      className={` transition-colors ${isDark ? "text-white/40 hover:text-[#E8D1AB]" : "text-[#747171] hover:text-black"}`}
                     >
                       <Pencil size={14} />
                     </button>
@@ -365,139 +365,132 @@ export default function AffiliateOverviewPage() {
           </div>
 
           {/* Referrals Table Section */}
-          <div className={`rounded-lg lg:rounded-xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-white/5" : "bg-white border-zinc-200 shadow-sm"
+          <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"
             }`}>
-            <div className={`p-4 lg:p-6 border-b flex items-center justify-between ${isDark ? "border-white/5" : "border-zinc-100"
+            {/* Header Section */}
+            <div className={`flex flex-row justify-between items-center p-5 border-b transition-colors duration-300 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"
               }`}>
-              <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-[#171717]"}`}>
+              <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-[#323232]"}`}>
                 Recent Referrals
               </h2>
             </div>
+
             {/* --- MOBILE VIEW (Accordion Cards) --- */}
-            <div className="lg:hidden space-y-4">
+            <div className="lg:hidden flex-grow space-y-4">
               {referrals.length === 0 ? (
-                <div className="px-6 py-12 text-center text-white/40 bg-white/5  border border-white/5">
+                <div className={`px-6 py-12 text-center ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
                   <Users className="mx-auto mb-3 opacity-20" size={32} />
                   <p>No referrals yet. Share your code to start earning!</p>
                 </div>
               ) : (
-                referrals.map((referral) => {
-                  const isExpanded = expandedId === referral.referral_id;
+                <>
+                  {/* Mobile Header Label Row */}
+                  <div className={`flex justify-between text-sm font-medium p-4 border-b ${isDark ? "text-[#E8D1AB] bg-[#101010] border-b-white/5" : "text-[#BFA780] bg-[#FFFCF6] border-b-[#E3E3E3]"
+                    }`}>
+                    <span>Commission</span>
+                    <span>Status</span>
+                  </div>
 
-                  return (
-                    <div
-                      key={referral.referral_id}
-                      className="bg-[#101010] rounded-2xl border border-white/5 overflow-hidden"
-                    >
-                      <div
-                        className="p-4 flex items-center justify-between cursor-pointer"
-                        onClick={() => toggleExpand(referral.referral_id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-6 h-6 flex items-center justify-center rounded-full border transition-colors ${isExpanded ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'}`}>
-                            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  {referrals.map((referral) => {
+                    const isExpanded = expandedId === referral.referral_id;
+                    return (
+                      <div key={referral.referral_id} className={`px-4 border-b pb-4 last:border-0 ${isDark ? "border-white/5" : "border-[#E3E3E3]"
+                        }`}>
+                        <div
+                          className="flex items-center justify-between cursor-pointer pt-4"
+                          onClick={() => toggleExpand(referral.referral_id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-6 h-6 flex items-center justify-center rounded-full border transition-colors ${isExpanded ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'
+                              }`}>
+                              {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                            </div>
+                            <div>
+                              <p className={`text-xs uppercase tracking-wider ${isDark ? "text-white/40" : "text-[#666]"}`}>
+                                Commission
+                              </p>
+                              <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`}>
+                                {formatCurrency(referral.commission_amount)}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-white/40 text-[10px] uppercase tracking-wider">Commission</p>
-                            <p className="font-medium text-[#E8D1AB]">
-                              {formatCurrency(referral.commission_amount)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-end gap-1">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize font-semibold ${getStatusColor(referral.status)}`}>
-                            {referral.status}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Collapsible Content */}
-                      {isExpanded && (
-                        <div className="px-4 pb-5 pt-2 border-t border-white/5 grid grid-cols-2 gap-y-4">
-                          <div>
-                            <p className="text-white/40 text-[10px] uppercase tracking-wider">Date</p>
-                            <p className="text-white/80 text-sm">{formatDate(referral.created_at)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-white/40 text-[10px] uppercase tracking-wider">Booking Amt</p>
-                            <p className="text-white/60 text-sm">
-                              {referral.booking_amount ? formatCurrency(referral.booking_amount) : "-"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-white/40 text-[10px] uppercase tracking-wider">Payout Status</p>
-                            <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full capitalize font-semibold ${getPayoutStatusColor(referral.payout_status)}`}>
-                              {referral.payout_status}
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-semibold ${getStatusColor(referral.status)}`}>
+                              {referral.status}
                             </span>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                })
+
+                        {/* Collapsible Content */}
+                        {isExpanded && (
+                          <div className="mt-4 grid grid-cols-2 gap-y-4 px-2 animate-in fade-in slide-in-from-top-1">
+                            <div>
+                              <p className={`text-xs uppercase tracking-wider ${isDark ? "text-white/40" : "text-[#666]"}`}>Date</p>
+                              <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>{formatDate(referral.created_at)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className={`text-xs uppercase tracking-wider ${isDark ? "text-white/40" : "text-[#666]"}`}>Booking Amt</p>
+                              <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>
+                                {referral.booking_amount ? formatCurrency(referral.booking_amount) : "-"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className={`text-xs uppercase tracking-wider ${isDark ? "text-white/40" : "text-[#666]"}`}>Payout Status</p>
+                              <span className={`inline-block text-xs px-2 py-0.5 rounded-full capitalize font-semibold ${getPayoutStatusColor(referral.payout_status)}`}>
+                                {referral.payout_status}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
               )}
             </div>
 
             {/* --- DESKTOP VIEW (Original Table) --- */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full text-left text-sm min-w-[600px]">
-                <thead>
-                  <tr className="text-[#E8D1AB] text-sm font-medium rounded-b-xl">
-                    <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D] ">Date</th>
-                    <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">
-                      Booking Amount
-                    </th>
-                    <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Commission</th>
-                    <th className="pb-4 px-4 bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Status</th>
-                    <th className="pb-4 px-4 text-right bg-[#101010] py-4 px-4 border-b border-b-[#3D3D3D]">Payout</th>
+            <div className="hidden lg:block w-full overflow-x-auto flex-grow">
+              <table className="w-full text-left text-sm">
+                <thead className={isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"}>
+                  <tr className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>
+                    <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Date</th>
+                    <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Booking Amount</th>
+                    <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Commission</th>
+                    <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Status</th>
+                    <th className={`py-4 px-4 text-right border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Payout Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-transparent">
                   {referrals.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={5}
-                        className="px-6 py-12 text-center text-white/40"
-                      >
-                        <Users
-                          className="mx-auto mb-3 opacity-20"
-                          size={32}
-                        />
-                        <p>
-                          No referrals yet. Share your code to start
-                          earning!
-                        </p>
+                      <td colSpan={5} className={`px-6 py-12 text-center ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
+                        <Users className="mx-auto mb-3 opacity-20" size={32} />
+                        <p>No referrals yet. Share your code to start earning!</p>
                       </td>
                     </tr>
                   ) : (
                     referrals.map((referral) => (
-                      <tr
-                        key={referral.referral_id}
-                        className="hover:bg-white/5 transition-colors"
-                      >
-                        <td className="px-6 py-4 text-white/80">
+                      <tr key={referral.referral_id} className={`group transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"
+                        }`}>
+                        <td className={`px-4 py-4 ${isDark ? "text-white/80" : "text-[#323232]"}`}>
                           {formatDate(referral.created_at)}
                         </td>
-                        <td className="px-6 py-4 text-white/60">
-                          {referral.booking_amount
-                            ? formatCurrency(referral.booking_amount)
-                            : "-"}
+                        <td className={`px-4 py-4 ${isDark ? "text-white/60" : "text-[#32323266]"}`}>
+                          {referral.booking_amount ? formatCurrency(referral.booking_amount) : "-"}
                         </td>
-                        <td className="px-6 py-4 font-medium text-[#E8D1AB]">
+                        <td className={`px-4 py-4 font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`}>
                           {formatCurrency(referral.commission_amount)}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-4">
                           <span
-                            className={`text-[10px] px-2 py-0.5 rounded-full capitalize font-semibold ${getStatusColor(referral.status)}`}
+                            className={`text-xs px-2 py-0.5 rounded-full capitalize font-semibold ${getStatusColor(referral.status)}`}
                           >
                             {referral.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`text-[10px] px-2 py-0.5 rounded-full capitalize font-semibold ${getPayoutStatusColor(referral.payout_status)}`}
-                          >
+                        <td className="px-4 py-4 text-right">
+                          <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-semibold ${getPayoutStatusColor(referral.payout_status)}`}>
                             {referral.payout_status}
                           </span>
                         </td>
@@ -519,7 +512,7 @@ export default function AffiliateOverviewPage() {
                 { step: 3, title: "You Earn", desc: "Get 10% for every completed booking." }
               ].map((item) => (
                 <div key={item.step} className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-[#E8D1AB]/10 text-[#E8D1AB] flex items-center justify-center font-bold shrink-0">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#E8D1AB]/80 text-[#171717]"}`}>
                     {item.step}
                   </div>
                   <div>
@@ -538,6 +531,7 @@ export default function AffiliateOverviewPage() {
         onClose={() => setIsShootFormOpen(false)}
         projectId={pendingProjects[0]?.project_id || 0}
         pendingProjects={pendingProjects}
+        isDark ={isDark}
       />
     </>
   );

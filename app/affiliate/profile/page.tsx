@@ -5,7 +5,6 @@ import { useTheme } from "next-themes";
 import { useRouter, usePathname } from 'next/navigation';
 
 import Topbar from "@/components/admin/Topbar";
-
 import { AffiliateProfileSettings } from "@/components/affiliate/AffiliateProfileSettings";
 
 export default function AffiliateProfilePage() {
@@ -14,7 +13,6 @@ export default function AffiliateProfilePage() {
   const pathname = usePathname();
 
   const [mounted, setMounted] = useState(false);
-
   useEffect(() => setMounted(true), []);
 
   // Constant default to dark
@@ -35,7 +33,7 @@ export default function AffiliateProfilePage() {
           </p>
         </div>
 
-        <AffiliateProfileSettings />
+        <AffiliateProfileSettings isDark={isDark} />
       </div>
     </>
   )

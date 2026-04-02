@@ -2,10 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, use } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, SquaresUnite, Video, Camera, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, SquaresUnite, Video, Camera, Info, Loader2, Calendar, ChevronLeft, ChevronRight, Check, X, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { set, format, differenceInHours } from "date-fns";
+import { set, format, differenceInHours, addDays, eachDayOfInterval, endOfMonth, endOfWeek, isSameDay, isSameMonth, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import Cookies from "js-cookie";
+import { useTheme } from "next-themes";
+import { getFormattedDateString } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { ContentTypeCheckbox } from "@/components/book-a-shoot/v3/components/ContentTypeCheckbox";
@@ -13,8 +16,6 @@ import { MultiSelectDropdown } from "@/components/book-a-shoot";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
-import { useTheme } from "next-themes";
-
 // Import all specific shoot and edit types
 import {
   newshootTypes,
@@ -64,15 +65,14 @@ export default function AffiliateEditBookingPage() {
   const { theme } = useTheme();
   const pathname = usePathname();
 
-  console.log(pathname);
-  
-
   const contentTypeRef = useRef<HTMLDivElement>(null);
   const shootTypeRef = useRef<HTMLDivElement>(null);
   const dateTimeRef = useRef<HTMLDivElement>(null);
   const editsRef = useRef<HTMLDivElement>(null);
   const extraTeamRef = useRef<HTMLDivElement>(null);
   const locationRef = useRef<HTMLDivElement>(null);
+  const bookingTypeRef = useRef<HTMLDivElement>(null);
+  const reelRef = useRef<HTMLDivElement>(null);
 
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState<BookingDataV3>(initialDataV3);
@@ -87,6 +87,18 @@ export default function AffiliateEditBookingPage() {
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
   const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
+
+  // Multi-day states
+  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">("single_day");
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
+  const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
+  const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
+  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
+  const isDraggingReel = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartScrollLeft = useRef(0);
 
   const [updateLeadBooking, { isLoading: isUpdating }] = useUpdateLeadBookingMutation();
 
@@ -404,11 +416,70 @@ export default function AffiliateEditBookingPage() {
   const getStartTimeKey = () => formData.startDate ? format(parseDate(formData.startDate)!, "HH:mm") : "";
   const getEndTimeKey = () => formData.endDate ? format(parseDate(formData.endDate)!, "HH:mm") : "";
 
-  const filteredEndTimeOptions = React.useMemo(() => {
+  const filteredEndTimeOptions = useMemo(() => {
     if (!formData.startDate) return timeOptions;
     const startTimeKey = getStartTimeKey();
     return timeOptions.filter((opt) => opt.key > startTimeKey);
   }, [formData.startDate, timeOptions]);
+
+  const getDateKey = (date: Date) => format(date, "yyyy-MM-dd");
+
+  const reelDays = useMemo(() => {
+    const now = new Date();
+    const monthStart = startOfMonth(currentCalendarMonth);
+    const monthEnd = endOfMonth(currentCalendarMonth);
+    const start = isSameMonth(currentCalendarMonth, now) && now > monthStart ? startOfDay(now) : monthStart;
+    if (start > monthEnd) return [];
+    return eachDayOfInterval({ start, end: monthEnd });
+  }, [currentCalendarMonth]);
+
+  const calendarDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentCalendarMonth));
+    const end = endOfWeek(endOfMonth(currentCalendarMonth));
+    return eachDayOfInterval({ start, end });
+  }, [currentCalendarMonth]);
+
+  const toggleDateSelection = (date: Date) => {
+    setSelectedDates((prev) => {
+      const exists = prev.some((d) => isSameDay(d, date));
+      if (exists) {
+        return prev.filter((d) => !isSameDay(d, date));
+      }
+      return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
+    });
+    if (bookingType === "multi_day") {
+      setSelectedShootDate(date);
+    }
+  };
+
+  const handleMultiDayStartTimeChange = (dateKey: string, timeKey: string) => {
+    setMultiDayTimes((prev) => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], startKey: timeKey }
+    }));
+  };
+
+  const handleMultiDayEndTimeChange = (dateKey: string, timeKey: string) => {
+    setMultiDayTimes((prev) => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], endKey: timeKey }
+    }));
+  };
+
+  const getTimeLabel = (key: string) => {
+    if (!key) return "";
+    const match = timeOptions.find((opt) => opt.key === key);
+    return match ? match.value : key;
+  };
+
+  const calculateDurationHours = (startKey: string, endKey: string) => {
+    if (!startKey || !endKey) return null;
+    const [sh, sm] = startKey.split(":").map(Number);
+    const [eh, em] = endKey.split(":").map(Number);
+    const diff = (eh * 60 + em) - (sh * 60 + sm);
+    return diff > 0 ? Math.round((diff / 60) * 100) / 100 : null;
+  };
+
 
   const handleExtraTeamChange = (id: string, delta: number) => {
     setExtraTeam((prev) => {
@@ -482,93 +553,335 @@ export default function AffiliateEditBookingPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans mb-20 bg-[#101010] min-h-screen">
-        <Button onClick={() => router.push("/affiliate/dashboard")} className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent shadow-none hover:bg-transparent">
+      <div className={`text-white font-sans ${isDark ? "bg-[#101010] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-white" : "bg-[#F4F5F7] min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mb-20 text-black"}`}>
+        <Button onClick={() => router.back()} className={`transition-colors flex items-center gap-2 mb-8 p-0 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}>
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
 
         <div className="flex items-center gap-5 my-4 lg:my-9">
-          <div className="w-12 h-12 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl bg-[#FFF6D9] text-[#000000] flex items-center justify-center text-xl lg:text-[30px] font-semibold shrink-0">
+          <div className={`w-16 h-16 lg:w-[84px] lg:h-[84px] rounded-lg lg:rounded-2xl flex items-center justify-center text-xl lg:text-[30px] font-bold shrink-0 overflow-hidden ${isDark ? "bg-[#E8D1AB] text-[#101010] border-[#E8D1AB]" : "bg-[#E8D1AB] text-black border-[#dcb98a]"
+            }`}>
             {formData.fullName ? formData.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "BK"}
           </div>
           <div>
-            <h1 className="lg:text-[22px] font-semibold">{formData.fullName || "Booking Details"}</h1>
-            <p className="text-sm text-white/50">Edit current shoot requirements</p>
+            <h1 className={`lg:text-[22px] font-semibold ${isDark ? "text-white" : "text-black"}`}>{formData.fullName || "Booking Details"}</h1>
+            <p className={`text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>Edit current shoot requirements</p>
           </div>
         </div>
 
         <div ref={contentTypeRef} className="my-4 lg:my-9">
-          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Content Type</h3>
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>Content Type</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <ContentTypeCheckbox
               label="Select All"
               icon={<SquaresUnite size={20} />}
               checked={formData.contentType.includes("videographer") && formData.contentType.includes("photographer")}
               onChange={(checked) => updateData({ contentType: checked ? ["videographer", "photographer"] : [] })}
+              isDark={isDark}
             />
             <ContentTypeCheckbox
               label="Videography"
               icon={<Video size={20} />}
               checked={formData.contentType.includes("videographer")}
               onChange={() => toggleContentType("videographer")}
+              isDark={isDark}
             />
             <ContentTypeCheckbox
               label="Photography"
               icon={<Camera size={20} />}
               checked={formData.contentType.includes("photographer")}
               onChange={() => toggleContentType("photographer")}
+              isDark={isDark}
             />
           </div>
         </div>
 
         <div ref={shootTypeRef} className="my-4 lg:my-9">
-          <h3 className="text-base lg:text-xl font-medium text-white/90 mb-3 lg:mb-6">Shoot Type</h3>
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>Shoot Type</h3>
           <FloatingLabelDropdown
-            label="Shoot Type"
-            value={formData.shootType}
-            options={shootTypeOptions}
-            onChange={(val) => {
-              updateData({ shootType: val });
-              scrollToRef(dateTimeRef);
-            }}
+            label="Shoot Type" value={formData.shootType} options={shootTypeOptions}
+            onChange={(val) => { updateData({ shootType: val }); scrollToRef(dateTimeRef); }}
             placeholder="Select the type of shoot"
-            labelBg="bg-[#101010]"
+            labelBg={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
             required
+            isDark={isDark}
           />
         </div>
 
-        <div ref={dateTimeRef} className="my-4 lg:my-9">
-          <h3 className="text-base lg:text-xl font-medium mb-3 lg:mb-6 text-white/90">Shoot Date & Time</h3>
-          <div className="flex flex-col lg:flex-row gap-6">
-            <DatePicker
-              label="Select Date"
-              value={selectedShootDate}
-              onChange={handleDateChange}
-              minDate={new Date()}
-              colors={datePickerColours}
-              format="MM/dd/yyyy"
-              sx={{ height: { xs: '56px', lg: '82px' }, borderRadius: '16px' }}
-            />
-            <DropdownSelect
-              title="Start Time"
-              options={timeOptions}
-              value={getStartTimeKey()}
-              onChange={handleStartTimeChange}
-              bgColour="bg-[#101010]"
-            />
-            <DropdownSelect
-              title="End Time"
-              options={filteredEndTimeOptions}
-              value={getEndTimeKey()}
-              onChange={handleEndTimeChange}
-              bgColour="bg-[#101010]"
-            />
+        <div ref={bookingTypeRef} className={`pt-6 lg:pt-15 border-t ${isDark ? "border-white/10" : "border-black/5"}`}>
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${isDark ? "text-white/90" : "text-black/80"}`}>Select Booking Type</h3>
+          <div className="flex gap-4">
+            <button
+              onClick={() => {
+                setBookingType("single_day");
+                setSelectedDates([]);
+                setSameTimingsMulti(true);
+                setMultiDayTimes({});
+                updateData({ bookingType: "single_day", bookingDays: [] });
+              }}
+              className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${bookingType === "single_day" ? "bg-[#E8D1AB] text-black border-transparent" : isDark
+                ? "bg-[#101010] border-white/10 text-[#A9A9A9] hover:border-white/20"
+                : "bg-transparent border-[#0000004D] text-[#2C2C2C] hover:border-[#000000]/50"
+                }`}
+            >
+              <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
+              <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full border ${bookingType === "single_day" ? "bg-black border-transparent" : isDark ? "border border-white/20" : "border border-[#0000004D]"}`}>{bookingType === "single_day" && <div className="w-2 h-2 rounded-full bg-[#E8D1AB] m-auto mt-1.5" />}</div>
+            </button>
+            <button
+              onClick={() => {
+                setBookingType("multi_day");
+                updateData({ bookingType: "multi_day" });
+              }}
+              className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${bookingType === "multi_day" ? "bg-[#E8D1AB] text-black border-transparent" : isDark
+                ? "bg-[#101010] border-white/10 text-[#A9A9A9] hover:border-white/20"
+                : "bg-transparent border-[#0000004D] text-[#2C2C2C] hover:border-[#000000]/50"
+                }`}
+            >
+              <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
+              <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full border ${bookingType === "multi_day" ? "bg-black border-transparent" : isDark ? "border border-white/20" : "border border-[#0000004D]"}`}>{bookingType === "multi_day" && <div className="w-2 h-2 rounded-full bg-[#E8D1AB] m-auto mt-1.5" />}</div>
+            </button>
           </div>
         </div>
 
+        <div ref={dateTimeRef} className="my-4 lg:my-9">
+          {bookingType === "single_day" ? (
+            <>
+              <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>Shoot Date & Time</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <DatePicker
+                  label="Select Date"
+                  value={selectedShootDate}
+                  onChange={handleDateChange}
+                  minDate={new Date()}
+                  // colors={datePickerColours} format="MM/dd/yyyy"
+                  sx={{ height: { xs: "56px", md: "82px" }, borderRadius: "16px" }}
+                  isDark={isDark}
+                />
+                <DropdownSelect title="Start Time" options={timeOptions} value={getStartTimeKey()} onChange={handleStartTimeChange}
+                  bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                  isDark={isDark} />
+                <DropdownSelect title="End Time" options={filteredEndTimeOptions} value={getEndTimeKey()} onChange={handleEndTimeChange}
+                  bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                  isDark={isDark}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="relative mb-8 lg:mb-15">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>
+                    Select Date
+                  </h3>
+                  <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 group transition-colors">
+                    <span className={`font-medium lg:text-[20px] ${isDark ? "text-white group-hover:text-[#E8D1AB]" : "text-black group-hover:text-black/80"}`}>{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                    <Calendar size={20} className={`${isDark ? "text-white group-hover:text-[#E8D1AB]" : "text-black group-hover:text-black/80"} `} />
+                  </button>
+                </div>
+
+                <div
+                  ref={reelRef}
+                  onPointerDown={(e) => {
+                    if (!reelRef.current) return;
+                    if ((e.target as HTMLElement).closest("button")) return;
+                    isDraggingReel.current = true;
+                    dragStartX.current = e.clientX;
+                    dragStartScrollLeft.current = reelRef.current.scrollLeft;
+                    reelRef.current.setPointerCapture?.(e.pointerId);
+                  }}
+                  onPointerMove={(e) => {
+                    if (!reelRef.current || !isDraggingReel.current) return;
+                    const dx = e.clientX - dragStartX.current;
+                    reelRef.current.scrollLeft = dragStartScrollLeft.current - dx;
+                  }}
+                  onPointerUp={(e) => {
+                    isDraggingReel.current = false;
+                    reelRef.current?.releasePointerCapture?.(e.pointerId);
+                  }}
+                  className="flex gap-3 overflow-x-auto pb-4 no-scrollbar cursor-grab active:cursor-grabbing select-none"
+                >
+                  {reelDays.map((date) => {
+                    const isSelected = selectedDates.some(d => isSameDay(d, date));
+                    return (
+                      <button
+                        key={date.toISOString()} onClick={() => toggleDateSelection(date)}
+                        className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected
+                          ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                          : isDark
+                            ? "bg-transparent border-white/10 text-white/40 hover:border-white/30"
+                            : "bg-white border-[#0000004D] text-[#2C2C2C] hover:border-black/50 shadow-sm"
+                          }`}
+                      >
+                        <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
+                        <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-4">
+                  <div className={`mt-4 lg:mt-8 rounded-lg lg:rounded-xl w-fit px-4 py-2 lg:px-7 lg:py-3 ${isDark ? "bg-[#211F1C]" : "bg-[#FFF]"}`}>
+                    <p className={`font-medium text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#323232]"}`}>Total Days: {selectedDates.length}</p>
+                  </div>
+                  <div className={`mt-4 lg:mt-8 rounded-lg lg:rounded-xl w-fit px-4 py-2 lg:px-7 lg:py-3 ${isDark ? "bg-[#211F1C]" : "bg-[#FFF]"}`}>
+                    <p className={`font-medium text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#323232]"}`}>Selected Days: {getFormattedDateString(selectedDates)}</p>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {isCalendarOpen && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className={`absolute right-0 top-14 z-50 border p-5 rounded-2xl shadow-2xl w-[320px] ${isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200"
+                      }`}>
+                      <div className="flex justify-between items-center mb-6">
+                        <button className={`font-bold ${isDark ? "text-white" : "text-black"}`} onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}><ChevronLeft size={20} /></button>
+                        <span className={`font-bold ${isDark ? "text-white" : "text-black"}`}>{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className={`font-bold ${isDark ? "text-white" : "text-black"}`}
+                            onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}><ChevronRight size={20} /></button>
+                          <button
+                            onClick={() => setIsCalendarOpen(false)}
+                            className={`rounded-full p-1 transition-colors ${isDark ? "hover:bg-white/10 text-white" : "hover:bg-black/5 text-black"}`}>
+                            <X size={18} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
+                      </div>
+                      <div className="grid grid-cols-7 gap-1">
+                        {calendarDays.map((date) => {
+                          const isSelected = selectedDates.some(d => isSameDay(d, date));
+                          return (
+                            <button
+                              key={date.toISOString()} onClick={() => toggleDateSelection(date)}
+                              className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white hover:bg-white/10" : "text-[#323232] hover:bg-black/10")} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
+                            >
+                              {format(date, "d")}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {selectedDates.length > 0 && (
+                <div className={`pt-6 lg:pt-15 border-t space-y-6 ${isDark ? "border-white/10" : "border-black/5"}`}>
+                  <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${isDark ? "text-white/90" : "text-black/80"}`}>Are timings same for all selected dates?</h3>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => { setSameTimingsMulti(true); setMultiDayTimes({}); }}
+                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${sameTimingsMulti
+                        ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                        : isDark ? "bg-[#101010] border-white/10 text-[#A9A9A9]" : "bg-transparent border-[#0000004D] text-[#2C2C2C]"
+                        }`}
+                    >
+                      <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                      <div
+                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : (isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]")}`}
+                      >
+                        {sameTimingsMulti && (
+                          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                        )}
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSameTimingsMulti(false);
+                        const startKey = getStartTimeKey();
+                        const endKey = getEndTimeKey();
+                        const nextTimes: Record<string, { startKey?: string; endKey?: string }> = {};
+                        selectedDates.forEach(d => { const key = getDateKey(d); nextTimes[key] = { startKey, endKey }; });
+                        setMultiDayTimes(nextTimes);
+                      }}
+                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!sameTimingsMulti
+                        ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                        : isDark ? "bg-[#101010] border-white/10 text-[#A9A9A9]" : "bg-transparent border-[#0000004D] text-[#2C2C2C]"}`}
+                    >
+                      <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                      <div
+                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : (isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]")
+                          }`}
+                      >
+                        {!sameTimingsMulti && (
+                          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                        )}
+                      </div>
+                    </button>
+                  </div>
+
+                  {sameTimingsMulti ? (
+                    <div className="animate-in slide-in-from-top-4 duration-300">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <DropdownSelect title="Start Time" options={timeOptions} value={getStartTimeKey()} onChange={handleStartTimeChange}
+                          bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                          isDark={isDark}
+                        />
+                        <DropdownSelect title="End Time" options={filteredEndTimeOptions} value={getEndTimeKey()} onChange={handleEndTimeChange}
+                          bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                          isDark={isDark}
+                        />
+                      </div>
+                      <p className={`flex items-center gap-2 my-3 lg:mt-6 lg:mb-8 ${isDark ? "text-[#A9A9A9]" : "text-[#747171]"}`}>
+                        <Check size={20} className={`${isDark ? "text-white" : "text-[#747171]"}`} /> Applied to {selectedDates.length} selected dates
+                      </p>
+                      <div className={`rounded-lg lg:rounded-2xl border p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center transition-all ${isDark
+                        ? "bg-[#171717] border-white/30"
+                        : "bg-white border-[#E5E5E5]/40 shadow-sm"
+                        }`}>
+                        <p className={`font-medium lg:text-[20px] ${isDark ? "text-white" : "text-black"}`}>{getFormattedDateString(selectedDates)}</p>
+                        <p className={`font-medium lg:text-[20px] ${isDark ? "text-white/60" : "text-black"}`}>{getStartTimeKey() && getEndTimeKey() ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}` : "Select time"}</p>
+                        <p className={`font-medium lg:text-[20px] ${isDark ? "text-[#E8D1AB]" : "text-[#595959]"}`}>{getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day` : "Duration Hour/Day"}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
+                      {selectedDates.map((date) => {
+                        const dateKey = getDateKey(date);
+                        const isExpanded = expandedDateKey === dateKey;
+                        return (
+                          <div key={date.toISOString()} className={`border rounded-2xl {isExpanded ? "overflow-visible" : "overflow-hidden"} ${isDark ? "border-white/10 bg-[#171717]" : "border-black/10 bg-white shadow-sm"} ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}>
+                            <button onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? isDark ? "border-b rounded-b-2xl border-b-white/10" : "border-b rounded-b-2xl border-b-black/5" : ""}`}>
+                              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{format(date, "MMMM dd, yyyy")}</span>
+                              <ChevronDown className={`${isDark ? "text-white/40" : "text-black/50"} transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                            </button>
+                            <AnimatePresence>
+                              {isExpanded && (
+                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className={`p-4 lg:p-7 overflow-visible transition-colors rounded-b-2xl ${isDark ? "bg-[#101010]" : "bg-black/5"
+                                  }`}
+                                >
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <DropdownSelect title="Start Time" options={timeOptions} value={multiDayTimes[dateKey]?.startKey || ""} onChange={(v) => handleMultiDayStartTimeChange(dateKey, v)}
+                                      bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                                      isDark={isDark}
+                                    />
+                                    <DropdownSelect title="End Time" options={filteredEndTimeOptions} value={multiDayTimes[dateKey]?.endKey || ""} onChange={(v) => handleMultiDayEndTimeChange(dateKey, v)}
+                                      bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                                      isDark={isDark}
+                                    />
+                                  </div>
+                                  <div className={`mt-2 lg:mt-4 rounded-lg lg:rounded-xl ${isDark ? "bg-[#211F1C]" : "bg-[#FFF]"} w-fit px-4 py-2 lg:px-7 lg:py-3`}>
+                                    <p className={`font-medium text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#323232]"}`}>Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours` : "Select time"}</p>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
         <div ref={editsRef} className="my-4 lg:my-9">
-          <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 text-white/90">Edits Needed?</h3>
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>Edits Needed?</h3>
           <div className="flex gap-4">
             {["Yes", "No"].map((choice) => {
               const val = choice === "Yes";
@@ -577,10 +890,12 @@ export default function AffiliateEditBookingPage() {
                 <button
                   key={choice}
                   onClick={() => updateData({ editsNeeded: val })}
-                  className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${active ? "bg-[#E8D1AB] text-black border-transparent" : "bg-[#101010] border-white/10 text-[#A9A9A9]"}`}
+                  className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${active
+                    ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                    : isDark ? "bg-[#101010] border-white/10 text-[#A9A9A9]" : "bg-transparent border-[#0000004D] text-[#2C2C2C]"}`}
                 >
                   <span className="font-medium text-sm lg:text-lg">{choice}</span>
-                  <div className={`w-6 h-6 rounded-full border ${active ? "bg-black" : "border-[#E5E5E5]"}`}>{active && <div className="w-2 h-2 rounded-full bg-[#E8D1AB] m-auto mt-1.5" />}</div>
+                  <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${active ? "bg-black" : (isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]")}`}>{active && <div className="w-2 h-2 rounded-full bg-[#E8D1AB] m-auto mt-1.5" />}</div>
                 </button>
               );
             })}
@@ -593,7 +908,8 @@ export default function AffiliateEditBookingPage() {
                   options={videoEditTypeOptions}
                   value={formData.videoEditTypes}
                   onChange={(v) => updateData({ videoEditTypes: v })}
-                  bgColour="bg-[#101010]"
+                  bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                  isDark={isDark}
                 />
               )}
               {formData.contentType.includes("photographer") && photoEditTypeOptions.length > 0 && (
@@ -603,14 +919,14 @@ export default function AffiliateEditBookingPage() {
                     options={photoEditTypeOptions}
                     value={formData.photoEditTypes}
                     onChange={(v) => updateData({ photoEditTypes: v })}
-                    bgColour="bg-[#101010]"
+                    bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                    isDark={isDark}
                   />
-                  {photoEditNote && (
-                    <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                  {photoEditNote &&
+                    <div className={`mt-3 flex items-start gap-2 text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#919191]"}`}>
                       <Info size={16} className="mt-0.5 flex-shrink-0" />
                       <span>{photoEditNote}</span>
-                    </div>
-                  )}
+                    </div>}
                 </div>
               )}
             </div>
@@ -618,10 +934,10 @@ export default function AffiliateEditBookingPage() {
         </div>
 
         <div ref={extraTeamRef} className="my-4 lg:my-9">
-          <h3 className="text-base lg:text-xl font-medium text-white mb-6">Additional Creatives</h3>
+          <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white" : "text-black/90"} `}>Additional Creatives</h3>
           <div className="space-y-4">
             {availableRolesToAdd.map((role) => (
-              <div key={role.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+              <div key={role.id} className={`flex items-center justify-between p-4 rounded-xl ${isDark ? "bg-white/5 text-white/60" : "bg-black/5 text-black/60"}`}>
                 <div className="flex items-center gap-3">
                   {role.icon}
                   <span className="text-lg font-medium">{role.label}</span>
@@ -637,12 +953,12 @@ export default function AffiliateEditBookingPage() {
         </div>
 
         <div ref={locationRef} className="my-4 lg:my-9">
-          <h3 className="text-xl font-medium text-white/90 mb-6">Location</h3>
+          <h3 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black/90"} mb-6`}>Location</h3>
           <LocationPicker
             value={formData.location}
             onChange={(address) => updateData({ location: address })}
             placeholder="Search for a location"
-            colors={darkThemeColors}
+            colors={isDark ? darkThemeColors : undefined}
           />
         </div>
 
@@ -655,10 +971,11 @@ export default function AffiliateEditBookingPage() {
             videographer: videographerTarget,
             photographer: photographerTarget
           }}
+          isDark={isDark}
         />
 
         <div className="flex gap-6 items-center pt-10 max-w-md">
-          <Button onClick={() => router.push("/affiliate/dashboard")} className="h-14 lg:h-[72px] border border-[#8E8E8E] bg-transparent text-white font-medium text-lg rounded-xl flex-1 hover:bg-white/5 disabled:opacity-50">
+          <Button onClick={() => router.push("/affiliate/dashboard")} className={`h-14 lg:h-[72px] border  font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] ${isDark ? "border-[#8E8E8E] hover:bg-[#1A1A1A] text-white" : "bg-[#FFF] border-[#E3E3E3] text-black hover:bg-[#1A1A1A]/10"}`}>
             Back
           </Button>
           <Button onClick={handleUpdate} isLoading={isUpdating} className="h-14 lg:h-[72px] bg-[#E8D1AB] text-black font-medium text-lg rounded-xl flex-1 hover:bg-[#dcb98a]">
