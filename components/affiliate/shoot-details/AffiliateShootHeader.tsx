@@ -1,26 +1,37 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowLeft, SlidersHorizontal, Pencil, CheckCircle2, Circle, CircleX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import {
   getPaymentStatusMeta,
   getProjectFolderLink,
   getProjectTimeText,
   getShootFilesText,
 } from "@/lib/utils/shootDetails";
+import { useTheme } from "next-themes";
 
 interface AffiliateShootHeaderProps {
   activeTab?: string;
   project?: any;
-  onBack?: () => void;
+  // onBack?: () => void;
 }
 
-export default function AffiliateShootHeader({ activeTab = "Overview", project, onBack }: AffiliateShootHeaderProps) {
+// export default function AffiliateShootHeader({ activeTab = "Overview", project, onBack }: AffiliateShootHeaderProps) {
+export default function AffiliateShootHeader({ activeTab = "Overview", project }: AffiliateShootHeaderProps) {
+
   const router = useRouter();
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const folderLink = getProjectFolderLink(project);
   const projectTimeText = getProjectTimeText(project);
@@ -63,23 +74,30 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
   };
 
   const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      router.back();
-    }
+    // if (onBack) {
+    //   onBack();
+    // } else {
+    router.back();
+    // }
   };
 
   return (
     <div>
-      <button onClick={handleBack} className="lg:hidden text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-3">
+      <button
+        onClick={() => router.back()}
+        className={`lg:hidden transition-colors flex items-center gap-2 mb-3 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
+      >
         <ArrowLeft size={20} />
         <span className="text-sm font-medium">Back</span>
       </button>
+
       {/* Top Bar */}
       <div className="hidden lg:flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
-          <button onClick={handleBack} className="text-white hover:text-white/80 transition-colors flex items-center gap-2">
+          <button
+            onClick={() => router.back()}
+            className={`transition-colors flex items-center gap-2 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
+          >
             <ArrowLeft size={20} />
             <span className="text-sm font-medium">Back</span>
           </button>
@@ -98,14 +116,15 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
       </div>
 
       {/* Hero Section */}
-      <div className="lg:bg-[#111111] lg:rounded-2xl lg:p-6 lg:border lg:border-[#222222] mb-6">
+      <div className={`transition-all duration-300 lg:rounded-2xl mb-6 lg:mb-10`}>
         <div className="flex gap-5">
-          <div className="w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl bg-[#D6E4FF] flex items-center justify-center text-[#1E40AF] text-sm lg:text-2xl font-bold">
-            {project?.project_name ? project.project_name.substring(0, 2).toUpperCase() : "NA"}
+          <div className={`w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl flex items-center justify-center text-sm lg:text-2xl font-bold ${isDark ? "bg-[#D6E4FF] text-[#1E40AF]" : "bg-[#C8E1FF] text-[#1E40AF]"
+            }`}>
+            {project?.project_name ? getInitials(project?.project_name) : "NA"}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="lg:text-2xl font-bold text-white">
+              <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
                 {project?.project_name || "Untitled Project"}
               </h1>
               <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
@@ -113,36 +132,37 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
               </span>
             </div>
             {project?.skills_needed && project.skills_needed !== "N/A" && (
-              <p className="text-[#888] font-normal text-sm lg:text-base mb-2">({project.skills_needed})</p>
+              <p className={`${isDark ? "text-[#888888]" : "text-[#666666]"} font-normal text-sm lg:text-base mb-2`}>({project.skills_needed})</p>
             )}
-            <p className="text-[#888888] text-sm leading-relaxed max-w-3xl">
+            <p className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line leading-relaxed ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
               {(project?.description || "No description available.").replace(/Matching Method: ai_matchmaker/gi, "").trim()}
             </p>
 
-            <div className="hidden lg:block w-full h-px bg-[#222222] my-6" />
+            <div className={`hidden lg:block w-full h-px my-6 transition-colors ${isDark ? "bg-[#222222]" : "bg-[#E5E5E5]"}`} />
 
-            <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base text-[#AAAAAA] mt-4 lg:mt-0">
+            <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-4 lg:mt-0 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"
+              }`}>
               <div className="flex gap-2">
                 <span>Shoot Date :</span>
-                <span className="text-white font-medium">
+                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
                   {formatShootDate(project?.event_date)}
                 </span>
               </div>
-              <div className="hidden lg:block w-px h-5 bg-[#333333]" />
+              <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
               <div className="flex gap-2">
                 <span>Time :</span>
-                <span className="text-white font-medium">
+                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
                   {projectTimeText}
                 </span>
               </div>
-              <div className="hidden lg:block w-px h-5 bg-[#333333]" />
+              <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
               <div className="flex gap-2">
                 <span>Total Value :</span>
-                <span className="text-white font-medium">
+                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
                   {formatTotalValue()}
                 </span>
               </div>
-              <div className="hidden lg:block w-px h-5 bg-[#333333]" />
+              <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
               <div className="flex gap-2">
                 <span>Payment Status :</span>
                 <span className={cn("font-medium", paymentStatus.className)}>
@@ -151,9 +171,9 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
               </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base text-[#AAAAAA] mt-2 lg:mt-4">
+            <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-2 lg:mt-4 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
               <div className="flex gap-2">
-                <span>Folder Link :</span>
+                <span className="text-nowrap">Folder Link :</span>
                 <a
                   href={folderLink || "#"}
                   target={folderLink ? "_blank" : undefined}
@@ -161,26 +181,26 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
                   className={cn(
                     "underline underline-offset-4 transition-all",
                     folderLink
-                      ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]"
-                      : "text-white/50 decoration-white/10 pointer-events-none"
+                      ? isDark ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]" : "text-[#B18A00] decoration-[#B18A00]/30 hover:decoration-[#B18A00]"
+                      : isDark ? "text-white/50 decoration-white/10 pointer-events-none" : "text-black/50 decoration-black/10 pointer-events-none"
                   )}
                 >
                   {folderLink || "No Link Available"}
                   {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production") && (
-                    <span className="text-white"> / {activeTab.replace("_", " ")}</span>
+                    <span className={isDark ? "text-white" : "text-black"}> / {activeTab.replace("_", " ")}</span>
                   )}
                 </a>
               </div>
-              <div className="hidden lg:block w-px h-5 bg-[#333333]" />
+              <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
               <div className="flex gap-2">
-                <span>Shoot Files :</span>
-                <span className="text-white font-medium">{shootFilesText}</span>
+                <span className="text-nowrap">Shoot Files :</span>
+                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
               </div>
             </div>
 
-            <div className="mt-2 lg:mt-4 text-sm lg:text-base text-[#AAAAAA] flex gap-2">
-              <span>Location :</span>
-              <span className="text-white font-medium">
+            <div className={`mt-2 lg:mt-4 text-sm lg:text-base flex gap-2 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
+              <span className="text-nowrap">Location :</span>
+              <span className={`${isDark ? "text-white" : "text-black"} font-medium whitespace-pre-wrap`}>
                 {getLocationText()}
               </span>
             </div>

@@ -111,8 +111,8 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
                 <button
                   onClick={() => handleSelect('grid')}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid'
-                      ? (isDark ? "bg-white/10 text-white" : "bg-[#F3F3F3] text-black")
-                      : (isDark ? "text-white/60 hover:bg-white/5" : "text-zinc-500 hover:bg-zinc-50")
+                    ? (isDark ? "bg-white/10 text-white" : "bg-[#F3F3F3] text-black")
+                    : (isDark ? "text-white/60 hover:bg-white/5" : "text-zinc-500 hover:bg-zinc-50")
                     }`}
                 >
                   <Grid3X3 size={18} />
@@ -121,8 +121,8 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
                 <button
                   onClick={() => handleSelect('list')}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list'
-                      ? (isDark ? "bg-white/10 text-white" : "bg-[#F3F3F3] text-black")
-                      : (isDark ? "text-white/60 hover:bg-white/5" : "text-zinc-500 hover:bg-zinc-50")
+                    ? (isDark ? "bg-white/10 text-white" : "bg-[#F3F3F3] text-black")
+                    : (isDark ? "text-white/60 hover:bg-white/5" : "text-zinc-500 hover:bg-zinc-50")
                     }`}
                 >
                   <List size={18} />
@@ -138,8 +138,8 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
             <button
               onClick={() => setViewMode("grid")}
               className={`p-2 rounded-md transition-all ${viewMode === "grid"
-                  ? "bg-[#E5D5B8] text-black shadow-sm"
-                  : (isDark ? "text-[#666666] hover:text-[#E0E0E0]" : "text-zinc-400 hover:text-zinc-600")
+                ? "bg-[#E5D5B8] text-black shadow-sm"
+                : (isDark ? "text-[#666666] hover:text-[#E0E0E0]" : "text-zinc-400 hover:text-zinc-600")
                 }`}
             >
               <LayoutGrid size={18} />
@@ -147,8 +147,8 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
             <button
               onClick={() => setViewMode("list")}
               className={`p-2 rounded-md transition-all ${viewMode === "list"
-                  ? "bg-[#E5D5B8] text-black shadow-sm"
-                  : (isDark ? "text-[#666666] hover:text-[#E0E0E0]" : "text-zinc-400 hover:text-zinc-600")
+                ? "bg-[#E5D5B8] text-black shadow-sm"
+                : (isDark ? "text-[#666666] hover:text-[#E0E0E0]" : "text-zinc-400 hover:text-zinc-600")
                 }`}
             >
               <List size={18} />
@@ -165,20 +165,18 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
               <div
                 key={folder.id}
                 onClick={() => setSelectedFolder(folder)}
-                className={`cursor-pointer border rounded-2xl overflow-hidden group transition-all ${
-                  isDark 
-                    ? "bg-[#111111] border-[#222222] hover:border-[#333333]" 
+                className={`cursor-pointer border rounded-2xl overflow-hidden group transition-all ${isDark
+                    ? "bg-[#111111] border-[#222222] hover:border-[#333333]"
                     : "bg-white border-[#E3E3E3] hover:shadow-md"
-                }`}
+                  }`}
               >
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <Folder className="text-[#E5D5B8] fill-[#E5D5B8] w-8 h-8" />
                       <div>
-                        <h3 className={`font-semibold text-base transition-colors ${
-                          isDark ? "text-[#E0E0E0] group-hover:text-[#E5D5B8]" : "text-[#171717] group-hover:text-black"
-                        }`}>
+                        <h3 className={`font-semibold text-base transition-colors ${isDark ? "text-[#E0E0E0] group-hover:text-[#E5D5B8]" : "text-[#171717] group-hover:text-black"
+                          }`}>
                           {folder.name}
                         </h3>
                         <p className={`text-xs mt-0.5 ${isDark ? "text-[#666666]" : "text-zinc-500"}`}>
@@ -186,10 +184,9 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
                         </p>
                       </div>
                     </div>
-                    <button 
-                      className={`p-2 rounded-full transition-colors ${
-                        isDark ? "text-[#666666] hover:text-white hover:bg-[#222222]" : "text-zinc-400 hover:text-black hover:bg-zinc-100"
-                      }`} 
+                    <button
+                      className={`p-2 rounded-full transition-colors ${isDark ? "text-[#666666] hover:text-white hover:bg-[#222222]" : "text-zinc-400 hover:text-black hover:bg-zinc-100"
+                        }`}
                       onClick={(e) => handleOpenMenu(e, folder.name)}
                     >
                       <MoreVertical size={20} />
@@ -197,9 +194,8 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
                   </div>
 
                   <div className="flex items-center gap-3 mt-6">
-                    <span className={`px-4 py-2 rounded-full text-xs border transition-colors ${
-                      isDark ? "bg-[#1A1A1A] border-[#222222] text-[#E0E0E0]" : "bg-zinc-50 border-zinc-200 text-zinc-600"
-                    }`}>
+                    <span className={`px-4 py-2 rounded-full text-xs border transition-colors ${isDark ? "bg-[#1A1A1A] border-[#222222] text-[#E0E0E0]" : "bg-zinc-50 border-zinc-200 text-zinc-600"
+                      }`}>
                       {folder.category}
                     </span>
                     {folder.linked && (
@@ -211,9 +207,8 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
                   </div>
                 </div>
 
-                <div className={`px-6 py-4 border-t flex items-center gap-3 transition-colors ${
-                  isDark ? "border-[#222222] bg-[#161616]/50" : "border-[#F0F0F0] bg-zinc-50/50"
-                }`}>
+                <div className={`px-6 py-4 border-t flex items-center gap-3 transition-colors ${isDark ? "border-[#222222] bg-[#161616]/50" : "border-[#F0F0F0] bg-zinc-50/50"
+                  }`}>
                   <div className="w-8 h-8 rounded-full bg-[#DBEAFE] text-[#1E3A8A] flex items-center justify-center text-xs font-semibold">
                     DP
                   </div>
@@ -222,17 +217,15 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
               </div>
             ))
           ) : (
-            <div className={`col-span-full border rounded-2xl overflow-hidden min-h-[400px] flex flex-col items-center justify-center transition-colors ${
-              isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#E3E3E3]"
-            }`}>
+            <div className={`col-span-full border rounded-2xl overflow-hidden min-h-[400px] flex flex-col items-center justify-center transition-colors ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#E3E3E3]"
+              }`}>
               <EmptyStateContent isDark={isDark} />
             </div>
           )}
         </div>
       ) : (
-        <div className={`border rounded-2xl overflow-hidden transition-colors ${
-          isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#E3E3E3]"
-        }`}>
+        <div className={`border rounded-2xl overflow-hidden transition-colors ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#E3E3E3]"
+          }`}>
           <table className="hidden lg:table w-full text-left">
             <thead>
               <tr className={`border-b ${isDark ? "border-[#222222]" : "border-[#F0F0F0]"}`}>
@@ -249,15 +242,13 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
                   <tr
                     key={folder.id}
                     onClick={() => setSelectedFolder(folder)}
-                    className={`cursor-pointer border-b last:border-0 transition-colors ${
-                      isDark ? "border-[#222222] hover:bg-[#161616]" : "border-[#F0F0F0] hover:bg-zinc-50"
-                    }`}
+                    className={`cursor-pointer border-b last:border-0 transition-colors ${isDark ? "border-[#222222] hover:bg-[#161616]" : "border-[#F0F0F0] hover:bg-zinc-50"
+                      }`}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
-                          isDark ? "bg-[#1A1A1A] border-[#222222]" : "bg-zinc-100 border-zinc-200"
-                        }`}>
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${isDark ? "bg-[#1A1A1A] border-[#222222]" : "bg-zinc-100 border-zinc-200"
+                          }`}>
                           <Folder size={20} className="text-[#999999]" />
                         </div>
                         <span className={`font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#171717]"}`}>{folder.name}</span>
@@ -275,10 +266,9 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
                       <span className={isDark ? "text-[#E0E0E0] text-sm" : "text-[#171717] text-sm"}>{folder.lastUpdated}</span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
-                        className={`p-2 rounded-full transition-colors ${
-                          isDark ? "text-[#666666] hover:text-white hover:bg-[#222222]" : "text-zinc-400 hover:text-black hover:bg-zinc-100"
-                        }`} 
+                      <button
+                        className={`p-2 rounded-full transition-colors ${isDark ? "text-[#666666] hover:text-white hover:bg-[#222222]" : "text-zinc-400 hover:text-black hover:bg-zinc-100"
+                          }`}
                         onClick={(e) => handleOpenMenu(e, folder.name)}
                       >
                         <MoreVertical size={18} />
@@ -435,9 +425,8 @@ function MobileFolderRow({
             <div className="col-span-1 pt-2 text-right">
               <button
                 onClick={(e) => onOpenMenu(e, folder.name)}
-                className={`inline-flex items-center justify-center w-10 h-8 border rounded-lg transition-colors ${
-                  isDark ? "border-white/10 text-white/60 active:bg-white/10" : "border-zinc-200 text-zinc-500 active:bg-black/10"
-                }`}
+                className={`inline-flex items-center justify-center w-10 h-8 border rounded-lg transition-colors ${isDark ? "border-white/10 text-white/60 active:bg-white/10" : "border-zinc-200 text-zinc-500 active:bg-black/10"
+                  }`}
               >
                 <MoreVertical size={18} />
               </button>
