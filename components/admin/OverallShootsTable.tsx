@@ -40,6 +40,65 @@ interface ShootRecord {
   status: Status;
 }
 
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  videographer: "Videography",
+  photographer: "Photography",
+  video_editor: "Video Editing",
+  photo_editor: "Photo Editing",
+  editor: "Editing",
+  cinematographer: "Cinematography",
+};
+
+const toTitleCase = (value: string) =>
+  value
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+
+const getShootCategoryLabel = (project: any) => {
+  if (typeof project.event_type_labels === "string" && project.event_type_labels.trim()) {
+    return project.event_type_labels.trim();
+  }
+
+  const labels = new Set<string>();
+
+  if (typeof project.content_type === "string" && project.content_type.trim()) {
+    project.content_type
+      .split(",")
+      .map((item: string) => item.trim().toLowerCase())
+      .filter(Boolean)
+      .forEach((item: string) => labels.add(CONTENT_TYPE_LABELS[item] || toTitleCase(item)));
+  }
+
+  if (!labels.size && typeof project.crew_roles === "string" && project.crew_roles.trim()) {
+    try {
+      const parsedCrewRoles = JSON.parse(project.crew_roles);
+      Object.keys(parsedCrewRoles || {}).forEach((role) => {
+        if (parsedCrewRoles[role]) {
+          labels.add(CONTENT_TYPE_LABELS[role] || toTitleCase(role));
+        }
+      });
+    } catch (error) {
+      console.warn("Failed to parse crew_roles for category label", error);
+    }
+  }
+
+  if (labels.size) {
+    return Array.from(labels).join(", ");
+  }
+
+  if (typeof project.event_type === "string" && project.event_type.trim()) {
+    return toTitleCase(project.event_type);
+  }
+
+  if (typeof project.shoot_type === "string" && project.shoot_type.trim()) {
+    return toTitleCase(project.shoot_type);
+  }
+
+  return "N/A";
+};
+
 const parseSkills = (skills: string | number[] | null | undefined, skillMap: Record<number, string>): string => {
   if (!skills) return "N/A";
 
@@ -127,7 +186,7 @@ export const OverallShootsTable = () => {
             customerName,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
-            category: project.event_type_labels || "N/A",
+            category: getShootCategoryLabel(project),
             price: project.total_paid_amount
               ? `$${parseFloat(project.total_paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               : project.budget
