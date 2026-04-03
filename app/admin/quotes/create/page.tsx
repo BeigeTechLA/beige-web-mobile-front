@@ -379,24 +379,24 @@ const resolveSelectedServiceContentTypeId = ({
   const selectedService =
     kind === "editing"
       ? availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) && isEditingServiceLabel(service.label),
-        ) ||
-        availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) && isVideoServiceLabel(service.label),
-        ) ||
-        availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) && isPhotoServiceLabel(service.label),
-        )
+        (service) =>
+          selectedIds.includes(service.id) && isEditingServiceLabel(service.label),
+      ) ||
+      availableServices.find(
+        (service) =>
+          selectedIds.includes(service.id) && isVideoServiceLabel(service.label),
+      ) ||
+      availableServices.find(
+        (service) =>
+          selectedIds.includes(service.id) && isPhotoServiceLabel(service.label),
+      )
       : availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) &&
-            (kind === "video"
-              ? isVideoServiceLabel(service.label)
-              : isPhotoServiceLabel(service.label)),
-        );
+        (service) =>
+          selectedIds.includes(service.id) &&
+          (kind === "video"
+            ? isVideoServiceLabel(service.label)
+            : isPhotoServiceLabel(service.label)),
+      );
 
   return getPositiveCatalogItemId(
     selectedService?.catalogItemId ??
@@ -536,9 +536,9 @@ const appendShootTypeOption = (
   currentOptions: ShootTypeOption[],
   nextOption: ShootTypeOption,
 ) => [
-  ...currentOptions.filter((option) => option.id !== nextOption.id),
-  nextOption,
-];
+    ...currentOptions.filter((option) => option.id !== nextOption.id),
+    nextOption,
+  ];
 
 const getQuoteHydrationKey = (
   quoteId: string,
@@ -590,10 +590,10 @@ const mapAiEditingTypeOptions = (
         item.isCustomEditingType === true ||
         Number(
           item.is_custom ??
-            item.isCustom ??
-            item.is_custom_editing_type ??
-            item.isCustomEditingType ??
-            0,
+          item.isCustom ??
+          item.is_custom_editing_type ??
+          item.isCustomEditingType ??
+          0,
         ) === 1;
       const isSystemDefault =
         Number(item.is_system_default ?? item.isSystemDefault ?? 0) === 1 ||
@@ -861,9 +861,11 @@ export default function CreateQuotePage() {
   const [discountValue, setDiscountValue] = useState<number | string>(0);
 
   // Step 7: Discount
-  const [selectedTax, setSelectedTax] = useState<0 | 5 | 8.5 | 10>(0);
+  // const [selectedTax, setSelectedTax] = useState<0 | 5 | 8.5 | 10>(0);
+  const [selectedTax, setSelectedTax] = useState<number>(0);
+  const [showCustomTax, setShowCustomTax] = useState<boolean>(false);
   const [taxRate, setTaxRate] = useState<number | string>(0);
-  const [taxtType, setTaxType] = useState("");
+  const [taxType, setTaxType] = useState("");
 
   // Configuration for each selected service
   const [serviceConfigs, setServiceConfigs] = useState<
@@ -1150,9 +1152,9 @@ export default function CreateQuotePage() {
         const nextEditingTypes =
           response && !response.error
             ? mapAiEditingTypeOptions(response.data, {
-                includeVideoTypes: true,
-                includePhotoTypes: true,
-              })
+              includeVideoTypes: true,
+              includePhotoTypes: true,
+            })
             : [];
         const mergedEditingTypes = editingTypeOptionsRef.current
           .filter((type) => type.isCustom)
@@ -1474,7 +1476,7 @@ export default function CreateQuotePage() {
                   (normalizedEditingKey &&
                     type.key.trim().toLowerCase() === normalizedEditingKey) ||
                   normalizeShootTypeLabelKey(type.label) ===
-                    normalizeShootTypeLabelKey(normalizedEditingLabel),
+                  normalizeShootTypeLabelKey(normalizedEditingLabel),
               );
 
               if (existingEditingType) {
@@ -2289,7 +2291,10 @@ export default function CreateQuotePage() {
   const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
-  const taxLabel = taxtType.trim() || "Sales Tax";
+  // const taxLabel = taxType.trim() || "Sales Tax";
+  const taxLabel = (selectedTax === -1 && taxType.trim())
+    ? taxType.trim()
+    : "Sales Tax";
   const canOpenQuoteSummary = hasQuoteSummaryContent({
     selectedClient,
     clientName,
@@ -2418,9 +2423,9 @@ export default function CreateQuotePage() {
     );
     const payload = isUpdatingExistingQuote
       ? {
-          ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
-          is_draft: action === "draft",
-        }
+        ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
+        is_draft: action === "draft",
+      }
       : action === "save"
         ? {
           ...basePayload,
@@ -3040,8 +3045,8 @@ export default function CreateQuotePage() {
         itemToDelete.type === "editing_type"
           ? await salesApi.deleteAiEditingType(itemToDelete.id)
           : itemToDelete.type === "shoot_type"
-          ? await salesApi.deleteShootType(itemToDelete.id)
-          : await salesApi.deleteQuoteCatalog(itemToDelete.id);
+            ? await salesApi.deleteShootType(itemToDelete.id)
+            : await salesApi.deleteQuoteCatalog(itemToDelete.id);
       if (res && !res.error) {
         toast.success(
           `${itemToDelete.type === "service" ? "Service" : itemToDelete.type === "addon" ? "Add-on" : itemToDelete.type === "logistics" ? "Logistics item" : itemToDelete.type === "shoot_type" ? "Shoot type" : itemToDelete.type === "editing_type" ? "Editing type" : "Line item"} deleted successfully`,
@@ -4890,20 +4895,20 @@ export default function CreateQuotePage() {
                       />
                     </div>
 
-                      <div className="my-6 flex flex-col gap-2">
-                        <div className="flex justify-between text-[#9F9FA9] ">
-                          <p>Subtotal</p>
-                          <p>{formatCurrency(quoteSubtotal)}</p>
-                        </div>
-                        <div className="flex justify-between text-[#E8D1AB] font-medium ">
-                          <p>Discount Applied </p>
-                          <p>- {formatCurrency(discountAmount)}</p>
-                        </div>
-                        <div className="flex justify-between text-[#9F9FA9] ">
-                          <p>Total After Discount</p>
-                          <p>{formatCurrency(discountedSubtotal)}</p>
-                        </div>
+                    <div className="my-6 flex flex-col gap-2">
+                      <div className="flex justify-between text-[#9F9FA9] ">
+                        <p>Subtotal</p>
+                        <p>{formatCurrency(quoteSubtotal)}</p>
                       </div>
+                      <div className="flex justify-between text-[#E8D1AB] font-medium ">
+                        <p>Discount Applied </p>
+                        <p>- {formatCurrency(discountAmount)}</p>
+                      </div>
+                      <div className="flex justify-between text-[#9F9FA9] ">
+                        <p>Total After Discount</p>
+                        <p>{formatCurrency(discountedSubtotal)}</p>
+                      </div>
+                    </div>
 
                     <div className="bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center ">
                       <span className="text-sm lg:text-xl font-medium text-white">
@@ -4948,22 +4953,21 @@ export default function CreateQuotePage() {
                   Common Tax Rates
                 </h3>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-3 lg:mt-6 ">
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mt-3 lg:mt-6 ">
                   <button
                     onClick={() => {
                       setSelectedTax(0);
+                      setShowCustomTax(false);
                       setTaxRate(0);
                     }}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 0
-                      // ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                      // : "bg-[#171717] border-[#222222] hover:border-[#333333]"
                       ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
                       : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                       }`}
                   >
                     <div>
                       <p
-                        className={`${selectedTax === 0 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
+                        className={`${(selectedTax === 0 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
                       >
                         0 %
                       </p>
@@ -4973,6 +4977,7 @@ export default function CreateQuotePage() {
                     onClick={() => {
                       setSelectedTax(5);
                       setTaxRate(5);
+                      setShowCustomTax(false);
                     }}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 5
                       ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner" : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"}
@@ -4980,7 +4985,7 @@ export default function CreateQuotePage() {
                   >
                     <div>
                       <p
-                        className={`${selectedTax === 5 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
+                        className={`${(selectedTax === 5 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
                       >
                         5 %
                       </p>
@@ -4990,6 +4995,7 @@ export default function CreateQuotePage() {
                     onClick={() => {
                       setSelectedTax(8.5);
                       setTaxRate(8.5);
+                      setShowCustomTax(false);
                     }}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 8.5
                       ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
@@ -4998,7 +5004,7 @@ export default function CreateQuotePage() {
                   >
                     <div>
                       <p
-                        className={`${selectedTax === 8.5 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
+                        className={`${(selectedTax === 8.5 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
                       >
                         8.5 %
                       </p>
@@ -5008,6 +5014,7 @@ export default function CreateQuotePage() {
                     onClick={() => {
                       setSelectedTax(10);
                       setTaxRate(10);
+                      setShowCustomTax(false);
                     }}
                     className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 10
                       ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
@@ -5015,13 +5022,90 @@ export default function CreateQuotePage() {
                       }`}
                   >
                     <div>
-                      <p className={`${selectedTax === 10 ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                      <p className={`${(selectedTax === 10 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
                         10 %
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCustomTax(true);
+                      setSelectedTax(-1);
+                    }}
+                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${showCustomTax
+                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                      }`}
+                  >
+                    <div>
+                      <p className={`${showCustomTax ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                        Add Custom Tax Rate
                       </p>
                     </div>
                   </button>
                 </div>
               </div>
+
+              {
+                showCustomTax &&
+                <>
+                  <hr className="border-t border-[#3D3D3D]" />
+                  <div className="w-full p-4 lg:p-8">
+                    <h2 className="text-base lg:text-lg font-medium text-white mb-4 lg:mb-6">
+                      Custom Tax Rate
+                    </h2>
+                    <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full">
+                      <div className="w-full relative">
+                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                          <span className="text-xs text-[#8A8A8A] font-normal">
+                            Tax Rate (%)
+                          </span>
+                        </div>
+                        <Input
+                          placeholder="0.00"
+                          value={taxRate === 0 || taxRate === "" ? "" : String(taxRate)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                              setTaxRate(val as any);
+
+                              const numericTax = parseFloat(val);
+                              if (!isNaN(numericTax)) {
+                                const presets = [0, 5, 8.5, 10];
+                                if (presets.includes(numericTax) && !val.endsWith(".")) {
+                                  setSelectedTax(numericTax as any);
+                                  setShowCustomTax(false);
+                                } else {
+                                  setSelectedTax(-1);
+                                  setShowCustomTax(true);
+                                }
+                              }
+                            }
+                          }}
+                          // Clean up the value when the user clicks away
+                          onBlur={() => {
+                            setTaxRate(parseFloat(taxRate.toString()) || 0);
+                          }}
+                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        />
+                      </div>
+                      <div className="w-full relative">
+                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                          <span className="text-xs text-[#8A8A8A] font-normal">
+                            Tax Type
+                          </span>
+                        </div>
+                        <Input
+                          placeholder="Sales Tax"
+                          value={taxType}
+                          onChange={(e) => setTaxType(e.target.value)}
+                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              }
 
               <hr className="border-t border-[#3D3D3D]" />
               <div className="p-4 lg:p-8">
@@ -5041,25 +5125,25 @@ export default function CreateQuotePage() {
                     </span>
                   </div>
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm lg:text-base text-[#9F9FA9]">
-                        Discount Applied
-                      </span>
-                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                        - {formatCurrency(discountAmount)}
-                      </span>
-                    </div>
-                    <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
-                    <div className="flex justify-between items-center ">
-                      <span className="text-sm lg:text-base text-[#9F9FA9]">Total After Discount</span>
-                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                        {formatCurrency(discountedSubtotal)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center ">
-                      <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
-                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                        {formatCurrency(taxAmount)}
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">
+                      Discount Applied
+                    </span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      - {formatCurrency(discountAmount)}
+                    </span>
+                  </div>
+                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                  <div className="flex justify-between items-center ">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">Total After Discount</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      {formatCurrency(discountedSubtotal)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center ">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      {formatCurrency(taxAmount)}
                     </span>
                   </div>
 
@@ -5081,75 +5165,6 @@ export default function CreateQuotePage() {
                     <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
                       {formatCurrency(totalAfterDiscount)}
                     </span>
-                  </div>
-                </div>
-              </div>
-
-              <hr className="border-t border-[#3D3D3D]" />
-              <div className="w-full p-4 lg:p-8">
-                <h2 className="text-base lg:text-lg font-medium text-white mb-4 lg:mb-6">
-                  Custom Tax Rate
-                </h2>
-                <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full">
-                  <div className="w-full relative">
-                    <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                      <span className="text-xs text-[#8A8A8A] font-normal">
-                        Tax Rate (%)
-                      </span>
-                    </div>
-                    <Input
-                      placeholder="0.00"
-                      // value={taxRate}
-                      // onChange={(e) => {
-                      //   const nextTaxRate = parseFloat(e.target.value) || 0;
-                      //   const presetTaxRate =
-                      //     nextTaxRate === 5 ||
-                      //       nextTaxRate === 8.5 ||
-                      //       nextTaxRate === 10
-                      //       ? (nextTaxRate as 5 | 8.5 | 10)
-                      //       : 0;
-                      //   setTaxRate(nextTaxRate);
-                      //   setSelectedTax(presetTaxRate);
-                      // }}
-                      value={
-                        (taxRate as any) === 0 || (taxRate as any) === ""
-                          ? ""
-                          : taxRate.toString()
-                      }
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                          setTaxRate(val as any);
-                          // Logic for Presets: Only trigger preset selection for valid numbers
-                          const numericTax = parseFloat(val);
-                          if (!isNaN(numericTax)) {
-                            const presetTaxRate =
-                              numericTax === 5 || numericTax === 8.5 || numericTax === 10
-                                ? (numericTax as 5 | 8.5 | 10)
-                                : 0;
-                            setSelectedTax(presetTaxRate);
-                          }
-                        }
-                      }}
-                      // Clean up the value when the user clicks away
-                      onBlur={() => {
-                        setTaxRate(parseFloat(taxRate.toString()) || 0);
-                      }}
-                      className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                    />
-                  </div>
-                  <div className="w-full relative">
-                    <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                      <span className="text-xs text-[#8A8A8A] font-normal">
-                        Tax Type
-                      </span>
-                    </div>
-                    <Input
-                      placeholder="Sales Tax"
-                      value={taxtType}
-                      onChange={(e) => setTaxType(e.target.value)}
-                      className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                    />
                   </div>
                 </div>
               </div>
