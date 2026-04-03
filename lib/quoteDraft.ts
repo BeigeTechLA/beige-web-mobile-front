@@ -9,6 +9,7 @@ type QuoteDraftCatalogItem = {
   label?: string;
   price?: number;
   basePrice?: number;
+  sourceType?: "custom" | "catalog";
 };
 
 type QuoteDraftClient = {
@@ -23,6 +24,8 @@ type QuoteDraftClient = {
 type QuoteDraftShootType = {
   id: string | number;
   label?: string;
+  key?: string;
+  isCustom?: boolean;
 };
 
 type QuoteDraftServiceConfig = {
@@ -30,6 +33,12 @@ type QuoteDraftServiceConfig = {
   duration: number;
   crewSize: number;
   estimatedPrice: number;
+};
+
+type QuoteDraftLineItemConfiguration = {
+  editing_type_key: string;
+  editing_type_label: string;
+  is_custom_editing_type: boolean;
 };
 
 type QuoteDraftAddonConfig = {
@@ -51,7 +60,7 @@ export interface QuoteDraftPayload {
   project_description?: string;
   video_shoot_type?: string;
   quote_validity_days?: number;
-  discount_type?: "percentage" | "fixed";
+  discount_type?: "percentage" | "fixed_amount";
   discount_value?: number;
   tax_type?: string;
   tax_rate?: number;
@@ -60,8 +69,8 @@ export interface QuoteDraftPayload {
 }
 
 export interface QuoteUpdatePayload
-  extends Omit<QuoteDraftPayload, "pricing_mode" | "discount_type"> {
-  discount_type?: "percentage" | "fixed_amount";
+  extends QuoteDraftPayload {
+  is_draft?: boolean;
 }
 
 type QuoteDraftLineItem = {
@@ -75,6 +84,7 @@ type QuoteDraftLineItem = {
   duration_hours?: number;
   crew_size?: number;
   estimated_pricing?: number;
+  configuration?: QuoteDraftLineItemConfiguration;
 };
 
 export interface BuildQuoteDraftPayloadInput {
@@ -93,6 +103,8 @@ export interface BuildQuoteDraftPayloadInput {
   normalizedTaxRate: number;
   selectedShootType: string;
   shootTypes: QuoteDraftShootType[];
+  selectedEditingType: string;
+  editingTypeOptions: QuoteDraftShootType[];
   selectedServices: string[];
   services: QuoteDraftCatalogItem[];
   serviceConfigs: Record<string, QuoteDraftServiceConfig>;
@@ -150,7 +162,13 @@ export function buildQuoteDraftPayload(
 
   const lineItems: QuoteDraftLineItem[] = [
     ...(includeServices
-      ? buildServiceItems(input.selectedServices, input.services, input.serviceConfigs)
+      ? buildServiceItems(
+          input.selectedServices,
+          input.services,
+          input.serviceConfigs,
+          input.selectedEditingType,
+          input.editingTypeOptions
+        )
       : []),
     ...(includeAddons
       ? buildAddonItems(input.selectedAddons, input.addons, input.appliedAddonConfigs)
@@ -185,7 +203,8 @@ export function buildQuoteDraftPayload(
   }
 
   if (includeDiscounts) {
-    payload.discount_type = input.discountType;
+    payload.discount_type =
+      input.discountType === "fixed" ? "fixed_amount" : "percentage";
     payload.discount_value = input.discountEnabled ? normalizeNumber(input.discountValue) : 0;
   }
 
@@ -210,30 +229,40 @@ export function buildQuoteUpdatePayload(
   input: BuildQuoteDraftPayloadInput
 ): QuoteUpdatePayload {
   const draftPayload = buildQuoteDraftPayload(input);
-  const updatePayload = {
-    ...draftPayload,
-  } as Partial<QuoteDraftPayload>;
-  const discountType = updatePayload.discount_type;
-
-  delete updatePayload.pricing_mode;
-  delete updatePayload.discount_type;
-
   return {
-    ...(updatePayload as QuoteUpdatePayload),
-    ...(discountType
-      ? {
-          discount_type:
-            discountType === "fixed" ? "fixed_amount" : "percentage",
-        }
-      : {}),
+    ...draftPayload,
+    line_items: draftPayload.line_items?.map((lineItem) => {
+      if (!lineItem.configuration) {
+        return lineItem;
+      }
+
+      return {
+        ...lineItem,
+        configuration: lineItem.configuration.is_custom_editing_type
+          ? {
+              editing_type_label: lineItem.configuration.editing_type_label,
+              is_custom_editing_type: true,
+            }
+          : {
+              editing_type_key: lineItem.configuration.editing_type_key,
+              is_custom_editing_type: false,
+            },
+      };
+    }),
   };
 }
 
 function buildServiceItems(
   selectedServices: string[],
   services: QuoteDraftCatalogItem[],
-  serviceConfigs: Record<string, QuoteDraftServiceConfig>
+  serviceConfigs: Record<string, QuoteDraftServiceConfig>,
+  selectedEditingType: string,
+  editingTypeOptions: QuoteDraftShootType[]
 ): QuoteDraftLineItem[] {
+  const selectedEditingTypeOption = editingTypeOptions.find(
+    (option) => String(option.id) === String(selectedEditingType)
+  );
+
   return selectedServices
     .map((serviceId) => {
       const service = services.find((item) => String(item.id) === serviceId);
@@ -249,6 +278,18 @@ function buildServiceItems(
         0,
         normalizeNumber(config.estimatedPrice || service.price)
       );
+      const serviceLabel = service.label?.trim() || "";
+      const editingConfiguration =
+        isEditingServiceLabel(serviceLabel) &&
+        selectedEditingTypeOption?.label?.trim()
+          ? {
+              editing_type_key:
+                selectedEditingTypeOption.key?.trim() ||
+                buildEditingTypeKey(selectedEditingTypeOption.label),
+              editing_type_label: selectedEditingTypeOption.label.trim(),
+              is_custom_editing_type: Boolean(selectedEditingTypeOption.isCustom),
+            }
+          : undefined;
 
       if (catalogItemId) {
         return {
@@ -258,6 +299,7 @@ function buildServiceItems(
           duration_hours: Math.max(0, normalizeNumber(config.duration)),
           crew_size: Math.max(1, normalizeNumber(config.crewSize)),
           estimated_pricing: estimatedPricing,
+          ...(editingConfiguration ? { configuration: editingConfiguration } : {}),
         };
       }
 
@@ -271,9 +313,25 @@ function buildServiceItems(
         duration_hours: Math.max(0, normalizeNumber(config.duration)),
         crew_size: Math.max(1, normalizeNumber(config.crewSize)),
         estimated_pricing: estimatedPricing,
+        ...(editingConfiguration ? { configuration: editingConfiguration } : {}),
       };
     })
     .filter((item): item is QuoteDraftLineItem => item !== null);
+}
+
+function isEditingServiceLabel(label: string) {
+  return /\bedit(?:ing)?\b/.test(label.trim().toLowerCase());
+}
+
+function buildEditingTypeKey(label?: string) {
+  const normalizedLabel = (label || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return normalizedLabel || "custom_editing_type";
 }
 
 function buildAddonItems(
@@ -325,8 +383,21 @@ function buildSimpleItems(
         normalizeNumber(appliedConfigs[String(item.id)]?.price ?? item.basePrice ?? item.price)
       );
       const catalogItemId = getPositiveInteger(item.id);
+      const isCustomItem = item.sourceType === "custom" || !catalogItemId;
 
-      if (catalogItemId) {
+      if (sectionType === "custom") {
+        return {
+          ...(catalogItemId ? { catalog_item_id: catalogItemId } : {}),
+          source_type: "custom",
+          section_type: sectionType,
+          item_name: item.label?.trim() || "Custom Item",
+          rate_type: "flat",
+          unit_rate: price,
+          quantity: 1,
+        };
+      }
+
+      if (!isCustomItem && catalogItemId) {
         return {
           catalog_item_id: catalogItemId,
           section_type: sectionType,
@@ -337,7 +408,7 @@ function buildSimpleItems(
       return {
         source_type: "custom",
         section_type: sectionType,
-        item_name: item.label || "Custom Item",
+        item_name: item.label?.trim() || "Custom Item",
         rate_type: "flat",
         unit_rate: price,
         quantity: 1,

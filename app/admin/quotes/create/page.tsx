@@ -33,8 +33,14 @@ import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
+import QuoteSummaryModal from "@/components/quotes/QuoteSummaryModal";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { formatQuoteItemDisplayName } from "@/lib/quoteDetail";
+import {
+  extractQuoteLineItems,
+  formatQuoteItemDisplayName,
+  getQuoteLineItemEditingTypeConfiguration,
+  getQuoteLineItemEditingTypeLabel,
+} from "@/lib/quoteDetail";
 import {
   buildQuoteEditorHydrationState,
   normalizeQuoteEditorView,
@@ -45,13 +51,13 @@ import {
   buildQuoteUpdatePayload,
 } from "@/lib/quoteDraft";
 import {
-  ADMIN_QUOTE_SUMMARY_STORAGE_KEY,
   buildQuoteSummarySnapshot,
+  hasQuoteSummaryContent,
   getQuoteValidationMessage,
-  persistQuoteSummarySnapshot,
   validateQuoteForReview,
   validateQuoteStep,
   buildPreviewQuoteFromSummary,
+  type QuoteSummarySnapshot,
 } from "@/lib/quoteSummary";
 import {
   extractQuoteIdFromResponse,
@@ -81,15 +87,53 @@ type ShootTypeApiItem = {
   projectTypeId?: string | number | null;
   quote_shoot_type_id?: string | number | null;
   name?: string | null;
+  label?: string | null;
+  editing_type_label?: string | null;
+  editingTypeLabel?: string | null;
+  editing_type_key?: string | null;
+  editingTypeKey?: string | null;
+  key?: string | null;
+  slug?: string | null;
   created_at?: string | null;
   is_system_default?: string | number | boolean | null;
+  is_custom_editing_type?: string | number | boolean | null;
+  isCustomEditingType?: string | number | boolean | null;
   isSystemDefault?: string | number | boolean | null;
+  value?: string | null;
+  note?: string | null;
+};
+
+type AiEditingTypeApiItem = {
+  ai_editing_type_id?: string | number | null;
+  editing_type_id?: string | number | null;
+  id?: string | number | null;
+  key?: string | null;
+  value?: string | null;
+  label?: string | null;
+  note?: string | null;
+  category?: string | null;
+  type?: string | null;
+  created_at?: string | null;
+  is_custom?: string | number | boolean | null;
+  isCustom?: string | number | boolean | null;
+  is_custom_editing_type?: string | number | boolean | null;
+  isCustomEditingType?: string | number | boolean | null;
+  is_system_default?: string | number | boolean | null;
+  isSystemDefault?: string | number | boolean | null;
+};
+
+type AiEditingTypesApiResponse = {
+  video_edit_types?: AiEditingTypeApiItem[] | null;
+  photo_edit_types?: AiEditingTypeApiItem[] | null;
 };
 
 type ShootTypeOption = {
   id: string;
   apiId: string | null;
   label: string;
+  key: string;
+  category?: "video" | "photo";
+  isCustom: boolean;
   createdAt: string | null;
   isSystemDefault: boolean;
   originalIndex: number;
@@ -247,6 +291,33 @@ const resolveShootTypeId = (item: ShootTypeApiItem, idx: number) => {
   return resolveShootTypeApiId(item) ?? `st-${idx}`;
 };
 
+const buildEditingTypeKey = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "custom_editing_type";
+
+const resolveShootTypeLabel = (item: ShootTypeApiItem) =>
+  item.name?.trim() ||
+  item.label?.trim() ||
+  item.editing_type_label?.trim() ||
+  item.editingTypeLabel?.trim() ||
+  "";
+
+const resolveEditingTypeKey = (item: ShootTypeApiItem, label: string) =>
+  item.editing_type_key?.trim() ||
+  item.editingTypeKey?.trim() ||
+  item.key?.trim() ||
+  item.slug?.trim() ||
+  buildEditingTypeKey(label);
+
+const isCustomEditingTypeOption = (item: ShootTypeApiItem) =>
+  item.is_custom_editing_type === true ||
+  item.isCustomEditingType === true ||
+  Number(item.is_custom_editing_type ?? item.isCustomEditingType ?? 0) === 1;
+
 const isValidShootTypeId = (id: string | number) => {
   const numericId = Number(id);
   return Number.isInteger(numericId) && numericId > 0;
@@ -305,15 +376,27 @@ const resolveSelectedServiceContentTypeId = ({
     catalog_item_id?: string | number | null;
   }>;
 }) => {
-  const matcher =
-    kind === "video"
-      ? isVideoServiceLabel
-      : kind === "photo"
-        ? isPhotoServiceLabel
-        : isEditingServiceLabel;
-  const selectedService = availableServices.find(
-    (service) => selectedIds.includes(service.id) && matcher(service.label),
-  );
+  const selectedService =
+    kind === "editing"
+      ? availableServices.find(
+          (service) =>
+            selectedIds.includes(service.id) && isEditingServiceLabel(service.label),
+        ) ||
+        availableServices.find(
+          (service) =>
+            selectedIds.includes(service.id) && isVideoServiceLabel(service.label),
+        ) ||
+        availableServices.find(
+          (service) =>
+            selectedIds.includes(service.id) && isPhotoServiceLabel(service.label),
+        )
+      : availableServices.find(
+          (service) =>
+            selectedIds.includes(service.id) &&
+            (kind === "video"
+              ? isVideoServiceLabel(service.label)
+              : isPhotoServiceLabel(service.label)),
+        );
 
   return getPositiveCatalogItemId(
     selectedService?.catalogItemId ??
@@ -331,11 +414,14 @@ const resolveServiceShootTypeKind = (label: string): ShootTypeKind | null => {
 const mapShootTypeOptions = (items: ShootTypeApiItem[]): ShootTypeOption[] => {
   const mappedShootTypes = items.map((item, idx) => {
     const apiId = resolveShootTypeApiId(item);
+    const label = resolveShootTypeLabel(item);
 
     return {
       id: apiId ?? resolveShootTypeId(item, idx),
       apiId,
-      label: item.name || "",
+      label,
+      key: resolveEditingTypeKey(item, label),
+      isCustom: isCustomEditingTypeOption(item),
       createdAt: item.created_at || null,
       isSystemDefault: isSystemDefaultShootType(item),
       originalIndex: idx,
@@ -439,6 +525,120 @@ const mergeShootTypeOptions = (
       Number.isFinite(bNumericId) &&
       aNumericId !== bNumericId
     ) {
+      return aNumericId - bNumericId;
+    }
+
+    return a.originalIndex - b.originalIndex;
+  });
+};
+
+const appendShootTypeOption = (
+  currentOptions: ShootTypeOption[],
+  nextOption: ShootTypeOption,
+) => [
+  ...currentOptions.filter((option) => option.id !== nextOption.id),
+  nextOption,
+];
+
+const getQuoteHydrationKey = (
+  quoteId: string,
+  quote: SalesQuoteDetailData | null,
+) => `${quoteId}:${quote?.updated_at ?? quote?.created_at ?? "base"}`;
+
+const mapAiEditingTypeOptions = (
+  data: unknown,
+  {
+    includeVideoTypes,
+    includePhotoTypes,
+  }: {
+    includeVideoTypes: boolean;
+    includePhotoTypes: boolean;
+  },
+): ShootTypeOption[] => {
+  if (Array.isArray(data)) {
+    return mapShootTypeOptions(data as ShootTypeApiItem[]);
+  }
+
+  if (!data || typeof data !== "object") {
+    return [];
+  }
+
+  const response = data as AiEditingTypesApiResponse;
+  const rawOptions: ShootTypeOption[] = [];
+
+  const appendOptions = (
+    items: AiEditingTypeApiItem[] | null | undefined,
+    prefix: "video" | "photo",
+  ) => {
+    (items || []).forEach((item, index) => {
+      const label = item.value?.trim() || item.label?.trim() || "";
+      if (!label) {
+        return;
+      }
+
+      const apiIdSource =
+        item.ai_editing_type_id ?? item.editing_type_id ?? item.id;
+      const numericApiId = Number(apiIdSource);
+      const apiId =
+        Number.isInteger(numericApiId) && numericApiId > 0
+          ? String(numericApiId)
+          : null;
+      const isCustom =
+        item.is_custom === true ||
+        item.isCustom === true ||
+        item.is_custom_editing_type === true ||
+        item.isCustomEditingType === true ||
+        Number(
+          item.is_custom ??
+            item.isCustom ??
+            item.is_custom_editing_type ??
+            item.isCustomEditingType ??
+            0,
+        ) === 1;
+      const isSystemDefault =
+        Number(item.is_system_default ?? item.isSystemDefault ?? 0) === 1 ||
+        (!apiId && !isCustom);
+      const resolvedIsCustom =
+        isCustom || (Boolean(apiId) && !isSystemDefault);
+      const optionKey = item.key?.trim() || buildEditingTypeKey(label);
+      rawOptions.push({
+        id: apiId ?? `${prefix}_${optionKey}_${index}`,
+        apiId,
+        label,
+        key: optionKey,
+        category: prefix,
+        isCustom: resolvedIsCustom,
+        createdAt: item.created_at || null,
+        isSystemDefault,
+        originalIndex: rawOptions.length,
+      });
+    });
+  };
+
+  if (includeVideoTypes) {
+    appendOptions(response.video_edit_types, "video");
+  }
+
+  if (includePhotoTypes) {
+    appendOptions(response.photo_edit_types, "photo");
+  }
+
+  return [...rawOptions].sort((a, b) => {
+    if (a.isCustom !== b.isCustom) {
+      return a.isCustom ? 1 : -1;
+    }
+
+    const aCreatedAt = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
+    const bCreatedAt = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
+
+    if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+      return aCreatedAt - bCreatedAt;
+    }
+
+    const aNumericId = Number(a.apiId ?? a.id);
+    const bNumericId = Number(b.apiId ?? b.id);
+
+    if (Number.isFinite(aNumericId) && Number.isFinite(bNumericId) && aNumericId !== bNumericId) {
       return aNumericId - bNumericId;
     }
 
@@ -693,7 +893,13 @@ export default function CreateQuotePage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{
     id: string;
-    type: "service" | "addon" | "logistics" | "line_item" | "shoot_type";
+    type:
+    | "service"
+    | "addon"
+    | "logistics"
+    | "line_item"
+    | "shoot_type"
+    | "editing_type";
     label: string;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -702,6 +908,9 @@ export default function CreateQuotePage() {
   );
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [quoteSummarySnapshot, setQuoteSummarySnapshot] =
+    useState<QuoteSummarySnapshot | null>(null);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [quoteToEdit, setQuoteToEdit] =
     React.useState<SalesQuoteDetailData | null>(null);
   const [isLoadingQuoteToEdit, setIsLoadingQuoteToEdit] = React.useState(false);
@@ -714,6 +923,7 @@ export default function CreateQuotePage() {
   const addonsRef = React.useRef(addons);
   const logisticsItemsRef = React.useRef(logisticsItems);
   const lineItemsRef = React.useRef(lineItems);
+  const editingTypeOptionsRef = React.useRef(editingTypeOptions);
 
   const fetchClients = async (query?: string) => {
     setLoadingClients(true);
@@ -782,7 +992,8 @@ export default function CreateQuotePage() {
     addonsRef.current = addons;
     logisticsItemsRef.current = logisticsItems;
     lineItemsRef.current = lineItems;
-  }, [addons, lineItems, logisticsItems, services]);
+    editingTypeOptionsRef.current = editingTypeOptions;
+  }, [addons, editingTypeOptions, lineItems, logisticsItems, services]);
 
   const fetchShootTypes = React.useCallback(
     async (
@@ -914,20 +1125,20 @@ export default function CreateQuotePage() {
           availableServices.find((service) => service.id === id)?.label || "",
         ),
       );
+      const hasVideoService = ids.some((id) =>
+        isVideoServiceLabel(
+          availableServices.find((service) => service.id === id)?.label || "",
+        ),
+      );
+      const hasPhotoService = ids.some((id) =>
+        isPhotoServiceLabel(
+          availableServices.find((service) => service.id === id)?.label || "",
+        ),
+      );
+      const hasEditingTypeContext =
+        hasEditingService || hasVideoService || hasPhotoService;
 
-      if (!hasEditingService) {
-        setEditingTypeOptions([]);
-        setSelectedEditingType("");
-        return [] as ShootTypeOption[];
-      }
-
-      const editingContentTypeId = resolveSelectedServiceContentTypeId({
-        kind: "editing",
-        selectedIds: ids,
-        availableServices,
-      });
-
-      if (!editingContentTypeId) {
+      if (!hasEditingTypeContext) {
         setEditingTypeOptions([]);
         setSelectedEditingType("");
         return [] as ShootTypeOption[];
@@ -935,24 +1146,34 @@ export default function CreateQuotePage() {
 
       setLoadingEditingTypes(true);
       try {
-        const response = await salesApi.getShootTypes(editingContentTypeId);
+        const response = await salesApi.getAiEditingTypes();
         const nextEditingTypes =
-          response && !response.error && Array.isArray(response.data)
-            ? mapShootTypeOptions(response.data as ShootTypeApiItem[])
+          response && !response.error
+            ? mapAiEditingTypeOptions(response.data, {
+                includeVideoTypes: true,
+                includePhotoTypes: true,
+              })
             : [];
+        const mergedEditingTypes = editingTypeOptionsRef.current
+          .filter((type) => type.isCustom)
+          .reduce(
+            (mergedOptions, customType) =>
+              appendShootTypeOption(mergedOptions, customType),
+            nextEditingTypes,
+          );
 
-        setEditingTypeOptions(nextEditingTypes);
+        setEditingTypeOptions(mergedEditingTypes);
         setSelectedEditingType((currentValue) => {
-          if (nextEditingTypes.length === 0) {
+          if (mergedEditingTypes.length === 0) {
             return "";
           }
 
-          return nextEditingTypes.some((type) => type.id === currentValue)
+          return mergedEditingTypes.some((type) => type.id === currentValue)
             ? currentValue
-            : nextEditingTypes[0].id;
+            : mergedEditingTypes[0].id;
         });
 
-        return nextEditingTypes;
+        return mergedEditingTypes;
       } catch (error) {
         console.error("Failed to fetch editing types", error);
       } finally {
@@ -1034,15 +1255,17 @@ export default function CreateQuotePage() {
       return;
     }
 
+    const hydrationKey = getQuoteHydrationKey(editQuoteId, quoteToEdit);
+
     if (
-      hydratedQuoteIdRef.current === editQuoteId ||
-      hydratingQuoteIdRef.current === editQuoteId
+      hydratedQuoteIdRef.current === hydrationKey ||
+      hydratingQuoteIdRef.current === hydrationKey
     ) {
       return;
     }
 
     let isMounted = true;
-    hydratingQuoteIdRef.current = editQuoteId;
+    hydratingQuoteIdRef.current = hydrationKey;
     setIsHydratingQuoteToEdit(true);
 
     const hydrateQuoteEditor = async () => {
@@ -1135,6 +1358,10 @@ export default function CreateQuotePage() {
                 ?.label || "",
             ),
           ) || hydratedState.selectedServices.includes("ai_editing");
+        const hydratedHasEditingTypeContext =
+          hydratedHasVideoService ||
+          hydratedHasPhotoService ||
+          hydratedHasEditingService;
         const parsedShootTypeLabels = parseStoredShootTypeLabels(
           hydratedState.shootTypeLabel,
         );
@@ -1182,6 +1409,8 @@ export default function CreateQuotePage() {
                 id: fallbackShootTypeId,
                 apiId: null,
                 label: normalizedLabel,
+                key: buildEditingTypeKey(normalizedLabel),
+                isCustom: false,
                 createdAt: quoteToEdit.created_at || null,
                 isSystemDefault: false,
                 originalIndex: prev.length,
@@ -1207,14 +1436,29 @@ export default function CreateQuotePage() {
           );
         }
 
-        if (hydratedHasEditingService) {
+        if (hydratedHasEditingTypeContext) {
+          const savedEditingConfiguration =
+            extractQuoteLineItems(quoteToEdit)
+              .map((lineItem) => getQuoteLineItemEditingTypeConfiguration(lineItem))
+              .find((item) => Boolean(item)) || null;
+          const savedEditingLabel =
+            savedEditingConfiguration?.editingTypeLabel ||
+            extractQuoteLineItems(quoteToEdit)
+              .map((lineItem) => getQuoteLineItemEditingTypeLabel(lineItem))
+              .find(Boolean) || "";
           const editingLabel =
-            parsedShootTypeLabels.editing || hydratedState.shootTypeLabel;
+            savedEditingLabel ||
+            parsedShootTypeLabels.editing ||
+            hydratedState.shootTypeLabel;
           const normalizedEditingLabel = editingLabel.trim();
+          const normalizedEditingKey =
+            savedEditingConfiguration?.editingTypeKey?.trim().toLowerCase() || "";
 
           if (normalizedEditingLabel) {
             const matchedEditingType = availableEditingTypes.find(
               (type) =>
+                (normalizedEditingKey &&
+                  type.key.trim().toLowerCase() === normalizedEditingKey) ||
                 normalizeShootTypeLabelKey(type.label) ===
                 normalizeShootTypeLabelKey(normalizedEditingLabel),
             );
@@ -1222,6 +1466,22 @@ export default function CreateQuotePage() {
             if (matchedEditingType) {
               setSelectedEditingType(matchedEditingType.id);
             } else {
+              const existingEditingType = [
+                ...availableEditingTypes,
+                ...editingTypeOptionsRef.current,
+              ].find(
+                (type) =>
+                  (normalizedEditingKey &&
+                    type.key.trim().toLowerCase() === normalizedEditingKey) ||
+                  normalizeShootTypeLabelKey(type.label) ===
+                    normalizeShootTypeLabelKey(normalizedEditingLabel),
+              );
+
+              if (existingEditingType) {
+                setSelectedEditingType(existingEditingType.id);
+                return;
+              }
+
               const fallbackEditingTypeId = `edit_editing_shoot_type_${editQuoteId}`;
 
               setEditingTypeOptions((prev) => {
@@ -1235,6 +1495,11 @@ export default function CreateQuotePage() {
                     id: fallbackEditingTypeId,
                     apiId: null,
                     label: normalizedEditingLabel,
+                    key:
+                      savedEditingConfiguration?.editingTypeKey ||
+                      buildEditingTypeKey(normalizedEditingLabel),
+                    isCustom:
+                      savedEditingConfiguration?.isCustomEditingType ?? true,
                     createdAt: quoteToEdit.created_at || null,
                     isSystemDefault: false,
                     originalIndex: prev.length,
@@ -1247,12 +1512,12 @@ export default function CreateQuotePage() {
         }
 
         setView(requestedEditView);
-        hydratedQuoteIdRef.current = editQuoteId;
+        hydratedQuoteIdRef.current = hydrationKey;
       } catch (error) {
         console.error("Failed to hydrate quote editor", error);
         toast.error("Failed to preload quote details");
       } finally {
-        if (hydratingQuoteIdRef.current === editQuoteId) {
+        if (hydratingQuoteIdRef.current === hydrationKey) {
           hydratingQuoteIdRef.current = null;
         }
 
@@ -1277,7 +1542,10 @@ export default function CreateQuotePage() {
   ]);
 
   React.useEffect(() => {
-    if (!editQuoteId || hydratedQuoteIdRef.current !== editQuoteId) {
+    if (
+      !editQuoteId ||
+      !hydratedQuoteIdRef.current?.startsWith(`${editQuoteId}:`)
+    ) {
       return;
     }
 
@@ -1842,7 +2110,6 @@ export default function CreateQuotePage() {
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction =
     view === "tax" ? quoteReviewValidation.isValid : canContinueToNextStep;
-  const canOpenQuoteSummary = quoteReviewValidation.isValid;
 
   const handleContinue = async () => {
     if (!currentStepValidation.isValid) {
@@ -1935,6 +2202,8 @@ export default function CreateQuotePage() {
       (id) =>
         isEditingServiceLabel(services.find((s) => s.id === id)?.label || ""),
     ) || selectedServices.includes("ai_editing");
+  const hasEditingTypeContext =
+    hasVideoService || hasPhotoService || hasEditingService;
   const selectedVideoShootTypeLabel = getSelectedShootTypeLabel(
     videoShootTypes,
     selectedVideoShootType,
@@ -1950,7 +2219,7 @@ export default function CreateQuotePage() {
   const storedShootTypeLabel = buildStoredShootTypeLabel({
     hasVideoService,
     hasPhotoService,
-    hasEditingService,
+    hasEditingService: hasEditingTypeContext,
     videoShootTypeLabel: selectedVideoShootTypeLabel,
     photoShootTypeLabel: selectedPhotoShootTypeLabel,
     editingShootTypeLabel: selectedEditingTypeLabel,
@@ -1993,7 +2262,7 @@ export default function CreateQuotePage() {
   }, [activeShootTypeForm, hasPhotoService, hasVideoService]);
 
   React.useEffect(() => {
-    if (hasEditingService) {
+    if (hasEditingTypeContext) {
       return;
     }
 
@@ -2001,7 +2270,7 @@ export default function CreateQuotePage() {
     setEditingTypeOptions([]);
     setCustomEditingType("");
     setShowAddEditingTypeForm(false);
-  }, [hasEditingService]);
+  }, [hasEditingTypeContext]);
 
   const quoteSubtotal =
     totalServicesCost +
@@ -2021,6 +2290,23 @@ export default function CreateQuotePage() {
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
   const taxLabel = taxtType.trim() || "Sales Tax";
+  const canOpenQuoteSummary = hasQuoteSummaryContent({
+    selectedClient,
+    clientName,
+    emailId,
+    phoneNumber,
+    address,
+    projectDescription,
+    validUntil,
+    selectedShootType: quoteDraftSelectedShootType,
+    selectedServices,
+    selectedAddons,
+    logisticsItems,
+    lineItems,
+    discountEnabled,
+    discountValue,
+    normalizedTaxRate,
+  });
   const [isSubmittingService, setIsSubmittingService] = React.useState(false);
   const [isCreatingQuoteDraft, setIsCreatingQuoteDraft] = React.useState(false);
   const [activeQuoteAction, setActiveQuoteAction] = React.useState<
@@ -2044,6 +2330,8 @@ export default function CreateQuotePage() {
       normalizedTaxRate,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
+      selectedEditingType,
+      editingTypeOptions,
       selectedServices,
       services,
       serviceConfigs,
@@ -2074,6 +2362,8 @@ export default function CreateQuotePage() {
       normalizedTaxRate,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
+      selectedEditingType,
+      editingTypeOptions,
       selectedServices,
       services,
       serviceConfigs,
@@ -2127,7 +2417,10 @@ export default function CreateQuotePage() {
       action === "draft" ? view : undefined,
     );
     const payload = isUpdatingExistingQuote
-      ? getQuoteUpdatePayload(action === "draft" ? view : undefined)
+      ? {
+          ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
+          is_draft: action === "draft",
+        }
       : action === "save"
         ? {
           ...basePayload,
@@ -2300,11 +2593,8 @@ export default function CreateQuotePage() {
       return;
     }
 
-    persistQuoteSummarySnapshot(
-      ADMIN_QUOTE_SUMMARY_STORAGE_KEY,
-      getQuoteSummarySnapshot(),
-    );
-    router.push("/admin/quotes/summary");
+    setQuoteSummarySnapshot(getQuoteSummarySnapshot());
+    setIsSummaryModalOpen(true);
   };
 
   const fetchCatalog = async () => {
@@ -2677,10 +2967,38 @@ export default function CreateQuotePage() {
 
     setItemToDelete({
       id: String(shootTypeId),
-      type: "shoot_type",
+      type: kind === "editing" ? "editing_type" : "shoot_type",
       label: item.label,
     });
     setIsDeleteModalOpen(true);
+  };
+
+  const resolveEditingTypeCategory = (): "video" | "photo" | null => {
+    const selectedOption = editingTypeOptions.find(
+      (type) => type.id === selectedEditingType,
+    );
+
+    if (selectedOption?.category === "video" || selectedOption?.category === "photo") {
+      return selectedOption.category;
+    }
+
+    if (hasVideoService && !hasPhotoService) {
+      return "video";
+    }
+
+    if (hasPhotoService && !hasVideoService) {
+      return "photo";
+    }
+
+    if (hasVideoService) {
+      return "video";
+    }
+
+    if (hasPhotoService) {
+      return "photo";
+    }
+
+    return null;
   };
 
   const confirmDelete = async () => {
@@ -2697,11 +3015,11 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (itemToDelete.type === "shoot_type") {
+    if (itemToDelete.type === "shoot_type" || itemToDelete.type === "editing_type") {
       const shootTypeItem = [
-        ...videoShootTypes,
-        ...photoShootTypes,
-        ...editingTypeOptions,
+        ...(itemToDelete.type === "editing_type"
+          ? editingTypeOptions
+          : [...videoShootTypes, ...photoShootTypes]),
       ].find(
         (type) =>
           String(type.id) === itemToDelete.id ||
@@ -2719,18 +3037,36 @@ export default function CreateQuotePage() {
     setIsDeleting(true);
     try {
       const res =
-        itemToDelete.type === "shoot_type"
+        itemToDelete.type === "editing_type"
+          ? await salesApi.deleteAiEditingType(itemToDelete.id)
+          : itemToDelete.type === "shoot_type"
           ? await salesApi.deleteShootType(itemToDelete.id)
           : await salesApi.deleteQuoteCatalog(itemToDelete.id);
       if (res && !res.error) {
         toast.success(
-          `${itemToDelete.type === "service" ? "Service" : itemToDelete.type === "addon" ? "Add-on" : itemToDelete.type === "logistics" ? "Logistics item" : itemToDelete.type === "shoot_type" ? "Shoot type" : "Line item"} deleted successfully`,
+          `${itemToDelete.type === "service" ? "Service" : itemToDelete.type === "addon" ? "Add-on" : itemToDelete.type === "logistics" ? "Logistics item" : itemToDelete.type === "shoot_type" ? "Shoot type" : itemToDelete.type === "editing_type" ? "Editing type" : "Line item"} deleted successfully`,
         );
-        if (itemToDelete.type === "shoot_type") {
-          await Promise.all([
-            fetchShootTypes(selectedServices),
-            fetchEditingTypes(selectedServices),
-          ]);
+        if (itemToDelete.type === "shoot_type" || itemToDelete.type === "editing_type") {
+          const filterDeletedShootType = (type: { id: string; apiId: string | null }) =>
+            String(type.id) !== itemToDelete.id &&
+            String(type.apiId ?? "") !== itemToDelete.id;
+
+          if (itemToDelete.type === "editing_type") {
+            setEditingTypeOptions((prev) => prev.filter(filterDeletedShootType));
+            if (
+              String(selectedEditingType) === itemToDelete.id ||
+              String(
+                editingTypeOptions.find((type) => type.id === selectedEditingType)?.apiId ?? "",
+              ) === itemToDelete.id
+            ) {
+              setSelectedEditingType("");
+            }
+            await fetchEditingTypes(selectedServices);
+          } else {
+            setVideoShootTypes((prev) => prev.filter(filterDeletedShootType));
+            setPhotoShootTypes((prev) => prev.filter(filterDeletedShootType));
+            await fetchShootTypes(selectedServices);
+          }
         } else {
           // Refresh catalog
           await fetchCatalog();
@@ -2810,35 +3146,29 @@ export default function CreateQuotePage() {
     const editingTypeName = customEditingType.trim();
     if (!editingTypeName) return;
 
-    const contentTypeId = resolveSelectedServiceContentTypeId({
-      kind: "editing",
-      selectedIds: selectedServices,
-      availableServices: services,
-    });
-    if (!contentTypeId) {
+    const editingTypeCategory = resolveEditingTypeCategory();
+    if (!editingTypeCategory) {
       toast.error("Select Editing service first");
       return;
     }
 
     setIsSubmittingEditingType(true);
     try {
-      const res = await salesApi.createShootType({
-        name: editingTypeName,
-        content_type: contentTypeId,
+      const res = await salesApi.createAiEditingType({
+        category: editingTypeCategory,
+        label: editingTypeName,
       });
 
-      if (res && !res.error && res.data) {
-        const createdOption = mapShootTypeOptions([
-          res.data as ShootTypeApiItem,
-        ])[0];
+      if (res && !res.error) {
+        const refreshedEditingTypes = await fetchEditingTypes(selectedServices);
+        const matchingEditingType = refreshedEditingTypes.find(
+          (type) =>
+            type.label.trim().toLowerCase() === editingTypeName.toLowerCase() &&
+            (type.category === editingTypeCategory || !type.category),
+        );
 
-        if (createdOption) {
-          setEditingTypeOptions((prev) =>
-            mergeShootTypeOptions(prev, createdOption),
-          );
-          setSelectedEditingType(createdOption.id);
-        } else {
-          await fetchEditingTypes(selectedServices);
+        if (matchingEditingType) {
+          setSelectedEditingType(matchingEditingType.id);
         }
 
         setCustomEditingType("");
@@ -2931,15 +3261,17 @@ export default function CreateQuotePage() {
 
     setIsSubmittingLineItem(true);
     try {
-      const newId = `custom_${Date.now()}`;
       const cost = parseFloat(customItemCost.replace(/[^0-9.]/g, "")) || 0;
+      const trimmedName = customItemName.trim();
+      const newId = `custom_${Date.now()}`;
 
       setLineItems((prev) => [
         ...prev,
         {
           id: newId,
-          label: customItemName,
+          label: trimmedName,
           basePrice: cost,
+          sourceType: "custom",
           createdAt: new Date().toISOString(),
         },
       ]);
@@ -3808,8 +4140,8 @@ export default function CreateQuotePage() {
                       </div>
                     )}
 
-                    {/* Editing Types Section - Only shown if an editing service is selected */}
-                    {hasEditingService && (
+                    {/* Editing Types Section */}
+                    {hasEditingTypeContext && (
                       <div className="">
                         <hr className="border-t border-[#3D3D3D]" />
                         <section className="px-4 py-5 lg:p-8">
@@ -4558,16 +4890,20 @@ export default function CreateQuotePage() {
                       />
                     </div>
 
-                    <div className="my-6 flex flex-col gap-2">
-                      <div className="flex justify-between text-[#9F9FA9] ">
-                        <p>Subtotal</p>
-                        <p>{formatCurrency(quoteSubtotal)}</p>
+                      <div className="my-6 flex flex-col gap-2">
+                        <div className="flex justify-between text-[#9F9FA9] ">
+                          <p>Subtotal</p>
+                          <p>{formatCurrency(quoteSubtotal)}</p>
+                        </div>
+                        <div className="flex justify-between text-[#E8D1AB] font-medium ">
+                          <p>Discount Applied </p>
+                          <p>- {formatCurrency(discountAmount)}</p>
+                        </div>
+                        <div className="flex justify-between text-[#9F9FA9] ">
+                          <p>Total After Discount</p>
+                          <p>{formatCurrency(discountedSubtotal)}</p>
+                        </div>
                       </div>
-                      <div className="flex justify-between text-[#E8D1AB] font-medium ">
-                        <p>Discount Applied </p>
-                        <p>- {formatCurrency(discountAmount)}</p>
-                      </div>
-                    </div>
 
                     <div className="bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center ">
                       <span className="text-sm lg:text-xl font-medium text-white">
@@ -4705,18 +5041,25 @@ export default function CreateQuotePage() {
                     </span>
                   </div>
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">
-                      Discount Applied
-                    </span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                      - {formatCurrency(discountAmount)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                      {formatCurrency(taxAmount)}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm lg:text-base text-[#9F9FA9]">
+                        Discount Applied
+                      </span>
+                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                        - {formatCurrency(discountAmount)}
+                      </span>
+                    </div>
+                    <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                    <div className="flex justify-between items-center ">
+                      <span className="text-sm lg:text-base text-[#9F9FA9]">Total After Discount</span>
+                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                        {formatCurrency(discountedSubtotal)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center ">
+                      <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
+                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                        {formatCurrency(taxAmount)}
                     </span>
                   </div>
 
@@ -5411,9 +5754,16 @@ export default function CreateQuotePage() {
           setItemToDelete(null);
         }}
         onConfirm={confirmDelete}
-        title={`Delete ${itemToDelete?.type === "service" ? "Service" : itemToDelete?.type === "addon" ? "Add-on" : itemToDelete?.type === "logistics" ? "Logistics Item" : itemToDelete?.type === "shoot_type" ? "Shoot Type" : "Line Item"}`}
-        description={`Are you sure you want to delete this ${itemToDelete?.type === "service" ? "service" : itemToDelete?.type === "addon" ? "add-on" : itemToDelete?.type === "logistics" ? "logistics item" : itemToDelete?.type === "shoot_type" ? "shoot type" : "line item"}? This action cannot be undone.`}
+        title={`Delete ${itemToDelete?.type === "service" ? "Service" : itemToDelete?.type === "addon" ? "Add-on" : itemToDelete?.type === "logistics" ? "Logistics Item" : itemToDelete?.type === "shoot_type" ? "Shoot Type" : itemToDelete?.type === "editing_type" ? "Editing Type" : "Line Item"}`}
+        description={`Are you sure you want to delete this ${itemToDelete?.type === "service" ? "service" : itemToDelete?.type === "addon" ? "add-on" : itemToDelete?.type === "logistics" ? "logistics item" : itemToDelete?.type === "shoot_type" ? "shoot type" : itemToDelete?.type === "editing_type" ? "editing type" : "line item"}? This action cannot be undone.`}
         isLoading={isDeleting}
+      />
+      <QuoteSummaryModal
+        open={isSummaryModalOpen}
+        onClose={() => setIsSummaryModalOpen(false)}
+        snapshot={quoteSummarySnapshot}
+        onPreview={handlePreviewQuote}
+        previewDisabled={!quoteReviewValidation.isValid}
       />
       <QuotePreviewModal
         open={isPreviewModalOpen}

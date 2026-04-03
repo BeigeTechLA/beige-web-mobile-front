@@ -1,29 +1,29 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   FolderOpen,
-  Link as LinkIcon,
   Trash2,
-  BookCheck,
   TicketPercent,
 } from "lucide-react";
 import {
-  useGeneratePaymentLinkMutation,
-  useGetLeadByIdQuery,
+  useDeleteClientLeadMutation,
+  useDeleteLeadMutation,
 } from "@/lib/redux/features/sales/salesApi";
 import { toast } from "sonner";
-import { copyToClipboard } from "@/lib/utils/discountHelpers";
 import { useTheme } from "next-themes";
+import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 
 interface ActionMenuProps {
   isOpen: boolean;
   onClose: () => void;
   anchor: { x: number; y: number };
   client: string | number | null;
-  leadId: number;
+  leadId: number | string;
   basePath?: string;
+  hideDelete?: boolean;
+  onDeleteSuccess?: () => void;
 }
 
 const ActionMenu: React.FC<ActionMenuProps> = ({
@@ -33,62 +33,75 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   client,
   leadId,
   basePath,
+  hideDelete = false,
+  onDeleteSuccess,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark" || theme === "dark";
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteLead, { isLoading: isDeletingLead }] = useDeleteLeadMutation();
+  const [deleteClientLead, { isLoading: isDeletingClientLead }] =
+    useDeleteClientLeadMutation();
+  const numericLeadId = Number(leadId);
+  const resolvedPath = basePath ? basePath : pathname;
 
-  const [generatePaymentLink, { isLoading: generatingLink }] =
-    useGeneratePaymentLinkMutation();
-  const { data: leadData } = useGetLeadByIdQuery(leadId, { skip: !leadId });
-  const targetPath = basePath ? basePath : pathname;
+  const itemType = useMemo(() => {
+    if (resolvedPath.includes("/client")) return "client";
+    if (resolvedPath.includes("creative-partner")) return "creative-partner";
+    return "lead";
+  }, [resolvedPath]);
+
+  const canDelete = !hideDelete && (itemType === "lead" || itemType === "client");
+  const isDeleting = isDeletingLead || isDeletingClientLead;
+
   if (!isOpen) return null;
 
-  const handleOpenFolder = () => {
-    // Navigate to the correct path
-    const resolvedPath = basePath ? basePath : pathname;
-
-    // Ensure we don't end up with // if the path ends in a slash
+  const navigateToDetails = () => {
     const cleanPath = resolvedPath.endsWith("/")
       ? resolvedPath.slice(0, -1)
       : resolvedPath;
 
-    router.push(`${cleanPath}/${leadId}`);
+    router.push(`${cleanPath}/${numericLeadId}`);
     onClose();
   };
 
-  const handleGeneratePaymentLink = async () => {
-    const lead = leadData?.lead;
-    if (!lead || !lead.booking_id) {
-      toast.error("Booking ID not found for this lead");
+  const handleDelete = async () => {
+    if (!numericLeadId) {
+      toast.error("Invalid lead id");
       return;
     }
 
     try {
-      const response = await generatePaymentLink({
-        lead_id: leadId,
-        booking_id: lead.booking_id,
-        expiry_hours: 72,
-      }).unwrap();
-
-      if (response.success && response.data) {
-        await copyToClipboard(response.data.url || "");
-        toast.success("Payment link copied to clipboard!");
+      if (itemType === "client") {
+        const response = await deleteClientLead(numericLeadId).unwrap();
+        toast.success(response.message || "Client lead deleted successfully");
+      } else {
+        const response = await deleteLead(numericLeadId).unwrap();
+        toast.success(response.message || "Sales lead deleted successfully");
       }
-    } catch (error: any) {
-      console.error("Error generating payment link:", error);
-      toast.error(error?.data?.message || "Failed to generate payment link");
+
+      setIsDeleteModalOpen(false);
+      onClose();
+      onDeleteSuccess?.();
+    } catch (error: unknown) {
+      console.error("Error deleting lead:", error);
+      const errorMessage =
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data?.message === "string"
+          ? (error as { data?: { message?: string } }).data?.message
+          : "Failed to delete lead";
+      toast.error(errorMessage);
     }
-    onClose();
   };
 
   return (
     <>
-      {/* Invisible backdrop to close when clicking away */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
 
-      {/* Menu Container */}
       <div
         className={`fixed z-50 w-[220px] overflow-hidden rounded-[20px] border shadow-2xl transition-all duration-200 ${
           isDark 
@@ -100,33 +113,25 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
           left: `${anchor.x}px`,
         }}
       >
-        {/* Section 1: Navigation & Edit */}
         <div className="flex flex-col p-1.5">
           <MenuButton
             icon={<FolderOpen size={18} />}
             label="View Details"
-            onClick={handleOpenFolder}
+            onClick={navigateToDetails}
             isDark={isDark}
           />
           <MenuButton
             icon={<TicketPercent size={18} />}
             label="Generate Discount"
-            onClick={handleOpenFolder}
+            onClick={navigateToDetails}
             isDark={isDark}
           />
-          {/* <MenuButton
-            icon={<LinkIcon size={18} />}
-            label="Payment Link"
-            onClick={handleGeneratePaymentLink}
-            disabled={generatingLink}
-          /> */}
         </div>
 
-        {/* Divider */}
         <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#F0F0F0]"}`} />
-
-        {/* Section 2: Sharing */}
-        {/* <div className="flex flex-col p-1.5">
+        {canDelete && (
+          <>
+          {/* <div className="flex flex-col p-1.5">
           <MenuButton
             icon={<BookCheck size={18} />}
             label="Manage Quote"
@@ -135,19 +140,28 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
         </div> */}
 
         {/* Divider */}
-         <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#F0F0F0]"}`} />
-
-        {/* Section 3: Danger Zone */}
-        <div className="flex flex-col p-1.5">
-          <MenuButton
-            icon={<Trash2 size={18} />}
-            label="Delete"
-            variant="danger"
-            onClick={onClose}
-            isDark={isDark}
-          />
-        </div>
+            <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#F0F0F0]"}`} />
+            <div className="flex flex-col p-1.5">
+              <MenuButton
+                icon={<Trash2 size={18} />}
+                label="Delete"
+                variant="danger"
+                onClick={() => setIsDeleteModalOpen(true)}
+                isDark={isDark}
+              />
+            </div>
+          </>
+        )}
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        isLoading={isDeleting}
+        title={itemType === "client" ? "Delete Client Lead" : "Delete Sales Lead"}
+        description={`Are you sure you want to delete ${client ? String(client) : "this record"}? This action cannot be undone.`}
+      />
     </>
   );
 };

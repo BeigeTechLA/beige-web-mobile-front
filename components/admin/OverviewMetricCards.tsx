@@ -135,7 +135,8 @@ const OverviewMetricCards = ({
                 )}
               </div>
 
-              <div
+              {/* Growth percentages. */}
+              {/* <div
                 className={`text-xs flex gap-1 items-center ${
                   isActive
                     ? "text-[#171717]"
@@ -156,7 +157,7 @@ const OverviewMetricCards = ({
                   {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
                 </span>{" "}
                 {getGrowthLabel(m)}
-              </div>
+              </div> */}
 
               {renderAction?.(m)}
             </div>
