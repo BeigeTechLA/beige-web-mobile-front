@@ -33,8 +33,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'd2jhn32fsulyac.cloudfront.net',
-        pathname: '/**',
+        hostname: '**.cloudfront.net',
       },
       {
         protocol: 'https',
