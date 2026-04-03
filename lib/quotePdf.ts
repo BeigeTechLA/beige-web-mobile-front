@@ -5,11 +5,13 @@ import {
   formatQuoteCurrency,
   formatQuoteDate,
   getQuoteNumber,
+  getQuoteDisplayShootTypeLabel,
   getQuoteText,
   normalizeQuoteLineItems,
   normalizeQuoteTerms,
   type NormalizedQuoteLineItem,
 } from "@/lib/quoteDetail";
+import { getDefaultQuoteTerms } from "@/lib/quoteTerms";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 
 const PAGE_WIDTH = 595.28;
@@ -209,8 +211,11 @@ const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | nul
   const projectDescription =
     getQuoteText(quoteData.project_description, "Project description not available") ||
     "Project description not available";
-  const shootTypeLabel = getQuoteText(quoteData.video_shoot_type);
-  const terms = normalizeQuoteTerms(quoteData.terms_conditions);
+  const shootTypeLabel = getQuoteDisplayShootTypeLabel(quoteData);
+  const terms = normalizeQuoteTerms(
+    quoteData.terms_conditions,
+    getDefaultQuoteTerms(getQuoteText(quoteData.valid_until, quoteData.expires_at) || null)
+  );
   const assignedSalesRep = asRecord(quoteData.assigned_sales_rep);
   const createdBy = asRecord(quoteData.created_by);
   const footerContactName =
@@ -481,7 +486,8 @@ const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | nul
     drawServiceTableHeader();
 
     serviceItems.forEach((item) => {
-      const description = shootTypeLabel ? `${item.name} - (${shootTypeLabel})` : item.name;
+      const detailLabel = item.subtitle || (shootTypeLabel ? `(${shootTypeLabel})` : "");
+      const description = detailLabel ? `${item.name} - ${detailLabel}` : item.name;
       const serviceLines = wrapText(description, regularFont, 10.5, 280);
       const rowHeight = Math.max(serviceLines.length * 14, 18) + 8;
 

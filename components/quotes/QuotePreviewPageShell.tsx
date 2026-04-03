@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, {useState, useEffect, useRef} from "react";
 import { ArrowLeft, Check, Copy, Loader2, Send } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -71,14 +71,14 @@ export default function QuotePreviewPageShell({
   const queryQuoteId = searchParams.get("quoteId");
   const { isDark } = useResolvedTheme();
 
-  const [quote, setQuote] = React.useState<SalesQuoteDetailData | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-  const [copied, setCopied] = React.useState(false);
-  const [isSending, setIsSending] = React.useState(false);
-  const copyResetTimeoutRef = React.useRef<number | null>(null);
+  const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const copyResetTimeoutRef = useRef<number | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (copyResetTimeoutRef.current) {
         window.clearTimeout(copyResetTimeoutRef.current);
@@ -86,7 +86,7 @@ export default function QuotePreviewPageShell({
     };
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     let isMounted = true;
 
     const loadQuotePreview = async () => {
@@ -266,11 +266,10 @@ export default function QuotePreviewPageShell({
         onClick={() => {
           void handleCopy();
         }}
-        className={`h-11 rounded-xl px-4 ${
-          isDark
+        className={`h-11 rounded-xl px-4 ${isDark
             ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
             : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
-        }`}
+          }`}
       >
         {copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
         {copied ? "Copied" : "Copy Link"}
@@ -309,11 +308,10 @@ export default function QuotePreviewPageShell({
               onClick={() => {
                 void handleCopy();
               }}
-              className={`h-11 rounded-xl ${
-                isDark
+              className={`h-11 rounded-xl ${isDark
                   ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
                   : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
-              }`}
+                }`}
             >
               {copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
               {copied ? "Copied" : "Copy Link"}
@@ -341,9 +339,8 @@ export default function QuotePreviewPageShell({
           <button
             type="button"
             onClick={handleBack}
-            className={`mb-6 flex items-center gap-2 text-[15px] transition-colors ${
-              isDark ? "text-[#D4D4D4] hover:text-white" : "text-black/70 hover:text-black"
-            }`}
+            className={`mb-6 flex items-center gap-2 text-[15px] transition-colors ${isDark ? "text-[#D4D4D4] hover:text-white" : "text-black/70 hover:text-black"
+              }`}
           >
             <ArrowLeft size={18} />
             Back
@@ -352,9 +349,8 @@ export default function QuotePreviewPageShell({
 
         {showIntroHeader ? (
           <div
-            className={`mb-6 rounded-[24px] px-5 py-5 lg:mb-8 lg:px-7 lg:py-6 ${
-              isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
-            }`}
+            className={`mb-6 rounded-[24px] px-5 py-5 lg:mb-8 lg:px-7 lg:py-6 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
+              }`}
           >
             <QuotePreviewBrandBlock />
           </div>
@@ -362,11 +358,10 @@ export default function QuotePreviewPageShell({
 
         {loading ? (
           <div
-            className={`flex min-h-[420px] items-center justify-center rounded-[24px] ${
-              isDark
+            className={`flex min-h-[420px] items-center justify-center rounded-[24px] ${isDark
                 ? "border border-white/10 bg-[#171717] text-[#CFCFD3]"
                 : "border border-[#DFDDDD] bg-white text-[#60646C]"
-            }`}
+              }`}
           >
             <Loader2 className="mr-3 h-5 w-5 animate-spin" />
             Loading quote preview...
@@ -375,11 +370,10 @@ export default function QuotePreviewPageShell({
           <QuotePreviewDocument quote={quote} quoteId={queryQuoteId} />
         ) : (
           <div
-            className={`flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-[24px] px-6 text-center ${
-              isDark
+            className={`flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-[24px] px-6 text-center ${isDark
                 ? "border border-dashed border-white/10 bg-[#151515]"
                 : "border border-dashed border-[#DFDDDD] bg-white"
-            }`}
+              }`}
           >
             <p className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>
               Preview data unavailable

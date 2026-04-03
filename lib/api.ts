@@ -350,6 +350,7 @@ export interface SalesQuoteDetailLineItem {
   line_item_id?: number | string;
   item_id?: number | string;
   catalog_item_id?: number | string;
+  subtitle?: string;
   section_type?: string;
   source_type?: string;
   item_name?: string;
@@ -374,6 +375,8 @@ export interface SalesQuoteDetailLineItem {
   amount?: number | string;
   price?: number | string;
   rate_type?: string;
+  configuration?: unknown;
+  configuration_json?: unknown;
   [key: string]: unknown;
 }
 
@@ -1445,6 +1448,19 @@ export const adminApi = {
       };
     }
   },
+  getCrewMemberAssignedProjects: async (payload: { crew_member_id: string | number }) => {
+    try {
+      const response = await api.post('admin/crew-member-assigned-projects', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Crew Member Assigned Projects Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch assigned projects',
+      };
+    }
+  },
 
   getRecentActivity: async (limit: number = 10) => {
     try {
@@ -1972,6 +1988,55 @@ export const salesApi = {
       };
     }
   },
+  getAiEditingTypes: async () => {
+    try {
+      const response = await api.get('/sales/quotes/ai-editing-types');
+      return response.data;
+    } catch (error) {
+      console.error('Get AI Editing Types Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch AI editing types',
+      };
+    }
+  },
+  createAiEditingType: async (data: { category: "video" | "photo"; label: string }) => {
+    try {
+      const response = await api.post('/sales/quotes/ai-editing-types', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create AI Editing Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create AI editing type',
+      };
+    }
+  },
+  deleteAiEditingType: async (id: number | string) => {
+    try {
+      const editingTypeId = Number(id);
+
+      if (!Number.isInteger(editingTypeId) || editingTypeId <= 0) {
+        return {
+          success: false,
+          data: null,
+          error: 'Invalid AI editing type id',
+        };
+      }
+
+      const response = await api.delete(`/sales/quotes/ai-editing-types/${editingTypeId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete AI Editing Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete AI editing type',
+      };
+    }
+  },
   deleteShootType: async (id: number | string) => {
     try {
       const shootTypeId = Number(id);
@@ -2019,6 +2084,31 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch sales representatives',
+      };
+    }
+  },
+  getDashboardOverview: async (period: string = 'all_time') => {
+    try {
+      const response = await api.get('/sales/dashboard/overview', {
+        params: { period },
+      });
+      return response.data;
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const isLogoutLikeFailure =
+        status === 401 ||
+        status === 403 ||
+        error?.code === 'ERR_CANCELED' ||
+        error?.message === 'canceled';
+
+      if (!isLogoutLikeFailure) {
+        console.error('Get Dashboard Overview Error:', error.response?.data || error.message);
+      }
+
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch dashboard overview',
       };
     }
   },

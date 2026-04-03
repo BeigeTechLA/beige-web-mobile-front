@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { skipToken } from "@reduxjs/toolkit/query";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { MoreVertical, Search, Target, ChartLine, Calendar, Users } from "lucide-react";
@@ -11,6 +12,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
 import { toast } from "sonner";
 import { adminApi, salesApi as salesService } from "@/lib/api";
+import { useAppSelector } from "@/lib/redux/hooks";
 import { useTheme } from "next-themes";
 import DottedDivider from "@/components/admin/DottedDivider";
 import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
@@ -54,6 +56,29 @@ interface LeadData {
   assignedSalesRepEmail?: string;
 }
 
+type OverviewMetric = {
+  id: string;
+  label: string;
+  value: React.ReactNode;
+  growth: number;
+  icon: React.ElementType;
+  color: string;
+};
+
+type DashboardOverviewPayload = {
+  total_leads?: number | string;
+  total_active?: number | string;
+  total_active_leads?: number | string;
+  active_leads?: number | string;
+  sales_assisted?: number | string;
+  sales_assisted_leads?: number | string;
+  total_conversion?: number | string;
+  total_conversion_rate?: number | string;
+  conversion_rate?: number | string;
+  total_bookings?: number | string;
+  bookings?: number | string;
+  growth?: Partial<Record<string, number | string>>;
+};
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 const SALES_DASHBOARD_FILTERS_KEY = "sales-dashboard-filters";
@@ -92,7 +117,7 @@ const formatRelativeTime = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
-const initialMetrics = [
+const initialMetrics: OverviewMetric[] = [
   { id: 'total_active', label: 'Total Active Leads', value: '10', growth: 0, icon: Users, color: 'bg-[#E5D5B8]' },
   { id: 'sales_assisted', label: 'Sales Assisted Leads', value: '5', growth: 0, icon: Target, color: 'bg-zinc-800' },
   { id: 'total_conversion', label: 'Total Conversion Rate', value: '15.4', growth: 0, icon: ChartLine, color: 'bg-zinc-800' },
@@ -100,6 +125,111 @@ const initialMetrics = [
 ];
 
 const OverviewFilters = ["All Time", "Month", "Week"];
+
+const OVERVIEW_PERIOD_MAP: Record<string, string> = {
+  "All Time": "all_time",
+  Month: "month",
+  Week: "week",
+};
+
+const getOverviewPayload = (response: unknown): DashboardOverviewPayload => {
+  if (
+    response &&
+    typeof response === "object" &&
+    "data" in response &&
+    response.data &&
+    typeof response.data === "object"
+  ) {
+    const data = response.data as Record<string, unknown>;
+
+    if (data.combined && typeof data.combined === "object") {
+      return data.combined as DashboardOverviewPayload;
+    }
+
+    if (data.overview && typeof data.overview === "object") {
+      return data.overview as DashboardOverviewPayload;
+    }
+
+    return data as DashboardOverviewPayload;
+  }
+
+  if (response && typeof response === "object") {
+    const directResponse = response as Record<string, unknown>;
+
+    if (directResponse.combined && typeof directResponse.combined === "object") {
+      return directResponse.combined as DashboardOverviewPayload;
+    }
+
+    if (directResponse.overview && typeof directResponse.overview === "object") {
+      return directResponse.overview as DashboardOverviewPayload;
+    }
+
+    return directResponse as DashboardOverviewPayload;
+  }
+
+  return {};
+};
+
+const toNumber = (value: unknown): number => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const formatMetricValue = (value: unknown, suffix = ""): string => {
+  const numericValue = toNumber(value);
+  return `${numericValue}${suffix}`;
+};
+
+const buildOverviewMetrics = (payload: DashboardOverviewPayload): OverviewMetric[] => {
+  const growth = payload.growth || {};
+
+  return [
+    {
+      id: "total_active",
+      label: "Total Active Leads",
+      value: formatMetricValue(
+        payload.total_active ??
+          payload.total_active_leads ??
+          payload.active_leads ??
+          payload.total_leads
+      ),
+      growth: toNumber(growth.total_active),
+      icon: Users,
+      color: "bg-[#E5D5B8]",
+    },
+    {
+      id: "sales_assisted",
+      label: "Sales Assisted Leads",
+      value: formatMetricValue(
+        payload.sales_assisted ?? payload.sales_assisted_leads
+      ),
+      growth: toNumber(growth.sales_assisted),
+      icon: Target,
+      color: "bg-zinc-800",
+    },
+    {
+      id: "total_conversion",
+      label: "Total Conversion Rate",
+      value: formatMetricValue(
+        payload.total_conversion ?? payload.total_conversion_rate ?? payload.conversion_rate,
+        "%"
+      ),
+      growth: toNumber(growth.total_conversion),
+      icon: ChartLine,
+      color: "bg-zinc-800",
+    },
+    {
+      id: "total_bookings",
+      label: "Total Bookings",
+      value: formatMetricValue(
+        payload.total_bookings ?? payload.bookings ?? payload.booked_leads
+      ),
+      growth: toNumber(growth.total_bookings),
+      icon: Calendar,
+      color: "bg-zinc-800",
+    },
+  ];
+};
 
 const tabs: { label: string; value: TabType }[] = [
   { label: "Booking Leads", value: "Booking" },
@@ -123,6 +253,7 @@ export default function SalesLeadsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
+  const { user, token } = useAppSelector((state) => state.auth);
   const [mounted, setMounted] = useState(false);
   const hasRestoredFiltersRef = useRef(false);
   const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
@@ -158,10 +289,33 @@ export default function SalesLeadsPage() {
   const [usersLimit] = useState(50);
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
 
-  const [metrics, setMetrics] = useState<any[]>(initialMetrics);
+  const [metrics, setMetrics] = useState<OverviewMetric[]>(initialMetrics);
   const [activeMetric, setActiveMetric] = useState('total_active');
   const [isLoading, setIsLoading] = useState(false);
   const [range, setRange] = useState('All Time');
+  const sessionIdentity = `${token ?? "anonymous"}:${user?.id ?? user?.email ?? "no-user"}`;
+
+  const fetchDashboardOverview = async () => {
+    if (!token) {
+      setMetrics(initialMetrics);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await salesService.getDashboardOverview(
+        OVERVIEW_PERIOD_MAP[range] || "all_time"
+      );
+      const payload = getOverviewPayload(response);
+      setMetrics(buildOverviewMetrics(payload));
+    } catch (error) {
+      console.error("Failed to fetch dashboard overview:", error);
+      setMetrics(initialMetrics);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -223,7 +377,7 @@ export default function SalesLeadsPage() {
   }, [usersStatusFilter, clientAssignedRepIdFilter, debouncedSearch]);
 
   useEffect(() => {
-    if (!isUserTypeSeven) {
+    if (!token || !isUserTypeSeven) {
       setSalesRepOptions([{ label: "All Representatives", value: "all" }]);
       return;
     }
@@ -248,6 +402,10 @@ export default function SalesLeadsPage() {
 
     fetchSalesReps();
   }, [isUserTypeSeven]);
+
+  useEffect(() => {
+    fetchDashboardOverview();
+  }, [range, sessionIdentity]);
 
   useEffect(() => {
     if (!mounted || !hasRestoredFiltersRef.current) return;
@@ -284,21 +442,32 @@ export default function SalesLeadsPage() {
   ]);
 
   // --- LEADS API CALL WITH FILTERS ---
-  const { data: leadsApiData, isLoading: leadsIsLoading, isFetching: leadsIsFetching } = useGetLeadsQuery({
-    page: leadsCurrentPage,
-    limit: leadsLimit,
-    search: debouncedSearch || undefined,
-    // Mapping the filters to API keys
-    lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
-    status: statusFilter === "All" ? undefined : statusFilter,
-    assigned_to: isUserTypeSeven && assignedRepIdFilter !== "all" ? assignedRepIdFilter : undefined,
-    // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
-    intent: intentFilter === "All" ? undefined : intentFilter,
+  const leadsQueryArgs = token
+    ? {
+        page: leadsCurrentPage,
+        limit: leadsLimit,
+        search: debouncedSearch || undefined,
+        // Mapping the filters to API keys
+        lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
+        status: statusFilter === "All" ? undefined : statusFilter,
+        assigned_to: isUserTypeSeven && assignedRepIdFilter !== "all" ? assignedRepIdFilter : undefined,
+        // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
+        intent: intentFilter === "All" ? undefined : intentFilter,
+      }
+    : skipToken;
+
+  const {
+    data: leadsApiData,
+    isLoading: leadsIsLoading,
+    isFetching: leadsIsFetching,
+    refetch: refetchLeads,
+  } = useGetLeadsQuery(leadsQueryArgs, {
+    refetchOnMountOrArgChange: true,
   });
 
   // Fetch users for Client and Creative Partner tabs
   const fetchUsers = async () => {
-    if (activeTab === "Booking") return;
+    if (!token || activeTab === "Booking") return;
     setUsersLoading(true);
     try {
       const params: any = {
@@ -393,10 +562,24 @@ export default function SalesLeadsPage() {
     if (activeTab !== "Booking") {
       fetchUsers();
     }
-  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter, isUserTypeSeven]);
+  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter, isUserTypeSeven, sessionIdentity]);
+
+  useEffect(() => {
+    setDisplayLeads([]);
+    setUsers([]);
+    setUsersTotalPages(0);
+    setUsersTotalRecords(0);
+    setLeadsCurrentPage(1);
+    setUsersCurrentPage(1);
+  }, [sessionIdentity]);
 
   // Smooth transition effect for Leads mapping
   useEffect(() => {
+    if (!token) {
+      setDisplayLeads([]);
+      return;
+    }
+
     if (leadsApiData?.leads) {
       const mapped: LeadData[] = (leadsApiData.leads || []).map((lead: any) => ({
         lead_id: lead.lead_id,
@@ -439,12 +622,18 @@ export default function SalesLeadsPage() {
     setSelectedLeadId(id);
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const isNearRightEdge = window.innerWidth - rect.right < 250;
-    const isNearBottomEdge = window.innerHeight - rect.bottom < 150;
+    const menuWidth = 220;
+    const menuHeight = 150;
+    const horizontalGap = 8;
+    const viewportPadding = 12;
+    const centeredY = rect.top + rect.height / 2 - menuHeight / 2;
 
     setMenuAnchor({
-      x: isNearRightEdge ? rect.left - 210 : rect.right - 10,
-      y: isNearBottomEdge ? rect.top - 230 : rect.top - 20,
+      x: Math.max(viewportPadding, rect.left - menuWidth - horizontalGap),
+      y: Math.max(
+        viewportPadding,
+        Math.min(centeredY, window.innerHeight - menuHeight - viewportPadding)
+      ),
     });
   };
 
@@ -496,7 +685,7 @@ export default function SalesLeadsPage() {
         }
       />
 
-      <div className={`min-h-screen pb-40 p-4 lg:p-6 lg:px-10 lg:py-9 transition-colors duration-300 ${isDark ? "bg-transparent" : "bg-[#F3F4F6]"}`}>
+      <div className={`min-h-screen p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 transition-colors duration-300 ${isDark ? "bg-transparent" : "bg-[#F3F4F6]"}`}>
         <div className="flex flex-col lg:flex-row gap-6 justify-between items-start w-full">
           <div>
             <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
@@ -547,6 +736,8 @@ export default function SalesLeadsPage() {
                     label="Client Representative"
                     value={assignedRepIdFilter}
                     options={salesRepOptions}
+                    searchable
+                    searchPlaceholder="Search representative..."
                     onChange={(val) => setAssignedRepIdFilter(val)}
                     openAlign={"right"}
                   />
@@ -573,6 +764,8 @@ export default function SalesLeadsPage() {
                   label="Client Representative"
                   value={clientAssignedRepIdFilter}
                   options={salesRepOptions}
+                  searchable
+                  searchPlaceholder="Search representative..."
                   onChange={(val) => setClientAssignedRepIdFilter(val)}
                   openAlign={"right"}
                 />
@@ -710,12 +903,22 @@ export default function SalesLeadsPage() {
         {menuAnchor && selectedLeadId && (
           <ActionMenu
             client={selectedClient}
-            leadId={selectedLeadId as number}
+            leadId={selectedLeadId}
             isOpen={true}
             onClose={() => setMenuAnchor(null)}
             anchor={menuAnchor}
+            hideDelete={!isUserTypeSeven}
+            onDeleteSuccess={() => {
+              refetchLeads();
+              fetchDashboardOverview();
+              if (activeTab !== "Booking") {
+                fetchUsers();
+              }
+            }}
             basePath={
-              activeTab === "Client"
+              activeTab === "Booking"
+                ? "/sales/leads"
+                : activeTab === "Client"
                 ? "/sales/client"
                 : activeTab === "Creative Partner"
                   ? "/sales/creative-partner"
@@ -723,6 +926,17 @@ export default function SalesLeadsPage() {
             }
           />
         )}
+
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => router.push("/sales/create-new-deal")}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
+            Create new lead
+          </Button>
+        </div>
       </div>
     </>
   );

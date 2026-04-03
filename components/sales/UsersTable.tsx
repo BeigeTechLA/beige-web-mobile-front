@@ -24,24 +24,24 @@ function MobileUserRow<T>({
       }`}>
       {/* Header - Always Visible */}
       <div
-        className="flex items-center justify-between p-4 cursor-pointer"
+        className="flex items-center justify-between p-4 cursor-pointer gap-4"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <div className={`p-1 rounded-full border transition-all duration-300 ${isExpanded ? 'rotate-180 border-[#E5D5B8]' : isDark ? 'border-white/10' : 'border-black/10'
+          <div className={`shrink-0 p-1 rounded-full border transition-all duration-300 ${isExpanded ? 'rotate-180 border-[#E5D5B8]' : isDark ? 'border-white/10' : 'border-black/10'
             }`}>
             <ChevronDown size={14} className={isDark ? "text-white/60" : "text-black/60"} />
           </div>
-          <div className="w-9 h-9 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-xs overflow-hidden">
+          <div className="shrink-0 w-9 h-9 rounded-lg bg-[#F5D5D5] flex items-center justify-center text-black font-bold text-xs overflow-hidden">
             {data.imageUrl ? (
               <img src={data.imageUrl} alt={data.name} className="w-full h-full object-cover" />
             ) : (
               <span>{data.initials}</span>
             )}
           </div>
-          <div className="flex flex-col">
-            <span className={`text-sm font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>{data.name}</span>
-            <span className={`text-[10px] ${isDark ? "text-white/40" : "text-[#999]"}`}>{data.id}</span>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-[#171717]"}`}>{data.name}</span>
+            <span className={`text-[10px] truncate ${isDark ? "text-white/40" : "text-[#999]"}`}>{data.id}</span>
           </div>
         </div>
         <LeadsStatusBadge status={"Booking In Progress"} />
