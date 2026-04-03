@@ -167,6 +167,7 @@ export default function SelectCreativesPage() {
           selectedIds={selectedCreativeIds}
           onChange={setSelectedCreativeIds}
           onSelectionUpdate={setSelectionCounts}
+          statsSource="lead"
           isDark={isDark}
         />
       </div>

@@ -1,8 +1,10 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import Cookies from 'js-cookie';
 import { setCredentials, logout as logoutAction } from '../redux/features/auth/authSlice';
+import { authApi } from '../redux/features/auth/authApi';
+import { salesApi } from '../redux/features/sales/salesApi';
 import {
   useLoginMutation,
   useRegisterMutation,
@@ -57,6 +59,8 @@ export const useAuth = () => {
         localStorage.setItem('revure_user', JSON.stringify(result.user));
       }
 
+      dispatch(authApi.util.resetApiState());
+      dispatch(salesApi.util.resetApiState());
       dispatch(setCredentials({ user: result.user, token: result.token }));
     }
     
@@ -122,6 +126,8 @@ export const useAuth = () => {
   }, [registerCreatorStep3Mutation]);
 
   const logout = useCallback(() => {
+    dispatch(authApi.util.resetApiState());
+    dispatch(salesApi.util.resetApiState());
     dispatch(logoutAction());
     // Explicitly clear cookies and localStorage just in case
     Cookies.remove('revure_token');

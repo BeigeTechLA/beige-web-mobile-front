@@ -106,6 +106,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const [pendingProjects, setPendingProjects] = useState<any[]>([]);
   const [availabilityDetails, setAvailabilityDetails] = useState<any>({});
   const [allShoots, setAllShoots] = useState<any[]>([]);
+  const [shootsLoading, setShootsLoading] = useState(true);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
@@ -149,11 +150,10 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
         const cleanId = id.startsWith('#') ? id.substring(1) : id;
         const crewMemberIdNum = parseInt(cleanId);
 
-        const [partnerResponse, skillsResponse, statsResponse, dashboardDetailResponse] = await Promise.all([
+        const [partnerResponse, skillsResponse, statsResponse] = await Promise.all([
           adminApi.getCrewMemberDetail(cleanId),
           adminApi.getSkills(),
           getStatusCount({ crew_member_id: crewMemberIdNum, creator_id: crewMemberIdNum }),
-          adminApi.getAdminDashboardDetail({ crew_member_id: cleanId })
         ]);
 
         // Map skills if needed (response might already have names)
@@ -175,15 +175,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
           setStats(statsResponse.data);
         }
 
-        // Set shoots from dashboard detail
-        if (dashboardDetailResponse && dashboardDetailResponse.data) {
-          const data = dashboardDetailResponse.data;
-          // Extract allShoots if it exists, otherwise check if data itself is the array
-          const shootsData = data.allShoots && Array.isArray(data.allShoots)
-            ? data.allShoots
-            : (Array.isArray(data) ? data : []);
-          setAllShoots(shootsData);
-        }
       } catch (error) {
         console.error("Error fetching partner details:", error);
       } finally {
@@ -193,6 +184,40 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
     if (id) {
       fetchData();
+    }
+  }, [id]);
+
+  useEffect(() => {
+    const fetchAssignedProjects = async () => {
+      setShootsLoading(true);
+      try {
+        const cleanId = id.startsWith('#') ? id.substring(1) : id;
+        const response = await adminApi.getCrewMemberAssignedProjects({
+          crew_member_id: cleanId
+        });
+
+        const responseData = response?.data;
+        const shootsData = Array.isArray(responseData)
+          ? responseData
+          : Array.isArray(responseData?.items)
+            ? responseData.items
+            : Array.isArray(responseData?.projects)
+              ? responseData.projects
+              : Array.isArray(responseData?.rows)
+                ? responseData.rows
+                : [];
+
+        setAllShoots(shootsData);
+      } catch (error) {
+        console.error("Error fetching assigned projects:", error);
+        setAllShoots([]);
+      } finally {
+        setShootsLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchAssignedProjects();
     }
   }, [id]);
 
@@ -373,34 +398,26 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
     }
   }
 
-  // Mock data for calendar
-  const shootDates = [
-    new Date(2026, 0, 16),
-    new Date(2026, 0, 19),
-    new Date(2026, 0, 26),
-    new Date(2026, 0, 29),
-    new Date(2026, 0, 30),
-  ];
+  const assignedProjects = Array.isArray(allShoots) ? allShoots : [];
+  const shootColumns = assignedProjects.length > 0
+    ? Object.keys(assignedProjects[0]).filter((key) => {
+      const value = assignedProjects[0][key];
+      return typeof value !== "object" || value === null;
+    })
+    : [];
 
-  // Map all shoots for the table
-  const shoots = (Array.isArray(allShoots) ? allShoots : []).map(s => {
-    const project = s.project || {};
-    const statusMap: Record<string, string> = {
-      '0': 'Initiated',
-      '1': 'Pre Production',
-      '2': 'Post Production',
-      '3': 'Revision',
-      '4': 'Completed',
-      '5': 'Cancelled'
-    };
-    return {
-      id: `#${project.stream_project_booking_id || project.id || s.project_id || s.id}`,
-      name: project.project_name || s.title || 'Project',
-      files: s.files_count || 0,
-      price: `$${project.budget || s.total_amount || '0.00'}`,
-      status: statusMap[project.status !== undefined ? project.status.toString() : s.status] || 'Unknown'
-    };
-  });
+  const formatShootCellValue = (value: any) => {
+    if (value === null || value === undefined || value === "") return "N/A";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (Array.isArray(value)) return value.length ? value.join(", ") : "N/A";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  };
+
+  const formatShootColumnLabel = (key: string) =>
+    key
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
 
   // Update UPLOADS_URL to use S3
   const UPLOADS_URL = S3_BASE_URL;
@@ -428,14 +445,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
   // Get Resume
   const resumeFile = partner.crew_member_files?.find((file: any) => file.file_type === 'resume');
-
-  // Fallback if no real shoots
-  if (shoots.length === 0) {
-    shoots.push(
-      { id: '#SHO01', name: 'Wedding Highlight Film', files: 24, price: '$1,200.00', status: 'Initiated' },
-      { id: '#SHO02', name: 'Product Promo Video', files: 12, price: '$850.00', status: 'Pre Production' }
-    );
-  }
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -1091,21 +1100,33 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
       {activeTab === 'Shoots' && (
         <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
           }`}>
+          {shootsLoading ? (
+            <div className={`py-12 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>
+              Loading shoots...
+            </div>
+          ) : assignedProjects.length === 0 ? (
+            <div className={`py-12 px-6 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>
+              No shoots assigned to this creative partner.
+            </div>
+          ) : (
+            <>
           {/* MOBILE ONLY VIEW */}
           <div className={`lg:hidden p-3 transition-colors ${isDark ? "bg-[#111111]" : "bg-white"}`}>
             <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"
               }`}>
-              <span>Shoot Name</span>
-              <span>Status</span>
+              {shootColumns.slice(0, 2).map((column) => (
+                <span key={column}>{formatShootColumnLabel(column)}</span>
+              ))}
             </div>
 
             <div className="flex flex-col gap-2">
-              {shoots.map((shoot) => {
-                const isExpanded = expandedId === shoot.id;
+              {assignedProjects.map((shoot, index) => {
+                const rowId = String(shoot.id || shoot.project_id || shoot.stream_project_booking_id || index);
+                const isExpanded = expandedId === rowId;
 
                 return (
                   <div
-                    key={shoot.id}
+                    key={rowId}
                     className={`rounded-xl border transition-all ${isDark
                       ? "bg-[#171717] border-white/5"
                       : "bg-[#F4F5F7] border-[#F4F5F7]"
@@ -1114,7 +1135,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                     {/* Header Row */}
                     <div
                       className="flex items-center justify-between p-4 cursor-pointer active:bg-white/5"
-                      onClick={() => toggleRow(shoot.id)}
+                      onClick={() => toggleRow(rowId)}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-transform duration-300 ${isExpanded
@@ -1124,16 +1145,18 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                           <ChevronDown size={14} />
                         </div>
                         <div className="flex flex-col">
-                          <span className={`text-sm ${isDark ? "font-semibold text-white" : "font-medium text-[#6D6D6D]"}`}>{shoot.name}</span>
+                          <span className={`text-sm ${isDark ? "font-semibold text-white" : "font-medium text-[#6D6D6D]"}`}>
+                            {formatShootCellValue(shoot[shootColumns[0]])}
+                          </span>
                           <span className={`text-[10px] uppercase tracking-tight flex items-center gap-1 ${isDark ? "text-white/40" : "text-gray-400"
                             }`}>
-                            {shoot.id}
+                            {shootColumns[1] ? formatShootCellValue(shoot[shootColumns[1]]) : `#${rowId}`}
                           </span>
                         </div>
                       </div>
 
-                      <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusStyle(shoot.status)}`}>
-                        {shoot.status}
+                      <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusStyle(String(shoot.status || shoot.project_status || 'Unknown'))}`}>
+                        {formatShootCellValue(shoot.status || shoot.project_status || "N/A")}
                       </span>
                     </div>
 
@@ -1149,20 +1172,17 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                         >
                           <div className="p-4 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 flex items-center gap-1 ${isDark ? "text-white/40" : "text-gray-400"
-                                  }`}>
-                                  <Briefcase size={12} /> Files
-                                </p>
-                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black/80"}`}>{shoot.files} Items</p>
-                              </div>
-                              <div className="text-right">
-                                <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 flex items-center justify-end gap-1 ${isDark ? "text-white/40" : "text-gray-400"
-                                  }`}>
-                                  Price
-                                </p>
-                                <p className={`text-sm font-bold ${isDark ? "text-[#E8D1AB]" : "text-[#6D6D6D]"}`}>{shoot.price}</p>
-                              </div>
+                              {shootColumns.map((column) => (
+                                <div key={column}>
+                                  <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isDark ? "text-white/40" : "text-gray-400"
+                                    }`}>
+                                    {formatShootColumnLabel(column)}
+                                  </p>
+                                  <p className={`text-sm font-medium break-words ${isDark ? "text-white" : "text-black/80"}`}>
+                                    {formatShootCellValue(shoot[column])}
+                                  </p>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         </motion.div>
@@ -1180,30 +1200,34 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
               <thead>
                 <tr className={`transition-colors border-b ${isDark ? "bg-[#202020] border-[#333]" : "bg-[#FFFCF6] border-[#F4F5F7]"
                   }`}>
-                  <th className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm w-[15%]`}>Shoot ID</th>
-                  <th className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm  w-[35%]`}>Shoot Name</th>
-                  <th className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm  w-[10%]`}>Files</th>
-                  <th className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm w-[20%]`}>Price</th>
-                  <th className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm w-[20%]`}>Status</th>
+                  {shootColumns.map((column) => (
+                    <th
+                      key={column}
+                      className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm`}
+                    >
+                      {formatShootColumnLabel(column)}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className={`divide-y transition-colors ${isDark ? "divide-[#333]" : "divide-gray-100"}`}>
-                {shoots.map((shoot) => (
-                  <tr key={shoot.id} className={`${isDark ? "hover:bg-[#161616]" : "bg-[#F4F5F7] hover:bg-gray-50/50"} transition-colors font-[family-name:var(--font-instrument-sans)]`}>
-                    <td className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>{shoot.id}</td>
-                    <td className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>{shoot.name}</td>
-                    <td className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>{shoot.files}</td>
-                    <td className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E5D5B8]" : "text-[#0C0C0C]"}`}>{shoot.price}</td>
-                    <td className="py-6 px-6">
-                      <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusStyle(shoot.status)}`}>
-                        {shoot.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {assignedProjects.map((shoot, index) => {
+                  const rowId = String(shoot.id || shoot.project_id || shoot.stream_project_booking_id || index);
+                  return (
+                    <tr key={rowId} className={`${isDark ? "hover:bg-[#161616]" : "bg-[#F4F5F7] hover:bg-gray-50/50"} transition-colors font-[family-name:var(--font-instrument-sans)]`}>
+                      {shootColumns.map((column) => (
+                        <td key={column} className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>
+                          {formatShootCellValue(shoot[column])}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+            </>
+          )}
         </div>
       )}
 

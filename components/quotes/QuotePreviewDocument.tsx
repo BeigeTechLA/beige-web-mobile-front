@@ -26,7 +26,7 @@ const COMPANY_PROFILE = {
   name: "Beige AI",
   subtitle: "Production Marketplace",
   addressLines: ["123 Business Street", "San Francisco, CA 94102"],
-  email: "contact@beigeAI.com",
+  email: "sales@beigecorporation.io",
 };
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
