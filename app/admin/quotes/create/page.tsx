@@ -160,7 +160,7 @@ const formatCurrency = (value: number) =>
 
 const formatAddonDisplayValue = (value: number) =>
   value.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 
@@ -563,6 +563,9 @@ export default function CreateQuotePage() {
     searchParams.get("view"),
     isEditMode ? "details" : "selection",
   );
+
+  // Using a Record so it works for multiple rows/items in a list
+  const [inputValue, setInputValue] = useState<Record<string, string>>({});
 
   // Views: 'selection' | 'details' | 'services' | 'addons' | 'logistics'
   const [view, setView] = useState<
@@ -1352,6 +1355,7 @@ export default function CreateQuotePage() {
 
   const getAddonDraftPrice = (addonId: string) => {
     const config = addonConfigs[addonId];
+
     if (!config) return 0;
     return config.price;
   };
@@ -1619,7 +1623,7 @@ export default function CreateQuotePage() {
         : "Video Shoot Type Name";
 
     return (
-      <section className="px-4 pt-4 pb-5 lg:px-8 lg:pb-10">
+      <section className="px-4 py-5 lg:p-8">
         <button
           onClick={onToggleExpanded}
           className="w-full flex justify-between items-center mb-6 bg-transparent border-0 outline-none group cursor-pointer"
@@ -3078,7 +3082,7 @@ export default function CreateQuotePage() {
           {view === "logistics" ? (
             <div className="">
               <section>
-                <div className="p-4 pt-5 lg:p-8 lg:pt-10">
+                <div className="p-4 lg:p-8">
                   <h2 className="lg:text-xl font-medium leading-none mb-2 text-white">
                     Logistics
                   </h2>
@@ -3089,7 +3093,7 @@ export default function CreateQuotePage() {
                 </div>
                 <hr className="border-t border-[#3D3D3D]" />
 
-                <div className="space-y-4 p-4 lg:p-9">
+                <div className="space-y-4 lg:space-y-6 p-4 lg:p-8">
                   {logisticsItems.map((item) => {
                     const config = logisticsConfigs[item.id];
                     const hasPendingChanges = hasPendingLogisticsChanges(
@@ -3098,7 +3102,7 @@ export default function CreateQuotePage() {
                     return (
                       <div
                         key={item.id}
-                        className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-5 relative overflow-hidden"
+                        className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-6 relative overflow-hidden"
                       >
                         <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
                           <div className="flex lg:flex-col justify-between lg:gap-1">
@@ -3115,16 +3119,44 @@ export default function CreateQuotePage() {
                           <div className="flex items-center gap-6">
                             <div className="relative w-2/3 lg:w-36">
                               <Input
-                                value={`$ ${config?.price || 0}`}
+                                // value={`$ ${config?.price || 0}`}
+                                value={
+                                  inputValue[item.id] !== undefined
+                                    ? inputValue[item.id]
+                                    : `$ ${(config?.price || 0).toFixed(2)}`
+                                }
                                 onChange={(e) => {
-                                  const val =
-                                    parseFloat(
-                                      e.target.value.replace("$ ", ""),
-                                    ) || 0;
-                                  setLogisticsConfigs((prev) => ({
-                                    ...prev,
-                                    [item.id]: { price: val },
-                                  }));
+                                  // const val =
+                                  //   parseFloat(
+                                  //     e.target.value.replace("$ ", ""),
+                                  //   ) || 0;
+                                  // setLogisticsConfigs((prev) => ({
+                                  //   ...prev,
+                                  //   [item.id]: { price: val },
+                                  // }));
+                                  const raw = e.target.value.replace(/\$/g, "").trim();
+
+                                  // REGEX: Allow digits and exactly one decimal point (even if it's at the end)
+                                  if (/^\d*\.?\d*$/.test(raw)) {
+                                    // Update local string state so the "." stays visible
+                                    setInputValue((prev) => ({ ...prev, [item.id]: `$ ${raw}` }));
+
+                                    // Update the actual data state only if it's a valid number
+                                    const numericVal = parseFloat(raw);
+                                    if (!isNaN(numericVal)) {
+                                      setLogisticsConfigs((prev) => ({
+                                        ...prev,
+                                        [item.id]: { ...prev[item.id], price: numericVal },
+                                      }));
+                                    }
+                                  }
+                                }}
+                                onBlur={() => {
+                                  setInputValue((prev) => {
+                                    const next = { ...prev };
+                                    delete next[item.id];
+                                    return next;
+                                  });
                                 }}
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                               />
@@ -3155,7 +3187,7 @@ export default function CreateQuotePage() {
                 </div>
                 <hr className="border-t border-[#3D3D3D]" />
 
-                <div className="p-4 lg:p-9">
+                <div className="p-4 lg:p-8 lg:pb-6">
                   <h3 className="lg:text-xl font-medium text-white mb-6">
                     Add Custom Logistics Item
                   </h3>
@@ -3217,7 +3249,7 @@ export default function CreateQuotePage() {
                   </div>
                 </div>
 
-                <div className="m-4 lg:m-9 mt-0 lg:mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50">
+                <div className="m-4 lg:m-8 mt-0 lg:mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50">
                   <span className="text-sm lg:text-xl font-medium text-[#FFF]">
                     Total Logistics Cost
                   </span>
@@ -3234,7 +3266,7 @@ export default function CreateQuotePage() {
           ) : view === "addons" ? (
             <div className="">
               <section>
-                <div className="p-4 pt-5 lg:p-8 lg:pt-10">
+                <div className="p-4 lg:p-8">
                   <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">
                     Add-ons
                   </h2>
@@ -3244,7 +3276,7 @@ export default function CreateQuotePage() {
                 </div>
                 <hr className="border-t border-[#3D3D3D]" />
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-9">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
                   {(addons || []).map((addon) => {
                     return (
                       <div key={addon.id} className="relative">
@@ -3298,7 +3330,7 @@ export default function CreateQuotePage() {
                                 {addon.label}
                               </div>
                               <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
-                                ${formatAddonDisplayValue(addon.price)}
+                                ${formatAddonDisplayValue(addon.price.toFixed(2))}
                               </div>
                             </div>
                           </div>
@@ -3317,7 +3349,7 @@ export default function CreateQuotePage() {
                   })}
                 </div>
 
-                <div className="space-y-6 p-4 lg:p-9 !pt-0">
+                <div className="space-y-6 p-4 lg:p-8 !pt-0">
                   <Button
                     onClick={() => setShowAddAddonForm(!showAddAddonForm)}
                     className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
@@ -3398,14 +3430,14 @@ export default function CreateQuotePage() {
               {selectedAddons.length > 0 && (
                 <>
                   <hr className="border-t border-[#3D3D3D]" />
-                  <section className="p-4 lg:p-9">
-                    <div className="mb-4 lg:mb-8">
+                  <section className="p-4 lg:p-8">
+                    <div className="mb-4 lg:mb-7">
                       <h2 className="text-base lg:text-xl font-medium text-white">
                         Selected Add-Ons
                       </h2>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 lg:space-y-6">
                       {selectedAddons.map((addonId) => {
                         const addon = addons.find((a) => a.id === addonId);
                         const config = addonConfigs[addonId];
@@ -3416,7 +3448,7 @@ export default function CreateQuotePage() {
                         return (
                           <div
                             key={addonId}
-                            className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-5 lg:px-8 lg:py-7 relative overflow-hidden"
+                            className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-4 lg:p-6 relative overflow-hidden"
                           >
                             {/* desktop version */}
                             <div className="hidden lg:flex justify-between items-center gap-6">
@@ -3469,7 +3501,7 @@ export default function CreateQuotePage() {
                                 {/* Price Override */}
                                 <div className="relative w-[190px]">
                                   <Input
-                                    value={`$ ${formatAddonDisplayValue(getAddonDraftPrice(addonId))}`}
+                                    value={`$ ${Number(formatAddonDisplayValue(getAddonDraftPrice(addonId))).toFixed(2)}`}
                                     onChange={(e) =>
                                       handleAddonPriceUpdate(
                                         addonId,
@@ -3578,8 +3610,8 @@ export default function CreateQuotePage() {
                       })}
                     </div>
 
-                    <div className="mt-4 rounded-xl bg-[#2A2A2A] px-5 py-4 lg:px-6 lg:py-5 flex items-center justify-between">
-                      <span className="text-base font-medium text-white">
+                    <div className="mt-4 lg:mt-6 rounded-xl bg-[#2A2A2A] p-4 lg:p-6 flex items-center justify-between">
+                      <span className="text-base lg:text-xl font-medium text-white">
                         Total Add-Ons
                       </span>
                       <span className="text-xl font-semibold tracking-tight text-[#F0DCB1]">
@@ -3594,7 +3626,7 @@ export default function CreateQuotePage() {
             <div className="">
               {/* Services Section */}
               <section>
-                <div className="px-5 pt-5 lg:px-8 lg:pt-8 mb-7">
+                <div className="px-5 pt-5 lg:px-8 lg:pt-8">
                   <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">
                     Services
                   </h2>
@@ -3604,7 +3636,7 @@ export default function CreateQuotePage() {
                 </div>
                 <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
-                <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-4 lg:space-y-8 ">
+                <div className="px-5 pb-5 lg:px-8 lg:pb-8 space-y-4 lg:space-y-8 ">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                     {loadingServices ? (
                       <div className="col-span-3 py-10 flex justify-center items-center">
@@ -3743,7 +3775,8 @@ export default function CreateQuotePage() {
               {/* Conditional Sections based on selection */}
               {selectedServices.length > 0 && (
                 <>
-                  <div className="space-y-4 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* <div className="space-y-4 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"> */}
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {/* Shoot Type Section */}
                     {(hasVideoService || hasPhotoService) && (
                       <div className="">
@@ -3779,7 +3812,7 @@ export default function CreateQuotePage() {
                     {hasEditingService && (
                       <div className="">
                         <hr className="border-t border-[#3D3D3D]" />
-                        <section className="px-4 pt-4 pb-5 lg:pt-8 lg:px-8 lg:pb-10">
+                        <section className="px-4 py-5 lg:p-8">
                           <button
                             onClick={() =>
                               setIsEditingTypeExpanded(!isEditingTypeExpanded)
@@ -3920,7 +3953,7 @@ export default function CreateQuotePage() {
                     {/* Configure Selected Services */}
                     <>
                       <hr className="border-t border-[#3D3D3D]" />
-                      <section className="px-4 pb-5 lg:pt-8 lg:px-8 lg:pb-10">
+                      <section className="px-4 py-5 lg:p-8">
                         <div className="mb-4 lg:mb-8">
                           <h2 className="text-base lg:text-xl font-medium text-white">
                             Configure Selected Services
@@ -3988,7 +4021,8 @@ export default function CreateQuotePage() {
                                         Total
                                       </span>
                                       <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">
-                                        ${serviceTotal.toLocaleString()}
+                                        ${serviceTotal.toFixed(2).toLocaleString()}
+                                        {/* service.price.toFixed(2) */}
                                       </span>
                                     </div>
                                     <button
@@ -4108,7 +4142,7 @@ export default function CreateQuotePage() {
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
                                       <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
-                                        ${config.estimatedPrice}
+                                        ${config.estimatedPrice.toFixed(2)}
                                       </div>
                                       <button
                                         onClick={() =>
@@ -4195,7 +4229,7 @@ export default function CreateQuotePage() {
             </div>
           ) : view === "customlineitems" ? (
             <div>
-              <div className="p-4 pt-5 lg:p-8 lg:pt-10">
+              <div className="p-4 pt-5 lg:p-8">
                 <h2 className="text-base lg:text-xl font-medium text-white mb-1">
                   Custom Line Items
                 </h2>
@@ -4204,9 +4238,9 @@ export default function CreateQuotePage() {
                   add-ons
                 </p>
               </div>
-              <div className="border-t border-dashed border-[#3D3D3D]" />
+              <hr className="border-t border-[#3D3D3D]" />
 
-              <div className="p-4 lg:p-9">
+              <div className="p-4 lg:p-8">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                   <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
                     <div className="flex-1 relative w-full">
@@ -4261,11 +4295,10 @@ export default function CreateQuotePage() {
                 </div>
               </div>
 
-              <div className="border-t border-dashed border-[#3D3D3D]" />
-
+              <hr className="border-t border-[#3D3D3D]" />
               {
                 lineItems.length > 0 &&
-                <div className="space-y-4 p-4 lg:p-9">
+                <div className="space-y-4 lg:space-y-6 p-4 lg:p-8 lg:pb-6">
                   {lineItems.map((item) => {
                     const config = lineItemConfigs[item.id];
                     const hasPendingChanges = hasPendingLineItemChanges(item.id);
@@ -4296,7 +4329,7 @@ export default function CreateQuotePage() {
 
                           <div className="flex items-center gap-6">
                             <div className="relative w-2/3 lg:w-36">
-                              <Input
+                              {/* <Input
                                 value={`$ ${config?.price || 0}`}
                                 onChange={(e) => {
                                   const val =
@@ -4308,6 +4341,38 @@ export default function CreateQuotePage() {
                                     [item.id]: { price: val },
                                   }));
                                 }}
+                                className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                              /> */}
+                              <Input
+                                //  Use defaultValue so the input is "uncontrolled" while typing
+                                defaultValue={`$ ${(config?.price || 0).toFixed(2)}`}
+
+                                // The key ensures the input resets if the external state changes 
+                                key={item.id + (config?.price || 0)}
+
+                                onChange={(e) => {
+                                  // Clean the input and update the background state
+                                  const raw = e.target.value.replace(/\$/g, "").trim();
+                                  const numericVal = parseFloat(raw);
+
+                                  if (!isNaN(numericVal)) {
+                                    setLineItemConfigs((prev) => ({
+                                      ...prev,
+                                      [item.id]: {
+                                        ...prev[item.id],
+                                        price: numericVal
+                                      },
+                                    }));
+                                  }
+                                }}
+
+                                onBlur={(e) => {
+                                  // Clean up the display when they click away
+                                  const raw = e.target.value.replace(/\$/g, "").trim();
+                                  const finalVal = parseFloat(raw) || 0;
+                                  e.target.value = `$ ${finalVal.toFixed(2)}`;
+                                }}
+
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                               />
                             </div>
@@ -4339,7 +4404,7 @@ export default function CreateQuotePage() {
                 </div>
               }
 
-              <div className={`m-4 lg:m-9 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50 ${lineItems.length > 0 ? "!mt-0" : ""}`}>
+              <div className={`m-4 lg:m-8 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50 ${lineItems.length > 0 ? "!mt-0" : ""}`}>
                 <span className="text-sm lg:text-xl font-medium text-[#FFF]">
                   Total Custom Line Items
                 </span>
@@ -4354,7 +4419,7 @@ export default function CreateQuotePage() {
             </div>
           ) : view === "discounts" ? (
             <div>
-              <div className="p-4 pt-5 lg:p-8 lg:pt-10">
+              <div className="p-4 pt-5 lg:p-8">
                 <h2 className="text-base lg:text-xl font-medium text-white mb-1">
                   Discounts
                 </h2>
@@ -4365,7 +4430,7 @@ export default function CreateQuotePage() {
               </div>
               <hr className="border-t border-[#3D3D3D]" />
 
-              <div className="p-4 lg:p-9">
+              <div className="p-4 lg:p-8">
                 <div
                   className={`w-full p-4 lg:p-5 rounded-2xl border transition-colors duration-300 flex items-center justify-between bg-[#101010] border-[#FFFFFF80]`}
                   style={{
@@ -4406,7 +4471,7 @@ export default function CreateQuotePage() {
               {discountEnabled ? (
                 <>
                   <hr className="border-t border-[#3D3D3D]" />
-                  <div className="p-4 lg:p-9">
+                  <div className="p-4 lg:p-8">
                     <h3
                       className={`text-base lg:text-lg font-medium tracking-tight text-white`}
                     >
@@ -4418,8 +4483,6 @@ export default function CreateQuotePage() {
                       <button
                         onClick={() => handleDiscountTypeSelect("percentage")}
                         className={`flex-1 flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 text-left ${discountType === "percentage"
-                          // ? "bg-[#1A1A1A] border-[#E8D1AB]/40 shadow-[0_0_15px_rgba(232,209,171,0.05)]"
-                          // : "bg-[#171717] border-[#222222] hover:border-[#333333]"
                           ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
                           : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                           }`}
@@ -4437,7 +4500,7 @@ export default function CreateQuotePage() {
                             Percentage
                           </h4>
                           <p className={`text-xs mt-0.5 text-[#888888]`}>
-                            % off total after tax
+                            % off subtotal
                           </p>
                         </div>
                       </button>
@@ -4463,7 +4526,7 @@ export default function CreateQuotePage() {
                             Fixed Amount
                           </h4>
                           <p className={`text-xs mt-0.5 text-[#888888]`}>
-                            $ off total after tax
+                            $ off subtotal
                           </p>
                         </div>
                       </button>
@@ -4478,9 +4541,19 @@ export default function CreateQuotePage() {
                       <Input
                         placeholder="0.00"
                         value={discountValue}
-                        onChange={(e) =>
-                          setDiscountValue(parseFloat(e.target.value) || 0)
-                        }
+                        onChange={(e) => {
+                          // setDiscountValue(parseFloat(e.target.value) || 0)
+                          const val = e.target.value;
+
+                          // Allow numbers and a single decimal point via Regex
+                          if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                            // Update the state
+                            setDiscountValue(val === "" ? 0 : val);
+                          }
+                        }}
+                        onBlur={() => {
+                          setDiscountValue(parseFloat(discountValue.toString()) || 0);
+                        }}
                         className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
@@ -4507,7 +4580,7 @@ export default function CreateQuotePage() {
                   </div>
                 </>
               ) : (
-                <div className="flex flex-col gap-5 items-center justify-center my-4 lg:my-12">
+                <div className="flex flex-col gap-5 items-center justify-center my-4 lg:my-11">
                   <Image
                     src={"/images/misc/DiscountTag.svg"}
                     width={132}
@@ -4522,7 +4595,7 @@ export default function CreateQuotePage() {
             </div>
           ) : view === "tax" ? (
             <div>
-              <div className="p-4 pt-5 lg:p-8 lg:pt-10">
+              <div className="p-4 pt-5 lg:p-8">
                 <h2 className="text-base lg:text-xl font-medium text-white mb-1">
                   Tax
                 </h2>
@@ -4532,7 +4605,7 @@ export default function CreateQuotePage() {
               </div>
               <hr className="border-t border-[#3D3D3D]" />
 
-              <div className="p-4 lg:p-9">
+              <div className="p-4 lg:p-8">
                 <h3
                   className={`text-base lg:text-lg font-medium tracking-tight text-white`}
                 >
@@ -4615,7 +4688,7 @@ export default function CreateQuotePage() {
               </div>
 
               <hr className="border-t border-[#3D3D3D]" />
-              <div className="p-4 lg:p-9">
+              <div className="p-4 lg:p-8">
                 <h3
                   className={`text-base lg:text-lg font-medium tracking-tight text-white mb-3 lg:mb-6`}
                 >
@@ -4670,8 +4743,8 @@ export default function CreateQuotePage() {
               </div>
 
               <hr className="border-t border-[#3D3D3D]" />
-              <div className="w-full p-4 pt-6 lg:p-9">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-5 lg:mb-6">
+              <div className="w-full p-4 lg:p-8">
+                <h2 className="text-base lg:text-lg font-medium text-white mb-4 lg:mb-6">
                   Custom Tax Rate
                 </h2>
                 <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full">
@@ -4683,17 +4756,41 @@ export default function CreateQuotePage() {
                     </div>
                     <Input
                       placeholder="0.00"
-                      value={taxRate}
+                      // value={taxRate}
+                      // onChange={(e) => {
+                      //   const nextTaxRate = parseFloat(e.target.value) || 0;
+                      //   const presetTaxRate =
+                      //     nextTaxRate === 5 ||
+                      //       nextTaxRate === 8.5 ||
+                      //       nextTaxRate === 10
+                      //       ? (nextTaxRate as 5 | 8.5 | 10)
+                      //       : 0;
+                      //   setTaxRate(nextTaxRate);
+                      //   setSelectedTax(presetTaxRate);
+                      // }}
+                      value={
+                        (taxRate as any) === 0 || (taxRate as any) === ""
+                          ? ""
+                          : taxRate.toString()
+                      }
                       onChange={(e) => {
-                        const nextTaxRate = parseFloat(e.target.value) || 0;
-                        const presetTaxRate =
-                          nextTaxRate === 5 ||
-                            nextTaxRate === 8.5 ||
-                            nextTaxRate === 10
-                            ? (nextTaxRate as 5 | 8.5 | 10)
-                            : 0;
-                        setTaxRate(nextTaxRate);
-                        setSelectedTax(presetTaxRate);
+                        const val = e.target.value;
+                        if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                          setTaxRate(val as any);
+                          // Logic for Presets: Only trigger preset selection for valid numbers
+                          const numericTax = parseFloat(val);
+                          if (!isNaN(numericTax)) {
+                            const presetTaxRate =
+                              numericTax === 5 || numericTax === 8.5 || numericTax === 10
+                                ? (numericTax as 5 | 8.5 | 10)
+                                : 0;
+                            setSelectedTax(presetTaxRate);
+                          }
+                        }
+                      }}
+                      // Clean up the value when the user clicks away
+                      onBlur={() => {
+                        setTaxRate(parseFloat(taxRate.toString()) || 0);
                       }}
                       className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                     />
@@ -4716,7 +4813,7 @@ export default function CreateQuotePage() {
             </div>
           ) : (
             /* Client Details View */
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="px-5 pt-5 lg:px-8 lg:pt-8">
                 <h2 className="text-base lg:text-xl font-medium text-white mb-1">
                   Client Information
@@ -4727,7 +4824,7 @@ export default function CreateQuotePage() {
               </div>
               <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
-              <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 space-y-6 lg:space-y-8 ">
+              <div className="px-5 pt-4 pb-5 lg:px-8 lg:pb-10 lg:pt-2 space-y-6 lg:space-y-8 ">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="relative">
                     <div className="absolute -top-3 left-4 z-10 px-2 bg-[#171717]">
@@ -4869,9 +4966,9 @@ export default function CreateQuotePage() {
                           </button>
                         </div>
 
-                        <div className="flex items-center gap-2 text-zinc-400 text-sm mb-8">
+                        <div className="flex items-center gap-2 text-zinc-400 text-sm">
                           <Check size={16} className="text-[#E8D1AB]" />
-                          <span className="text-[#E8D1AB]/80 font-medium">
+                          <p className="text-[#E8D1AB]/80 font-medium">
                             This quote is valid for{" "}
                             {validityDays === "custom"
                               ? differenceInDays(
@@ -4880,10 +4977,154 @@ export default function CreateQuotePage() {
                               )
                               : validityDays}{" "}
                             days from today.
-                          </span>
+
+                            {
+                              validityDays !== "custom" &&
+                              <span className="ml-2 text-[#E8D1AB]/80 font-medium">
+                                Quote valid until <strong>{format(parseISO(validUntil), "MM-dd-yyyy")}</strong>
+                              </span>
+                            }
+                          </p>
                         </div>
 
-                        <div className="relative">
+                        {
+                          validityDays === "custom" &&
+                          <div className="relative mt-8">
+                            <div
+                              className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"
+                                }`}
+                            >
+                              <span
+                                className={`text-sm font-medium ${isDark ? "text-[#D3D3D3]" : "text-[#71717B]"
+                                  }`}
+                              >
+                                Quote Valid Until*
+                              </span>
+                            </div>
+                            <DatePicker
+                              label=""
+                              value={parseISO(validUntil)}
+                              onChange={(date) => {
+                                if (date && isValid(date)) {
+                                  setValidUntil(format(date, "yyyy-MM-dd"));
+                                }
+                              }}
+                              disabled={validityDays !== "custom"}
+                              format="MM-dd-yyyy"
+                              colors={{
+                                inputBackground: isCustomValiditySelected
+                                  ? isDark
+                                    ? "#1D1A15"
+                                    : "#FFF7E6"
+                                  : "transparent",
+                                inputText: isCustomValiditySelected
+                                  ? isDark
+                                    ? "#E8D1AB"
+                                    : "#171717"
+                                  : isDark
+                                    ? "#F5F5F5"
+                                    : "#171717",
+                                inputDisabled: isDark
+                                  ? "rgba(214, 195, 157, 0.9)"
+                                  : "rgba(23, 23, 23, 0.65)",
+                                iconColor: isCustomValiditySelected
+                                  ? "#E8D1AB"
+                                  : isDark
+                                    ? "#FFFFFF"
+                                    : "#171717",
+                                labelText: isCustomValiditySelected
+                                  ? isDark
+                                    ? "#E8D1AB"
+                                    : "#171717"
+                                  : "rgba(113, 113, 122, 1)",
+                                inputBorder: isDark ? "#FFFFFF80" : "#E8D1AB",
+                                inputBorderHover: isDark ? "#FFFFFF" : "#BEBEBE",
+                                // inputBorder: isDark
+                                //     ? "#FFFFFF80"
+                                //     : "#E8D1AB",
+                                //   // : isDark
+                                //   //   ? "rgba(39, 39, 42, 1)"
+                                //   //   : "#D7D7D7",
+                                // inputBorderHover: isCustomValiditySelected
+                                //   ? "#E8D1AB"
+                                //   : isDark
+                                //     ? "rgba(63, 63, 70, 1)"
+                                //     : "#BEBEBE",
+                                inputBorderFocus: "#E8D1AB",
+                              }}
+                              sx={{
+                                height: "64px", // h-16
+                                borderRadius: "12px", // rounded-xl
+                                "& .MuiOutlinedInput-root": {
+                                  backgroundColor: isCustomValiditySelected
+                                    ? isDark
+                                      ? "#1D1A15"
+                                      : "#FFF7E6"
+                                    : "transparent",
+                                  borderRadius: "12px",
+                                  paddingLeft: "10px",
+                                  "& fieldset": {
+                                    borderColor: isDark ? "#FFFFFF80 !important" : "#E8D1AB !important",
+                                    borderWidth: "1px !important",
+                                  },
+                                  "&:hover fieldset": {
+                                    borderColor: isDark ? "#FFFFFF !important" : "#BEBEBE !important",
+                                  },
+                                  "&.Mui-focused fieldset": {
+                                    borderColor: "#E8D1AB !important",
+                                    borderWidth: "2px !important",
+                                  },
+                                },
+                                "& .MuiInputBase-input": {
+                                  fontSize: "16px",
+                                  fontWeight: "500", // font-medium
+                                  color: isCustomValiditySelected
+                                    ? isDark
+                                      ? "#E8D1AB"
+                                      : "#171717"
+                                    : "rgba(113, 113, 122, 1)",
+                                },
+                                "& .MuiInputBase-input.Mui-disabled": {
+                                  WebkitTextFillColor: isDark
+                                    ? "rgba(214, 195, 157, 0.9)"
+                                    : "rgba(23, 23, 23, 0.65)",
+                                  color: isDark
+                                    ? "rgba(214, 195, 157, 0.9)"
+                                    : "rgba(23, 23, 23, 0.65)",
+                                  opacity: 1,
+                                },
+                                "& .MuiSvgIcon-root": {
+                                  color: isCustomValiditySelected
+                                    ? "#E8D1AB"
+                                    : isDark
+                                      ? "#FFFFFF"
+                                      : "#171717",
+                                },
+                                "& .Mui-disabled .MuiSvgIcon-root": {
+                                  color: isDark ? "#FFFFFF" : "#171717",
+                                  opacity: 1,
+                                },
+                              }}
+                              labelSx={{
+                                position: "absolute",
+                                top: "-10px",
+                                left: "16px",
+                                zIndex: 10,
+                                backgroundColor: isDark ? "#171717" : "#FFFFFF",
+                                padding: "0 8px",
+                                fontSize: "12px", // text-xs
+                                fontWeight: "500", // font-medium
+                                color: isCustomValiditySelected
+                                  ? isDark
+                                    ? "#E8D1AB"
+                                    : "#171717"
+                                  : "rgba(113, 113, 122, 1)",
+                              }}
+                            />
+                          </div>
+                        }
+
+                        {/* <div className="relative">
                           <div
                             className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"
                               }`}
@@ -4904,7 +5145,7 @@ export default function CreateQuotePage() {
                               }
                             }}
                             disabled={validityDays !== "custom"}
-                            format="dd-MM-yyyy"
+                            format="MM-dd-yyyy"
                             colors={{
                               inputBackground: isCustomValiditySelected
                                 ? isDark
@@ -5015,7 +5256,7 @@ export default function CreateQuotePage() {
                                 : "rgba(113, 113, 122, 1)",
                             }}
                           />
-                        </div>
+                        </div> */}
                       </>
                     );
                   })()}
