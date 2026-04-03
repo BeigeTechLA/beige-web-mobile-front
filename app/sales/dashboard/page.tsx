@@ -11,6 +11,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
 import { toast } from "sonner";
 import { adminApi, salesApi as salesService } from "@/lib/api";
+import { useAppSelector } from "@/lib/redux/hooks";
 import { useTheme } from "next-themes";
 import DottedDivider from "@/components/admin/DottedDivider";
 import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
@@ -123,6 +124,7 @@ export default function SalesLeadsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
+  const { user, token } = useAppSelector((state) => state.auth);
   const [mounted, setMounted] = useState(false);
   const hasRestoredFiltersRef = useRef(false);
   const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
@@ -162,6 +164,7 @@ export default function SalesLeadsPage() {
   const [activeMetric, setActiveMetric] = useState('total_active');
   const [isLoading, setIsLoading] = useState(false);
   const [range, setRange] = useState('All Time');
+  const sessionIdentity = `${token ?? "anonymous"}:${user?.id ?? user?.email ?? "no-user"}`;
 
   useEffect(() => {
     setMounted(true);
@@ -294,6 +297,8 @@ export default function SalesLeadsPage() {
     assigned_to: isUserTypeSeven && assignedRepIdFilter !== "all" ? assignedRepIdFilter : undefined,
     // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
     intent: intentFilter === "All" ? undefined : intentFilter,
+  }, {
+    refetchOnMountOrArgChange: true,
   });
 
   // Fetch users for Client and Creative Partner tabs
@@ -393,7 +398,16 @@ export default function SalesLeadsPage() {
     if (activeTab !== "Booking") {
       fetchUsers();
     }
-  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter, isUserTypeSeven]);
+  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter, isUserTypeSeven, sessionIdentity]);
+
+  useEffect(() => {
+    setDisplayLeads([]);
+    setUsers([]);
+    setUsersTotalPages(0);
+    setUsersTotalRecords(0);
+    setLeadsCurrentPage(1);
+    setUsersCurrentPage(1);
+  }, [sessionIdentity]);
 
   // Smooth transition effect for Leads mapping
   useEffect(() => {
