@@ -71,7 +71,7 @@ export default function AdminDashboardPage() {
         </div>
         <OverallShootsTable />
 
-        <div className="flex flex-col lg:flex-row gap-4 mt-5 pb-20 lg:pb-0">
+        <div className="flex flex-col lg:flex-row gap-4 mt-5 lg:pb-0">
           <div className="lg:w-3/4">
             <ShootStatusChart />
           </div>
