@@ -24,7 +24,7 @@ const formatTermsDate = (value?: string | null) => {
 
 export const getDefaultQuoteTerms = (validUntil?: string | null) => [
   `This quote is valid until ${formatTermsDate(validUntil)}.`,
-  "Changes to the scope of work may result in additional charges.",
+  "Changes to the scope of work may result in additional investment.",
 ];
 
 export const getDefaultQuoteTermsText = (validUntil?: string | null) =>
@@ -54,7 +54,10 @@ export const isGeneratedDefaultQuoteTerms = (terms: string[]) => {
     normalizedTerms[1] === normalizeTermText("A 50% deposit is required before project commencement.") &&
     /^this quote is valid until .+\.$/.test(normalizedTerms[2]) &&
     normalizedTerms[3] === normalizeTermText("All prices are in USD.") &&
-    normalizedTerms[4] === normalizeTermText("Changes to the scope of work may result in additional charges.")
+    [
+      normalizeTermText("Changes to the scope of work may result in additional charges."),
+      normalizeTermText("Changes to the scope of work may result in additional investment."),
+    ].includes(normalizedTerms[4])
   ) {
     return true;
   }
@@ -62,8 +65,10 @@ export const isGeneratedDefaultQuoteTerms = (terms: string[]) => {
   if (
     normalizedTerms.length === 2 &&
     /^this quote is valid until .+\.$/.test(normalizedTerms[0]) &&
-    normalizedTerms[1] ===
-      normalizeTermText("Changes to the scope of work may result in additional charges.")
+    [
+      normalizeTermText("Changes to the scope of work may result in additional charges."),
+      normalizeTermText("Changes to the scope of work may result in additional investment."),
+    ].includes(normalizedTerms[1])
   ) {
     return true;
   }
