@@ -57,7 +57,7 @@ const SectionTitle = ({
   children: React.ReactNode;
   isDark: boolean;
 }) => (
-  <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] lg:text-sm ${isDark ? "text-[#707078]" : "text-[#71717B]"}`}>
+  <p className={`text-xs font-semibold uppercase tracking-[0.16em] lg:text-sm ${isDark ? "text-[#707078]" : "text-[#71717B]"}`}>
     {children}
   </p>
 );
@@ -82,7 +82,7 @@ const PreviewAmountList = ({
         {items.map((item) => (
           <div
             key={item.id}
-            className={`flex items-center justify-between gap-6 text-sm lg:text-[18px] ${isDark ? "text-white/90" : "text-black/85"}`}
+            className={`flex items-center justify-between gap-6 text-sm lg:text-lg ${isDark ? "text-white/90" : "text-black/85"}`}
           >
             <p className="min-w-0 truncate">{item.name}</p>
             <p className={`shrink-0 text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
@@ -115,7 +115,7 @@ const ServiceTable = ({
         // className={`hidden grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] border-b pb-3 text-sm font-medium md:grid ${
         //   isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
         // }`}
-        className={`hidden grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-sm font-medium md:grid ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
+        className={`grid-cols-[10fr_3fr_4fr_3fr_4fr] border-b pb-3 text-[8px] lg:text-sm font-medium grid ${isDark ? "border-white/10 text-white/75" : "border-[#00000014] text-black/65"
           }`}
       >
         <p>Description</p>
@@ -128,11 +128,10 @@ const ServiceTable = ({
         {items.map((item) => (
           <div
             key={item.id}
-            // className={`grid gap-2 text-sm md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-[18px] ${
+            // className={`grid gap-2 text-sm md:grid-cols-[minmax(0,2fr)_90px_120px_90px_160px] md:items-center lg:text-lg ${
             //   isDark ? "text-white/90" : "text-black/80"
             // }`}
-            className={`grid gap-2 text-sm md:grid-cols-[10fr_3fr_4fr_3fr_4fr] md:items-center lg:text-[18px] ${isDark ? "text-white/90" : "text-black/80"
-              }`}
+            className={`grid gap-2 text-[10px] grid-cols-[10fr_3fr_4fr_3fr_4fr] md:items-center lg:text-base ${isDark ? "text-white/90" : "text-black/80"}`}
           >
             <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
               {item.subtitle || shootTypeLabel ? (
@@ -222,7 +221,7 @@ export default function QuotePreviewDocument({
       className={`rounded-[24px] px-5 py-5 lg:px-10 lg:py-9 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
         }`}
     >
-      <div className="flex flex-col gap-8 lg:gap-10">
+      <div className="flex flex-col gap-5 lg:gap-9">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-5">
             <div className="flex items-center gap-4">
@@ -233,13 +232,13 @@ export default function QuotePreviewDocument({
                 <p className="text-[22px] font-semibold text-[#E8D1AB] lg:text-[28px]">
                   {COMPANY_PROFILE.name}
                 </p>
-                <p className={`text-sm lg:text-[18px] ${isDark ? "text-white/85" : "text-[#020202]"}`}>
+                <p className={`text-sm lg:text-lg ${isDark ? "text-white/85" : "text-[#020202]"}`}>
                   {COMPANY_PROFILE.subtitle}
                 </p>
               </div>
             </div>
 
-            <div className={`space-y-1 text-sm leading-7 lg:text-[16px] ${isDark ? "text-white/75" : "text-[#606060]"}`}>
+            <div className={`space-y-1 text-sm leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
               {COMPANY_PROFILE.addressLines.map((line) => (
                 <p key={line}>{line}</p>
               ))}
@@ -251,7 +250,7 @@ export default function QuotePreviewDocument({
             <h3 className={`text-[38px] font-bold tracking-tight lg:text-[64px] ${isDark ? "text-white" : "text-[#101010]"}`}>
               QUOTATION
             </h3>
-            <div className={`mt-4 space-y-1 text-sm lg:text-[16px] ${isDark ? "text-white/65" : "text-[#00000080]"}`}>
+            <div className={`mt-4 space-y-1 text-sm lg:text-base ${isDark ? "text-white/65" : "text-[#00000080]"}`}>
               <p>Quote #: {quoteNumber}</p>
               <p>Date: {formatQuoteDate(quoteData.created_at)}</p>
               <p>Valid Until: {formatQuoteDate(quoteData.valid_until ?? quoteData.expires_at)}</p>
@@ -263,7 +262,7 @@ export default function QuotePreviewDocument({
 
         <section className="space-y-4">
           <SectionTitle isDark={isDark}>Bill To</SectionTitle>
-          <div className={`space-y-1 text-sm leading-7 lg:text-[16px] ${isDark ? "text-white/75" : "text-black/75"}`}>
+          <div className={`space-y-1 text-xs lg:text-base ${isDark ? "text-white/75" : "text-black/75"}`}>
             <p className={`text-[24px] font-semibold leading-tight ${isDark ? "text-white" : "text-black"}`}>{clientName}</p>
             <p>{clientAddress}</p>
             <p>{clientEmail}</p>
@@ -271,14 +270,11 @@ export default function QuotePreviewDocument({
           </div>
         </section>
 
-        <div
-          className={`rounded-[18px] px-5 py-4 text-[#18181B] lg:px-6 lg:py-5 ${isDark ? "bg-[#F5F5F5]" : "border border-[#D7D7D7] bg-[#F4F5F7]"
-            }`}
-        >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#777781] lg:text-sm">
+        <div className={`rounded-lg lg:rounded-xl p-3 text-[#18181B] lg:p-4 ${isDark ? "bg-[#F5F5F5]" : "border border-[#D7D7D7] bg-[#F4F5F7]"}`}>
+          <p className="text-xs font-semibold uppercase text-[#71717B] lg:text-sm">
             Project Description
           </p>
-          <p className="mt-2 text-sm leading-7 lg:text-[16px]">{projectDescription}</p>
+          <p className="mt-1 lg:mt-2 text-xs lg:text-base">{projectDescription}</p>
         </div>
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
@@ -294,7 +290,7 @@ export default function QuotePreviewDocument({
         ) : null}
 
         <div className="rounded-[20px] bg-[#E8D1AB] p-4 lg:p-6">
-          <div className="space-y-3 text-sm text-black lg:text-[16px]">
+          <div className="space-y-3 text-sm text-black lg:text-base">
             <div className="flex items-center justify-between gap-6">
               <span>Subtotal</span>
               <span className="font-semibold">{formatQuoteCurrency(subtotal)}</span>
@@ -332,7 +328,7 @@ export default function QuotePreviewDocument({
         <section className="space-y-4">
           <SectionTitle isDark={isDark}>Terms & Conditions</SectionTitle>
           <ul
-            className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-[16px] ${isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
+            className={`list-disc space-y-3 pl-5 text-sm leading-7 lg:text-base ${isDark ? "text-white/60 marker:text-white/45" : "text-[#00000085] marker:text-[#00000060]"
               }`}
           >
             {terms.map((term, index) => (
