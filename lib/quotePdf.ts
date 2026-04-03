@@ -37,14 +37,6 @@ const COMPANY_PROFILE = {
   email: "contact@beigeAI.com",
 };
 
-const asRecord = (value: unknown): Record<string, unknown> | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  return value as Record<string, unknown>;
-};
-
 const sanitizePdfFileName = (value: string) =>
   value
     .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "-")
@@ -216,15 +208,6 @@ const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | nul
     quoteData.terms_conditions,
     getDefaultQuoteTerms(getQuoteText(quoteData.valid_until, quoteData.expires_at) || null)
   );
-  const assignedSalesRep = asRecord(quoteData.assigned_sales_rep);
-  const createdBy = asRecord(quoteData.created_by);
-  const footerContactName =
-    getQuoteText(assignedSalesRep?.name, createdBy?.name, COMPANY_PROFILE.name) ||
-    COMPANY_PROFILE.name;
-  const footerContactEmail =
-    getQuoteText(assignedSalesRep?.email, createdBy?.email, COMPANY_PROFILE.email) ||
-    COMPANY_PROFILE.email;
-
   const pdfDoc = await PDFDocument.create();
   const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -601,7 +584,8 @@ const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | nul
 
   ensureSpace(34, "Contact");
   drawDivider();
-  const footerText = `Thank you for your business. For questions, contact ${footerContactName} at ${footerContactEmail}`;
+  const footerText =
+    "Thank you for your business. For questions, contact Beige AI at sales@beigecorporation.io";
   const footerBlock = drawWrappedBlock(footerText, {
     x: PAGE_MARGIN_X,
     y: cursorY,

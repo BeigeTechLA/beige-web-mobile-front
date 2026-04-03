@@ -29,14 +29,6 @@ const COMPANY_PROFILE = {
   email: "sales@beigecorporation.io",
 };
 
-const asRecord = (value: unknown): Record<string, unknown> | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  return value as Record<string, unknown>;
-};
-
 const formatCount = (value: number) => String(Math.max(0, value)).padStart(2, "0");
 
 const formatDuration = (value: number) => {
@@ -225,13 +217,6 @@ export default function QuotePreviewDocument({
     fallbackTerms
   );
   const terms = isLegacyDefaultQuoteTerms(normalizedTerms) ? fallbackTerms : normalizedTerms;
-  const assignedSalesRep = asRecord(quoteData.assigned_sales_rep);
-  const createdBy = asRecord(quoteData.created_by);
-  const footerContactName =
-    getQuoteText(assignedSalesRep?.name, createdBy?.name, COMPANY_PROFILE.name) || COMPANY_PROFILE.name;
-  const footerContactEmail =
-    getQuoteText(assignedSalesRep?.email, createdBy?.email, COMPANY_PROFILE.email) || COMPANY_PROFILE.email;
-
   return (
     <div
       className={`rounded-[24px] px-5 py-5 lg:px-10 lg:py-9 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
@@ -359,7 +344,7 @@ export default function QuotePreviewDocument({
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
         <p className={`pt-2 text-center text-sm lg:text-[16px] ${isDark ? "text-white/70" : "text-black/70"}`}>
-          Thank you for your business! For questions, contact {footerContactName} at {footerContactEmail}
+          Thank you for your business! For questions, contact Beige AI at sales@beigecorporation.io
         </p>
       </div>
     </div>
