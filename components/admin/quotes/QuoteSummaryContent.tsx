@@ -24,6 +24,7 @@ type QuoteSummaryContentProps = {
   previewDisabled?: boolean;
   emptyStateAction: () => void;
   emptyStateLabel?: string;
+  showMobilePreviewBar?: boolean;
 };
 
 const formatCurrency = (value: number) =>
@@ -35,10 +36,14 @@ const formatCurrency = (value: number) =>
   }).format(value);
 
 const formatDate = (value: string) => {
+  if (!value.trim()) {
+    return "";
+  }
+
   const parsedDate = new Date(value);
 
   if (Number.isNaN(parsedDate.getTime())) {
-    return value || "N/A";
+    return value;
   }
 
   return parsedDate.toLocaleDateString("en-US", {
@@ -129,25 +134,31 @@ const InfoTile = ({
   label: string;
   value: string;
   isDark: boolean;
-}) => (
-  <div
-    className={`rounded-[18px] p-4 ${
-      isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
-    }`}
-  >
+}) => {
+  if (!value.trim()) {
+    return null;
+  }
+
+  return (
     <div
-      className={`mb-3 flex h-10 w-10 items-center justify-center rounded-2xl text-[#E8D1AB] ${
-        isDark ? "bg-[#2A2A2A]" : "bg-[#F4F5F7]"
+      className={`rounded-[18px] p-4 ${
+        isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
       }`}
     >
-      {icon}
+      <div
+        className={`mb-3 flex h-10 w-10 items-center justify-center rounded-2xl text-[#E8D1AB] ${
+          isDark ? "bg-[#2A2A2A]" : "bg-[#F4F5F7]"
+        }`}
+      >
+        {icon}
+      </div>
+      <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">{label}</p>
+      <p className={`mt-2 text-sm font-medium lg:text-base ${isDark ? "text-white" : "text-black"}`}>
+        {value}
+      </p>
     </div>
-    <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">{label}</p>
-    <p className={`mt-2 text-sm font-medium lg:text-base ${isDark ? "text-white" : "text-black"}`}>
-      {value || "N/A"}
-    </p>
-  </div>
-);
+  );
+};
 
 export default function QuoteSummaryContent({
   snapshot,
@@ -155,8 +166,63 @@ export default function QuoteSummaryContent({
   previewDisabled = false,
   emptyStateAction,
   emptyStateLabel = "Back to Quote Form",
+  showMobilePreviewBar = true,
 }: QuoteSummaryContentProps) {
   const { isDark } = useResolvedTheme();
+  const discountedSubtotal = Math.max(
+    (snapshot?.subtotal ?? 0) - (snapshot?.discountAmount ?? 0),
+    0
+  );
+  const hasClientSummary = Boolean(
+    snapshot &&
+      (
+        snapshot.clientName.trim() ||
+        snapshot.clientEmail.trim() ||
+        snapshot.clientPhone.trim()
+      )
+  );
+  const hasTotals =
+    Boolean(snapshot) &&
+    (
+      snapshot.subtotal > 0 ||
+      snapshot.discountEnabled ||
+      snapshot.taxRate > 0 ||
+      snapshot.taxAmount > 0 ||
+      snapshot.finalTotal > 0
+    );
+  const hasTerms = Boolean(snapshot && snapshot.termsConditions.length > 0);
+  const validUntilText =
+    snapshot && snapshot.validUntil.trim()
+      ? `${formatDate(snapshot.validUntil)} (${snapshot.quoteValidityDays} day${snapshot.quoteValidityDays === 1 ? "" : "s"})`
+      : "";
+  const visibleInfoTiles = snapshot
+    ? [
+        {
+          key: "validUntil",
+          icon: <CalendarDays size={18} />,
+          label: "Valid Until",
+          value: validUntilText,
+        },
+        {
+          key: "shootType",
+          icon: <Film size={18} />,
+          label: "Shoot Type",
+          value: snapshot.shootTypeLabel,
+        },
+        {
+          key: "address",
+          icon: <MapPin size={18} />,
+          label: "Address",
+          value: snapshot.clientAddress,
+        },
+        {
+          key: "project",
+          icon: <FileText size={18} />,
+          label: "Project",
+          value: snapshot.projectDescription,
+        },
+      ].filter((item) => item.value.trim())
+    : [];
 
   return (
     <div className="px-4 pb-24 pt-6 lg:px-9 lg:pb-12 lg:pt-8">
@@ -198,76 +264,69 @@ export default function QuoteSummaryContent({
             </div>
 
             <div className="space-y-6 px-5 py-5 lg:px-8 lg:py-8">
-              <div
-                className={`rounded-[18px] p-5 lg:p-6 ${
-                  isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-[#F4F5F7]"
-                }`}
-              >
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-medium lg:h-20 lg:w-20 lg:text-2xl ${
-                        isDark ? "bg-[#333333] text-[#FFFFFF85]" : "bg-white text-[#00000085]"
-                      }`}
-                    >
-                      {getInitials(snapshot.clientName)}
-                    </div>
-                    <div>
-                      <p className={`text-xl font-semibold lg:text-2xl ${isDark ? "text-white" : "text-black"}`}>
-                        {snapshot.clientName}
-                      </p>
-                      <div className="mt-2 flex flex-col gap-2 text-sm text-[#A1A1AA]">
-                        <span className="flex items-center gap-2">
-                          <Mail size={15} className="text-[#E8D1AB]" />
-                          {snapshot.clientEmail || "N/A"}
-                        </span>
-                        <span className="flex items-center gap-2">
-                          <Phone size={15} className="text-[#E8D1AB]" />
-                          {snapshot.clientPhone || "N/A"}
-                        </span>
+              {hasClientSummary ? (
+                <div
+                  className={`rounded-[18px] p-5 lg:p-6 ${
+                    isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-[#F4F5F7]"
+                  }`}
+                >
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-medium lg:h-20 lg:w-20 lg:text-2xl ${
+                          isDark ? "bg-[#333333] text-[#FFFFFF85]" : "bg-white text-[#00000085]"
+                        }`}
+                      >
+                        {getInitials(snapshot.clientName || snapshot.clientEmail || snapshot.clientPhone)}
+                      </div>
+                      <div>
+                        <p className={`text-xl font-semibold lg:text-2xl ${isDark ? "text-white" : "text-black"}`}>
+                          {snapshot.clientName || snapshot.clientEmail || snapshot.clientPhone}
+                        </p>
+                        <div className="mt-2 flex flex-col gap-2 text-sm text-[#A1A1AA]">
+                          {snapshot.clientEmail.trim() ? (
+                            <span className="flex items-center gap-2">
+                              <Mail size={15} className="text-[#E8D1AB]" />
+                              {snapshot.clientEmail}
+                            </span>
+                          ) : null}
+                          {snapshot.clientPhone.trim() ? (
+                            <span className="flex items-center gap-2">
+                              <Phone size={15} className="text-[#E8D1AB]" />
+                              {snapshot.clientPhone}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div
-                    className={`rounded-2xl px-4 py-3 lg:min-w-[260px] ${
-                      isDark ? "border border-white/10 bg-[#151515]" : "border border-[#DFDDDD] bg-white"
-                    }`}
-                  >
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">Generated</p>
-                    <p className={`mt-2 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
-                      {formatDate(snapshot.generatedAt)}
-                    </p>
+                    <div
+                      className={`rounded-2xl px-4 py-3 lg:min-w-[260px] ${
+                        isDark ? "border border-white/10 bg-[#151515]" : "border border-[#DFDDDD] bg-white"
+                      }`}
+                    >
+                      <p className="text-xs uppercase tracking-[0.2em] text-[#71717B]">Generated</p>
+                      <p className={`mt-2 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                        {formatDate(snapshot.generatedAt)}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : null}
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <InfoTile
-                  icon={<CalendarDays size={18} />}
-                  label="Valid Until"
-                  value={`${formatDate(snapshot.validUntil)} (${snapshot.quoteValidityDays} day${snapshot.quoteValidityDays === 1 ? "" : "s"})`}
-                  isDark={isDark}
-                />
-                <InfoTile
-                  icon={<Film size={18} />}
-                  label="Shoot Type"
-                  value={snapshot.shootTypeLabel || "N/A"}
-                  isDark={isDark}
-                />
-                <InfoTile
-                  icon={<MapPin size={18} />}
-                  label="Address"
-                  value={snapshot.clientAddress || "N/A"}
-                  isDark={isDark}
-                />
-                <InfoTile
-                  icon={<FileText size={18} />}
-                  label="Project"
-                  value={snapshot.projectDescription || "N/A"}
-                  isDark={isDark}
-                />
-              </div>
+              {visibleInfoTiles.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  {visibleInfoTiles.map((item) => (
+                    <InfoTile
+                      key={item.key}
+                      icon={item.icon}
+                      label={item.label}
+                      value={item.value}
+                      isDark={isDark}
+                    />
+                  ))}
+                </div>
+              ) : null}
 
               <div className="space-y-4">
                 <SectionCard title="Services Included" items={snapshot.services} icon={<Film size={18} />} isDark={isDark} />
@@ -276,79 +335,95 @@ export default function QuoteSummaryContent({
                 <SectionCard title="Custom Line Items" items={snapshot.customLineItems} icon={<FileText size={18} />} isDark={isDark} />
               </div>
 
-              <div
-                className={`rounded-[18px] p-4 lg:p-6 ${
-                  isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
-                }`}
-              >
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
-                    <FileText size={18} />
+              {hasTotals ? (
+                <div
+                  className={`rounded-[18px] p-4 lg:p-6 ${
+                    isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
+                  }`}
+                >
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
+                      <FileText size={18} />
+                    </div>
+                    <div>
+                      <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Totals</p>
+                      <p className="text-sm text-[#8B8B90]">Current quote amount</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Totals</p>
-                    <p className="text-sm text-[#8B8B90]">Final quote amount</p>
-                  </div>
-                </div>
 
-                <div className="space-y-3">
-                  <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
-                    <span>Subtotal</span>
-                    <span>{formatCurrency(snapshot.subtotal)}</span>
-                  </div>
-                  <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
-                    <span>{snapshot.discountEnabled ? `Discount ${snapshot.discountType === "percentage" ? `(${snapshot.discountValue}%)` : ""}` : "Discount"}</span>
-                    <span>{snapshot.discountEnabled ? `- ${formatCurrency(snapshot.discountAmount)}` : formatCurrency(0)}</span>
-                  </div>
-                  <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
-                    <span>{`${snapshot.taxLabel} (${snapshot.taxRate}%)`}</span>
-                    <span>{formatCurrency(snapshot.taxAmount)}</span>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black lg:px-5">
-                    <span className="text-sm font-semibold lg:text-base">Final Total</span>
-                    <span className="text-xl font-semibold lg:text-2xl">
-                      {formatCurrency(snapshot.finalTotal)}
-                    </span>
+                  <div className="space-y-3">
+                    <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(snapshot.subtotal)}</span>
+                    </div>
+                    {snapshot.discountEnabled ? (
+                      <>
+                        <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
+                          <span>{`Discount ${snapshot.discountType === "percentage" ? `(${snapshot.discountValue}%)` : ""}`}</span>
+                          <span>{`- ${formatCurrency(snapshot.discountAmount)}`}</span>
+                        </div>
+                        <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
+                          <span>Total After Discount</span>
+                          <span>{formatCurrency(discountedSubtotal)}</span>
+                        </div>
+                      </>
+                    ) : null}
+                    {snapshot.taxRate > 0 || snapshot.taxAmount > 0 ? (
+                      <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
+                        <span>{`${snapshot.taxLabel} (${snapshot.taxRate}%)`}</span>
+                        <span>{formatCurrency(snapshot.taxAmount)}</span>
+                      </div>
+                    ) : null}
+                    <div className="mt-4 flex items-center justify-between rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black lg:px-5">
+                      <span className="text-sm font-semibold lg:text-base">Current Total</span>
+                      <span className="text-xl font-semibold lg:text-2xl">
+                        {formatCurrency(snapshot.finalTotal)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : null}
 
-              <div
-                className={`rounded-[18px] p-4 lg:p-6 ${
-                  isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
-                }`}
-              >
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
-                    <FileText size={18} />
+              {hasTerms ? (
+                <div
+                  className={`rounded-[18px] p-4 lg:p-6 ${
+                    isDark ? "border border-white/10 bg-[#202020]" : "border border-[#DFDDDD] bg-white"
+                  }`}
+                >
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#E8D1AB] text-black">
+                      <FileText size={18} />
+                    </div>
+                    <div>
+                      <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                        Terms & Conditions
+                      </p>
+                      <p className="text-sm text-[#8B8B90]">Included with this quote</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                      Terms & Conditions
-                    </p>
-                    <p className="text-sm text-[#8B8B90]">Included with this quote</p>
-                  </div>
-                </div>
 
-                <div className={`space-y-2 text-sm ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
-                  {snapshot.termsConditions.map((term, index) => (
-                    <p key={`${term}-${index}`}>{term}</p>
-                  ))}
+                  <div className={`space-y-2 text-sm ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
+                    {snapshot.termsConditions.map((term, index) => (
+                      <p key={`${term}-${index}`}>{term}</p>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </div>
           </div>
 
-          <div className={`fixed bottom-0 left-0 right-0 z-40 px-6 pb-6 pt-4 lg:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
-            <Button
-              type="button"
-              onClick={onPreview}
-              disabled={previewDisabled}
-              className="h-14 w-full rounded-xl bg-[#E5D5B8] text-black hover:bg-[#d7c7aa] disabled:opacity-60"
-            >
-              Preview Quote
-            </Button>
-          </div>
+          {showMobilePreviewBar ? (
+            <div className={`fixed bottom-0 left-0 right-0 z-40 px-6 pb-6 pt-4 lg:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+              <Button
+                type="button"
+                onClick={onPreview}
+                disabled={previewDisabled}
+                className="h-14 w-full rounded-xl bg-[#E5D5B8] text-black hover:bg-[#d7c7aa] disabled:opacity-60"
+              >
+                Preview Quote
+              </Button>
+            </div>
+          ) : null}
         </>
       )}
     </div>

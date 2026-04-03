@@ -142,6 +142,41 @@ export interface QuoteValidationResult {
 
 const hasText = (value: string) => value.trim().length > 0;
 
+export const hasQuoteSummaryContent = (input: {
+  selectedClient: QuoteClient | null;
+  clientName: string;
+  emailId: string;
+  phoneNumber: string;
+  address: string;
+  projectDescription: string;
+  validUntil: string;
+  selectedShootType: string;
+  selectedServices: string[];
+  selectedAddons: string[];
+  logisticsItems: QuoteCatalogItem[];
+  lineItems: QuoteCatalogItem[];
+  discountEnabled: boolean;
+  discountValue: number | string;
+  normalizedTaxRate: number;
+}) =>
+  Boolean(
+    input.selectedClient ||
+      hasText(input.clientName) ||
+      hasText(input.emailId) ||
+      hasText(input.phoneNumber) ||
+      hasText(input.address) ||
+      hasText(input.projectDescription) ||
+      hasText(input.validUntil) ||
+      hasText(input.selectedShootType) ||
+      input.selectedServices.length > 0 ||
+      input.selectedAddons.length > 0 ||
+      input.logisticsItems.length > 0 ||
+      input.lineItems.length > 0 ||
+      input.discountEnabled ||
+      normalizeNumber(input.discountValue) > 0 ||
+      normalizeNumber(input.normalizedTaxRate) > 0
+  );
+
 const normalizeNumber = (value: unknown) => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -402,10 +437,12 @@ export const buildQuoteSummarySnapshot = (
   const taxAmount = discountedSubtotal * (taxRate / 100);
   const amountAfterTax = discountedSubtotal + taxAmount;
   const quoteValidityDays = resolveValidityDays(input.validityDays, input.validUntil);
-  const termsConditions = getDefaultQuoteTerms(input.validUntil);
+  const termsConditions = hasText(input.validUntil)
+    ? getDefaultQuoteTerms(input.validUntil)
+    : [];
 
   return {
-    clientName: input.clientName.trim() || input.selectedClient?.name?.trim() || "Client",
+    clientName: input.clientName.trim() || input.selectedClient?.name?.trim() || "",
     clientEmail: input.emailId.trim() || input.selectedClient?.email?.trim() || "",
     clientPhone: input.phoneNumber.trim() || input.selectedClient?.phone?.trim() || "",
     clientAddress: input.address.trim(),
@@ -549,6 +586,7 @@ export const buildPreviewQuoteFromSummary = (
     ...snapshot.services.map((item) => ({
       line_item_id: item.id,
       item_name: item.name,
+      subtitle: item.subtitle,
       section_type: "service",
       quantity: item.quantity,
       duration_hours: item.duration,
@@ -559,6 +597,7 @@ export const buildPreviewQuoteFromSummary = (
     ...snapshot.addons.map((item) => ({
       line_item_id: item.id,
       item_name: item.name,
+      subtitle: item.subtitle,
       section_type: "addon",
       quantity: item.quantity,
       unit_rate: item.unitRate,
@@ -567,6 +606,7 @@ export const buildPreviewQuoteFromSummary = (
     ...snapshot.logistics.map((item) => ({
       line_item_id: item.id,
       item_name: item.name,
+      subtitle: item.subtitle,
       section_type: "logistics",
       quantity: item.quantity,
       unit_rate: item.unitRate,
@@ -575,6 +615,7 @@ export const buildPreviewQuoteFromSummary = (
     ...snapshot.customLineItems.map((item) => ({
       line_item_id: item.id,
       item_name: item.name,
+      subtitle: item.subtitle,
       section_type: "custom",
       quantity: item.quantity,
       unit_rate: item.unitRate,

@@ -1,7 +1,12 @@
 import { addDays, format, isValid, parseISO } from "date-fns";
 
 import type { SalesQuoteDetailData, SalesQuoteDetailLineItem } from "@/lib/api";
-import { extractQuoteLineItems, getQuoteNumber, getQuoteText } from "@/lib/quoteDetail";
+import {
+  extractQuoteLineItems,
+  getQuoteDisplayShootTypeLabel,
+  getQuoteNumber,
+  getQuoteText,
+} from "@/lib/quoteDetail";
 
 export type QuoteEditorView =
   | "selection"
@@ -43,6 +48,7 @@ export type QuoteEditorSimpleItem = {
   id: string;
   label: string;
   basePrice: number;
+  sourceType?: "custom" | "catalog";
   createdAt?: string | null;
   originalIndex?: number;
 };
@@ -388,6 +394,25 @@ export const buildQuoteEditorHydrationState = ({
   const hydratedLineItems: QuoteEditorSimpleItem[] = [];
   const lineItemConfigs: Record<string, QuoteEditorSimplePriceConfig> = {};
   const appliedLineItemConfigs: Record<string, QuoteEditorSimplePriceConfig> = {};
+  const usedHydratedIds = new Set<string>([
+    ...mergedServices.map((item) => item.id),
+    ...mergedAddons.map((item) => item.id),
+    ...logisticsItems.map((item) => item.id),
+    ...lineItems.map((item) => item.id),
+  ]);
+
+  const createUniqueHydratedId = (baseId: string) => {
+    let nextId = baseId;
+    let suffix = 1;
+
+    while (usedHydratedIds.has(nextId)) {
+      nextId = `${baseId}_${suffix}`;
+      suffix += 1;
+    }
+
+    usedHydratedIds.add(nextId);
+    return nextId;
+  };
 
   quoteLineItems.forEach((lineItem, index) => {
     const section = resolveDetailSection(lineItem);
@@ -399,7 +424,9 @@ export const buildQuoteEditorHydrationState = ({
       const resolvedService =
         matchedService ??
         {
-          id: `custom_service_${lineItem.line_item_id ?? lineItem.catalog_item_id ?? index}`,
+          id: createUniqueHydratedId(
+            `custom_service_${lineItem.line_item_id ?? lineItem.catalog_item_id ?? index}`
+          ),
           label,
           price: resolveServicePrice(lineItem),
           createdAt,
@@ -438,7 +465,9 @@ export const buildQuoteEditorHydrationState = ({
       const resolvedAddon =
         matchedAddon ??
         {
-          id: `custom_addon_${lineItem.line_item_id ?? lineItem.catalog_item_id ?? index}`,
+          id: createUniqueHydratedId(
+            `custom_addon_${lineItem.line_item_id ?? lineItem.catalog_item_id ?? index}`
+          ),
           label,
           price: resolveItemPrice(lineItem),
           createdAt,
@@ -473,11 +502,21 @@ export const buildQuoteEditorHydrationState = ({
       ? {
           ...matchedSimpleItem,
           basePrice: resolvedPrice,
+          sourceType:
+            getQuoteText(lineItem.source_type).toLowerCase() === "custom"
+              ? "custom"
+              : matchedSimpleItem.sourceType,
         }
       : {
-          id: `custom_${section}_${lineItem.line_item_id ?? lineItem.catalog_item_id ?? index}`,
+          id: createUniqueHydratedId(
+            `custom_${section}_${lineItem.line_item_id ?? lineItem.catalog_item_id ?? index}`
+          ),
           label,
           basePrice: resolvedPrice,
+          sourceType:
+            getQuoteText(lineItem.source_type).toLowerCase() === "custom"
+              ? "custom"
+              : "catalog",
           createdAt,
           originalIndex: index,
         };
@@ -502,7 +541,9 @@ export const buildQuoteEditorHydrationState = ({
   );
   const quoteValidityDays = getQuoteNumber(quote.quote_validity_days);
   const normalizedDiscountType =
-    getQuoteText(quote.discount_type).toLowerCase() === "fixed" ? "fixed" : "percentage";
+    ["fixed", "fixed_amount"].includes(getQuoteText(quote.discount_type).toLowerCase())
+      ? "fixed"
+      : "percentage";
   const normalizedDiscountValue = Math.max(0, getQuoteNumber(quote.discount_value) ?? 0);
 
   return {
@@ -539,6 +580,6 @@ export const buildQuoteEditorHydrationState = ({
     lineItems: hydratedLineItems,
     lineItemConfigs,
     appliedLineItemConfigs,
-    shootTypeLabel: getQuoteText(quote.video_shoot_type),
+    shootTypeLabel: getQuoteDisplayShootTypeLabel(quote),
   };
 };

@@ -137,6 +137,22 @@ export const salesApi = createApi({
       invalidatesTags: (result, error, { leadId }) => [{ type: 'Lead', id: leadId }, { type: 'Lead', id: 'LIST' }],
     }),
 
+    deleteLead: builder.mutation<ApiResponse<void>, number>({
+      query: (leadId) => ({
+        url: `sales/leads/${leadId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, leadId) => [{ type: 'Lead', id: leadId }, { type: 'Lead', id: 'LIST' }],
+    }),
+
+    deleteClientLead: builder.mutation<ApiResponse<void>, number>({
+      query: (clientLeadId) => ({
+        url: `sales/client-leads/${clientLeadId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, clientLeadId) => [{ type: 'Lead', id: clientLeadId }, { type: 'Lead', id: 'LIST' }],
+    }),
+
     // =====================================================
     // Discount Code Endpoints
     // =====================================================
@@ -437,6 +453,8 @@ export const {
   useGetLeadByIdQuery,
   useAssignLeadMutation,
   useUpdateLeadStatusMutation,
+  useDeleteLeadMutation,
+  useDeleteClientLeadMutation,
   // Discount codes
   useGenerateDiscountCodeMutation,
   useValidateDiscountCodeQuery,
