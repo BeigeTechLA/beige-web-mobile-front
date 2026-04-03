@@ -26,6 +26,7 @@ export const CreativeProfileSelectorAdd = ({
     currentLocation,
     targets,
     disableCrewFetch,
+    statsSource = "lead",
     isDark = true
 }: {
     selectedIds?: number[],
@@ -36,6 +37,7 @@ export const CreativeProfileSelectorAdd = ({
     currentLocation?: string,
     targets?: { videographer: number, photographer: number },
     disableCrewFetch?: boolean, // When true, suppresses the get-crew-for-lead API call
+    statsSource?: "lead" | "client",
     isDark?: boolean,
 } = {}) => {
     const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
@@ -74,7 +76,9 @@ export const CreativeProfileSelectorAdd = ({
         const fetchStats = async () => {
             if (leadId && !targets) {
                 try {
-                    const response = await salesApi.getClientLeadStats(leadId);
+                    const response = statsSource === "client"
+                        ? await salesApi.getClientLeadStats(leadId)
+                        : await salesApi.getLeadStats(leadId);
                     if (response && response.data) {
                         setStats(response.data);
                     }
@@ -84,7 +88,7 @@ export const CreativeProfileSelectorAdd = ({
             }
         };
         fetchStats();
-    }, [leadId, targets]);
+    }, [leadId, targets, statsSource]);
 
     useEffect(() => {
         const fetchCreatives = async () => {
