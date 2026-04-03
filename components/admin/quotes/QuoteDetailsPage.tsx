@@ -28,6 +28,7 @@ import {
 import {
   formatQuoteCurrency,
   formatQuoteDate,
+  getQuoteDisplayShootTypeLabel,
   getQuoteNumber,
   getQuoteSalesperson,
   getQuoteText,
@@ -35,6 +36,7 @@ import {
   normalizeQuoteTerms,
   type NormalizedQuoteLineItem,
 } from "@/lib/quoteDetail";
+import { getDefaultQuoteTerms } from "@/lib/quoteTerms";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
@@ -148,8 +150,11 @@ const ServiceLineCard = ({
 }: {
   item: NormalizedQuoteLineItem;
   shootType: string;
-}) => (
-  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-5">
+}) => {
+  const detailLabel = item.subtitle || (shootType ? `(${shootType})` : "");
+
+  return (
+    <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-5">
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div className="flex items-center gap-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#E8D1AB] text-black">
@@ -158,7 +163,7 @@ const ServiceLineCard = ({
         <div>
           <p className="text-[17px] font-semibold text-white">
             {item.name}
-            {shootType ? <span className="text-[#E8D1AB]"> - ({shootType})</span> : null}
+            {detailLabel ? <span className="text-[#E8D1AB]"> - {detailLabel}</span> : null}
           </p>
         </div>
       </div>
@@ -181,7 +186,8 @@ const ServiceLineCard = ({
       </div>
     </div>
   </div>
-);
+  );
+};
 
 const QuoteTopActions = ({
   onReject,
@@ -331,28 +337,30 @@ export default function QuoteDetailsPage({
   const customItems = lineItems.filter((item) => item.section === "custom");
 
   const subtotal = quote ? getQuoteNumber(quote.subtotal) ?? lineItems.reduce((sum, item) => sum + item.amount, 0) : 0;
+  const discountValue = quote ? getQuoteNumber(quote.discount_value) ?? 0 : 0;
+  const discountType = quote ? getQuoteText(quote.discount_type).toLowerCase() : "";
+  const rawDiscountAmount = quote
+    ? getQuoteNumber(quote.discount_amount) ??
+      (discountType.includes("percent")
+        ? subtotal * (discountValue / 100)
+        : discountValue)
+    : 0;
+  const discountAmount = Math.min(rawDiscountAmount, subtotal);
+  const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
   const taxRate = quote ? getQuoteNumber(quote.tax_rate) ?? 0 : 0;
   const taxType = quote ? getQuoteText(quote.tax_type, "Sales Tax") || "Sales Tax" : "Sales Tax";
   const taxAmount = quote
-    ? getQuoteNumber(quote.tax_amount, quote.sales_tax) ?? subtotal * (taxRate / 100)
+    ? getQuoteNumber(quote.tax_amount, quote.sales_tax) ?? discountedSubtotal * (taxRate / 100)
     : 0;
   const amountAfterTax = quote
-    ? getQuoteNumber(quote.amount_after_tax, quote.total_after_tax) ?? subtotal + taxAmount
-    : 0;
-  const discountValue = quote ? getQuoteNumber(quote.discount_value) ?? 0 : 0;
-  const discountType = quote ? getQuoteText(quote.discount_type).toLowerCase() : "";
-  const discountAmount = quote
-    ? getQuoteNumber(quote.discount_amount) ??
-      (discountType.includes("percent")
-        ? amountAfterTax * (discountValue / 100)
-        : discountValue)
+    ? getQuoteNumber(quote.amount_after_tax, quote.total_after_tax) ?? discountedSubtotal + taxAmount
     : 0;
   const finalTotal = quote
     ? getQuoteNumber(
         quote.final_total,
         quote.total_amount,
         quote.amount_after_discount
-      ) ?? Math.max(amountAfterTax - discountAmount, 0)
+      ) ?? amountAfterTax
     : 0;
 
   const clientName = getQuoteText(quote?.client_name, "Client");
@@ -370,8 +378,11 @@ export default function QuoteDetailsPage({
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
-  const shootType = getQuoteText(quote?.video_shoot_type);
-  const terms = normalizeQuoteTerms(quote?.terms_conditions);
+  const shootType = getQuoteDisplayShootTypeLabel(quote);
+  const terms = normalizeQuoteTerms(
+    quote?.terms_conditions,
+    getDefaultQuoteTerms(getQuoteText(quote?.valid_until, quote?.expires_at) || null)
+  );
   const resolvedQuoteId = String(
     quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? quoteId
   );
@@ -663,12 +674,12 @@ export default function QuoteDetailsPage({
                 {otherDetailsTab === "discounts" ? (
                   <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
                     <div className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <p className="text-[24px] font-semibold text-white">Discount Type</p>
-                        <p className="mt-1 text-sm text-[#8F8F95]">
-                          {discountType === "fixed" ? "$ off total after tax" : "% off subtotal"}
-                        </p>
-                      </div>
+                        <div>
+                          <p className="text-[24px] font-semibold text-white">Discount Type</p>
+                          <p className="mt-1 text-sm text-[#8F8F95]">
+                            {discountType === "fixed" ? "$ off subtotal" : "% off subtotal"}
+                          </p>
+                        </div>
                       <div className="inline-flex items-center gap-3 rounded-[16px] bg-[#1A1A1A] px-4 py-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#E8D1AB] text-black">
                           {discountType === "fixed" ? <DollarSign size={20} /> : <Percent size={20} />}
@@ -689,12 +700,12 @@ export default function QuoteDetailsPage({
                       value={formatQuoteCurrency(discountAmount)}
                     />
                     <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow
-                      label="Total After Discount"
-                      value={formatQuoteCurrency(finalTotal)}
-                    />
-                  </div>
-                ) : (
+                      <DetailRow
+                        label="Total After Discount"
+                        value={formatQuoteCurrency(discountedSubtotal)}
+                      />
+                    </div>
+                  ) : (
                   <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
                     <DetailRow label="Tax Type" value={taxType} />
                     <div className="border-t border-[#2B2B2B]" />
@@ -704,11 +715,13 @@ export default function QuoteDetailsPage({
                   </div>
                 )}
 
-                <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
-                  <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} />
-                  <div className="border-t border-[#2B2B2B]" />
-                  <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} />
-                </div>
+                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
+                    <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} />
+                    <div className="border-t border-[#2B2B2B]" />
+                    <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} />
+                    <div className="border-t border-[#2B2B2B]" />
+                    <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} />
+                  </div>
 
                 {terms.length > 0 ? (
                   <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-5">

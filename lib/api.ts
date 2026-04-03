@@ -350,6 +350,7 @@ export interface SalesQuoteDetailLineItem {
   line_item_id?: number | string;
   item_id?: number | string;
   catalog_item_id?: number | string;
+  subtitle?: string;
   section_type?: string;
   source_type?: string;
   item_name?: string;
@@ -374,6 +375,8 @@ export interface SalesQuoteDetailLineItem {
   amount?: number | string;
   price?: number | string;
   rate_type?: string;
+  configuration?: unknown;
+  configuration_json?: unknown;
   [key: string]: unknown;
 }
 
@@ -1969,6 +1972,55 @@ export const salesApi = {
         success: false,
         data: null,
         error: 'Failed to fetch shoot types',
+      };
+    }
+  },
+  getAiEditingTypes: async () => {
+    try {
+      const response = await api.get('/sales/quotes/ai-editing-types');
+      return response.data;
+    } catch (error) {
+      console.error('Get AI Editing Types Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch AI editing types',
+      };
+    }
+  },
+  createAiEditingType: async (data: { category: "video" | "photo"; label: string }) => {
+    try {
+      const response = await api.post('/sales/quotes/ai-editing-types', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create AI Editing Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create AI editing type',
+      };
+    }
+  },
+  deleteAiEditingType: async (id: number | string) => {
+    try {
+      const editingTypeId = Number(id);
+
+      if (!Number.isInteger(editingTypeId) || editingTypeId <= 0) {
+        return {
+          success: false,
+          data: null,
+          error: 'Invalid AI editing type id',
+        };
+      }
+
+      const response = await api.delete(`/sales/quotes/ai-editing-types/${editingTypeId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete AI Editing Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete AI editing type',
       };
     }
   },

@@ -7,6 +7,7 @@ import {
   formatQuoteCurrency,
   formatQuoteDate,
   getQuoteNumber,
+  getQuoteDisplayShootTypeLabel,
   getQuoteText,
   normalizeQuoteLineItems,
   normalizeQuoteTerms,
@@ -142,9 +143,9 @@ const ServiceTable = ({
               }`}
           >
             <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-              {shootTypeLabel ? (
+              {item.subtitle || shootTypeLabel ? (
                 <>
-                  {item.name} - <span className="text-[#E8D1AB]">({shootTypeLabel})</span>
+                  {item.name} - <span className="text-[#E8D1AB]">{item.subtitle || `(${shootTypeLabel})`}</span>
                 </>
               ) : (
                 item.name
@@ -212,7 +213,7 @@ export default function QuotePreviewDocument({
   const projectDescription =
     getQuoteText(quoteData.project_description, "Project description not available") ||
     "Project description not available";
-  const shootTypeLabel = getQuoteText(quoteData.video_shoot_type);
+  const shootTypeLabel = getQuoteDisplayShootTypeLabel(quoteData);
   const fallbackTerms = getDefaultQuoteTerms(
     getQuoteText(quoteData.valid_until, quoteData.expires_at) || null
   );
@@ -319,6 +320,10 @@ export default function QuotePreviewDocument({
                 <span className="font-semibold">-{formatQuoteCurrency(discountAmount)}</span>
               </div>
             ) : null}
+            <div className="flex items-center justify-between gap-6">
+              <span>Total After Discount</span>
+              <span className="font-semibold">{formatQuoteCurrency(discountedSubtotal)}</span>
+            </div>
             <div className="flex items-center justify-between gap-6">
               <span>{taxType} ({taxRate}%)</span>
               <span className="font-semibold">{formatQuoteCurrency(taxAmount)}</span>

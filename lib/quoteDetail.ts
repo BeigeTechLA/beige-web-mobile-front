@@ -1,5 +1,5 @@
 import type { SalesQuoteDetailData, SalesQuoteDetailLineItem } from "@/lib/api";
-import { getDefaultQuoteTerms } from "@/lib/quoteTerms";
+import { getDefaultQuoteTerms, isGeneratedDefaultQuoteTerms } from "@/lib/quoteTerms";
 
 export type NormalizedQuoteLineItemSection = "service" | "addon" | "logistics" | "custom";
 
@@ -12,6 +12,7 @@ export type NormalizedQuoteLineItem = {
   crew: number;
   unitRate: number;
   amount: number;
+  subtitle?: string;
 };
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
@@ -138,6 +139,176 @@ export const extractQuoteLineItems = (quote: SalesQuoteDetailData) => {
   return [];
 };
 
+const resolveLineItemConfiguration = (item: SalesQuoteDetailLineItem) => {
+  const directConfiguration = asRecord(item.configuration);
+  if (directConfiguration) {
+    return directConfiguration;
+  }
+
+  if (typeof item.configuration_json === "string" && item.configuration_json.trim()) {
+    try {
+      const parsedConfiguration = JSON.parse(item.configuration_json);
+      return asRecord(parsedConfiguration);
+    } catch {
+      return null;
+    }
+  }
+
+  return asRecord(item.configuration_json);
+};
+
+export type QuoteLineItemEditingTypeConfiguration = {
+  editingTypeKey: string;
+  editingTypeLabel: string;
+  isCustomEditingType: boolean;
+};
+
+export const getQuoteLineItemEditingTypeConfiguration = (
+  item: SalesQuoteDetailLineItem
+): QuoteLineItemEditingTypeConfiguration | null => {
+  const configuration = resolveLineItemConfiguration(item);
+  if (!configuration) {
+    return null;
+  }
+
+  const editingTypeLabel = getQuoteText(
+    configuration.editing_type_label,
+    configuration.editingTypeLabel
+  );
+  if (!editingTypeLabel) {
+    return null;
+  }
+
+  const editingTypeKey =
+    getQuoteText(configuration.editing_type_key, configuration.editingTypeKey) ||
+    editingTypeLabel
+      .trim()
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") ||
+    "custom_editing_type";
+
+  return {
+    editingTypeKey,
+    editingTypeLabel,
+    isCustomEditingType:
+      configuration.is_custom_editing_type === true ||
+      configuration.isCustomEditingType === true ||
+      Number(
+        configuration.is_custom_editing_type ??
+          configuration.isCustomEditingType ??
+          0
+      ) === 1,
+  };
+};
+
+export const getQuoteLineItemEditingTypeLabel = (
+  item: SalesQuoteDetailLineItem
+) =>
+  getQuoteLineItemEditingTypeConfiguration(item)?.editingTypeLabel || "";
+
+const normalizeShootTypeLabelKey = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+
+const parseStoredShootTypeLabels = (value: string) => {
+  const normalizedValue = value.trim();
+  if (!normalizedValue) {
+    return { video: "", photo: "", editing: "", isStructured: false };
+  }
+
+  const parts = normalizedValue
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  let video = "";
+  let photo = "";
+  let editing = "";
+
+  parts.forEach((part) => {
+    const [rawPrefix, ...restParts] = part.split(":");
+    const prefix = rawPrefix.trim().toLowerCase();
+    const label = restParts.join(":").trim();
+
+    if (!label) {
+      return;
+    }
+
+    if (prefix === "video") {
+      video = label;
+    } else if (prefix === "photo") {
+      photo = label;
+    } else if (prefix === "editing") {
+      editing = label;
+    }
+  });
+
+  return { video, photo, editing, isStructured: Boolean(video || photo || editing) };
+};
+
+const buildStoredShootTypeLabel = ({
+  video,
+  photo,
+  editing,
+}: {
+  video: string;
+  photo: string;
+  editing: string;
+}) => {
+  const entries = [
+    video.trim() ? { prefix: "Video", label: video.trim() } : null,
+    photo.trim() ? { prefix: "Photo", label: photo.trim() } : null,
+    editing.trim() ? { prefix: "Editing", label: editing.trim() } : null,
+  ].filter((entry): entry is { prefix: string; label: string } => Boolean(entry?.label));
+
+  if (entries.length === 0) {
+    return "";
+  }
+
+  const normalizedLabels = new Set(
+    entries.map((entry) => normalizeShootTypeLabelKey(entry.label))
+  );
+
+  if (normalizedLabels.size === 1 || entries.length === 1) {
+    return entries[0].label;
+  }
+
+  return entries.map((entry) => `${entry.prefix}: ${entry.label}`).join(" | ");
+};
+
+export const getQuoteDisplayShootTypeLabel = (
+  quote: SalesQuoteDetailData | null | undefined
+) => {
+  const rawShootTypeLabel = getQuoteText(quote?.video_shoot_type);
+  const parsedShootTypeLabels = parseStoredShootTypeLabels(rawShootTypeLabel);
+  const editingConfiguration = quote
+    ? extractQuoteLineItems(quote)
+        .map((item) => getQuoteLineItemEditingTypeConfiguration(item))
+        .find((item): item is QuoteLineItemEditingTypeConfiguration => Boolean(item)) || null
+    : "";
+  const editingTypeLabel = editingConfiguration?.editingTypeLabel || "";
+
+  if (!editingTypeLabel) {
+    return rawShootTypeLabel;
+  }
+
+  if (!parsedShootTypeLabels.isStructured) {
+    return editingTypeLabel;
+  }
+
+  return buildStoredShootTypeLabel({
+    video: parsedShootTypeLabels.video,
+    photo: parsedShootTypeLabels.photo,
+    editing: editingTypeLabel || parsedShootTypeLabels.editing,
+  });
+};
+
 export const normalizeQuoteLineItems = (
   quote: SalesQuoteDetailData
 ): NormalizedQuoteLineItem[] =>
@@ -171,17 +342,23 @@ export const normalizeQuoteLineItems = (
       }
     }
 
+    const catalogItem = asRecord(item.catalog_item);
+    const editingTypeLabel = getQuoteLineItemEditingTypeLabel(item);
+    const directSubtitle = getQuoteText(item.subtitle);
+    const resolvedName = editingTypeLabel
+      ? getQuoteText(catalogItem?.name, item.name, item.label, item.item_name, "Line Item")
+      : getQuoteText(item.item_name, item.name, item.label, catalogItem?.name, "Line Item");
+
     return {
       id: String(item.line_item_id ?? item.catalog_item_id ?? item.item_id ?? item.id ?? index),
-      name: formatQuoteItemDisplayName(
-        getQuoteText(item.item_name, item.name, item.label, "Line Item")
-      ),
+      name: formatQuoteItemDisplayName(resolvedName),
       section,
       quantity,
       duration,
       crew,
       unitRate,
       amount,
+      subtitle: editingTypeLabel ? `(${editingTypeLabel})` : directSubtitle || undefined,
     };
   });
 
@@ -189,12 +366,20 @@ export const normalizeQuoteTerms = (
   value: unknown,
   fallbackTerms: string[] = getDefaultQuoteTerms()
 ) => {
+  const normalizeParsedTerms = (terms: string[]) => {
+    if (terms.length === 0) {
+      return fallbackTerms;
+    }
+
+    return isGeneratedDefaultQuoteTerms(terms) ? fallbackTerms : terms;
+  };
+
   if (Array.isArray(value)) {
     const terms = value
       .map((item) => (typeof item === "string" ? item.trim() : ""))
       .filter(Boolean);
 
-    return terms.length > 0 ? terms : fallbackTerms;
+    return normalizeParsedTerms(terms);
   }
 
   if (typeof value === "string" && value.trim()) {
@@ -209,7 +394,7 @@ export const normalizeQuoteTerms = (
             .map((item) => (typeof item === "string" ? item.trim() : ""))
             .filter(Boolean);
 
-          return terms.length > 0 ? terms : fallbackTerms;
+          return normalizeParsedTerms(terms);
         }
       } catch {
         // Fall back to plain-text parsing below.
@@ -223,7 +408,7 @@ export const normalizeQuoteTerms = (
       .map((item) => item.trim())
       .filter(Boolean);
 
-    return terms.length > 0 ? terms : fallbackTerms;
+    return normalizeParsedTerms(terms);
   }
 
   return fallbackTerms;
