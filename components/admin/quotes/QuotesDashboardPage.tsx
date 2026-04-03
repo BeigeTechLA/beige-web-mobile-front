@@ -544,6 +544,8 @@ const buildQuoteChartData = (
 
 const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
+    case "paid":
+      return "bg-[#D6FFE6] text-[#166534] border-transparent";
     case "accepted":
     case "confirmed":
       return "bg-[#D6FFE6] text-[#27AE60] border-transparent";
@@ -566,7 +568,10 @@ const getStatusColor = (status: string) => {
 
 const buildStatusSummary = (rows: SalesQuoteListItem[]) =>
   rows.reduce<Record<string, number>>((summary, quote) => {
-    const statusKey = getText(quote.quote_status, quote.status, "draft").toLowerCase();
+    const statusKey =
+      String(quote.payment_status).toLowerCase() === "paid"
+        ? "paid"
+        : getText(quote.quote_status, quote.status, "draft").toLowerCase();
 
     if (!statusKey) {
       return summary;
@@ -642,7 +647,7 @@ const matchesStatusFilter = (quoteStatusKey: string, filterValue: string) => {
   }
 
   if (filterValue === "accepted") {
-    return quoteStatusKey === "accepted" || quoteStatusKey === "confirmed";
+    return quoteStatusKey === "accepted" || quoteStatusKey === "confirmed" || quoteStatusKey === "paid";
   }
 
   if (filterValue === "pending") {
@@ -682,7 +687,10 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     quote.created_by?.name,
     "N/A"
   );
-  const statusKey = getText(quote.quote_status, quote.status, "draft").toLowerCase() || "draft";
+  const statusKey =
+    String(quote.payment_status).toLowerCase() === "paid"
+      ? "paid"
+      : getText(quote.quote_status, quote.status, "draft").toLowerCase() || "draft";
   const quoteNumber = getText(quote.quote_number);
   const location = getText(
     quote.location,

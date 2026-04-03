@@ -114,6 +114,23 @@ const formatLeadSource = (value?: string | null) => {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
+const getNumericValue = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
 export default function LeadDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -264,23 +281,26 @@ export default function LeadDetailPage() {
   const location = booking?.event_location || "Not specified";
   const shootType = booking?.shoot_type || booking?.event_type || "Not specified";
 
-  // Pricing from breakdown
-  const basePrice = lead?.pricing_breakdown?.shoot_cost || 0;
-  const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
-  const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
-  const discountAmount = lead?.pricing_breakdown?.discount || 0;
-  const total = lead?.pricing_breakdown?.total || 0;
-
-  const referralInfo = useMemo(() => {
-    const notes = booking?.primary_quote?.notes || "";
-    const match = String(notes).match(/Referral applied \(([^)]+)\): -\$(\d+(?:\.\d+)?)/i);
-    if (!match) return { code: null, amount: 0 };
-    return { code: match[1] || null, amount: parseFloat(match[2] || "0") || 0 };
-  }, [booking?.primary_quote?.notes]);
-
-  const referralDiscountAmount = referralInfo.amount;
-  const discountCodeDiscount = Math.max(0, discountAmount - referralDiscountAmount);
-  const discountCodeValue = lead?.discount_codes?.[0]?.code || null;
+  const convertedQuote = lead?.converted_sales_quote;
+  const quoteSections = useMemo(() => {
+    const quoteLineItems = Array.isArray(convertedQuote?.line_items) ? convertedQuote.line_items : [];
+    const services = quoteLineItems.filter((item) => item.section_type === "service");
+    const addons = quoteLineItems.filter((item) => item.section_type === "addon");
+    const logistics = quoteLineItems.filter((item) => item.section_type === "logistics");
+    const custom = quoteLineItems.filter((item) => item.section_type === "custom");
+    return { services, addons, logistics, custom };
+  }, [convertedQuote?.line_items]);
+  const subtotalAmount = convertedQuote ? getNumericValue(convertedQuote.subtotal) : (lead?.pricing_breakdown?.shoot_cost || 0);
+  const taxAmount = convertedQuote ? getNumericValue(convertedQuote.tax_amount) : 0;
+  const discountAmount = convertedQuote ? getNumericValue(convertedQuote.discount_amount) : (lead?.pricing_breakdown?.discount || 0);
+  const total = convertedQuote ? getNumericValue(convertedQuote.total) : (lead?.pricing_breakdown?.total || 0);
+  const quoteDetailRows = [
+    ["Subtotal", subtotalAmount],
+    ...(taxAmount > 0 ? [[`${convertedQuote?.tax_type || "Tax"}${convertedQuote?.tax_rate ? ` (${getNumericValue(convertedQuote.tax_rate)}%)` : ""}`, taxAmount]] : []),
+    ...(discountAmount > 0 ? [["Discount", -discountAmount]] : []),
+  ] as Array<[string, number]>;
+  const quoteNotes = convertedQuote?.notes?.trim() || convertedQuote?.project_description?.trim() || "";
+  const isQuoteConvertedLead = (lead?.lead_source || "").toLowerCase() === "quote_conversion" || !!convertedQuote;
 
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
@@ -816,59 +836,90 @@ export default function LeadDetailPage() {
             {/* Pricing Breakdown Card */}
             <div className={`border rounded-2xl transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
               <h2 className={`lg:text-xl font-medium p-4 lg:p-9 !pb-0 ${isDark ? "text-white" : "text-black"}`}>
-                Pricing Breakdown
+                {isQuoteConvertedLead ? "Quote Pricing" : "Pricing Breakdown"}
               </h2>
               <hr className={`my-4 lg:my-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
               <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
-                {/* <div className="flex justify-between font-medium">
-                  <span className="text-[#71717B] text-xs">Base Price</span>
-                  <span className="text-sm lg:text-base text-white">${basePrice.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between font-medium">
-                  <span className="text-[#71717B] text-xs">Editing Fee</span>
-                  <span className="text-sm lg:text-base text-white">${editingCost.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between font-medium">
-                  <span className="text-[#71717B] text-xs">Additional Creatives</span>
-                  <span className="text-sm lg:text-base text-white">${additionalCreatives.toLocaleString()}</span>
-                </div> */}
-                {[["Base Price", basePrice], ["Editing Fee", editingCost], ["Additional Creatives", additionalCreatives]].map(([label, val]) => (
+                {quoteDetailRows.map(([label, val]) => (
                   <div key={label as string} className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">{label}</span>
-                    <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>${(val as number).toLocaleString()}</span>
+                    <span className={`text-sm lg:text-base font-mono ${val < 0 ? "text-red-400" : isDark ? "text-white" : "text-black"}`}>
+                      {val < 0 ? `-${formatCurrency(Math.abs(val))}` : formatCurrency(val)}
+                    </span>
                   </div>
                 ))}
-                {discountCodeValue && (
-                  <div className="flex justify-between font-medium">
-                    <span className="text-[#71717B] text-xs">Discount Code</span>
-                    <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>{discountCodeValue}</span>
+                {isQuoteConvertedLead ? (
+                  <div className={`rounded-xl border p-4 ${isDark ? "border-[#3D3D3D] bg-[#111111]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
+                    <p className="text-xs uppercase tracking-[0.18em] text-[#71717B]">Converted from Quote</p>
+                    <p className={`mt-2 text-sm ${isDark ? "text-white/80" : "text-black/80"}`}>
+                      This lead was converted from a custom quote, so the totals and line items below are taken from the quote instead of the standard booking calculator.
+                    </p>
                   </div>
-                )}
-                {discountCodeDiscount > 0 && (
-                  <div className="flex justify-between font-medium">
-                    <span className="text-[#71717B] text-xs">Discount Code Discount</span>
-                    <span className="text-sm lg:text-base text-red-400">-${discountCodeDiscount.toLocaleString()}</span>
-                  </div>
-                )}
-                {referralInfo.code && (
-                  <div className="flex justify-between font-medium">
-                    <span className="text-[#71717B] text-xs">Referral Code</span>
-                    <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>{referralInfo.code}</span>
-                  </div>
-                )}
-                {referralDiscountAmount > 0 && (
-                  <div className="flex justify-between font-medium">
-                    <span className="text-[#71717B] text-xs">Referral Discount</span>
-                    <span className="text-sm lg:text-base text-red-400">-${referralDiscountAmount.toLocaleString()}</span>
-                  </div>
-                )}
+                ) : null}
               </div>
               <div className={`h-[1px] w-full ${isDark ? "bg-[#3D3D3D]" : "bg-[#E5E5E5]"}`} />
               <div className="p-4 lg:px-9 lg:py-6 flex justify-between items-center">
                 <span className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Total Amount</span>
-                <span className="lg:text-lg font-semibold text-[#E8D1AB]">${total.toLocaleString()}</span>
+                <span className="lg:text-lg font-semibold text-[#E8D1AB]">{formatCurrency(total)}</span>
               </div>
             </div>
+
+            {isQuoteConvertedLead ? (
+              <div className={`border rounded-2xl transition-colors duration-300 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+                <h2 className={`lg:text-xl font-medium p-4 lg:p-9 !pb-0 ${isDark ? "text-white" : "text-black"}`}>
+                  Quote Details
+                </h2>
+                <hr className={`my-4 lg:my-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
+                <div className="space-y-6 p-4 lg:p-9">
+                  {quoteSections.services.length > 0 ? (
+                    <div>
+                      <p className="mb-3 text-xs uppercase tracking-[0.18em] text-[#71717B]">Services</p>
+                      <div className="space-y-3">
+                        {quoteSections.services.map((item, index) => (
+                          <div key={item.line_item_id ?? `${item.item_name}-${index}`} className="flex justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.03] px-4 py-3">
+                            <div>
+                              <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{item.item_name || "Service"}</p>
+                              <p className="text-xs text-[#71717B]">
+                                Qty {getNumericValue(item.quantity)}{item.duration_hours ? ` • ${getNumericValue(item.duration_hours)} hr` : ""}{item.crew_size ? ` • Crew ${getNumericValue(item.crew_size)}` : ""}
+                              </p>
+                            </div>
+                            <span className={`text-sm font-mono ${isDark ? "text-white" : "text-black"}`}>{formatCurrency(getNumericValue(item.line_total))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {[["Add-ons", quoteSections.addons], ["Logistics", quoteSections.logistics], ["Custom Line Items", quoteSections.custom]] .map(([title, items]) =>
+                    (items as typeof quoteSections.addons).length > 0 ? (
+                      <div key={title as string}>
+                        <p className="mb-3 text-xs uppercase tracking-[0.18em] text-[#71717B]">{title as string}</p>
+                        <div className="space-y-3">
+                          {(items as typeof quoteSections.addons).map((item, index) => (
+                            <div key={item.line_item_id ?? `${item.item_name}-${index}`} className="flex justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.03] px-4 py-3">
+                              <div>
+                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{item.item_name || title}</p>
+                                {item.description ? <p className="text-xs text-[#71717B]">{item.description}</p> : null}
+                              </div>
+                              <span className={`text-sm font-mono ${isDark ? "text-white" : "text-black"}`}>{formatCurrency(getNumericValue(item.line_total))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null
+                  )}
+
+                  {quoteNotes ? (
+                    <div>
+                      <p className="mb-3 text-xs uppercase tracking-[0.18em] text-[#71717B]">Notes</p>
+                      <div className={`rounded-xl border p-4 text-sm leading-7 ${isDark ? "border-[#3D3D3D] bg-[#111111] text-white/80" : "border-[#E5E5E5] bg-[#FAFAFA] text-black/80"}`}>
+                        {quoteNotes}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* Right Sidebar - Restored Discount Input Validation Logic */}

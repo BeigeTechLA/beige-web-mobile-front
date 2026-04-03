@@ -1914,6 +1914,31 @@ export const salesApi = {
       };
     }
   },
+  convertQuoteToBooking: async (
+    quoteId: number | string,
+    data: {
+      shoot_date: string;
+      start_time: string;
+      duration_hours?: number;
+      end_time?: string;
+      location: string;
+      project_name?: string;
+      shoot_type?: string;
+      content_type?: string;
+    }
+  ) => {
+    try {
+      const response = await api.post(`/sales/quotes/${quoteId}/convert-to-booking`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Convert Quote To Booking Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to convert quote to booking',
+      };
+    }
+  },
   getQuoteCatalog: async () => {
     try {
       const response = await api.get('/sales/quotes/catalog');
@@ -2066,4 +2091,3 @@ export const salesApi = {
     }
   },
 };
-

@@ -20,6 +20,16 @@ import { toast } from "react-hot-toast";
 
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
 import {
   persistQuoteEditorNavigationCache,
@@ -53,6 +63,16 @@ type QuoteDetailsPageProps = {
 };
 
 type OtherDetailsTab = "discounts" | "tax";
+
+type QuoteLinkState = {
+  linked_lead?: {
+    lead_id?: number | string | null;
+  } | null;
+  linked_booking?: {
+    stream_project_booking_id?: number | string | null;
+  } | null;
+  payment_status?: string | null;
+};
 
 const getStatusStyles = (status: string) => {
   const normalizedStatus = status.trim().toLowerCase();
@@ -215,7 +235,7 @@ const QuoteTopActions = ({
       className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
     >
       <FileText size={18} />
-      Convert to Invoice
+      Convert to Booking
     </Button>
     <Button
       type="button"
@@ -250,6 +270,14 @@ export default function QuoteDetailsPage({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
   const [isRejecting, setIsRejecting] = useState(false);
+  const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+  const [conversionForm, setConversionForm] = useState({
+    shoot_date: "",
+    start_time: "",
+    duration_hours: "8",
+    location: "",
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -368,6 +396,16 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
+  const quoteLinkState = (quote ?? null) as (SalesQuoteDetailData & QuoteLinkState) | null;
+  const linkedLeadId =
+    quoteLinkState?.linked_lead?.lead_id
+      ? Number(quoteLinkState.linked_lead.lead_id)
+      : 0;
+  const linkedBookingId =
+    quoteLinkState?.linked_booking?.stream_project_booking_id
+      ? Number(quoteLinkState.linked_booking.stream_project_booking_id)
+      : 0;
+  const paymentStatus = quoteLinkState?.payment_status || "pending";
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteText(quote?.video_shoot_type);
@@ -384,8 +422,11 @@ export default function QuoteDetailsPage({
     [quoteId]
   );
 
-  const handleUnavailableAction = (label: string) => {
-    toast(`${label} action is not available yet.`);
+  const handleConversionFieldChange = (field: keyof typeof conversionForm, value: string) => {
+    setConversionForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
   };
 
   const handleRejectQuote = async () => {
@@ -433,12 +474,76 @@ export default function QuoteDetailsPage({
     }, 450);
   };
 
+  const handleConvertQuote = async () => {
+    if (!resolvedQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (!conversionForm.shoot_date || !conversionForm.start_time || !conversionForm.location) {
+      toast.error("Shoot date, start time, and location are required.");
+      return;
+    }
+
+    const durationHours = Number(conversionForm.duration_hours);
+    if (!Number.isFinite(durationHours) || durationHours <= 0) {
+      toast.error("Duration must be greater than 0.");
+      return;
+    }
+
+    setIsConverting(true);
+    try {
+      const response = await salesApi.convertQuoteToBooking(resolvedQuoteId, {
+        shoot_date: conversionForm.shoot_date,
+        start_time: conversionForm.start_time,
+        duration_hours: durationHours,
+        location: conversionForm.location,
+        project_name: clientName !== "Client" ? `${clientName} - ${shootType || "Quote Booking"}` : undefined,
+      });
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to convert quote to booking"
+        );
+      }
+
+      const updatedQuote = response?.data?.quote
+        ? unwrapSalesQuoteDetail(response.data.quote)
+        : null;
+
+      if (updatedQuote) {
+        setQuote(updatedQuote);
+      }
+
+      setIsConvertModalOpen(false);
+      toast.success("Quote converted to booking");
+
+      const nextLeadId = Number(response?.data?.lead_id || 0);
+      if (nextLeadId > 0) {
+        router.push(`/sales/leads/${nextLeadId}`);
+      }
+    } catch (error) {
+      console.error("Failed to convert quote", error);
+      toast.error(error instanceof Error ? error.message : "Failed to convert quote");
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
   const topbarActions = (
     <QuoteTopActions
       onReject={() => {
         void handleRejectQuote();
       }}
-      onConvert={() => handleUnavailableAction("Convert to Invoice")}
+      onConvert={() => {
+        if (linkedBookingId > 0 && linkedLeadId > 0) {
+          router.push(`/sales/leads/${linkedLeadId}`);
+          return;
+        }
+        setIsConvertModalOpen(true);
+      }}
       onPreview={() => setIsPreviewOpen(true)}
       previewDisabled={!quote || loading}
       rejectDisabled={!quote || loading || isRejecting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
@@ -530,7 +635,16 @@ export default function QuoteDetailsPage({
                   <span>{`Valid Until : ${validUntil}`}</span>
                   <span className="hidden text-[#4B4B4F] lg:inline">|</span>
                   <span>{`Salesperson : ${salesperson}`}</span>
+                  <span className="hidden text-[#4B4B4F] lg:inline">|</span>
+                  <span>{`Payment : ${paymentStatus === "paid" ? "Paid" : "Pending"}`}</span>
                 </div>
+
+                {linkedBookingId > 0 ? (
+                  <div className="rounded-[18px] border border-[#2B2B2B] bg-[#111111] px-4 py-3 text-sm text-[#D4D4D8]">
+                    {`Converted to booking #${linkedBookingId}`}
+                    {linkedLeadId > 0 ? ` • Lead #${linkedLeadId}` : ""}
+                  </div>
+                ) : null}
 
                 <p className="text-sm leading-7 text-[#B3B3B8]">
                   <span className="text-[#8F8F95]">Project Description :</span> {projectDescription}
@@ -732,6 +846,92 @@ export default function QuoteDetailsPage({
         quote={quote}
         quoteId={quoteId}
       />
+
+      <Dialog open={isConvertModalOpen} onOpenChange={setIsConvertModalOpen}>
+        <DialogContent className="border-[#2B2B2B] bg-[#171717] text-white sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>Convert Quote to Booking</DialogTitle>
+            <DialogDescription className="text-[#9B9BA1]">
+              Add the missing booking details so this quote can move into the lead and payment flow.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="quote-convert-date">Shoot Date</Label>
+              <Input
+                id="quote-convert-date"
+                type="date"
+                value={conversionForm.shoot_date}
+                onChange={(event) => handleConversionFieldChange("shoot_date", event.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="quote-convert-time">Start Time</Label>
+                <Input
+                  id="quote-convert-time"
+                  type="time"
+                  value={conversionForm.start_time}
+                  onChange={(event) => handleConversionFieldChange("start_time", event.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="quote-convert-duration">Duration Hours</Label>
+                <Input
+                  id="quote-convert-duration"
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  value={conversionForm.duration_hours}
+                  onChange={(event) => handleConversionFieldChange("duration_hours", event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="quote-convert-location">Location</Label>
+              <Input
+                id="quote-convert-location"
+                placeholder="Enter shoot location"
+                value={conversionForm.location}
+                onChange={(event) => handleConversionFieldChange("location", event.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-[#333333] bg-transparent text-white hover:bg-[#222222]"
+              onClick={() => setIsConvertModalOpen(false)}
+              disabled={isConverting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void handleConvertQuote();
+              }}
+              className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
+              disabled={isConverting}
+            >
+              {isConverting ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Converting...
+                </>
+              ) : (
+                "Convert to Booking"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

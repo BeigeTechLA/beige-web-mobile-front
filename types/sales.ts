@@ -70,6 +70,32 @@ export interface SalesLead {
 }
 
 export interface SalesLeadDetails extends SalesLead {
+  converted_sales_quote?: {
+    sales_quote_id?: number | string;
+    quote_number?: string;
+    status?: string;
+    total?: number | string;
+    subtotal?: number | string;
+    tax_type?: string;
+    tax_rate?: number | string;
+    tax_amount?: number | string;
+    discount_type?: string;
+    discount_value?: number | string;
+    discount_amount?: number | string;
+    notes?: string | null;
+    project_description?: string | null;
+    line_items?: Array<{
+      line_item_id?: number | string;
+      item_name?: string;
+      section_type?: string;
+      quantity?: number | string;
+      unit_rate?: number | string;
+      line_total?: number | string;
+      duration_hours?: number | string;
+      crew_size?: number | string;
+      description?: string | null;
+    }>;
+  };
   booking: {
     stream_project_booking_id: number;
     project_name: string;
