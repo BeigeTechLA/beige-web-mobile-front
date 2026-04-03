@@ -5691,14 +5691,14 @@ export default function CreateQuotePage() {
       </div>
 
       {/* --- FLOATING MOBILE BUTTON --- */}
-      <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
+      <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
         {view === "tax" ? (
           <div className="flex gap-2">
             <Button
               type="button"
               onClick={handleSaveAsDraft}
               disabled={isCreatingQuoteDraft}
-              className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isCreatingQuoteDraft && activeQuoteAction === "draft"
                 ? "Saving Draft..."
@@ -5708,7 +5708,7 @@ export default function CreateQuotePage() {
               type="button"
               onClick={handlePreviewQuote}
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
-              className="bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
               {isCreatingQuoteDraft && activeQuoteAction === "preview"
                 ? "Loading Preview..."
@@ -5736,7 +5736,7 @@ export default function CreateQuotePage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            className="border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
+            className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
             onClick={handleBack}
           >
             Back
@@ -5749,7 +5749,7 @@ export default function CreateQuotePage() {
               : isDark
                 ? "bg-[#2A2B2D] text-zinc-600"
                 : "bg-[#A4A5A6] text-white"
-              } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
+              } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md flex-1 `}
             disabled={!canPrimaryAction || isCreatingQuoteDraft}
             onClick={view === "tax" ? handleSaveQuote : handleContinue}
           >
