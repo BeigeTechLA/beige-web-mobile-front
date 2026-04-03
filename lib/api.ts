@@ -1445,6 +1445,19 @@ export const adminApi = {
       };
     }
   },
+  getCrewMemberAssignedProjects: async (payload: { crew_member_id: string | number }) => {
+    try {
+      const response = await api.post('admin/crew-member-assigned-projects', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Crew Member Assigned Projects Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch assigned projects',
+      };
+    }
+  },
 
   getRecentActivity: async (limit: number = 10) => {
     try {
@@ -2019,6 +2032,31 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch sales representatives',
+      };
+    }
+  },
+  getDashboardOverview: async (period: string = 'all_time') => {
+    try {
+      const response = await api.get('/sales/dashboard/overview', {
+        params: { period },
+      });
+      return response.data;
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const isLogoutLikeFailure =
+        status === 401 ||
+        status === 403 ||
+        error?.code === 'ERR_CANCELED' ||
+        error?.message === 'canceled';
+
+      if (!isLogoutLikeFailure) {
+        console.error('Get Dashboard Overview Error:', error.response?.data || error.message);
+      }
+
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch dashboard overview',
       };
     }
   },
