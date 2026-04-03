@@ -4375,9 +4375,9 @@ export default function CreateQuotePage() {
                                   </div>
                                 </div>
 
-                                <div className="my-4 lg:my-8 border-t border-[#303030]" />
+                                <div className="my-3 lg:my-6 border-t border-[#303030]" />
 
-                                <div className="flex lg:hidden justify-between  items-center gap-1">
+                                <div className="flex lg:hidden justify-between items-center gap-1">
                                   <span className="text-[#7B7B85] text-sm font-normal">
                                     Total
                                   </span>
@@ -4387,10 +4387,10 @@ export default function CreateQuotePage() {
                                 </div>
                                 <div className="lg:hidden my-4 lg:my-8 border-t border-[#303030]" />
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-6">
                                   {/* Duration */}
-                                  <div className="space-y-3">
-                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">
+                                  <div className="flex flex-col gap-2">
+                                    <span className="text-sm font-normal text-[#9A9AA4]">
                                       Duration (hours)
                                     </span>
                                     <div className="flex items-center gap-2 h-9">
@@ -4425,8 +4425,8 @@ export default function CreateQuotePage() {
                                   </div>
 
                                   {/* Crew Size */}
-                                  <div className="space-y-3">
-                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">
+                                  <div className="flex flex-col gap-2">
+                                    <span className="text-sm font-normal text-[#9A9AA4]">
                                       Crew Size
                                     </span>
                                     <div className="flex items-center gap-2 h-9">
@@ -4461,8 +4461,8 @@ export default function CreateQuotePage() {
                                   </div>
 
                                   {/* Estimated Pricing */}
-                                  <div className="space-y-3">
-                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">
+                                  <div className="flex flex-col gap-2">
+                                    <span className="text-sm font-normal text-[#9A9AA4]">
                                       Estimated Pricing
                                     </span>
                                     <div className="flex items-center gap-2 h-9">
