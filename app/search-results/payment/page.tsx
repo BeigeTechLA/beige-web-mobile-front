@@ -1740,6 +1740,25 @@ function MultiCreatorPaymentContent() {
                             </span>
                           </div>
                         )}
+
+                        {parseFloat(quote.tax_amount || 0) > 0 && (
+                          <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                            <div className="flex flex-col">
+                              <span className="text-[#CCC6C6] font-medium">
+                                Tax
+                                {parseFloat(quote.tax_rate || 0) > 0 ? ` (${quote.tax_rate}%)` : ""}
+                              </span>
+                              {quote.tax_type && (
+                                <span className="text-[10px] text-[#787979] capitalize">
+                                  {quote.tax_type} tax
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-medium text-white">
+                              {formatCurrency(quote.tax_amount)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="p-6 lg:p-10 text-lg lg:text-2xl flex justify-between items-start bg-[#E8D1AB] rounded-b-[20px]">
