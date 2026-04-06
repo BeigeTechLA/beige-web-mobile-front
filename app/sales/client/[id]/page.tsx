@@ -569,7 +569,7 @@ export default function LeadDetailPage() {
                     >
                       Edit Details
                     </Button>
-                  )}
+                  ) : null}
                   <Button
                     onClick={() => setIsIntentModalOpen(true)}
                     className={`h-10 bg-zinc-800 border border-white/10 hover:bg-zinc-700 px-5 rounded-lg text-sm transition-all ${isDark ? "text-[#E8D1AB]":"text-white"}`}
