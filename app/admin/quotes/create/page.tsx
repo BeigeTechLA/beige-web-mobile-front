@@ -842,6 +842,8 @@ export default function CreateQuotePage() {
   >({});
   const [customLogisticsName, setCustomLogisticsName] = useState("");
   const [customLogisticsCost, setCustomLogisticsCost] = useState("");
+  const [showAddLogisticsForm, setShowAddLogisticsForm] = useState(false);
+
 
   //Step 5: Custom Line Items State
   const [customItemName, setCustomItemName] = useState("");
@@ -3430,6 +3432,84 @@ export default function CreateQuotePage() {
                 </div>
                 <hr className="border-t border-[#3D3D3D]" />
 
+                <div className="p-4 lg:p-8 lg:pb-6">
+                  <h3 className="lg:text-xl font-medium text-white mb-6">
+                    Add Custom Logistics Item
+                  </h3>
+                  <AnimatePresence>
+                    {showAddLogisticsForm && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+                        <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
+                          <div className="flex-1 relative w-full">
+                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                              <span className="text-xs text-[#8A8A8A] font-normal">
+                                Item Name
+                              </span>
+                            </div>
+                            <Input
+                              placeholder="Eg : Cleaning Services"
+                              value={customLogisticsName}
+                              onChange={(e) =>
+                                setCustomLogisticsName(e.target.value)
+                              }
+                              className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                            />
+                          </div>
+                          <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
+                            <div className="flex-1 relative">
+                              <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                                <span className="text-xs text-[#8A8A8A] font-normal">
+                                  Cost
+                                </span>
+                              </div>
+                              <Input
+                                placeholder="$ 0.00"
+                                value={customLogisticsCost}
+                                onChange={(e) =>
+                                  setCustomLogisticsCost(e.target.value)
+                                }
+                                className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                              />
+                            </div>
+                            <button
+                              onClick={handleCreateLogisticsItem}
+                              disabled={
+                                isSubmittingLogistics ||
+                                !customLogisticsName ||
+                                !customLogisticsCost
+                              }
+                              className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingLogistics ||
+                                !customLogisticsName ||
+                                !customLogisticsCost
+                                ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
+                                : "bg-[#101010] text-[#16A34A]"
+                                }`}
+                            >
+                              {isSubmittingLogistics ? (
+                                <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                              ) : (
+                                <Check size={24} strokeWidth={3} />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <Button
+                    onClick={() => setShowAddLogisticsForm(!showAddLogisticsForm)}
+                    className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
+                  >
+                    <Plus size={16} strokeWidth={3} />
+                    Add Item
+                  </Button>
+                </div>
+                <hr className="border-t border-[#3D3D3D]" />
+
                 <div className="space-y-4 lg:space-y-6 p-4 lg:p-8">
                   {logisticsItems.map((item) => {
                     const config = logisticsConfigs[item.id];
@@ -3522,69 +3602,7 @@ export default function CreateQuotePage() {
                     );
                   })}
                 </div>
-                <hr className="border-t border-[#3D3D3D]" />
 
-                <div className="p-4 lg:p-8 lg:pb-6">
-                  <h3 className="lg:text-xl font-medium text-white mb-6">
-                    Add Custom Logistics Item
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                    <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
-                      <div className="flex-1 relative w-full">
-                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                          <span className="text-xs text-[#8A8A8A] font-normal">
-                            Item Name
-                          </span>
-                        </div>
-                        <Input
-                          placeholder="Eg : Cleaning Services"
-                          value={customLogisticsName}
-                          onChange={(e) =>
-                            setCustomLogisticsName(e.target.value)
-                          }
-                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                        />
-                      </div>
-                      <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
-                        <div className="flex-1 relative">
-                          <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                            <span className="text-xs text-[#8A8A8A] font-normal">
-                              Cost
-                            </span>
-                          </div>
-                          <Input
-                            placeholder="$ 0.00"
-                            value={customLogisticsCost}
-                            onChange={(e) =>
-                              setCustomLogisticsCost(e.target.value)
-                            }
-                            className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                          />
-                        </div>
-                        <button
-                          onClick={handleCreateLogisticsItem}
-                          disabled={
-                            isSubmittingLogistics ||
-                            !customLogisticsName ||
-                            !customLogisticsCost
-                          }
-                          className={`flex-none w-[52px] h-[52px] lg:w-21 lg:h-21 rounded-xl flex items-center justify-center transition-all ${isSubmittingLogistics ||
-                            !customLogisticsName ||
-                            !customLogisticsCost
-                            ? "bg-[#101010] text-[#16A34A] cursor-not-allowed opacity-50"
-                            : "bg-[#101010] text-[#16A34A]"
-                            }`}
-                        >
-                          {isSubmittingLogistics ? (
-                            <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                          ) : (
-                            <Check size={24} strokeWidth={3} />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 <div className="m-4 lg:m-8 mt-0 lg:mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50">
                   <span className="text-sm lg:text-xl font-medium text-[#FFF]">
