@@ -400,6 +400,7 @@ function buildSimpleItems(
           rate_type: "flat",
           unit_rate: price,
           quantity: 1,
+          estimated_pricing: price,
         };
       }
 
@@ -408,6 +409,7 @@ function buildSimpleItems(
           catalog_item_id: catalogItemId,
           section_type: sectionType,
           quantity: 1,
+          estimated_pricing: price,
         };
       }
 
@@ -418,6 +420,7 @@ function buildSimpleItems(
         rate_type: "flat",
         unit_rate: price,
         quantity: 1,
+        estimated_pricing: price,
       };
     })
     .filter((item): item is QuoteDraftLineItem => item !== null);
