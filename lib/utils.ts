@@ -173,17 +173,32 @@ export const getFormattedDateString = (dates: Date[]) => {
   if (!dates.length) return "None";
 
   const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime());
-  const days = sorted.map((d) => format(d, "d"));
-  const monthYear = format(sorted[0], "MMMM, yyyy");
 
-  if (days.length === 1) {
-    return `${days[0]} ${monthYear}`;
-  }
+  // Group dates by "Month, Year"
+  const groups: Record<string, string[]> = {};
 
-  const lastDay = days.pop();
-  const dayString = days.join(", ") + " & " + lastDay;
+  sorted.forEach((date) => {
+    const key = format(date, "MMMM, yyyy");
+    const day = format(date, "d");
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(day);
+  });
 
-  return `${dayString} ${monthYear}`;
+  // Format each group
+  const formattedGroups = Object.entries(groups).map(([monthYear, days]) => {
+    if (days.length === 1) {
+      return `${days[0]} ${monthYear}`;
+    }
+
+    const lastDay = days.pop();
+    const dayString = days.join(", ") + " & " + lastDay;
+    return `${dayString} ${monthYear}`;
+  });
+
+  //Join different months with a semicolon or specific separator
+  return formattedGroups.join("; ");
 };
 
 export const getInitials = (name: string) => {
@@ -192,4 +207,85 @@ export const getInitials = (name: string) => {
   const firstLetter = words[0]?.charAt(0) || "";
   const secondLetter = words[1]?.charAt(0) || "";
   return (firstLetter + secondLetter).toUpperCase();
+};
+
+// Interfaces and Function to fetch date information for bookings
+interface BookingDay {
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  duration_hours: string;
+  time_zone: string;
+}
+
+interface BookingData {
+  event_date: string;
+  start_time: string;
+  end_time: string;
+  booking_days: BookingDay[];
+}
+export const getBookingDetails = (data: BookingData) => {
+  const bookingDays: BookingDay[] = data.booking_days || [];
+
+  // Sort by event_date
+  const sortedBookingDays = [...bookingDays].sort((a, b) =>
+    a.event_date.localeCompare(b.event_date)
+  );
+
+  const isMultiDay = sortedBookingDays.length > 0;
+  const firstDay = sortedBookingDays[0];
+  const lastDay = sortedBookingDays[sortedBookingDays.length - 1];
+
+  // Grouping Logic for "Clubbed" Months
+  const groups: { [key: string]: string[] } = {};
+  sortedBookingDays.forEach((day) => {
+    // Key format: "Apr, 2026"
+    const monthYear = format(new Date(day.event_date), "MMM, yyyy");
+    const dayNum = format(new Date(day.event_date), "dd");
+
+    if (!groups[monthYear]) {
+      groups[monthYear] = [];
+    }
+    groups[monthYear].push(dayNum);
+  });
+
+  const clubbedMonths = Object.entries(groups).map(([monthYear, days]) => {
+    const dayRange = days.length > 1
+      ? `${days[0]}-${days[days.length - 1]}`
+      : days[0];
+    return `${dayRange} ${monthYear}`;
+  });
+
+  const summaryDateText: string = isMultiDay
+    ? `${sortedBookingDays.length} Days\n${clubbedMonths.join(" ;\n ")}`
+    : data.event_date
+      ? format(new Date(data.event_date), "MMM dd, yyyy")
+      : "Date not set";
+
+  const allSameTime = isMultiDay && sortedBookingDays.every(
+    (d) => d.start_time === firstDay?.start_time && d.end_time === firstDay?.end_time
+  );
+
+  const displayDateText: string = isMultiDay
+    ? `${sortedBookingDays.length} days\n${format(new Date(firstDay.event_date), "EEE, MMM dd yyyy")} - ${format(new Date(lastDay.event_date), "EEE, MMM dd yyyy")}`
+    : data.event_date
+      ? format(new Date(data.event_date), "EEEE, MMM dd yyyy")
+      : "Date not set";
+
+
+  const displayTimeText: string = isMultiDay
+    ? (allSameTime && firstDay?.start_time && firstDay?.end_time
+      ? `${firstDay.start_time.slice(0, 5)} - ${firstDay.end_time.slice(0, 5)}`
+      : "Multiple times")
+    : (data.start_time && data.end_time
+      ? `${data.start_time.slice(0, 5)} - ${data.end_time.slice(0, 5)}`
+      : "Time not set");
+
+  return {
+    isMultiDay,
+    displayDateText,
+    displayTimeText,
+    summaryDateText,
+    sortedBookingDays
+  };
 };
