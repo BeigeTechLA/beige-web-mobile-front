@@ -56,8 +56,28 @@ type QuoteDetailsPageProps = {
 
 type OtherDetailsTab = "discounts" | "tax";
 
+type QuoteActivityLike = {
+  activity_type?: string;
+  message?: string;
+  metadata?: {
+    booking_id?: number | string;
+    lead_id?: number | string;
+    [key: string]: unknown;
+  } | null;
+  metadata_json?: string | null;
+  created_at?: string | null;
+  performed_by?: {
+    name?: string;
+    [key: string]: unknown;
+  } | null;
+};
+
 const getStatusStyles = (status: string) => {
   const normalizedStatus = status.trim().toLowerCase();
+
+  if (["paid"].includes(normalizedStatus)) {
+    return "border border-[#86EFAC]/20 bg-[#DCFCE7] text-[#166534]";
+  }
 
   if (["accepted", "approved", "confirmed"].includes(normalizedStatus)) {
     return "border border-[#86EFAC]/20 bg-[#DCFCE7] text-[#166534]";
@@ -198,6 +218,8 @@ const QuoteTopActions = ({
   convertDisabled,
   isRejecting,
   isConverting,
+  isConverted,
+  convertedBookingId,
 }: {
   onReject: () => void;
   onConvert: () => void;
@@ -207,6 +229,8 @@ const QuoteTopActions = ({
   convertDisabled: boolean;
   isRejecting: boolean;
   isConverting: boolean;
+  isConverted: boolean;
+  convertedBookingId: string | null;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
     <Button
@@ -218,16 +242,23 @@ const QuoteTopActions = ({
       {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
       {isRejecting ? "Rejecting..." : "Reject Quote"}
     </Button>
-    <Button
-      type="button"
-      onClick={onConvert}
-      disabled={convertDisabled}
-      variant="outline"
-      className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
-    >
-      {isConverting ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
-      {isConverting ? "Converting..." : "Convert to Booking"}
-    </Button>
+    {isConverted ? (
+      <div className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#86EFAC]/20 bg-[#DCFCE7] px-4 text-sm font-semibold text-[#166534]">
+        <FileText size={18} />
+        {convertedBookingId ? `Booking Created #${convertedBookingId}` : "Converted to Booking"}
+      </div>
+    ) : (
+      <Button
+        type="button"
+        onClick={onConvert}
+        disabled={convertDisabled}
+        variant="outline"
+        className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
+      >
+        {isConverting ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
+        {isConverting ? "Converting..." : "Convert to Booking"}
+      </Button>
+    )}
     <Button
       type="button"
       onClick={onPreview}
@@ -262,6 +293,8 @@ export default function QuoteDetailsPage({
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
   const [isRejecting, setIsRejecting] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
+  const [convertedBookingIdOverride, setConvertedBookingIdOverride] = useState<string | null>(null);
+  const [isConvertedOverride, setIsConvertedOverride] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -392,6 +425,61 @@ export default function QuoteDetailsPage({
   const resolvedQuoteId = String(
     quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? quoteId
   );
+  const conversionActivity = useMemo(() => {
+    const activities = (quote?.activities as QuoteActivityLike[] | undefined) || [];
+
+    return activities.find((activity) => {
+      const message = String(activity?.message || "").toLowerCase();
+      return (
+        activity?.activity_type === "updated" &&
+        message.includes("converted to booking")
+      );
+    }) || null;
+  }, [quote]);
+
+  const convertedBookingId = useMemo(() => {
+    if (convertedBookingIdOverride) return convertedBookingIdOverride;
+
+    const directBookingId = quote?.booking_id;
+    if (directBookingId !== undefined && directBookingId !== null && String(directBookingId).trim()) {
+      return String(directBookingId);
+    }
+
+    const activityBookingId = conversionActivity?.metadata?.booking_id;
+    if (activityBookingId !== undefined && activityBookingId !== null && String(activityBookingId).trim()) {
+      return String(activityBookingId);
+    }
+
+    if (conversionActivity?.metadata_json) {
+      try {
+        const parsed =
+          typeof conversionActivity.metadata_json === "string"
+            ? JSON.parse(conversionActivity.metadata_json)
+            : conversionActivity.metadata_json;
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          "booking_id" in parsed &&
+          parsed.booking_id !== undefined &&
+          parsed.booking_id !== null
+        ) {
+          return String(parsed.booking_id);
+        }
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
+  }, [conversionActivity, convertedBookingIdOverride, quote]);
+
+  const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId) || Boolean(conversionActivity);
+  const conversionMessage = isConvertedToBooking
+    ? `Your quote has been converted into booking${convertedBookingId ? ` #${convertedBookingId}` : ""}. You can view it from Leads and continue with payments there.`
+    : null;
+  const conversionMetaLabel = conversionActivity?.created_at
+    ? `Converted on ${formatQuoteDate(conversionActivity.created_at)}${conversionActivity?.performed_by?.name ? ` by ${conversionActivity.performed_by.name}` : ""}`
+    : null;
 
   const breadcrumbOverrides = useMemo(
     () => ({
@@ -455,11 +543,15 @@ export default function QuoteDetailsPage({
 
       const bookingId = response?.data?.booking_id;
       const alreadyConverted = Boolean(response?.data?.already_converted);
+      if (bookingId) {
+        setConvertedBookingIdOverride(String(bookingId));
+      }
+      setIsConvertedOverride(true);
 
       toast.success(
         alreadyConverted
-          ? `Booking updated successfully${bookingId ? ` (#${bookingId})` : ""}`
-          : `Quote converted to booking successfully${bookingId ? ` (#${bookingId})` : ""}`
+          ? `Your quote has already been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads and continue with payments there.`
+          : `Your quote has been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads and continue with payments there.`
       );
     } catch (error) {
       console.error("Failed to convert quote to booking", error);
@@ -493,9 +585,11 @@ export default function QuoteDetailsPage({
       onPreview={() => setIsPreviewOpen(true)}
       previewDisabled={!quote || loading}
       rejectDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      convertDisabled={!quote || loading || isRejecting || isConverting}
+      convertDisabled={!quote || loading || isRejecting || isConverting || isConvertedToBooking}
       isRejecting={isRejecting}
       isConverting={isConverting}
+      isConverted={isConvertedToBooking}
+      convertedBookingId={convertedBookingId}
     />
   );
 
@@ -551,8 +645,8 @@ export default function QuoteDetailsPage({
               actionLabel="Edit Details"
               onAction={() => handleEditQuote("details")}
             >
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-start gap-4">
                     <div className="flex h-[74px] w-[74px] shrink-0 items-center justify-center rounded-[22px] bg-[#F3D9A7] text-[24px] font-semibold text-black">
                       {getInitials(clientName)}
@@ -574,6 +668,17 @@ export default function QuoteDetailsPage({
                     {formatStatusLabel(quoteStatus)}
                   </span>
                 </div>
+
+                {isConvertedToBooking ? (
+                  <div className="rounded-[20px] border border-[#86EFAC]/20 bg-[#DCFCE7] px-5 py-4">
+                    <p className="text-sm font-semibold text-[#166534]">
+                      {conversionMessage}
+                    </p>
+                    {conversionMetaLabel ? (
+                      <p className="mt-1 text-xs text-[#15803D]">{conversionMetaLabel}</p>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[#9B9BA1]">
                   <span>{`Email ID : ${clientEmail}`}</span>

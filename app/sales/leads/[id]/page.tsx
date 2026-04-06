@@ -114,6 +114,43 @@ const formatLeadSource = (value?: string | null) => {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
+const formatCurrencyValue = (value?: number | string | null) => {
+  const numericValue =
+    typeof value === "number" ? value : Number.parseFloat(String(value ?? 0));
+
+  if (!Number.isFinite(numericValue)) return "$0.00";
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numericValue);
+};
+
+type LeadActivityLike = {
+  activity_type?: string;
+  activity_data?: unknown;
+};
+
+type QuoteLineItemLike = {
+  line_item_id?: number;
+  item_id?: number | null;
+  name?: string;
+  item_name?: string;
+  quantity?: number | string;
+  unit_price?: number | string;
+  total?: number | string;
+  line_total?: number | string;
+  notes?: string | null;
+};
+
+type QuoteTaxDetailsLike = {
+  tax_type?: string | null;
+  tax_rate?: number | string | null;
+  tax_amount?: number | string | null;
+};
+
 export default function SalesLeadDetailsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -208,6 +245,67 @@ export default function SalesLeadDetailsPage() {
 
   const lead = leadData;
   const booking = lead?.booking;
+  const primaryQuote = booking?.primary_quote;
+
+  const isQuoteConvertedLead = useMemo(() => {
+    const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
+    const createdActivityMatch = lead?.activities?.some((activity: LeadActivityLike) => {
+      if (activity?.activity_type !== "created" || !activity?.activity_data) return false;
+
+      try {
+        const parsedData =
+          typeof activity.activity_data === "string"
+            ? JSON.parse(activity.activity_data)
+            : activity.activity_data;
+
+        return typeof parsedData === "object" &&
+          parsedData !== null &&
+          "source" in parsedData &&
+          parsedData.source === "sales_quote_conversion";
+      } catch {
+        return false;
+      }
+    });
+
+    return normalizedSource === "converted bookings" || Boolean(createdActivityMatch);
+  }, [lead?.activities, lead?.lead_source]);
+
+  const quotePricingDetails = useMemo(() => {
+    if (!isQuoteConvertedLead) return null;
+
+    const projectedQuote = lead?.projected_quote;
+    const quoteTaxDetails = primaryQuote as QuoteTaxDetailsLike | undefined;
+    const lineItemsSource =
+      projectedQuote?.line_items?.length
+        ? projectedQuote.line_items
+        : primaryQuote?.line_items || [];
+
+    const lineItems = lineItemsSource.map((item: QuoteLineItemLike, index: number) => ({
+      id: item?.line_item_id ?? `${item?.item_id ?? item?.name ?? item?.item_name ?? "item"}-${index}`,
+      name: item?.name || item?.item_name || "Quote Item",
+      quantity: Number(item?.quantity || 0),
+      unitPrice: Number(item?.unit_price || 0),
+      total: Number(item?.total ?? item?.line_total ?? 0),
+      notes: item?.notes || null,
+    }));
+
+    return {
+      source: projectedQuote?.source || "database",
+      quoteId: projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id || null,
+      pricingMode: primaryQuote?.pricing_mode || null,
+      shootHours: projectedQuote?.shoot_hours || primaryQuote?.shoot_hours || null,
+      subtotal: Number(projectedQuote?.subtotal ?? primaryQuote?.subtotal ?? 0),
+      discountAmount: Number(projectedQuote?.discount_amount ?? primaryQuote?.discount_amount ?? 0),
+      taxType: quoteTaxDetails?.tax_type || null,
+      taxRate: Number(quoteTaxDetails?.tax_rate ?? 0),
+      taxAmount: Number(quoteTaxDetails?.tax_amount ?? 0),
+      priceAfterDiscount: Number(primaryQuote?.price_after_discount ?? 0),
+      total: Number(primaryQuote?.total ?? projectedQuote?.total ?? lead?.pricing_breakdown?.total ?? 0),
+      expiresAt: primaryQuote?.expires_at || null,
+      status: primaryQuote?.status || null,
+      lineItems,
+    };
+  }, [booking?.quote_id, isQuoteConvertedLead, lead?.pricing_breakdown?.total, lead?.projected_quote, primaryQuote]);
 
   useEffect(() => {
     setSelectedSalesRepId(lead?.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
@@ -284,8 +382,9 @@ export default function SalesLeadDetailsPage() {
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
   const discountAmount = lead?.pricing_breakdown?.discount || 0;
-  const total = lead?.pricing_breakdown?.total || 0;
-  const taxes = 0; // Taxes are now part of total/breakdown if needed
+  const total = isQuoteConvertedLead
+    ? Number(primaryQuote?.total ?? lead?.pricing_breakdown?.total ?? 0)
+    : lead?.pricing_breakdown?.total || 0;
   const referralInfo = useMemo(() => {
     const notes = booking?.primary_quote?.notes || "";
     const match = String(notes).match(/Referral applied \(([^)]+)\): -\$(\d+(?:\.\d+)?)/i);
@@ -732,12 +831,14 @@ export default function SalesLeadDetailsPage() {
                 <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Booking Summary
                 </h2>
-                <Button
-                  onClick={() => router.push(`/sales/leads/${params.id}/edit-booking`)}
-                  className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                >
-                  Edit Details
-                </Button>
+                {!isQuoteConvertedLead && (
+                  <Button
+                    onClick={() => router.push(`/sales/leads/${params.id}/edit-booking`)}
+                    className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                  >
+                    Edit Details
+                  </Button>
+                )}
               </div>
               <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
 
@@ -846,6 +947,19 @@ export default function SalesLeadDetailsPage() {
               </h2>
               <hr className={`mt-4 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
               <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
+                {isQuoteConvertedLead && (
+                  <div
+                    className={`rounded-2xl border px-4 py-3 ${
+                      isDark
+                        ? "border-[#4A3E28] bg-[#1E1912] text-[#F5E9D2]"
+                        : "border-[#E8D1AB] bg-[#FFF8E8] text-[#5C4717]"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">
+                      This booking was created from a quote conversion, so pricing is locked from the approved quote and booking edits are disabled on this page.
+                    </p>
+                  </div>
+                )}
                 {/* <div className="flex justify-between font-medium">
                   <span className="text-[#71717B] text-xs">Base Price</span>
                   <span className="text-sm lg:text-base text-white">
@@ -878,6 +992,17 @@ export default function SalesLeadDetailsPage() {
                   <div className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">Discount Code Discount</span>
                     <span className="text-sm lg:text-base text-red-400">-${discountCodeDiscount.toLocaleString()}</span>
+                  </div>
+                )}
+                {isQuoteConvertedLead && quotePricingDetails?.taxAmount > 0 && (
+                  <div className="flex justify-between font-medium">
+                    <span className="text-[#71717B] text-xs">
+                      Tax
+                      {quotePricingDetails.taxRate > 0 ? ` (${quotePricingDetails.taxRate}%)` : ""}
+                    </span>
+                    <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>
+                      {formatCurrencyValue(quotePricingDetails.taxAmount)}
+                    </span>
                   </div>
                 )}
                 {referralInfo.code && (
@@ -1044,6 +1169,134 @@ export default function SalesLeadDetailsPage() {
               isDark={isDark}
               activeLink={lead?.active_payment_link}
             />
+
+            {quotePricingDetails && (
+              <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
+                <div className="p-4 lg:p-7">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                        Quote Pricing Details
+                      </h2>
+                      <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                        Converted from quote #{quotePricingDetails.quoteId ?? "N/A"}
+                      </p>
+                    </div>
+                    {quotePricingDetails.status && (
+                      <span
+                        className={`rounded-full px-3 py-1 text-[11px] font-medium capitalize ${
+                          isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-[#FFF6D9] text-[#7A5A00]"
+                        }`}
+                      >
+                        {quotePricingDetails.status}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className={`mt-5 grid grid-cols-2 gap-3 rounded-2xl p-4 ${isDark ? "bg-[#111111]" : "bg-[#F8F8F8]"}`}>
+                    <div>
+                      <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-black/40"}`}>Pricing Mode</p>
+                      <p className={`mt-1 text-sm font-medium capitalize ${isDark ? "text-white" : "text-black"}`}>
+                        {quotePricingDetails.pricingMode || "General"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-black/40"}`}>Shoot Hours</p>
+                      <p className={`mt-1 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                        {quotePricingDetails.shootHours || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-black/40"}`}>Subtotal</p>
+                      <p className={`mt-1 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                        {formatCurrencyValue(quotePricingDetails.subtotal)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-black/40"}`}>Discount</p>
+                      <p className="mt-1 text-sm font-medium text-red-400">
+                        -{formatCurrencyValue(quotePricingDetails.discountAmount)}
+                      </p>
+                    </div>
+                    {quotePricingDetails.taxAmount > 0 && (
+                      <>
+                        <div>
+                          <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-black/40"}`}>After Discount</p>
+                          <p className={`mt-1 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                            {formatCurrencyValue(quotePricingDetails.priceAfterDiscount)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                            Tax
+                            {quotePricingDetails.taxRate > 0 ? ` (${quotePricingDetails.taxRate}%)` : ""}
+                          </p>
+                          <p className={`mt-1 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                            {formatCurrencyValue(quotePricingDetails.taxAmount)}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                    {quotePricingDetails.expiresAt && (
+                      <div className="col-span-2">
+                        <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-black/40"}`}>Quote Expiry</p>
+                        <p className={`mt-1 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                          {formatDateUI(quotePricingDetails.expiresAt) || "N/A"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Quote Line Items</p>
+                      <p className={`text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                        {quotePricingDetails.source === "database" ? "Saved quote data" : "Projected quote"}
+                      </p>
+                    </div>
+
+                    {quotePricingDetails.lineItems.length > 0 ? (
+                      quotePricingDetails.lineItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`rounded-2xl border p-4 ${isDark ? "border-[#2D2D2D] bg-[#111111]" : "border-[#ECECEC] bg-[#FCFCFC]"}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                {item.name}
+                              </p>
+                              <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
+                                Qty {item.quantity} x {formatCurrencyValue(item.unitPrice)}
+                              </p>
+                              {item.notes && (
+                                <p className={`mt-2 text-xs capitalize ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
+                                  {item.notes}
+                                </p>
+                              )}
+                            </div>
+                            <p className={`shrink-0 text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                              {formatCurrencyValue(item.total)}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className={`rounded-2xl border border-dashed p-4 text-sm ${isDark ? "border-[#3D3D3D] text-white/45" : "border-[#D8D8D8] text-black/45"}`}>
+                        No quote line items were returned for this converted booking.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={`mt-5 flex items-center justify-between rounded-2xl px-4 py-4 ${isDark ? "bg-[#0F0F0F]" : "bg-[#F8F8F8]"}`}>
+                    <span className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Quoted Total</span>
+                    <span className="text-lg font-semibold text-[#E8D1AB]">
+                      {formatCurrencyValue(quotePricingDetails.total)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* CHANGED: Passing leadId dynamically */}
             <div className="lg:text-right lg:mt-[82px]">

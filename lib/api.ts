@@ -415,11 +415,21 @@ export interface SalesQuoteDetailData {
   total_amount?: number | string;
   final_total?: number | string;
   amount_after_discount?: number | string;
+  booking_id?: number | string;
+  accepted_at?: string | null;
   terms_conditions?: string | string[] | null;
   line_items?: SalesQuoteDetailLineItem[];
   items?: SalesQuoteDetailLineItem[];
   quote_items?: SalesQuoteDetailLineItem[];
   rows?: SalesQuoteDetailLineItem[];
+  activities?: Array<{
+    activity_type?: string;
+    message?: string;
+    metadata?: Record<string, unknown> | null;
+    metadata_json?: string | null;
+    created_at?: string | null;
+    performed_by?: SalesQuoteListUser | null;
+  }>;
   quote?: SalesQuoteDetailData;
   data?: unknown;
   [key: string]: unknown;
@@ -2192,4 +2202,3 @@ export const salesApi = {
     }
   },
 };
-
