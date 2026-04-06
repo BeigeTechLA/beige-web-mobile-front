@@ -144,8 +144,8 @@ export function buildQuoteDraftPayload(
   input: BuildQuoteDraftPayloadInput
 ): QuoteDraftPayload {
   const clientUserId = getPositiveInteger(
-    input.selectedClient?.client_id ??
-      input.selectedClient?.user_id ??
+    input.selectedClient?.user_id ??
+      input.selectedClient?.client_id ??
       input.selectedClient?.id
   );
   const shootTypeLabel =
