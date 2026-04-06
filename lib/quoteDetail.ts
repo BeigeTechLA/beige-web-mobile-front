@@ -325,8 +325,8 @@ export const normalizeQuoteLineItems = (
     );
     const unitRate =
       getQuoteNumber(
-        item.unit_rate,
         item.estimated_pricing,
+        item.unit_rate,
         item.rate,
         item.effective_rate,
         item.price

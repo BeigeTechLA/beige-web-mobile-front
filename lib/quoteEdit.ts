@@ -211,6 +211,7 @@ const resolveItemPrice = (
   fallback = 0
 ) => {
   const directRate = getQuoteNumber(
+    item.estimated_pricing,
     item.unit_rate,
     item.rate,
     item.effective_rate,
@@ -234,8 +235,8 @@ const resolveServicePrice = (
   fallback = 0
 ) => {
   const resolvedRate = getQuoteNumber(
-    item.unit_rate,
     item.estimated_pricing,
+    item.unit_rate,
     item.rate,
     item.effective_rate,
     item.price

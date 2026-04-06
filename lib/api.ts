@@ -415,11 +415,21 @@ export interface SalesQuoteDetailData {
   total_amount?: number | string;
   final_total?: number | string;
   amount_after_discount?: number | string;
+  booking_id?: number | string;
+  accepted_at?: string | null;
   terms_conditions?: string | string[] | null;
   line_items?: SalesQuoteDetailLineItem[];
   items?: SalesQuoteDetailLineItem[];
   quote_items?: SalesQuoteDetailLineItem[];
   rows?: SalesQuoteDetailLineItem[];
+  activities?: Array<{
+    activity_type?: string;
+    message?: string;
+    metadata?: Record<string, unknown> | null;
+    metadata_json?: string | null;
+    created_at?: string | null;
+    performed_by?: SalesQuoteListUser | null;
+  }>;
   quote?: SalesQuoteDetailData;
   data?: unknown;
   [key: string]: unknown;
@@ -441,6 +451,26 @@ export interface SalesQuoteStatusUpdateResponse {
 export interface SalesQuoteSendResponse {
   success: boolean;
   data: SalesQuoteDetailData | null;
+  error?: string;
+  message?: string;
+}
+
+export interface SalesQuoteConvertToBookingData {
+  quote_id: number;
+  lead_id: number;
+  booking_id: number;
+  already_converted: boolean;
+  lead_source?: string;
+  booking_mode_hint?: string | null;
+  payment_link_ready_hint?: boolean;
+  prefill_data?: unknown;
+  booking_summary?: unknown;
+  missing_required_fields?: string[];
+}
+
+export interface SalesQuoteConvertToBookingResponse {
+  success: boolean;
+  data: SalesQuoteConvertToBookingData | null;
   error?: string;
   message?: string;
 }
@@ -1930,6 +1960,22 @@ export const salesApi = {
       };
     }
   },
+  convertQuoteToBooking: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteConvertToBookingResponse>(
+        `/sales/quotes/${quoteId}/convert-to-booking`,
+        {}
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Convert Quote To Booking Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to convert quote to booking',
+      };
+    }
+  },
   getQuoteCatalog: async () => {
     try {
       const response = await api.get('/sales/quotes/catalog');
@@ -2156,4 +2202,3 @@ export const salesApi = {
     }
   },
 };
-
