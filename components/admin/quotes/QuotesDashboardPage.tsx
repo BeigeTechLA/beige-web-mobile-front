@@ -544,6 +544,8 @@ const buildQuoteChartData = (
 
 const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
+    case "paid":
+      return "bg-[#D6FFE6] text-[#27AE60] border-transparent";
     case "accepted":
     case "confirmed":
       return "bg-[#D6FFE6] text-[#27AE60] border-transparent";

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { BasicDropdown } from "./BasicDropdown";
 import { useTheme } from "next-themes";
 type MetricItem = {
@@ -135,8 +135,7 @@ const OverviewMetricCards = ({
                 )}
               </div>
 
-              {/* Growth percentages. */}
-              {/* <div
+              <div
                 className={`text-xs flex gap-1 items-center ${
                   isActive
                     ? "text-[#171717]"
@@ -147,17 +146,25 @@ const OverviewMetricCards = ({
               >
                 <span
                   className={`font-bold text-sm ${
-                    isActive
-                      ? "text-[#047726]" // Stronger green on Beige background
+                    m.growth > 0
+                      ? isActive
+                        ? "text-[#047726]"
+                        : isDark
+                        ? "text-[#0DAE3D]"
+                        : "text-[#0A8F30]"
+                      : m.growth < 0
+                      ? "text-red-500"
+                      : isActive
+                      ? "text-[#171717]/60"
                       : isDark
-                      ? "text-[#0DAE3D]"
-                      : "text-[#0A8F30]"
+                      ? "text-white/50"
+                      : "text-[#676767]"
                     }`}
                 >
                   {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
                 </span>{" "}
                 {getGrowthLabel(m)}
-              </div> */}
+              </div>
 
               {renderAction?.(m)}
             </div>
