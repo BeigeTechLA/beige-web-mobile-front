@@ -26,7 +26,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DottedDivider from "@/components/admin/DottedDivider";
-import MetricCards from "@/components/admin/OverviewMetricCards";
 import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
 import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
 import { BookingStatus, LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
@@ -94,6 +93,11 @@ type DashboardOverviewPayload = {
   growth?: Partial<Record<string, number | string>>;
 };
 
+type DashboardMetricStat = {
+  value?: number | string;
+  change_percent?: number | string;
+};
+
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
@@ -130,19 +134,33 @@ const formatRelativeTime = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
-const initialMetrics: OverviewMetric[] = [
-  { id: 'total_active', label: 'Total Active Leads', value: '10', growth: 0, icon: Users, color: 'bg-[#E5D5B8]' },
-  { id: 'sales_assisted', label: 'Sales Assisted Leads', value: '5', growth: 0, icon: Target, color: 'bg-zinc-800' },
-  { id: 'total_conversion', label: 'Total Conversion Rate', value: '15.4', growth: 0, icon: ChartLine, color: 'bg-zinc-800' },
-  { id: 'total_bookings', label: 'Total Bookings', value: '25', growth: 0, icon: Calendar, color: 'bg-zinc-800' },
-];
-
 const OverviewFilters = ["All Time", "Month", "Week"];
 
 const OVERVIEW_PERIOD_MAP: Record<string, string> = {
   "All Time": "all_time",
-  Month: "month",
-  Week: "week",
+  "Month": "30days",
+  "Week": "7days",
+};
+
+const isMetricStat = (value: unknown): value is DashboardMetricStat =>
+  !!value && typeof value === "object" && ("value" in value || "change_percent" in value);
+
+const normalizeOverviewSection = (section: Record<string, unknown> = {}): DashboardOverviewPayload => {
+  const payload: DashboardOverviewPayload = {};
+  const growth: Partial<Record<string, number | string>> = {};
+
+  Object.entries(section).forEach(([key, rawValue]) => {
+    if (isMetricStat(rawValue)) {
+      payload[key as keyof DashboardOverviewPayload] = rawValue.value ?? 0;
+      growth[key] = rawValue.change_percent ?? 0;
+      return;
+    }
+
+    payload[key as keyof DashboardOverviewPayload] = rawValue as number | string;
+  });
+
+  payload.growth = growth;
+  return payload;
 };
 
 const getOverviewPayload = (response: unknown): DashboardOverviewPayload => {
@@ -156,11 +174,11 @@ const getOverviewPayload = (response: unknown): DashboardOverviewPayload => {
     const data = response.data as Record<string, unknown>;
 
     if (data.combined && typeof data.combined === "object") {
-      return data.combined as DashboardOverviewPayload;
+      return normalizeOverviewSection(data.combined as Record<string, unknown>);
     }
 
     if (data.overview && typeof data.overview === "object") {
-      return data.overview as DashboardOverviewPayload;
+      return normalizeOverviewSection(data.overview as Record<string, unknown>);
     }
 
     return data as DashboardOverviewPayload;
@@ -170,11 +188,11 @@ const getOverviewPayload = (response: unknown): DashboardOverviewPayload => {
     const directResponse = response as Record<string, unknown>;
 
     if (directResponse.combined && typeof directResponse.combined === "object") {
-      return directResponse.combined as DashboardOverviewPayload;
+      return normalizeOverviewSection(directResponse.combined as Record<string, unknown>);
     }
 
     if (directResponse.overview && typeof directResponse.overview === "object") {
-      return directResponse.overview as DashboardOverviewPayload;
+      return normalizeOverviewSection(directResponse.overview as Record<string, unknown>);
     }
 
     return directResponse as DashboardOverviewPayload;
@@ -193,6 +211,22 @@ const formatMetricValue = (value: unknown, suffix = ""): string => {
   return `${numericValue}${suffix}`;
 };
 
+const getGrowthValue = (
+  growth: DashboardOverviewPayload["growth"],
+  keys: string[]
+): number => {
+  if (!growth) return 0;
+
+  for (const key of keys) {
+    const numericValue = Number(growth[key]);
+    if (Number.isFinite(numericValue)) {
+      return numericValue;
+    }
+  }
+
+  return 0;
+};
+
 const buildOverviewMetrics = (payload: DashboardOverviewPayload): OverviewMetric[] => {
   const growth = payload.growth || {};
 
@@ -202,11 +236,16 @@ const buildOverviewMetrics = (payload: DashboardOverviewPayload): OverviewMetric
       label: "Total Active Leads",
       value: formatMetricValue(
         payload.total_active ??
-          payload.total_active_leads ??
+        payload.total_active_leads ??
           payload.active_leads ??
           payload.total_leads
       ),
-      growth: toNumber(growth.total_active),
+      growth: getGrowthValue(growth, [
+        "total_active",
+        "total_active_leads",
+        "active_leads",
+        "total_leads",
+      ]),
       icon: Users,
       color: "bg-[#E5D5B8]",
     },
@@ -214,7 +253,10 @@ const buildOverviewMetrics = (payload: DashboardOverviewPayload): OverviewMetric
       id: "sales_assisted",
       label: "Sales Assisted Leads",
       value: formatMetricValue(payload.sales_assisted ?? payload.sales_assisted_leads),
-      growth: toNumber(growth.sales_assisted),
+      growth: getGrowthValue(growth, [
+        "sales_assisted",
+        "sales_assisted_leads",
+      ]),
       icon: Target,
       color: "bg-zinc-800",
     },
@@ -225,7 +267,11 @@ const buildOverviewMetrics = (payload: DashboardOverviewPayload): OverviewMetric
         payload.total_conversion ?? payload.total_conversion_rate ?? payload.conversion_rate,
         "%"
       ),
-      growth: toNumber(growth.total_conversion),
+      growth: getGrowthValue(growth, [
+        "total_conversion",
+        "total_conversion_rate",
+        "conversion_rate",
+      ]),
       icon: ChartLine,
       color: "bg-zinc-800",
     },
@@ -235,12 +281,18 @@ const buildOverviewMetrics = (payload: DashboardOverviewPayload): OverviewMetric
       value: formatMetricValue(
         payload.total_bookings ?? payload.bookings ?? payload.booked_leads
       ),
-      growth: toNumber(growth.total_bookings),
+      growth: getGrowthValue(growth, [
+        "total_bookings",
+        "bookings",
+        "booked_leads",
+      ]),
       icon: Calendar,
       color: "bg-zinc-800",
     },
   ];
 };
+
+const getDefaultOverviewMetrics = (): OverviewMetric[] => buildOverviewMetrics({});
 
 const tabs: { label: string; value: TabType }[] = [
   { label: "Booking Leads", value: "Booking" },
@@ -306,14 +358,14 @@ export default function AdminSaleRepManagerPage() {
   const [usersLimit] = useState(50);
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
 
-  const [metrics, setMetrics] = useState<OverviewMetric[]>(initialMetrics);
+  const [metrics, setMetrics] = useState<OverviewMetric[]>(() => getDefaultOverviewMetrics());
   const [activeMetric, setActiveMetric] = useState('total_active');
   const [isLoading, setIsLoading] = useState(false);
   const [range, setRange] = useState('All Time');
 
   const fetchDashboardOverview = async () => {
     if (!token) {
-      setMetrics(initialMetrics);
+      setMetrics(getDefaultOverviewMetrics());
       setIsLoading(false);
       return;
     }
@@ -327,7 +379,7 @@ export default function AdminSaleRepManagerPage() {
       setMetrics(buildOverviewMetrics(payload));
     } catch (error) {
       console.error("Failed to fetch admin dashboard overview:", error);
-      setMetrics(initialMetrics);
+      setMetrics(getDefaultOverviewMetrics());
     } finally {
       setIsLoading(false);
     }

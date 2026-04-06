@@ -110,6 +110,13 @@ const getEmbedUrl = (url: string) => {
   return fullUrl;
 };
 
+const normalizeFeaturedWorkTag = (value: unknown) => {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "[]") return "";
+  return trimmed;
+};
+
 const getRoleLabel = (roleData: any) => {
   if (!roleData) return "Not Specified";
   try {
@@ -796,10 +803,11 @@ export default function ProfilePage() {
   const groupedWorks = profile.crew_member_files
     ?.filter((file: any) => file.file_type === "recent_work")
     .reduce((acc: any[], file: any) => {
+      const normalizedTag = normalizeFeaturedWorkTag(file.tag);
       // Matches if both Title and Tag are the same
       const existingProject = acc.find(p =>
         p.title?.toLowerCase() === file.title?.toLowerCase() &&
-        p.tag === file.tag
+        p.tag === normalizedTag
       );
 
       if (existingProject) {
@@ -807,7 +815,7 @@ export default function ProfilePage() {
       } else {
         acc.push({
           title: file.title,
-          tag: file.tag,
+          tag: normalizedTag,
           images: [file]
         });
       }
@@ -1263,7 +1271,7 @@ export default function ProfilePage() {
                     <div className="mt-5 px-2">
                       <h4 className="text-base font-bold text-white tracking-tight">{project.title}</h4>
                       {
-                        project?.tag &&
+                        normalizeFeaturedWorkTag(project?.tag) &&
                         <p className="text-xs text-[#E8D1AB] mt-1 opacity-80 font-medium">#{project.tag}</p>
                       }
                     </div>
@@ -1565,22 +1573,33 @@ export default function ProfilePage() {
       {lightboxData.isOpen && lightboxData.project && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-300">
           {/* Top Bar */}
-          <div className="flex items-center justify-between p-6">
-            <div className="flex flex-col">
-              <h3 className="text-xl font-bold text-white uppercase tracking-wider">{lightboxData.project.title}</h3>
-              <p className="text-xs text-white/40">Media {lightboxData.index + 1} of {lightboxData.project.images.length}</p>
+          <div className="flex items-start justify-between gap-6 p-6 lg:p-8">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="text-lg lg:text-2xl font-semibold text-white tracking-tight">
+                  {lightboxData.project.title}
+                </h3>
+                {normalizeFeaturedWorkTag(lightboxData.project.tag) && (
+                  <span className="inline-flex items-center rounded-full border border-[#E8D1AB]/30 bg-[#E8D1AB]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#E8D1AB]">
+                    {normalizeFeaturedWorkTag(lightboxData.project.tag)}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-white/40">
+                Media {lightboxData.index + 1} of {lightboxData.project.images.length}
+              </p>
             </div>
             <div className="flex items-center gap-4">
               {/* Inside Lightbox Top Bar */}
               <button
                 onClick={() => confirmDelete('file', lightboxData.project.images[lightboxData.index])}
-                className="flex items-center gap-2 px-6 py-2.5 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full text-xs font-bold hover:bg-red-500 hover:text-white transition-all"
+                className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-red-400 hover:bg-red-500 hover:text-white transition-all"
               >
                 <Trash2 size={16} /> Delete This Image
               </button>
               <button
                 onClick={() => setLightboxData({ ...lightboxData, isOpen: false })}
-                className="p-3 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/10 transition-colors"
+                className="rounded-full border border-white/10 bg-white/5 p-3 text-white hover:bg-white/10 transition-colors"
               >
                 <X size={24} />
               </button>
@@ -1588,7 +1607,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Main Content (Image + Arrows) */}
-          <div className="flex-1 relative flex items-center justify-center p-4">
+          <div className="flex-1 relative flex items-center justify-center px-4 py-6 lg:px-20 lg:py-8">
             <button
               className="absolute left-8 z-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
               onClick={() => setLightboxData({ ...lightboxData, index: (lightboxData.index - 1 + lightboxData.project.images.length) % lightboxData.project.images.length })}
@@ -1596,12 +1615,14 @@ export default function ProfilePage() {
               <ChevronLeft size={32} />
             </button>
 
-            <div className="max-w-5xl w-full h-full flex items-center justify-center">
-              <img
-                src={`${S3_BASE_URL}${lightboxData.project.images[lightboxData.index].file_path}`}
-                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
-                alt="Preview"
-              />
+            <div className="w-full max-w-5xl">
+              <div className="relative mx-auto flex aspect-[4/3] max-h-[calc(100vh-16rem)] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#050505] shadow-2xl">
+                <img
+                  src={`${S3_BASE_URL}${lightboxData.project.images[lightboxData.index].file_path}`}
+                  className="h-full w-full object-contain"
+                  alt="Preview"
+                />
+              </div>
             </div>
 
             <button
