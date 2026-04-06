@@ -195,14 +195,18 @@ const QuoteTopActions = ({
   onPreview,
   previewDisabled,
   rejectDisabled,
+  convertDisabled,
   isRejecting,
+  isConverting,
 }: {
   onReject: () => void;
   onConvert: () => void;
   onPreview: () => void;
   previewDisabled: boolean;
   rejectDisabled: boolean;
+  convertDisabled: boolean;
   isRejecting: boolean;
+  isConverting: boolean;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
     <Button
@@ -217,11 +221,12 @@ const QuoteTopActions = ({
     <Button
       type="button"
       onClick={onConvert}
+      disabled={convertDisabled}
       variant="outline"
       className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
     >
-      <FileText size={18} />
-      Convert to Invoice
+      {isConverting ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
+      {isConverting ? "Converting..." : "Convert to Booking"}
     </Button>
     <Button
       type="button"
@@ -256,6 +261,7 @@ export default function QuoteDetailsPage({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
   const [isRejecting, setIsRejecting] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -395,10 +401,6 @@ export default function QuoteDetailsPage({
     [quoteId]
   );
 
-  const handleUnavailableAction = (label: string) => {
-    toast(`${label} action is not available yet.`);
-  };
-
   const handleRejectQuote = async () => {
     if (!resolvedQuoteId) {
       toast.error("Quote id is missing.");
@@ -433,6 +435,42 @@ export default function QuoteDetailsPage({
     }
   };
 
+  const handleConvertQuoteToBooking = async () => {
+    if (!resolvedQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    setIsConverting(true);
+    try {
+      const response = await salesApi.convertQuoteToBooking(resolvedQuoteId);
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to convert quote to booking"
+        );
+      }
+
+      const bookingId = response?.data?.booking_id;
+      const alreadyConverted = Boolean(response?.data?.already_converted);
+
+      toast.success(
+        alreadyConverted
+          ? `Booking updated successfully${bookingId ? ` (#${bookingId})` : ""}`
+          : `Quote converted to booking successfully${bookingId ? ` (#${bookingId})` : ""}`
+      );
+    } catch (error) {
+      console.error("Failed to convert quote to booking", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to convert quote to booking"
+      );
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
   const handleEditQuote = (targetView: QuoteEditorView) => {
     if (quote) {
       persistQuoteEditorNavigationCache(quoteId, quote);
@@ -449,11 +487,15 @@ export default function QuoteDetailsPage({
       onReject={() => {
         void handleRejectQuote();
       }}
-      onConvert={() => handleUnavailableAction("Convert to Invoice")}
+      onConvert={() => {
+        void handleConvertQuoteToBooking();
+      }}
       onPreview={() => setIsPreviewOpen(true)}
       previewDisabled={!quote || loading}
-      rejectDisabled={!quote || loading || isRejecting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      rejectDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      convertDisabled={!quote || loading || isRejecting || isConverting}
       isRejecting={isRejecting}
+      isConverting={isConverting}
     />
   );
 

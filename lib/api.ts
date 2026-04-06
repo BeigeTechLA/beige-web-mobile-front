@@ -445,6 +445,26 @@ export interface SalesQuoteSendResponse {
   message?: string;
 }
 
+export interface SalesQuoteConvertToBookingData {
+  quote_id: number;
+  lead_id: number;
+  booking_id: number;
+  already_converted: boolean;
+  lead_source?: string;
+  booking_mode_hint?: string | null;
+  payment_link_ready_hint?: boolean;
+  prefill_data?: unknown;
+  booking_summary?: unknown;
+  missing_required_fields?: string[];
+}
+
+export interface SalesQuoteConvertToBookingResponse {
+  success: boolean;
+  data: SalesQuoteConvertToBookingData | null;
+  error?: string;
+  message?: string;
+}
+
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
   validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
@@ -1927,6 +1947,22 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to update quote status',
+      };
+    }
+  },
+  convertQuoteToBooking: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteConvertToBookingResponse>(
+        `/sales/quotes/${quoteId}/convert-to-booking`,
+        {}
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Convert Quote To Booking Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to convert quote to booking',
       };
     }
   },

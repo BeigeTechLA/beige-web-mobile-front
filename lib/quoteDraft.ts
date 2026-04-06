@@ -350,12 +350,17 @@ function buildAddonItems(
 
       const quantity = Math.max(1, normalizeNumber(config?.quantity ?? 1));
       const catalogItemId = getPositiveInteger(addon.id);
+      const estimatedPricing = Math.max(
+        0,
+        normalizeNumber(config?.price ?? addon.price)
+      );
 
       if (catalogItemId) {
         return {
           catalog_item_id: catalogItemId,
           section_type: "addon",
           quantity,
+          estimated_pricing: estimatedPricing,
         };
       }
 
@@ -364,8 +369,9 @@ function buildAddonItems(
         section_type: "addon",
         item_name: addon.label || "Custom Add-on",
         rate_type: "flat",
-        unit_rate: Math.max(0, normalizeNumber(config?.price ?? addon.price)),
+        unit_rate: estimatedPricing,
         quantity,
+        estimated_pricing: estimatedPricing,
       };
     })
     .filter((item): item is QuoteDraftLineItem => item !== null);

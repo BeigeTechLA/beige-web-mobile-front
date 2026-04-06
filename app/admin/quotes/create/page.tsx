@@ -1127,20 +1127,8 @@ export default function CreateQuotePage() {
           availableServices.find((service) => service.id === id)?.label || "",
         ),
       );
-      const hasVideoService = ids.some((id) =>
-        isVideoServiceLabel(
-          availableServices.find((service) => service.id === id)?.label || "",
-        ),
-      );
-      const hasPhotoService = ids.some((id) =>
-        isPhotoServiceLabel(
-          availableServices.find((service) => service.id === id)?.label || "",
-        ),
-      );
-      const hasEditingTypeContext =
-        hasEditingService || hasVideoService || hasPhotoService;
 
-      if (!hasEditingTypeContext) {
+      if (!hasEditingService) {
         setEditingTypeOptions([]);
         setSelectedEditingType("");
         return [] as ShootTypeOption[];
@@ -1295,14 +1283,15 @@ export default function CreateQuotePage() {
         setDiscountEnabled(hydratedState.discountEnabled);
         setDiscountType(hydratedState.discountType);
         setDiscountValue(hydratedState.discountValue);
-        setTaxRate(hydratedState.taxRate);
-        setSelectedTax(
-          hydratedState.taxRate === 5 ||
-            hydratedState.taxRate === 8.5 ||
-            hydratedState.taxRate === 10
-            ? (hydratedState.taxRate as 5 | 8.5 | 10)
-            : 0,
-        );
+        const hydratedTaxRate = Number(hydratedState.taxRate) || 0;
+        const isPresetTaxRate =
+          hydratedTaxRate === 0 ||
+          hydratedTaxRate === 5 ||
+          hydratedTaxRate === 8.5 ||
+          hydratedTaxRate === 10;
+        setTaxRate(hydratedTaxRate);
+        setSelectedTax(isPresetTaxRate ? hydratedTaxRate : -1);
+        setShowCustomTax(!isPresetTaxRate);
         setTaxType(hydratedState.taxType);
         setServices(hydratedState.services);
         setSelectedServices(hydratedState.selectedServices);
@@ -1566,6 +1555,21 @@ export default function CreateQuotePage() {
         [field]: Math.max(0, value),
       },
     }));
+  };
+
+  const getServiceDraftPrice = (serviceId: string) => {
+    const config = serviceConfigs[serviceId];
+
+    if (!config) return 0;
+    return config.estimatedPrice;
+  };
+
+  const handleServicePriceUpdate = (serviceId: string, value: string) => {
+    const config = serviceConfigs[serviceId];
+    if (!config) return;
+
+    const nextPrice = parseFloat(value.replace(/\$/g, "").trim()) || 0;
+    handleConfigUpdate(serviceId, "estimatedPrice", nextPrice);
   };
 
   const handleAddonConfigUpdate = (
@@ -2204,8 +2208,7 @@ export default function CreateQuotePage() {
       (id) =>
         isEditingServiceLabel(services.find((s) => s.id === id)?.label || ""),
     ) || selectedServices.includes("ai_editing");
-  const hasEditingTypeContext =
-    hasVideoService || hasPhotoService || hasEditingService;
+  const hasEditingTypeContext = hasEditingService;
   const selectedVideoShootTypeLabel = getSelectedShootTypeLabel(
     videoShootTypes,
     selectedVideoShootType,
@@ -2221,7 +2224,7 @@ export default function CreateQuotePage() {
   const storedShootTypeLabel = buildStoredShootTypeLabel({
     hasVideoService,
     hasPhotoService,
-    hasEditingService: hasEditingTypeContext,
+    hasEditingService,
     videoShootTypeLabel: selectedVideoShootTypeLabel,
     photoShootTypeLabel: selectedPhotoShootTypeLabel,
     editingShootTypeLabel: selectedEditingTypeLabel,
@@ -4478,9 +4481,16 @@ export default function CreateQuotePage() {
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
-                                      <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
-                                        ${config.estimatedPrice.toFixed(2)}
-                                      </div>
+                                      <Input
+                                        value={`$ ${formatAddonDisplayValue(getServiceDraftPrice(serviceId))}`}
+                                        onChange={(e) =>
+                                          handleServicePriceUpdate(
+                                            serviceId,
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
+                                      />
                                       <button
                                         onClick={() =>
                                           handleConfigUpdate(
