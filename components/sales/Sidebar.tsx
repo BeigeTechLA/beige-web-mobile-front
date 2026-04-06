@@ -8,11 +8,18 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 
 const CustomQuotesIcon = ({ size = 24 }) => (
-  <img
-    src="/images/misc/Quotes.svg"
-    width={size}
-    height={size}
-    alt="video"
+  <div
+    style={{
+      width: size,
+      height: size,
+      backgroundColor: 'currentColor',
+      WebkitMaskImage: `url('/images/misc/Quotes.svg')`,
+      maskImage: `url('/images/misc/Quotes.svg')`,
+      WebkitMaskRepeat: 'no-repeat',
+      maskRepeat: 'no-repeat',
+      WebkitMaskSize: 'contain',
+      maskSize: 'contain'
+    }}
   />
 );
 

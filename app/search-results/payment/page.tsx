@@ -24,7 +24,7 @@ import { Footer } from "@/src/components/landing/Footer";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { formatLocationForDisplay } from "@/lib/utils/locationHelpers";
-import { debounce } from "@/lib/utils";
+import { debounce, getBookingDetails } from "@/lib/utils";
 import { affiliateApi } from "@/lib/api";
 import axios from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -1445,8 +1445,8 @@ function MultiCreatorPaymentContent() {
     );
   }
 
-  // console.log(booking);
-  // console.log(summaryData);
+  // Date Time info to manage Multiday shoot format
+  const dateTimeInfo = getBookingDetails(booking)
 
   return (
     <div className="pt-20 md:pt-32 pb-20 min-h-screen">
@@ -1530,22 +1530,24 @@ function MultiCreatorPaymentContent() {
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Shoot Date:</span>
-                      <span className="font-medium">{formatShortDate(booking.event_date)} </span>
+                      {/* <span className="font-medium">{formatShortDate(booking.event_date)} </span> */}
+                      <span className="font-medium whitespace-pre-line">{dateTimeInfo.summaryDateText} </span>
                     </div>
                     <div className="flex flex-col justify-between">
                       <span className="text-[#626467]">Duration:</span>
                       <span className="font-medium">
                         <span className="block">{formatDurationHours(booking.duration_hours)} Hours</span>
-                        {getTimeRange(booking) ? (
+                        {/* {getTimeRange(booking) ? (
                           <span className="block">{getTimeRange(booking)}</span>
-                        ) : null}
+                        ) : null} */}
+                        <span className="block">{dateTimeInfo.displayTimeText}</span>
                       </span>
                     </div>
                   </div>
-                    <div className="flex flex-col justify-between mb-4">
-                      <span className="text-[#626467]">Shoot Type:</span>
-                      <span className="font-medium">{toTitleCase((summaryData.event_type || "").trim())}</span>
-                    </div>
+                  <div className="flex flex-col justify-between mb-4">
+                    <span className="text-[#626467]">Shoot Type:</span>
+                    <span className="font-medium">{toTitleCase((summaryData.event_type || "").trim())}</span>
+                  </div>
                   <div className="flex flex-col justify-between">
                     <span className="text-[#626467]">Location:</span>
                     <span className="truncate">{booking.event_location ? formatLocationForDisplay(booking.event_location) : "N/A"}</span>
