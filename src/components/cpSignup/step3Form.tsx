@@ -89,21 +89,34 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
       });
 
       // Required: Featured Work
-      featuredWork.forEach((item) => {
-        if (item.files && Array.isArray(item.files)) {
-          item.files.forEach((file) => {
+      const recentWorkFiles: File[] = [];
+      const workMetadata = featuredWork.map((item: any) => {
+        const fileIndexes: number[] = [];
+        const normalizedTags = Array.isArray(item.tags)
+          ? item.tags.filter((tag: string) => typeof tag === "string" && tag.trim() !== "")
+          : (typeof item.tags === "string" && item.tags.trim() !== "" ? [item.tags] : []);
+
+        if (Array.isArray(item.files)) {
+          item.files.forEach((file: File) => {
             if (file instanceof File) {
-              formData.append("recent_work", file);
+              fileIndexes.push(recentWorkFiles.length);
+              recentWorkFiles.push(file);
             }
           });
         }
+
+        return {
+          title: item.title,
+          fileIndexes,
+          ...(normalizedTags.length > 0 ? { tag: normalizedTags.join(",") } : {}),
+        };
       });
 
-      const workMetadata = featuredWork.map((item: any) => ({
-        title: item.title,
-        tags: item.tags || []
-      }));
-      formData.append("work_details", JSON.stringify(workMetadata));
+      recentWorkFiles.forEach((file) => {
+        formData.append("recent_work", file);
+      });
+
+      formData.append("featured_work", JSON.stringify(workMetadata));
 
       const socialLinksPayload: any = {};
       links.forEach((l: any) => {
