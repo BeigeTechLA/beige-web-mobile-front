@@ -62,6 +62,7 @@ import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQ
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
+import { cn } from "@/lib/utils";
 
 const clients = [
   // Dynamic client fetching replaces hardcoded array
@@ -388,24 +389,24 @@ const resolveSelectedServiceContentTypeId = ({
   const selectedService =
     kind === "editing"
       ? availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) && isEditingServiceLabel(service.label)
-        ) ||
-        availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) && isVideoServiceLabel(service.label)
-        ) ||
-        availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) && isPhotoServiceLabel(service.label)
-        )
+        (service) =>
+          selectedIds.includes(service.id) && isEditingServiceLabel(service.label)
+      ) ||
+      availableServices.find(
+        (service) =>
+          selectedIds.includes(service.id) && isVideoServiceLabel(service.label)
+      ) ||
+      availableServices.find(
+        (service) =>
+          selectedIds.includes(service.id) && isPhotoServiceLabel(service.label)
+      )
       : availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) &&
-            (kind === "video"
-              ? isVideoServiceLabel(service.label)
-              : isPhotoServiceLabel(service.label))
-        );
+        (service) =>
+          selectedIds.includes(service.id) &&
+          (kind === "video"
+            ? isVideoServiceLabel(service.label)
+            : isPhotoServiceLabel(service.label))
+      );
 
   return getPositiveCatalogItemId(
     selectedService?.catalogItemId
@@ -561,10 +562,10 @@ const mapAiEditingTypeOptions = (
         item.isCustomEditingType === true ||
         Number(
           item.is_custom ??
-            item.isCustom ??
-            item.is_custom_editing_type ??
-            item.isCustomEditingType ??
-            0
+          item.isCustom ??
+          item.is_custom_editing_type ??
+          item.isCustomEditingType ??
+          0
         ) === 1;
       const isSystemDefault =
         Number(item.is_system_default ?? item.isSystemDefault ?? 0) === 1 ||
@@ -1017,9 +1018,9 @@ export default function CreateQuotePage() {
       const nextEditingTypes =
         response && !response.error
           ? mapAiEditingTypeOptions(response.data, {
-              includeVideoTypes: true,
-              includePhotoTypes: true,
-            })
+            includeVideoTypes: true,
+            includePhotoTypes: true,
+          })
           : [];
       const mergedEditingTypes = editingTypeOptionsRef.current
         .filter((type) => type.isCustom)
@@ -1304,7 +1305,7 @@ export default function CreateQuotePage() {
                   (normalizedEditingKey &&
                     type.key.trim().toLowerCase() === normalizedEditingKey) ||
                   normalizeShootTypeLabelKey(type.label) ===
-                    normalizeShootTypeLabelKey(normalizedEditingLabel)
+                  normalizeShootTypeLabelKey(normalizedEditingLabel)
               );
 
               if (existingEditingType) {
@@ -2198,9 +2199,9 @@ export default function CreateQuotePage() {
     const basePayload = getQuoteDraftPayload(action === "draft" ? view : undefined);
     const payload = isUpdatingExistingQuote
       ? {
-          ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
-          is_draft: action === "draft",
-        }
+        ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
+        is_draft: action === "draft",
+      }
       : action === "save"
         ? {
           ...basePayload,
@@ -2738,8 +2739,8 @@ export default function CreateQuotePage() {
       const res = itemToDelete.type === 'editing_type'
         ? await salesApi.deleteAiEditingType(itemToDelete.id)
         : itemToDelete.type === 'shoot_type'
-        ? await salesApi.deleteShootType(itemToDelete.id)
-        : await salesApi.deleteQuoteCatalog(itemToDelete.id);
+          ? await salesApi.deleteShootType(itemToDelete.id)
+          : await salesApi.deleteQuoteCatalog(itemToDelete.id);
       if (res && !res.error) {
         toast.success(
           `${itemToDelete.type === 'service' ? 'Service' : itemToDelete.type === 'addon' ? 'Add-on' : itemToDelete.type === 'logistics' ? 'Logistics item' : itemToDelete.type === 'shoot_type' ? 'Shoot type' : itemToDelete.type === 'editing_type' ? 'Editing type' : 'Line item'} deleted successfully`
@@ -4051,7 +4052,7 @@ export default function CreateQuotePage() {
                 </div>
               }
 
-              <div className={`m-4 lg:m-9 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50 ${lineItems.length > 0 ? "!mt-0":""}`}>
+              <div className={`m-4 lg:m-9 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50 ${lineItems.length > 0 ? "!mt-0" : ""}`}>
                 <span className="text-sm lg:text-xl font-medium text-[#FFF]">Total Custom Line Items</span>
                 <span className="text-lg lg:text-2xl font-bold text-[#E8D1AB] tracking-tight">
                   ${totalLineItemsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -4167,27 +4168,27 @@ export default function CreateQuotePage() {
                       />
                     </div>
 
-                      <div className="my-6 flex flex-col gap-2">
-                        <div className="flex justify-between text-[#9F9FA9] ">
-                          <p>Subtotal</p>
-                          <p>{formatCurrency(quoteSubtotal)}</p>
-                        </div>
-                        <div className="flex justify-between text-[#E8D1AB] font-medium ">
-                          <p>Discount Applied </p>
-                          <p>- {formatCurrency(discountAmount)}</p>
-                        </div>
-                        <div className="flex justify-between text-[#9F9FA9] ">
-                          <p>Total After Discount</p>
-                          <p>{formatCurrency(discountedSubtotal)}</p>
-                        </div>
+                    <div className="my-6 flex flex-col gap-2">
+                      <div className="flex justify-between text-[#9F9FA9] ">
+                        <p>Subtotal</p>
+                        <p>{formatCurrency(quoteSubtotal)}</p>
                       </div>
+                      <div className="flex justify-between text-[#E8D1AB] font-medium ">
+                        <p>Discount Applied </p>
+                        <p>- {formatCurrency(discountAmount)}</p>
+                      </div>
+                      <div className="flex justify-between text-[#9F9FA9] ">
+                        <p>Total After Discount</p>
+                        <p>{formatCurrency(discountedSubtotal)}</p>
+                      </div>
+                    </div>
 
-                     <div className="bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center ">
-                        <span className="text-sm lg:text-xl font-medium text-white">Total After Discount</span>
-                        <span className="text-lg lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
-                          {formatCurrency(discountedSubtotal)}
-                        </span>
-                      </div>
+                    <div className="bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center ">
+                      <span className="text-sm lg:text-xl font-medium text-white">Total After Discount</span>
+                      <span className="text-lg lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
+                        {formatCurrency(discountedSubtotal)}
+                      </span>
+                    </div>
                   </div>
                 </>
 
@@ -4298,42 +4299,42 @@ export default function CreateQuotePage() {
                       {formatCurrency(quoteSubtotal)}
                     </span>
                   </div>
-                    <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm lg:text-base text-[#9F9FA9]">Discount Applied</span>
-                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                        - {formatCurrency(discountAmount)}
-                      </span>
-                    </div>
-                    <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
-                    <div className="flex justify-between items-center ">
-                      <span className="text-sm lg:text-base text-[#9F9FA9]">Total After Discount</span>
-                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                        {formatCurrency(discountedSubtotal)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center ">
-                      <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
-                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                        {formatCurrency(taxAmount)}
-                      </span>
-                    </div>
+                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">Discount Applied</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      - {formatCurrency(discountAmount)}
+                    </span>
+                  </div>
+                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                  <div className="flex justify-between items-center ">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">Total After Discount</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      {formatCurrency(discountedSubtotal)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center ">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      {formatCurrency(taxAmount)}
+                    </span>
+                  </div>
 
-                    <div className="flex justify-between items-center mt-2 mb-2">
-                      <span className="text-sm lg:text-base text-white font-medium">Final Total</span>
-                      <span className="text-sm lg:text-base text-white font-medium tracking-tight">
-                        {formatCurrency(totalAfterTax)}
-                      </span>
-                    </div>
+                  <div className="flex justify-between items-center mt-2 mb-2">
+                    <span className="text-sm lg:text-base text-white font-medium">Final Total</span>
+                    <span className="text-sm lg:text-base text-white font-medium tracking-tight">
+                      {formatCurrency(totalAfterTax)}
+                    </span>
+                  </div>
 
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
 
-                    <div className="flex justify-between items-center ">
-                      <span className="text-sm lg:text-xl font-medium text-white">Final Total</span>
-                      <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
-                        {formatCurrency(totalAfterTax)}
-                      </span>
-                    </div>
+                  <div className="flex justify-between items-center ">
+                    <span className="text-sm lg:text-xl font-medium text-white">Final Total</span>
+                    <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
+                      {formatCurrency(totalAfterTax)}
+                    </span>
+                  </div>
 
                 </div>
               </div>
@@ -4466,11 +4467,14 @@ export default function CreateQuotePage() {
                     autoComplete="off"
                     data-1p-ignore="true"
                     placeholder="Describe the project scope and requirements....."
-                    className={`min-h-[120px] rounded-xl p-6 pt-8 text-sm lg:text-base ${isDark
-                      // ? "bg-[#171717] border-[#FFFFFF80] text-white placeholder:text-[#FFFFFF4D] focus:border-[#E8D1AB]/50"
-                      ? "!border-[#FFFFFF80] !bg-[#171717] !text-white !placeholder:text-[#FFFFFF4D] !focus:border-[#E8D1AB]/50"
-                      : "!bg-white !border-[#D7D7D7] !text-black !placeholder:text-[#71717B] !focus:border-[#E8D1AB] !hover:border-[#C9A86A]"
-                      }`}
+                    className={cn(
+                      "min-h-[120px] rounded-xl p-6 pt-8 text-sm lg:text-base",
+                      isDark ? [
+                        "bg-[#171717]", "border-[#FFFFFF80]", "text-white", "placeholder:text-[#FFFFFF4D]", "focus:border-[#E8D1AB]/50"
+                      ] : [
+                        "bg-white", "border-[#D7D7D7]", "text-black", "placeholder:text-[#71717B]", "focus:border-[#E8D1AB]", "hover:border-[#C9A86A]"
+                      ]
+                    )}
                   />
                 </div>
                 {/* <div className="relative">

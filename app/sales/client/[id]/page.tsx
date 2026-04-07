@@ -1111,6 +1111,7 @@ export default function LeadDetailPage() {
                     {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
                   </label>
                   <div className={`flex items-center border rounded-xl px-4 py-4 bg-transparent transition-all focus-within:border-[#E8D1AB] ${isDark ? "border-white/50" : "border-[#D8D8D8]"}`}>
+                    {discountType === "fixed_amount" && <DollarSign size={20} className={isDark ? "text-white mr-1" : "text-black mr-1"} />}
                     <input
                       type="number"
                       placeholder="0"
@@ -1126,7 +1127,7 @@ export default function LeadDetailPage() {
                       }}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     />
-                    {discountType === "percentage" ? <Percent size={20} className={isDark ? "text-white" : "text-black"} /> : <DollarSign size={20} className={isDark ? "text-white" : "text-black"} />}
+                    {discountType === "percentage" && <Percent size={20} className={isDark ? "text-white" : "text-black"} />}
                   </div>
                 </div>
 
