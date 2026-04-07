@@ -47,6 +47,7 @@ import {
 } from "@/lib/quoteEdit";
 import {
   buildQuoteDraftPayload,
+  buildQuoteStepUpdatePayload,
   buildQuoteUpdatePayload,
 } from "@/lib/quoteDraft";
 import {
@@ -1889,7 +1890,11 @@ export default function CreateQuotePage() {
   });
 
   const canContinueToNextStep = currentStepValidation.isValid;
-  const canPrimaryAction = view === "tax" ? quoteReviewValidation.isValid : canContinueToNextStep;
+  const canPrimaryAction = isEditMode
+    ? currentStepValidation.isValid
+    : view === "tax"
+      ? quoteReviewValidation.isValid
+      : canContinueToNextStep;
 
   const handleContinue = async () => {
     if (!currentStepValidation.isValid) {
@@ -2094,6 +2099,9 @@ export default function CreateQuotePage() {
   const [isSubmittingService, setIsSubmittingService] = React.useState(false);
   const [isCreatingQuoteDraft, setIsCreatingQuoteDraft] = React.useState(false);
   const [activeQuoteAction, setActiveQuoteAction] = React.useState<"preview" | "save" | "draft" | null>(null);
+  const editQuoteDetailsHref = editQuoteId
+    ? `/sales/quotes/${encodeURIComponent(editQuoteId)}`
+    : "/sales/quotes";
 
   const getQuoteDraftPayload = (maxStep?: typeof view) =>
     buildQuoteDraftPayload({
@@ -2158,6 +2166,40 @@ export default function CreateQuotePage() {
       appliedLineItemConfigs,
       maxStep,
     });
+
+  const getQuoteStepUpdatePayload = (step: typeof view = view) =>
+    buildQuoteStepUpdatePayload(
+      {
+        selectedClient,
+        clientName,
+        emailId,
+        phoneNumber,
+        address,
+        projectDescription,
+        validityDays,
+        validUntil,
+        discountEnabled,
+        discountType,
+        discountValue,
+        taxLabel,
+        normalizedTaxRate,
+        selectedShootType: quoteDraftSelectedShootType,
+        shootTypes: quoteDraftShootTypes,
+        selectedEditingType,
+        editingTypeOptions,
+        selectedServices,
+        services,
+        serviceConfigs,
+        selectedAddons,
+        addons,
+        appliedAddonConfigs,
+        logisticsItems,
+        appliedLogisticsConfigs,
+        lineItems,
+        appliedLineItemConfigs,
+      },
+      step
+    );
 
   const getQuoteSummarySnapshot = () =>
     buildQuoteSummarySnapshot({
@@ -2255,7 +2297,7 @@ export default function CreateQuotePage() {
             : "Quote saved successfully"
         );
         await delayAfterSuccessToast();
-        router.push("/sales/quotes");
+        router.push(isUpdatingExistingQuote ? editQuoteDetailsHref : "/sales/quotes");
         return;
       }
 
@@ -2361,6 +2403,63 @@ export default function CreateQuotePage() {
 
     await saveQuoteDraft("save");
   };
+
+  const handleSaveCurrentEditStep = async () => {
+    if (!editQuoteId || isCreatingQuoteDraft) {
+      return;
+    }
+
+    if (!currentStepValidation.isValid) {
+      toast.error(getQuoteValidationMessage(currentStepValidation));
+      return;
+    }
+
+    setIsCreatingQuoteDraft(true);
+    setActiveQuoteAction("save");
+
+    try {
+      const response = await salesApi.updateQuote(
+        editQuoteId,
+        getQuoteStepUpdatePayload(view)
+      );
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to update quote"
+        );
+      }
+
+      toast.success("Quote updated successfully");
+      await delayAfterSuccessToast();
+      router.push(editQuoteDetailsHref);
+    } catch (error) {
+      console.error("Failed to save quote edit step", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update quote"
+      );
+    } finally {
+      setIsCreatingQuoteDraft(false);
+      setActiveQuoteAction(null);
+    }
+  };
+
+  const handlePrimaryAction = isEditMode
+    ? handleSaveCurrentEditStep
+    : view === "tax"
+      ? handleSaveQuote
+      : handleContinue;
+
+  const primaryActionLabel = isEditMode
+    ? isCreatingQuoteDraft && activeQuoteAction === "save"
+      ? "Saving..."
+      : "Save"
+    : view === "tax"
+      ? isCreatingQuoteDraft && activeQuoteAction === "save"
+        ? "Saving Quote..."
+        : "Save Quote"
+      : "Continue";
 
   const handleSaveAsDraft = async () => {
     await saveQuoteDraft("draft");
@@ -4671,15 +4770,9 @@ export default function CreateQuotePage() {
                     : 'bg-[#A4A5A6] text-white'
                 } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
               disabled={!canPrimaryAction || isCreatingQuoteDraft}
-              onClick={view === "tax" ? handleSaveQuote : handleContinue}
+              onClick={handlePrimaryAction}
             >
-              {view === "tax"
-                ? (
-                  isCreatingQuoteDraft && activeQuoteAction === "save"
-                    ? "Saving Quote..."
-                    : "Save Quote"
-                )
-                : "Continue"}
+              {primaryActionLabel}
             </Button>
           </div>
 
@@ -4760,15 +4853,9 @@ export default function CreateQuotePage() {
               ? 'bg-[#2A2B2D] text-zinc-600'
               : 'bg-[#A4A5A6] text-white'} hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
             disabled={!canPrimaryAction || isCreatingQuoteDraft}
-            onClick={view === "tax" ? handleSaveQuote : handleContinue}
+            onClick={handlePrimaryAction}
           >
-            {view === "tax"
-              ? (
-                isCreatingQuoteDraft && activeQuoteAction === "save"
-                  ? "Saving Quote..."
-                  : "Save Quote"
-              )
-              : "Continue"}
+            {primaryActionLabel}
           </Button>
         </div>
       </div>

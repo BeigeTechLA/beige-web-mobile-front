@@ -71,6 +71,7 @@ export interface QuoteDraftPayload {
 export interface QuoteUpdatePayload
   extends QuoteDraftPayload {
   is_draft?: boolean;
+  line_item_sections?: QuoteDraftSectionType[];
 }
 
 type QuoteDraftLineItem = {
@@ -229,27 +230,127 @@ export function buildQuoteUpdatePayload(
   input: BuildQuoteDraftPayloadInput
 ): QuoteUpdatePayload {
   const draftPayload = buildQuoteDraftPayload(input);
+  const normalizedLineItems = normalizeQuoteUpdateLineItems(draftPayload.line_items);
+  const lineItemSections = getLineItemSections(normalizedLineItems);
+
   return {
     ...draftPayload,
-    line_items: draftPayload.line_items?.map((lineItem) => {
-      if (!lineItem.configuration) {
-        return lineItem;
-      }
-
-      return {
-        ...lineItem,
-        configuration: lineItem.configuration.is_custom_editing_type
-          ? {
-              editing_type_label: lineItem.configuration.editing_type_label,
-              is_custom_editing_type: true,
-            }
-          : {
-              editing_type_key: lineItem.configuration.editing_type_key,
-              is_custom_editing_type: false,
-            },
-      };
-    }),
+    ...(lineItemSections ? { line_item_sections: lineItemSections } : {}),
+    line_items: normalizedLineItems,
   };
+}
+
+export function buildQuoteStepUpdatePayload(
+  input: BuildQuoteDraftPayloadInput,
+  step: QuoteDraftStep
+): QuoteUpdatePayload {
+  const clientUserId = getPositiveInteger(
+    input.selectedClient?.user_id ??
+      input.selectedClient?.client_id ??
+      input.selectedClient?.id
+  );
+  const shootTypeLabel =
+    input.shootTypes.find((type) => String(type.id) === input.selectedShootType)?.label ??
+    toTitleCase(input.selectedShootType);
+
+  if (step === "selection" || step === "details") {
+    return {
+      ...(clientUserId ? { client_user_id: clientUserId } : {}),
+      client_name: input.clientName.trim() || input.selectedClient?.name?.trim() || "",
+      client_email: input.emailId.trim() || input.selectedClient?.email?.trim() || "",
+      client_phone: input.phoneNumber.trim() || input.selectedClient?.phone?.trim() || "",
+      client_address: input.address.trim(),
+      project_description: input.projectDescription.trim(),
+      quote_validity_days: resolveQuoteValidityDays(input.validityDays, input.validUntil),
+    };
+  }
+
+  if (step === "services") {
+    return {
+      video_shoot_type: shootTypeLabel,
+      line_item_sections: ["service"],
+      line_items: normalizeQuoteUpdateLineItems(
+        buildServiceItems(
+          input.selectedServices,
+          input.services,
+          input.serviceConfigs,
+          input.selectedEditingType,
+          input.editingTypeOptions
+        )
+      ),
+    };
+  }
+
+  if (step === "addons") {
+    return {
+      line_item_sections: ["addon"],
+      line_items: normalizeQuoteUpdateLineItems(
+        buildAddonItems(input.selectedAddons, input.addons, input.appliedAddonConfigs)
+      ),
+    };
+  }
+
+  if (step === "logistics") {
+    return {
+      line_item_sections: ["logistics"],
+      line_items: normalizeQuoteUpdateLineItems(
+        buildSimpleItems("logistics", input.logisticsItems, input.appliedLogisticsConfigs)
+      ),
+    };
+  }
+
+  if (step === "customlineitems") {
+    return {
+      line_item_sections: ["custom"],
+      line_items: normalizeQuoteUpdateLineItems(
+        buildSimpleItems("custom", input.lineItems, input.appliedLineItemConfigs)
+      ),
+    };
+  }
+
+  if (step === "discounts" || step === "tax") {
+    return {
+      discount_type: input.discountType === "fixed" ? "fixed_amount" : "percentage",
+      discount_value: input.discountEnabled ? normalizeNumber(input.discountValue) : 0,
+      tax_type: input.taxLabel.trim() || "Sales Tax",
+      tax_rate: normalizeNumber(input.normalizedTaxRate),
+    };
+  }
+
+  return buildQuoteUpdatePayload(input);
+}
+
+function normalizeQuoteUpdateLineItems(
+  lineItems?: QuoteDraftLineItem[]
+): QuoteDraftLineItem[] | undefined {
+  return lineItems?.map((lineItem) => {
+    if (!lineItem.configuration) {
+      return lineItem;
+    }
+
+    return {
+      ...lineItem,
+      configuration: lineItem.configuration.is_custom_editing_type
+        ? {
+            editing_type_label: lineItem.configuration.editing_type_label,
+            is_custom_editing_type: true,
+          }
+        : {
+            editing_type_key: lineItem.configuration.editing_type_key,
+            is_custom_editing_type: false,
+          },
+    };
+  });
+}
+
+function getLineItemSections(
+  lineItems?: QuoteDraftLineItem[]
+): QuoteDraftSectionType[] | undefined {
+  if (!lineItems?.length) {
+    return undefined;
+  }
+
+  return Array.from(new Set(lineItems.map((lineItem) => lineItem.section_type)));
 }
 
 function buildServiceItems(
