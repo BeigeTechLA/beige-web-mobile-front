@@ -66,7 +66,7 @@ const StatusBadge = ({ status, mobile }: { status: string; mobile?: boolean }) =
     const padding = mobile ? "px-4 py-1 text-xs" : "px-6 py-2 text-sm";
 
     return (
-        <span className={`${padding} rounded-full font-semibold border ${style}`}>
+        <span className={`${padding} rounded-full font-semibold border text-nowrap ${style}`}>
             {status}
         </span>
     );
