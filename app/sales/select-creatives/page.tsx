@@ -78,7 +78,7 @@ export default function ClientDetailPage() {
     setIsConfirmModalOpen(false);
     try {
       const response = await assignCrew({
-        client_lead_id: Number(leadId), // Use the dynamic ID
+        lead_id: Number(leadId), // Use the dynamic ID
         crew_member_ids: selectedCreativeIds,
       }).unwrap();
 

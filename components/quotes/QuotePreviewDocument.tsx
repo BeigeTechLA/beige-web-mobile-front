@@ -24,9 +24,10 @@ type QuotePreviewDocumentProps = {
 
 const COMPANY_PROFILE = {
   name: "Beige AI",
-  subtitle: "Production Marketplace",
-  addressLines: ["123 Business Street", "San Francisco, CA 94102"],
+  subtitle: "",
+  addressLines: ["9200 Sunset Blvd. #215", "West Hollywood, CA 90069"],
   email: "sales@beigecorporation.io",
+  phone: "323-826-7230",
 };
 
 const formatCount = (value: number) => String(Math.max(0, value)).padStart(2, "0");
@@ -228,27 +229,29 @@ export default function QuotePreviewDocument({
               <div className="flex h-[58px] w-[58px] items-center justify-center rounded-2xl bg-[#E8D1AB]">
                 <BeigeMark />
               </div>
-              <div>
-                <p className="text-[22px] font-semibold text-[#E8D1AB] lg:text-[28px]">
-                  {COMPANY_PROFILE.name}
-                </p>
-                <p className={`text-sm lg:text-lg ${isDark ? "text-white/85" : "text-[#020202]"}`}>
-                  {COMPANY_PROFILE.subtitle}
-                </p>
+                <div>
+                  <p className="text-[22px] font-semibold text-[#E8D1AB] lg:text-[28px]">
+                    {COMPANY_PROFILE.name}
+                  </p>
+                  {COMPANY_PROFILE.subtitle ? (
+                    <p className={`text-sm lg:text-lg ${isDark ? "text-white/85" : "text-[#020202]"}`}>
+                      {COMPANY_PROFILE.subtitle}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className={`space-y-1 text-sm leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
+                {COMPANY_PROFILE.addressLines.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+                <p>{COMPANY_PROFILE.email} {COMPANY_PROFILE.phone}</p>
               </div>
             </div>
 
-            <div className={`space-y-1 text-sm leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
-              {COMPANY_PROFILE.addressLines.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-              <p>{COMPANY_PROFILE.email}</p>
-            </div>
-          </div>
-
           <div className="text-left lg:text-right">
             <h3 className={`text-[38px] font-bold tracking-tight lg:text-[64px] ${isDark ? "text-white" : "text-[#101010]"}`}>
-              QUOTATION
+              PROPOSAL
             </h3>
             <div className={`mt-4 space-y-1 text-sm lg:text-base ${isDark ? "text-white/65" : "text-[#00000080]"}`}>
               <p>Quote #: {quoteNumber}</p>
@@ -301,10 +304,12 @@ export default function QuotePreviewDocument({
                 <span className="font-semibold">-{formatQuoteCurrency(discountAmount)}</span>
               </div>
             ) : null}
-            <div className="flex items-center justify-between gap-6">
-              <span>Total After Discount</span>
-              <span className="font-semibold">{formatQuoteCurrency(discountedSubtotal)}</span>
-            </div>
+            {discountAmount > 0 ? (
+              <div className="flex items-center justify-between gap-6">
+                <span>Total After Discount</span>
+                <span className="font-semibold">{formatQuoteCurrency(discountedSubtotal)}</span>
+              </div>
+            ) : null}
             <div className="flex items-center justify-between gap-6">
               <span>{taxType} ({taxRate}%)</span>
               <span className="font-semibold">{formatQuoteCurrency(taxAmount)}</span>
@@ -340,7 +345,7 @@ export default function QuotePreviewDocument({
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
 
         <p className={`pt-2 text-center text-sm lg:text-[16px] ${isDark ? "text-white/70" : "text-black/70"}`}>
-          Thank you for your business! For questions, contact Beige AI at sales@beigecorporation.io
+          Thank you for your business! For questions, contact Beige AI at sales@beigecorporation.io or 323-826-7230
         </p>
       </div>
     </div>

@@ -108,6 +108,8 @@ type QuoteListState = {
   pagination: QuoteListPaginationState;
 };
 
+type PaginationItem = number | "...";
+
 type QuoteOverview = {
   total_quotes: number;
   accepted_quotes: number;
@@ -159,6 +161,7 @@ const AVATAR_COLORS = [
 ];
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const QUOTES_PER_PAGE = 10;
 
 const QuoteActionMenuButton = ({
   icon,
@@ -658,6 +661,40 @@ const matchesStatusFilter = (quoteStatusKey: string, filterValue: string) => {
   return quoteStatusKey === filterValue;
 };
 
+const buildPaginationItems = (
+  currentPage: number,
+  totalPages: number
+): PaginationItem[] => {
+  if (totalPages <= 1) {
+    return [1];
+  }
+
+  const items: PaginationItem[] = [];
+  const delta = 1;
+  const left = Math.max(2, currentPage - delta);
+  const right = Math.min(totalPages - 1, currentPage + delta);
+
+  items.push(1);
+
+  if (left > 2) {
+    items.push("...");
+  }
+
+  for (let page = left; page <= right; page += 1) {
+    items.push(page);
+  }
+
+  if (right < totalPages - 1) {
+    items.push("...");
+  }
+
+  if (totalPages > 1) {
+    items.push(totalPages);
+  }
+
+  return items;
+};
+
 const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuoteRow => {
   const client = getText(
     quote.client_name,
@@ -744,6 +781,7 @@ export default function QuotesDashboardPage({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1042,6 +1080,26 @@ export default function QuotesDashboardPage({
       return true;
     });
   }, [displayQuotesData, searchTerm, selectedDate, selectedSalesperson, selectedStatusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedDate, selectedSalesperson, selectedStatusFilter]);
+
+  const totalFilteredQuotes = filteredQuotesData.length;
+  const totalListPages = Math.max(1, Math.ceil(totalFilteredQuotes / QUOTES_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalListPages);
+  const listStartIndex = totalFilteredQuotes === 0 ? 0 : (safeCurrentPage - 1) * QUOTES_PER_PAGE;
+  const paginatedQuotesData = filteredQuotesData.slice(
+    listStartIndex,
+    listStartIndex + QUOTES_PER_PAGE
+  );
+  const paginationItems = buildPaginationItems(safeCurrentPage, totalListPages);
+
+  useEffect(() => {
+    if (currentPage > totalListPages) {
+      setCurrentPage(totalListPages);
+    }
+  }, [currentPage, totalListPages]);
 
   const hasOverviewData = Boolean(
     Number(overviewData.total_quotes ?? 0) > 0 ||
@@ -1396,8 +1454,8 @@ export default function QuotesDashboardPage({
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {filteredQuotesData.length > 0 ? (
-                    filteredQuotesData.map((quote) => (
+                  {paginatedQuotesData.length > 0 ? (
+                    paginatedQuotesData.map((quote) => (
                       <tr
                         key={quote.id}
                         onClick={() => handleViewQuoteDetails(quote.id)}
@@ -1475,6 +1533,78 @@ export default function QuotesDashboardPage({
                 </tbody>
               </table>
             </div>
+
+            {filteredQuotesData.length > 0 && totalListPages > 1 && (
+              <div
+                className={`flex flex-col gap-4 rounded-2xl border px-5 py-4 md:flex-row md:items-center md:justify-between ${
+                  isDark
+                    ? "border-[#3D3D3D] bg-[#161616]"
+                    : "border-[#E5E5E5] bg-[#FFFCF6]"
+                }`}
+              >
+                <div className={`text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
+                  Showing {listStartIndex + 1} to{" "}
+                  {Math.min(listStartIndex + QUOTES_PER_PAGE, totalFilteredQuotes)} of{" "}
+                  {totalFilteredQuotes} results
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={safeCurrentPage === 1}
+                    className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
+                      isDark
+                        ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
+                        : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
+                    }`}
+                  >
+                    Previous
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {paginationItems.map((item, index) =>
+                      item === "..." ? (
+                        <span
+                          key={`pagination-gap-${index}`}
+                          className={`px-2 text-xs ${isDark ? "text-white/30" : "text-black/30"}`}
+                        >
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setCurrentPage(item)}
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-all ${
+                            safeCurrentPage === item
+                              ? "bg-[#E5D5B8] text-black"
+                              : isDark
+                                ? "text-white/60 hover:bg-white/5 hover:text-white"
+                                : "text-[#666666] hover:bg-black/5"
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalListPages, prev + 1))}
+                    disabled={safeCurrentPage === totalListPages}
+                    className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
+                      isDark
+                        ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
+                        : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         ) : null}
       </div>

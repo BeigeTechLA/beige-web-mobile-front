@@ -1228,7 +1228,7 @@ export default function LeadDetailPage() {
                     <div>
                       <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-black/40"}`}>Discount</p>
                       <p className="mt-1 text-sm font-medium text-red-400">
-                        -{formatCurrencyValue(quotePricingDetails.discountAmount)}
+                        {formatCurrencyValue(quotePricingDetails.discountAmount)}
                       </p>
                     </div>
                     {quotePricingDetails.taxAmount > 0 && (

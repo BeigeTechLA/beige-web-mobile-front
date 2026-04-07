@@ -208,6 +208,36 @@ const formatAddonDisplayValue = (value: number) =>
     maximumFractionDigits: 2,
   });
 
+const MAX_QUOTE_OPTION_LABEL_LENGTH = 80;
+
+const clampTextLength = (
+  value: string,
+  maxLength = MAX_QUOTE_OPTION_LABEL_LENGTH
+) => value.slice(0, maxLength);
+
+const sanitizeCurrencyInput = (value: string) => {
+  const normalizedValue = value.replace(/[^\d.]/g, "");
+  const decimalIndex = normalizedValue.indexOf(".");
+
+  if (decimalIndex === -1) {
+    return normalizedValue;
+  }
+
+  const integerPart = normalizedValue.slice(0, decimalIndex);
+  const decimalPart = normalizedValue
+    .slice(decimalIndex + 1)
+    .replace(/\./g, "")
+    .slice(0, 2);
+
+  return `${integerPart}.${decimalPart}`;
+};
+
+const parseCurrencyInput = (value: string) => {
+  const sanitizedValue = sanitizeCurrencyInput(value);
+  const parsedValue = Number.parseFloat(sanitizedValue);
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+};
+
 const pickFirstClientValue = (
   ...values: Array<string | number | null | undefined>
 ) => {
@@ -1570,7 +1600,7 @@ export default function CreateQuotePage() {
     const config = serviceConfigs[serviceId];
     if (!config) return;
 
-    const nextPrice = parseFloat(value.replace(/\$/g, "").trim()) || 0;
+    const nextPrice = parseCurrencyInput(value);
     handleConfigUpdate(serviceId, "estimatedPrice", nextPrice);
   };
 
@@ -1640,7 +1670,7 @@ export default function CreateQuotePage() {
     const config = addonConfigs[addonId];
     if (!config) return;
 
-    const nextPrice = parseFloat(value.replace(/\$/g, "").trim()) || 0;
+    const nextPrice = parseCurrencyInput(value);
     handleAddonConfigUpdate(addonId, "price", nextPrice);
   };
 
@@ -1952,7 +1982,9 @@ export default function CreateQuotePage() {
                             : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                             }`}
                         >
-                          <span className="truncate">{type.label}</span>
+                          <span className="block w-full truncate pr-2">
+                            {type.label}
+                          </span>
                         </button>
                         {canDeleteShootType && (
                           <button
@@ -2000,7 +2032,10 @@ export default function CreateQuotePage() {
                         <Input
                           placeholder="Eg : Real Estate"
                           value={customShootType}
-                          onChange={(e) => setCustomShootType(e.target.value)}
+                          onChange={(e) =>
+                            setCustomShootType(clampTextLength(e.target.value))
+                          }
+                          maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                           className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                         />
                       </div>
@@ -2170,6 +2205,27 @@ export default function CreateQuotePage() {
     setDiscountType(type);
   };
 
+  const handleDiscountValueChange = (value: string, maxValue: number) => {
+    const sanitizedValue = handleDecimalInput(value);
+
+    if (sanitizedValue === "") {
+      setDiscountValue("");
+      return;
+    }
+
+    const numericValue = Number(sanitizedValue);
+    if (Number.isNaN(numericValue) || numericValue > maxValue) {
+      return;
+    }
+
+    setDiscountValue(sanitizedValue);
+  };
+
+  const handleDiscountValueBlur = (maxValue: number) => {
+    const normalizedValue = Math.min(Math.max(0, Number(discountValue) || 0), maxValue);
+    setDiscountValue(normalizedValue);
+  };
+
   const handleWholeNumberInput = (value: string) => {
     return value.replace(/\D/g, "");
   };
@@ -2284,7 +2340,11 @@ export default function CreateQuotePage() {
     totalAddOnsCost +
     totalLogisticsCost +
     totalLineItemsCost;
-  const normalizedDiscountValue = Math.max(0, Number(discountValue) || 0);
+  const maxDiscountValue = discountType === "percentage" ? 100 : quoteSubtotal;
+  const normalizedDiscountValue = Math.min(
+    Math.max(0, Number(discountValue) || 0),
+    maxDiscountValue,
+  );
   const rawDiscountAmount = !discountEnabled
     ? 0
     : discountType === "percentage"
@@ -2296,6 +2356,20 @@ export default function CreateQuotePage() {
   const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
+  React.useEffect(() => {
+    const currentValue = Number(discountValue);
+
+    if (Number.isNaN(currentValue)) {
+      return;
+    }
+
+    const boundedValue = Math.min(Math.max(currentValue, 0), maxDiscountValue);
+
+    if (currentValue !== boundedValue) {
+      setDiscountValue(typeof discountValue === "string" ? boundedValue.toString() : boundedValue);
+    }
+  }, [discountValue, maxDiscountValue]);
+
   // const taxLabel = taxType.trim() || "Sales Tax";
   const taxLabel = (selectedTax === -1 && taxType.trim())
     ? taxType.trim()
@@ -2891,13 +2965,14 @@ export default function CreateQuotePage() {
   };
 
   const handleCreateService = async () => {
-    if (!customServiceName || !customServiceCost) return;
+    const serviceName = clampTextLength(customServiceName).trim();
+    if (!serviceName || !customServiceCost) return;
 
     setIsSubmittingService(true);
     try {
       const res = await salesApi.createQuoteCatalog({
         section_type: "service",
-        name: customServiceName,
+        name: serviceName,
         default_rate:
           parseFloat(customServiceCost.replace(/[^0-9.]/g, "")) || 0,
         rate_type: "per_hour",
@@ -3112,7 +3187,7 @@ export default function CreateQuotePage() {
     React.useState(false);
 
   const handleCreateShootType = async (kind: ShootTypeKind) => {
-    const shootTypeName = customShootType.trim();
+    const shootTypeName = clampTextLength(customShootType).trim();
     if (!shootTypeName) return;
 
     const contentTypeId = resolveSelectedServiceContentTypeId({
@@ -3153,7 +3228,7 @@ export default function CreateQuotePage() {
   };
 
   const handleCreateEditingType = async () => {
-    const editingTypeName = customEditingType.trim();
+    const editingTypeName = clampTextLength(customEditingType).trim();
     if (!editingTypeName) return;
 
     const editingTypeCategory = resolveEditingTypeCategory();
@@ -3202,13 +3277,14 @@ export default function CreateQuotePage() {
   const [isSubmittingAddon, setIsSubmittingAddon] = React.useState(false);
 
   const handleCreateAddon = async () => {
-    if (!customAddonName || !customAddonCost) return;
+    const addonName = clampTextLength(customAddonName).trim();
+    if (!addonName || !customAddonCost) return;
 
     setIsSubmittingAddon(true);
     try {
       const res = await salesApi.createQuoteCatalog({
         section_type: "addon",
-        name: customAddonName,
+        name: addonName,
         default_rate: parseFloat(customAddonCost.replace(/[^0-9.]/g, "")) || 0,
         rate_type: "fixed",
         rate_unit: "fixed",
@@ -3234,13 +3310,14 @@ export default function CreateQuotePage() {
     React.useState(false);
 
   const handleCreateLogisticsItem = async () => {
-    if (!customLogisticsName || !customLogisticsCost) return;
+    const logisticsName = clampTextLength(customLogisticsName).trim();
+    if (!logisticsName || !customLogisticsCost) return;
 
     setIsSubmittingLogistics(true);
     try {
       const res = await salesApi.createQuoteCatalog({
         section_type: "logistics",
-        name: customLogisticsName,
+        name: logisticsName,
         default_rate:
           parseFloat(customLogisticsCost.replace(/[^0-9.]/g, "")) || 0,
         rate_type: "fixed",
@@ -3272,7 +3349,7 @@ export default function CreateQuotePage() {
     setIsSubmittingLineItem(true);
     try {
       const cost = parseFloat(customItemCost.replace(/[^0-9.]/g, "")) || 0;
-      const trimmedName = customItemName.trim();
+      const trimmedName = clampTextLength(customItemName).trim();
       const newId = `custom_${Date.now()}`;
 
       setLineItems((prev) => [
@@ -3457,8 +3534,11 @@ export default function CreateQuotePage() {
                               placeholder="Eg : Cleaning Services"
                               value={customLogisticsName}
                               onChange={(e) =>
-                                setCustomLogisticsName(e.target.value)
+                                setCustomLogisticsName(
+                                  clampTextLength(e.target.value),
+                                )
                               }
+                              maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                               className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                             />
                           </div>
@@ -3473,8 +3553,11 @@ export default function CreateQuotePage() {
                                 placeholder="$ 0.00"
                                 value={customLogisticsCost}
                                 onChange={(e) =>
-                                  setCustomLogisticsCost(e.target.value)
+                                  setCustomLogisticsCost(
+                                    sanitizeCurrencyInput(e.target.value),
+                                  )
                                 }
+                                inputMode="decimal"
                                 className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                               />
                             </div>
@@ -3524,9 +3607,9 @@ export default function CreateQuotePage() {
                         key={item.id}
                         className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-6 relative overflow-hidden"
                       >
-                        <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
-                          <div className="flex lg:flex-col justify-between lg:gap-1">
-                            <h3 className="text-sm lg:text-base font-medium text-white leading-none">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0 flex-1 lg:flex lg:flex-col lg:justify-between lg:gap-1">
+                            <h3 className="text-sm lg:text-base font-medium text-white leading-snug break-words">
                               {item.label}
                             </h3>
                             <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -3536,7 +3619,7 @@ export default function CreateQuotePage() {
 
                           <hr className="lg:hidden border-t border-[#3D3D3D]" />
 
-                          <div className="flex items-center gap-6">
+                          <div className="flex shrink-0 items-center gap-6">
                             <div className="relative w-2/3 lg:w-36">
                               <Input
                                 // value={`$ ${config?.price || 0}`}
@@ -3554,21 +3637,15 @@ export default function CreateQuotePage() {
                                   //   ...prev,
                                   //   [item.id]: { price: val },
                                   // }));
-                                  const raw = e.target.value.replace(/\$/g, "").trim();
+                                  const raw = sanitizeCurrencyInput(e.target.value);
+                                  setInputValue((prev) => ({ ...prev, [item.id]: `$ ${raw}` }));
 
-                                  // REGEX: Allow digits and exactly one decimal point (even if it's at the end)
-                                  if (/^\d*\.?\d*$/.test(raw)) {
-                                    // Update local string state so the "." stays visible
-                                    setInputValue((prev) => ({ ...prev, [item.id]: `$ ${raw}` }));
-
-                                    // Update the actual data state only if it's a valid number
-                                    const numericVal = parseFloat(raw);
-                                    if (!isNaN(numericVal)) {
-                                      setLogisticsConfigs((prev) => ({
-                                        ...prev,
-                                        [item.id]: { ...prev[item.id], price: numericVal },
-                                      }));
-                                    }
+                                  const numericVal = Number.parseFloat(raw);
+                                  if (!Number.isNaN(numericVal)) {
+                                    setLogisticsConfigs((prev) => ({
+                                      ...prev,
+                                      [item.id]: { ...prev[item.id], price: numericVal },
+                                    }));
                                   }
                                 }}
                                 onBlur={() => {
@@ -3579,6 +3656,7 @@ export default function CreateQuotePage() {
                                   });
                                 }}
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                                inputMode="decimal"
                               />
                             </div>
                             <div className="flex items-center gap-6 lg:gap-4">
@@ -3662,7 +3740,7 @@ export default function CreateQuotePage() {
                               }));
                             }
                           }}
-                          className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedAddons.includes(addon.id)
+                          className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedAddons.includes(addon.id)
                             // ? "bg-[#131313] border-[#8E826A]/60 ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
                             // : "bg-transparent border-[#303030] hover:border-zinc-700"
                             // }`}
@@ -3672,7 +3750,7 @@ export default function CreateQuotePage() {
                             : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                             }`}
                         >
-                          <div className="flex items-start gap-4 w-full">
+                          <div className="flex w-full min-w-0 items-start gap-4 pr-8">
                             <div
                               className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
                                 ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
@@ -3683,11 +3761,11 @@ export default function CreateQuotePage() {
                                 <Check size={14} strokeWidth={4} />
                               )}
                             </div>
-                            <div className="space-y-2">
-                              <div className="font-medium text-base text-white leading-none">
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <div className="block w-full truncate font-medium text-base text-white leading-none">
                                 {addon.label}
                               </div>
-                              <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                              <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
                                 ${formatAddonDisplayValue(addon.price.toFixed(2))}
                               </div>
                             </div>
@@ -3698,7 +3776,7 @@ export default function CreateQuotePage() {
                           onClick={() =>
                             handleDeleteCatalogItem(addon.id, "addon")
                           }
-                          className="absolute top-6 right-6 z-10 text-[#FF6467] transition-colors hover:text-red-500"
+                          className="absolute top-5 right-5 z-10 rounded-md p-1 text-[#FF6467] transition-colors hover:bg-[#FF6467]/10 hover:text-red-500"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -3735,8 +3813,11 @@ export default function CreateQuotePage() {
                               placeholder="Eg : 4K RAW Recording"
                               value={customAddonName}
                               onChange={(e) =>
-                                setCustomAddonName(e.target.value)
+                                setCustomAddonName(
+                                  clampTextLength(e.target.value),
+                                )
                               }
+                              maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                               className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                             />
                           </div>
@@ -3751,8 +3832,11 @@ export default function CreateQuotePage() {
                                 placeholder="$ 0.00"
                                 value={customAddonCost}
                                 onChange={(e) =>
-                                  setCustomAddonCost(e.target.value)
+                                  setCustomAddonCost(
+                                    sanitizeCurrencyInput(e.target.value),
+                                  )
                                 }
+                                inputMode="decimal"
                                 className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                               />
                             </div>
@@ -3809,9 +3893,12 @@ export default function CreateQuotePage() {
                             className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-4 lg:p-6 relative overflow-hidden"
                           >
                             {/* desktop version */}
-                            <div className="hidden lg:flex justify-between items-center gap-6">
-                              <div className="space-y-2 min-w-0">
-                                <h3 className="text-[18px] font-medium text-white leading-none">
+                            <div className="hidden lg:flex items-center justify-between gap-6">
+                              <div className="min-w-0 flex-1 space-y-2 pr-2">
+                                <h3
+                                  title={addon.label}
+                                  className="max-w-full truncate text-[18px] font-medium text-white leading-snug"
+                                >
                                   {addon.label}
                                 </h3>
                                 <p className="text-[#F0DCB1] text-[15px] font-semibold tracking-tight leading-none">
@@ -3819,7 +3906,7 @@ export default function CreateQuotePage() {
                                 </p>
                               </div>
 
-                              <div className="flex items-center gap-4">
+                              <div className="flex shrink-0 items-center gap-4">
                                 {/* Quantity Controls */}
                                 <div className="flex items-center gap-4">
                                   <button
@@ -3859,13 +3946,14 @@ export default function CreateQuotePage() {
                                 {/* Price Override */}
                                 <div className="relative w-[190px]">
                                   <Input
-                                    value={`$ ${Number(formatAddonDisplayValue(getAddonDraftPrice(addonId))).toFixed(2)}`}
+                                    value={`$ ${getAddonDraftPrice(addonId).toFixed(2)}`}
                                     onChange={(e) =>
                                       handleAddonPriceUpdate(
                                         addonId,
                                         e.target.value,
                                       )
                                     }
+                                    inputMode="decimal"
                                     className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-xl text-white text-base pl-5"
                                   />
                                 </div>
@@ -3892,7 +3980,7 @@ export default function CreateQuotePage() {
                             {/* mobile version */}
                             <div className="flex flex-col lg:hidden gap-4">
                               <div className="space-y-1">
-                                <h3 className="text-sm font-medium text-white leading-none">
+                                <h3 className="text-sm font-medium text-white leading-snug break-words">
                                   {addon.label}
                                 </h3>
                                 <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -3944,6 +4032,7 @@ export default function CreateQuotePage() {
                                         e.target.value,
                                       )
                                     }
+                                    inputMode="decimal"
                                     className="h-10 bg-[#1A1A1F] border-[#3B3B46] rounded-[10px] text-white text-sm pl-4"
                                   />
                                 </div>
@@ -4013,12 +4102,12 @@ export default function CreateQuotePage() {
                               onClick={() =>
                                 handleServiceSelect(service.id, service.price)
                               }
-                              className={`relative flex h-[78px] w-full flex-col items-start rounded-xl border p-5 text-left transition-all group lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
+                              className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
                                 ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
                                 : "bg-[#101010] border-[#FFFFFF80] hover:border-white/80"
                                 }`}
                             >
-                              <div className="font-medium text-base text-white mb-2 leading-none">
+                              <div className="mb-2 w-full truncate pr-6 font-medium text-base leading-none text-white">
                                 {getServiceDisplayLabel(service.label)}
                               </div>
                               <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -4080,8 +4169,11 @@ export default function CreateQuotePage() {
                                 placeholder="Eg : Post Production Editing"
                                 value={customServiceName}
                                 onChange={(e) =>
-                                  setCustomServiceName(e.target.value)
+                                  setCustomServiceName(
+                                    clampTextLength(e.target.value),
+                                  )
                                 }
+                                maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                                 className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
                               />
                             </div>
@@ -4096,8 +4188,11 @@ export default function CreateQuotePage() {
                                   placeholder="$ 0.00"
                                   value={customServiceCost}
                                   onChange={(e) =>
-                                    setCustomServiceCost(e.target.value)
+                                    setCustomServiceCost(
+                                      sanitizeCurrencyInput(e.target.value),
+                                    )
                                   }
+                                  inputMode="decimal"
                                   className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
                                 />
                               </div>
@@ -4222,7 +4317,9 @@ export default function CreateQuotePage() {
                                               : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                                               }`}
                                           >
-                                            <span className="truncate">{type.label}</span>
+                                            <span className="block w-full truncate pr-2">
+                                              {type.label}
+                                            </span>
                                           </button>
                                           {canDeleteShootType && (
                                             <button
@@ -4273,8 +4370,11 @@ export default function CreateQuotePage() {
                                             placeholder="Eg : Reel Editing..."
                                             value={customEditingType}
                                             onChange={(e) =>
-                                              setCustomEditingType(e.target.value)
+                                              setCustomEditingType(
+                                                clampTextLength(e.target.value),
+                                              )
                                             }
+                                            maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                                             className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                                           />
                                         </div>
@@ -4348,20 +4448,20 @@ export default function CreateQuotePage() {
                                 key={serviceId}
                                 className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden"
                               >
-                                <div className="flex justify-between items-start mb-4 lg:mb-8">
-                                  <div className="space-y-2">
-                                    <h3 className="text-[16px] font-medium text-white flex items-center gap-1.5 leading-none">
+                                <div className="mb-4 flex items-start justify-between gap-4 lg:mb-8">
+                                  <div className="min-w-0 flex-1 space-y-2">
+                                    <h3 className="flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug text-white">
                                       {isEditingServiceLabel(service.label) ? (
                                         <>
                                           Editing Type -{" "}
-                                          <span className="text-[#8E826A]">
+                                          <span className="break-words text-[#8E826A]">
                                             {editingTypeLabel}
                                           </span>
                                         </>
                                       ) : shootTypeLabel ? (
                                         <>
                                           {getServiceDisplayLabel(service.label)} -{" "}
-                                          <span className="text-[#8E826A]">
+                                          <span className="break-words text-[#8E826A]">
                                             ({shootTypeLabel})
                                           </span>
                                         </>
@@ -4373,7 +4473,7 @@ export default function CreateQuotePage() {
                                       Base: ${service.price.toFixed(2)} per hour
                                     </p>
                                   </div>
-                                  <div className="flex items-center gap-5">
+                                  <div className="flex shrink-0 items-center gap-5">
                                     <div className="hidden lg:flex flex-col items-end gap-1">
                                       <span className="text-[#7B7B85] text-xs font-normal">
                                         Total
@@ -4507,6 +4607,7 @@ export default function CreateQuotePage() {
                                             e.target.value,
                                           )
                                         }
+                                        inputMode="decimal"
                                         className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
                                       />
                                       <button
@@ -4617,7 +4718,10 @@ export default function CreateQuotePage() {
                       <Input
                         placeholder="Eg : Consulting Fee, Rush Delivery..."
                         value={customItemName}
-                        onChange={(e) => setCustomItemName(e.target.value)}
+                        onChange={(e) =>
+                          setCustomItemName(clampTextLength(e.target.value))
+                        }
+                        maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                         className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
@@ -4628,12 +4732,15 @@ export default function CreateQuotePage() {
                             Cost
                           </span>
                         </div>
-                        <Input
-                          placeholder="$ 0.00"
-                          value={customItemCost}
-                          onChange={(e) => setCustomItemCost(e.target.value)}
-                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                        />
+                      <Input
+                        placeholder="$ 0.00"
+                        value={customItemCost}
+                        onChange={(e) =>
+                          setCustomItemCost(sanitizeCurrencyInput(e.target.value))
+                        }
+                        inputMode="decimal"
+                        className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                      />
                       </div>
                       <button
                         onClick={handleCreateLineItem}
@@ -4676,9 +4783,12 @@ export default function CreateQuotePage() {
                         key={item.id}
                         className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-5 relative overflow-hidden"
                       >
-                        <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
-                          <div className="flex lg:flex-col justify-between lg:gap-1">
-                            <h3 className="text-base font-medium text-white leading-none">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0 flex-1 pr-2 lg:flex lg:flex-col lg:justify-between lg:gap-1">
+                            <h3
+                              title={item.label}
+                              className="max-w-full truncate text-base font-medium text-white leading-snug"
+                            >
                               {item.label}
                             </h3>
                             <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
@@ -4692,7 +4802,7 @@ export default function CreateQuotePage() {
 
                           <hr className="lg:hidden border-t border-[#3D3D3D]" />
 
-                          <div className="flex items-center gap-6">
+                          <div className="flex shrink-0 items-center gap-6">
                             <div className="relative w-2/3 lg:w-36">
                               {/* <Input
                                 value={`$ ${config?.price || 0}`}
@@ -4717,10 +4827,10 @@ export default function CreateQuotePage() {
 
                                 onChange={(e) => {
                                   // Clean the input and update the background state
-                                  const raw = e.target.value.replace(/\$/g, "").trim();
-                                  const numericVal = parseFloat(raw);
+                                  const raw = sanitizeCurrencyInput(e.target.value);
+                                  const numericVal = parseCurrencyInput(raw);
 
-                                  if (!isNaN(numericVal)) {
+                                  if (!Number.isNaN(numericVal)) {
                                     setLineItemConfigs((prev) => ({
                                       ...prev,
                                       [item.id]: {
@@ -4733,12 +4843,13 @@ export default function CreateQuotePage() {
 
                                 onBlur={(e) => {
                                   // Clean up the display when they click away
-                                  const raw = e.target.value.replace(/\$/g, "").trim();
-                                  const finalVal = parseFloat(raw) || 0;
+                                  const raw = sanitizeCurrencyInput(e.target.value);
+                                  const finalVal = parseCurrencyInput(raw);
                                   e.target.value = `$ ${finalVal.toFixed(2)}`;
                                 }}
 
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
+                                inputMode="decimal"
                               />
                             </div>
                             <div className="flex items-center gap-4">
@@ -4906,19 +5017,8 @@ export default function CreateQuotePage() {
                       <Input
                         placeholder="0.00"
                         value={discountValue}
-                        onChange={(e) => {
-                          // setDiscountValue(parseFloat(e.target.value) || 0)
-                          const val = e.target.value;
-
-                          // Allow numbers and a single decimal point via Regex
-                          if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                            // Update the state
-                            setDiscountValue(val === "" ? 0 : val);
-                          }
-                        }}
-                        onBlur={() => {
-                          setDiscountValue(parseFloat(discountValue.toString()) || 0);
-                        }}
+                        onChange={(e) => handleDiscountValueChange(e.target.value, maxDiscountValue)}
+                        onBlur={() => handleDiscountValueBlur(maxDiscountValue)}
                         className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
