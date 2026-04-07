@@ -118,13 +118,18 @@ export default function SalesSalesRepManagerPage() {
     setSelectedClient(client);
     setSelectedLeadId(leadId);
     const rect = e.currentTarget.getBoundingClientRect();
-
-    const isNearRightEdge = window.innerWidth - rect.right < 250;
-    const isNearBottomEdge = window.innerHeight - rect.bottom < 150;
+    const menuWidth = 220;
+    const menuHeight = 150;
+    const horizontalGap = 8;
+    const viewportPadding = 12;
+    const centeredY = rect.top + rect.height / 2 - menuHeight / 2;
 
     setMenuAnchor({
-      x: isNearRightEdge ? rect.left - 210 : rect.right - 10,
-      y: isNearBottomEdge ? rect.top - 230 : rect.top - 20,
+      x: Math.max(viewportPadding, rect.left - menuWidth - horizontalGap),
+      y: Math.max(
+        viewportPadding,
+        Math.min(centeredY, window.innerHeight - menuHeight - viewportPadding)
+      ),
     });
   };
 

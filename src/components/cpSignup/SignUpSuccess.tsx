@@ -167,6 +167,10 @@ export default function SignupSuccess({ data }) {
   const roleLabel = roleOptions.find(opt => opt.value === data?.role)?.label || "Creative";
   const skillLabels = data?.skills?.map(id => skillOptions.find(opt => opt.value === id)?.label).filter(Boolean).join(", ");
   const profileImage = data?.profilePreview || "/images/loginsignup/profile_temp.png";
+  const locationLabel =
+    typeof data?.location === "object" && data?.location !== null
+      ? data.location.address
+      : data?.location;
 
   // Format equipment names for display
   const equipmentLabels = data?.equipmentNames?.length > 0 ? data.equipmentNames.join(", ") : null;
@@ -225,7 +229,7 @@ export default function SignupSuccess({ data }) {
               {/* Location */}
               <p className="text-white/50 flex items-center gap-1.5 text-sm mt-1">
                 <Globe size={14} className="text-[#E8D1AB]" />
-                {data?.location || "Location not set"}
+                {locationLabel || "Location not set"}
               </p>
 
               {/* Email Address */}

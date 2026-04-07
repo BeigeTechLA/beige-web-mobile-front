@@ -103,3 +103,74 @@ export const getShootFilesText = (project: any) => {
 
   return `${imageCount} Image${imageCount === 1 ? "" : "s"} & ${videoCount} Video${videoCount === 1 ? "" : "s"}`;
 };
+
+const formatUsTime = (hours: number, minutes: number) => {
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+export const formatProjectTimeValue = (value?: string | null) => {
+  if (!value || typeof value !== "string") {
+    return "";
+  }
+
+  const normalizedValue = value.trim();
+  const timeMatch = normalizedValue.match(
+    /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*([AaPp][Mm]))?$/,
+  );
+
+  if (timeMatch) {
+    let hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    const meridiem = timeMatch[4]?.toUpperCase();
+
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes) && minutes >= 0 && minutes < 60) {
+      if (meridiem) {
+        if (hours === 12) {
+          hours = meridiem === "AM" ? 0 : 12;
+        } else if (meridiem === "PM") {
+          hours += 12;
+        }
+      }
+
+      if (hours >= 0 && hours < 24) {
+        return formatUsTime(hours, minutes);
+      }
+    }
+  }
+
+  const parsedDate = new Date(normalizedValue);
+  if (!Number.isNaN(parsedDate.getTime())) {
+    return parsedDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+
+  return normalizedValue;
+};
+
+export const getProjectTimeText = (project: any) => {
+  const startTime = formatProjectTimeValue(project?.start_time);
+  const endTime = formatProjectTimeValue(project?.end_time);
+
+  if (startTime && endTime) {
+    return `${startTime} - ${endTime}`;
+  }
+
+  if (startTime) {
+    return startTime;
+  }
+
+  if (project?.event_start_time) {
+    return formatProjectTimeValue(project.event_start_time) || "N/A";
+  }
+
+  return "N/A";
+};

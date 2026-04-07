@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { salesApi, adminApi, ROLE_MAP } from '@/lib/api';
 import { Search, SlidersHorizontal, Video, Camera, Calendar, Check } from 'lucide-react';
@@ -24,6 +26,8 @@ export const CreativeProfileSelectorAdd = ({
     currentLocation,
     targets,
     disableCrewFetch,
+    statsSource = "lead",
+    isDark = true
 }: {
     selectedIds?: number[],
     onChange?: (ids: number[]) => void,
@@ -33,6 +37,8 @@ export const CreativeProfileSelectorAdd = ({
     currentLocation?: string,
     targets?: { videographer: number, photographer: number },
     disableCrewFetch?: boolean, // When true, suppresses the get-crew-for-lead API call
+    statsSource?: "lead" | "client",
+    isDark?: boolean,
 } = {}) => {
     const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
     const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({});
@@ -70,7 +76,9 @@ export const CreativeProfileSelectorAdd = ({
         const fetchStats = async () => {
             if (leadId && !targets) {
                 try {
-                    const response = await salesApi.getLeadStats(leadId);
+                    const response = statsSource === "client"
+                        ? await salesApi.getClientLeadStats(leadId)
+                        : await salesApi.getLeadStats(leadId);
                     if (response && response.data) {
                         setStats(response.data);
                     }
@@ -80,7 +88,7 @@ export const CreativeProfileSelectorAdd = ({
             }
         };
         fetchStats();
-    }, [leadId, targets]);
+    }, [leadId, targets, statsSource]);
 
     useEffect(() => {
         const fetchCreatives = async () => {
@@ -220,49 +228,55 @@ export const CreativeProfileSelectorAdd = ({
     };
 
     return (
-        <div className="text-white">
-            {/* Header Section */}
+        <div className={`transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <h3 className="text-xl font-medium text-white/90 mb-6">Select Creative Profile</h3>
+                <h3 className={`text-xl font-medium transition-colors mb-6 ${isDark ? "text-white/90" : "text-black/90"}`}>
+                    Select Creative Profile
+                </h3>
 
                 <div className="flex gap-3">
-                    <div
-                        onClick={() => setRoleType('videographer')}
-                        className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors ${roleType === 'videographer' ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#1A1A1A] border-white/10 text-white/70'}`}
-                    >
-                        <Video size={16} />
-                        <span>
-                            Videographer(s) : {counts.videographer}/{targets?.videographer || stats?.fulfillment_stats?.videographer?.split('/')[1] || '0'}
-                        </span>
-                    </div>
-                    <div
-                        onClick={() => setRoleType('photographer')}
-                        className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors ${roleType === 'photographer' ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#1A1A1A] border-white/10 text-white/70'}`}
-                    >
-                        <Camera size={16} />
-                        <span>
-                            Photographers(s) : {counts.photographer}/{targets?.photographer || stats?.fulfillment_stats?.photographer?.split('/')[1] || '0'}
-                        </span>
-                    </div>
+                    {[
+                        { type: 'videographer', icon: Video, label: 'Videographer(s)', count: counts.videographer, target: targets?.videographer || stats?.fulfillment_stats?.videographer?.split('/')[1] || '0' },
+                        { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: counts.photographer, target: targets?.photographer || stats?.fulfillment_stats?.photographer?.split('/')[1] || '0' }
+                    ].map((btn) => (
+                        <div
+                            key={btn.type}
+                            onClick={() => setRoleType(btn.type)}
+                            className={`flex items-center gap-2 border px-4 py-2 rounded-lg text-sm cursor-pointer transition-all duration-300 ${roleType === btn.type
+                                // ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]'
+                                ?(isDark ? 'bg-[#E8D1AB]/10 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-[#E8D1AB]/40 border-[#E8D1AB] text-black/70')
+                                : (isDark ? 'bg-[#1A1A1A] border-white/10 text-white/70' : 'bg-gray-50 border-[#D8D8D8] text-black/70')
+                                }`}
+                        >
+                            <btn.icon size={16} />
+                            <span>{btn.label} : {btn.count}/{btn.target}</span>
+                        </div>
+                    ))}
                 </div>
             </div>
 
             {/* Search and Filters */}
             <div className="flex gap-3 mb-6">
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} size={18} />
                     <input
                         type="text"
                         placeholder="Search"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-[#1A1A1A] border border-white/10 rounded-xl py-3 pl-10 pr-4 outline-none focus:border-[#E8D1AB]/50 transition-all"
+                        className={`w-full border rounded-xl py-3 pl-10 pr-4 outline-none transition-all ${isDark
+                            ? "bg-[#1A1A1A] border-white/10 text-white focus:border-[#E8D1AB]/50"
+                            : "bg-white border-[#D8D8D8] text-black focus:border-[#E8D1AB]"
+                            }`}
                     />
                 </div>
                 {/* FILTER TRIGGER */}
                 <button
                     onClick={() => setIsFilterOpen(true)}
-                    className="flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-6 py-3 rounded-xl hover:bg-white/5 transition-all active:scale-95"
+                    className={`flex items-center gap-2 border px-6 py-3 rounded-xl transition-all active:scale-95 ${isDark
+                        ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-white/5"
+                        : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
+                        }`}
                 >
                     <SlidersHorizontal size={18} />
                     <span>Filters</span>
@@ -270,26 +284,30 @@ export const CreativeProfileSelectorAdd = ({
             </div>
 
             {/* Creative List Container */}
-            <div className="bg-[#101010] border border-white/5 rounded-2xl p-4 md:p-8 space-y-4 lg:space-y-8">
+            <div className={`border rounded-2xl p-4 md:p-8 space-y-4 lg:space-y-8 transition-colors ${isDark ? "bg-[#101010] border-white/5" : "bg-white border-[#D8D8D8]"
+                }`}>
                 {isLoading ? (
-                    <div className="text-white/50 text-center py-8">Loading creatives...</div>
+                    <div className={`text-center py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>Loading creatives...</div>
                 ) : creatives.length > 0 ? (
                     creatives.map((creative, index) => (
                         <div
                             key={creative.id || index}
-                            className="flex flex-col gap-4 lg:gap-8"
+                            className="flex flex-col"
                         >
                             <CreativeCard
                                 creative={creative}
                                 isSelected={selectedIds.includes(creative.id)}
                                 onToggle={() => toggleSelection(creative.id)}
                                 onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                                isDark={isDark}
                             />
                             {index !== creatives.length - 1 && <Separator />}
                         </div>
                     ))
                 ) : (
-                    <div className="text-white/50 text-center py-8">No creatives found for {roleType} in this location.</div>
+                    <div className={`text-center py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>
+                        No creatives found for {roleType} in this location.
+                    </div>
                 )}
             </div>
 
@@ -297,17 +315,20 @@ export const CreativeProfileSelectorAdd = ({
             <CreativeFilterModal
                 isOpen={isFilterOpen}
                 onClose={() => setIsFilterOpen(false)}
-                onApply={(filters) => setAppliedFilters(filters)} // <--- Capture the radius here
+                onApply={(filters) => setAppliedFilters(filters)}
+                isDark={isDark}
             />
         </div>
     );
 };
 
-const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile }: any) => {
+const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark }: any) => {
     return (
         <div
             onClick={onToggle}
-            className={`relative group flex flex-col md:flex-row items-center md:items-start gap-6 rounded-2xl cursor-pointer transition-all border ${isSelected ? 'bg-white/[0.02] border-white/10' : 'bg-transparent border-transparent'
+            className={`p-2 lg:p-4 relative group flex flex-col md:flex-row items-center md:items-start gap-6 rounded-xl cursor-pointer transition-all border ${isSelected
+                    ? (isDark ? 'bg-white/[0.02] border-white/10' : 'bg-[#E8D1AB]/10 border-[#E8D1AB]/30')
+                    : 'bg-transparent border-transparent'
                 }`}
         >
             {/* Profile Image */}
@@ -329,7 +350,9 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile }: any) =>
             <div className="flex-1 w-full">
                 <div className="flex justify-between items-center mb-3 lg:mb-5">
                     <div className="flex items-center gap-3">
-                        <h3 className="lg:text-[22px]">{creative.name}</h3>
+                        <h3 className={`lg:text-[22px] transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                            {creative.name}
+                        </h3>
                         <span className="bg-[#16A34A] text-[#fff] text-xs font-semibold px-2 py-0.5 rounded-lg capitalize">
                             {creative.status}
                         </span>
@@ -337,21 +360,21 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile }: any) =>
 
                     <div className="flex items-center">
                         {/* Custom Checkbox */}
-                        <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : 'bg-transparent border-white/20'
+                        <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')
                             }`}>
                             {isSelected && <Check size={16} className="text-black stroke-[3px]" />}
                         </div>
                     </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-4 md:gap-8 text-sm border-t border-white/5 pt-3 lg:pt-5">
+                <div className={`flex flex-col lg:flex-row gap-4 md:gap-8 text-sm border-t pt-3 lg:pt-5 transition-colors ${isDark ? "border-white/5" : "border-gray-100"}`}>
                     <div>
-                        <p className="text-[#AAA7A7] mb-1">Experience:</p>
-                        <p className="text-white font-medium">{(creative.shoots || 0)} Years</p>
+                        <p className={`mb-1 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Experience:</p>
+                        <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{(creative.shoots || 0)} Years</p>
                     </div>
-                    <div className="md:border-x-2 border-[#E0E0E0] md:px-8">
-                        <p className="text-[#AAA7A7] mb-1">Specialities:</p>
-                        <p className="text-white font-medium">{creative.specialities}</p>
+                    <div className={`md:border-x-2 md:px-8 transition-colors ${isDark ? "border-[#E0E0E0]/10" : "border-gray-200"}`}>
+                        <p className={`mb-1 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Specialities:</p>
+                        <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{creative.specialities}</p>
                     </div>
                 </div>
 
@@ -362,7 +385,9 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile }: any) =>
                             e.stopPropagation();
                             onViewProfile();
                         }}
-                        className="text-sm font-semibold bg-[#E8D1AB] text-black px-5 py-2.5 rounded-lg hover:bg-[#d9bc90] transition-colors"
+                        className={`text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors ${
+                            isDark ? "bg-[#E8D1AB] text-black hover:bg-[#d9bc90]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
+                        }`}
                     >
                         View Profile
                     </button>

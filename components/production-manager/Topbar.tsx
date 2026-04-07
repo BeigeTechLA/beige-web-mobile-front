@@ -1,55 +1,78 @@
 "use client";
-import React from "react";
-import { Upload, Search, Menu, Moon, Sun, ChevronDown, SlidersHorizontal, Download, } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Upload, Menu } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "../ui/button";
+import { useTheme } from "next-themes";
+import { ModeToggle } from "../generic/ModeToggle";
+import { useSidebar } from "@/context/SidebarContext";
 
-export default function Topbar({
-    pathname,
-    onMenuClick
-}: {
-    pathname: string;
-    onMenuClick?: () => void
-}) {
-    const router = useRouter();
-    const paths = pathname
-        .split("/")
-        .filter((path) => path)
-        .filter((path) => path !== "production-manager");
-    const isShootsPage = pathname.includes("shoots");
+interface TopbarProps {
+  pathname: string;
+  /** Custom buttons or components passed from the page */
+  actions?: React.ReactNode;
+  /** Optional override for the title (defaults to breadcrumb logic) */
+  title?: string;
+  /** Optional overrides for specific breadcrumb path segments */
+  breadcrumbOverrides?: Record<string, string>;
+}
 
-    return (
-        <header className="border-b border-zinc-800 bg-[#0f0f0f]">
+export default function Topbar({ pathname, actions, title, breadcrumbOverrides }: TopbarProps) {
+  const router = useRouter();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const { setIsOpen } = useSidebar();
+
+  // Keep the breadcrumb logic for the left side
+  const paths = pathname
+    .split("/")
+    .filter((path) => path)
+    .filter((path) => path !== "admin");
+
+  const isShootsPage = pathname.includes("shoots");
+
+  const isDark = !mounted || theme === "dark";
+
+  return (
+    <header className={`
+      border-b transition-colors duration-300
+      ${isDark
+        ? "border-zinc-800 bg-[#0f0f0f] shadow-none"
+        : "border-[#D8D8D8] bg-white shadow-[0_8px_24px_0_rgba(149,157,165,0.10)]"
+      }
+    `}>
 
             {/* ==========================================
           MOBILE VIEW (Hidden on Desktop)
           ========================================== */}
-            <div className="flex lg:hidden flex-col p-4 gap-4">
-                {/* Top Row: Menu, Logo, Avatar */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={onMenuClick}
-                            className="p-1 text-white hover:bg-zinc-800 rounded-md transition-colors"
-                        >
-                            <Menu size={28} />
-                        </button>
-                        <Link href="/" className="relative flex items-center">
-                            <Image
-                                src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png"
-                                alt="BEIGE"
-                                width={100}
-                                height={20}
-                            />
-                            <span className="absolute right-0 -bottom-3 md:-bottom-4 text-[8px] md:text-[10px] font-medium tracking-wide py-[1px] px-1 md:py-[1.5px] md:px-2 rounded-full text-white border border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)] backdrop-blur-xs overflow-hidden">
-                                Beta
-                                <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
-                            </span>
-                        </Link>
-                    </div>
+      <div className="flex lg:hidden flex-col p-4 gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsOpen(true)}
+              className={`p-1 rounded-md transition-colors ${isDark ? "text-white hover:bg-zinc-800" : "text-[#101010] hover:bg-zinc-100"
+                }`}
+            >
+              <Menu size={28} />
+            </button>
+            <Link href="/" className="relative flex items-center">
+              <Image
+                src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png"
+                alt="BEIGE"
+                width={100}
+                height={20}
+              />
+              <span className={`absolute right-0 -bottom-3 text-[8px] font-medium tracking-wide py-[1px] px-1 rounded-full border backdrop-blur-xs overflow-hidden ${isDark ? "text-white border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(0,0,0,0.15)]" : "text-black border-black/20 shadow-sm"}`}>
+                Beta
+                <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
+              </span>
+            </Link>
+          </div>
 
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
@@ -154,18 +177,20 @@ export default function Topbar({
                         </>
                     )}
 
-                    {pathname.includes("file-manager") && (
-                        <>
-                            <Button className="bg-[#202020] text-white px-5 py-3.5 rounded-lg font-semibold text-sm hover:bg-[#202020]/70 transition-opacity border border-white/20 flex gap-2">
-                                <Upload size={24} /> Upload Files
-                            </Button>
-                            <Button className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity">
-                                Create Folder
-                            </Button>
-                        </>
-                    )}
-                </div>
-            </div>
-        </header>
-    );
+          {
+            pathname.includes("file-manager") && (
+              <>
+                <Button className="bg-[#202020] text-white px-5 py-3.5 rounded-lg font-semibold text-sm hover:bg-[#202020]/70 transition-opacity border border-white/20 flex gap-2">
+                  <Upload size={24} /> Upload Files
+                </Button>
+                <Button className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity">
+                  Create Folder
+                </Button>
+              </>
+            )
+          }
+        </div >
+      </div >
+    </header >
+  );
 }

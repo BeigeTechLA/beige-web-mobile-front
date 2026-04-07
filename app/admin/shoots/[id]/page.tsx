@@ -13,21 +13,62 @@ import PreProductionTab from "@/components/admin/shoot-details/PreProductionTab"
 import PostProductionTab from "@/components/admin/shoot-details/PostProductionTab";
 import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
-
+import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
-import { CircleX, Loader2, X, Eye } from "lucide-react"; // Added X icon for closing
+import { CircleX, Loader2, X, SlidersHorizontal, Eye } from "lucide-react"; // Added X icon for closing
 import { Button } from "@/src/components/landing/ui/button";
+import { useTheme } from "next-themes";
+
+type SkillOption = {
+  id?: number | string;
+  name?: string;
+  skill_name?: string;
+  title?: string;
+};
+
+type ProjectDetails = {
+  project_name?: string;
+  skills_needed?: string | Array<string | number> | null;
+  status?: number;
+  description?: string;
+  event_date?: string;
+  start_time?: string;
+  end_time?: string;
+  event_start_time?: string;
+  total_paid_amount?: string | number;
+  payment_status?: string | null;
+  payment_id?: string | number | null;
+  event_location?: string;
+  location?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  lead_id?: string | number;
+  assignedCrew?: unknown[];
+  assigned_crews?: unknown[];
+  assigned_post_production_members?: unknown[];
+  [key: string]: unknown;
+};
 
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const pathname = usePathname();
   const { id } = use(params);
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("Overview");
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<ProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+  const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
 
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
@@ -40,15 +81,19 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         // 1. Create Skills Map
         const skillsMap: Record<number, string> = {};
         if (skillsResponse && skillsResponse.data) {
-          const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
-            const name = s.name || s.skill_name || s.title;
-            if (s.id && name) skillsMap[s.id] = name;
+          const skillsList: SkillOption[] = Array.isArray(skillsResponse.data)
+            ? skillsResponse.data
+            : (skillsResponse.data?.data || []);
+          skillsList.forEach((skill) => {
+            const name = skill.name || skill.skill_name || skill.title;
+            if (skill.id && name) skillsMap[Number(skill.id)] = name;
           });
         }
 
         const responseData = projectResponse?.data || null;
-        let projectData = responseData?.project || responseData || projectResponse;
+
+const projectData: ProjectDetails | undefined = 
+  responseData?.project || responseData || projectResponse;
 
         if (projectData) {
           // 3. Map Skills Needed to Names
@@ -62,14 +107,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 (projectData.skills_needed.trim().startsWith('[') || projectData.skills_needed.trim().startsWith('{'))) {
                 try {
                   parsedIds = JSON.parse(projectData.skills_needed);
-                } catch (e) {
+                } catch {
                   // If parsing fails, keep it as a string
                   parsedIds = projectData.skills_needed;
                 }
               }
 
               if (Array.isArray(parsedIds)) {
-                skillsText = parsedIds
+                skillsText = (parsedIds as Array<string | number>)
                   .map(id => skillsMap[Number(id)])
                   .filter(Boolean)
                   .join(", ");
@@ -105,25 +150,31 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     if (id) fetchProjectAndSkills();
   }, [id]);
 
-  const getInitials = (name: string) => {
-    if (!name) return "??";
+  if (!mounted) return null;
 
-    // Split the name into words
-    const words = name.trim().split(/\s+/);
+  const handleDelete = async () => {
+    if (!id) return;
 
-    // Take the first letter of the first word
-    const first = words[0]?.charAt(0) || "";
-
-    // Take the first letter of the second word (if it exists)
-    const second = words[1]?.charAt(0) || "";
-
-    return (first + second).toUpperCase();
+    if (window.confirm("Are you sure you want to delete this shoot? This action cannot be undone.")) {
+      try {
+        const response = await adminApi.deleteProject(id);
+        if (response?.success || response?.message === "Project deleted successfully") { // Adjust based on actual API response
+          toast.success("Shoot deleted successfully");
+          router.push('/admin/shoots');
+        } else {
+          toast.error(response?.error || "Failed to delete shoot");
+        }
+      } catch (error) {
+        console.error("Delete failed", error);
+        toast.error("An error occurred while deleting");
+      }
+    }
   };
 
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center min-h-[500px]">
-        <Loader2 className="animate-spin text-white/50" size={40} />
+        <Loader2 className={`animate-spin ${isDark ? "text-white/50" : "text-black/30"}`} size={40} />
       </div>
     );
   }
@@ -133,12 +184,23 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
       <Topbar pathname={pathname}
         actions={
           <>
-            {/* Need to add filters  */}
-            <Button className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors ">
+            <Button
+              className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
+              onClick={handleDelete}
+            >
               <CircleX /> Cancel Shoot
             </Button>
-            <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
-              Book a Shoot
+            <Button
+              variant="outline"
+              className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+                : "bg-white border-[#E5E5E5] text-[#666] hover:bg-zinc-50"
+                }`}
+            >
+              <SlidersHorizontal className="w-4 h-4" /> Filters
+            </Button>
+            <Button onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
+              Edit Shoot
             </Button>
           </>
         }
@@ -146,26 +208,30 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 flex h-full -m-6 lg:-m-10 relative">
         {/* Main Content (Left) */}
-        <div className="flex-1 p-6 pb-15 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+        <div className="flex-1 p-6 pb-30 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] ">
           <ShootHeader activeTab={activeTab} project={project} projectId={id} />
           <Button
-            className="lg:hidden w-full bg-[#202020] text-white hover:bg-[#202020]/50 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 mb-3"
+            className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
+              ? "bg-[#202020] text-white border-white/20 hover:bg-[#202020]/50 shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
+              : "bg-white text-black border-[#E5E5E5] hover:bg-zinc-50"
+              }`}
             onClick={() => setIsTimelineOpen(true)}
           >
             View Project Timeline
           </Button>
 
-          <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
-
-          {activeTab === "Overview" && (
-            <>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
-                <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
-                <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
-              </div>
-              <MeetingSchedule orderId={id} />
-            </>
-          )}
+          <div className={`rounded-lg lg:rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
+            <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            <div className="px-5 py-6 lg:py-9">
+              {activeTab === "Overview" && (
+                <>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
+                    <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
+                    <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
+                  </div>
+                  <MeetingSchedule orderId={id} />
+                </>
+              )}
 
           {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
             <PreProductionTab projectId={id} />
@@ -192,51 +258,51 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               clientName={project?.project?.client?.name || project?.client?.name || null}
             />
           )}
+          </div>
+          </div>
         </div>
 
         {/* Right Sidebar (Timeline) */}
-        <div className="hidden lg:block">
+        < div className="hidden lg:block" >
           <ProjectTimeline />
         </div>
 
         {/* Mobile Timeline Overlay (Conditional) */}
-        {isTimelineOpen && (
-          <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
-            {/* Close Backdrop Click */}
-            <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
+        {
+          isTimelineOpen && (
+            <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
+              {/* Close Backdrop Click */}
+              <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
 
-            <div className="relative w-[85%] max-w-sm bg-[#111111] h-full shadow-2xl animate-in slide-in-from-right duration-300">
-              {/* Header with Close Button */}
-              <div className="flex items-center justify-between p-6 border-b border-white/10">
-                <h2 className="text-white font-semibold">Project Timeline</h2>
-                <button onClick={() => setIsTimelineOpen(false)} className="text-white/60">
-                  <X size={24} />
+              <div className={`relative max-w-sm h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+                <button onClick={() => setIsTimelineOpen(false)} className={`absolute top-3 right-3 ${isDark ? "text-white/60" : "text-black/60"}`}>
+                  <X size={20} />
                 </button>
-              </div>
 
-              <div className="h-full overflow-y-auto">
-                <ProjectTimeline status={project?.status} />
+                <div className="h-full overflow-y-auto">
+                  <ProjectTimeline status={project?.status} />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
         {/* --- FLOATING MOBILE BUTTONS --- */}
-        <div className="lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
           <div className="flex gap-2">
-            <Button className="w-full bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform">
+            <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>
               Cancel Shoot
             </Button>
             <Button
-              onClick={() => router.push(`/admin/shoots/${id}/edit-booking`)}
-              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+              onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
+              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
             >
               Edit Shoot
             </Button>
           </div>
           <Button
-            onClick={() => router.push(`/admin/shoots/${id}/form-details`)}
-            className="w-full bg-[#111] text-[#E5D5B8] hover:bg-[#151515] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/10 active:scale-[0.98] transition-transform"
+            onClick={() => router.push(`${shootBasePath}/${id}/form-details`)}
+            className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
           >
             <Eye size={18} /> View Form Details
           </Button>

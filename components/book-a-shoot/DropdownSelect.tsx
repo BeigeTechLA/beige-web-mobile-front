@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, ChevronUp, Dot, X } from "lucide-react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 
 type Option = {
   key: string;
@@ -15,6 +15,7 @@ type DropdownSelectProps = {
   bgColour: string;
   onChange: (key: string) => void;
   icon?: React.ReactNode;
+  isDark?: boolean; // Added isDark prop
 };
 
 export default function DropdownSelect({
@@ -24,6 +25,7 @@ export default function DropdownSelect({
   bgColour,
   onChange,
   icon,
+  isDark = true, // Defaulting to true
 }: DropdownSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -54,12 +56,16 @@ export default function DropdownSelect({
   return (
     <div className="relative w-full" ref={dropdownRef}>
       {/* Label (External) */}
-      <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-white/40">
+      <div className={`mb-1 text-[10px] font-bold uppercase tracking-wider ${
+        isDark ? "text-white/40" : "text-black/40"
+      }`}>
         {title}
       </div>
 
       <div
-        className={`h-14 lg:h-[82px] relative ${bgColour} rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border border-white/40`}
+        className={`h-14 lg:h-[82px] relative ${bgColour} rounded-2xl px-4 py-4 flex items-center justify-between cursor-pointer border transition-colors ${
+          isDark ? "border-white/40" : "border-[#0000004D]"
+        }`}
         onClick={() => {
           if (!open) {
             setOpen(true);
@@ -72,13 +78,17 @@ export default function DropdownSelect({
           <input
             autoFocus
             type="text"
-            className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/40 text-sm lg:text-base mr-2"
+            className={`bg-transparent border-none outline-none w-full text-sm lg:text-base mr-2 ${
+              isDark ? "text-white placeholder:text-white/40" : "text-black placeholder:text-black/40"
+            }`}
             placeholder={`Search ${title}...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         ) : selectedOption ? (
-          <div className="flex items-center gap-2 bg-[#2A2A2A] px-3 py-1.5 rounded-md text-white text-sm lg:text-base">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm lg:text-base ${
+            isDark ? "bg-[#2A2A2A] text-white" : "bg-black/5 text-black"
+          }`}>
             {selectedOption.value}
             <X
               size={18}
@@ -90,23 +100,27 @@ export default function DropdownSelect({
             />
           </div>
         ) : (
-          <span className="text-white/40 text-sm lg:text-base">Select {title}</span>
+          <span className={` text-sm lg:text-base ${isDark ? "text-white/40" : "text-black/40"}`}>Select {title}</span>
         )}
 
         {icon ? (
-          <div className="text-white flex-shrink-0">{icon}</div>
+          <div className={`${isDark ? "text-white" : "text-black"} flex-shrink-0`}>{icon}</div>
         ) : open ? (
-          <ChevronUp className="text-white flex-shrink-0" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
+          <ChevronUp className={`${isDark ? "text-white" : "text-black"} flex-shrink-0`} onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
         ) : (
-          <ChevronDown className="text-white flex-shrink-0" />
+          <ChevronDown className={`${isDark ? "text-white" : "text-black"} flex-shrink-0`} />
         )}
       </div>
 
       {/* Dropdown */}
       {open && (
-        <div className={`absolute top-[calc(100%+8px)] left-0 w-full z-30 ${bgColour} rounded-lg border border-white/10 max-h-[300px] overflow-y-auto no-scrollbar`}>
+        <div className={`absolute top-[calc(100%+8px)] left-0 w-full z-30 rounded-lg border max-h-[300px] overflow-y-auto no-scrollbar ${
+          isDark ? `${bgColour} border-white/10` : "bg-white border-gray-200"
+        }`}>
           {filteredOptions.length === 0 ? (
-            <div className="px-6 py-4 text-white/50 text-sm text-center">No options found.</div>
+            <div className={`px-6 py-4 text-sm text-center ${isDark ? "text-white/50" : "text-black/40"}`}>
+              No options found.
+            </div>
           ) : (
             filteredOptions.map((option) => {
               const isSelected = option.key === value;
@@ -122,15 +136,15 @@ export default function DropdownSelect({
                   className={`flex items-center gap-3 px-6 py-3 rounded-xl cursor-pointer transition
                   ${isSelected
                       ? "bg-[#FFFCE8] text-black"
-                      : "text-white/50 hover:bg-white/5"
+                      : isDark ? "text-white/50 hover:bg-white/5" : "text-black/60 hover:bg-black/5"
                     }`}
                 >
                   {/* Radio */}
                   <div
-                    className={`w-4 h-4 rounded-full border flex items-center justify-center
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors
                     ${isSelected
                         ? "border-[#E8D1AB] bg-[#E8D1AB]"
-                        : "border-white/50"
+                        : isDark ? "border-white/50" : "border-black/20"
                       }`}
                   >
                     {isSelected && (

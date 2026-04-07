@@ -2,24 +2,13 @@
 
 import React, { useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import { adminApi, getStatusCount, GetUpcomingShoots, getPendingProjects, getAvailabilityDetails } from "@/lib/api";
 import { Loader2 } from "lucide-react";
-
-interface ProfileProps {
-  id: string;
-  hideActions?: boolean;
-}
-
-const SECTION_TITLE_STYLE = "lg:text-lg font-medium text-white px-5 pt-5 lg:px-8 lg:pt-8";
-const LABEL_STYLE = "text-[#CFCCCC] text-sm font-medium mb-1 block";
-const VALUE_STYLE = "text-[#999696] text-sm block";
-
-import { Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Calendar, Navigation } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
 
@@ -33,13 +22,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DottedDivider from "../DottedDivider";
 
-const PORTFOLIO_IMAGES = [
-  "/images/crew/CREW(1).png",
-  "/images/crew/CREW(2).png",
-  "/images/crew/CREW(3).png",
-  "/images/crew/CREW(4).png",
-  "/images/crew/CREW(6).png",
-];
+interface ProfileProps {
+  id: string;
+  hideActions?: boolean;
+  isDark?: boolean;
+}
 
 // --- PREMIUM UI HELPERS ---
 const formatLocation = (locationInput: string) => {
@@ -101,7 +88,7 @@ function EventDot({ color, label }: any) {
   );
 }
 
-export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps) => {
+export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true }: ProfileProps) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
@@ -119,6 +106,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
   const [pendingProjects, setPendingProjects] = useState<any[]>([]);
   const [availabilityDetails, setAvailabilityDetails] = useState<any>({});
   const [allShoots, setAllShoots] = useState<any[]>([]);
+  const [shootsLoading, setShootsLoading] = useState(true);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
@@ -162,11 +150,10 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
         const cleanId = id.startsWith('#') ? id.substring(1) : id;
         const crewMemberIdNum = parseInt(cleanId);
 
-        const [partnerResponse, skillsResponse, statsResponse, dashboardDetailResponse] = await Promise.all([
+        const [partnerResponse, skillsResponse, statsResponse] = await Promise.all([
           adminApi.getCrewMemberDetail(cleanId),
           adminApi.getSkills(),
           getStatusCount({ crew_member_id: crewMemberIdNum, creator_id: crewMemberIdNum }),
-          adminApi.getAdminDashboardDetail({ crew_member_id: cleanId })
         ]);
 
         // Map skills if needed (response might already have names)
@@ -188,16 +175,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           setStats(statsResponse.data);
         }
 
-        // Set shoots from dashboard detail
-        if (dashboardDetailResponse && dashboardDetailResponse.data) {
-          const data = dashboardDetailResponse.data;
-          // Extract allShoots if it exists, otherwise check if data itself is the array
-          const shootsData = data.allShoots && Array.isArray(data.allShoots)
-            ? data.allShoots
-            : (Array.isArray(data) ? data : []);
-          setAllShoots(shootsData);
-        }
-
       } catch (error) {
         console.error("Error fetching partner details:", error);
       } finally {
@@ -207,6 +184,40 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
     if (id) {
       fetchData();
+    }
+  }, [id]);
+
+  useEffect(() => {
+    const fetchAssignedProjects = async () => {
+      setShootsLoading(true);
+      try {
+        const cleanId = id.startsWith('#') ? id.substring(1) : id;
+        const response = await adminApi.getCrewMemberAssignedProjects({
+          crew_member_id: cleanId
+        });
+
+        const responseData = response?.data;
+        const shootsData = Array.isArray(responseData)
+          ? responseData
+          : Array.isArray(responseData?.items)
+            ? responseData.items
+            : Array.isArray(responseData?.projects)
+              ? responseData.projects
+              : Array.isArray(responseData?.rows)
+                ? responseData.rows
+                : [];
+
+        setAllShoots(shootsData);
+      } catch (error) {
+        console.error("Error fetching assigned projects:", error);
+        setAllShoots([]);
+      } finally {
+        setShootsLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchAssignedProjects();
     }
   }, [id]);
 
@@ -278,7 +289,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           timeOff += 1;
         }
       });
-
       setSummaryData({ availableDays, bookedShoots, timeOff });
     };
 
@@ -290,7 +300,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center min-h-[400px]">
-        <Loader2 className="animate-spin text-white/50" size={40} />
+        <Loader2 className={`animate-spin ${isDark ? "text-white/50" : "text-black/50"}`} size={40} />
       </div>
     );
   }
@@ -306,7 +316,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
   const fullName = `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || "Unknown Partner";
 
   // Base URL for uploads
-  // const S3_BASE_URL = "https://beigexmemehouse.s3.amazonaws.com/beige/";
   const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
   // Get profile photo
@@ -389,34 +398,26 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
     }
   }
 
-  // Mock data for calendar
-  const shootDates = [
-    new Date(2026, 0, 16),
-    new Date(2026, 0, 19),
-    new Date(2026, 0, 26),
-    new Date(2026, 0, 29),
-    new Date(2026, 0, 30),
-  ];
+  const assignedProjects = Array.isArray(allShoots) ? allShoots : [];
+  const shootColumns = assignedProjects.length > 0
+    ? Object.keys(assignedProjects[0]).filter((key) => {
+      const value = assignedProjects[0][key];
+      return typeof value !== "object" || value === null;
+    })
+    : [];
 
-  // Map all shoots for the table
-  const shoots = (Array.isArray(allShoots) ? allShoots : []).map(s => {
-    const project = s.project || {};
-    const statusMap: Record<string, string> = {
-      '0': 'Initiated',
-      '1': 'Pre Production',
-      '2': 'Post Production',
-      '3': 'Revision',
-      '4': 'Completed',
-      '5': 'Cancelled'
-    };
-    return {
-      id: `#${project.stream_project_booking_id || project.id || s.project_id || s.id}`,
-      name: project.project_name || s.title || 'Project',
-      files: s.files_count || 0,
-      price: `$${project.budget || s.total_amount || '0.00'}`,
-      status: statusMap[project.status !== undefined ? project.status.toString() : s.status] || 'Unknown'
-    };
-  });
+  const formatShootCellValue = (value: any) => {
+    if (value === null || value === undefined || value === "") return "N/A";
+    if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (Array.isArray(value)) return value.length ? value.join(", ") : "N/A";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  };
+
+  const formatShootColumnLabel = (key: string) =>
+    key
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
 
   // Update UPLOADS_URL to use S3
   const UPLOADS_URL = S3_BASE_URL;
@@ -444,14 +445,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
   // Get Resume
   const resumeFile = partner.crew_member_files?.find((file: any) => file.file_type === 'resume');
-
-  // Fallback if no real shoots
-  if (shoots.length === 0) {
-    shoots.push(
-      { id: '#SHO01', name: 'Wedding Highlight Film', files: 24, price: '$1,200.00', status: 'Initiated' },
-      { id: '#SHO02', name: 'Product Promo Video', files: 12, price: '$850.00', status: 'Pre Production' }
-    );
-  }
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -485,19 +478,16 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
     setIsOpen(false);
   };
 
+  const SECTION_TITLE_STYLE = `lg:text-lg font-medium px-5 pt-5 lg:px-8 lg:pt-8 ${isDark ? "text-white" : "text-black"}`;
+  const LABEL_STYLE = `text-sm font-medium mb-1 block ${isDark ? "text-[#CFCCCC]" : "text-[#313131]"}`;
+  const VALUE_STYLE = `text-sm block ${isDark ? "text-[#999696]" : "text-[#595959]"}`;
+
   return (
     <div className="space-y-3 lg:space-y-6">
-      {/* Breadcrumbs */}
-      {/* <div className="flex items-center gap-2 text-sm text-[#666]">
-        <span className="hover:text-[#E0E0E0] cursor-pointer">User - Creative Partners</span>
-        <span>/</span>
-        <span className="text-white">Creative Partner Profile Details</span>
-      </div> */}
-
       {/* Top Navigation */}
       {!hideActions && (
         <div className="flex items-center gap-2 text-sm text-[#666] mb-6">
-          <button onClick={() => router.back()} className="flex items-center gap-2 text-[#E0E0E0] hover:text-white transition-colors">
+          <button onClick={() => router.back()} className={`transition-colors flex items-center gap-2 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-black hover:text-black/70"}`}>
             <ArrowLeft size={20} />
             <span>Back</span>
           </button>
@@ -505,11 +495,12 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
       )}
 
       {/* Profile Header Card */}
-      <div className="bg-[#101010] border border-[#333] rounded-2xl">
+      <div className={`rounded-2xl border transition-colors duration-200 ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFFCF6] border-[#E5E5E5] shadow-sm"
+        }`}>
         <div className="flex items-start justify-between px-4 pt-4 lg:p-6">
           <div className="flex gap-6">
             {/* Avatar */}
-            <div className="w-[67px] h-[67px] lg:w-32 lg:h-32 rounded-lg lg:rounded-xl bg-[#222] overflow-hidden relative flex-shrink-0">
+            <div className={`w-[67px] h-[67px] lg:w-32 lg:h-32 rounded-lg lg:rounded-xl overflow-hidden relative flex-shrink-0 border ${isDark ? "bg-[#222] border-white/5" : "bg-gray-100 border-gray-200"}`}>
               {imageUrl ? (
                 <Image
                   src={imageUrl}
@@ -518,7 +509,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                   className="object-cover"
                 />
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-[#444] bg-[#222] text-3xl font-bold">
+                <div className={`absolute inset-0 flex items-center justify-center text-3xl font-bold ${isDark ? "text-[#444] bg-[#222]" : "text-gray-400 bg-gray-100"}`}>
                   {fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2)}
                 </div>
               )}
@@ -526,36 +517,46 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
             <div className="lg:pt-2">
               <div className="flex items-center gap-2 mb-1">
-                <h1 className="lg:text-2xl font-bold text-white">{fullName}</h1>
+                <h1 className={`lg:text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>{fullName}</h1>
                 {status === "Approved" && (
                   <div className="text-green-500">
-                    <div className="w-5 h-5 bg-green-500/10 rounded-full flex items-center justify-center border border-green-500/20 shrink-0">
-                      <Check size={12} strokeWidth={3} />
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center border shrink-0 ${isDark ? "bg-green-500/10 border-green-500/20" : "bg-emerald-100 border-emerald-200"
+                      }`}>
+                      <Check size={12} strokeWidth={3} className={isDark ? "text-green-500" : "text-emerald-600"} />
                     </div>
                   </div>
                 )}
               </div>
-              <p className="text-[#888] text-xs lg:text-sm mb-1 lg:mb-2">{primaryRole}</p>
-              <div className="flex items-center gap-1 text-xs lg:text-[#C2C2C2] text-sm mb-2 lg:mb-5">
+              <p className={`text-xs lg:text-sm mb-1 lg:mb-2 ${isDark ? "text-[#888]" : "text-gray-500"}`}>{primaryRole}</p>
+              <div className={`flex items-center gap-1 text-xs text-sm mb-2 lg:mb-5 ${isDark ? "text-[#C2C2C2]" : "text-gray-600"}`}>
                 <MapPin size={14} className="shrink-0" />
                 <span>{partner.location || [partner.city, partner.state].filter(Boolean).join(", ") || "N/A"}</span>
               </div>
 
               <div className="flex items-center gap-3">
                 {partner.linkedin_url && (
-                  <a href={partner.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] rounded-lg text-white text-sm hover:bg-[#222] transition-colors">
+                  <a href={partner.linkedin_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-all active:scale-95 ${isDark
+                    ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                    : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+                    }`}>
                     <Linkedin size={16} />
                     <span>LinkedIn</span>
                   </a>
                 )}
                 {partner.behance_url && (
-                  <a href={partner.behance_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] rounded-lg text-white text-sm hover:bg-[#222] transition-colors">
+                  <a href={partner.behance_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-all active:scale-95 ${isDark
+                    ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                    : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+                    }`}>
                     <span className="font-bold text-lg leading-none">Bē</span>
                     <span>Behance</span>
                   </a>
                 )}
                 {partner.portfolio_url && (
-                  <a href={partner.portfolio_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] rounded-lg text-white text-sm hover:bg-[#222] transition-colors">
+                  <a href={partner.portfolio_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-all active:scale-95 ${isDark
+                    ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                    : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+                    }`}>
                     <Globe size={16} />
                     <span>Portfolio</span>
                   </a>
@@ -576,7 +577,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                 <button
                   onClick={() => handleVerifyStatus(status === "Approved" ? 2 : 1)}
                   disabled={isVerifying}
-                  className="text-[#666] hover:text-[#E0E0E0] text-xs underline underline-offset-4 disabled:opacity-50 mt-2"
+                  className={`text-xs underline underline-offset-4 disabled:opacity-50 mt-2 font-medium ${isDark ? "text-[#666] hover:text-[#E0E0E0]" : "text-gray-400 hover:text-black"}`}
                 >
                   Change to {status === "Approved" ? "Rejected" : "Approved"}
                 </button>
@@ -586,20 +587,23 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
         </div>
 
         {/* Divider */}
-        <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+        <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
         {/* <DottedDivider /> */}
 
         {/* Tabs */}
-        <div className="flex items-center w-full overflow-x-auto no-scrollbar gap-6 lg:gap-0 lg:justify-between lg:mt-2 px-2">
+        <div className="flex items-center w-full overflow-x-auto no-scrollbar gap-6 lg:gap-0 lg:justify-between lg:mt-2 px-2.5">
           {['Overview', 'Featured Work', 'Availability', 'Shoots', 'Certificates', 'Resume', 'Portfolio Links'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-2 lg:pb-4 text-sm lg:text-base font-medium transition-all duration-300 relative tracking-normal px-2 whitespace-nowrap flex-shrink-0 ${activeTab === tab ? 'text-[#E5D5B8]' : 'text-[#666666] hover:text-white'}`}
+              className={`pb-2 lg:pb-4 text-sm lg:text-base font-medium transition-all duration-300 relative tracking-normal px-2 whitespace-nowrap flex-shrink-0 ${activeTab === tab
+                ? (isDark ? 'text-[#E5D5B8]' : 'text-black')
+                : (isDark ? 'text-[#666666] hover:text-white' : 'text-[#635F5F] hover:text-black')
+                }`}
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#E5D5B8]" />
+                <div className={`absolute bottom-0 left-0 w-full h-[2px] ${isDark ? "bg-[#E5D5B8]" : "bg-black"}`} />
               )}
             </button>
           ))}
@@ -610,11 +614,11 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
       {activeTab === 'Overview' && (
         <>
           {/* Personal Information */}
-          <div className="bg-[##101010] border border-[#333] rounded-2xl">
+          <div className={`transition-colors duration-200 border rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFF] border-[#F4F5F7] shadow-sm"}`}>
             <h2 className={`${SECTION_TITLE_STYLE}`}>Personal Information</h2>
 
             {/* divider */}
-            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
             {/* <DottedDivider /> */}
 
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
@@ -632,7 +636,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               </div>
               <div>
                 <span className={LABEL_STYLE}>Contact Phone</span>
-                <div className="flex items-center gap-2 text-[#E0E0E0] text-[15px] font-medium">
+                <div className={`flex items-center gap-2 text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#595959]"}`}>
                   <Phone size={18} />
                   <span>{partner.phone_number || partner.contact_phone || "N/A"}</span>
                 </div>
@@ -649,10 +653,10 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           </div>
 
           {/* Professional Details */}
-          <div className="bg-[##101010] border border-[#333] rounded-2xl">
+          <div className={`transition-colors duration-200 border rounded-2xl mt-6 ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFF] border-[#F4F5F7] shadow-sm"}`}>
             <h2 className={SECTION_TITLE_STYLE}>Professional Details</h2>
             {/* divider */}
-            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
             {/* <DottedDivider /> */}
 
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
@@ -670,7 +674,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               </div>
               <div className="col-span-2">
                 <span className={LABEL_STYLE}>Bio / About</span>
-                <p className="text-[#888] text-[15px] leading-relaxed mt-1">
+                <p className={`text-sm leading-relaxed mt-1 ${isDark ? "text-[#888]" : "text-[#595959]"}`}>
                   {partner.bio || "No biography provided."}
                 </p>
               </div>
@@ -678,23 +682,23 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           </div>
 
           {/* Skills */}
-          <div className="bg-[#101010] border border-[#333] rounded-2xl">
+          <div className={`transition-colors duration-200 border rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFF] border-[#F4F5F7] shadow-sm"}`}>
             <h2 className={SECTION_TITLE_STYLE}>
-              Skills <span className="text-[#E5D5B8]">({skillNames.length})</span>
+              Skills <span className={isDark ? "text-[#E5D5B8]" : "text-[#000000]"}>({skillNames.length})</span>
             </h2>
             {/* divider */}
-            <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+            <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
             {/* <DottedDivider /> */}
 
             <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-2 lg:gap-3">
               {skillNames.length > 0 ? (
                 skillNames.map(skill => (
-                  <div key={skill} className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] rounded-lg text-[#E0E0E0] text-xs lg:text-sm">
+                  <div key={skill} className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-xs lg:text-sm transition-all ${isDark ? "bg-[#1A1A1A] border-[#333] text-[#E0E0E0]" : "bg-gray-50 border-[#0000004D] text-[#020202]"}`}>
                     <span>{skill}</span>
                   </div>
                 ))
               ) : (
-                <span className="text-[#666] text-sm italic">No skills listed.</span>
+                <span className={`text-sm italic ${isDark ? "text-[#666]" : "text-[#020202]"}`}>No skills listed.</span>
               )}
             </div>
           </div>
@@ -703,7 +707,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
       {/* TAB CONTENT: Featured Work */}
       {activeTab === 'Featured Work' && (
-        <div className="bg-[#101010] border border-[#333] rounded-2xl min-h-[500px]">
+        <div className={`transition-colors duration-200 border rounded-2xl min-h-[500px] ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFF] border-[#F4F5F7] shadow-sm"}`}>
           {openFolder ? (
             <div className="p-5 lg:p-8">
               <button
@@ -711,13 +715,14 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                   setOpenFolder(null);
                   setActiveImages([]);
                 }}
-                className="flex items-center gap-2 text-[#E0E0E0] hover:text-white transition-colors mb-4 lg:mb-6"
+                className={`flex items-center gap-2 transition-colors mb-4 lg:mb-6 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-[#171717] hover:text-black"}`}
               >
                 <ArrowLeft size={20} />
                 <span className="lg:text-lg font-medium">{openFolder}</span>
               </button>
 
-              <div className="w-full bg-[#171717] rounded-2xl overflow-hidden text-white border border-[#3D3D3D] py-10">
+              <div className={`w-full rounded-2xl overflow-hidden border py-10 transition-colors ${isDark ? "bg-[#171717] text-white border-[#3D3D3D]" : "bg-[#F4F5F7] text-black border-[#F4F5F7]"
+                }`}>
                 {activeImages.length > 0 ? (
                   <Swiper
                     effect={"coverflow"}
@@ -751,7 +756,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                     ))}
                   </Swiper>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-[#666]">
+                  <div className={`flex flex-col items-center justify-center py-20 ${isDark ? "text-[#666]" : "text-[#000]"}`}>
                     <X size={48} className="mb-4 opacity-20" />
                     <p>No images found in this folder.</p>
                   </div>
@@ -763,16 +768,20 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               <h2 className={SECTION_TITLE_STYLE}>CP Featured Work</h2>
 
               {/* <DottedDivider /> */}
-              <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+              <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
 
               {/* Toolbar */}
               <div className="flex items-center justify-between gap-2 px-5 pb-5 lg:px-8 lg:pb-8">
                 <div className="relative w-full lg:w-[500px]">
-                  <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+                  <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 ${isDark ? "text-white/40" : "text-gray-400"
+                    }`} />
                   <input
                     type="text"
                     placeholder="Search"
-                    className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+                    className={`w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                      ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                      : "bg-gray-50 border-[#E3E3E3] text-black placeholder:text-gray-400 focus:ring-[#E3E3E3]"
+                      }`}
                   />
                 </div>
 
@@ -781,26 +790,27 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                   <div className="md:hidden relative">
                     <Button
                       onClick={toggleDropdown}
-                      className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
+                      className={`flex items-center gap-2 p-2 h-8 rounded-lg border transition-all ${isDark ? "bg-[#202020] border-white/10 text-white" : "bg-white border-gray-200 text-black shadow-sm"
+                        }`}
                     >
                       {viewMode === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
                     </Button>
 
                     {/* Dropdown Menu */}
                     {isOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+                      <div className={`absolute top-full right-0 mt-2 w-48 rounded-xl shadow-2xl z-[50] overflow-hidden border ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-gray-200"}`}>
                         <button
                           onClick={() => handleSelect('grid')}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                            }`}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid' ? (isDark ? "bg-white/10 text-white" : "bg-gray-100 text-black")
+                            : (isDark ? "text-white/60 hover:bg-white/5" : "text-gray-500 hover:bg-gray-50")}`}
                         >
                           <Grid3X3 size={18} />
                           Grid View
                         </button>
                         <button
                           onClick={() => handleSelect('list')}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
-                            }`}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list' ? (isDark ? "bg-white/10 text-white" : "bg-gray-100 text-black")
+                            : (isDark ? "text-white/60 hover:bg-white/5" : "text-gray-500 hover:bg-gray-50")}`}
                         >
                           <List size={18} />
                           List View
@@ -810,12 +820,12 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                   </div>
 
                   {/* DESKTOP VIEW: Original Toggle */}
-                  <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
+                  <div className={`hidden lg:flex flex-wrap items-center rounded-lg border transition-all ${isDark ? "bg-[#202020] border-white/5" : "bg-gray-100 border-gray-200"}`}>
                     <Button
                       onClick={() => setViewMode('grid')}
                       className={`px-5 py-2.5 rounded-l-lg transition-colors ${viewMode === 'grid'
                         ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
+                        : (isDark ? "bg-transparent text-white/40 hover:text-white" : "bg-transparent text-gray-400 hover:text-black")
                         }`}
                     >
                       <Grid3X3 size={20} />
@@ -824,7 +834,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                       onClick={() => setViewMode('list')}
                       className={`px-5 py-2.5 rounded-r-lg transition-colors ${viewMode === 'list'
                         ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                        : "bg-transparent text-white/40 hover:text-white"
+                        : (isDark ? "bg-transparent text-white/40 hover:text-white" : "bg-transparent text-gray-400 hover:text-black")
                         }`}
                     >
                       <List size={20} />
@@ -843,35 +853,36 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                         setOpenFolder(`${group.title} (${group.tag})`);
                         setActiveImages(group.images);
                       }}
-                      className="bg-[#1A1A1A] border border-[#333] rounded-xl hover:border-[#444] transition-colors group cursor-pointer"
+                      className={`rounded-xl transition-all group cursor-pointer border ${isDark ? "bg-[#1A1A1A] border-[#333] hover:border-[#444]" : "bg-[#F4F5F7] border-gray-200 hover:border-gray-400 shadow-sm"}`}
                     >
                       <div className="flex items-start justify-between p-5">
                         <div className="flex items-center gap-3">
                           <div>
                             <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
                           </div>
-                          <span className="text-white font-semibold text-sm leading-tight">{group.title}</span>
+                          <span className={`font-semibold text-sm leading-tight ${isDark ? "text-white" : "text-black"}`}>{group.title}</span>
                         </div>
-                        <button className="text-[#666] hover:text-white">
+                        <button className={`${isDark ? "text-[#666] hover:text-white" : "text-gray-400 hover:text-black"}`}>
                           <MoreVertical size={18} />
                         </button>
                       </div>
 
                       {/* Divider */}
-                      <hr className="my-1 border-white/50" />
+                      <hr className={`border-[1px] my-1 ${isDark ? "border-white/5" : "border-[#000000]/50 "}`} />
 
                       <div className="flex gap-2 p-5">
-                        <span className="px-3 py-1.5 rounded-full bg-[#101010] text-[#999] text-xs font-medium border border-[#333]">
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDark ? "bg-[#101010] text-[#999] border-[#333]" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
                           {group.tag}
                         </span>
-                        <span className="px-3 py-1.5 rounded-full bg-[#101010] text-[#E5D5B8] text-xs font-medium border border-[#E5D5B8]/20">
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${isDark ? "bg-[#101010] text-[#E5D5B8] border-[#E5D5B8]/20" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
                           {group.images.length} Image{group.images.length !== 1 ? 's' : ''}
                         </span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="col-span-2 py-20 text-center text-[#666] border border-dashed border-[#333] rounded-xl">
+                  <div className={`col-span-2 py-20 text-center border-dashed rounded-xl ${isDark ? "text-[#666] border-[#333]" : "text-gray-400 border-gray-200"
+                    }`}>
                     <Folder size={48} className="mx-auto mb-4 opacity-20" />
                     <p>No featured work available.</p>
                   </div>
@@ -891,55 +902,61 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
               label="Available Days"
               value={summaryData.availableDays}
               icon={CheckCircle}
-              iconColor="text-green-500"
-              hoverBorder="hover:border-green-500/30"
+              iconColor={isDark ? "text-green-500" : "text-green-800"}
+              hoverBorder={isDark ? "hover:border-green-500/30" : "hover:border-green-700/30"}
+              isDark={isDark}
             />
             <StatCard
               label="Booked Shoots"
               value={summaryData.bookedShoots}
               icon={Video}
-              iconColor="text-[#E5D5B8]"
-              hoverBorder="hover:border-[#E5D5B8]/30"
+              iconColor={isDark ? "text-[#E5D5B8]" : "text-[#4f473a]"}
+              hoverBorder={isDark ? "hover:border-[#E5D5B8]/30" : "hover:border-[#4f473a]/30"}
+              isDark={isDark}
             />
             <StatCard
               label="Time Off"
               value={`${summaryData.timeOff}`}
               icon={Clock}
-              iconColor="text-red-400"
-              hoverBorder="hover:border-red-400/30"
+              iconColor={isDark ? "text-red-400" : "text-red-800"}
+              hoverBorder={isDark ? "hover:border-red-400/30" : "hover:border-red-800/30"}
+              isDark={isDark}
             />
           </div>
 
           <div className="grid grid-cols-12 gap-6">
             {/* Main Calendar Section */}
             <div className="col-span-12 lg:col-span-9 space-y-6">
-              <div className="bg-[#101010] border border-[#333] rounded-2xl overflow-hidden shadow-2xl">
+              <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden shadow-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200"
+                }`}>
                 {/* Calendar Controls */}
-                <div className="p-4 lg:p-6 border-b border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className={`p-4 lg:p-6 border-b flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${isDark ? "border-white/5" : "border-gray-100"
+                  }`}>
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-black rounded-lg border border-white/10 p-1">
+                    <div className={`flex items-center rounded-lg gap-2 lg:gap-4 p-1`}>
                       <button
                         onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                        className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 text-white/60 transition-colors"
+                        className={`h-8 w-8 flex items-center justify-center rounded-md transition-colors border ${isDark ? "hover:bg-white/5 text-white/60 bg-black border-white/10" : "hover:bg-gray-200 text-[#000000] bg-[#F0F0F0] border-[#0A0A0A33]"
+                          }`}
                       >
                         <ChevronLeft size={18} />
                       </button>
+                      <span className={`lg:text-lg font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                        {format(currentMonth, 'MMMM yyyy')}
+                      </span>
                       <button
                         onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                        className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 text-white/60 transition-colors"
+                        className={`h-8 w-8 flex items-center justify-center rounded-md transition-colors border ${isDark ? "hover:bg-white/5 text-white/60 bg-black border-white/10" : "hover:bg-gray-200 text-[#000000] bg-[#F0F0F0] border-[#0A0A0A33]"
+                          }`}
                       >
                         <ChevronRight size={18} />
                       </button>
                     </div>
-
-                    <span className="lg:text-lg font-bold text-white tracking-tight">
-                      {format(currentMonth, 'MMMM yyyy')}
-                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <button
-                      className="px-4 py-2 bg-transparent border border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40 rounded-lg text-sm transition-all"
+                      className={`px-4 py-2 border rounded-lg text-sm transition-all ${isDark ? "bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40" : "bg-[#F0F0F0] border-[#E3E3E3] text-gray-600 hover:text-black shadow-sm"}`}
                       onClick={() => setCurrentMonth(new Date(2026, 0, 1))}
                     >
                       Today
@@ -953,7 +970,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                     (d, index) => (
                       <div
                         key={index}
-                        className="py-3 text-center text-[10px] font-bold uppercase tracking-widest text-white/30 bg-black/40 border-b border-r border-[#333]"
+                        className={`py-3 text-center text-[10px] font-bold uppercase tracking-widest border-b border-r last:border-r-0 ${isDark ? "text-white/30 bg-black/40 border-[#333]" : "text-[#7C7777] bg-[#EDEBEB] border-gray-100"}`}
                       >
                         {d}
                       </div>
@@ -975,7 +992,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                     return (
                       <div
                         key={day.toString()}
-                        className={`min-h-[100px] p-3 border-[#333] ${!isLastRow ? 'border-b' : ''} ${!isLastCol ? 'border-r' : ''} ${!isCurrentMonth ? 'bg-[#0A0A0A] text-[#444]' : 'text-[#E0E0E0]'
+                        className={`min-h-[100px] p-3 transition-colors ${isDark ? "border-[#333]" : "border-gray-100"} ${!isLastRow ? 'border-b' : ''} ${!isLastCol ? 'border-r' : ''} ${!isCurrentMonth
+                          ? (isDark ? 'bg-[#0A0A0A] text-[#444]' : 'bg-[#F4F4F4] text-[#878787]')
+                          : (isDark ? 'text-[#E0E0E0]' : 'bg-[#F8F4EE] text-[#3F3F3F]')
                           }`}
                       >
                         <span className={`text-sm font-medium block mb-2 w-7 h-7 flex items-center justify-center ${isTodayDate ? 'bg-[#E5D5B8] text-black rounded-full' : ''
@@ -985,14 +1004,15 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
                         {hasShoot && (
                           <div className="space-y-1">
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#1E293B] border border-[#334155] w-fit">
+                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded border w-fit ${isDark ? "bg-[#1E293B] border-[#334155]" : "bg-blue-50 border-blue-100"
+                              }`}>
+                              <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
+                              <span className={`text-[10px] font-bold leading-none ${isDark ? "text-[#93C5FD]" : "text-blue-700"}`}>Shoot</span>
+                            </div>
+                            {/* <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#1E293B] border border-[#334155] w-fit">
                               <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
                               <span className="text-[10px] text-[#93C5FD] font-medium leading-none">Shoot</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#1E293B] border border-[#334155] w-fit">
-                              <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
-                              <span className="text-[10px] text-[#93C5FD] font-medium leading-none">Shoot</span>
-                            </div>
+                            </div> */}
                           </div>
                         )}
                       </div>
@@ -1003,66 +1023,70 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
             </div>
 
             {/* Right: Sidebar */}
-            <div className="col-span-12 lg:col-span-3 w-full xl:w-[320px] space-y-3 lg:space-y-6">
+            <div className="col-span-12 lg:col-span-3 w-full xl:max-w-[320px] space-y-3 lg:space-y-6">
               {/* Legend */}
-              <div className="bg-[#101010] border border-[#333] rounded-2xl p-4 lg:p-6">
-                <h3 className="text-white font-medium mb-2 lg:mb-4">Color Legend</h3>
+              <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+                }`}>
+                <h3 className={`font-medium mb-2 lg:mb-4 ${isDark ? "text-white" : "text-black"}`}>Color Legend</h3>
                 <div className="space-y-2 space-y-4">
                   <div className="flex items-start gap-2 lg:gap-3">
-                    <div className="w-3 h-3 rounded-full bg-[#444] mt-1.5"></div>
+                    <div className={`w-3 h-3 rounded-full mt-1.5 ${isDark ? "bg-[#444]" : "bg-[#ECE7E2]"}`}></div>
                     <div>
-                      <div className="text-[#E0E0E0] text-sm font-medium">Disabled</div>
-                      <div className="text-[#666] text-xs">Time off or blocked</div>
+                      <div className={`text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#3A3A3A]"}`}>Disabled</div>
+                      <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Time off or blocked</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-3 h-3 rounded-full bg-[#8B7355] mt-1.5"></div>
                     <div>
-                      <div className="text-[#E0E0E0] text-sm font-medium">Today's</div>
-                      <div className="text-[#666] text-xs">Time off or blocked</div>
+                      <div className={`text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#3A3A3A]"}`}>Today's</div>
+                      <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Time off or blocked</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-3 h-3 rounded-full bg-[#3B82F6] mt-1.5"></div>
                     <div>
-                      <div className="text-[#E0E0E0] text-sm font-medium">Shoots</div>
-                      <div className="text-[#666] text-xs">Confirmed shoots</div>
+                      <div className={`text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#3A3A3A]"}`}>Shoots</div>
+                      <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Confirmed shoots</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-3 h-3 rounded-full bg-[#EF4444] mt-1.5"></div>
                     <div>
-                      <div className="text-[#E0E0E0] text-sm font-medium">Conflicts</div>
-                      <div className="text-[#666] text-xs">Scheduling conflicts</div>
+                      <div className={`text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#3A3A3A]"}`}>Conflicts</div>
+                      <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Scheduling conflicts</div>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* This Month Stats */}
-              <div className="bg-[#101010] border border-[#333] rounded-2xl p-4 lg:p-6">
-                <h3 className="text-white font-medium mb-4">This Month</h3>
-                <div className="space-y-2 space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-lg">
+              <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+                }`}>
+                <h3 className={`font-medium mb-4 ${isDark ? "text-white" : "text-black"}`}>This Month</h3>
+                <div className="space-y-2 lg:space-y-4">
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-[#F0F0F0]"}`}>
                     <span className="text-[#999] text-sm">Working Days</span>
-                    <span className="text-sm lg:text-base text-white font-medium text-right">{availabilityDays.length > 0 ? availabilityDays.join(", ") : "Not set"}</span>
+                    <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#303030]"} text-right`}>{availabilityDays.length > 0 ? availabilityDays.join(", ") : "Not set"}</span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-lg">
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-[#F0F0F0]"}`}>
                     <span className="text-[#999] text-sm">Booked Shoots</span>
-                    <span className="text-sm lg:text-base text-white font-medium">{stats?.total_projects || stats?.accepted_projects || '0'}</span>
+                    <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#303030]"}`}>{stats?.total_projects || stats?.accepted_projects || '0'}</span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-lg">
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-[#F0F0F0]"}`}>
                     <span className="text-[#999] text-sm">Rating</span>
-                    <span className="text-sm lg:text-base text-white font-medium">{partner.rating || "N/A"}</span>
+                    <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#303030]"}`}>{partner.rating || "N/A"}</span>
                   </div>
                 </div>
               </div>
 
               {/* Share Availability */}
-              <div className="bg-[#101010] border border-[#333] rounded-2xl p-4 lg:p-6">
-                <h3 className="text-white font-medium mb-2">Share Availability</h3>
-                <p className="text-[#888] text-sm mb-4">Share your availability link with production teams</p>
-                <button className="w-full py-3 bg-[#E5D5B8] text-black rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-[#d4c3a3] transition-colors">
+              <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+                }`}>
+                <h3 className={`font-medium mb-2 ${isDark ? "text-white" : "text-black"}`}>Share Availability</h3>
+                <p className={`text-sm mb-4 ${isDark ? "text-[#888]" : "text-gray-500"}`}>Share your availability link with production teams</p>
+                <button className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all active:scale-95 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]" : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 shadow-md"
+                  }`}>
                   <Copy size={18} />
                   <span>Copy Link</span>
                 </button>
@@ -1074,39 +1098,65 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
       {/* TAB CONTENT: Shoots */}
       {activeTab === 'Shoots' && (
-        <div className="bg-[#101010] border border-[#333] rounded-2xl overflow-hidden">
+        <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+          }`}>
+          {shootsLoading ? (
+            <div className={`py-12 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>
+              Loading shoots...
+            </div>
+          ) : assignedProjects.length === 0 ? (
+            <div className={`py-12 px-6 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>
+              No shoots assigned to this creative partner.
+            </div>
+          ) : (
+            <>
           {/* MOBILE ONLY VIEW */}
-          <div className="lg:hidden p-3 bg-[#111111]">
-            <div className="flex justify-between px-5 py-3 text-[#E8D1AB] text-sm font-medium">
-              <span>Shoot Name</span>
-              <span>Status</span>
+          <div className={`lg:hidden p-3 transition-colors ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+            <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"
+              }`}>
+              {shootColumns.slice(0, 2).map((column) => (
+                <span key={column}>{formatShootColumnLabel(column)}</span>
+              ))}
             </div>
 
             <div className="flex flex-col gap-2">
-              {shoots.map((shoot) => {
-                const isExpanded = expandedId === shoot.id;
+              {assignedProjects.map((shoot, index) => {
+                const rowId = String(shoot.id || shoot.project_id || shoot.stream_project_booking_id || index);
+                const isExpanded = expandedId === rowId;
 
                 return (
-                  <div key={shoot.id} className="bg-[#171717] rounded-xl border border-white/5 overflow-hidden">
+                  <div
+                    key={rowId}
+                    className={`rounded-xl border transition-all ${isDark
+                      ? "bg-[#171717] border-white/5"
+                      : "bg-[#F4F5F7] border-[#F4F5F7]"
+                      }`}
+                  >
                     {/* Header Row */}
                     <div
                       className="flex items-center justify-between p-4 cursor-pointer active:bg-white/5"
-                      onClick={() => toggleRow(shoot.id)}
+                      onClick={() => toggleRow(rowId)}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-transform duration-300 ${isExpanded ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'border-white/10 text-white/60'}`}>
+                        <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-transform duration-300 ${isExpanded
+                          ? (isDark ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-white rotate-180 border-[#777674] text-[#777674]')
+                          : (isDark ? 'border-white/10 text-white/60' : 'bg-white border-[#D9D9D9] text-[#777674]')
+                          }`}>
                           <ChevronDown size={14} />
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-white">{shoot.name}</span>
-                          <span className="text-[10px] text-white/40 uppercase tracking-tight flex items-center gap-1">
-                            {shoot.id}
+                          <span className={`text-sm ${isDark ? "font-semibold text-white" : "font-medium text-[#6D6D6D]"}`}>
+                            {formatShootCellValue(shoot[shootColumns[0]])}
+                          </span>
+                          <span className={`text-[10px] uppercase tracking-tight flex items-center gap-1 ${isDark ? "text-white/40" : "text-gray-400"
+                            }`}>
+                            {shootColumns[1] ? formatShootCellValue(shoot[shootColumns[1]]) : `#${rowId}`}
                           </span>
                         </div>
                       </div>
 
-                      <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusStyle(shoot.status)}`}>
-                        {shoot.status}
+                      <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusStyle(String(shoot.status || shoot.project_status || 'Unknown'))}`}>
+                        {formatShootCellValue(shoot.status || shoot.project_status || "N/A")}
                       </span>
                     </div>
 
@@ -1118,22 +1168,21 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                           animate={{ height: "auto", opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.2, ease: "easeInOut" }}
-                          className="border-t border-white/5 bg-black/20"
+                          className={`border-t ${isDark ? "border-white/5 bg-black/20" : "border-[#D9D9D9] bg-[#F4F5F7]"}`}
                         >
                           <div className="p-4 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mb-1 flex items-center gap-1">
-                                  <Briefcase size={12} /> Files
-                                </p>
-                                <p className="text-white text-sm font-medium">{shoot.files} Items</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mb-1 flex items-center justify-end gap-1">
-                                  Price
-                                </p>
-                                <p className="text-[#E8D1AB] text-sm font-bold">{shoot.price}</p>
-                              </div>
+                              {shootColumns.map((column) => (
+                                <div key={column}>
+                                  <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isDark ? "text-white/40" : "text-gray-400"
+                                    }`}>
+                                    {formatShootColumnLabel(column)}
+                                  </p>
+                                  <p className={`text-sm font-medium break-words ${isDark ? "text-white" : "text-black/80"}`}>
+                                    {formatShootCellValue(shoot[column])}
+                                  </p>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         </motion.div>
@@ -1149,59 +1198,73 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           <div className="hidden lg:block w-full overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#333] bg-[#202020]">
-                  <th className="text-left py-5 px-6 text-[#E5D5B8] font-medium text-sm w-[15%]">Shoot ID</th>
-                  <th className="text-left py-5 px-6 text-[#E5D5B8] font-medium text-sm w-[35%]">Shoot Name</th>
-                  <th className="text-left py-5 px-6 text-[#E5D5B8] font-medium text-sm w-[10%]">Files</th>
-                  <th className="text-left py-5 px-6 text-[#E5D5B8] font-medium text-sm w-[20%]">Price</th>
-                  <th className="text-left py-5 px-6 text-[#E5D5B8] font-medium text-sm w-[20%]">Status</th>
+                <tr className={`transition-colors border-b ${isDark ? "bg-[#202020] border-[#333]" : "bg-[#FFFCF6] border-[#F4F5F7]"
+                  }`}>
+                  {shootColumns.map((column) => (
+                    <th
+                      key={column}
+                      className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm`}
+                    >
+                      {formatShootColumnLabel(column)}
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#333]">
-                {shoots.map((shoot) => (
-                  <tr key={shoot.id} className="hover:bg-[#161616] transition-colors font-[family-name:var(--font-instrument-sans)]">
-                    <td className="py-6 px-6 text-[#E0E0E0] text-[15px]">{shoot.id}</td>
-                    <td className="py-6 px-6 text-[#E0E0E0] text-[15px]">{shoot.name}</td>
-                    <td className="py-6 px-6 text-[#E0E0E0] text-[15px]">{shoot.files}</td>
-                    <td className="py-6 px-6 text-[#E5D5B8] text-[15px]">{shoot.price}</td>
-                    <td className="py-6 px-6">
-                      <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusStyle(shoot.status)}`}>
-                        {shoot.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+              <tbody className={`divide-y transition-colors ${isDark ? "divide-[#333]" : "divide-gray-100"}`}>
+                {assignedProjects.map((shoot, index) => {
+                  const rowId = String(shoot.id || shoot.project_id || shoot.stream_project_booking_id || index);
+                  return (
+                    <tr key={rowId} className={`${isDark ? "hover:bg-[#161616]" : "bg-[#F4F5F7] hover:bg-gray-50/50"} transition-colors font-[family-name:var(--font-instrument-sans)]`}>
+                      {shootColumns.map((column) => (
+                        <td key={column} className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>
+                          {formatShootCellValue(shoot[column])}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+            </>
+          )}
         </div>
       )}
 
       {/* TAB CONTENT: Certificates */}
       {activeTab === 'Certificates' && (
-        <div className="bg-[#101010] border border-[#333] rounded-2xl">
+        <div className={`transition-colors duration-200 border rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#fff] border-[#F4F5F7] shadow-sm"
+          }`}>
           <h2 className={SECTION_TITLE_STYLE}>CP Certificates</h2>
 
           {/* divider */}
           {/* <DottedDivider /> */}
-          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/30"}`} />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-5">
             {certificationFiles.length > 0 ? (
               certificationFiles.map((file: any, index: number) => (
-                <div key={index} className="bg-[#0D0D0D] border border-[#222] rounded-2xl p-4 w-full lg:w-[340px] hover:border-[#444] transition-all group cursor-default">
+                <div
+                  key={index}
+                  className={`transition-all group cursor-default border rounded-2xl p-4 w-full lg:w-[340px] ${isDark
+                    ? "bg-[#0D0D0D] border-[#222] hover:border-[#444]"
+                    : "bg-white border-gray-100 shadow-sm hover:border-gray-300 hover:shadow-md"
+                    }`}
+                >
                   <div className="flex items-center gap-3 mb-2 lg:mb-4">
                     <div className="w-8 h-8 flex items-center justify-center bg-[#FF453A] rounded-md shrink-0">
                       <span className="text-white text-[8px] font-bold">Pdf</span>
                     </div>
-                    <span className="text-[#E0E0E0] font-medium text-sm truncate">{file.title || `Certificate ${index + 1}`}</span>
+                    <span className={`font-medium text-sm truncate ${isDark ? "text-[#E0E0E0]" : "text-gray-900"}`}>{file.title || `Certificate ${index + 1}`}</span>
                   </div>
 
-                  <div className="w-full h-[220px] bg-[#161616] rounded-xl mb-4 flex items-center justify-center relative overflow-hidden">
+                  <div className={`w-full h-[220px] rounded-xl mb-4 flex items-center justify-center relative overflow-hidden transition-colors ${isDark ? "bg-[#161616]" : "bg-gray-50 border border-gray-100"
+                    }`}>
                     <div className="w-16 h-20 bg-[#FF453A] rounded-lg flex items-center justify-center relative transform group-hover:scale-105 transition-transform duration-300">
                       <span className="text-white font-bold text-xl">Pdf</span>
                       <div className="absolute top-0 right-0 w-6 h-6 bg-[#D93025] rounded-bl-lg"></div>
-                      <div className="absolute top-0 right-0 w-6 h-6 bg-[#161616] transform translate-x-3 -translate-y-3 rotate-45"></div>
+                      <div className={`absolute top-0 right-0 w-6 h-6 transform translate-x-3 -translate-y-3 rotate-45 ${isDark ? "bg-[#161616]" : "bg-gray-50"
+                        }`}></div>
                     </div>
                   </div>
 
@@ -1209,15 +1272,16 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                     href={`${UPLOADS_URL}${file.file_path}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full py-3 bg-[#E5D5B8] text-black rounded-xl text-sm font-semibold hover:bg-[#d4c3a3] transition-colors block text-center"
+                    className={`w-full py-3 rounded-xl text-sm font-semibold transition-all block text-center bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]`}
                   >
                     View Certificate
                   </a>
                 </div>
               ))
             ) : (
-              <div className="w-full py-10 lg:py-20 text-center text-[#666] border border-dashed border-[#333] rounded-xl">
-                <FileText size={48} className="mx-auto mb-4 opacity-20" />
+              <div className={`w-full py-10 lg:py-20 text-center border border-dashed rounded-xl ${isDark ? "text-[#666] border-[#333]" : "text-gray-400 border-gray-200 bg-gray-50/50"
+                }`}>
+                <FileText size={48} className={`mx-auto mb-4 transition-opacity ${isDark ? "opacity-20" : "opacity-40"}`} />
                 <p>No certifications uploaded.</p>
               </div>
             )}
@@ -1227,25 +1291,29 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
       {/* TAB CONTENT: Resume */}
       {activeTab === 'Resume' && (
-        <div className="bg-[#101010] border border-[#333] rounded-2xl lg:min-h-[500px]">
+        <div className={`transition-colors duration-200 border rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#fff] border-[#F4F5F7] shadow-sm"
+          }`}>
           <h2 className={SECTION_TITLE_STYLE}>CP Resume</h2>
 
           {/* divider */}
           {/* <DottedDivider /> */}
-          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/30"}`} />
 
-
-          <div className="px-5 pb-5 lg:px-8 lg:pb-8 w-full lg:w-[340px]">
+          <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-5">
             {resumeFile ? (
-              <div className="bg-[#0D0D0D] border border-[#222] rounded-2xl p-4 hover:border-[#444] transition-all group cursor-default">
+              <div className={`transition-all group cursor-default border rounded-2xl p-4 ${isDark
+                ? "bg-[#0D0D0D] border-[#222] hover:border-[#444]"
+                : "bg-white border-gray-100 shadow-sm hover:border-gray-300 hover:shadow-md"
+                }`}>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 flex items-center justify-center bg-[#2563EB] rounded-md shrink-0">
                     <FileText size={16} className="text-white" />
                   </div>
-                  <span className="text-[#E0E0E0] font-medium text-sm truncate">{resumeFile.title || 'Creative Professional Resume'}</span>
+                  <span className={`font-medium text-sm truncate ${isDark ? "text-[#E0E0E0]" : "text-gray-900"}`}>{resumeFile.title || 'Creative Professional Resume'}</span>
                 </div>
 
-                <div className="w-full h-[220px] bg-[#161616] rounded-xl mb-4 flex items-center justify-center relative overflow-hidden">
+                <div className={`w-full h-[220px] rounded-xl mb-4 flex items-center justify-center relative overflow-hidden transition-colors ${isDark ? "bg-[#161616]" : "bg-gray-50 border border-gray-100"
+                  }`}>
                   <div className="w-16 h-20 bg-[#2563EB] rounded-lg flex flex-col items-center justify-center p-4 relative transform group-hover:scale-105 transition-transform duration-300">
                     <div className="w-full h-1 bg-white/40 mb-1.5 rounded-full"></div>
                     <div className="w-full h-1 bg-white/40 mb-1.5 rounded-full"></div>
@@ -1264,8 +1332,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                 </a>
               </div>
             ) : (
-              <div className="lg:w-[850px] py-10 lg:py-20 text-center text-[#666] border border-dashed border-[#333] rounded-xl">
-                <FileText size={48} className="mx-auto mb-4 opacity-20" />
+              <div className={`w-full py-10 lg:py-20 text-center border border-dashed rounded-xl ${isDark ? "text-[#666] border-[#333]" : "text-gray-400 border-gray-200 bg-gray-50/50"
+                }`}>
+                <FileText size={48} className={`mx-auto mb-4 transition-opacity ${isDark ? "opacity-20" : "opacity-40"}`} />
                 <p>No resume uploaded.</p>
               </div>
             )}
@@ -1275,12 +1344,13 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
       {/* TAB CONTENT: Portfolio Links */}
       {activeTab === 'Portfolio Links' && (
-        <div className="bg-[#101010] border border-[#333] rounded-2xl lg:min-h-[500px]">
+        <div className={`transition-colors duration-200 border lg:min-h-[500px] rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#fff] border-[#F4F5F7] shadow-sm"
+          }`}>
           <h2 className={SECTION_TITLE_STYLE}>Portfolio Links</h2>
 
           {/* divider */}
           {/* <DottedDivider /> */}
-          <hr className="border-t border-[#3D3D3D] my-4 lg:my-9" />
+          <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/30"}`} />
 
           <div className="px-5 pb-5 lg:px-8 lg:pb-8">
             {(() => {
@@ -1290,8 +1360,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
               if (portfolioLinks.length === 0) {
                 return (
-                  <div className="py-20 text-center text-[#666] border border-dashed border-[#333] rounded-xl w-full">
-                    <Globe size={48} className="mx-auto mb-4 opacity-20" />
+                  <div className={`w-full py-10 lg:py-20 text-center border border-dashed rounded-xl ${isDark ? "text-[#666] border-[#333]" : "text-gray-400 border-gray-200 bg-gray-50/50"
+                    }`}>
+                    <Globe size={48} className={`mx-auto mb-4 transition-opacity ${isDark ? "opacity-20" : "opacity-40"}`} />
                     <p>No portfolio links added.</p>
                   </div>
                 );
@@ -1312,10 +1383,14 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                     return (
                       <div
                         key={link.crew_files_id || index}
-                        className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col gap-4 group hover:border-white/20 transition-all shadow-xl"
+                        className={`transition-all duration-300 border rounded-2xl p-6 flex flex-col gap-4 group shadow-xl ${isDark
+                          ? "bg-white/5 border-white/10 hover:border-white/20"
+                          : "bg-white border-gray-100 hover:border-gray-300 hover:shadow-2xl"
+                          }`}
                       >
                         <div className="flex items-center justify-between">
-                          <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-colors ${isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-100"
+                            }`}>
                             {platform?.icon ? (
                               <platform.icon size={24} className="text-[#E8D1AB]" />
                             ) : (
@@ -1325,10 +1400,12 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
                         </div>
 
                         <div className="space-y-1">
-                          <p className="text-sm font-bold text-white uppercase tracking-wider">
+                          <p className={`text-sm font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"
+                            }`}>
                             {platform?.label || "Portfolio Link"}
                           </p>
-                          <p className="text-xs text-white/40 truncate">
+                          <p className={`text-xs truncate font-medium ${isDark ? "text-white/40" : "text-gray-400"
+                            }`}>
                             {link.file_path}
                           </p>
                         </div>
@@ -1349,27 +1426,37 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
           </div>
         </div>
       )}
+
       {/* VIDEO PLAYER MODAL */}
       {playingVideo && (
-        <div className="fixed inset-0 z-[120] bg-black/98 backdrop-blur-2xl overflow-y-auto animate-in fade-in duration-500">
+        <div className={`fixed inset-0 z-[120] overflow-y-auto animate-in fade-in duration-500 backdrop-blur-2xl ${isDark ? "bg-black/98" : "bg-white/98"
+          }`}>
 
           {/* Top Bar - Sticky so the close button is always visible even when scrolling */}
-          <div className="sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-none">
+          <div className={`sticky top-0 z-50 flex items-center justify-between p-4 lg:p-10 pointer-events-none bg-gradient-to-b ${isDark
+            ? "from-black/95 via-black/80 to-transparent"
+            : "from-white/95 via-white/80 to-transparent"
+            }`}>
             <div className="space-y-1 pointer-events-auto">
-              <h3 className="text-white text-xs lg:text-sm font-black uppercase tracking-[0.3em]">
+              <h3 className={`text-xs lg:text-sm font-black uppercase tracking-[0.3em] ${isDark ? "text-white" : "text-black"
+                }`}>
                 Portfolio Player
               </h3>
               <div className="flex items-center gap-2">
                 {/* Accent color matched to this specific page's theme */}
-                <span className="w-1.5 h-1.5 bg-[#E5D5B8] rounded-full animate-pulse" />
-                <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
-                  Now Playing
+                <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDark ? "bg-[#E5D5B8]" : "bg-black"
+                  }`} />
+                <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-white/30" : "text-black/30"
+                  }`}>  Now Playing
                 </p>
               </div>
             </div>
             <button
               onClick={() => setPlayingVideo(null)}
-              className="p-3 lg:p-4 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/20 transition-all active:scale-90 shadow-lg pointer-events-auto"
+              className={`p-3 lg:p-4 border rounded-full transition-all active:scale-90 shadow-lg pointer-events-auto ${isDark
+                  ? "bg-white/5 border-white/10 text-white hover:bg-white/20"
+                  : "bg-black/5 border-black/10 text-black hover:bg-black/20"
+                }`}
             >
               <X size={20} className="lg:w-6 lg:h-6" />
             </button>
@@ -1377,7 +1464,8 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
           {/* Video Container - Beautifully centers and allows scroll */}
           <div className="w-full max-w-6xl mx-auto px-4 pb-24 pt-2 lg:pt-10">
-            <div className="w-full aspect-video bg-black rounded-xl lg:rounded-[2rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/10 relative">
+            <div className={`w-full aspect-video rounded-xl lg:rounded-[2rem] overflow-hidden relative shadow-[0_0_100px_rgba(0,0,0,0.8)] border ${isDark ? "bg-black border-white/10" : "bg-gray-100 border-black/10"
+              }`}>
               <iframe
                 src={getEmbedUrl(playingVideo) || ""}
                 className="w-full h-full absolute inset-0 border-none"
@@ -1390,6 +1478,6 @@ export const CreativePartnerProfile = ({ id, hideActions = false }: ProfileProps
 
         </div>
       )}
-    </div >
+    </div>
   );
 };

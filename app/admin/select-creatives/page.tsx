@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter, useParams, usePathname, useSearchParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ArrowLeft, Camera, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAssignCrewFromLeadMutation } from "@/lib/redux/features/sales/salesApi";
@@ -10,13 +10,14 @@ import { toast } from "sonner";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { salesApi } from "@/lib/api";
-import { useEffect } from "react";
+import { useTheme } from "next-themes";
 
-
-export default function ClientDetailPage() {
+export default function SelectCreativesPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
   // CHANGED: Get the ID from URL Query Parameter (?id=xxx)
   // Removed hardcoded '136'
@@ -27,6 +28,9 @@ export default function ClientDetailPage() {
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [assignCrew, { isLoading }] = useAssignCrewFromLeadMutation();
+
+  useEffect(() => setMounted(true), []);
+  const isDark = !mounted || theme === "dark";
 
   useEffect(() => {
     const fetchReqCounts = async () => {
@@ -106,11 +110,17 @@ export default function ClientDetailPage() {
         actions={
           <>
             <div className="flex gap-3">
-              <div className="h-12 flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-lg text-sm text-white/70">
+              <div className={`h-12 flex items-center gap-2 border px-4 py-2 rounded-lg text-sm transition-colors duration-300 ${isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white/70"
+                : "bg-gray-50 border-[#D8D8D8] text-black/70"
+                }`}>
                 <Video size={16} />
                 <span>Videographer(s) : {selectionCounts.videographer.toString()}/{reqCounts.videographer.toString()}</span>
               </div>
-              <div className="h-12 flex items-center gap-2 bg-[#1A1A1A] border border-white/10 px-4 py-2 rounded-lg text-sm text-white/70">
+              <div className={`h-12 flex items-center gap-2 border px-4 py-2 rounded-lg text-sm transition-colors duration-300 ${isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white/70"
+                : "bg-gray-50 border-[#D8D8D8] text-black/70"
+                }`}>
                 <Camera size={16} />
                 <span>Photographers(s) : {selectionCounts.photographer.toString()}/{reqCounts.photographer.toString()}</span>
               </div>
@@ -119,7 +129,10 @@ export default function ClientDetailPage() {
             <Button
               onClick={handleAssign}
               disabled={isLoading || selectedCreativeIds.length === 0}
-              className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black disabled:opacity-50"
+              className={`h-12 px-4 lg:px-7 font-semibold transition-all ${isDark
+                ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]"
+                : "bg-[#E5D5B8] text-black hover:bg-[#D9C19A] shadow-sm"
+                } disabled:opacity-50`}
             >
               {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
             </Button>
@@ -133,13 +146,16 @@ export default function ClientDetailPage() {
         onConfirm={executeAssignment}
         videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
+        isDark={isDark}
       />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 text-white font-sans">
+      <div className={`overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"
+        }`}>
         {/* Back Button */}
         <Button
           onClick={() => router.back()}
-          className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0"
+          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent ${isDark ? "text-white/70 hover:text-white" : "text-black hover:text-black/80"
+            }`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
@@ -151,6 +167,8 @@ export default function ClientDetailPage() {
           selectedIds={selectedCreativeIds}
           onChange={setSelectedCreativeIds}
           onSelectionUpdate={setSelectionCounts}
+          statsSource="lead"
+          isDark={isDark}
         />
       </div>
     </>

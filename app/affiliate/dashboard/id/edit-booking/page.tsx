@@ -43,6 +43,7 @@ import {
 
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
 import { parseDate } from "@/src/components/landing/lib/utils";
+import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
@@ -224,8 +225,8 @@ export default function AffiliateEditBookingPage() {
                         bookingId: b.stream_project_booking_id,
                         contentType: (b.content_type?.split(",") as any) || [],
                         shootType: b.shoot_type || "",
-                        startDate: (start && !isNaN(start.getTime())) ? start.toISOString() : "",
-                        endDate: (end && !isNaN(end.getTime())) ? end.toISOString() : "",
+                        startDate: (start && !isNaN(start.getTime())) ? format(start, "yyyy-MM-dd HH:mm:ss") : "",
+                        endDate: (end && !isNaN(end.getTime())) ? format(end, "yyyy-MM-dd HH:mm:ss") : "",
                         editsNeeded: b.edits_needed ?? true,
                         videoEditTypes: b.video_edit_types || [],
                         photoEditTypes: b.photo_edit_types || [],
@@ -423,11 +424,15 @@ export default function AffiliateEditBookingPage() {
             }
         });
 
+        const browserTimeZone = getBrowserTimeZone();
         const payload = {
             content_type: formData.contentType.filter(t => t !== "editing").join(","),
             shoot_type: formData.shootType,
+            start_date: getLocalDatePart(formData.startDate),
+            start_time: getLocalTimePart(formData.startDate),
+            end_time: getLocalTimePart(formData.endDate),
+            time_zone: browserTimeZone,
             start_date_time: formData.startDate,
-            end_time: format(parseDate(formData.endDate)!, "HH:mm:ss"),
             duration_hours: duration,
             edits_needed: formData.editsNeeded,
             video_edit_types: formData.videoEditTypes,

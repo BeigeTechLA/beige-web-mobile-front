@@ -26,6 +26,8 @@ import {
   V3Step4BookConfirm,
 } from "./index";
 import { pushToDataLayer } from "@/lib/gtm";
+import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
+import { parseDate } from "@/src/components/landing/lib/utils";
 import { buildEditTypeCounts } from "./utils";
 
 const V3_STEPS = [
@@ -168,6 +170,11 @@ export const BookAShootV3 = () => {
     // }
     if (internalStep === 1) {
       try {
+        const browserTimeZone = getBrowserTimeZone();
+        const startDate = getLocalDatePart(formData.startDate);
+        const startTime = getLocalTimePart(formData.startDate);
+        const endTime = getLocalTimePart(formData.endDate);
+
         const result = await trackEarlyInterest({
           booking_id: draftBookingId,
           guest_email: formData.email,
@@ -175,10 +182,17 @@ export const BookAShootV3 = () => {
           content_type: formData.contentType.join(","),
           shoot_type: formData.shootType,
           client_name: user?.name || formData.fullName,
+          start_date: startDate,
+          start_time: startTime,
+          end_time: endTime,
+          time_zone: browserTimeZone,
           startDate: formData.startDate,
           endDate: formData.endDate,
           booking_type: formData.bookingType,
-          booking_days: formData.bookingDays,
+          booking_days: (formData.bookingDays || []).map((d) => ({
+            ...d,
+            time_zone: d.time_zone || d.timeZone || browserTimeZone
+          })),
 
           edits_needed: formData.editsNeeded,
           video_edit_types: formData.videoEditTypes,
@@ -320,8 +334,9 @@ export const BookAShootV3 = () => {
         }
 
         if (!formData.startDate || !formData.endDate) return 3; // Default fallback
-        const start = new Date(formData.startDate);
-        const end = new Date(formData.endDate);
+        const start = parseDate(formData.startDate);
+        const end = parseDate(formData.endDate);
+        if (!start || !end) return 3;
         const diffMs = end.getTime() - start.getTime();
         // Round to nearest hour, minimum 1
         return Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
@@ -392,8 +407,8 @@ export const BookAShootV3 = () => {
         try {
           const toIsoIfValid = (value?: string | null) => {
             if (!value) return value;
-            const d = new Date(value);
-            return isNaN(d.getTime()) ? value : d.toISOString();
+            const d = parseDate(value);
+            return d && !isNaN(d.getTime()) ? d.toISOString() : value;
           };
 
           const quotePayload = {
@@ -421,12 +436,18 @@ export const BookAShootV3 = () => {
       }
 
       // 6. PREPARE FINAL BOOKING PAYLOAD
+      const browserTimeZone = getBrowserTimeZone();
       const bookingDaysPayload = formData.bookingDays?.map((d) => ({
         date: d.date,
         start_time: d.startTime,
         end_time: d.endTime,
-        duration_hours: calculateDayHours(d.startTime, d.endTime)
+        duration_hours: calculateDayHours(d.startTime, d.endTime),
+        time_zone: browserTimeZone
       })) || [];
+
+      const startDate = getLocalDatePart(formData.startDate);
+      const startTime = getLocalTimePart(formData.startDate);
+      const endTime = getLocalTimePart(formData.endDate);
 
       const finalBookingData: any = {
         order_name: `${formData.shootType.toUpperCase()} Shoot - ${formData.fullName}`,
@@ -435,6 +456,10 @@ export const BookAShootV3 = () => {
         shoot_type: formData.shootType,
         booking_type: formData.bookingType,
         booking_days: bookingDaysPayload,
+        start_date: startDate,
+        start_time: startTime,
+        end_time: endTime,
+        time_zone: browserTimeZone,
         // start_date_time: formData.startDate,
         // end_time: formData.endDate,
         duration_hours: shootHours,

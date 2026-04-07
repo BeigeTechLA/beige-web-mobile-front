@@ -34,21 +34,8 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const checkCpStatus = async () => {
       try {
-        const response = await CheckCpStatus();
-        const data = (
-          response as {
-            data?: {
-              success?: boolean;
-              status?: string;
-              message?: string;
-              crew_member_id?: number | string;
-            };
-            success?: boolean;
-            status?: string;
-            message?: string;
-            crew_member_id?: number | string;
-          }
-        )?.data ?? response;
+        const response = await CheckCPStatus();
+        const data = (response as any)?.data ?? response;
 
         if (data?.success === false || data?.status === "inactive") {
           toast.error(data?.message || "Your creator account is inactive.");

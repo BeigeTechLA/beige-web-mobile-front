@@ -5,69 +5,87 @@ import { useRouter, usePathname } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import EditBookingForm from "@/components/admin/EditBookingForm";
 import Topbar from "@/components/admin/Topbar";
-import { Loader2 } from "lucide-react";
+import { useTheme } from "next-themes";
 
 interface EditShootBookingPageProps {
-    params: Promise<{ id: string }>;
+  params: Promise<{ id: string }>;
 }
 
+type ProjectResponse = {
+  project?: Record<string, unknown>;
+  lead_id?: string | number;
+  stream_project_booking_id?: string | number;
+  [key: string]: unknown;
+};
+
 export default function EditShootBookingPage({ params }: EditShootBookingPageProps) {
-    const router = useRouter();
-    const pathname = usePathname();
-    const { id: projectId } = use(params);
-    const [project, setProject] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
+  const { id: projectId } = use(params);
+  const [project, setProject] = useState<ProjectResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-    useEffect(() => {
-        const fetchProjectDetails = async () => {
-            try {
-                const response = await adminApi.getProjectDetails(projectId);
-                // The provided response structure shows the data needed is in response.data
-                const projectData = response?.data || response;
-                setProject(projectData);
-            } catch (error) {
-                console.error("Failed to fetch shoot details:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-        if (projectId) fetchProjectDetails();
-    }, [projectId]);
+  // Constant default to dark
+  const isDark = !mounted || theme === "dark";
+  const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
 
-    if (loading) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-[#101010]">
-                <Loader2 className="animate-spin text-white/50" size={40} />
-            </div>
-        );
-    }
+  useEffect(() => {
+    const fetchProjectDetails = async () => {
+      try {
+        const response = await adminApi.getProjectDetails(projectId);
+        // The provided response structure shows the data needed is in response.data
+        const projectData = response?.data || response;
+        setProject(projectData);
+      } catch (error) {
+        console.error("Failed to fetch shoot details:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    if (!project) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-[#101010] text-white">
-                <p>Project not found.</p>
-            </div>
-        );
-    }
+    if (projectId) fetchProjectDetails();
+  }, [projectId]);
 
-    // Reuse the EditBookingForm component.
-    // Pass the booking ID as leadId so the crew search also works for shoots.
-    const projectInfo = project?.project || project;
-    const leadId = projectInfo?.lead_id || projectInfo?.stream_project_booking_id || projectId;
-
+  if (loading) {
     return (
-        <>
-            <Topbar pathname={pathname} />
-            <div className="bg-[#101010] min-h-screen">
-                <EditBookingForm
-                    leadId={leadId}
-                    projectId={projectId}
-                    initialBookingData={project}
-                    onSuccess={() => router.push(`/admin/shoots/${projectId}`)}
-                    onCancel={() => router.back()}
-                />
-            </div>
-        </>
+      <div className={`flex h-screen items-center justify-center bg-[#101010] ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-black"}`}>
+        <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDark ? "border-white" : "border-black"}`}></div>
+      </div>
     );
+  }
+
+  if (!project) {
+    return (
+      <div className={`flex h-screen items-center justify-center bg-[#101010] ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-black"}`}>
+        <p>Project not found.</p>
+      </div>
+    );
+  }
+
+  // Reuse the EditBookingForm component.
+  // Pass the booking ID as leadId so the crew search also works for shoots.
+  const projectInfo = project?.project || project;
+  const leadId = projectInfo?.lead_id || projectInfo?.stream_project_booking_id || projectId;
+
+  return (
+    <>
+      <Topbar pathname={pathname} />
+      <div className="bg-[#101010] min-h-screen">
+        <EditBookingForm
+          leadId={leadId}
+          projectId={projectId}
+          initialBookingData={project}
+          onSuccess={() => router.push(`${shootBasePath}/${projectId}`)}
+          onCancel={() => router.back()}
+          isDark={isDark}
+        />
+      </div>
+    </>
+  );
 }

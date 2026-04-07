@@ -320,6 +320,7 @@ export default function AffiliateFileManager() {
     setWorkspaceFolders([]);
   };
 
+<<<<<<< HEAD
   const filteredWorkspaces = useMemo(() => {
     let items = [...workspaces];
 
@@ -596,6 +597,18 @@ export default function AffiliateFileManager() {
               target="_blank"
               rel="noreferrer"
               className="lg:hidden inline-block mt-2 text-xs text-[#E8D1AB] underline underline-offset-4"
+=======
+  return (
+    <div className="space-y-3 lg:space-y-6">
+      <div className="flex flex-col lg:flex-row gap-2 justify-between items-center">
+        <div className="flex flex-nowrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit overflow-x-auto no-scrollbar">
+          {tabs.map((tab, index) => (
+            <Button
+              key={`tab_${index}`}
+              onClick={() => onChange(tab.name)}
+              className={`flex gap-2 px-2 py-[2px] text-sm font-medium transition-all rounded-lg h-7 lg:h-10 ${selectedTab === tab.name ? "bg-white text-black " : "hover:bg-white/10"}
+          `}
+>>>>>>> 6ef36d027d2024072851fd870d5957c542915330
             >
               Open Storage Folder
             </a>
@@ -793,6 +806,7 @@ export default function AffiliateFileManager() {
         </button>
       )}
 
+<<<<<<< HEAD
       <div className="flex flex-wrap items-center gap-2 text-sm text-white/60">
         {breadcrumb.map((item, index) => (
           <React.Fragment key={`${item}-${index}`}>
@@ -800,6 +814,42 @@ export default function AffiliateFileManager() {
             <span className={index === breadcrumb.length - 1 ? "text-white font-medium" : ""}>{item}</span>
           </React.Fragment>
         ))}
+=======
+      <AffiliateLinkToShootModal
+        isOpen={isLinkModalOpen}
+        onClose={() => setIsLinkModalOpen(false)}
+        folderName={selectedFolder || ""}
+      />
+
+      <AffiliateUploadFilesModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        folderName={selectedFolder || ""} //need this logic better figured out
+      />
+
+      {/* CreateFolderModal */}
+      <CreateFolderModal
+        isOpen={isCreateFolderModalOpen}
+        onClose={() => setIsCreateFolderModalOpen(false)}
+        onCreate={(data) => console.log("Creating folder:", data)}
+      />
+
+      {/* --- FLOATING MOBILE BUTTON --- */}
+      <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
+        <Button
+          onClick={() => setIsUploadModalOpen(true)}
+          className="w-full bg-[#202020] text-white hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+        >
+          <Upload size={20} />
+          Upload Files
+        </Button>
+        <Button
+          onClick={() => setIsCreateFolderModalOpen(true)}
+          className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+        >
+          Create New Folder
+        </Button>
+>>>>>>> 6ef36d027d2024072851fd870d5957c542915330
       </div>
 
       {!selectedWorkspace && (

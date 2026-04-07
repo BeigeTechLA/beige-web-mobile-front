@@ -58,7 +58,8 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
           <div className="w-10 h-10 rounded-full bg-[#111111] border border-[#222222] flex items-center justify-center text-[#999999]">
             <FolderSearch size={20} />
           </div>
-          <span className="text-[#E0E0E0] text-sm lg:text-lg font-medium">Uploaded Folders</span>
+          <span className={`text-sm lg:text-lg font-medium transition-colors ${isDark ? "text-[#E0E0E0]" : "text-[#171717]"
+            }`}>Uploaded Folders</span>
         </div>
 
         <div className="flex items-center gap-4">
@@ -70,13 +71,15 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
           <div className="md:hidden relative">
             <Button
               onClick={toggleDropdown}
-              className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
+              className={`flex items-center gap-2 border p-2 h-8 rounded-lg transition-colors ${isDark ? "bg-[#202020] border-white/10 text-white" : "bg-white border-[#E3E3E3] text-[#171717]"
+                }`}
             >
               {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
             </Button>
 
             {isOpen && (
-              <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+              <div className={`absolute top-full right-0 mt-2 w-48 border rounded-xl shadow-2xl z-[50] overflow-hidden ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-[#E3E3E3]"
+                }`}>
                 <button
                   onClick={() => handleSelect("grid")}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"}`}
@@ -174,7 +177,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
         <div className="bg-[#111111] border border-[#222222] rounded-2xl overflow-hidden">
           <table className="hidden lg:table w-full text-left">
             <thead>
-              <tr className="border-b border-[#222222]">
+              <tr className={`border-b ${isDark ? "border-[#222222]" : "border-[#F0F0F0]"}`}>
                 <th className="px-6 py-4 text-[#888888] font-medium text-sm w-[30%]">Name</th>
                 <th className="px-6 py-4 text-[#888888] font-medium text-sm w-[20%]">Category</th>
                 <th className="px-6 py-4 text-[#888888] font-medium text-sm w-[10%]">Files</th>
@@ -192,7 +195,8 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-[#1A1A1A] flex items-center justify-center border border-[#222222]">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${isDark ? "bg-[#1A1A1A] border-[#222222]" : "bg-zinc-100 border-zinc-200"
+                          }`}>
                           <Folder size={20} className="text-[#999999]" />
                         </div>
                         <span className="text-[#E0E0E0] font-medium">{folder.title}</span>

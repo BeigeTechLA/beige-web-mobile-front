@@ -40,7 +40,7 @@ import { useChangePasswordMutation } from "@/lib/redux/features/auth/authApi";
 import SecurityForm from "@/src/components/cpSignup/SecurityForm";
 
 import FeaturedWorkModal from "@/src/components/cpSignup/FeaturedWorkModal";
-import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";
+import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";  
 import PersonalInfoForm from "@/src/components/cpSignup/PersonalInfoForm";
 import ProfessionalInfoForm from "@/src/components/cpSignup/ProfessionalInfoForm";
 import SkillsForm from "@/src/components/cpSignup/SkillsForm";
@@ -108,6 +108,13 @@ const getEmbedUrl = (url: string) => {
   }
 
   return fullUrl;
+};
+
+const normalizeFeaturedWorkTag = (value: unknown) => {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "[]") return "";
+  return trimmed;
 };
 
 const getRoleLabel = (roleData: any) => {
@@ -207,7 +214,7 @@ export default function ProfilePage() {
     isOpen: boolean;
     title: string;
     description: string;
-    idsToDelete: number[];
+    idsToDelete: number[];  
   }>({
     isOpen: false,
     title: "",
@@ -281,6 +288,40 @@ export default function ProfilePage() {
       }
     }
   }, [profile.social_media_links]);
+  const profilePhotoFile = profile.crew_member_files?.find((f: any) => f.file_type === "profile_photo");
+  const profileImageUrl = profilePhotoFile
+    ? `${S3_BASE_URL}${profilePhotoFile.file_path}`
+    : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.first_name || 'default'}`;
+
+  const portfolioBannerFile = profile.crew_member_files?.find(
+    (f: any) => f.file_type === "portfolio"
+  );
+
+  const portfolioBannerUrl = portfolioBannerFile?.file_path
+    ? `${S3_BASE_URL}${portfolioBannerFile.file_path}`
+    : null;
+
+  useEffect(() => {
+    if (!portfolioBannerFile?.file_path) {
+      setMediaPreview(null);
+      setMediaType(null);
+      return;
+    }
+
+    const fullUrl = `${S3_BASE_URL}${portfolioBannerFile.file_path}`;
+    setMediaPreview(fullUrl);
+
+    const lowerPath = portfolioBannerFile.file_path.toLowerCase();
+
+    const isVideoFile =
+      lowerPath.endsWith(".mp4") ||
+      lowerPath.endsWith(".mov") ||
+      lowerPath.endsWith(".webm") ||
+      lowerPath.endsWith(".avi") ||
+      lowerPath.endsWith(".mkv");
+
+    setMediaType(isVideoFile ? "video" : "image");
+  }, [portfolioBannerFile]);
 
   const featuredWorks = profile.crew_member_files?.filter(
     (file: any) => file.file_type === "recent_work"
@@ -523,13 +564,58 @@ export default function ProfilePage() {
     setProfile((prev: any) => ({ ...prev, ...updates }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setMediaType(file.type.startsWith("video") ? "video" : "image");
-      setMediaPreview(URL.createObjectURL(file));
+ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const userStr = localStorage.getItem("revure_user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const crewMemberId = user?.crew_member_id;
+
+  if (!crewMemberId) {
+    toast.error("User ID not found");
+    return;
+  }
+
+  const localPreview = URL.createObjectURL(file);
+
+  try {
+    setIsPageLoading(true);
+
+    setMediaType(file.type.startsWith("video") ? "video" : "image");
+    setMediaPreview(localPreview);
+
+    const response: any = await UploadProfileFile(
+      "portfolio",
+      [file],
+      crewMemberId
+    );
+
+    if (response?.data && response.data.error === false) {
+      toast.success("Portfolio banner updated successfully");
+
+      const updatedProfile = await GetMyProfile({
+        crew_member_id: parseInt(crewMemberId),
+      });
+
+      if (updatedProfile?.data && updatedProfile.data.error === false) {
+        setProfile(updatedProfile.data.data);
+      }
+    } else {
+      toast.error(response?.data?.message || "Upload failed");
+      setMediaPreview(portfolioBannerUrl || null);
     }
-  };
+  } catch (err) {
+    console.error("Failed to upload portfolio banner:", err);
+    toast.error("An error occurred during upload");
+    setMediaPreview(portfolioBannerUrl || null);
+  } finally {
+    setIsPageLoading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+};
 
   const handleAddProject = async (data: any) => {
     const userStr = localStorage.getItem("revure_user");
@@ -539,7 +625,7 @@ export default function ProfilePage() {
     if (!crewMemberId) return;
 
     try {
-      setIsPageLoading(true); // ✅ START LOADER
+      setIsPageLoading(true); 
 
       const response = await UploadProfileFile(
         "recent_work",
@@ -567,7 +653,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Failed to upload project:", err);
     } finally {
-      setIsPageLoading(false); // ✅ STOP LOADER
+      setIsPageLoading(false); 
     }
   };
 
@@ -585,7 +671,7 @@ export default function ProfilePage() {
     if (!crewMemberId) return;
 
     try {
-      setIsPageLoading(true); // 🔥 SHOW LOADER
+      setIsPageLoading(true); 
 
       const filesArray = Array.from(selectedFiles);
 
@@ -607,7 +693,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Failed to upload certificates:", err);
     } finally {
-      setIsPageLoading(false); // 🔥 HIDE LOADER
+      setIsPageLoading(false);
     }
   };
 
@@ -645,13 +731,48 @@ export default function ProfilePage() {
     }
   };
 
+  const handleRemovePortfolioBanner = async () => {
+  const userStr = localStorage.getItem("revure_user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const crewMemberId = user?.crew_member_id;
+
+  if (!crewMemberId || !portfolioBannerFile?.crew_files_id) {
+    setMediaPreview(null);
+    setMediaType(null);
+    return;
+  }
+
+  try {
+    setIsPageLoading(true);
+
+    await DeleteProfileFile(portfolioBannerFile.crew_files_id, {
+      crew_member_id: parseInt(crewMemberId),
+    });
+
+    toast.success("Portfolio banner removed successfully");
+
+    const updatedProfile = await GetMyProfile({
+      crew_member_id: parseInt(crewMemberId),
+    });
+
+    if (updatedProfile?.data && updatedProfile.data.error === false) {
+      setProfile(updatedProfile.data.data);
+    }
+  } catch (err) {
+    console.error("Failed to remove portfolio banner:", err);
+    toast.error("Failed to remove portfolio banner");
+  } finally {
+    setIsPageLoading(false);
+  }
+};
+
 
   const handleExecuteDelete = async () => {
     const crewMemberId = getCrewId();
     if (!crewMemberId || deleteModal.idsToDelete.length === 0) return;
 
     try {
-      setIsPageLoading(true); // ✅ START LOADER
+      setIsPageLoading(true); 
 
       await Promise.all(
         deleteModal.idsToDelete.map((id) =>
@@ -670,7 +791,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Delete failed:", err);
     } finally {
-      setIsPageLoading(false); // ✅ STOP LOADER
+      setIsPageLoading(false); 
     }
   };
 
@@ -682,10 +803,11 @@ export default function ProfilePage() {
   const groupedWorks = profile.crew_member_files
     ?.filter((file: any) => file.file_type === "recent_work")
     .reduce((acc: any[], file: any) => {
+      const normalizedTag = normalizeFeaturedWorkTag(file.tag);
       // Matches if both Title and Tag are the same
       const existingProject = acc.find(p =>
         p.title?.toLowerCase() === file.title?.toLowerCase() &&
-        p.tag === file.tag
+        p.tag === normalizedTag
       );
 
       if (existingProject) {
@@ -693,7 +815,7 @@ export default function ProfilePage() {
       } else {
         acc.push({
           title: file.title,
-          tag: file.tag,
+          tag: normalizedTag,
           images: [file]
         });
       }
@@ -773,11 +895,9 @@ export default function ProfilePage() {
     index: 0
   });
 
-  // Logic for profile photo
-  const profilePhotoFile = profile.crew_member_files?.find((f: any) => f.file_type === "profile_photo");
-  const profileImageUrl = profilePhotoFile
-    ? `${S3_BASE_URL}${profilePhotoFile.file_path}`
-    : `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.first_name || 'default'}`;
+
+
+  
 
 
   return (
@@ -897,9 +1017,29 @@ export default function ProfilePage() {
                 ) : (
                   <video src={mediaPreview} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                 )}
-                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                  <button onClick={(e) => { e.stopPropagation(); setMediaPreview(null); }} className="p-2 bg-red-500/90 text-white rounded-full"><X size={16} /></button>
-                </div>
+               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+               <button
+                    onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                className="p-2 bg-white/90 text-black rounded-full"
+                title="Replace Banner"
+                  >
+                <Edit3 size={16} />
+                </button>
+
+              <button
+               onClick={(e) => {
+               e.stopPropagation();
+               handleRemovePortfolioBanner();
+               }}
+                className="p-2 bg-red-500/90 text-white rounded-full"
+                title="Remove Banner"
+                >
+                <X size={16} />
+               </button>
+              </div>
               </div>
             )}
           </div>
@@ -1131,7 +1271,7 @@ export default function ProfilePage() {
                     <div className="mt-5 px-2">
                       <h4 className="text-base font-bold text-white tracking-tight">{project.title}</h4>
                       {
-                        project?.tag &&
+                        normalizeFeaturedWorkTag(project?.tag) &&
                         <p className="text-xs text-[#E8D1AB] mt-1 opacity-80 font-medium">#{project.tag}</p>
                       }
                     </div>
@@ -1433,22 +1573,33 @@ export default function ProfilePage() {
       {lightboxData.isOpen && lightboxData.project && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-300">
           {/* Top Bar */}
-          <div className="flex items-center justify-between p-6">
-            <div className="flex flex-col">
-              <h3 className="text-xl font-bold text-white uppercase tracking-wider">{lightboxData.project.title}</h3>
-              <p className="text-xs text-white/40">Media {lightboxData.index + 1} of {lightboxData.project.images.length}</p>
+          <div className="flex items-start justify-between gap-6 p-6 lg:p-8">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="text-lg lg:text-2xl font-semibold text-white tracking-tight">
+                  {lightboxData.project.title}
+                </h3>
+                {normalizeFeaturedWorkTag(lightboxData.project.tag) && (
+                  <span className="inline-flex items-center rounded-full border border-[#E8D1AB]/30 bg-[#E8D1AB]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#E8D1AB]">
+                    {normalizeFeaturedWorkTag(lightboxData.project.tag)}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-white/40">
+                Media {lightboxData.index + 1} of {lightboxData.project.images.length}
+              </p>
             </div>
             <div className="flex items-center gap-4">
               {/* Inside Lightbox Top Bar */}
               <button
                 onClick={() => confirmDelete('file', lightboxData.project.images[lightboxData.index])}
-                className="flex items-center gap-2 px-6 py-2.5 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full text-xs font-bold hover:bg-red-500 hover:text-white transition-all"
+                className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-red-400 hover:bg-red-500 hover:text-white transition-all"
               >
                 <Trash2 size={16} /> Delete This Image
               </button>
               <button
                 onClick={() => setLightboxData({ ...lightboxData, isOpen: false })}
-                className="p-3 bg-white/5 border border-white/10 rounded-full text-white hover:bg-white/10 transition-colors"
+                className="rounded-full border border-white/10 bg-white/5 p-3 text-white hover:bg-white/10 transition-colors"
               >
                 <X size={24} />
               </button>
@@ -1456,7 +1607,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Main Content (Image + Arrows) */}
-          <div className="flex-1 relative flex items-center justify-center p-4">
+          <div className="flex-1 relative flex items-center justify-center px-4 py-6 lg:px-20 lg:py-8">
             <button
               className="absolute left-8 z-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
               onClick={() => setLightboxData({ ...lightboxData, index: (lightboxData.index - 1 + lightboxData.project.images.length) % lightboxData.project.images.length })}
@@ -1464,12 +1615,14 @@ export default function ProfilePage() {
               <ChevronLeft size={32} />
             </button>
 
-            <div className="max-w-5xl w-full h-full flex items-center justify-center">
-              <img
-                src={`${S3_BASE_URL}${lightboxData.project.images[lightboxData.index].file_path}`}
-                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
-                alt="Preview"
-              />
+            <div className="w-full max-w-5xl">
+              <div className="relative mx-auto flex aspect-[4/3] max-h-[calc(100vh-16rem)] w-full items-center justify-center overflow-hidden rounded-2xl bg-[#050505] shadow-2xl">
+                <img
+                  src={`${S3_BASE_URL}${lightboxData.project.images[lightboxData.index].file_path}`}
+                  className="h-full w-full object-contain"
+                  alt="Preview"
+                />
+              </div>
             </div>
 
             <button
@@ -1618,3 +1771,4 @@ export default function ProfilePage() {
     // </div>
   );
 }
+

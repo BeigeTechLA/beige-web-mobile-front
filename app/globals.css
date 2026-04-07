@@ -1,42 +1,37 @@
 @import "tailwindcss";
 
-:root {
-  --white: #ffffff;
-  --foreground: #171717;
+@import "tailwindcss";
 
-  /* Landing V2 Variables */
-  --landing-background: 0 0% 100%;
-  --landing-foreground: 38 4% 10%;
-  --landing-card: 40 40% 93.3%;
-  --landing-card-foreground: 38 4% 10%;
-  --landing-popover: 0 0% 100%;
-  --landing-popover-foreground: 38 4% 10%;
-  --landing-primary: 38 4% 10%;
-  --landing-primary-foreground: 40 0% 100%;
-  --landing-secondary: 40 40% 93.3%;
-  --landing-secondary-foreground: 38 4% 10%;
-  --landing-muted: 40 40% 93.3%;
-  --landing-muted-foreground: 169 57% 16.5%;
-  --landing-accent: 40 50% 80%;
-  --landing-accent-foreground: 38 4% 10%;
-  --landing-destructive: 169 57% 16.5%;
-  --landing-destructive-foreground: 40 0% 100%;
-  --landing-border: 40 20% 88%;
-  --landing-input: 40 40% 93.3%;
-  --landing-ring: 38 4% 10%;
-  --landing-radius: 0.5rem;
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --toggle-bg: #f0f0f0;
+  --toggle-border: #E3E3E3;
+  --indicator-bg: #e6d5b8;
+}
+
+/* Base Dark Theme (Default) */
+.dark {
+  --background: #171717;
+  --foreground: #ffffff;
+  --toggle-bg: linear-gradient(180deg, #2C2C2B 0%, #000 100%);
+  --toggle-border: #404040;
 }
 
 @theme inline {
-  --color-background: var(--white);
+  --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 body {
+  background: var(--background);
   color: var(--foreground);
-  background: var(--white);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Landing V2 Specific Styles */
@@ -123,6 +118,32 @@ select:-webkit-autofill {
   transition: background-color 9999s ease-in-out 0s;
 }
 
+.light input:-webkit-autofill,
+.light input:-webkit-autofill:hover,
+.light input:-webkit-autofill:focus,
+.light textarea:-webkit-autofill,
+.light textarea:-webkit-autofill:hover,
+.light textarea:-webkit-autofill:focus,
+.light select:-webkit-autofill,
+.quote-editor-theme-light input:-webkit-autofill,
+.quote-editor-theme-light input:-webkit-autofill:hover,
+.quote-editor-theme-light input:-webkit-autofill:focus,
+.quote-editor-theme-light textarea:-webkit-autofill,
+.quote-editor-theme-light textarea:-webkit-autofill:hover,
+.quote-editor-theme-light textarea:-webkit-autofill:focus,
+.quote-editor-theme-light select:-webkit-autofill {
+  -webkit-text-fill-color: #000000 !important;
+  caret-color: #000000;
+
+  -webkit-box-shadow:
+    inset 0 0 0 1px #d7d7d7,
+    inset 0 0 0 1000px #ffffff !important;
+
+  box-shadow:
+    inset 0 0 0 1px #d7d7d7,
+    inset 0 0 0 1000px #ffffff !important;
+}
+
 /* Swiper on SearchDreamTeam */
 creator-swiper {
   clip-path: inset(0 0 0 0);
@@ -152,4 +173,89 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: none;
+}
+
+/* Quote editor light theme overrides */
+.quote-editor-theme-light {
+  color: #000000;
+  color-scheme: light;
+}
+
+.quote-editor-theme-dark {
+  color-scheme: dark;
+}
+
+.quote-editor-theme-light .bg-\[\#0f0f0f\],
+.quote-editor-theme-light .bg-\[\#0F0F0F\] {
+  background-color: #f4f5f7 !important;
+}
+
+.quote-editor-theme-light .bg-\[\#171717\],
+.quote-editor-theme-light .bg-\[\#161616\],
+.quote-editor-theme-light .bg-\[\#151515\],
+.quote-editor-theme-light .bg-\[\#131313\],
+.quote-editor-theme-light .bg-\[\#111111\],
+.quote-editor-theme-light .bg-\[\#101010\] {
+  background-color: #ffffff !important;
+}
+
+.quote-editor-theme-light .bg-\[\#282727\],
+.quote-editor-theme-light .bg-\[\#1B1B1B\],
+.quote-editor-theme-light .bg-\[\#1A1A1F\],
+.quote-editor-theme-light .bg-zinc-900,
+.quote-editor-theme-light .bg-zinc-800 {
+  background-color: #f4f5f7 !important;
+}
+
+.quote-editor-theme-light .border-\[\#2B2B2B\],
+.quote-editor-theme-light .border-\[\#3D3D3D\],
+.quote-editor-theme-light .border-\[\#4A4A4A\],
+.quote-editor-theme-light .border-\[\#3B3B46\],
+.quote-editor-theme-light .border-\[\#303030\],
+.quote-editor-theme-light .border-zinc-800,
+.quote-editor-theme-light .border-zinc-700,
+.quote-editor-theme-light .border-\[\#363636\] {
+  border-color: #d7d7d7 !important;
+}
+
+.quote-editor-theme-light .text-white,
+.quote-editor-theme-light .text-\[\#FFF\] {
+  color: #000000 !important;
+}
+
+.quote-editor-theme-light .text-white\/70,
+.quote-editor-theme-light .text-white\/60,
+.quote-editor-theme-light .text-white\/40,
+.quote-editor-theme-light .text-white\/25 {
+  color: rgba(0, 0, 0, 0.65) !important;
+}
+
+.quote-editor-theme-light .text-\[\#D4D4D4\],
+.quote-editor-theme-light .text-\[\#D3D3D3\],
+.quote-editor-theme-light .text-\[\#FFFFFF99\],
+.quote-editor-theme-light .text-\[\#FFFFFF85\],
+.quote-editor-theme-light .text-\[\#A1A1AA\],
+.quote-editor-theme-light .text-\[\#8A8A8A\],
+.quote-editor-theme-light .text-\[\#7A7A7A\],
+.quote-editor-theme-light .text-zinc-500,
+.quote-editor-theme-light .text-zinc-600 {
+  color: #666666 !important;
+}
+
+.quote-editor-theme-light .hover\:text-white:hover {
+  color: #000000 !important;
+}
+
+.quote-editor-theme-light .hover\:bg-\[\#181818\]:hover,
+.quote-editor-theme-light .hover\:bg-\[\#202020\]\/50:hover {
+  background-color: #f0f0f0 !important;
+}
+
+.quote-editor-theme-light .bg-transparent {
+  background-color: transparent !important;
+}
+
+.quote-editor-theme-light input::placeholder,
+.quote-editor-theme-light textarea::placeholder {
+  color: rgba(0, 0, 0, 0.45) !important;
 }

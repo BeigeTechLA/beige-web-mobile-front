@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import Cookies from 'js-cookie';
 
 import type { Creator, Review, Equipment, PaymentIntentResponse, BookingResponse, BookingFormData } from '@/types/payment';
@@ -11,6 +11,14 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
+});
+
+const publicApi = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: false,
 });
 
 // Add request interceptor to include JWT token
@@ -212,6 +220,260 @@ export interface ReferralHistoryItem {
     location: string;
     status: string;
   } | null;
+}
+
+export interface QuotesDashboardOverview {
+  total_quotes: number;
+  accepted_quotes: number;
+  pending_quotes: number;
+  draft_quotes: number;
+  rejected_quotes: number;
+  expired_quotes: number;
+  total_amount: number;
+}
+
+export interface QuotesDashboardGrowthPeriod {
+  total_quotes: number;
+  accepted_quotes: number;
+  pending_quotes: number;
+  draft_quotes: number;
+  rejected_quotes: number;
+  expired_quotes: number;
+  total_amount: number;
+}
+
+export interface QuotesDashboardGrowth {
+  compare_label: string;
+  total_quotes: number;
+  accepted_quotes: number;
+  pending_quotes: number;
+  draft_quotes: number;
+  rejected_quotes: number;
+  expired_quotes: number;
+  total_amount: number;
+  current_period: QuotesDashboardGrowthPeriod;
+  previous_period: QuotesDashboardGrowthPeriod;
+}
+
+export interface QuotesDashboardChartItem {
+  label: string;
+  quote_count: number;
+  total_amount: number;
+}
+
+export interface QuotesDashboardData {
+  overview: QuotesDashboardOverview;
+  growth?: QuotesDashboardGrowth | null;
+  chart: QuotesDashboardChartItem[];
+}
+
+export interface QuotesDashboardResponse {
+  success: boolean;
+  data: QuotesDashboardData | null;
+  error?: string;
+}
+
+export interface SalesQuoteListUser {
+  id?: number | string;
+  name?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
+export interface QuotesListPagination {
+  page?: number;
+  limit?: number;
+  total?: number;
+  total_pages?: number;
+  totalPages?: number;
+  [key: string]: unknown;
+}
+
+export type QuotesListSummary = Record<string, number | string | null | undefined>;
+
+export interface SalesQuoteListItem {
+  id?: number | string;
+  quote_id?: number | string;
+  sales_quote_id?: number | string;
+  quote_number?: string;
+  client_name?: string;
+  client?: string;
+  customer_name?: string;
+  guest_email?: string;
+  client_email?: string;
+  client_phone?: string | null;
+  client_address?: string;
+  address?: string;
+  location?: string;
+  project_description?: string;
+  project?: string;
+  description?: string;
+  video_shoot_type?: string;
+  total_amount?: number | string;
+  total?: number | string;
+  amount?: number | string;
+  status?: string;
+  quote_status?: string;
+  expires_at?: string | null;
+  valid_until?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  salesperson?: string;
+  sales_person?: string;
+  sales_rep?: string;
+  sales_rep_name?: string;
+  created_by_name?: string;
+  assigned_sales_rep?: SalesQuoteListUser | null;
+  created_by?: SalesQuoteListUser | null;
+  [key: string]: unknown;
+}
+
+export interface QuotesListEnvelope {
+  pagination?: QuotesListPagination | null;
+  summary?: QuotesListSummary | null;
+  quotes?: SalesQuoteListItem[];
+  items?: SalesQuoteListItem[];
+  results?: SalesQuoteListItem[];
+  rows?: SalesQuoteListItem[];
+  list?: SalesQuoteListItem[];
+  data?: SalesQuoteListItem[];
+  [key: string]: unknown;
+}
+
+export interface QuotesListResponse {
+  success: boolean;
+  data: SalesQuoteListItem[] | QuotesListEnvelope | null;
+  error?: string;
+}
+
+export interface SalesQuoteDetailLineItem {
+  id?: number | string;
+  line_item_id?: number | string;
+  item_id?: number | string;
+  catalog_item_id?: number | string;
+  subtitle?: string;
+  section_type?: string;
+  source_type?: string;
+  item_name?: string;
+  name?: string;
+  label?: string;
+  type?: string;
+  category_name?: string;
+  category_slug?: string;
+  quantity?: number | string;
+  duration_hours?: number | string;
+  duration?: number | string;
+  hours?: number | string;
+  crew_size?: number | string;
+  crew?: number | string;
+  crew_count?: number | string;
+  estimated_pricing?: number | string;
+  unit_rate?: number | string;
+  rate?: number | string;
+  effective_rate?: number | string;
+  line_total?: number | string;
+  total_amount?: number | string;
+  amount?: number | string;
+  price?: number | string;
+  rate_type?: string;
+  configuration?: unknown;
+  configuration_json?: unknown;
+  [key: string]: unknown;
+}
+
+export interface SalesQuoteDetailData {
+  id?: number | string;
+  quote_id?: number | string;
+  sales_quote_id?: number | string;
+  quote_number?: string;
+  client_name?: string;
+  client_email?: string;
+  client_phone?: string;
+  guest_email?: string;
+  client_address?: string;
+  address?: string;
+  location?: string;
+  project_description?: string;
+  video_shoot_type?: string;
+  quote_validity_days?: number | string;
+  quote_status?: string;
+  status?: string;
+  valid_until?: string | null;
+  expires_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  tax_type?: string;
+  tax_rate?: number | string;
+  tax_amount?: number | string;
+  sales_tax?: number | string;
+  discount_type?: string;
+  discount_value?: number | string;
+  discount_amount?: number | string;
+  subtotal?: number | string;
+  amount_after_tax?: number | string;
+  total_after_tax?: number | string;
+  total?: number | string;
+  total_amount?: number | string;
+  final_total?: number | string;
+  amount_after_discount?: number | string;
+  booking_id?: number | string;
+  accepted_at?: string | null;
+  terms_conditions?: string | string[] | null;
+  line_items?: SalesQuoteDetailLineItem[];
+  items?: SalesQuoteDetailLineItem[];
+  quote_items?: SalesQuoteDetailLineItem[];
+  rows?: SalesQuoteDetailLineItem[];
+  activities?: Array<{
+    activity_type?: string;
+    message?: string;
+    metadata?: Record<string, unknown> | null;
+    metadata_json?: string | null;
+    created_at?: string | null;
+    performed_by?: SalesQuoteListUser | null;
+  }>;
+  quote?: SalesQuoteDetailData;
+  data?: unknown;
+  [key: string]: unknown;
+}
+
+export interface SalesQuoteDetailResponse {
+  success: boolean;
+  data: SalesQuoteDetailData | null;
+  error?: string;
+}
+
+export interface SalesQuoteStatusUpdateResponse {
+  success: boolean;
+  data: SalesQuoteDetailData | null;
+  error?: string;
+  message?: string;
+}
+
+export interface SalesQuoteSendResponse {
+  success: boolean;
+  data: SalesQuoteDetailData | null;
+  error?: string;
+  message?: string;
+}
+
+export interface SalesQuoteConvertToBookingData {
+  quote_id: number;
+  lead_id: number;
+  booking_id: number;
+  already_converted: boolean;
+  lead_source?: string;
+  booking_mode_hint?: string | null;
+  payment_link_ready_hint?: boolean;
+  prefill_data?: unknown;
+  booking_summary?: unknown;
+  missing_required_fields?: string[];
+}
+
+export interface SalesQuoteConvertToBookingResponse {
+  success: boolean;
+  data: SalesQuoteConvertToBookingData | null;
+  error?: string;
+  message?: string;
 }
 
 export const affiliateApi = {
@@ -1217,6 +1479,19 @@ export const adminApi = {
       };
     }
   },
+  getCrewMemberAssignedProjects: async (payload: { crew_member_id: string | number }) => {
+    try {
+      const response = await api.post('admin/crew-member-assigned-projects', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Crew Member Assigned Projects Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch assigned projects',
+      };
+    }
+  },
 
   getRecentActivity: async (limit: number = 10) => {
     try {
@@ -1303,12 +1578,25 @@ export const adminApi = {
       };
     }
   },
-  getClients: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
+  getClients: async (params: { page?: number; limit?: number; search?: string; status?: string; assigned_to?: string } = {}) => {
+    try {
+      const response = await api.get('sales/client-leads', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Client Leads Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch client leads',
+      };
+    }
+  },
+  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string } = {}) => {
     try {
       const response = await api.get('admin/get-clients', { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Clients Error:', error.response?.data || error.message);
+      console.error('Get Admin Clients Error:', error.response?.data || error.message);
       return {
         success: false,
         data: null,
@@ -1536,6 +1824,19 @@ export const salesApi = {
       };
     }
   },
+  getClientLeadStats: async (leadId: number | string) => {
+    try {
+      const response = await api.get(`/sales/get-client-lead-stats/${leadId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Lead Stats Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch client lead stats',
+      };
+    }
+  },
   getCrewForLead: async (params: { lead_id: number | string, role_type: string, search_query: string, radius?: number }) => {
     try {
       const response = await api.get('admin/get-crew-for-lead/', { params });
@@ -1546,6 +1847,358 @@ export const salesApi = {
         success: false,
         data: null,
         error: 'Failed to fetch crew for lead',
+      };
+    }
+  },
+  createQuoteDraft: async (data: Record<string, unknown>) => {
+    try {
+      const response = await api.post('/sales/quotes', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Quote Draft Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create quote draft',
+      };
+    }
+  },
+  updateQuote: async (quoteId: number | string, data: Record<string, unknown>) => {
+    try {
+      const response = await api.put<SalesQuoteDetailResponse>(`/sales/quotes/${quoteId}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Quote Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update quote',
+      };
+    }
+  },
+  getQuotesDashboard: async (params: { range?: string; date_on?: string } = {}) => {
+    try {
+      const response = await api.get<QuotesDashboardResponse>('/sales/quotes/dashboard', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Get Quotes Dashboard Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch quotes dashboard data',
+      };
+    }
+  },
+  getQuotesList: async (
+    params: { page?: number; limit?: number; search?: string; status?: string; range?: string; date_on?: string } = {}
+  ) => {
+    try {
+      const response = await api.get<QuotesListResponse>('/sales/quotes', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Get Quotes List Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch quotes list',
+      };
+    }
+  },
+  getQuoteDetail: async (quoteId: number | string) => {
+    try {
+      const response = await api.get<SalesQuoteDetailResponse>(`/sales/quotes/${quoteId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Detail Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch quote detail',
+      };
+    }
+  },
+  getPublicQuoteDetail: async (quoteId: number | string) => {
+    try {
+      const response = await publicApi.get<SalesQuoteDetailResponse>(
+        `/sales/quotes/public/${quoteId}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Public Quote Detail Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch public quote detail',
+      };
+    }
+  },
+  sendQuoteProposal: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteSendResponse>(`/sales/quotes/${quoteId}/send`, {});
+      return response.data;
+    } catch (error: any) {
+      console.error('Send Quote Proposal Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to send quote proposal',
+      };
+    }
+  },
+  updateQuoteStatus: async (quoteId: number | string, status: string) => {
+    try {
+      const response = await api.patch<SalesQuoteStatusUpdateResponse>(
+        `/sales/quotes/${quoteId}/status`,
+        { status }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Quote Status Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update quote status',
+      };
+    }
+  },
+  convertQuoteToBooking: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteConvertToBookingResponse>(
+        `/sales/quotes/${quoteId}/convert-to-booking`,
+        {}
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Convert Quote To Booking Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to convert quote to booking',
+      };
+    }
+  },
+  getQuoteCatalog: async () => {
+    try {
+      const response = await api.get('/sales/quotes/catalog');
+      return response.data;
+    } catch (error) {
+      console.error('Get Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch quote catalog',
+      };
+    }
+  },
+  createQuoteCatalog: async (data: {
+    section_type: string;
+    name: string;
+    default_rate: number;
+    rate_type: string;
+    rate_unit: string;
+  }) => {
+    try {
+      const response = await api.post('/sales/quotes/catalog', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create catalog item',
+      };
+    }
+  },
+  createShootType: async (data: { name: string; content_type: number }) => {
+    try {
+      const response = await api.post('/sales/quotes/shoot-types', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Shoot Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create shoot type',
+      };
+    }
+  },
+  getShootTypes: async (id: number | string) => {
+    try {
+      const response = await api.get(`/sales/quotes/shoot-types/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get Shoot Types Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch shoot types',
+      };
+    }
+  },
+  getAiEditingTypes: async () => {
+    try {
+      const response = await api.get('/sales/quotes/ai-editing-types');
+      return response.data;
+    } catch (error) {
+      console.error('Get AI Editing Types Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch AI editing types',
+      };
+    }
+  },
+  createAiEditingType: async (data: { category: "video" | "photo"; label: string }) => {
+    try {
+      const response = await api.post('/sales/quotes/ai-editing-types', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create AI Editing Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create AI editing type',
+      };
+    }
+  },
+  deleteAiEditingType: async (id: number | string) => {
+    try {
+      const editingTypeId = Number(id);
+
+      if (!Number.isInteger(editingTypeId) || editingTypeId <= 0) {
+        return {
+          success: false,
+          data: null,
+          error: 'Invalid AI editing type id',
+        };
+      }
+
+      const response = await api.delete(`/sales/quotes/ai-editing-types/${editingTypeId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete AI Editing Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete AI editing type',
+      };
+    }
+  },
+  deleteShootType: async (id: number | string) => {
+    try {
+      const shootTypeId = Number(id);
+
+      if (!Number.isInteger(shootTypeId) || shootTypeId <= 0) {
+        return {
+          success: false,
+          data: null,
+          error: 'Invalid shoot type id',
+        };
+      }
+
+      const response = await api.delete(`/sales/quotes/shoot-types/${shootTypeId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Shoot Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete shoot type',
+      };
+    }
+  },
+  getClientDropdown: async (search?: string) => {
+    try {
+      const url = search ? `/sales/client-dropdown?search=${search}` : '/sales/client-dropdown';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Dropdown Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch client dropdown',
+      };
+    }
+  },
+  getSalesReps: async () => {
+    try {
+      const response = await api.get('/sales/sales-reps');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Sales Reps Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch sales representatives',
+      };
+    }
+  },
+  getDashboardOverview: async (period: string = 'all_time') => {
+    try {
+      const response = await api.get('/sales/dashboard/overview', {
+        params: { period },
+      });
+      return response.data;
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const isLogoutLikeFailure =
+        status === 401 ||
+        status === 403 ||
+        error?.code === 'ERR_CANCELED' ||
+        error?.message === 'canceled';
+
+      if (!isLogoutLikeFailure) {
+        console.error('Get Dashboard Overview Error:', error.response?.data || error.message);
+      }
+
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch dashboard overview',
+      };
+    }
+  },
+  changeLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
+    try {
+      const response = await api.put(`/sales/leads/${leadId}/change-sales-rep`, {
+        sales_rep_id: Number(sales_rep_id),
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Change Lead Sales Rep Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update assigned sales representative',
+      };
+    }
+  },
+  changeClientLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
+    try {
+      const response = await api.put(`/sales/client-leads/${leadId}/change-sales-rep`, {
+        sales_rep_id: Number(sales_rep_id),
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Change Client Lead Sales Rep Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update assigned sales representative',
+      };
+    }
+  },
+  deleteQuoteCatalog: async (id: number | string) => {
+    try {
+      const response = await api.delete(`/sales/quotes/catalog/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete catalog item',
       };
     }
   },
