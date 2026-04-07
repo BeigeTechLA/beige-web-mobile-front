@@ -16,11 +16,18 @@ import {
   Video,
   XCircle,
 } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
+import ConvertBookingModal, {
+  type ConvertBookingModalSubmitData,
+} from "@/components/admin/quotes/ConvertBookingModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { Button } from "@/components/ui/button";
-import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
+import {
+  salesApi,
+  type SalesQuoteConvertToBookingPayload,
+  type SalesQuoteDetailData,
+} from "@/lib/api";
 import {
   persistQuoteEditorNavigationCache,
   type QuoteEditorView,
@@ -38,6 +45,7 @@ import {
 } from "@/lib/quoteDetail";
 import { getDefaultQuoteTerms } from "@/lib/quoteTerms";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
 
@@ -296,8 +304,9 @@ export default function QuoteDetailsPage({
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
   const [isRejecting, setIsRejecting] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
-  const [convertedBookingIdOverride, setConvertedBookingIdOverride] = useState<string | null>(null);
-  const [isConvertedOverride, setIsConvertedOverride] = useState(false);
+  const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+  const [convertedBookingIdOverride] = useState<string | null>(null);
+  const [isConvertedOverride] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -533,9 +542,48 @@ export default function QuoteDetailsPage({
       return;
     }
 
+    setIsConvertModalOpen(true);
+  };
+
+  const handleConvertBookingSubmit = async (
+    bookingData: ConvertBookingModalSubmitData
+  ) => {
     setIsConverting(true);
     try {
-      const response = await salesApi.convertQuoteToBooking(resolvedQuoteId);
+      const browserTimeZone = getBrowserTimeZone();
+      let payload: SalesQuoteConvertToBookingPayload;
+
+      if (bookingData.bookingType === "single_day") {
+        if (!bookingData.singleDay) {
+          throw new Error("Single day booking data is missing.");
+        }
+
+        payload = {
+          booking_type: "single_day",
+          time_zone: browserTimeZone,
+          start_date: bookingData.singleDay.date,
+          start_time: `${bookingData.singleDay.startTime}:00`,
+          end_time: `${bookingData.singleDay.endTime}:00`,
+          location: bookingData.location,
+        };
+      } else {
+        if (!bookingData.multiDay) {
+          throw new Error("Multi day booking data is missing.");
+        }
+
+        payload = {
+          booking_type: "multi_day",
+          time_zone: browserTimeZone,
+          location: bookingData.location,
+          booking_days: bookingData.multiDay.days.map((day) => ({
+            date: day.date,
+            start_time: `${day.startTime}:00`,
+            end_time: `${day.endTime}:00`,
+          })),
+        };
+      }
+
+      const response = await salesApi.convertQuoteToBooking(resolvedQuoteId, payload);
 
       if (response?.error || response?.success === false) {
         throw new Error(
@@ -547,16 +595,13 @@ export default function QuoteDetailsPage({
 
       const bookingId = response?.data?.booking_id;
       const alreadyConverted = Boolean(response?.data?.already_converted);
-      if (bookingId) {
-        setConvertedBookingIdOverride(String(bookingId));
-      }
-      setIsConvertedOverride(true);
 
       toast.success(
         alreadyConverted
           ? `Your quote has already been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads and continue with payments there.`
           : `Your quote has been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads and continue with payments there.`
       );
+      setIsConvertModalOpen(false);
     } catch (error) {
       console.error("Failed to convert quote to booking", error);
       toast.error(
@@ -909,6 +954,15 @@ export default function QuoteDetailsPage({
         onClose={() => setIsPreviewOpen(false)}
         quote={quote}
         quoteId={quoteId}
+      />
+      <ConvertBookingModal
+        open={isConvertModalOpen}
+        onClose={() => setIsConvertModalOpen(false)}
+        onSubmit={(data) => {
+          void handleConvertBookingSubmit(data);
+        }}
+        isSubmitting={isConverting}
+        isDark={isDark}
       />
     </div>
   );
