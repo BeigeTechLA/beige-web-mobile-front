@@ -13,6 +13,17 @@ export function parseDate(value: string) {
   return isNaN(date.getTime()) ? null : date;
 }
 
+const parseDateOnlyLocal = (value: string): Date | null => {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, y, m, d] = match;
+  const date = new Date(Number(y), Number(m) - 1, Number(d));
+  return isNaN(date.getTime()) ? null : date;
+};
+
 export const formatISOToDateTime = (isoString: string): string => {
   if (!isoString) return "";
   const date = new Date(isoString);
@@ -239,9 +250,10 @@ export const getBookingDetails = (data: BookingData) => {
   // Grouping Logic for "Clubbed" Months
   const groups: { [key: string]: string[] } = {};
   sortedBookingDays.forEach((day) => {
+    const parsedDate = parseDateOnlyLocal(day.event_date) ?? new Date(day.event_date);
     // Key format: "Apr, 2026"
-    const monthYear = format(new Date(day.event_date), "MMM, yyyy");
-    const dayNum = format(new Date(day.event_date), "dd");
+    const monthYear = format(parsedDate, "MMM, yyyy");
+    const dayNum = format(parsedDate, "dd");
 
     if (!groups[monthYear]) {
       groups[monthYear] = [];
@@ -259,7 +271,7 @@ export const getBookingDetails = (data: BookingData) => {
   const summaryDateText: string = isMultiDay
     ? `${sortedBookingDays.length} Days\n${clubbedMonths.join(" ;\n ")}`
     : data.event_date
-      ? format(new Date(data.event_date), "MMM dd, yyyy")
+      ? format(parseDateOnlyLocal(data.event_date) ?? new Date(data.event_date), "MMM dd, yyyy")
       : "Date not set";
 
   const allSameTime = isMultiDay && sortedBookingDays.every(
@@ -267,9 +279,9 @@ export const getBookingDetails = (data: BookingData) => {
   );
 
   const displayDateText: string = isMultiDay
-    ? `${sortedBookingDays.length} days\n${format(new Date(firstDay.event_date), "EEE, MMM dd yyyy")} - ${format(new Date(lastDay.event_date), "EEE, MMM dd yyyy")}`
+    ? `${sortedBookingDays.length} days\n${format(parseDateOnlyLocal(firstDay.event_date) ?? new Date(firstDay.event_date), "EEE, MMM dd yyyy")} - ${format(parseDateOnlyLocal(lastDay.event_date) ?? new Date(lastDay.event_date), "EEE, MMM dd yyyy")}`
     : data.event_date
-      ? format(new Date(data.event_date), "EEEE, MMM dd yyyy")
+      ? format(parseDateOnlyLocal(data.event_date) ?? new Date(data.event_date), "EEEE, MMM dd yyyy")
       : "Date not set";
 
 
