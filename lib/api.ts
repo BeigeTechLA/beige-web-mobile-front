@@ -468,9 +468,64 @@ export interface SalesQuoteConvertToBookingData {
   missing_required_fields?: string[];
 }
 
+export type SalesQuoteConvertSingleDayPayload = {
+  booking_type: "single_day";
+  time_zone: string;
+  start_date: string;
+  start_time: string;
+  end_time: string;
+  location: string;
+};
+
+export type SalesQuoteConvertMultiDayPayload = {
+  booking_type: "multi_day";
+  time_zone: string;
+  location: string;
+  booking_days: Array<{
+    date: string;
+    start_time: string;
+    end_time: string;
+  }>;
+};
+
+export type SalesQuoteConvertToBookingPayload =
+  | SalesQuoteConvertSingleDayPayload
+  | SalesQuoteConvertMultiDayPayload;
+
 export interface SalesQuoteConvertToBookingResponse {
   success: boolean;
   data: SalesQuoteConvertToBookingData | null;
+  error?: string;
+  message?: string;
+}
+
+export type LeadBookingScheduleSingleDayPayload = {
+  location: string;
+  booking_type: "single_day";
+  time_zone: string;
+  start_date: string;
+  start_time: string;
+  end_time: string;
+};
+
+export type LeadBookingScheduleMultiDayPayload = {
+  location: string;
+  booking_type: "multi_day";
+  time_zone: string;
+  booking_days: Array<{
+    date: string;
+    start_time: string;
+    end_time: string;
+  }>;
+};
+
+export type LeadBookingSchedulePayload =
+  | LeadBookingScheduleSingleDayPayload
+  | LeadBookingScheduleMultiDayPayload;
+
+export interface SalesLeadUpdateBookingScheduleResponse {
+  success: boolean;
+  data: unknown;
   error?: string;
   message?: string;
 }
@@ -1960,11 +2015,14 @@ export const salesApi = {
       };
     }
   },
-  convertQuoteToBooking: async (quoteId: number | string) => {
+  convertQuoteToBooking: async (
+    quoteId: number | string,
+    payload: SalesQuoteConvertToBookingPayload
+  ) => {
     try {
       const response = await api.post<SalesQuoteConvertToBookingResponse>(
         `/sales/quotes/${quoteId}/convert-to-booking`,
-        {}
+        payload
       );
       return response.data;
     } catch (error: any) {
@@ -1973,6 +2031,25 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to convert quote to booking',
+      };
+    }
+  },
+  updateLeadBookingSchedule: async (
+    leadId: number | string,
+    payload: LeadBookingSchedulePayload
+  ) => {
+    try {
+      const response = await api.put<SalesLeadUpdateBookingScheduleResponse>(
+        `/sales/leads/${leadId}/booking-schedule`,
+        payload
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Lead Booking Schedule Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update booking schedule',
       };
     }
   },
