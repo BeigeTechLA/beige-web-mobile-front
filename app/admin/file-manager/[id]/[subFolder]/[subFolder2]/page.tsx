@@ -21,7 +21,6 @@ import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
-import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
@@ -55,7 +54,6 @@ export default function SubFolderDetailsPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [openingFileId, setOpeningFileId] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [viewerFile, setViewerFile] = useState<any | null>(null);
@@ -202,7 +200,20 @@ export default function SubFolderDetailsPage() {
 
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar
+        pathname={pathname}
+        actions={
+          canUpload ? (
+            <Button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="bg-[#202020] border border-white/20 text-white hover:bg-white/10"
+            >
+              <Upload size={18} />
+              Upload Files
+            </Button>
+          ) : null
+        }
+      />
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 bg-[#101010]">
         <Button onClick={() => router.back()} className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0">
@@ -226,15 +237,6 @@ export default function SubFolderDetailsPage() {
                     {folderTitle} ({filteredData.length} Items)
                   </h1>
                 </div>
-                {canUpload ? (
-                  <Button
-                    onClick={() => setIsUploadModalOpen(true)}
-                    className="bg-[#E5D5B8] hover:bg-[#D4C3A3] text-black font-medium h-8 lg:h-10 px-3 lg:px-6 lg:py-2 rounded-lg lg:rounded-xl flex items-center gap-2 transition-all"
-                  >
-                    <Upload size={18} />
-                    Upload Files
-                  </Button>
-                ) : null}
               </div>
 
               <div className="bg-[#171717] border border-white/20 rounded-lg p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2 ">
@@ -452,12 +454,6 @@ export default function SubFolderDetailsPage() {
           }
           onUploadComplete={loadFiles}
         />
-
-        {/* <LinkToShootModal
-          isOpen={isLinkModalOpen}
-          onClose={() => setIsLinkModalOpen(false)}
-          folderName={folderTitle}
-        /> */}
 
         <DeleteConfirmModal
           isOpen={isDeleteModalOpen}

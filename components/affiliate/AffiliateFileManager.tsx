@@ -24,7 +24,11 @@ import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { affiliateApi } from "@/lib/api";
-import { fileManagerApi, inferWorkspaceCategory, isRecentWithinHours } from "@/lib/fileManagerApi";
+import {
+  fileManagerApi,
+  inferWorkspaceCategory,
+  isRecentWithinHours,
+} from "@/lib/fileManagerApi";
 
 interface WorkspaceCard {
   externalId: string;
@@ -64,12 +68,14 @@ const prettifyFolderName = (name?: string) => {
 
 const getInitials = (name?: string | null) => {
   if (!name) return "FM";
-  return name
-    .split(/[\s_-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || "")
-    .join("") || "FM";
+  return (
+    name
+      .split(/[\s_-]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("") || "FM"
+  );
 };
 
 const formatRelativeTime = (value?: string) => {
@@ -139,7 +145,9 @@ export default function AffiliateFileManager() {
 
       projects.forEach((item: any) => {
         const project = item.project || item;
-        const bookingId = String(project?.stream_project_booking_id || project?.booking_id || "");
+        const bookingId = String(
+          project?.stream_project_booking_id || project?.booking_id || ""
+        );
         if (bookingId) {
           projectMap.set(bookingId, project);
         }
@@ -155,7 +163,9 @@ export default function AffiliateFileManager() {
             fileCount: Number(workspace.fileCount || 0),
             lastOpened: workspace.updatedAt || workspace.createdAt || "",
             userInitials: getInitials(project?.project_name || workspace.folderName),
-            category: inferWorkspaceCategory(project?.project_name || workspace.folderName),
+            category: inferWorkspaceCategory(
+              project?.project_name || workspace.folderName
+            ),
             updatedAtRaw: workspace.updatedAt || workspace.createdAt || "",
             consoleUrl: workspace.consoleUrl,
           };
@@ -246,7 +256,8 @@ export default function AffiliateFileManager() {
     const previewableFiles = phaseFiles.filter(
       (file) =>
         file.filepath &&
-        (file.contentType?.startsWith("image/") || file.contentType?.startsWith("video/"))
+        (file.contentType?.startsWith("image/") ||
+          file.contentType?.startsWith("video/"))
     );
 
     if (!previewableFiles.length) return;
@@ -320,21 +331,18 @@ export default function AffiliateFileManager() {
     setWorkspaceFolders([]);
   };
 
-<<<<<<< HEAD
   const filteredWorkspaces = useMemo(() => {
     let items = [...workspaces];
 
-    if (selectedTab === "Linked to folders") {
-      items = items.filter(() => true);
-    } else if (selectedTab === "Recent") {
-      items = items.filter((workspace) => isRecentWithinHours(workspace.updatedAtRaw, 24 * 5));
+    if (selectedTab === "Recent") {
+      items = items.filter((workspace) =>
+        isRecentWithinHours(workspace.updatedAtRaw, 24 * 5)
+      );
     } else if (selectedTab === "Shared" || selectedTab === "Trash") {
       items = [];
     }
 
-    if (status === "Linked") {
-      items = items.filter(() => true);
-    } else if (status === "Unlinked") {
+    if (status === "Unlinked") {
       items = [];
     }
 
@@ -347,22 +355,28 @@ export default function AffiliateFileManager() {
     return items;
   }, [workspaces, searchTerm, selectedTab, status]);
 
-  const filteredFolders = useMemo(() => {
-    return phaseFolders.filter((folder) =>
-      folder.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [phaseFolders, searchTerm]);
+  const filteredFolders = useMemo(
+    () =>
+      phaseFolders.filter((folder) =>
+        folder.title.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [phaseFolders, searchTerm]
+  );
 
-  const filteredFiles = useMemo(() => {
-    return phaseFiles.filter((file) =>
-      file.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [phaseFiles, searchTerm]);
+  const filteredFiles = useMemo(
+    () =>
+      phaseFiles.filter((file) =>
+        file.title.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [phaseFiles, searchTerm]
+  );
 
   const breadcrumb = useMemo(() => {
     const items = ["File Manager"];
     if (selectedWorkspace) items.push(selectedWorkspace.title);
-    if (selectedPhase) items.push(selectedPhase === "pre" ? "Pre Production" : "Post Production");
+    if (selectedPhase) {
+      items.push(selectedPhase === "pre" ? "Pre Production" : "Post Production");
+    }
     if (selectedPath) {
       selectedPath
         .split("/")
@@ -410,7 +424,9 @@ export default function AffiliateFileManager() {
                   <th className="py-5 px-6 font-medium">Files</th>
                   <th className="py-5 px-6 font-medium">Status</th>
                   <th className="py-5 px-6 font-medium">Last Updated</th>
-                  <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
+                  <th className="py-5 px-6 font-medium text-right rounded-r-xl">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -422,7 +438,10 @@ export default function AffiliateFileManager() {
                   >
                     <td className="py-5 px-6 text-white flex gap-2 items-center">
                       <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
-                        <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
+                        <FolderOpen
+                          className="text-[#E8D1AB] fill-[#E8D1AB]/20"
+                          size={24}
+                        />
                       </div>
                       <span className="text-sm font-semibold">{workspace.title}</span>
                     </td>
@@ -431,14 +450,18 @@ export default function AffiliateFileManager() {
                         {workspace.category}
                       </span>
                     </td>
-                    <td className="py-5 px-6 text-white">{String(workspace.fileCount).padStart(2, "0")}</td>
+                    <td className="py-5 px-6 text-white">
+                      {String(workspace.fileCount).padStart(2, "0")}
+                    </td>
                     <td className="py-5 px-6">
                       <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#6ce9a6]/20 bg-[#D4FFE4] px-2 py-1 text-[11px] font-medium leading-none text-[#16A34A]">
                         <LinkIcon size={16} />
                         Linked
                       </span>
                     </td>
-                    <td className="py-5 px-6 text-white/80">Updated {formatRelativeTime(workspace.lastOpened)}</td>
+                    <td className="py-5 px-6 text-white/80">
+                      Updated {formatRelativeTime(workspace.lastOpened)}
+                    </td>
                     <td className="py-5 px-6 text-right">
                       <ExternalLink className="inline-block text-white/40" size={16} />
                     </td>
@@ -458,13 +481,18 @@ export default function AffiliateFileManager() {
                 <div className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-white/5 flex items-center justify-center rounded-lg">
-                      <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/10" size={20} />
+                      <FolderOpen
+                        className="text-[#E8D1AB] fill-[#E8D1AB]/10"
+                        size={20}
+                      />
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-white truncate max-w-[180px]">
                         {workspace.title}
                       </div>
-                      <div className="text-white/40 text-xs mt-1">{String(workspace.fileCount).padStart(2, "0")} Files</div>
+                      <div className="text-white/40 text-xs mt-1">
+                        {String(workspace.fileCount).padStart(2, "0")} Files
+                      </div>
                     </div>
                   </div>
                   <ExternalLink className="text-white/40" size={18} />
@@ -476,7 +504,9 @@ export default function AffiliateFileManager() {
                   </div>
                   <div>
                     <p className="text-white/40 text-xs mb-1">Last Updated</p>
-                    <p className="text-white font-medium">Updated {formatRelativeTime(workspace.lastOpened)}</p>
+                    <p className="text-white font-medium">
+                      Updated {formatRelativeTime(workspace.lastOpened)}
+                    </p>
                   </div>
                 </div>
               </button>
@@ -498,10 +528,15 @@ export default function AffiliateFileManager() {
               <div className="flex items-start justify-between">
                 <div className="flex gap-3 items-start">
                   <div>
-                    <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
+                    <FolderOpen
+                      className="text-[#E8D1AB] fill-[#E8D1AB]/20"
+                      size={24}
+                    />
                   </div>
                   <div>
-                    <h3 className="text-white font-semibold text-sm leading-tight">{workspace.title}</h3>
+                    <h3 className="text-white font-semibold text-sm leading-tight">
+                      {workspace.title}
+                    </h3>
                     <p className="text-[#E8D1AB]/60 text-sm mt-1">
                       {String(workspace.fileCount).padStart(2, "0")} Files
                     </p>
@@ -528,7 +563,9 @@ export default function AffiliateFileManager() {
               <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-[#000] text-base">
                 {workspace.userInitials}
               </div>
-              <span className="text-[#CDC5C5] text-sm">Updated {formatRelativeTime(workspace.lastOpened)}</span>
+              <span className="text-[#CDC5C5] text-sm">
+                Updated {formatRelativeTime(workspace.lastOpened)}
+              </span>
             </div>
           </button>
         ))}
@@ -539,8 +576,12 @@ export default function AffiliateFileManager() {
   const renderWorkspacePhases = () => {
     if (!selectedWorkspace) return null;
 
-    const preFolder = workspaceFolders.find((folder) => folder.title === "Pre Production");
-    const postFolder = workspaceFolders.find((folder) => folder.title === "Post Production");
+    const preFolder = workspaceFolders.find(
+      (folder) => folder.title === "Pre Production"
+    );
+    const postFolder = workspaceFolders.find(
+      (folder) => folder.title === "Post Production"
+    );
 
     const phaseCards = [
       { id: "pre", title: "Pre Production", fileCount: preFolder?.fileCount || 0 },
@@ -597,18 +638,6 @@ export default function AffiliateFileManager() {
               target="_blank"
               rel="noreferrer"
               className="lg:hidden inline-block mt-2 text-xs text-[#E8D1AB] underline underline-offset-4"
-=======
-  return (
-    <div className="space-y-3 lg:space-y-6">
-      <div className="flex flex-col lg:flex-row gap-2 justify-between items-center">
-        <div className="flex flex-nowrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit overflow-x-auto no-scrollbar">
-          {tabs.map((tab, index) => (
-            <Button
-              key={`tab_${index}`}
-              onClick={() => onChange(tab.name)}
-              className={`flex gap-2 px-2 py-[2px] text-sm font-medium transition-all rounded-lg h-7 lg:h-10 ${selectedTab === tab.name ? "bg-white text-black " : "hover:bg-white/10"}
-          `}
->>>>>>> 6ef36d027d2024072851fd870d5957c542915330
             >
               Open Storage Folder
             </a>
@@ -628,7 +657,12 @@ export default function AffiliateFileManager() {
               />
             </div>
             <div className="flex gap-2">
-              <BasicDropdown label="Status" value={status} onChange={setStatus} options={["Linked", "Unlinked"]} />
+              <BasicDropdown
+                label="Status"
+                value={status}
+                onChange={setStatus}
+                options={["Linked", "Unlinked"]}
+              />
               <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
                 <Button
                   onClick={() => setViewMode("grid")}
@@ -655,25 +689,26 @@ export default function AffiliateFileManager() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-          {phaseCards.map((phase) => (
-            <FolderCard
-              key={phase.id}
-              title={phase.title}
-              fileCount={phase.fileCount}
-              lastOpened={formatRelativeTime(
-                (phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) || selectedWorkspace.lastOpened
-              )}
-              userInitials={selectedWorkspace.userInitials}
-              onOpenLinkModal={() => {}}
-              onOpen={() => {
-                setSelectedPhase(phase.id as "pre" | "post");
-                setSelectedPath("");
-                setSearchTerm("");
-              }}
-              showMenu={false}
-            />
-          ))}
-        </div>
+            {phaseCards.map((phase) => (
+              <FolderCard
+                key={phase.id}
+                title={phase.title}
+                fileCount={phase.fileCount}
+                lastOpened={formatRelativeTime(
+                  (phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
+                    selectedWorkspace.lastOpened
+                )}
+                userInitials={selectedWorkspace.userInitials}
+                onOpenLinkModal={() => {}}
+                onOpen={() => {
+                  setSelectedPhase(phase.id as "pre" | "post");
+                  setSelectedPath("");
+                  setSearchTerm("");
+                }}
+                showMenu={false}
+              />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -700,11 +735,13 @@ export default function AffiliateFileManager() {
                 <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                   {selectedWorkspace?.title}
                 </h1>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 flex items-center gap-1.5 ${
-                  selectedPhase === "post"
-                    ? "bg-[#E8D2FB] text-[#540B94]"
-                    : "bg-[#FDF4FF] text-[#C026D3]"
-                }`}>
+                <span
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 flex items-center gap-1.5 ${
+                    selectedPhase === "post"
+                      ? "bg-[#E8D2FB] text-[#540B94]"
+                      : "bg-[#FDF4FF] text-[#C026D3]"
+                  }`}
+                >
                   {selectedPhase === "post" ? "Post Production" : "Pre Production"}
                 </span>
                 <span className="px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 bg-[#1A1A1A] text-[#E8D1AB]">
@@ -744,7 +781,9 @@ export default function AffiliateFileManager() {
                   userInitials={getInitials(folder.title)}
                   onOpenLinkModal={() => {}}
                   onOpen={() => {
-                    const nextPath = [selectedPath, folder.name].filter(Boolean).join("/");
+                    const nextPath = [selectedPath, folder.name]
+                      .filter(Boolean)
+                      .join("/");
                     setSelectedPath(nextPath);
                   }}
                   showMenu={false}
@@ -785,10 +824,15 @@ export default function AffiliateFileManager() {
   };
 
   return (
-    <div className="space-y-4 lg:space-y-8" style={{ fontFamily: "var(--font-instrument-sans)" }}>
+    <div
+      className="space-y-4 lg:space-y-8"
+      style={{ fontFamily: "var(--font-instrument-sans)" }}
+    >
       <div className="flex justify-between items-center mb-3 lg:mb-6">
         <div>
-          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1 text-white">File Manager</h1>
+          <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1 text-white">
+            File Manager
+          </h1>
           <p className="text-xs lg:text-sm text-white/70">
             Live project folders from your booked and paid shoots.
           </p>
@@ -806,50 +850,17 @@ export default function AffiliateFileManager() {
         </button>
       )}
 
-<<<<<<< HEAD
       <div className="flex flex-wrap items-center gap-2 text-sm text-white/60">
         {breadcrumb.map((item, index) => (
           <React.Fragment key={`${item}-${index}`}>
             {index > 0 && <span>/</span>}
-            <span className={index === breadcrumb.length - 1 ? "text-white font-medium" : ""}>{item}</span>
+            <span
+              className={index === breadcrumb.length - 1 ? "text-white font-medium" : ""}
+            >
+              {item}
+            </span>
           </React.Fragment>
         ))}
-=======
-      <AffiliateLinkToShootModal
-        isOpen={isLinkModalOpen}
-        onClose={() => setIsLinkModalOpen(false)}
-        folderName={selectedFolder || ""}
-      />
-
-      <AffiliateUploadFilesModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        folderName={selectedFolder || ""} //need this logic better figured out
-      />
-
-      {/* CreateFolderModal */}
-      <CreateFolderModal
-        isOpen={isCreateFolderModalOpen}
-        onClose={() => setIsCreateFolderModalOpen(false)}
-        onCreate={(data) => console.log("Creating folder:", data)}
-      />
-
-      {/* --- FLOATING MOBILE BUTTON --- */}
-      <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
-        <Button
-          onClick={() => setIsUploadModalOpen(true)}
-          className="w-full bg-[#202020] text-white hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-        >
-          <Upload size={20} />
-          Upload Files
-        </Button>
-        <Button
-          onClick={() => setIsCreateFolderModalOpen(true)}
-          className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-        >
-          Create New Folder
-        </Button>
->>>>>>> 6ef36d027d2024072851fd870d5957c542915330
       </div>
 
       {!selectedWorkspace && (
@@ -899,7 +910,12 @@ export default function AffiliateFileManager() {
               />
             </div>
             <div className="flex gap-2">
-              <BasicDropdown label="Status" value={status} onChange={setStatus} options={["Linked", "Unlinked"]} />
+              <BasicDropdown
+                label="Status"
+                value={status}
+                onChange={setStatus}
+                options={["Linked", "Unlinked"]}
+              />
 
               <div className="md:hidden relative">
                 <Button
@@ -917,7 +933,9 @@ export default function AffiliateFileManager() {
                         setIsViewMenuOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                        viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                        viewMode === "grid"
+                          ? "bg-white/10 text-white"
+                          : "text-white/60 hover:bg-white/5"
                       }`}
                     >
                       <Grid3X3 size={18} />
@@ -929,7 +947,9 @@ export default function AffiliateFileManager() {
                         setIsViewMenuOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                        viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                        viewMode === "list"
+                          ? "bg-white/10 text-white"
+                          : "text-white/60 hover:bg-white/5"
                       }`}
                     >
                       <List size={18} />
@@ -971,7 +991,9 @@ export default function AffiliateFileManager() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
           <input
             type="text"
-            placeholder={selectedPhase ? "Search files or folders..." : "Search project folders..."}
+            placeholder={
+              selectedPhase ? "Search files or folders..." : "Search project folders..."
+            }
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-[#18181b] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
