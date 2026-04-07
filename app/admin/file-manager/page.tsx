@@ -13,8 +13,6 @@ import {
   Share2,
   Trash2,
   Unlink,
-  Upload,
-  UploadIcon,
 } from "lucide-react";
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
@@ -22,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
-import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
@@ -49,7 +46,6 @@ export default function AdminFolderManagerPage() {
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
@@ -168,19 +164,7 @@ export default function AdminFolderManagerPage() {
 
   return (
     <>
-      <Topbar
-        pathname={pathname}
-        actions={
-          <>
-            <Button
-              onClick={() => setIsUploadModalOpen(true)}
-              className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
-            >
-              <UploadIcon /> Upload Files
-            </Button>
-          </>
-        }
-      />
+      <Topbar pathname={pathname} />
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
         <div className="flex justify-between items-center mb-3 lg:mb-6">
@@ -437,12 +421,6 @@ export default function AdminFolderManagerPage() {
           folderName={selectedFolder?.title || ""}
         />
 
-        <UploadModal
-          isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
-          folderName={selectedFolder?.title || ""}
-        />
-
         <DeleteConfirmModal
           isOpen={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}
@@ -451,16 +429,6 @@ export default function AdminFolderManagerPage() {
           itemType="workspace"
           isDeleting={isDeleting}
         />
-
-        <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
-          <Button
-            onClick={() => setIsUploadModalOpen(true)}
-            className="w-full bg-[#202020] text-white hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-          >
-            <Upload size={20} />
-            Upload Files
-          </Button>
-        </div>
       </div>
     </>
   );

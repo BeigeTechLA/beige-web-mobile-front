@@ -47,7 +47,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           });
         }
 
-        let projectData = projectResponse?.data?.project || projectResponse?.data || projectResponse;
+        const responseData = projectResponse?.data || null;
+        let projectData = responseData?.project || responseData || projectResponse;
 
         if (projectData) {
           // 3. Map Skills Needed to Names
@@ -84,6 +85,13 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
           setProject({
             ...projectData,
+            lead_details: responseData?.lead_details || projectData?.lead_details || null,
+            assignedCrew: responseData?.assignedCrew || projectData?.assignedCrew || projectData?.assigned_crews || [],
+            assignedPostProductionMembers:
+              responseData?.assignedPostProductionMembers ||
+              projectData?.assignedPostProductionMembers ||
+              projectData?.assigned_post_production_members ||
+              [],
             skills_needed: skillsText || projectData.skills_needed
           });
         }
@@ -155,7 +163,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
                 <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
               </div>
-              <MeetingSchedule />
+              <MeetingSchedule orderId={id} />
             </>
           )}
 
@@ -169,13 +177,20 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
           {activeTab === "Meetings" && (
             <>
-              <MeetingSchedule />
+              <MeetingSchedule orderId={id} />
               <MeetingOverviewChart />
             </>
           )}
 
           {activeTab === "Messages" && (
-            <MessagesTab />
+            <MessagesTab
+              role="admin"
+              bookingId={project?.booking_id || project?.stream_project_booking_id || id}
+              assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
+              projectName={project?.project_name}
+              salesRepName={project?.lead_details?.assigned_sales_rep?.name || null}
+              clientName={project?.project?.client?.name || project?.client?.name || null}
+            />
           )}
         </div>
 

@@ -27,6 +27,7 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [viewerName, setViewerName] = useState("");
   const [viewerType, setViewerType] = useState("");
+  const [viewerMetaId, setViewerMetaId] = useState<string | null>(null);
 
   const loadPostProduction = async () => {
     try {
@@ -60,9 +61,10 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
       setViewerUrl(null);
       setViewerName(file.name);
       setViewerType(file.contentType || "");
+      setViewerMetaId(file.path || null);
       const response = await fileManagerApi.getExternalFileViewUrl(file.path);
       setViewerUrl(response.url || null);
-    } catch (error) {
+    } catch {
       setViewerOpen(false);
     }
   };
@@ -156,10 +158,14 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
 
       <FileViewerModal
         isOpen={viewerOpen}
-        onClose={() => setViewerOpen(false)}
+        onClose={() => {
+          setViewerOpen(false);
+          setViewerMetaId(null);
+        }}
         fileName={viewerName}
         fileUrl={viewerUrl}
         contentType={viewerType}
+        fileMetaId={viewerMetaId}
       />
     </div>
   );

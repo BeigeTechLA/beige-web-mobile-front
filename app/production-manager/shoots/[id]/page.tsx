@@ -122,7 +122,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                             <ProjectTeam projectId={id} />
                             <AssignedCP projectId={id} />
                         </div>
-                        <MeetingSchedule />
+                        <MeetingSchedule role="pm" orderId={id} />
                     </>
                 )}
 
@@ -136,13 +136,13 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
                 {activeTab === "Meetings" && (
                     <>
-                        <MeetingSchedule />
+                        <MeetingSchedule role="pm" orderId={id} />
                         <MeetingOverviewChart />
                     </>
                 )}
 
                 {activeTab === "Messages" && (
-                    <MessagesTab />
+                    <MessagesTab bookingId={id} />
                 )}
             </div>
 

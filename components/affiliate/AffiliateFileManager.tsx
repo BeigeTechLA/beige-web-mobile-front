@@ -115,6 +115,7 @@ export default function AffiliateFileManager() {
   const [viewerName, setViewerName] = useState("");
   const [viewerType, setViewerType] = useState("");
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [viewerMetaId, setViewerMetaId] = useState<string | null>(null);
 
   const loadRoot = async () => {
     const token = Cookies.get("revure_token");
@@ -282,10 +283,11 @@ export default function AffiliateFileManager() {
       setViewerOpen(true);
       setViewerName(file.title);
       setViewerType(file.contentType || "");
+      setViewerMetaId(file.filepath || null);
       setViewerUrl(null);
       const response = await fileManagerApi.getExternalFileViewUrl(file.filepath);
       setViewerUrl(response.url || null);
-    } catch (err) {
+    } catch {
       setViewerOpen(false);
     }
   };
@@ -935,10 +937,14 @@ export default function AffiliateFileManager() {
 
       <FileViewerModal
         isOpen={viewerOpen}
-        onClose={() => setViewerOpen(false)}
+        onClose={() => {
+          setViewerOpen(false);
+          setViewerMetaId(null);
+        }}
         fileName={viewerName}
         fileUrl={viewerUrl}
         contentType={viewerType}
+        fileMetaId={viewerMetaId}
       />
     </div>
   );

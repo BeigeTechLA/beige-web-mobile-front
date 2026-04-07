@@ -41,6 +41,7 @@ export default function SubFolderDetailsPage() {
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const nestedSlug = params.subFolder2;
+  const canUpload = phaseSlug !== "post-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -181,6 +182,7 @@ export default function SubFolderDetailsPage() {
   };
 
   const handleDeleteFile = async (file: any) => {
+    if (!canUpload) return;
     const targetFile = file || selectedFile;
     if (!targetFile?.filepath) return;
 
@@ -224,13 +226,15 @@ export default function SubFolderDetailsPage() {
                     {folderTitle} ({filteredData.length} Items)
                   </h1>
                 </div>
-                <Button
-                  onClick={() => setIsUploadModalOpen(true)}
-                  className="bg-[#E5D5B8] hover:bg-[#D4C3A3] text-black font-medium h-8 lg:h-10 px-3 lg:px-6 lg:py-2 rounded-lg lg:rounded-xl flex items-center gap-2 transition-all"
-                >
-                  <Upload size={18} />
-                  Upload Files
-                </Button>
+                {canUpload ? (
+                  <Button
+                    onClick={() => setIsUploadModalOpen(true)}
+                    className="bg-[#E5D5B8] hover:bg-[#D4C3A3] text-black font-medium h-8 lg:h-10 px-3 lg:px-6 lg:py-2 rounded-lg lg:rounded-xl flex items-center gap-2 transition-all"
+                  >
+                    <Upload size={18} />
+                    Upload Files
+                  </Button>
+                ) : null}
               </div>
 
               <div className="bg-[#171717] border border-white/20 rounded-lg p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2 ">
@@ -299,7 +303,7 @@ export default function SubFolderDetailsPage() {
 
               {viewMode === "grid" ? (
                 filteredData.length === 0 ? (
-                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                  <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {filteredData.map((file) => (
@@ -326,6 +330,7 @@ export default function SubFolderDetailsPage() {
                             </button>
                             <button className="text-white/70 hover:text-[#F04438]" onClick={(e) => {
                               e.stopPropagation();
+                              if (!canUpload) return;
                               setSelectedFile(file);
                               setIsDeleteModalOpen(true);
                             }}>
@@ -373,7 +378,7 @@ export default function SubFolderDetailsPage() {
                 )
               ) : (
                 filteredData.length === 0 ? (
-                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                  <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
                 ) : (
                   <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full text-left text-sm">
@@ -417,6 +422,7 @@ export default function SubFolderDetailsPage() {
                                 </button>
                                 <button className="p-2 hover:bg-white/10 rounded-lg text-white/40 hover:text-[#F04438] transition-colors" onClick={(e) => {
                                   e.stopPropagation();
+                                  if (!canUpload) return;
                                   setSelectedFile(file);
                                   setIsDeleteModalOpen(true);
                                 }}>
@@ -440,7 +446,7 @@ export default function SubFolderDetailsPage() {
           onClose={() => setIsUploadModalOpen(false)}
           folderName={folderTitle}
           uploadPath={
-            workspaceName
+            canUpload && workspaceName
               ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${slugToWorkspaceName(nestedSlug)}`
               : undefined
           }
@@ -471,6 +477,7 @@ export default function SubFolderDetailsPage() {
           fileName={viewerFile?.title}
           fileUrl={viewerUrl}
           contentType={viewerFile?.contentType}
+          fileMetaId={viewerFile?.filepath || null}
         />
       </div>
     </>

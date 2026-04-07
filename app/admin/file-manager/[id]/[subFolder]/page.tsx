@@ -35,6 +35,7 @@ export default function AdminFileManagerPhasePage() {
   const params = useParams<{ id: string; subFolder: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
+  const isPreProduction = phaseSlug !== "post-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -220,6 +221,7 @@ export default function AdminFileManagerPhasePage() {
   };
 
   const handleDeleteSelectedFolder = async () => {
+    if (!isPreProduction) return;
     if (!selectedFolder?.resourcePath) return;
 
     try {
@@ -238,6 +240,7 @@ export default function AdminFileManagerPhasePage() {
   };
 
   const handleCreateFolder = async ({ name }: { name: string }) => {
+    if (!isPreProduction) return;
     try {
       const folderName = name.trim();
       await fileManagerApi.createExternalFolder(projectId, folderName, { phase: currentPhase });
@@ -266,6 +269,7 @@ export default function AdminFileManagerPhasePage() {
   };
 
   const handleDeleteFile = async (file: any) => {
+    if (!isPreProduction) return;
     const targetFile = file || selectedFile;
     if (!targetFile?.filepath) return;
 
@@ -305,12 +309,16 @@ export default function AdminFileManagerPhasePage() {
         pathname={pathname}
         actions={
           <>
-            <Button onClick={() => setIsUploadModalOpen(true)} className="bg-[#202020] border border-white/20 text-white hover:bg-white/10">
-              <Upload /> Upload Files
-            </Button>
-            <Button onClick={() => setIsCreateFolderModalOpen(true)} className="bg-[#E5D5B8] text-black">
-              Create Folder
-            </Button>
+            {isPreProduction ? (
+              <>
+                <Button onClick={() => setIsUploadModalOpen(true)} className="bg-[#202020] border border-white/20 text-white hover:bg-white/10">
+                  <Upload /> Upload Files
+                </Button>
+                <Button onClick={() => setIsCreateFolderModalOpen(true)} className="bg-[#E5D5B8] text-black">
+                  Create Folder
+                </Button>
+              </>
+            ) : null}
           </>
         }
       />
@@ -449,6 +457,7 @@ export default function AdminFileManagerPhasePage() {
                           }
                         }}
                         onDelete={() => {
+                          if (!isPreProduction) return;
                           setSelectedFolder(folder);
                           setSelectedFile(null);
                           setIsDeleteModalOpen(true);
@@ -551,6 +560,7 @@ export default function AdminFileManagerPhasePage() {
                               }
                             }}
                             onDelete={() => {
+                              if (!isPreProduction) return;
                               setSelectedFolder(folder);
                               setSelectedFile(null);
                               setIsDeleteModalOpen(true);
@@ -566,7 +576,7 @@ export default function AdminFileManagerPhasePage() {
                     <div>
                       <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
                       {filteredFiles.length === 0 ? (
-                        <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                        <EmptyFileState onAction={isPreProduction ? () => setIsUploadModalOpen(true) : undefined} actionLabel={isPreProduction ? "Upload Files" : undefined} />
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                           {filteredFiles.map((file) => (
@@ -576,6 +586,7 @@ export default function AdminFileManagerPhasePage() {
                               onOpen={() => handleOpenFile(file)}
                               onDownload={() => handleDownloadFile(file)}
                               onDelete={() => {
+                                if (!isPreProduction) return;
                                 setSelectedFile(file);
                                 setSelectedFolder(null);
                                 setIsDeleteModalOpen(true);
@@ -589,7 +600,7 @@ export default function AdminFileManagerPhasePage() {
                 </div>
               ) : viewMode === "grid" ? (
                 filteredFiles.length === 0 ? (
-                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                  <EmptyFileState onAction={isPreProduction ? () => setIsUploadModalOpen(true) : undefined} actionLabel={isPreProduction ? "Upload Files" : undefined} />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                     {filteredFiles.map((file) => (
@@ -599,6 +610,7 @@ export default function AdminFileManagerPhasePage() {
                         onOpen={() => handleOpenFile(file)}
                         onDownload={() => handleDownloadFile(file)}
                         onDelete={() => {
+                          if (!isPreProduction) return;
                           setSelectedFile(file);
                           setSelectedFolder(null);
                           setIsDeleteModalOpen(true);
@@ -609,7 +621,7 @@ export default function AdminFileManagerPhasePage() {
                 )
               ) : (
                 filteredFiles.length === 0 ? (
-                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                  <EmptyFileState onAction={isPreProduction ? () => setIsUploadModalOpen(true) : undefined} actionLabel={isPreProduction ? "Upload Files" : undefined} />
                 ) : (
                   <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -650,7 +662,7 @@ export default function AdminFileManagerPhasePage() {
                                   e.stopPropagation();
                                   setSelectedFile(item);
                                   setSelectedFolder(null);
-                                  setIsDeleteModalOpen(true);
+                                  if (isPreProduction) setIsDeleteModalOpen(true);
                                 }}>
                                   Delete
                                 </Button>
@@ -695,16 +707,18 @@ export default function AdminFileManagerPhasePage() {
             setUploadFolderLabel(undefined);
           }}
           folderName={uploadFolderLabel || selectedFolder?.title || viewState.title}
-          uploadPath={uploadPathOverride || defaultUploadPath}
+          uploadPath={isPreProduction ? uploadPathOverride || defaultUploadPath : undefined}
           onUploadComplete={loadPhase}
         />
 
-        <CreateFolderModal
-          isOpen={isCreateFolderModalOpen}
-          onClose={() => setIsCreateFolderModalOpen(false)}
-          onCreate={handleCreateFolder}
-          description={`Create a folder inside ${viewState.title}`}
-        />
+        {isPreProduction ? (
+          <CreateFolderModal
+            isOpen={isCreateFolderModalOpen}
+            onClose={() => setIsCreateFolderModalOpen(false)}
+            onCreate={handleCreateFolder}
+            description={`Create a folder inside ${viewState.title}`}
+          />
+        ) : null}
 
         <DeleteConfirmModal
           isOpen={isDeleteModalOpen}
@@ -724,23 +738,26 @@ export default function AdminFileManagerPhasePage() {
           fileName={viewerFile?.title}
           fileUrl={viewerUrl}
           contentType={viewerFile?.contentType}
+          fileMetaId={viewerFile?.filepath || null}
         />
 
-        <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
-          <Button
-            onClick={() => setIsUploadModalOpen(true)}
-            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-          >
-            <Upload size={20} />
-            Upload Files
-          </Button>
-          <Button
-            onClick={() => setIsCreateFolderModalOpen(true)}
-            className="w-full bg-[#202020] text-white hover:bg-white/10 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-          >
-            Create Folder
-          </Button>
-        </div>
+        {isPreProduction ? (
+          <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+            <Button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            >
+              <Upload size={20} />
+              Upload Files
+            </Button>
+            <Button
+              onClick={() => setIsCreateFolderModalOpen(true)}
+              className="w-full bg-[#202020] text-white hover:bg-white/10 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            >
+              Create Folder
+            </Button>
+          </div>
+        ) : null}
       </div>
     </>
   );

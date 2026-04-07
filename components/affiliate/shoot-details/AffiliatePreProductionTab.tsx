@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink, FileText, Folder, Loader2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Folder, Loader2, Upload } from "lucide-react";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
+import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 
 interface AffiliatePreProductionTabProps {
@@ -27,6 +28,8 @@ export default function AffiliatePreProductionTab({ projectId }: AffiliatePrePro
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [viewerName, setViewerName] = useState("");
   const [viewerType, setViewerType] = useState("");
+  const [viewerMetaId, setViewerMetaId] = useState<string | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   const loadPreProduction = async () => {
     try {
@@ -61,9 +64,10 @@ export default function AffiliatePreProductionTab({ projectId }: AffiliatePrePro
       setViewerUrl(null);
       setViewerName(file.name);
       setViewerType(file.contentType || "");
+      setViewerMetaId(file.path || null);
       const response = await fileManagerApi.getExternalFileViewUrl(file.path);
       setViewerUrl(response.url || null);
-    } catch (error) {
+    } catch {
       setViewerOpen(false);
     }
   };
@@ -71,8 +75,19 @@ export default function AffiliatePreProductionTab({ projectId }: AffiliatePrePro
   return (
     <div className="space-y-6" style={{ fontFamily: "var(--font-instrument-sans)" }}>
       <div className="bg-[#111111] lg:p-4 rounded-lg lg:rounded-2xl border border-[#222222] min-h-[46px]">
-        <div className="px-6 text-[#666666] text-xs lg:text-base font-medium py-4">
-          {workspaceName ? `View Pre Production files for ${workspaceName}` : "View Pre Production files"}
+        <div className="flex items-center justify-between gap-4 px-6 py-4">
+          <div className="text-[#666666] text-xs lg:text-base font-medium">
+            {workspaceName ? `View Pre Production files for ${workspaceName}` : "View Pre Production files"}
+          </div>
+          {workspaceName ? (
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-[#E5D5B8] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#D4C3A3]"
+            >
+              <Upload size={16} />
+              Upload Files
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -154,6 +169,8 @@ export default function AffiliatePreProductionTab({ projectId }: AffiliatePrePro
                 <EmptyFileState
                   title="No File Uploaded"
                   description="No files have been uploaded for this project yet."
+                  onAction={() => setIsUploadModalOpen(true)}
+                  actionLabel="Upload Files"
                 />
               )}
             </div>
@@ -163,10 +180,22 @@ export default function AffiliatePreProductionTab({ projectId }: AffiliatePrePro
 
       <FileViewerModal
         isOpen={viewerOpen}
-        onClose={() => setViewerOpen(false)}
+        onClose={() => {
+          setViewerOpen(false);
+          setViewerMetaId(null);
+        }}
         fileName={viewerName}
         fileUrl={viewerUrl}
         contentType={viewerType}
+        fileMetaId={viewerMetaId}
+      />
+
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        folderName={currentPath ? prettifyFolderName(currentPath.split("/").slice(-1)[0]) : "Pre Production"}
+        uploadPath={workspaceName ? `${workspaceName}/Pre-Production${currentPath ? `/${currentPath}` : ""}` : undefined}
+        onUploadComplete={loadPreProduction}
       />
     </div>
   );

@@ -129,7 +129,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
               <AffiliateProjectTeam projectId={shootId} />
               <AffiliateAssignedCP projectId={shootId} />
             </div>
-            <AffiliateMeetingSchedule />
+            <AffiliateMeetingSchedule role="client" orderId={shootId} />
           </>
         )}
 
@@ -143,13 +143,13 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
 
         {activeTab === "Meetings" && (
           <>
-            <AffiliateMeetingSchedule />
+            <AffiliateMeetingSchedule role="client" orderId={shootId} />
             <AffiliateMeetingOverviewChart />
           </>
         )}
 
         {activeTab === "Messages" && (
-          <AffiliateMessagesTab />
+          <AffiliateMessagesTab bookingId={shootId} />
         )}
       </div>
 

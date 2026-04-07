@@ -36,6 +36,7 @@ import { AffiliateShootStatusChart } from "@/components/affiliate/AffiliateShoot
 // import AffiliateStatsModule from "@/components/affiliate/AffiliateStatsModule";
 // import { AffiliateTopCreatives } from "@/components/affiliate/AffiliateTopCreatives";
 import AffiliateFileManager from "@/components/affiliate/AffiliateFileManager";
+import AffiliateMeetings from "@/components/affiliate/AffiliateMeetings";
 import AffiliateMessages from "@/components/affiliate/AffiliateMessages";
 import { AffiliateShoots } from "@/components/affiliate/AffiliateShoots";
 import AffiliateShootDetails from "@/components/affiliate/AffiliateShootDetails";
@@ -62,6 +63,7 @@ type TabType =
   | "overview"
   | "bookings"
   | "file-manager"
+  | "meetings"
   | "messages"
   | "shoots"
   | "profile";
@@ -358,14 +360,22 @@ export default function AffiliateDashboardPage() {
         </button>
 
         <button
-          disabled
+          onClick={() => setActiveTab("meetings")}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "meetings"
+            ? "bg-[#E5D5B8] text-black shadow-lg"
+            : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+            }`}
+        >
+          <Calendar size={20} />
+          <span className="font-medium">Meetings</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab("messages")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "messages"
             ? "bg-[#E5D5B8] text-black shadow-lg"
             : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-            }
-            opacity-40 cursor-not-allowed
-            `}
+            }`}
         >
           <MessageCircle size={20} />
           <span className="font-medium">Messages</span>
@@ -538,6 +548,8 @@ export default function AffiliateDashboardPage() {
               )
             ) : activeTab === "file-manager" ? (
               <AffiliateFileManager />
+            ) : activeTab === "meetings" ? (
+              <AffiliateMeetings />
             ) : activeTab === "messages" ? (
               <AffiliateMessages />
             ) : activeTab === "profile" ? (

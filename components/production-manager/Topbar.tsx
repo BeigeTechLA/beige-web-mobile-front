@@ -73,11 +73,6 @@ export default function Topbar({
                                         <span className={`capitalize ${isLast ? "text-white font-bold" : ""}`}>
                                             {path.split("-").join(" ")}
                                         </span>
-                                        {isLast && path === "messages" && (
-                                            <span className="ml-1 px-2 py-0.5 bg-[#202020] text-zinc-500 text-[10px] rounded-full border border-zinc-800">
-                                                04 Chats
-                                            </span>
-                                        )}
                                         {!isLast && <span className="mx-1">/</span>}
                                     </React.Fragment>
                                 );
@@ -119,11 +114,6 @@ export default function Topbar({
                                         <span className={`capitalize ${isLast ? "text-white font-bold" : ""}`}>
                                             {path.split("-").join(" ")}
                                         </span>
-                                        {isLast && path === "messages" && (
-                                            <span className="ml-2 px-2 py-0.5 bg-[#202020] text-zinc-500 text-[10px] rounded-full border border-zinc-800">
-                                                04 Chats
-                                            </span>
-                                        )}
                                         {!isLast && <span className="mx-2">/</span>}
                                     </React.Fragment>
                                 );
@@ -150,12 +140,6 @@ export default function Topbar({
                     {isShootsPage && (
                         <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-10 px-5 font-semibold">
                             Book a Shoot
-                        </Button>
-                    )}
-
-                    {pathname.includes("messages") && (
-                        <Button className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity">
-                            Create Messages
                         </Button>
                     )}
 

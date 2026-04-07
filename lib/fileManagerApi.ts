@@ -172,6 +172,29 @@ export interface UiFileItem {
   contentType?: string;
 }
 
+export interface FileCommentUser {
+  id?: string | number;
+  name?: string | null;
+  email?: string | null;
+  profile_picture?: string | null;
+  role?: string | null;
+}
+
+export interface FileCommentItem {
+  id: string;
+  comment: string;
+  createdAt?: string;
+  updatedAt?: string;
+  timestamp?: number | null;
+  userId?: FileCommentUser | null;
+  replies?: FileCommentItem[];
+  reactions?: Array<{
+    type?: string;
+    count?: number;
+    users?: string[];
+  }>;
+}
+
 const PRE_PRODUCTION_CATEGORIES = ["REFERENCE_MATERIAL", "THUMBNAIL"];
 const RAW_FOOTAGE_CATEGORIES = ["RAW_FOOTAGE", "RAW_AUDIO"];
 const EDITED_FOOTAGE_CATEGORIES = ["EDIT_DRAFT", "EDIT_REVISION"];
@@ -282,7 +305,7 @@ export const fileManagerApi = {
     const response = await apiClient.get<ExternalWorkspaceResponse>(
       `external-file-manager/workspace/${externalId}`
     );
-    return response.data;
+    return response.data || null;
   },
 
   async getExternalWorkspaceFiles(externalId: string | number, phase?: string, path?: string) {
@@ -391,6 +414,25 @@ export const fileManagerApi = {
       folderName,
       phase: options?.phase,
       path: options?.path,
+    });
+    return response.data;
+  },
+
+  async getComments(fileMetaId: string) {
+    return apiClient.get<FileCommentItem[]>("comments", { metaId: fileMetaId });
+  },
+
+  async addComment(payload: { fileMetaId: string; user_id: string | number; comment: string; timestamp?: number | null }) {
+    return apiClient.post<FileCommentItem>("comments", payload);
+  },
+
+  async replyToComment(commentId: string, payload: { user_id: string | number; comment: string }) {
+    return apiClient.post<FileCommentItem>(`comments/${commentId}/reply`, payload);
+  },
+
+  async deleteComment(commentId: string, userId: string | number) {
+    const response = await apiClient.getInstance().delete(`comments/${commentId}`, {
+      data: { user_id: userId },
     });
     return response.data;
   },

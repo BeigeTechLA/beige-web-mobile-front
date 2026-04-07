@@ -43,7 +43,8 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
           });
         }
 
-        let projectData = projectResponse?.data?.project || projectResponse?.data || projectResponse;
+        const responseData = projectResponse?.data || null;
+        let projectData = responseData?.project || responseData || projectResponse;
 
         if (projectData) {
           let skillsText = "";
@@ -77,6 +78,13 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
 
           setProject({
             ...projectData,
+            lead_details: responseData?.lead_details || projectData?.lead_details || null,
+            assignedCrew: responseData?.assignedCrew || projectData?.assignedCrew || projectData?.assigned_crews || [],
+            assignedPostProductionMembers:
+              responseData?.assignedPostProductionMembers ||
+              projectData?.assignedPostProductionMembers ||
+              projectData?.assigned_post_production_members ||
+              [],
             skills_needed: skillsText || projectData.skills_needed,
           });
         }
@@ -120,7 +128,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
                 <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
                 <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
               </div>
-              <MeetingSchedule />
+              <MeetingSchedule role="sales" orderId={id} />
             </>
           )}
 
@@ -134,12 +142,18 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
 
           {activeTab === "Meetings" && (
             <>
-              <MeetingSchedule />
+              <MeetingSchedule role="sales" orderId={id} />
               <MeetingOverviewChart />
             </>
           )}
 
-          {activeTab === "Messages" && <MessagesTab />}
+          {activeTab === "Messages" && (
+            <MessagesTab
+              role="sales"
+              bookingId={project?.booking_id || project?.stream_project_booking_id || id}
+              projectName={project?.project_name}
+            />
+          )}
         </div>
 
         <div className="hidden lg:block">

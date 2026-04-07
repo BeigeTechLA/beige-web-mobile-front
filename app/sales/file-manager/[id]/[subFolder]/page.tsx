@@ -34,6 +34,7 @@ export default function SalesFileManagerPhasePage() {
   const params = useParams<{ id: string; subFolder: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
+  const isPreProduction = phaseSlug !== "post-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -218,6 +219,7 @@ export default function SalesFileManagerPhasePage() {
   };
 
   const handleDeleteSelectedFolder = async () => {
+    if (!isPreProduction) return;
     if (!selectedFolder?.resourcePath) return;
 
     try {
@@ -236,6 +238,7 @@ export default function SalesFileManagerPhasePage() {
   };
 
   const handleCreateFolder = async ({ name }: { name: string }) => {
+    if (!isPreProduction) return;
     try {
       const folderName = name.trim();
       await fileManagerApi.createExternalFolder(projectId, folderName, { phase: currentPhase });
@@ -264,6 +267,7 @@ export default function SalesFileManagerPhasePage() {
   };
 
   const handleDeleteFile = async (file: any) => {
+    if (!isPreProduction) return;
     const targetFile = file || selectedFile;
     if (!targetFile?.filepath) return;
 
@@ -303,12 +307,16 @@ export default function SalesFileManagerPhasePage() {
         pathname={pathname}
         actions={
           <>
-            <Button onClick={() => setIsUploadModalOpen(true)} className="bg-[#202020] border border-white/20 text-white hover:bg-white/10">
-              <Upload /> Upload Files
-            </Button>
-            <Button onClick={() => setIsCreateFolderModalOpen(true)} className="bg-[#E5D5B8] text-black">
-              Create Folder
-            </Button>
+            {isPreProduction ? (
+              <>
+                <Button onClick={() => setIsUploadModalOpen(true)} className="bg-[#202020] border border-white/20 text-white hover:bg-white/10">
+                  <Upload /> Upload Files
+                </Button>
+                <Button onClick={() => setIsCreateFolderModalOpen(true)} className="bg-[#E5D5B8] text-black">
+                  Create Folder
+                </Button>
+              </>
+            ) : null}
           </>
         }
       />
@@ -443,6 +451,7 @@ export default function SalesFileManagerPhasePage() {
                           }
                         }}
                         onDelete={() => {
+                          if (!isPreProduction) return;
                           setSelectedFolder(folder);
                           setSelectedFile(null);
                           setIsDeleteModalOpen(true);
@@ -541,6 +550,7 @@ export default function SalesFileManagerPhasePage() {
                               }
                             }}
                             onDelete={() => {
+                              if (!isPreProduction) return;
                               setSelectedFolder(folder);
                               setSelectedFile(null);
                               setIsDeleteModalOpen(true);
@@ -556,7 +566,7 @@ export default function SalesFileManagerPhasePage() {
                     <div>
                       <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
                       {filteredFiles.length === 0 ? (
-                        <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                        <EmptyFileState onAction={isPreProduction ? () => setIsUploadModalOpen(true) : undefined} actionLabel={isPreProduction ? "Upload Files" : undefined} />
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                           {filteredFiles.map((file) => (
@@ -566,6 +576,7 @@ export default function SalesFileManagerPhasePage() {
                               onOpen={() => handleOpenFile(file)}
                               onDownload={() => handleDownloadFile(file)}
                               onDelete={() => {
+                                if (!isPreProduction) return;
                                 setSelectedFile(file);
                                 setSelectedFolder(null);
                                 setIsDeleteModalOpen(true);
@@ -579,7 +590,7 @@ export default function SalesFileManagerPhasePage() {
                 </div>
               ) : viewMode === "grid" ? (
                 filteredFiles.length === 0 ? (
-                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                  <EmptyFileState onAction={isPreProduction ? () => setIsUploadModalOpen(true) : undefined} actionLabel={isPreProduction ? "Upload Files" : undefined} />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                     {filteredFiles.map((file) => (
@@ -589,6 +600,7 @@ export default function SalesFileManagerPhasePage() {
                         onOpen={() => handleOpenFile(file)}
                         onDownload={() => handleDownloadFile(file)}
                         onDelete={() => {
+                          if (!isPreProduction) return;
                           setSelectedFile(file);
                           setSelectedFolder(null);
                           setIsDeleteModalOpen(true);
@@ -599,7 +611,7 @@ export default function SalesFileManagerPhasePage() {
                 )
               ) : (
                 filteredFiles.length === 0 ? (
-                  <EmptyFileState onAction={() => setIsUploadModalOpen(true)} actionLabel="Upload Files" />
+                  <EmptyFileState onAction={isPreProduction ? () => setIsUploadModalOpen(true) : undefined} actionLabel={isPreProduction ? "Upload Files" : undefined} />
                 ) : (
                   <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -640,7 +652,7 @@ export default function SalesFileManagerPhasePage() {
                                   e.stopPropagation();
                                   setSelectedFile(item);
                                   setSelectedFolder(null);
-                                  setIsDeleteModalOpen(true);
+                                  if (isPreProduction) setIsDeleteModalOpen(true);
                                 }}>
                                   Delete
                                 </Button>
@@ -679,16 +691,18 @@ export default function SalesFileManagerPhasePage() {
             setUploadFolderLabel(undefined);
           }}
           folderName={uploadFolderLabel || selectedFolder?.title || viewState.title}
-          uploadPath={uploadPathOverride || defaultUploadPath}
+          uploadPath={isPreProduction ? uploadPathOverride || defaultUploadPath : undefined}
           onUploadComplete={loadPhase}
         />
 
-        <CreateFolderModal
-          isOpen={isCreateFolderModalOpen}
-          onClose={() => setIsCreateFolderModalOpen(false)}
-          onCreate={handleCreateFolder}
-          description={`Create a folder inside ${viewState.title}`}
-        />
+        {isPreProduction ? (
+          <CreateFolderModal
+            isOpen={isCreateFolderModalOpen}
+            onClose={() => setIsCreateFolderModalOpen(false)}
+            onCreate={handleCreateFolder}
+            description={`Create a folder inside ${viewState.title}`}
+          />
+        ) : null}
 
         <DeleteConfirmModal
           isOpen={isDeleteModalOpen}
@@ -708,6 +722,7 @@ export default function SalesFileManagerPhasePage() {
           fileName={viewerFile?.title}
           fileUrl={viewerUrl}
           contentType={viewerFile?.contentType}
+          fileMetaId={viewerFile?.filepath || null}
         />
       </div>
     </>

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -11,13 +11,14 @@ const menuItems = [
     { name: 'Creative Partners', icon: Users, link: '/production-manager/creative-partners' },
     { name: 'Shoots', icon: Camera, link: '/production-manager/shoots' },
     { name: 'File Manager', icon: FolderOpen, link: '/production-manager/file-manager' },
+    { name: 'Meetings', icon: CalendarClock, link: '/production-manager/meetings' },
     { name: 'Messages', icon: MessageCircle, link: '/production-manager/messages' },
     { name: 'Availability', icon: CalendarClock, link: '/production-manager/availability' },
 ];
 
 type MenuItem = {
     name: string;
-    icon: any;
+    icon: LucideIcon;
     link?: string;
     children?: { name: string; link: string }[];
     isDisabled?: boolean;
@@ -28,13 +29,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     const router = useRouter();
     const { user, logout } = useAuth();
     const [expanded, setExpanded] = useState<string[]>([]);
-
-    const handleLinkClick = (link: string) => {
-        if (link !== "#") {
-            if (onClose) onClose();
-            router.push(link);
-        }
-    };
 
     const toggleExpand = (name: string) => {
         setExpanded((prev) =>

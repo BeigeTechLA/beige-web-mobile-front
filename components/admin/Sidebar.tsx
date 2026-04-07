@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -10,8 +10,8 @@ const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
+  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings' },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
-  // { name: 'Availability', icon: CalendarClock, link: '/admin/availability', isDisabled: true },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability' },
   { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
   {
@@ -27,7 +27,7 @@ const menuItems = [
 
 type MenuItem = {
   name: string;
-  icon: any;
+  icon: LucideIcon;
   link?: string;
   children?: { name: string; link: string }[];
   isDisabled?: boolean;
@@ -38,13 +38,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [expanded, setExpanded] = useState<string[]>(["Users"]);
-
-  const handleLinkClick = (link: string) => {
-    if (link !== "#") {
-      if (onClose) onClose();
-      router.push(link);
-    }
-  };
 
   const toggleExpand = (name: string) => {
     setExpanded((prev) =>

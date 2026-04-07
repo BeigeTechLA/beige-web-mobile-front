@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
-import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import Topbar from "@/components/admin/Topbar";
@@ -38,7 +37,6 @@ export default function AdminFolderDetailsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [status, setStatus] = useState("");
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -50,6 +48,13 @@ export default function AdminFolderDetailsPage() {
       setLoading(true);
       setError(null);
       const workspaceData = await fileManagerApi.getExternalWorkspace(projectId);
+      if (!workspaceData?.workspace) {
+        setWorkspaceName("");
+        setWorkspaceCode(String(projectId || ""));
+        setWorkspaceConsoleUrl(null);
+        setFolders([]);
+        return;
+      }
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
@@ -148,19 +153,7 @@ export default function AdminFolderDetailsPage() {
 
   return (
     <>
-      <Topbar
-        pathname={pathname}
-        actions={
-          <>
-            <Button
-              onClick={() => setIsUploadModalOpen(true)}
-              className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
-            >
-              <Upload /> Upload Files
-            </Button>
-          </>
-        }
-      />
+      <Topbar pathname={pathname} />
 
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
         <Button onClick={() => router.back()} className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0">
@@ -172,6 +165,10 @@ export default function AdminFolderDetailsPage() {
           <div className="text-white/70 text-sm">Loading project...</div>
         ) : error ? (
           <div className="text-red-300 text-sm">{error || "Workspace not found"}</div>
+        ) : !workspaceName ? (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-[#111111] p-6 text-sm text-white/65">
+            Workspace is not available for this project yet. Older projects may not have one linked.
+          </div>
         ) : (
           <>
             <div>
@@ -374,14 +371,6 @@ export default function AdminFolderDetailsPage() {
           folderName={selectedFolder?.title || ""}
         />
 
-        <UploadModal
-          isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
-          folderName={selectedFolder?.title || workspaceName || ""}
-          uploadPath={workspaceName || undefined}
-          onUploadComplete={loadWorkspace}
-        />
-
         <DeleteConfirmModal
           isOpen={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}
@@ -390,16 +379,6 @@ export default function AdminFolderDetailsPage() {
           itemType="folder"
           isDeleting={isDeleting}
         />
-
-        <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
-          <Button
-            onClick={() => setIsUploadModalOpen(true)}
-            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-          >
-            <Upload size={20} />
-            Upload Files
-          </Button>
-        </div>
       </div>
     </>
   );

@@ -1,21 +1,21 @@
 "use client";
-import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 
-const salesMenuItems = [
+const salesMenuItems: SalesMenuItem[] = [
   { name: 'Sales', icon: LayoutDashboard, link: '/sales/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
-  { name: 'Messages', icon: MessageCircle, link: '/sales/messages', isDisabled: true },
+  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
+  { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
 ];
 
 type SalesMenuItem = {
   name: string;
-  icon: any;
+  icon: LucideIcon;
   link?: string;
   isDisabled?: boolean;
 };
@@ -24,22 +24,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
-  const [expanded, setExpanded] = useState<string[]>(["Users"]);
-
-  const handleLinkClick = (link: string) => {
-    if (link !== "#") {
-      if (onClose) onClose();
-      router.push(link);
-    }
-  };
-
-  const toggleExpand = (name: string) => {
-    setExpanded((prev) =>
-      prev.includes(name)
-        ? prev.filter((item) => item !== name)
-        : [...prev, name],
-    );
-  };
 
   const isActiveLink = (link?: string) => {
     if (!link || link === "#") return false;

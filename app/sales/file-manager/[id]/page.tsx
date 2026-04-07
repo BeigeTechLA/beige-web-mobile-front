@@ -48,6 +48,13 @@ export default function SalesFolderDetailsPage() {
       setLoading(true);
       setError(null);
       const workspaceData = await fileManagerApi.getExternalWorkspace(projectId);
+      if (!workspaceData?.workspace) {
+        setWorkspaceName("");
+        setWorkspaceCode(String(projectId || ""));
+        setWorkspaceConsoleUrl(null);
+        setFolders([]);
+        return;
+      }
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
@@ -168,6 +175,10 @@ export default function SalesFolderDetailsPage() {
           <div className="text-white/70 text-sm">Loading project...</div>
         ) : error ? (
           <div className="text-red-300 text-sm">{error || "Workspace not found"}</div>
+        ) : !workspaceName ? (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-[#111111] p-6 text-sm text-white/65">
+            Workspace is not available for this project yet. Older projects may not have one linked.
+          </div>
         ) : (
           <>
             <div>
