@@ -8,6 +8,7 @@ import { useTheme } from "next-themes";
 
 interface LeadData {
   lead_id: number;
+  bookingId?: string;
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
@@ -44,9 +45,23 @@ export const MobileLeadRow = ({ lead, onOpenMenu }: MobileLeadRowProps) => {
           <div className="shrink-0 w-6 h-6 rounded-sm bg-[#FFF6D9] flex items-center justify-center text-black font-medium text-xs">
             {lead.clientName.split(" ").map(n => n[0]).join("")}
           </div>
-          <span className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-[#171717]"}`}>
-            {lead.clientName}
-          </span>
+          <div className="min-w-0">
+            <p className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-[#171717]"}`}>
+              {lead.clientName}
+            </p>
+            <p className={`text-[10px] truncate ${isDark ? "text-white/40" : "text-[#999]"}`}>
+              {lead.date.toLocaleDateString("en-US", {
+                month: "short",
+                day: "2-digit",
+                year: "numeric",
+              })}
+            </p>
+            {lead.bookingId ? (
+              <p className={`text-[10px] truncate ${isDark ? "text-white" : "text-[#171717]"}`}>
+                #{lead.bookingId}
+              </p>
+            ) : null}
+          </div>
         </div>
         <LeadsStatusBadge status={lead.bookingStatus || "Unknown"} />
       </div>

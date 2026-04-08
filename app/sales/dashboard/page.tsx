@@ -28,6 +28,7 @@ type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 
 interface UserData {
   id: string;
+  bookingId?: string;
   name: string;
   email: string;
   type: "Client" | "Creative Partner";
@@ -45,6 +46,7 @@ interface UserData {
 
 interface LeadData {
   lead_id: number;
+  bookingId?: string;
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
@@ -547,6 +549,7 @@ export default function SalesLeadsPage() {
         if (clientsList.length || clientsPayload.pagination) {
           const mappedClients = clientsList.map((client: any) => ({
             id: `#${client.lead_id || client.user_id || client.id}`,
+            bookingId: client.booking_id ? String(client.booking_id) : undefined,
             name: client.client_name || client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown",
             email: client.guest_email || client.email || "No Email",
             type: "Client" as const,
@@ -637,6 +640,7 @@ export default function SalesLeadsPage() {
     if (leadsApiData?.leads) {
       const mapped: LeadData[] = (leadsApiData.leads || []).map((lead: any) => ({
         lead_id: lead.lead_id,
+        bookingId: lead.booking_id ? String(lead.booking_id) : undefined,
         clientName: lead.client_name || lead.guest_email || "Unknown User",
         email: lead.guest_email || "No email",
         leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
@@ -767,15 +771,36 @@ export default function SalesLeadsPage() {
 
         <div className="flex flex-col gap-6 my-6">
           <div className="flex flex-col lg:flex-row gap-2 justify-between">
-            <TabsSwitcher
-              tabs={tabs}
-              activeTab={activeTab}
-              onChange={(tab) => {
-                setActiveTab(tab);
-                setUsersCurrentPage(1);
-                setLeadsCurrentPage(1);
-              }}
-            />
+            <div className="flex flex-col gap-2 w-fit max-w-full">
+              <TabsSwitcher
+                tabs={tabs}
+                activeTab={activeTab}
+                onChange={(tab) => {
+                  setActiveTab(tab);
+                  setUsersCurrentPage(1);
+                  setLeadsCurrentPage(1);
+                }}
+              />
+
+              <div
+                className={`relative flex items-center mt-2 gap-1 p-1 rounded-xl border transition-all duration-300 w-full ${isDark
+                  ? "bg-[#111] border-[#333]"
+                  : "bg-[#fff] border-[#E5E5E5]"
+                  }`}
+              >
+                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
+                <input
+                  type="text"
+                  placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                    ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                    : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
+                    }`}
+                />
+              </div>
+            </div>
 
             {activeTab === "Booking" && (
               <div className="flex flex-wrap gap-2 lg:gap-4">
@@ -887,7 +912,14 @@ export default function SalesLeadsPage() {
                     </div>
                     <div>
                       <p className={`font-medium text-[15px] transition-colors ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.name}</p>
-                      <p className={`text-xs mt-0.5 transition-colors ${isDark ? "text-[#666666]" : "text-[#999999]"}`}>{user.joinDate}</p>
+                      <p className={`text-xs mt-0.5 transition-colors ${isDark ? "text-[#666666]" : "text-[#999999]"}`}>
+                        {user.joinDate}
+                      </p>
+                      {user.bookingId ? (
+                        <p className={`text-xs transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                          #{user.bookingId}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </td>

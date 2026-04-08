@@ -41,8 +41,6 @@ import {
   YAxis,
 } from "recharts";
 import {
-  Calendar,
-  Clock,
   Copy,
   Download,
   FileText,
@@ -65,6 +63,22 @@ type QuotesDashboardPageProps = {
   createHref: string;
   TopbarComponent: React.ComponentType<TopbarComponentProps>;
 };
+
+const CustomDollarIcon = ({ size = 20 }: { size?: number }) => (
+  <img src="/images/socmed/Dollar.svg" width={size} height={size} alt="dollar" />
+);
+
+const CustomCrossIcon = ({ size = 20 }: { size?: number }) => (
+  <img src="/images/socmed/Cross.svg" width={size} height={size} alt="cross" />
+);
+
+const CustomClockIcon = ({ size = 20 }: { size?: number }) => (
+  <img src="/images/socmed/Clock.svg" width={size} height={size} alt="clock" />
+);
+
+const CustomCalendarIcon = ({ size = 20 }: { size?: number }) => (
+  <img src="/images/socmed/Calendar.svg" width={size} height={size} alt="calendar" />
+);
 
 type ChartPoint = {
   name: string;
@@ -915,10 +929,10 @@ export default function QuotesDashboardPage({
   };
 
   const statsIcons: Record<string, React.ReactNode> = {
-    "Total Quotes": <FileText className="fill-[#E8D1AB] stroke-black" size={20} />,
-    "Rejected Quotes": <XCircle className="fill-[#E8D1AB] stroke-black" size={20} />,
-    "Pending Quotes": <Clock className="fill-[#E8D1AB] stroke-black" size={20} />,
-    "Draft Quotes": <Calendar className="fill-[#E8D1AB] stroke-black" size={20} />,
+    "Total Quotes": <CustomDollarIcon size={20} />,
+    "Rejected Quotes": <CustomCrossIcon size={20} />,
+    "Pending Quotes": <CustomClockIcon size={20} />,
+    "Draft Quotes": <CustomCalendarIcon size={20} />,
   };
 
   const fallbackOverview = useMemo<QuoteOverview>(() => {

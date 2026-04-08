@@ -41,7 +41,14 @@ function MobileUserRow<T>({
           </div>
           <div className="flex flex-col min-w-0 flex-1">
             <span className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-[#171717]"}`}>{data.name}</span>
-            <span className={`text-[10px] truncate ${isDark ? "text-white/40" : "text-[#999]"}`}>{data.id}</span>
+            <span className={`text-[10px] truncate ${isDark ? "text-white/40" : "text-[#999]"}`}>
+              {data.joinDate || data.id}
+            </span>
+            {data.bookingId ? (
+              <span className={`text-[10px] truncate ${isDark ? "text-white" : "text-[#171717]"}`}>
+                #{data.bookingId}
+              </span>
+            ) : null}
           </div>
         </div>
         <LeadsStatusBadge status={"Booking In Progress"} />
