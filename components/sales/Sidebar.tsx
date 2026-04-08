@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, FileText, Receipt } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, X, type LucideIcon, FileText, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -23,17 +23,18 @@ const CustomQuotesIcon = ({ size = 24 }) => (
   />
 );
 
-const salesMenuItems = [
+const salesMenuItems: SalesMenuItem[] = [
   { name: 'Sales', icon: LayoutDashboard, link: '/sales/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', isDisabled: true },
-  { name: 'Messages', icon: MessageCircle, link: '/sales/messages', isDisabled: true },
+  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
+  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
+  { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/sales/quotes' },
 ];
 
 type SalesMenuItem = {
   name: string;
-  icon: any;
+  icon: LucideIcon;
   link?: string;
   isDisabled?: boolean;
 };

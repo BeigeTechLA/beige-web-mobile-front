@@ -836,11 +836,10 @@ export default function LeadDetailPage() {
                                       setSelectedSalesRepId(option.value);
                                       handleUpdateSalesRep(option.value);
                                     }}
-                                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                                      isSelected
-                                        ? (isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-black/5 text-black font-medium")
-                                        : (isDark ? "text-white/80 hover:bg-white/10" : "text-black/80 hover:bg-black/5")
-                                    }`}
+                                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${isSelected
+                                      ? (isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-black/5 text-black font-medium")
+                                      : (isDark ? "text-white/80 hover:bg-white/10" : "text-black/80 hover:bg-black/5")
+                                      }`}
                                   >
                                     {option.label}
                                   </button>
@@ -1129,11 +1128,10 @@ export default function LeadDetailPage() {
               <div className="flex flex-col gap-3 lg:gap-6 p-4 lg:p-9 lg:pb-6">
                 {isQuoteConvertedLead && (
                   <div
-                    className={`rounded-2xl border px-4 py-3 ${
-                      isDark
-                        ? "border-[#4A3E28] bg-[#1E1912] text-[#F5E9D2]"
-                        : "border-[#E8D1AB] bg-[#FFF8E8] text-[#5C4717]"
-                    }`}
+                    className={`rounded-2xl border px-4 py-3 ${isDark
+                      ? "border-[#4A3E28] bg-[#1E1912] text-[#F5E9D2]"
+                      : "border-[#E8D1AB] bg-[#FFF8E8] text-[#5C4717]"
+                      }`}
                   >
                     <p className="text-sm font-medium">
                       This booking was created from a quote conversion, so pricing is locked from the approved quote and booking edits are disabled on this page.
@@ -1234,9 +1232,9 @@ export default function LeadDetailPage() {
                           : "bg-white border-[#D8D8D8]"
                           }`}>
                           <button
-                            onClick={() => { 
-                              setDiscountType("percentage"); 
-                              setIsDropdownOpen(false); 
+                            onClick={() => {
+                              setDiscountType("percentage");
+                              setIsDropdownOpen(false);
                             }}
                             className={`w-full text-left px-4 py-4 transition-colors border-b ${isDark
                               ? "text-white hover:bg-white/10 border-white/5"
@@ -1268,6 +1266,7 @@ export default function LeadDetailPage() {
                     {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
                   </label>
                   <div className={`flex items-center border rounded-xl px-4 py-4 bg-transparent transition-all focus-within:border-[#E8D1AB] ${isDark ? "border-white/50" : "border-[#D8D8D8]"}`}>
+                    {discountType === "fixed_amount" && <DollarSign size={20} className={isDark ? "text-white mr-1" : "text-black mr-1"} />}
                     <input
                       type="number"
                       placeholder="0"
@@ -1283,7 +1282,7 @@ export default function LeadDetailPage() {
                       }}
                       onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     />
-                    {discountType === "percentage" ? <Percent size={20} className={isDark ? "text-white" : "text-black"} /> : <DollarSign size={20} className={isDark ? "text-white" : "text-black"} />}
+                    {discountType === "percentage" && <Percent size={20} className={isDark ? "text-white" : "text-black"} />}
                   </div>
                 </div>
 
@@ -1353,9 +1352,8 @@ export default function LeadDetailPage() {
                     </div>
                     {quotePricingDetails.status && (
                       <span
-                        className={`rounded-full px-3 py-1 text-[11px] font-medium capitalize ${
-                          isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-[#FFF6D9] text-[#7A5A00]"
-                        }`}
+                        className={`rounded-full px-3 py-1 text-[11px] font-medium capitalize ${isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-[#FFF6D9] text-[#7A5A00]"
+                          }`}
                       >
                         {quotePricingDetails.status}
                       </span>

@@ -15,7 +15,7 @@ interface FolderEntry {
   lastOpened: string;
 }
 
-export const MobileFolderRow = ({ folder, handleOpenMenu }: { folder: FolderEntry, handleOpenMenu: (e: React.MouseEvent<any>, folderTitle: string) => void }) => {
+export const MobileFolderRow = ({ folder, handleOpenMenu }: { folder: FolderEntry, handleOpenMenu: (e: React.MouseEvent<any>, folderTitle?: string) => void }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -37,13 +37,13 @@ export const MobileFolderRow = ({ folder, handleOpenMenu }: { folder: FolderEntr
           </span>
         </div>
         <Button
-          className="text-white hover:text-white/90 transition-colors"
+          className="h-10 w-10 rounded-full p-0 text-white transition-colors hover:bg-white/10 hover:text-white/90"
           onClick={(e) => {
             e.stopPropagation(); // Prevents the accordion from opening/closing
             handleOpenMenu(e, folder.title);
           }}
         >
-          <MoreVertical size={30} />
+          <MoreVertical size={20} />
         </Button>
       </div>
 
