@@ -42,19 +42,19 @@ type TabType =
   | "shoots"
   | "profile";
 
-const tabs: Array<{
-  id: TabType;
-  label: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-}> = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "overview", label: "Affiliate Overview", icon: Users },
-  { id: "file-manager", label: "File Manager", icon: FolderOpen },
-  { id: "meetings", label: "Meetings", icon: Calendar },
-  { id: "messages", label: "Messages", icon: MessageCircle },
-  { id: "shoots", label: "Shoots", icon: Camera },
-  { id: "profile", label: "Profile", icon: Settings },
-];
+// const tabs: Array<{
+//   id: TabType;
+//   label: string;
+//   icon: React.ComponentType<{ size?: number; className?: string }>;
+// }> = [
+//   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+//   { id: "overview", label: "Affiliate Overview", icon: Users },
+//   { id: "file-manager", label: "File Manager", icon: FolderOpen },
+//   { id: "meetings", label: "Meetings", icon: Calendar },
+//   { id: "messages", label: "Messages", icon: MessageCircle },
+//   { id: "shoots", label: "Shoots", icon: Camera },
+//   { id: "profile", label: "Profile", icon: Settings },
+// ];
 
 export default function AffiliateDashboardPage() {
   const router = useRouter();
