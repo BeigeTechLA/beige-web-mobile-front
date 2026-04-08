@@ -26,9 +26,9 @@ const CustomQuotesIcon = ({ size = 24 }) => (
 const salesMenuItems: SalesMenuItem[] = [
   { name: 'Sales', icon: LayoutDashboard, link: '/sales/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
-  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
-  { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
+  // { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
+  // { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
+  // { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/sales/quotes' },
 ];
 
