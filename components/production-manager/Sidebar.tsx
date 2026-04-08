@@ -29,7 +29,26 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     const pathname = usePathname();
     const router = useRouter();
     const { user, logout } = useAuth();
+    const { theme } = useTheme();
+    const initialPath = useRef(pathname);
+    const [mounted, setMounted] = useState(false);
     const [expanded, setExpanded] = useState<string[]>([]);
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (onClose && pathname !== initialPath.current) {
+      onClose();
+    }
+  }, [pathname, onClose]);
+
+  const isDark = !mounted || theme === "dark";
+
+  const handleNavigation = (link: string) => {
+    if (link && link !== "#") {
+      router.push(link);
+    }
+  };
 
   const toggleExpand = (name: string) => {
     setExpanded((prev) =>
