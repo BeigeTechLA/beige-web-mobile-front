@@ -1343,7 +1343,8 @@ export default function SalesLeadDetailsPage() {
                 <Button
                   className={`h-12 w-full font-semibold py-3.5 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   onClick={handleGenerateDiscount}
-                  disabled={isGenerating || !discount}
+                  disabled={isGenerating || !discount || discountAmount > 0}
+                  title={discountAmount > 0 ? "Discount already applied" : undefined}
                 >
                   {isGenerating ? "Generating..." : "Generate Code"}
                 </Button>
@@ -1417,14 +1418,15 @@ export default function SalesLeadDetailsPage() {
                       <Button
                         type="button"
                         onClick={handleEditQuoteRedirect}
-                        className={`h-8 px-3 text-xs font-semibold rounded-lg border transition-all ${
+                        className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
                           isDark
                             ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
                             : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
                         } ${!canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
+                        aria-label="Edit Quote"
+                        title="Edit Quote"
                       >
                         <Edit2 size={14} />
-                        <span className="ml-2">Edit Quote</span>
                       </Button>
                     </div>
                   </div>

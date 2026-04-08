@@ -2072,7 +2072,7 @@ export const salesApi = {
     name: string;
     default_rate: number;
     rate_type: string;
-    rate_unit: string;
+    rate_unit: string | null;
   }) => {
     try {
       const response = await api.post('/sales/quotes/catalog', data);
@@ -2083,6 +2083,28 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to create catalog item',
+      };
+    }
+  },
+  updateQuoteCatalog: async (
+    id: number | string,
+    data: {
+      section_type: string;
+      name: string;
+      default_rate: number;
+      rate_type: string;
+      rate_unit: string | null;
+    },
+  ) => {
+    try {
+      const response = await api.put(`/sales/quotes/catalog/${id}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update catalog item',
       };
     }
   },

@@ -524,7 +524,10 @@ export default function AdminSaleRepManagerPage() {
     isLoading: leadsIsLoading,
     isFetching: leadsIsFetching,
     refetch: refetchLeads,
-  } = useGetLeadsQuery(leadsQueryArgs);
+  } = useGetLeadsQuery(leadsQueryArgs, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+  });
 
   // Fetch users for Client and Creative Partner tabs
   const fetchUsers = async () => {
@@ -769,8 +772,8 @@ export default function AdminSaleRepManagerPage() {
         />
 
         <div className="flex flex-col gap-6 my-6">
-          <div className="flex flex-col lg:flex-row gap-2 justify-between">
-            <div className="flex flex-col gap-2 w-fit max-w-full">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <TabsSwitcher
                 tabs={tabs}
                 activeTab={activeTab}
@@ -781,78 +784,78 @@ export default function AdminSaleRepManagerPage() {
                 }}
               />
 
-              <div
-                className={`relative flex items-center gap-1 mt-2 p-1 rounded-xl border transition-all duration-300 w-full ${isDark
-                  ? "bg-[#111] border-[#333]"
-                  : "bg-[#fff] border-[#E5E5E5]"
-                  }`}
-              >
-                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
-                <input
-                  type="text"
-                  placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
-                    ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
-                    : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
-                    }`}
-                />
-              </div>
+              {activeTab === "Booking" && (
+                <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
+
+                  <BasicDropdown
+                    label="Lead Type"
+                    value={leadTypeFilter}
+                    options={["All Leads", "Self-Serve", "Sales Assisted"]}
+                    onChange={(val) => setLeadTypeFilter(val)}
+                  />
+                  <BasicDropdown
+                    label="Client Representative"
+                    value={assignedRepIdFilter}
+                    options={salesRepOptions}
+                    searchable
+                    searchPlaceholder="Search representative..."
+                    onChange={(val) => {
+                      setAssignedRepIdFilter(val);
+                    }}
+                    openAlign={"right"}
+                  />
+                  <BasicDropdown
+                    label="Intent Type"
+                    value={intentFilter}
+                    options={["All", "Hot", "Warm", "Cold"]}
+                    onChange={(val) => setIntentFilter(val as any)}
+                  />
+
+                  <BasicDropdown
+                    label="All Statuses"
+                    value={statusFilter}
+                    options={["All", ...BOOKING_STATUS_OPTIONS]}
+                    onChange={(val) => setStatusFilter(val as any)}
+                    openAlign={"right"}
+                  />
+                </div>
+              )}
+
+              {activeTab === "Client" && (
+                <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
+                  <BasicDropdown
+                    label="Client Representative"
+                    value={clientAssignedRepIdFilter}
+                    options={salesRepOptions}
+                    searchable
+                    searchPlaceholder="Search representative..."
+                    onChange={(val) => {
+                      setClientAssignedRepIdFilter(val);
+                    }}
+                    openAlign={"right"}
+                  />
+                </div>
+              )}
             </div>
 
-            {activeTab === "Booking" && (
-              <div className="flex flex-wrap gap-2 lg:gap-4">
-
-                <BasicDropdown
-                  label="Lead Type"
-                  value={leadTypeFilter}
-                  options={["All Leads", "Self-Serve", "Sales Assisted"]}
-                  onChange={(val) => setLeadTypeFilter(val)}
-                />
-                <BasicDropdown
-                  label="Client Representative"
-                  value={assignedRepIdFilter}
-                  options={salesRepOptions}
-                  searchable
-                  searchPlaceholder="Search representative..."
-                  onChange={(val) => {
-                    setAssignedRepIdFilter(val);
-                  }}
-                  openAlign={"right"}
-                />
-                <BasicDropdown
-                  label="Intent Type"
-                  value={intentFilter}
-                  options={["All", "Hot", "Warm", "Cold"]}
-                  onChange={(val) => setIntentFilter(val as any)}
-                />
-
-                <BasicDropdown
-                  label="All Statuses"
-                  value={statusFilter}
-                  options={["All", ...BOOKING_STATUS_OPTIONS]}
-                  onChange={(val) => setStatusFilter(val as any)}
-                  openAlign={"right"}
-                />
-              </div>
-            )}
-
-            {activeTab === "Client" && (
-              <div className="flex flex-wrap gap-2 lg:gap-4">
-                <BasicDropdown
-                  label="Client Representative"
-                  value={clientAssignedRepIdFilter}
-                  options={salesRepOptions}
-                  searchable
-                  searchPlaceholder="Search representative..."
-                  onChange={(val) => {
-                    setClientAssignedRepIdFilter(val);
-                  }}
-                  openAlign={"right"}
-                />
-              </div>
-            )}
+            <div
+              className={`relative flex w-full items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${isDark
+                ? "bg-[#111] border-[#333]"
+                : "bg-[#fff] border-[#E5E5E5]"
+                }`}
+            >
+              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
+              <input
+                type="text"
+                placeholder={activeTab === "Booking" ? "Search leads..." : "Search users..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                  ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
+                  : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
+                  }`}
+              />
+            </div>
           </div>
         </div>
 
