@@ -87,13 +87,19 @@ export default function SalesSalesRepManagerPage() {
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   // Fetch real leads from API
-  const { data, isLoading, isFetching } = useGetLeadsQuery({
-    page: 1,
-    limit: 50,
-    search: debouncedSearch || undefined,
-    start_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
-    end_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
-  });
+  const { data, isLoading, isFetching } = useGetLeadsQuery(
+    {
+      page: 1,
+      limit: 50,
+      search: debouncedSearch || undefined,
+      start_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
+      end_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
+    },
+    {
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+    }
+  );
 
   // Map backend data to UI format
   const leadsData: LeadData[] = (data?.leads || []).map((lead: SalesLead) => ({

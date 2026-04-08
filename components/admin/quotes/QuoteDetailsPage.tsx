@@ -28,6 +28,8 @@ import {
   type SalesQuoteConvertToBookingPayload,
   type SalesQuoteDetailData,
 } from "@/lib/api";
+import { salesApi as salesRtkApi } from "@/lib/redux/features/sales/salesApi";
+import { useAppDispatch } from "@/lib/redux/hooks";
 import {
   persistQuoteEditorNavigationCache,
   type QuoteEditorView,
@@ -294,6 +296,7 @@ export default function QuoteDetailsPage({
   baseHref,
   TopbarComponent,
 }: QuoteDetailsPageProps) {
+  const dispatch = useAppDispatch();
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const router = useRouter();
@@ -601,6 +604,7 @@ export default function QuoteDetailsPage({
           ? `Your quote has already been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads and continue with payments there.`
           : `Your quote has been converted into booking${bookingId ? ` #${bookingId}` : ""}. You can view it from Leads and continue with payments there.`
       );
+      dispatch(salesRtkApi.util.invalidateTags([{ type: "Lead", id: "LIST" }]));
       setIsConvertModalOpen(false);
     } catch (error) {
       console.error("Failed to convert quote to booking", error);
