@@ -32,9 +32,10 @@ const COLORS = {
 
 const COMPANY_PROFILE = {
   name: "Beige AI",
-  subtitle: "Production Marketplace",
-  addressLines: ["123 Business Street", "San Francisco, CA 94102"],
-  email: "contact@beigeAI.com",
+  subtitle: "",
+  addressLines: ["9200 Sunset Blvd. #215", "West Hollywood, CA 90069"],
+  email: "sales@beigecorporation.io",
+  phone: "323-826-7230",
 };
 
 const sanitizePdfFileName = (value: string) =>
@@ -370,18 +371,28 @@ const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | nul
 
   ensureSpace(118);
   drawText(page, COMPANY_PROFILE.name, PAGE_MARGIN_X, cursorY, 20, boldFont, COLORS.black);
-  drawText(page, COMPANY_PROFILE.subtitle, PAGE_MARGIN_X, cursorY - 18, 11, regularFont, COLORS.muted);
+  if (COMPANY_PROFILE.subtitle) {
+    drawText(page, COMPANY_PROFILE.subtitle, PAGE_MARGIN_X, cursorY - 18, 11, regularFont, COLORS.muted);
+  }
 
-  let companyInfoY = cursorY - 40;
+  let companyInfoY = COMPANY_PROFILE.subtitle ? cursorY - 40 : cursorY - 22;
   COMPANY_PROFILE.addressLines.forEach((line) => {
     drawText(page, line, PAGE_MARGIN_X, companyInfoY, 10.5, regularFont, COLORS.muted);
     companyInfoY -= 14;
   });
-  drawText(page, COMPANY_PROFILE.email, PAGE_MARGIN_X, companyInfoY, 10.5, regularFont, COLORS.muted);
+  drawText(
+    page,
+    `${COMPANY_PROFILE.email} ${COMPANY_PROFILE.phone}`,
+    PAGE_MARGIN_X,
+    companyInfoY,
+    10.5,
+    regularFont,
+    COLORS.muted
+  );
 
   drawRightAlignedText(
     page,
-    "QUOTATION",
+    "PROPOSAL",
     PAGE_WIDTH - PAGE_MARGIN_X,
     cursorY,
     28,
@@ -585,7 +596,7 @@ const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | nul
   ensureSpace(34, "Contact");
   drawDivider();
   const footerText =
-    "Thank you for your business. For questions, contact Beige AI at sales@beigecorporation.io";
+    "Thank you for your business. For questions, contact Beige AI at sales@beigecorporation.io or 323-826-7230";
   const footerBlock = drawWrappedBlock(footerText, {
     x: PAGE_MARGIN_X,
     y: cursorY,

@@ -1301,6 +1301,7 @@ export default function SalesLeadDetailsPage() {
                     {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
                   </label>
                   <div className={`flex items-center border rounded-xl px-4 py-4 bg-transparent transition-all focus-within:border-[#E8D1AB] ${isDark ? "border-white/50" : "border-[#D8D8D8]"}`}>
+                    {discountType === "fixed_amount" && <DollarSign size={20} className={isDark ? "text-white mr-1" : "text-black mr-1"} />}
                     <input
                       type="number"
                       placeholder="0"
@@ -1318,7 +1319,7 @@ export default function SalesLeadDetailsPage() {
                       max={discountType === "fixed_amount" ? "100" : ""}
                       onWheel={(e) => e.preventDefault()} // Prevent mouse scroll change
                     />
-                    {discountType === "percentage" ? <Percent size={20} className={isDark ? "text-white" : "text-black"} /> : <DollarSign size={20} className={isDark ? "text-white" : "text-black"} />}
+                    {discountType === "percentage" && <Percent size={20} className={isDark ? "text-white" : "text-black"} />}
                   </div>
                 </div>
 
@@ -1420,7 +1421,7 @@ export default function SalesLeadDetailsPage() {
                     <div>
                       <p className={`text-[11px] uppercase tracking-[0.18em] ${isDark ? "text-white/40" : "text-black/40"}`}>Discount</p>
                       <p className="mt-1 text-sm font-medium text-red-400">
-                        -{formatCurrencyValue(quotePricingDetails.discountAmount)}
+                        {formatCurrencyValue(quotePricingDetails.discountAmount)}
                       </p>
                     </div>
                     {quotePricingDetails.taxAmount > 0 && (

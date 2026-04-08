@@ -127,7 +127,7 @@ export const paymentApi = {
 
   confirmBooking: async (
     paymentIntentId: string,
-    bookingData: BookingFormData & { creator_id: string; guest_email?: string; user_id?: string | number; hourly_rate?: number; referral_code?: string }
+    bookingData: BookingFormData & { creator_id: string; guest_email?: string; user_id?: string | number; hourly_rate?: number; referral_code?: string; booking_id?: string | number }
   ): Promise<BookingResponse> => {
     const response = await api.post('/payments/confirm', {
       paymentIntentId: paymentIntentId,
@@ -142,6 +142,7 @@ export const paymentApi = {
       notes: bookingData.special_requests || '',
       guest_email: bookingData.guest_email,
       referral_code: bookingData.referral_code,
+      booking_id: bookingData.booking_id,
     });
     return response.data;
   },

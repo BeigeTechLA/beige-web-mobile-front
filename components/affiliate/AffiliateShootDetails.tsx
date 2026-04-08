@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from 'next/navigation';
 import AffiliateShootHeader from "./shoot-details/AffiliateShootHeader";
 import AffiliateProjectTeam from "./shoot-details/AffiliateProjectTeam";
@@ -21,10 +21,11 @@ import { useTheme } from "next-themes";
 
 interface AffiliateShootDetailsProps {
   shootId: string;
+  onBack?: () => void; // Added from Dev 2
 }
 
-export default function AffiliateShootDetails({ shootId }: AffiliateShootDetailsProps) {
-  const router = useRouter()
+export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShootDetailsProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -34,6 +35,7 @@ export default function AffiliateShootDetails({ shootId }: AffiliateShootDetails
 
   // State to handle mobile timeline visibility
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -52,6 +54,7 @@ export default function AffiliateShootDetails({ shootId }: AffiliateShootDetails
           adminApi.getSkills()
         ]);
 
+        // Skills mapping logic
         const skillsMap: Record<number, string> = {};
         if (skillsResponse && skillsResponse.data) {
           const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
@@ -61,8 +64,9 @@ export default function AffiliateShootDetails({ shootId }: AffiliateShootDetails
           });
         }
 
-        const responseRoot = projectResponse?.data || projectResponse;
-        let projectData = responseRoot?.project || responseRoot;
+        // --- MERGED CONFLICT AREA: Data Extraction ---
+        const responseData = projectResponse?.data || null;
+        const projectData = responseData?.project || responseData || projectResponse;
 
         if (projectData) {
           let skillsText = "";
@@ -93,7 +97,7 @@ export default function AffiliateShootDetails({ shootId }: AffiliateShootDetails
           }
 
           setProject({
-            ...responseRoot,
+            ...(responseData || {}),
             ...projectData,
             skills_needed: skillsText || projectData.skills_needed || "N/A"
           });
@@ -122,11 +126,14 @@ export default function AffiliateShootDetails({ shootId }: AffiliateShootDetails
     <div className="flex h-full -m-6 lg:-m-10 relative">
 
       {/* Main Content (Left) */}
-      <div className="flex-1 p-6 pb-50 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] ">
+      <div className="flex-1 p-6 pb-50 lg:p-10 lg:pb-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         <AffiliateShootHeader
           activeTab={activeTab}
           project={project}
+          projectId={shootId}
+          onBack={onBack}
         />
+        
         <Button
           className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
             ? "bg-[#202020] text-white border-white/20 hover:bg-[#202020]/50 shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
@@ -147,27 +154,27 @@ export default function AffiliateShootDetails({ shootId }: AffiliateShootDetails
                   <AffiliateProjectTeam projectId={shootId} />
                   <AffiliateAssignedCP projectId={shootId} />
                 </div>
-                <AffiliateMeetingSchedule />
+                <AffiliateMeetingSchedule role="client" orderId={shootId} />
               </>
             )}
 
             {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-              <AffiliatePreProductionTab isDark={isDark} />
+              <AffiliatePreProductionTab isDark={isDark} projectId={shootId} />
             )}
 
             {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-              <AffiliatePostProductionTab isDark={isDark} />
+              <AffiliatePostProductionTab isDark={isDark} projectId={shootId} />
             )}
 
             {activeTab === "Meetings" && (
               <>
-                <AffiliateMeetingSchedule />
+                <AffiliateMeetingSchedule role="client" orderId={shootId} />
                 <AffiliateMeetingOverviewChart isDark={isDark} />
               </>
             )}
 
             {activeTab === "Messages" && (
-              <AffiliateMessagesTab />
+              <AffiliateMessagesTab bookingId={shootId} />
             )}
           </div>
         </div>
@@ -178,27 +185,28 @@ export default function AffiliateShootDetails({ shootId }: AffiliateShootDetails
         <AffiliateProjectTimeline />
       </div>
 
-      {/* Mobile Timeline Overlay (Conditional) */}
-      {
-        isTimelineOpen && (
-          <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
-            {/* Close Backdrop Click */}
-            <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
+      {/* Mobile Timeline Overlay */}
+      {isTimelineOpen && (
+        <div className="lg:hidden fixed inset-0 z-[100] bg-black/80 flex justify-end">
+          <div className="absolute inset-0" onClick={() => setIsTimelineOpen(false)} />
 
-            <div className={`relative max-w-sm h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
-              {/* Header with Close Button */}
-              <button onClick={() => setIsTimelineOpen(false)} className={`absolute top-3 right-3 ${isDark ? "text-white/60" : "text-black/60"}`}>
-                <X size={20} />
+          <div className={`relative w-[85%] max-w-sm h-full shadow-2xl animate-in slide-in-from-right duration-300 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+            {/* Header with Title and Close Button (Merged Design) */}
+            <div className={`flex items-center justify-between p-6 border-b ${isDark ? "border-white/10" : "border-black/10"}`}>
+              <h2 className={`font-semibold ${isDark ? "text-white" : "text-black"}`}>Project Timeline</h2>
+              <button onClick={() => setIsTimelineOpen(false)} className={`${isDark ? "text-white/60" : "text-black/60"}`}>
+                <X size={24} />
               </button>
+            </div>
 
-              <div className="h-full overflow-y-auto">
-                <AffiliateProjectTimeline />
-              </div>
+            <div className="h-full overflow-y-auto">
+              <AffiliateProjectTimeline />
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-      {/* --- FLOATING MOBILE BUTTONS --- */}
+      {/* Floating Mobile Action Buttons (Dev 1) */}
       <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] transition-colors duration-300 ${isDark ? 'bg-[#0f0f0f]' : 'bg-white border-t border-[#E3E3E3] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'}`}>
         <div className="flex gap-2">
           <Button className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}>

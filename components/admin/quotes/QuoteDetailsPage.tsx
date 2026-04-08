@@ -184,12 +184,15 @@ const ServiceLineCard = ({
   return (
     <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-5">
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-      <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#E8D1AB] text-black">
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#E8D1AB] text-black">
           {getServiceIcon(item.name)}
         </div>
-        <div>
-          <p className="text-[17px] font-semibold text-white">
+        <div className="min-w-0 flex-1">
+          <p
+            className="break-words text-[17px] font-semibold leading-7 text-white"
+            title={detailLabel ? `${item.name} - ${detailLabel}` : item.name}
+          >
             {item.name}
             {detailLabel ? <span className="text-[#E8D1AB]"> - {detailLabel}</span> : null}
           </p>
@@ -281,8 +284,8 @@ const QuoteTopActions = ({
 
 const DetailRow = ({ label, value }: { label: string; value: string }) => (
   <div className="flex items-start justify-between gap-4 py-4">
-    <p className="text-base text-[#8F8F95]">{label}</p>
-    <p className="text-right text-base font-semibold text-white">{value}</p>
+    <p className="shrink-0 text-base text-[#8F8F95]">{label}</p>
+    <p className="max-w-[65%] break-words text-right text-base font-semibold text-white">{value}</p>
   </div>
 );
 
@@ -387,6 +390,7 @@ export default function QuoteDetailsPage({
   const subtotal = quote ? getQuoteNumber(quote.subtotal) ?? lineItems.reduce((sum, item) => sum + item.amount, 0) : 0;
   const discountValue = quote ? getQuoteNumber(quote.discount_value) ?? 0 : 0;
   const discountType = quote ? getQuoteText(quote.discount_type).toLowerCase() : "";
+  const isFixedDiscount = ["fixed", "fixed_amount"].includes(discountType);
   const rawDiscountAmount = quote
     ? getQuoteNumber(quote.discount_amount) ??
       (discountType.includes("percent")
@@ -692,12 +696,14 @@ export default function QuoteDetailsPage({
             >
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-start gap-4">
+                  <div className="flex min-w-0 items-start gap-4">
                     <div className="flex h-[74px] w-[74px] shrink-0 items-center justify-center rounded-[22px] bg-[#F3D9A7] text-[24px] font-semibold text-black">
                       {getInitials(clientName)}
                     </div>
-                    <div>
-                      <p className="text-[26px] font-semibold text-white">{clientName}</p>
+                    <div className="min-w-0">
+                      <p className="break-words text-[26px] font-semibold leading-tight text-white">
+                        {clientName}
+                      </p>
                       <p className="mt-1 text-[24px] font-medium text-[#D8BC87]">
                         Amount: {formatQuoteCurrency(finalTotal)}
                       </p>
@@ -726,22 +732,22 @@ export default function QuoteDetailsPage({
                 ) : null}
 
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[#9B9BA1]">
-                  <span>{`Email ID : ${clientEmail}`}</span>
+                  <span className="break-all">{`Email ID : ${clientEmail}`}</span>
                   <span className="hidden text-[#4B4B4F] lg:inline">|</span>
-                  <span>{`Phone Number : ${clientPhone}`}</span>
+                  <span className="break-all">{`Phone Number : ${clientPhone}`}</span>
                   <span className="hidden text-[#4B4B4F] lg:inline">|</span>
                   <span>{`Valid Until : ${validUntil}`}</span>
                   <span className="hidden text-[#4B4B4F] lg:inline">|</span>
-                  <span>{`Salesperson : ${salesperson}`}</span>
+                  <span className="break-words">{`Salesperson : ${salesperson}`}</span>
                 </div>
 
-                <p className="text-sm leading-7 text-[#B3B3B8]">
+                <p className="break-words text-sm leading-7 text-[#B3B3B8]">
                   <span className="text-[#8F8F95]">Project Description :</span> {projectDescription}
                 </p>
 
-                <div className="flex items-center gap-2 text-sm text-[#9B9BA1]">
-                  <MapPin size={16} className="text-[#E8D1AB]" />
-                  {clientAddress}
+                <div className="flex items-start gap-2 text-sm text-[#9B9BA1]">
+                  <MapPin size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />
+                  <span className="break-words">{clientAddress}</span>
                 </div>
               </div>
             </SectionShell>
@@ -776,9 +782,11 @@ export default function QuoteDetailsPage({
                   {addonItems.map((item) => (
                     <div
                       key={item.id}
-                      className="rounded-[14px] border border-[#2B2B2B] bg-[#111111] px-5 py-4 text-[18px] text-[#D8BC87]"
+                      title={`${item.name} x ${item.quantity}`}
+                      className="min-w-0 max-w-full rounded-[14px] border border-[#2B2B2B] bg-[#111111] px-5 py-4 sm:max-w-[360px]"
                     >
-                      {`${item.name} x ${item.quantity}`}
+                      <p className="truncate text-[18px] font-medium text-[#D8BC87]">{item.name}</p>
+                      <p className="mt-1 text-sm text-[#8F8F95]">Qty: {item.quantity}</p>
                     </div>
                   ))}
                 </div>
@@ -793,14 +801,15 @@ export default function QuoteDetailsPage({
               onAction={() => handleEditQuote("logistics")}
             >
               {logisticsItems.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-3 text-[18px] text-[#9B9BA1]">
-                  {logisticsItems.map((item, index) => (
-                    <React.Fragment key={item.id}>
-                      <span>{item.name}</span>
-                      {index < logisticsItems.length - 1 ? (
-                        <span className="text-[#4B4B4F]">|</span>
-                      ) : null}
-                    </React.Fragment>
+                <div className="flex flex-wrap gap-3">
+                  {logisticsItems.map((item) => (
+                    <div
+                      key={item.id}
+                      title={item.name}
+                      className="min-w-0 max-w-full rounded-[14px] border border-[#2B2B2B] bg-[#111111] px-5 py-4 text-[18px] text-[#9B9BA1] sm:max-w-[360px]"
+                    >
+                      <p className="truncate">{item.name}</p>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -820,8 +829,13 @@ export default function QuoteDetailsPage({
                       key={item.id}
                       className="flex flex-col gap-3 rounded-[18px] border border-[#2B2B2B] bg-[#111111] px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
                     >
-                      <span className="text-[20px] font-medium text-white">{item.name}</span>
-                      <span className="text-[22px] font-semibold text-[#D8BC87]">
+                      <span
+                        className="min-w-0 flex-1 break-words pr-0 text-[20px] font-medium text-white lg:pr-6"
+                        title={item.name}
+                      >
+                        {item.name}
+                      </span>
+                      <span className="shrink-0 text-[22px] font-semibold text-[#D8BC87]">
                         {formatQuoteCurrency(item.amount)}
                       </span>
                     </div>
@@ -869,19 +883,19 @@ export default function QuoteDetailsPage({
                         <div>
                           <p className="text-[24px] font-semibold text-white">Discount Type</p>
                           <p className="mt-1 text-sm text-[#8F8F95]">
-                            {discountType === "fixed" ? "$ off subtotal" : "% off subtotal"}
+                            {isFixedDiscount ? "$ off subtotal" : "% off subtotal"}
                           </p>
                         </div>
                       <div className="inline-flex items-center gap-3 rounded-[16px] bg-[#1A1A1A] px-4 py-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#E8D1AB] text-black">
-                          {discountType === "fixed" ? <DollarSign size={20} /> : <Percent size={20} />}
+                          {isFixedDiscount ? <DollarSign size={20} /> : <Percent size={20} />}
                         </div>
                         <div>
                           <p className="text-[18px] font-semibold text-white">
-                            {discountType === "fixed" ? "Fixed Amount" : "Percentage"}
+                            {isFixedDiscount ? "Fixed Amount" : "Percentage"}
                           </p>
                           <p className="text-sm text-[#8F8F95]">
-                            {discountType === "fixed" ? formatQuoteCurrency(discountValue) : `${discountValue}%`}
+                            {isFixedDiscount ? formatQuoteCurrency(discountValue) : `${discountValue}%`}
                           </p>
                         </div>
                       </div>
@@ -909,8 +923,12 @@ export default function QuoteDetailsPage({
 
                   <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-5 py-2">
                     <DetailRow label="Subtotal" value={formatQuoteCurrency(subtotal)} />
-                    <div className="border-t border-[#2B2B2B]" />
-                    <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} />
+                    {discountAmount > 0 ? (
+                      <>
+                        <div className="border-t border-[#2B2B2B]" />
+                        <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} />
+                      </>
+                    ) : null}
                     <div className="border-t border-[#2B2B2B]" />
                     <DetailRow label="Final Total" value={formatQuoteCurrency(finalTotal)} />
                   </div>

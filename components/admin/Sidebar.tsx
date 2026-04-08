@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, Receipt } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -26,8 +26,9 @@ const CustomQuotesIcon = ({ size = 24 }) => (
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', isDisabled: true },
-  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', isDisabled: true },
+  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
+  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings' },
+  { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability' },
   { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
   {
@@ -44,7 +45,7 @@ const menuItems = [
 
 type MenuItem = {
   name: string;
-  icon: any;
+  icon: LucideIcon;
   link?: string;
   children?: { name: string; link: string; isDisabled?: boolean }[];
   isDisabled?: boolean;

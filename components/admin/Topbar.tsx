@@ -1,10 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Upload, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Button } from "../ui/button";
 import { useTheme } from "next-themes";
 import { ModeToggle } from "../generic/ModeToggle";
 import { useSidebar } from "@/context/SidebarContext";
@@ -20,7 +18,6 @@ interface TopbarProps {
 }
 
 export default function Topbar({ pathname, actions, title, breadcrumbOverrides }: TopbarProps) {
-  const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -158,18 +155,6 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
             )
           }
 
-          {
-            pathname.includes("file-manager") && (
-              <>
-                <Button className="bg-[#202020] text-white px-5 py-3.5 rounded-lg font-semibold text-sm hover:bg-[#202020]/70 transition-opacity border border-white/20 flex gap-2">
-                  <Upload size={24} /> Upload Files
-                </Button>
-                <Button className="bg-[#E5D5B8] text-black px-5 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity">
-                  Create Folder
-                </Button>
-              </>
-            )
-          }
         </div >
       </div >
     </header >

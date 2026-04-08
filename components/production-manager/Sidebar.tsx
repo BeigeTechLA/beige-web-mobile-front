@@ -1,58 +1,35 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
 const menuItems = [
-  { name: 'Dashboard', icon: LayoutDashboard, link: '/production-manager/dashboard' },
-  { name: 'Creative Partners', icon: Users, link: '/production-manager/creative-partners' },
-  { name: 'Shoots', icon: Camera, link: '/production-manager/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/production-manager/file-manager', isDisabled: true },
-  { name: 'Messages', icon: MessageCircle, link: '/production-manager/messages', isDisabled: true },
-  { name: 'Availability', icon: CalendarClock, link: '/production-manager/availability' },
+    { name: 'Dashboard', icon: LayoutDashboard, link: '/production-manager/dashboard' },
+    { name: 'Creative Partners', icon: Users, link: '/production-manager/creative-partners' },
+    { name: 'Shoots', icon: Camera, link: '/production-manager/shoots' },
+    { name: 'File Manager', icon: FolderOpen, link: '/production-manager/file-manager' },
+    { name: 'Meetings', icon: CalendarClock, link: '/production-manager/meetings' },
+    { name: 'Messages', icon: MessageCircle, link: '/production-manager/messages' },
+    { name: 'Availability', icon: CalendarClock, link: '/production-manager/availability' },
 ];
 
 type MenuItem = {
-  name: string;
-  icon: any;
-  link?: string;
-  children?: { name: string; link: string; isDisabled?: boolean }[];
-  isDisabled?: boolean;
+    name: string;
+    icon: LucideIcon;
+    link?: string;
+    children?: { name: string; link: string; isDisabled?: boolean }[];
+    isDisabled?: boolean;
 };
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, logout } = useAuth();
-  const { theme } = useTheme();
-
-  const initialPath = useRef(pathname);
-
-  const [mounted, setMounted] = useState(false);
-  const [expanded, setExpanded] = useState<string[]>([]);
-
-  useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    // Only trigger onClose if the current pathname is different 
-    // from the one we had when the sidebar opened.
-    if (onClose && pathname !== initialPath.current) {
-      onClose();
-    }
-  }, [pathname, onClose]);
-
-  const isDark = !mounted || theme === "dark";
-
-  // Shared helper to handle navigation and closing sidebar
-  const handleNavigation = (link: string) => {
-    if (link && link !== "#") {
-      router.push(link);
-    }
-  };
+    const pathname = usePathname();
+    const router = useRouter();
+    const { user, logout } = useAuth();
+    const [expanded, setExpanded] = useState<string[]>([]);
 
   const toggleExpand = (name: string) => {
     setExpanded((prev) =>

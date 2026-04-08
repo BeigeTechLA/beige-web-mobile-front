@@ -62,6 +62,7 @@ import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQ
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
+import { cn } from "@/lib/utils";
 
 const clients = [
   // Dynamic client fetching replaces hardcoded array
@@ -202,6 +203,36 @@ const formatCurrency = (value: number) =>
 
 const formatAddonDisplayValue = (value: number) =>
   value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+const MAX_QUOTE_OPTION_LABEL_LENGTH = 80;
+
+const clampTextLength = (
+  value: string,
+  maxLength = MAX_QUOTE_OPTION_LABEL_LENGTH
+) => value.slice(0, maxLength);
+
+const sanitizeCurrencyInput = (value: string) => {
+  const normalizedValue = value.replace(/[^\d.]/g, "");
+  const decimalIndex = normalizedValue.indexOf(".");
+
+  if (decimalIndex === -1) {
+    return normalizedValue;
+  }
+
+  const integerPart = normalizedValue.slice(0, decimalIndex);
+  const decimalPart = normalizedValue
+    .slice(decimalIndex + 1)
+    .replace(/\./g, "")
+    .slice(0, 2);
+
+  return `${integerPart}.${decimalPart}`;
+};
+
+const parseCurrencyInput = (value: string) => {
+  const sanitizedValue = sanitizeCurrencyInput(value);
+  const parsedValue = Number.parseFloat(sanitizedValue);
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+};
 
 const pickFirstClientValue = (...values: Array<string | number | null | undefined>) => {
   for (const value of values) {
@@ -358,24 +389,24 @@ const resolveSelectedServiceContentTypeId = ({
   const selectedService =
     kind === "editing"
       ? availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) && isEditingServiceLabel(service.label)
-        ) ||
-        availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) && isVideoServiceLabel(service.label)
-        ) ||
-        availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) && isPhotoServiceLabel(service.label)
-        )
+        (service) =>
+          selectedIds.includes(service.id) && isEditingServiceLabel(service.label)
+      ) ||
+      availableServices.find(
+        (service) =>
+          selectedIds.includes(service.id) && isVideoServiceLabel(service.label)
+      ) ||
+      availableServices.find(
+        (service) =>
+          selectedIds.includes(service.id) && isPhotoServiceLabel(service.label)
+      )
       : availableServices.find(
-          (service) =>
-            selectedIds.includes(service.id) &&
-            (kind === "video"
-              ? isVideoServiceLabel(service.label)
-              : isPhotoServiceLabel(service.label))
-        );
+        (service) =>
+          selectedIds.includes(service.id) &&
+          (kind === "video"
+            ? isVideoServiceLabel(service.label)
+            : isPhotoServiceLabel(service.label))
+      );
 
   return getPositiveCatalogItemId(
     selectedService?.catalogItemId
@@ -531,10 +562,10 @@ const mapAiEditingTypeOptions = (
         item.isCustomEditingType === true ||
         Number(
           item.is_custom ??
-            item.isCustom ??
-            item.is_custom_editing_type ??
-            item.isCustomEditingType ??
-            0
+          item.isCustom ??
+          item.is_custom_editing_type ??
+          item.isCustomEditingType ??
+          0
         ) === 1;
       const isSystemDefault =
         Number(item.is_system_default ?? item.isSystemDefault ?? 0) === 1 ||
@@ -987,9 +1018,9 @@ export default function CreateQuotePage() {
       const nextEditingTypes =
         response && !response.error
           ? mapAiEditingTypeOptions(response.data, {
-              includeVideoTypes: true,
-              includePhotoTypes: true,
-            })
+            includeVideoTypes: true,
+            includePhotoTypes: true,
+          })
           : [];
       const mergedEditingTypes = editingTypeOptionsRef.current
         .filter((type) => type.isCustom)
@@ -1274,7 +1305,7 @@ export default function CreateQuotePage() {
                   (normalizedEditingKey &&
                     type.key.trim().toLowerCase() === normalizedEditingKey) ||
                   normalizeShootTypeLabelKey(type.label) ===
-                    normalizeShootTypeLabelKey(normalizedEditingLabel)
+                  normalizeShootTypeLabelKey(normalizedEditingLabel)
               );
 
               if (existingEditingType) {
@@ -1362,7 +1393,7 @@ export default function CreateQuotePage() {
     const config = serviceConfigs[serviceId];
     if (!config) return;
 
-    const nextPrice = parseFloat(value.replace(/\$/g, '').trim()) || 0;
+    const nextPrice = parseCurrencyInput(value);
     handleConfigUpdate(serviceId, 'estimatedPrice', nextPrice);
   };
 
@@ -1423,7 +1454,7 @@ export default function CreateQuotePage() {
     const config = addonConfigs[addonId];
     if (!config) return;
 
-    const nextPrice = parseFloat(value.replace(/\$/g, '').trim()) || 0;
+    const nextPrice = parseCurrencyInput(value);
     handleAddonConfigUpdate(addonId, 'price', nextPrice);
   };
 
@@ -1708,9 +1739,11 @@ export default function CreateQuotePage() {
                           ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
                           : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                           }`}
-                      >
-                        <span className="truncate">{type.label}</span>
-                      </button>
+                        >
+                          <span className="block w-full truncate pr-2">
+                            {type.label}
+                          </span>
+                        </button>
                       {canDeleteShootType && (
                         <button
                           type="button"
@@ -1752,7 +1785,10 @@ export default function CreateQuotePage() {
                         <Input
                           placeholder="Eg : Real Estate"
                           value={customShootType}
-                          onChange={(e) => setCustomShootType(e.target.value)}
+                          onChange={(e) =>
+                            setCustomShootType(clampTextLength(e.target.value))
+                          }
+                          maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                           className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                         />
                       </div>
@@ -1907,6 +1943,27 @@ export default function CreateQuotePage() {
     setDiscountType(type);
   };
 
+  const handleDiscountValueChange = (value: string, maxValue: number) => {
+    const sanitizedValue = handleDecimalInput(value);
+
+    if (sanitizedValue === "") {
+      setDiscountValue("");
+      return;
+    }
+
+    const numericValue = Number(sanitizedValue);
+    if (Number.isNaN(numericValue) || numericValue > maxValue) {
+      return;
+    }
+
+    setDiscountValue(sanitizedValue);
+  };
+
+  const handleDiscountValueBlur = (maxValue: number) => {
+    const normalizedValue = Math.min(Math.max(0, Number(discountValue) || 0), maxValue);
+    setDiscountValue(normalizedValue);
+  };
+
   const handleWholeNumberInput = (value: string) => {
     return value.replace(/\D/g, "");
   };
@@ -1991,7 +2048,8 @@ export default function CreateQuotePage() {
     setShowAddEditingTypeForm(false);
   }, [hasEditingTypeContext]);
   const quoteSubtotal = totalServicesCost + totalAddOnsCost + totalLogisticsCost + totalLineItemsCost;
-  const normalizedDiscountValue = Math.max(0, Number(discountValue) || 0);
+  const maxDiscountValue = discountType === "percentage" ? 100 : quoteSubtotal;
+  const normalizedDiscountValue = Math.min(Math.max(0, Number(discountValue) || 0), maxDiscountValue);
   const rawDiscountAmount = !discountEnabled
     ? 0
     : discountType === "percentage"
@@ -2002,6 +2060,20 @@ export default function CreateQuotePage() {
   const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
   const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
   const totalAfterTax = discountedSubtotal + taxAmount;
+  React.useEffect(() => {
+    const currentValue = Number(discountValue);
+
+    if (Number.isNaN(currentValue)) {
+      return;
+    }
+
+    const boundedValue = Math.min(Math.max(currentValue, 0), maxDiscountValue);
+
+    if (currentValue !== boundedValue) {
+      setDiscountValue(typeof discountValue === "string" ? boundedValue.toString() : boundedValue);
+    }
+  }, [discountValue, maxDiscountValue]);
+
   const taxLabel = taxtType.trim() || "Sales Tax";
   const canOpenQuoteSummary = hasQuoteSummaryContent({
     selectedClient,
@@ -2127,9 +2199,9 @@ export default function CreateQuotePage() {
     const basePayload = getQuoteDraftPayload(action === "draft" ? view : undefined);
     const payload = isUpdatingExistingQuote
       ? {
-          ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
-          is_draft: action === "draft",
-        }
+        ...getQuoteUpdatePayload(action === "draft" ? view : undefined),
+        is_draft: action === "draft",
+      }
       : action === "save"
         ? {
           ...basePayload,
@@ -2526,13 +2598,14 @@ export default function CreateQuotePage() {
   };
 
   const handleCreateService = async () => {
-    if (!customServiceName || !customServiceCost) return;
+    const serviceName = clampTextLength(customServiceName).trim();
+    if (!serviceName || !customServiceCost) return;
 
     setIsSubmittingService(true);
     try {
       const res = await salesApi.createQuoteCatalog({
         section_type: "service",
-        name: customServiceName,
+        name: serviceName,
         default_rate: parseFloat(customServiceCost.replace(/[^0-9.]/g, '')) || 0,
         rate_type: "per_hour",
         rate_unit: "per hour"
@@ -2666,8 +2739,8 @@ export default function CreateQuotePage() {
       const res = itemToDelete.type === 'editing_type'
         ? await salesApi.deleteAiEditingType(itemToDelete.id)
         : itemToDelete.type === 'shoot_type'
-        ? await salesApi.deleteShootType(itemToDelete.id)
-        : await salesApi.deleteQuoteCatalog(itemToDelete.id);
+          ? await salesApi.deleteShootType(itemToDelete.id)
+          : await salesApi.deleteQuoteCatalog(itemToDelete.id);
       if (res && !res.error) {
         toast.success(
           `${itemToDelete.type === 'service' ? 'Service' : itemToDelete.type === 'addon' ? 'Add-on' : itemToDelete.type === 'logistics' ? 'Logistics item' : itemToDelete.type === 'shoot_type' ? 'Shoot type' : itemToDelete.type === 'editing_type' ? 'Editing type' : 'Line item'} deleted successfully`
@@ -2720,7 +2793,7 @@ export default function CreateQuotePage() {
   const [isSubmittingEditingType, setIsSubmittingEditingType] = React.useState(false);
 
   const handleCreateShootType = async (kind: ShootTypeKind) => {
-    const shootTypeName = customShootType.trim();
+    const shootTypeName = clampTextLength(customShootType).trim();
     if (!shootTypeName) return;
 
     const contentTypeId = resolveSelectedServiceContentTypeId({
@@ -2758,7 +2831,7 @@ export default function CreateQuotePage() {
   };
 
   const handleCreateEditingType = async () => {
-    const editingTypeName = customEditingType.trim();
+    const editingTypeName = clampTextLength(customEditingType).trim();
     if (!editingTypeName) return;
 
     const editingTypeCategory = resolveEditingTypeCategory();
@@ -2804,13 +2877,14 @@ export default function CreateQuotePage() {
   const [isSubmittingAddon, setIsSubmittingAddon] = React.useState(false);
 
   const handleCreateAddon = async () => {
-    if (!customAddonName || !customAddonCost) return;
+    const addonName = clampTextLength(customAddonName).trim();
+    if (!addonName || !customAddonCost) return;
 
     setIsSubmittingAddon(true);
     try {
       const res = await salesApi.createQuoteCatalog({
         section_type: "addon",
-        name: customAddonName,
+        name: addonName,
         default_rate: parseFloat(customAddonCost.replace(/[^0-9.]/g, '')) || 0,
         rate_type: "fixed",
         rate_unit: "fixed"
@@ -2835,13 +2909,14 @@ export default function CreateQuotePage() {
   const [isSubmittingLogistics, setIsSubmittingLogistics] = React.useState(false);
 
   const handleCreateLogisticsItem = async () => {
-    if (!customLogisticsName || !customLogisticsCost) return;
+    const logisticsName = clampTextLength(customLogisticsName).trim();
+    if (!logisticsName || !customLogisticsCost) return;
 
     setIsSubmittingLogistics(true);
     try {
       const res = await salesApi.createQuoteCatalog({
         section_type: "logistics",
-        name: customLogisticsName,
+        name: logisticsName,
         default_rate: parseFloat(customLogisticsCost.replace(/[^0-9.]/g, '')) || 0,
         rate_type: "fixed",
         rate_unit: "fixed"
@@ -2869,7 +2944,7 @@ export default function CreateQuotePage() {
     setIsSubmittingLineItem(true);
     try {
       const cost = parseFloat(customItemCost.replace(/[^0-9.]/g, '')) || 0;
-      const trimmedName = customItemName.trim();
+      const trimmedName = clampTextLength(customItemName).trim();
       const newId = `custom_${Date.now()}`;
 
       setLineItems(prev => ([
@@ -3028,22 +3103,23 @@ export default function CreateQuotePage() {
                     const hasPendingChanges = hasPendingLogisticsChanges(item.id);
                     return (
                       <div key={item.id} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-5 relative overflow-hidden">
-                        <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
-                          <div className="flex lg:flex-col justify-between lg:gap-1">
-                            <h3 className="text-sm lg:text-base font-medium text-white leading-none">{item.label}</h3>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0 flex-1 lg:flex lg:flex-col lg:justify-between lg:gap-1">
+                            <h3 className="text-sm lg:text-base font-medium text-white leading-snug break-words">{item.label}</h3>
                             <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">${item.basePrice.toFixed(2)}</p>
                           </div>
 
                           <hr className="lg:hidden border-t border-[#3D3D3D]" />
 
-                          <div className="flex items-center gap-6">
+                          <div className="flex shrink-0 items-center gap-6">
                             <div className="relative w-2/3 lg:w-36">
                               <Input
                                 value={`$ ${config?.price || 0}`}
                                 onChange={(e) => {
-                                  const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
+                                  const val = parseCurrencyInput(e.target.value);
                                   setLogisticsConfigs(prev => ({ ...prev, [item.id]: { price: val } }));
                                 }}
+                                inputMode="decimal"
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                               />
                             </div>
@@ -3077,24 +3153,26 @@ export default function CreateQuotePage() {
                         <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
                           <span className="text-xs text-[#8A8A8A] font-normal">Item Name</span>
                         </div>
-                        <Input
-                          placeholder="Eg : Cleaning Services"
-                          value={customLogisticsName}
-                          onChange={(e) => setCustomLogisticsName(e.target.value)}
-                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                        />
+                            <Input
+                              placeholder="Eg : Cleaning Services"
+                              value={customLogisticsName}
+                              onChange={(e) => setCustomLogisticsName(clampTextLength(e.target.value))}
+                              maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
+                              className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                            />
                       </div>
                       <div className="flex-none w-full md:w-1/3 relative flex gap-4 items-center">
                         <div className="flex-1 relative">
                           <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
                             <span className="text-xs text-[#8A8A8A] font-normal">Cost</span>
                           </div>
-                          <Input
-                            placeholder="$ 0.00"
-                            value={customLogisticsCost}
-                            onChange={(e) => setCustomLogisticsCost(e.target.value)}
-                            className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                          />
+                            <Input
+                              placeholder="$ 0.00"
+                              value={customLogisticsCost}
+                              onChange={(e) => setCustomLogisticsCost(sanitizeCurrencyInput(e.target.value))}
+                              inputMode="decimal"
+                              className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                            />
                         </div>
                         <button
                           onClick={handleCreateLogisticsItem}
@@ -3167,16 +3245,16 @@ export default function CreateQuotePage() {
                             : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                             }`}
                         >
-                          <div className="flex items-start gap-4 w-full">
+                          <div className="flex w-full min-w-0 items-start gap-4 pr-8">
                             <div className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedAddons.includes(addon.id)
                               ? 'bg-[#E8D1AB] border-[#E8D1AB] text-black'
                               : 'border-zinc-700 bg-transparent'
                               }`}>
                               {selectedAddons.includes(addon.id) && <Check size={14} strokeWidth={4} />}
                             </div>
-                            <div className="space-y-2">
-                              <div className="font-medium text-base text-white leading-none">{addon.label}</div>
-                              <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <div className="block w-full truncate font-medium text-base text-white leading-none">{addon.label}</div>
+                              <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
                                 ${formatAddonDisplayValue(addon.price)}
                               </div>
                             </div>
@@ -3185,7 +3263,7 @@ export default function CreateQuotePage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteCatalogItem(addon.id, 'addon')}
-                          className="absolute top-6 right-6 z-10 text-[#FF6467]transition-colors hover:text-red-500"
+                          className="absolute top-5 right-5 z-10 rounded-md p-1 text-[#FF6467] transition-colors hover:bg-[#FF6467]/10 hover:text-red-500"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -3219,7 +3297,8 @@ export default function CreateQuotePage() {
                             <Input
                               placeholder="Eg : 4K RAW Recording"
                               value={customAddonName}
-                              onChange={(e) => setCustomAddonName(e.target.value)}
+                              onChange={(e) => setCustomAddonName(clampTextLength(e.target.value))}
+                              maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                               className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                             />
                           </div>
@@ -3231,7 +3310,8 @@ export default function CreateQuotePage() {
                               <Input
                                 placeholder="$ 0.00"
                                 value={customAddonCost}
-                                onChange={(e) => setCustomAddonCost(e.target.value)}
+                                onChange={(e) => setCustomAddonCost(sanitizeCurrencyInput(e.target.value))}
+                                inputMode="decimal"
                                 className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                               />
                             </div>
@@ -3276,15 +3356,20 @@ export default function CreateQuotePage() {
                         return (
                           <div key={addonId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-5 lg:px-8 lg:py-7 relative overflow-hidden">
                             {/* desktop version */}
-                            <div className="hidden lg:flex justify-between items-center gap-6">
-                              <div className="space-y-2 min-w-0">
-                                <h3 className="text-[18px] font-medium text-white leading-none">{addon.label}</h3>
+                            <div className="hidden lg:flex items-center justify-between gap-6">
+                              <div className="min-w-0 flex-1 space-y-2 pr-2">
+                                <h3
+                                  title={addon.label}
+                                  className="max-w-full truncate text-[18px] font-medium text-white leading-snug"
+                                >
+                                  {addon.label}
+                                </h3>
                                 <p className="text-[#F0DCB1] text-[15px] font-semibold tracking-tight leading-none">
                                   {formatCurrency(addon.price)}
                                 </p>
                               </div>
 
-                              <div className="flex items-center gap-4">
+                              <div className="flex shrink-0 items-center gap-4">
                                 {/* Quantity Controls */}
                                 <div className="flex items-center gap-4">
                                   <button
@@ -3310,6 +3395,7 @@ export default function CreateQuotePage() {
                                   <Input
                                     value={`$ ${formatAddonDisplayValue(getAddonDraftPrice(addonId))}`}
                                     onChange={(e) => handleAddonPriceUpdate(addonId, e.target.value)}
+                                    inputMode="decimal"
                                     className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-xl text-white text-base pl-5"
                                   />
                                 </div>
@@ -3334,7 +3420,7 @@ export default function CreateQuotePage() {
                             {/* mobile version */}
                             <div className="flex flex-col lg:hidden gap-4">
                               <div className="space-y-1">
-                                <h3 className="text-sm font-medium text-white leading-none">{addon.label}</h3>
+                                <h3 className="text-sm font-medium text-white leading-snug break-words">{addon.label}</h3>
                                 <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
                                   {formatCurrency(addon.price)}
                                 </p>
@@ -3363,6 +3449,7 @@ export default function CreateQuotePage() {
                                   <Input
                                     value={`$ ${formatAddonDisplayValue(getAddonDraftPrice(addonId))}`}
                                     onChange={(e) => handleAddonPriceUpdate(addonId, e.target.value)}
+                                    inputMode="decimal"
                                     className="h-10 bg-[#1A1A1F] border-[#3B3B46] rounded-[10px] text-white text-sm pl-4"
                                   />
                                 </div>
@@ -3419,12 +3506,12 @@ export default function CreateQuotePage() {
                           <button
                             type="button"
                             onClick={() => handleServiceSelect(service.id, service.price)}
-                            className={`relative flex flex-col items-start p-5 lg:p-6 rounded-xl lg:rounded-2xl border transition-all h-[78px] lg:h-[98px] text-left group w-full ${selectedServices.includes(service.id)
+                            className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedServices.includes(service.id)
                               ? "bg-[#1D1A15] border-[#E8D1AB] ring-1 ring-[#8E826A]/10 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
                               : "bg-[#101010] border-[#FFFFFF80] hover:border-white/80"
                               }`}
                           >
-                            <div className="font-medium text-base text-white mb-2 leading-none">{getServiceDisplayLabel(service.label)}</div>
+                            <div className="mb-2 w-full truncate pr-6 font-medium text-base leading-none text-white">{getServiceDisplayLabel(service.label)}</div>
                             <div className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
                               ${service.price.toFixed(2)} <span className="text-[#71717B] font-medium text-xs lowercase ml-1">per hour</span>
                             </div>
@@ -3473,7 +3560,8 @@ export default function CreateQuotePage() {
                               <Input
                                 placeholder="Eg : Post Production Editing"
                                 value={customServiceName}
-                                onChange={(e) => setCustomServiceName(e.target.value)}
+                                onChange={(e) => setCustomServiceName(clampTextLength(e.target.value))}
+                                maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                                 className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
                               />
                             </div>
@@ -3485,7 +3573,8 @@ export default function CreateQuotePage() {
                                 <Input
                                   placeholder="$ 0.00"
                                   value={customServiceCost}
-                                  onChange={(e) => setCustomServiceCost(e.target.value)}
+                                  onChange={(e) => setCustomServiceCost(sanitizeCurrencyInput(e.target.value))}
+                                  inputMode="decimal"
                                   className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-sm lg:text-base text-white placeholder:text-[#666666]"
                                 />
                               </div>
@@ -3587,7 +3676,7 @@ export default function CreateQuotePage() {
                                               : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                                               }`}
                                           >
-                                            <span className="truncate">{type.label}</span>
+                                            <span className="block w-full truncate pr-2">{type.label}</span>
                                           </button>
                                           {canDeleteShootType && (
                                             <button
@@ -3631,7 +3720,8 @@ export default function CreateQuotePage() {
                                           <Input
                                             placeholder="Eg : Reel Editing..."
                                             value={customEditingType}
-                                            onChange={(e) => setCustomEditingType(e.target.value)}
+                                            onChange={(e) => setCustomEditingType(clampTextLength(e.target.value))}
+                                            maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                                             className="h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                                           />
                                         </div>
@@ -3687,20 +3777,20 @@ export default function CreateQuotePage() {
 
                             return (
                               <div key={serviceId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden">
-                                <div className="flex justify-between items-start mb-4 lg:mb-8">
-                                  <div className="space-y-2">
-                                    <h3 className="text-[16px] font-medium text-white flex items-center gap-1.5 leading-none">
+                                <div className="mb-4 flex items-start justify-between gap-4 lg:mb-8">
+                                  <div className="min-w-0 flex-1 space-y-2">
+                                    <h3 className="flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug text-white">
                                       {isEditingServiceLabel(service.label) ? (
-                                        <>Editing Type - <span className="text-[#8E826A]">{editingTypeLabel}</span></>
+                                        <>Editing Type - <span className="break-words text-[#8E826A]">{editingTypeLabel}</span></>
                                       ) : shootTypeLabel ? (
-                                        <>{getServiceDisplayLabel(service.label)} - <span className="text-[#8E826A]">({shootTypeLabel})</span></>
+                                        <>{getServiceDisplayLabel(service.label)} - <span className="break-words text-[#8E826A]">({shootTypeLabel})</span></>
                                       ) : (
                                         <>{getServiceDisplayLabel(service.label)}</>
                                       )}
                                     </h3>
                                     <p className="text-[#8A8A8A] text-xs font-normal">Base: ${service.price.toFixed(2)} per hour</p>
                                   </div>
-                                  <div className="flex items-center gap-5">
+                                  <div className="flex shrink-0 items-center gap-5">
                                     <div className="hidden lg:flex flex-col items-end gap-1">
                                       <span className="text-[#7B7B85] text-xs font-normal">Total</span>
                                       <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">${serviceTotal.toLocaleString()}</span>
@@ -3780,6 +3870,7 @@ export default function CreateQuotePage() {
                                       <Input
                                         value={`$ ${formatAddonDisplayValue(getServiceDraftPrice(serviceId))}`}
                                         onChange={(e) => handleServicePriceUpdate(serviceId, e.target.value)}
+                                        inputMode="decimal"
                                         className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
                                       />
                                       <button
@@ -3861,7 +3952,8 @@ export default function CreateQuotePage() {
                       <Input
                         placeholder="Eg : Consulting Fee, Rush Delivery..."
                         value={customItemName}
-                        onChange={(e) => setCustomItemName(e.target.value)}
+                        onChange={(e) => setCustomItemName(clampTextLength(e.target.value))}
+                        maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
                         className="h-15 lg:h-[84px] bg-transparent border-[#4A4A4A] rounded-[14px] focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
@@ -3873,7 +3965,8 @@ export default function CreateQuotePage() {
                         <Input
                           placeholder="$ 0.00"
                           value={customItemCost}
-                          onChange={(e) => setCustomItemCost(e.target.value)}
+                          onChange={(e) => setCustomItemCost(sanitizeCurrencyInput(e.target.value))}
+                          inputMode="decimal"
                           className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                         />
                       </div>
@@ -3908,9 +4001,14 @@ export default function CreateQuotePage() {
 
                     return (
                       <div key={item.id} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-5 relative overflow-hidden">
-                        <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-center">
-                          <div className="flex lg:flex-col justify-between lg:gap-1">
-                            <h3 className="text-base font-medium text-white leading-none">{item.label}</h3>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0 flex-1 pr-2 lg:flex lg:flex-col lg:justify-between lg:gap-1">
+                            <h3
+                              title={item.label}
+                              className="max-w-full truncate text-base font-medium text-white leading-snug"
+                            >
+                              {item.label}
+                            </h3>
                             <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
                               ${item.basePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
@@ -3918,14 +4016,15 @@ export default function CreateQuotePage() {
 
                           <hr className="lg:hidden border-t border-[#3D3D3D]" />
 
-                          <div className="flex items-center gap-6">
+                          <div className="flex shrink-0 items-center gap-6">
                             <div className="relative w-2/3 lg:w-36">
                               <Input
                                 value={`$ ${config?.price || 0}`}
                                 onChange={(e) => {
-                                  const val = parseFloat(e.target.value.replace('$ ', '')) || 0;
+                                  const val = parseCurrencyInput(e.target.value);
                                   setLineItemConfigs(prev => ({ ...prev, [item.id]: { price: val } }));
                                 }}
+                                inputMode="decimal"
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                               />
                             </div>
@@ -3953,7 +4052,7 @@ export default function CreateQuotePage() {
                 </div>
               }
 
-              <div className={`m-4 lg:m-9 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50 ${lineItems.length > 0 ? "!mt-0":""}`}>
+              <div className={`m-4 lg:m-9 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50 ${lineItems.length > 0 ? "!mt-0" : ""}`}>
                 <span className="text-sm lg:text-xl font-medium text-[#FFF]">Total Custom Line Items</span>
                 <span className="text-lg lg:text-2xl font-bold text-[#E8D1AB] tracking-tight">
                   ${totalLineItemsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -4063,32 +4162,33 @@ export default function CreateQuotePage() {
                       <Input
                         placeholder="0.00"
                         value={discountValue}
-                        onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => handleDiscountValueChange(e.target.value, maxDiscountValue)}
+                        onBlur={() => handleDiscountValueBlur(maxDiscountValue)}
                         className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>
 
-                      <div className="my-6 flex flex-col gap-2">
-                        <div className="flex justify-between text-[#9F9FA9] ">
-                          <p>Subtotal</p>
-                          <p>{formatCurrency(quoteSubtotal)}</p>
-                        </div>
-                        <div className="flex justify-between text-[#E8D1AB] font-medium ">
-                          <p>Discount Applied </p>
-                          <p>- {formatCurrency(discountAmount)}</p>
-                        </div>
-                        <div className="flex justify-between text-[#9F9FA9] ">
-                          <p>Total After Discount</p>
-                          <p>{formatCurrency(discountedSubtotal)}</p>
-                        </div>
+                    <div className="my-6 flex flex-col gap-2">
+                      <div className="flex justify-between text-[#9F9FA9] ">
+                        <p>Subtotal</p>
+                        <p>{formatCurrency(quoteSubtotal)}</p>
                       </div>
+                      <div className="flex justify-between text-[#E8D1AB] font-medium ">
+                        <p>Discount Applied </p>
+                        <p>- {formatCurrency(discountAmount)}</p>
+                      </div>
+                      <div className="flex justify-between text-[#9F9FA9] ">
+                        <p>Total After Discount</p>
+                        <p>{formatCurrency(discountedSubtotal)}</p>
+                      </div>
+                    </div>
 
-                     <div className="bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center ">
-                        <span className="text-sm lg:text-xl font-medium text-white">Total After Discount</span>
-                        <span className="text-lg lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
-                          {formatCurrency(discountedSubtotal)}
-                        </span>
-                      </div>
+                    <div className="bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center ">
+                      <span className="text-sm lg:text-xl font-medium text-white">Total After Discount</span>
+                      <span className="text-lg lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
+                        {formatCurrency(discountedSubtotal)}
+                      </span>
+                    </div>
                   </div>
                 </>
 
@@ -4199,42 +4299,42 @@ export default function CreateQuotePage() {
                       {formatCurrency(quoteSubtotal)}
                     </span>
                   </div>
-                    <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm lg:text-base text-[#9F9FA9]">Discount Applied</span>
-                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                        - {formatCurrency(discountAmount)}
-                      </span>
-                    </div>
-                    <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
-                    <div className="flex justify-between items-center ">
-                      <span className="text-sm lg:text-base text-[#9F9FA9]">Total After Discount</span>
-                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                        {formatCurrency(discountedSubtotal)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center ">
-                      <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
-                      <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                        {formatCurrency(taxAmount)}
-                      </span>
-                    </div>
+                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">Discount Applied</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      - {formatCurrency(discountAmount)}
+                    </span>
+                  </div>
+                  <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                  <div className="flex justify-between items-center ">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">Total After Discount</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      {formatCurrency(discountedSubtotal)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center ">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
+                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                      {formatCurrency(taxAmount)}
+                    </span>
+                  </div>
 
-                    <div className="flex justify-between items-center mt-2 mb-2">
-                      <span className="text-sm lg:text-base text-white font-medium">Final Total</span>
-                      <span className="text-sm lg:text-base text-white font-medium tracking-tight">
-                        {formatCurrency(totalAfterTax)}
-                      </span>
-                    </div>
+                  <div className="flex justify-between items-center mt-2 mb-2">
+                    <span className="text-sm lg:text-base text-white font-medium">Final Total</span>
+                    <span className="text-sm lg:text-base text-white font-medium tracking-tight">
+                      {formatCurrency(totalAfterTax)}
+                    </span>
+                  </div>
 
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
 
-                    <div className="flex justify-between items-center ">
-                      <span className="text-sm lg:text-xl font-medium text-white">Final Total</span>
-                      <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
-                        {formatCurrency(totalAfterTax)}
-                      </span>
-                    </div>
+                  <div className="flex justify-between items-center ">
+                    <span className="text-sm lg:text-xl font-medium text-white">Final Total</span>
+                    <span className="text-sm lg:text-2xl font-semibold text-[#E8D1AB] tracking-tight">
+                      {formatCurrency(totalAfterTax)}
+                    </span>
+                  </div>
 
                 </div>
               </div>
@@ -4367,11 +4467,14 @@ export default function CreateQuotePage() {
                     autoComplete="off"
                     data-1p-ignore="true"
                     placeholder="Describe the project scope and requirements....."
-                    className={`min-h-[120px] rounded-xl p-6 pt-8 text-sm lg:text-base ${isDark
-                      // ? "bg-[#171717] border-[#FFFFFF80] text-white placeholder:text-[#FFFFFF4D] focus:border-[#E8D1AB]/50"
-                      ? "!border-[#FFFFFF80] !bg-[#171717] !text-white !placeholder:text-[#FFFFFF4D] !focus:border-[#E8D1AB]/50"
-                      : "!bg-white !border-[#D7D7D7] !text-black !placeholder:text-[#71717B] !focus:border-[#E8D1AB] !hover:border-[#C9A86A]"
-                      }`}
+                    className={cn(
+                      "min-h-[120px] rounded-xl p-6 pt-8 text-sm lg:text-base",
+                      isDark ? [
+                        "bg-[#171717]", "border-[#FFFFFF80]", "text-white", "placeholder:text-[#FFFFFF4D]", "focus:border-[#E8D1AB]/50"
+                      ] : [
+                        "bg-white", "border-[#D7D7D7]", "text-black", "placeholder:text-[#71717B]", "focus:border-[#E8D1AB]", "hover:border-[#C9A86A]"
+                      ]
+                    )}
                   />
                 </div>
                 {/* <div className="relative">

@@ -189,6 +189,29 @@ const toTitleCase = (str: string) => {
   });
 };
 
+const formatShootTypeLabel = (value?: string | null) => {
+  const normalized = String(value || "").toLowerCase().replace(/\s+/g, "");
+  if (!normalized) return "";
+
+  const hasVideo =
+    normalized.includes("video") || normalized.includes("videographer");
+  const hasPhoto =
+    normalized.includes("photo") || normalized.includes("photographer");
+
+  if (hasVideo && hasPhoto) return "Video+Photo";
+  if (hasVideo) return "Video";
+  if (hasPhoto) return "Photo";
+  return toTitleCase(String(value));
+};
+
+const extractContactName = (value?: string | null) => {
+  if (!value) return "";
+  const text = String(value);
+  const match = text.match(/contact\s*name\s*:\s*([^\n\r]+)/i);
+  if (match?.[1]) return match[1].trim();
+  return "";
+};
+
 const getInitials = (value?: string | null) => {
   const cleaned = String(value || "").trim();
   if (!cleaned) return "NA";
@@ -258,7 +281,7 @@ function StripePaymentFormMulti({
 }: {
   clientSecret: string;
   amount: number;
-  onSuccess: (paymentIntentId: string, referralCode?: string) => void;
+  onSuccess: (paymentIntentId: string, referralCode?: string) => Promise<void> | void;
   onError: (error: string) => void;
   shootId: string | null;
   booking: any;
@@ -740,7 +763,7 @@ function StripePaymentFormMulti({
       setIsProcessing(true);
       try {
         // We pass the clientSecret which is the mock ID from backend
-        onSuccess(
+        await onSuccess(
           clientSecret,
           referralCodeValid ? referralCode : undefined,
         );
@@ -825,7 +848,7 @@ function StripePaymentFormMulti({
           payment_status: "Success"
         });
 
-        onSuccess(
+        await onSuccess(
           paymentIntent.id,
           referralCodeValid ? referralCode : undefined,
         );
@@ -1368,6 +1391,36 @@ function MultiCreatorPaymentContent() {
   const quoteTotal = (quote && typeof quote.total !== 'undefined') ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
 
+  const customerName =
+    extractContactName(summaryData?.description) ||
+    extractContactName(booking?.description) ||
+    summaryData?.client_name ||
+    summaryData?.clientName ||
+    booking?.full_name ||
+    booking?.fullName ||
+    booking?.client_name ||
+    booking?.guest_name ||
+    booking?.user?.name ||
+    booking?.guest_email ||
+    "Customer";
+
+  const shootCategory = toTitleCase(
+    (summaryData?.shoot_type || booking?.shoot_type || "").trim(),
+  );
+
+  const shootTypeLabel = formatShootTypeLabel(
+    summaryData?.event_type || booking?.event_type,
+  );
+
+  const compactCustomerName = customerName.replace(/\s+/g, "");
+  const headerParts = [
+    compactCustomerName,
+    shootCategory || "Shoot",
+    shootTypeLabel || "ShootType",
+  ].filter(Boolean);
+
+  const headerText = headerParts.join("_");
+
   if (!isQuoteValid) {
     return (
       <div className="pt-20 lg:pt-32 pb-20">
@@ -1517,10 +1570,10 @@ function MultiCreatorPaymentContent() {
               <div className="rounded-b-[20px] text-black">
                 <div className="p-6 lg:p-10 border-b border-b-[#FFFFFF5C] flex gap-4 items-center">
                   <div className="w-10 h-10 lg:h-[82px] lg:w-[82px] rounded-full bg-[#333333] flex items-center justify-center text-[#FFFFFF85] font-semibold lg:text-2xl">
-                    {getInitials(summaryData?.client_email || booking?.guest_email)}
+                    {getInitials(customerName)}
                   </div>
                   {/* ProjectName/Shoot Name currently displayed */}
-                  <h4 className="font-bold text-base lg:text-2xl text-white">{toTitleCase(booking.shoot_name || "Unnamed Shoot")}</h4>
+                  <h4 className="font-bold text-base lg:text-2xl text-white">{headerText}</h4>
                 </div>
                 <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
                   <div className="grid grid-cols-2 lg:grid-cols-3 mb-4 gap-2">

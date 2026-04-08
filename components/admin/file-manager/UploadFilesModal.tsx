@@ -2,16 +2,27 @@
 
 import React, { useState, useRef } from "react";
 import { X, UploadCloud, Trash2, File } from "lucide-react";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   folderName: string;
+  uploadPath?: string;
+  onUploadComplete?: () => Promise<void> | void;
 }
 
-const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, folderName }) => {
+const UploadModal: React.FC<UploadModalProps> = ({
+  isOpen,
+  onClose,
+  folderName,
+  uploadPath,
+  onUploadComplete,
+}) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -44,6 +55,44 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, folderName }
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleUpload = async () => {
+    if (!uploadPath) {
+      setStatusMessage("Open a project folder before uploading files.");
+      return;
+    }
+
+    if (!selectedFiles.length) {
+      setStatusMessage("Select at least one file.");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      setStatusMessage("Uploading files...");
+
+      for (const selectedFile of selectedFiles) {
+        const filepath = `${uploadPath.replace(/\/+$/, "")}/${selectedFile.name}`;
+        const uploadPolicy = await fileManagerApi.getExternalUploadPolicy(
+          filepath,
+          selectedFile.type,
+          selectedFile.size
+        );
+
+        await fileManagerApi.uploadExternalFile(uploadPolicy, selectedFile);
+        await fileManagerApi.notifyExternalFileUploaded(filepath, selectedFile);
+      }
+
+      setSelectedFiles([]);
+      setStatusMessage("Files uploaded successfully.");
+      await onUploadComplete?.();
+      onClose();
+    } catch (error: any) {
+      setStatusMessage(error?.message || "Upload failed.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       {/* Modal Container */}
@@ -62,6 +111,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, folderName }
           <p className="mt-1 text-sm text-white/60">
             Files will be uploaded to the folder <span className="text-white/80">{folderName}</span>
           </p>
+          {uploadPath ? (
+            <p className="mt-1 text-xs text-white/40">{uploadPath}</p>
+          ) : (
+            <p className="mt-1 text-xs text-red-300">Open a folder before uploading files.</p>
+          )}
         </div>
 
         {/* Divider */}
@@ -123,6 +177,12 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, folderName }
               ))}
             </div>
           )}
+
+          {statusMessage && (
+            <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+              {statusMessage}
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -134,9 +194,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, folderName }
             Cancel
           </button>
           <button
+            onClick={handleUpload}
+            disabled={isUploading || !uploadPath}
             className="flex-1 rounded-lg bg-[#E8D1AB] px-4 py-2 text-sm font-medium text-[#101010] transition-opacity hover:opacity-90 lg:flex-none lg:min-w-[110px]"
           >
-            Upload File
+            {isUploading ? "Uploading..." : "Upload File"}
           </button>
         </div>
       </div>
