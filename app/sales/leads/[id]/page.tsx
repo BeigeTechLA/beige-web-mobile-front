@@ -48,7 +48,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CreativePartnerProfile } from "@/components/admin/users/CreativePartnerProfile";
-import { salesApi as salesService } from "@/lib/api";
+import ConvertBookingModal, {
+  type ConvertBookingModalInitialData,
+  type ConvertBookingModalSubmitData,
+} from "@/components/admin/quotes/ConvertBookingModal";
+import {
+  salesApi as salesService,
+  type LeadBookingSchedulePayload,
+} from "@/lib/api";
+import { getBrowserTimeZone } from "@/lib/timezone";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -128,6 +136,17 @@ const formatCurrencyValue = (value?: number | string | null) => {
   }).format(numericValue);
 };
 
+const normalizeTimeKey = (value?: string | null) => String(value || "").slice(0, 5);
+
+const formatTimeForApi = (value: string) => `${value}:00`;
+
+const QUOTE_LINE_ITEM_CATEGORY_LABELS: Record<string, string> = {
+  service: "Services",
+  addon: "Add-ons",
+  logistics: "Logistics",
+  uncategorized: "Other Items",
+};
+
 type LeadActivityLike = {
   activity_type?: string;
   activity_data?: unknown;
@@ -149,6 +168,12 @@ type QuoteTaxDetailsLike = {
   tax_type?: string | null;
   tax_rate?: number | string | null;
   tax_amount?: number | string | null;
+};
+
+type BookingDayLike = {
+  event_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
 };
 
 export default function SalesLeadDetailsPage() {
@@ -178,6 +203,8 @@ export default function SalesLeadDetailsPage() {
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
   const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([]);
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string>("");
+  const [isConvertedBookingEditModalOpen, setIsConvertedBookingEditModalOpen] = useState(false);
+  const [isUpdatingConvertedBooking, setIsUpdatingConvertedBooking] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -275,19 +302,31 @@ export default function SalesLeadDetailsPage() {
 
     const projectedQuote = lead?.projected_quote;
     const quoteTaxDetails = primaryQuote as QuoteTaxDetailsLike | undefined;
+    const primaryQuoteLineItems = primaryQuote?.line_items || [];
     const lineItemsSource =
       projectedQuote?.line_items?.length
         ? projectedQuote.line_items
         : primaryQuote?.line_items || [];
 
-    const lineItems = lineItemsSource.map((item: QuoteLineItemLike, index: number) => ({
-      id: item?.line_item_id ?? `${item?.item_id ?? item?.name ?? item?.item_name ?? "item"}-${index}`,
-      name: item?.name || item?.item_name || "Quote Item",
-      quantity: Number(item?.quantity || 0),
-      unitPrice: Number(item?.unit_price || 0),
-      total: Number(item?.total ?? item?.line_total ?? 0),
-      notes: item?.notes || null,
-    }));
+    const lineItems = lineItemsSource.map((item: QuoteLineItemLike, index: number) => {
+      const fallbackPrimaryQuoteItem =
+        primaryQuoteLineItems[index] ||
+        primaryQuoteLineItems.find((primaryItem: QuoteLineItemLike) => {
+          const currentItemName = String(item?.name || item?.item_name || "").trim().toLowerCase();
+          const primaryItemName = String(primaryItem?.name || primaryItem?.item_name || "").trim().toLowerCase();
+
+          return Boolean(currentItemName) && currentItemName === primaryItemName;
+        });
+
+      return {
+        id: item?.line_item_id ?? `${item?.item_id ?? item?.name ?? item?.item_name ?? "item"}-${index}`,
+        name: item?.name || item?.item_name || "Quote Item",
+        quantity: Number(item?.quantity || 0),
+        unitPrice: Number(item?.unit_price || 0),
+        total: Number(item?.total ?? item?.line_total ?? 0),
+        notes: item?.notes || fallbackPrimaryQuoteItem?.notes || null,
+      };
+    });
 
     return {
       source: projectedQuote?.source || "database",
@@ -306,6 +345,107 @@ export default function SalesLeadDetailsPage() {
       lineItems,
     };
   }, [booking?.quote_id, isQuoteConvertedLead, lead?.pricing_breakdown?.total, lead?.projected_quote, primaryQuote]);
+
+  const categorizedQuoteLineItems = useMemo(() => {
+    if (!quotePricingDetails?.lineItems?.length) {
+      return [];
+    }
+
+    const groupedItems = quotePricingDetails.lineItems.reduce<
+      Record<string, typeof quotePricingDetails.lineItems>
+    >((accumulator, item) => {
+      const normalizedCategory =
+        String(item.notes || "")
+          .trim()
+          .toLowerCase() || "uncategorized";
+
+      if (!accumulator[normalizedCategory]) {
+        accumulator[normalizedCategory] = [];
+      }
+
+      accumulator[normalizedCategory].push(item);
+      return accumulator;
+    }, {});
+
+    const orderedCategories = ["service", "addon", "logistics"];
+    const remainingCategories = Object.keys(groupedItems).filter(
+      (category) => !orderedCategories.includes(category)
+    );
+
+    return [...orderedCategories, ...remainingCategories]
+      .filter((category) => groupedItems[category]?.length)
+      .map((category) => ({
+        key: category,
+        label:
+          QUOTE_LINE_ITEM_CATEGORY_LABELS[category] ||
+          category
+            .split(/[_\s-]+/)
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(" "),
+        items: groupedItems[category],
+      }));
+  }, [quotePricingDetails]);
+
+  const convertedBookingInitialValues = useMemo<ConvertBookingModalInitialData | null>(() => {
+    if (!isQuoteConvertedLead || !booking) {
+      return null;
+    }
+
+    const bookingDays = Array.isArray(booking.booking_days)
+      ? (booking.booking_days as BookingDayLike[])
+          .filter((day) => day?.event_date)
+          .map((day) => ({
+            date: String(day.event_date),
+            startTime: normalizeTimeKey(day.start_time),
+            endTime: normalizeTimeKey(day.end_time),
+          }))
+      : [];
+
+    const isMultiDayBooking = bookingDays.length > 1 || Boolean(booking.is_multiple_day_shoot);
+
+    if (!isMultiDayBooking) {
+      const singleDate = bookingDays[0]?.date || booking.event_date || "";
+      const singleStartTime = bookingDays[0]?.startTime || normalizeTimeKey(booking.start_time);
+      const singleEndTime = bookingDays[0]?.endTime || normalizeTimeKey(booking.end_time);
+
+      return {
+        bookingType: "single_day",
+        location: booking.event_location || "",
+        singleDay: {
+          date: singleDate,
+          startTime: singleStartTime,
+          endTime: singleEndTime,
+        },
+      };
+    }
+
+    const normalizedDays = bookingDays.length
+      ? bookingDays
+      : booking.event_date
+        ? [{
+            date: String(booking.event_date),
+            startTime: normalizeTimeKey(booking.start_time),
+            endTime: normalizeTimeKey(booking.end_time),
+          }]
+        : [];
+
+    const firstDay = normalizedDays[0];
+    const sameTimings = normalizedDays.every(
+      (day) => day.startTime === firstDay?.startTime && day.endTime === firstDay?.endTime
+    );
+
+    return {
+      bookingType: "multi_day",
+      location: booking.event_location || "",
+      multiDay: {
+        sameTimings,
+        sharedStartTime: sameTimings ? firstDay?.startTime || "" : undefined,
+        sharedEndTime: sameTimings ? firstDay?.endTime || "" : undefined,
+        days: normalizedDays,
+      },
+    };
+  }, [booking, isQuoteConvertedLead]);
 
   useEffect(() => {
     setSelectedSalesRepId(lead?.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
@@ -501,6 +641,62 @@ export default function SalesLeadDetailsPage() {
       toast.error("Failed to update assigned sales representative");
     } finally {
       setIsUpdatingSalesRep(false);
+    }
+  };
+
+  const handleUpdateConvertedBooking = async (
+    bookingData: ConvertBookingModalSubmitData
+  ) => {
+    setIsUpdatingConvertedBooking(true);
+
+    try {
+      const browserTimeZone = getBrowserTimeZone();
+      let payload: LeadBookingSchedulePayload;
+
+      if (bookingData.bookingType === "single_day") {
+        if (!bookingData.singleDay) {
+          throw new Error("Single day booking data is missing.");
+        }
+
+        payload = {
+          booking_type: "single_day",
+          time_zone: browserTimeZone,
+          location: bookingData.location,
+          start_date: bookingData.singleDay.date,
+          start_time: formatTimeForApi(bookingData.singleDay.startTime),
+          end_time: formatTimeForApi(bookingData.singleDay.endTime),
+        };
+      } else {
+        if (!bookingData.multiDay) {
+          throw new Error("Multi day booking data is missing.");
+        }
+
+        payload = {
+          booking_type: "multi_day",
+          time_zone: browserTimeZone,
+          location: bookingData.location,
+          booking_days: bookingData.multiDay.days.map((day) => ({
+            date: day.date,
+            start_time: formatTimeForApi(day.startTime),
+            end_time: formatTimeForApi(day.endTime),
+          })),
+        };
+      }
+
+      const response = await salesService.updateLeadBookingSchedule(leadId, payload);
+
+      if (!response?.success) {
+        throw new Error(response?.error || response?.message || "Failed to update booking details");
+      }
+
+      toast.success("Booking details updated successfully");
+      setIsConvertedBookingEditModalOpen(false);
+      refetch();
+    } catch (error) {
+      console.error("Failed to update converted booking details:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update booking details");
+    } finally {
+      setIsUpdatingConvertedBooking(false);
     }
   };
 
@@ -835,6 +1031,15 @@ export default function SalesLeadDetailsPage() {
                   <Button
                     onClick={() => router.push(`/sales/leads/${params.id}/edit-booking`)}
                     className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                  >
+                    Edit Details
+                  </Button>
+                )}
+                {isQuoteConvertedLead && (
+                  <Button
+                    onClick={() => setIsConvertedBookingEditModalOpen(true)}
+                    disabled={!convertedBookingInitialValues || isUpdatingConvertedBooking}
+                    className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                   >
                     Edit Details
                   </Button>
@@ -1256,29 +1461,36 @@ export default function SalesLeadDetailsPage() {
                       </p>
                     </div>
 
-                    {quotePricingDetails.lineItems.length > 0 ? (
-                      quotePricingDetails.lineItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`rounded-2xl border p-4 ${isDark ? "border-[#2D2D2D] bg-[#111111]" : "border-[#ECECEC] bg-[#FCFCFC]"}`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
-                                {item.name}
-                              </p>
-                              <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
-                                Qty {item.quantity} x {formatCurrencyValue(item.unitPrice)}
-                              </p>
-                              {item.notes && (
-                                <p className={`mt-2 text-xs capitalize ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
-                                  {item.notes}
-                                </p>
-                              )}
-                            </div>
-                            <p className={`shrink-0 text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                              {formatCurrencyValue(item.total)}
-                            </p>
+                    {categorizedQuoteLineItems.length > 0 ? (
+                      categorizedQuoteLineItems.map((category) => (
+                        <div key={category.key} className="space-y-3">
+                          <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${isDark ? "text-white/45" : "text-black/45"}`}>
+                            {category.label}
+                          </p>
+
+                          <div
+                            className={`rounded-2xl border ${isDark ? "border-[#2D2D2D] bg-[#111111]" : "border-[#ECECEC] bg-[#FCFCFC]"}`}
+                          >
+                            {category.items.map((item, index) => (
+                              <div
+                                key={item.id}
+                                className={`p-4 ${index !== category.items.length - 1 ? (isDark ? "border-b border-[#2D2D2D]" : "border-b border-[#ECECEC]") : ""}`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                      {item.name}
+                                    </p>
+                                    <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
+                                      Qty {item.quantity} x {formatCurrencyValue(item.unitPrice)}
+                                    </p>
+                                  </div>
+                                  <p className={`shrink-0 text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                                    {formatCurrencyValue(item.total)}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))
@@ -1314,6 +1526,25 @@ export default function SalesLeadDetailsPage() {
           </div>
         </div>
       </div>
+
+      <ConvertBookingModal
+        open={isConvertedBookingEditModalOpen}
+        onClose={() => {
+          if (isUpdatingConvertedBooking) {
+            return;
+          }
+          setIsConvertedBookingEditModalOpen(false);
+        }}
+        onSubmit={(data) => {
+          void handleUpdateConvertedBooking(data);
+        }}
+        isSubmitting={isUpdatingConvertedBooking}
+        isDark={isDark}
+        initialData={convertedBookingInitialValues}
+        title="Edit Booking Details"
+        description="Update the booking type, shoot date and time, and location for this converted booking."
+        submitLabel="Update Details"
+      />
 
       <Dialog open={isCPModalOpen} onOpenChange={setIsCPModalOpen}>
         <DialogContent
