@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { adminApi } from "@/lib/api";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 import {
   getPaymentStatusMeta,
   getProjectFolderLink,
@@ -57,11 +58,44 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [workspaceFolderLink, setWorkspaceFolderLink] = React.useState("");
+  const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
-  const folderLink = getProjectFolderLink(project);
+  const folderLink = workspaceFolderLink || getProjectFolderLink(project);
+  const shootFilesText =
+    workspaceFileCount != null
+      ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
+      : getShootFilesText(project);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadWorkspaceSummary = async () => {
+      if (!projectId) return;
+
+      try {
+        const response = await fileManagerApi.getExternalWorkspace(projectId);
+        if (!isMounted) return;
+
+        setWorkspaceFolderLink(response.workspace.consoleUrl || "");
+        setWorkspaceFileCount(
+          typeof response.workspace.fileCount === "number" ? response.workspace.fileCount : null
+        );
+      } catch (error) {
+        if (!isMounted) return;
+        setWorkspaceFolderLink("");
+        setWorkspaceFileCount(null);
+      }
+    };
+
+    loadWorkspaceSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId]);
   const projectTimeText = getProjectTimeText(project);
-  const shootFilesText = getShootFilesText(project);
 
   const handleDelete = async () => {
     if (!projectId) return;
@@ -196,32 +230,32 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
             </div>
           </div>
 
-          <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-2 lg:mt-4 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
-            <div className="flex gap-2">
-              <span>Folder Link :</span>
-              <a
-                href={folderLink || "#"}
-                target={folderLink ? "_blank" : undefined}
-                rel={folderLink ? "noopener noreferrer" : undefined}
-                className={cn(
-                  "underline underline-offset-4 transition-all",
-                  folderLink
-                    ? isDark ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]" : "text-[#B18A00] decoration-[#B18A00]/30 hover:decoration-[#B18A00]"
-                    : isDark ? "text-white/50 decoration-white/10 pointer-events-none" : "text-black/50 decoration-black/10 pointer-events-none"
-                )}
-              >
-                {folderLink || "No Link Available"}
-                {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production") && (
-                  <span className={isDark ? "text-white" : "text-black"}> / {activeTab.replace("_", " ")}</span>
-                )}
-              </a>
+            <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base text-[#AAAAAA] mt-2 lg:mt-4">
+              <div className="flex gap-2">
+                <span>Folder Link :</span>
+                <a
+                  href={folderLink || "#"}
+                  target={folderLink ? "_blank" : undefined}
+                  rel={folderLink ? "noopener noreferrer" : undefined}
+                  className={cn(
+                    "underline underline-offset-4 transition-all",
+                    folderLink
+                      ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]"
+                      : "text-white/50 decoration-white/10 pointer-events-none"
+                  )}
+                >
+                  {folderLink || "No Link Available"}
+                  {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production" || activeTab === "Pre Production" || activeTab === "Post Production") && (
+                    <span className="text-white"> / {activeTab.replace("_", " ")}</span>
+                  )}
+                </a>
+              </div>
+              <div className="hidden lg:block w-px h-5 bg-[#333333]" />
+              <div className="flex gap-2">
+                <span>Shoot Files :</span>
+                <span className="text-white font-medium">{shootFilesText}</span>
+              </div>
             </div>
-            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
-            <div className="flex gap-2">
-              <span>Shoot Files :</span>
-              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
-            </div>
-          </div>
 
           <div className={`mt-2 lg:mt-4 text-sm lg:text-base flex gap-2 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
             <span>Location :</span>

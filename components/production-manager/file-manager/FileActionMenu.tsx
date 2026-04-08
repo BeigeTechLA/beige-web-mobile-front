@@ -17,10 +17,11 @@ interface FileActionMenuProps {
     onOpenLinkModal: () => void; // Prop to trigger the second modal
     anchor: { x: number; y: number }; // Add this
     folderName: string | number | null;
+    href?: string;
 }
 
 const FileActionMenu: React.FC<FileActionMenuProps> = ({
-    isOpen, onClose, onOpenLinkModal, anchor, folderName
+    isOpen, onClose, onOpenLinkModal, anchor, folderName, href
 }) => {
     const router = useRouter();
     const pathname = usePathname();
@@ -28,6 +29,11 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
     if (!isOpen) return null;
 
     const handleOpenFolder = () => {
+        if (href) {
+            router.push(href);
+            onClose();
+            return;
+        }
         const folder = folderName?.toString().trim().toLowerCase().split(" ").join("-")
         router.push(`${pathname}/${folder}`);
         onClose();

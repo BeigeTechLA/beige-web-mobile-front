@@ -118,6 +118,23 @@ type QuoteEditorNavigationCacheEntry = {
 };
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const isEditingServiceLabel = (label: string) =>
+  /\bedit(?:ing)?\b/.test(label.trim().toLowerCase());
+
+const hasEditingConfiguration = (lineItem: SalesQuoteDetailLineItem) => {
+  if (!lineItem?.configuration || typeof lineItem.configuration !== "object") {
+    return false;
+  }
+
+  const config = lineItem.configuration as Record<string, unknown>;
+  return Boolean(
+    config.editing_type_key ||
+      config.editing_type_label ||
+      config.editingTypeKey ||
+      config.editingTypeLabel
+  );
+};
 const QUOTE_EDITOR_NAVIGATION_CACHE_PREFIX = "quote-editor-navigation";
 const QUOTE_EDITOR_NAVIGATION_CACHE_TTL_MS = 10 * 60 * 1000;
 
@@ -442,6 +459,9 @@ export const buildQuoteEditorHydrationState = ({
         selectedServices.push(resolvedService.id);
       }
 
+      const isEditingService =
+        isEditingServiceLabel(label) || hasEditingConfiguration(lineItem);
+
       serviceConfigs[resolvedService.id] = {
         quantity: 1,
         duration: Math.max(
@@ -450,7 +470,9 @@ export const buildQuoteEditorHydrationState = ({
         ),
         crewSize: Math.max(
           1,
-          getQuoteNumber(lineItem.crew_size, lineItem.crew, lineItem.crew_count) ?? 1
+          isEditingService
+            ? getQuoteNumber(lineItem.quantity) ?? 1
+            : getQuoteNumber(lineItem.crew_size, lineItem.crew, lineItem.crew_count) ?? 1
         ),
         estimatedPrice: resolveServicePrice(
           lineItem,

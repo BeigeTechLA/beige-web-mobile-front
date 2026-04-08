@@ -187,7 +187,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     <ProjectTeam projectId={id} />
                     <AssignedCP projectId={id} />
                   </div>
-                  <MeetingSchedule />
+                  <MeetingSchedule role="pm" orderId={id} />
                 </>
               )}
 
@@ -199,19 +199,19 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 <PostProductionTab isDark={isDark} />
               )}
 
-              {activeTab === "Meetings" && (
-                <>
-                  <MeetingSchedule />
-                  <MeetingOverviewChart isDark={isDark} />
-                </>
-              )}
+                {activeTab === "Meetings" && (
+                    <>
+                        <MeetingSchedule role="pm" orderId={id} />
+                        <MeetingOverviewChart />
+                    </>
+                )}
 
-              {activeTab === "Messages" && (
-                <MessagesTab />
-              )}
-            </div >
-          </div >
-        </div >
+                {activeTab === "Messages" && (
+                    <MessagesTab bookingId={id} />
+                )}
+                </div>
+                </div>
+            </div>
 
         {/* Right Sidebar (Timeline) */}
         < div className="hidden lg:block" >

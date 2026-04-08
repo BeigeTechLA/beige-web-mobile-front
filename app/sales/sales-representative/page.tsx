@@ -17,6 +17,7 @@ import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDet
 
 interface LeadData {
   lead_id: number;
+  bookingId?: string;
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
@@ -86,17 +87,24 @@ export default function SalesSalesRepManagerPage() {
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   // Fetch real leads from API
-  const { data, isLoading, isFetching } = useGetLeadsQuery({
-    page: 1,
-    limit: 50,
-    search: debouncedSearch || undefined,
-    start_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
-    end_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
-  });
+  const { data, isLoading, isFetching } = useGetLeadsQuery(
+    {
+      page: 1,
+      limit: 50,
+      search: debouncedSearch || undefined,
+      start_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
+      end_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
+    },
+    {
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+    }
+  );
 
   // Map backend data to UI format
   const leadsData: LeadData[] = (data?.leads || []).map((lead: SalesLead) => ({
     lead_id: lead.lead_id,
+    bookingId: lead.booking_id ? String(lead.booking_id) : undefined,
     clientName: lead.client_name || lead.guest_email || "Unknown User",
     email: lead.guest_email || "No email",
     leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
@@ -255,6 +263,11 @@ export default function SalesSalesRepManagerPage() {
                             <p className="text-white/40 text-sm mt-1.5">
                               {format(lead.date, "MMM dd, yyyy")}
                             </p>
+                            {lead.bookingId ? (
+                              <p className="text-white text-xs">
+                                #{lead.bookingId}
+                              </p>
+                            ) : null}
                           </div>
                         </div>
                       </td>

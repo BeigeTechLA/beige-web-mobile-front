@@ -1,433 +1,292 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react";
-import { useParams, useRouter, usePathname } from "next/navigation";
-import { ArrowLeft, FileText, FolderOpen, Grid3X3, LinkIcon, List, MoreVertical, Search, Unlink, Upload } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, FileText, FolderOpen, Grid3X3, List, MoreVertical, Search } from "lucide-react";
 import { FolderCard } from "@/components/production-manager/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/production-manager/BasicDropdown";
-import FileActionMenu from "@/components/production-manager/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/production-manager/file-manager/LinkToShootModal";
 import UploadModal from "@/components/production-manager/file-manager/UploadFilesModal";
 import { MobileFolderRow } from "@/components/production-manager/file-manager/MobileFolderRow";
 import { FileCard } from "@/components/production-manager/file-manager/FileCard";
-import DottedDivider from "@/components/admin/DottedDivider";
-
-// Mock Data for Level 1 (Project View) - Matches Admin [id]/page.tsx
-const projectViewData = {
-    id: "1",
-    title: "Corporate_Lana_#123456",
-    description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    fileCount: 2,
-    category: "Corporate Event",
-    isLinked: true,
-    lastOpened: "2 hours ago",
-    userInitials: "DP",
-    subfolders: [
-        {
-            id: "1",
-            title: "Pre_Production",
-            fileCount: 2,
-            lastOpened: "2 hours ago",
-            userInitials: "DP",
-            type: "pre-production"
-        },
-        {
-            id: "2",
-            title: "Post_Production",
-            fileCount: 14,
-            lastOpened: "5 hours ago",
-            userInitials: "KA",
-            type: "post-production"
-        }
-    ]
-}
-
-// Mock Data for Level 2 (Phase View) - Matches Admin [subFolder]/page.tsx
-const phaseViewData = {
-    id: "1",
-    title: "Corporate_Lana_#123456",
-    description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    fileCount: 2,
-    category: "Corporate Event",
-    folderLink: "http://fjiejpfkmdfjief /Pre_Production",
-    shootDate: "Jan 16, 2026",
-    time: "11:30 PM · N/A Hours (11 Hours Duration)",
-    totalValue: "$14,400",
-    location: "1234 Mockingbird Lane Sample City, CA 90000 United States",
-    totalImageFiles: 120,
-    totalVideoFiles: 10,
-    PaymentStatus: "Paid",
-    lastOpened: "2 hours ago",
-    userInitials: "DP",
-    type: "post-production",
-    files: [
-        { id: "1", title: "Example.pdf", lastOpened: "2 hours ago", userInitials: "DP" },
-        { id: "2", title: "Example.docx", lastOpened: "5 hours ago", userInitials: "KA" }
-    ],
-    folders: [
-        { id: "1", title: "Raw Footages", fileCount: 12, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" },
-        { id: "2", title: "Edited Footages", fileCount: 14, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" },
-        { id: "3", title: "Final Deliverables", fileCount: 14, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" }
-    ]
-}
+import {
+  buildPostProductionFolders,
+  fileManagerApi,
+  getFilesForFolderView,
+  mapFilesForUi,
+  type ProjectFileItem,
+  type ProjectItem,
+} from "@/lib/fileManagerApi";
 
 const STATUSES = ["Linked", "Unlinked"];
 
 export default function ProductionManagerFolderDetailsPage() {
-    const router = useRouter();
-    const params = useParams();
-    const pathname = usePathname();
+  const router = useRouter();
+  const params = useParams<{ folderIds: string[] }>();
+  const folderIds = params.folderIds || [];
+  const [projectId, phaseSlug, nestedSlug] = folderIds;
 
-    // Determine View Level based on URL segments
-    const folderIds = params.folderIds as string[];
-    const isLevel2 = folderIds?.length >= 2;
+  const [project, setProject] = useState<ProjectItem | null>(null);
+  const [files, setFiles] = useState<ProjectFileItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [status, setStatus] = useState("");
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-    // Level 2 Logic (Phase View) - e.g. /file-manager/project-1/post-production
-    // Logic from Admin [subFolder]/page.tsx
-    const currentSlug = folderIds?.[folderIds.length - 1]?.toLowerCase() || "";
-    // In Admin, they check split('/').last. We do the same notion via params.
-    // If slug contains "post_production", we show folders. Else if "pre_production", files.
-    // Note: Admin logic was `type === "post_production"`.
-    // We'll normalize to detect "post_production" in the slug.
-    const isPostProduction = currentSlug.includes("post_production");
+  useEffect(() => {
+    let mounted = true;
 
-    // Select Data Source
-    const currentData = isLevel2 ? phaseViewData : projectViewData;
-    const initialList = isLevel2
-        ? (isPostProduction ? phaseViewData.folders : phaseViewData.files)
-        : projectViewData.subfolders;
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [projectData, fileData] = await Promise.all([
+          fileManagerApi.getProject(projectId),
+          fileManagerApi.getProjectFiles(projectId),
+        ]);
 
-    const [selectedTab, setSelectedTab] = useState("All Files")
-    const [searchTerm, setSearchTerm] = useState<string>("");
-    const [filteredData, setFilteredData] = useState<any[]>(initialList);
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-    const [status, setStatus] = React.useState("")
-    const [activeFolderTitle, setActiveFolderTitle] = useState<string | null>(null);
-    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-    const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
-    const [isOpen, setIsOpen] = useState(false);
-    const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-    const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-
-    // Update list when view changes (or initial load)
-    useEffect(() => {
-        const list = isLevel2
-            ? (isPostProduction ? phaseViewData.folders : phaseViewData.files)
-            : projectViewData.subfolders;
-        setFilteredData(list);
-    }, [isLevel2, isPostProduction]);
-
-    const handleSearch = (value: string) => {
-        setSearchTerm(value);
-        const list = isLevel2
-            ? (isPostProduction ? phaseViewData.folders : phaseViewData.files)
-            : projectViewData.subfolders;
-
-        const filtered = list.filter((item: any) =>
-            item.title.toLowerCase().includes(value.toLowerCase())
-        );
-        setFilteredData(filtered);
+        if (!mounted) return;
+        setProject(projectData);
+        setFiles(fileData);
+      } catch (err: any) {
+        if (!mounted) return;
+        setError(err?.message || "Failed to load folder");
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
 
-    const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>, folderTitle: string) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setActiveFolderTitle(folderTitle);
-        const isNearRightEdge = window.innerWidth - rect.right < 250;
-        const isNearBottomEdge = window.innerHeight - rect.bottom < 150;
-        setMenuAnchor({
-            x: isNearRightEdge ? rect.left - 210 : rect.right - 10,
-            y: isNearBottomEdge ? rect.top - 230 : rect.top - 20
-        });
+    if (projectId) load();
+    return () => {
+      mounted = false;
     };
+  }, [projectId]);
 
-    const handleOpenLinkModal = (folderTitle: string) => {
-        setSelectedFolder(folderTitle);
-        setIsLinkModalOpen(true);
-        setMenuAnchor(null);
+  const viewState = useMemo(() => {
+    if (!project) {
+      return {
+        title: "File Manager",
+        description: "",
+        kind: "folders" as const,
+        folders: [],
+        files: [],
+      };
+    }
+
+    if (phaseSlug === "post-production" && !nestedSlug) {
+      return {
+        title: "Post Production",
+        description: project.project_name,
+        kind: "folders" as const,
+        folders: buildPostProductionFolders(project, files),
+        files: [],
+      };
+    }
+
+    const mappedFiles = mapFilesForUi(getFilesForFolderView(files, phaseSlug, nestedSlug));
+
+    return {
+      title:
+        phaseSlug === "pre-production"
+          ? "Pre Production"
+          : nestedSlug === "raw-footage"
+          ? "Raw Footages"
+          : nestedSlug === "edited-footage"
+          ? "Edited Footages"
+          : nestedSlug === "final-deliverables"
+          ? "Final Deliverables"
+          : "Files",
+      description: project.project_name,
+      kind: "files" as const,
+      folders: [],
+      files: mappedFiles,
     };
+  }, [project, files, phaseSlug, nestedSlug]);
 
-    const toggleDropdown = () => setIsOpen(!isOpen);
+  const filteredFolders = useMemo(() => {
+    const query = searchTerm.toLowerCase();
+    return viewState.folders.filter((item) => item.title.toLowerCase().includes(query));
+  }, [searchTerm, viewState.folders]);
 
-    const handleSelect = (mode: 'grid' | 'list') => {
-        setViewMode(mode);
-        setIsOpen(false);
-    };
+  const filteredFiles = useMemo(() => {
+    const query = searchTerm.toLowerCase();
+    return viewState.files.filter((item) => item.title.toLowerCase().includes(query));
+  }, [searchTerm, viewState.files]);
 
-    return (
+  return (
+    <>
+      <Button onClick={() => router.back()} className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent">
+        <ArrowLeft size={24} />
+        <span className="text-sm font-medium">Back</span>
+      </Button>
+
+      {loading ? (
+        <div className="text-white/70 text-sm">Loading folder...</div>
+      ) : error || !project ? (
+        <div className="text-red-300 text-sm">{error || "Folder not found"}</div>
+      ) : (
         <>
-            <Button onClick={() => router.back()} className="text-white hover:text-white/80 transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent">
-                <ArrowLeft size={24} />
-                <span className="text-sm font-medium">Back</span>
-            </Button>
-
-            {/* Header Section */}
-            <div>
-          <div className="flex items-center gap-5 mb-2 lg:mb-6">
-                    <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
-                        {currentData.userInitials}
-                    </div>
-                    <div className="text-white max-w-3xl flex-1 lg:flex-0">
-                        <div className="flex flex-1 justify-between items-center gap-2 ">
-                            <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold mb-1">{currentData.title}</h1>
-
-                            {/* Show Linked/Unlinked badge only if 'isLinked' exists on top level data */}
-                            {'isLinked' in currentData && (
-                                //@ts-ignore
-                                currentData.isLinked ? (
-                                    <span className="px-2.5 py-1 rounded-full bg-[#D4FFE4] text-[#16A34A] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
-                                        <LinkIcon size={14} />
-                                        Linked
-                                    </span>
-                                ) : (
-                                    <span className="px-2.5 py-1 rounded-full bg-[#FFF1F2] text-[#F43F5E] text-xs font-medium border border-[#6ce9a6]/20 flex items-center gap-1.5">
-                                        <Unlink size={14} />
-                                        Unlinked
-                                    </span>
-                                )
-                            )}
-
-                            {/* For Level 2, show Type badge */}
-                            {isLevel2 && (
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-medium border border-white/5 flex items-center gap-1.5 ${!isPostProduction ? 'bg-[#FDF4FF] text-[#C026D3]' : 'bg-[#E8D2FB] text-[#540B94]'}`}>
-                                    {isPostProduction ? "Post_Production" : "Pre_Production"}
-                                </span>
-                            )}
-                        </div>
-                        <p className="hidden lg:block text-sm text-[#D0D0D0]"><span className="text-[#AAA7A7]">Description: </span>{currentData.description}</p>
-                    </div>
+          <div className="mb-6">
+            <div className="flex items-center gap-5 mb-2 lg:mb-6">
+              <div className="h-10 w-10 lg:h-21 lg:w-21 rounded-lg lg:rounded-2xl bg-[#C8E1FF] flex items-center justify-center text-[#000] lg:text-[30px] font-medium">
+                {(project.assigned_creator?.name || project.client?.name || "NA")
+                  .split(" ")
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((part) => part[0]?.toUpperCase() || "")
+                  .join("")}
+              </div>
+              <div className="text-white max-w-3xl flex-1">
+                <div className="flex flex-1 justify-between items-center gap-2 ">
+                  <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold mb-1">{viewState.title}</h1>
+                  <span className="px-2.5 py-1 rounded-full bg-[#E8D2FB] text-[#540B94] text-xs font-medium border border-white/5">
+                    {project.project_code}
+                  </span>
                 </div>
-                <p className=" lg:hidden text-xs text-[#D0D0D0]"><span className="text-[#AAA7A7]">Description: </span>{currentData.description}</p>
+                <p className="text-sm text-[#D0D0D0]">
+                  <span className="text-[#AAA7A7]">Project: </span>
+                  {viewState.description}
+                </p>
+              </div>
             </div>
+          </div>
 
-        {/* <DottedDivider /> */}
-
-            {/* Level 2 Info Bar */}
-            {isLevel2 && (
-                <>
-                    <div className="flex flex-col gap-2 lg:gap-5 mb-2 lg:mb-6">
-                        <div className="flex flex-wrap gap-2 lg:gap-5 text-[#AAA7A7] text-sm capitalize divide-x divide-white/10">
-                            {/* @ts-ignore - accessing phaseViewData specific fields */}
-                            <p className="pr-5">Shoot Date: <span className="text-white">{currentData.shootDate}</span></p>
-                            {/* @ts-ignore */}
-                            <p className="pr-5">Time: <span className="text-white">{currentData.time}</span></p>
-                            {/* @ts-ignore */}
-                            <p className="pr-5">Total Value: <span className="text-white">{currentData.totalValue}</span></p>
-                            {/* @ts-ignore */}
-                            <p className="">Payment Status: <span className="text-[#45DB17]">{currentData.PaymentStatus}</span></p>
-                        </div>
-                        <div className="flex flex-wrap  gap-2 lg:gap-5 text-[#AAA7A7] text-sm divide-x divide-white/10">
-                            {/* @ts-ignore */}
-                            <p className="pr-5">Folder Link: <span className="text-[#E8D1AB] underline">{currentData.folderLink}</span></p>
-                            {/* @ts-ignore */}
-                            <p className="">Shoot Files: <span className="text-white">{currentData.totalImageFiles} Images & {currentData.totalVideoFiles} Videos</span></p>
-                        </div>
-                        {/* @ts-ignore */}
-                        <p className="text-[#AAA7A7] text-sm capitalize">Location: <span className="text-white">{currentData.location}</span></p>
-                    </div>
-                    {/* <DottedDivider /> */}
-                </>
-            )}
-
-            {/* Main Content Area */}
-            <div className="pb-20 lg:pb-0">
-                <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
-                    <div className="relative flex-1 max-w-xl">
-                        <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            value={searchTerm}
-                            className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSearch(e.target.value)}
-                        />
-                    </div>
-                    <div className="flex gap-2 ">
-                        <BasicDropdown
-                            label="Status"
-                            value={status}
-                            onChange={(val) => setStatus(val)}
-                            options={STATUSES}
-                        />
-
-                        {/* MOBILE VIEW: Dropdown Button */}
-                        <div className="md:hidden relative">
-                            <Button
-                                onClick={toggleDropdown}
-                                className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
-                            >
-                                {viewMode === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
-                            </Button>
-
-                            {/* Dropdown Menu */}
-                            {isOpen && (
-                                <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
-                                    <button
-                                        onClick={() => handleSelect('grid')}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"}`}
-                                    >
-                                        <Grid3X3 size={18} />
-                                        Grid View
-                                    </button>
-                                    <button
-                                        onClick={() => handleSelect('list')}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list' ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"}`}
-                                    >
-                                        <List size={18} />
-                                        List View
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* DESKTOP VIEW: Toggle */}
-                        <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
-                            <Button
-                                onClick={() => setViewMode('grid')}
-                                className={`px-5 py-2.5 rounded-l-lg transition-colors ${viewMode === 'grid'
-                                    ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                                    : "bg-transparent text-white/40 hover:text-white"
-                                    }`}
-                            >
-                                <Grid3X3 size={20} />
-                            </Button>
-                            <Button
-                                onClick={() => setViewMode('list')}
-                                className={`px-5 py-2.5 rounded-r-lg transition-colors ${viewMode === 'list'
-                                    ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                                    : "bg-transparent text-white/40 hover:text-white"
-                                    }`}
-                            >
-                                <List size={20} />
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-
-                {
-                    viewMode === 'grid' ? (
-                        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5`}>
-                            {filteredData.map((item: any) => (
-                                // Logic: If not level 2, show folders. 
-                                // If Level 2, show folders if PostProduction, Files if PreProduction.
-                                (!isLevel2 || isPostProduction) ? (
-                                    <FolderCard
-                                        key={item.id}
-                                        title={item.title}
-                                        fileCount={item.fileCount}
-                                        lastOpened={item.lastOpened}
-                                        category={item.category}
-                                        isLinked={item.isLinked}
-                                        userInitials={item.userInitials}
-                                        onOpenLinkModal={() => handleOpenLinkModal(item.title)}
-                                    />
-                                ) : (
-                                    <FileCard key={item.id} file={item} onMenuTrigger={(e) => handleOpenMenu(e, item.title)} />
-                                )
-                            ))}
-                        </div>
-                    ) : (
-                        <div className={`flex flex-col gap-3`}>
-                            {/* MOBILE LIST VIEW */}
-                            <div className="lg:hidden">
-                                {filteredData.map((folder: any) => (
-                                    <MobileFolderRow
-                                        key={folder.id}
-                                        folder={folder}
-                                        handleOpenMenu={(e, title) => handleOpenMenu(e, title)}
-                                    />
-                                ))}
-                            </div>
-
-                            {/* DESKTOP TABLE VIEW */}
-                            <div className="hidden lg:block overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                                            <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
-                                            <th className="py-5 px-6 font-medium text-center">
-                                                {isLevel2 && !isPostProduction ? "Type" : "Files"}
-                                            </th>
-                                            <th className="py-5 px-6 font-medium text-center">Last Updated</th>
-                                            <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredData.map((item: any) => (
-                                            <tr key={item.id} className="items-center hover:bg-white/[0.02] transition-colors">
-                                                <td className="py-5 px-6 text-white flex gap-2 items-center">
-                                                    <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
-                                                        {(!isLevel2 || isPostProduction) ?
-                                                            <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
-                                                            :
-                                                            <FileText className="text-[#F04438]" size={20} />
-                                                        }
-                                                    </div>
-                                                    <span className="text-sm font-semibold">{item.title}</span>
-                                                </td>
-
-                                                <td className="py-5 px-6 text-center">
-                                                    <p className="text-white/60 text-sm">
-                                                        {(!isLevel2 || isPostProduction) ? (item.fileCount?.toString().padStart(2, '0')) : "PDF"}
-                                                    </p>
-                                                </td>
-
-                                                <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">
-                                                    {item.lastOpened}
-                                                </td>
-
-                                                <td className="py-5 px-6 text-right">
-                                                    <Button
-                                                        variant="ghost"
-                                                        className="text-white hover:text-white/90 transition-colors"
-                                                        onClick={(e) => handleOpenMenu(e, item.title)}
-                                                    >
-                                                        <MoreVertical size={30} />
-                                                    </Button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )
-                }
-            </div>
-
-            {/* GLOBAL MENU OVERLAY */}
-            {menuAnchor && (
-                <FileActionMenu
-                    folderName={selectedFolder}
-                    isOpen={true}
-                    onClose={() => setMenuAnchor(null)}
-                    onOpenLinkModal={() => handleOpenLinkModal(activeFolderTitle || "")}
-                    anchor={menuAnchor}
+          <div className="pb-20 lg:pb-0">
+            <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
+              <div className="relative flex-1 max-w-xl">
+                <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchTerm}
+                  className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
-            )}
-
-            <LinkToShootModal
-                isOpen={isLinkModalOpen}
-                onClose={() => setIsLinkModalOpen(false)}
-                folderName={selectedFolder || ""}
-            />
-
-            <UploadModal
-                isOpen={isUploadModalOpen}
-                onClose={() => setIsUploadModalOpen(false)}
-                folderName={selectedFolder || ""}
-            />
-
-            {/* Floating Mobile Button */}
-            <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
-                <Button
-                    onClick={() => setIsUploadModalOpen(true)}
-                    className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-                >
-                    <Upload size={20} />
-                    Upload Files
-                </Button>
+              </div>
+              <div className="flex gap-2 ">
+                <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} />
+                <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
+                  <Button
+                    onClick={() => setViewMode("grid")}
+                    className={`px-5 py-2.5 rounded-l-lg transition-colors ${
+                      viewMode === "grid"
+                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                        : "bg-transparent text-white/40 hover:text-white"
+                    }`}
+                  >
+                    <Grid3X3 size={20} />
+                  </Button>
+                  <Button
+                    onClick={() => setViewMode("list")}
+                    className={`px-5 py-2.5 rounded-r-lg transition-colors ${
+                      viewMode === "list"
+                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                        : "bg-transparent text-white/40 hover:text-white"
+                    }`}
+                  >
+                    <List size={20} />
+                  </Button>
+                </div>
+              </div>
             </div>
+
+            {viewState.kind === "folders" ? (
+              viewMode === "grid" ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                  {filteredFolders.map((folder) => (
+                    <FolderCard
+                      key={folder.id}
+                      title={folder.title}
+                      fileCount={folder.fileCount}
+                      category={folder.category}
+                      isLinked={folder.isLinked}
+                      lastOpened={folder.lastOpened}
+                      userInitials={folder.userInitials}
+                      onOpenLinkModal={() => {
+                        setSelectedFolder(folder.title);
+                        setIsLinkModalOpen(true);
+                      }}
+                      href={folder.href}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {filteredFolders.map((folder) => (
+                    <MobileFolderRow
+                      key={folder.id}
+                      folder={folder}
+                      handleOpenMenu={() => {
+                        setSelectedFolder(folder.title);
+                        setIsLinkModalOpen(true);
+                      }}
+                    />
+                  ))}
+                </div>
+              )
+            ) : viewMode === "grid" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                {filteredFiles.map((file) => (
+                  <FileCard key={file.id} file={file} onMenuTrigger={() => {}} />
+                ))}
+              </div>
+            ) : (
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
+                      <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                      <th className="py-5 px-6 font-medium text-center">Type</th>
+                      <th className="py-5 px-6 font-medium text-center">Last Updated</th>
+                      <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFiles.map((item) => (
+                      <tr key={item.id} className="items-center hover:bg-white/[0.02] transition-colors">
+                        <td className="py-5 px-6 text-white flex gap-2 items-center">
+                          <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
+                            <FileText className="text-[#F04438]" size={20} />
+                          </div>
+                          <span className="text-sm font-semibold">{item.title}</span>
+                        </td>
+                        <td className="py-5 px-6 text-center text-white/60 text-sm">FILE</td>
+                        <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
+                        <td className="py-5 px-6 text-right">
+                          <Button
+                            variant="ghost"
+                            className="text-white hover:text-white/90 transition-colors"
+                            onClick={() => {}}
+                          >
+                            <MoreVertical size={30} />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </>
-    )
+      )}
+
+      <LinkToShootModal
+        isOpen={isLinkModalOpen}
+        onClose={() => setIsLinkModalOpen(false)}
+        folderName={selectedFolder || ""}
+      />
+
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        folderName={selectedFolder || ""}
+      />
+    </>
+  );
 }

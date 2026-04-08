@@ -8,23 +8,31 @@ import { Button } from "@/components/ui/button";
 interface CreateFolderModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (data: { name: string; category: string }) => void;
+  onCreate: (data: { name: string }) => void | Promise<void>;
+  title?: string;
+  description?: string;
 }
 
 export const CreateFolderModal = ({
   isOpen,
   onClose,
   onCreate,
+  title = "Create Folder",
+  description = "Create a new folder in this location",
 }: CreateFolderModalProps) => {
   const [folderName, setFolderName] = useState("");
-  const [category, setCategory] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onCreate({ name: folderName, category });
-    setFolderName("");
-    setCategory("");
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await onCreate({ name: folderName });
+      setFolderName("");
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -51,10 +59,10 @@ export const CreateFolderModal = ({
             <div className="p-5 flex justify-between items-start border-b border-white/5">
               <div>
                 <h2 className="text-xl lg:text-2xl font-bold text-white mb-1">
-                  Create Folder
+                  {title}
                 </h2>
                 <p className="text-sm text-white/40">
-                  Create new folder for user
+                  {description}
                 </p>
               </div>
               <button
@@ -81,34 +89,22 @@ export const CreateFolderModal = ({
                 />
               </div>
 
-              {/* Category Input */}
-              <div className="relative group">
-                <label className="absolute -top-2 left-4 bg-[#0A0A0A] px-2 text-xs font-medium text-white/40 group-focus-within:text-[#E5D5B8] transition-colors">
-                  Category
-                </label>
-                <textarea
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-transparent border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-[#E5D5B8]/50  h-15 transition-all resize-none"
-                  placeholder="Enter category..."
-                  required
-                />
-              </div>
-
               {/* Action Buttons */}
               <div className="flex items-center gap-3 ">
                 <button
                   type="button"
                   onClick={onClose}
+                  disabled={isSubmitting}
                   className="flex-1 h-12 rounded-xl bg-white text-black font-bold hover:bg-white/90 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="flex-[1.5] h-12 rounded-xl bg-[#E5D5B8] text-black font-bold hover:bg-[#dcb98a] transition-colors"
                 >
-                  Create Folder
+                  {isSubmitting ? "Creating..." : "Create Folder"}
                 </button>
               </div>
             </form>

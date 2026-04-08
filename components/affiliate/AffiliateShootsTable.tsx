@@ -7,7 +7,6 @@ import Cookies from "js-cookie";
 import { affiliateApi, adminApi } from "@/lib/api";
 import { format } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useRouter } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -81,12 +80,7 @@ interface AffiliateShootsTableProps {
   externalSelectedDate?: Date | null;
 }
 
-// export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onShootClick, externalSelectedDate }) => {
-export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ externalSelectedDate }) => {
-
-  const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onShootClick, externalSelectedDate }) => {
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -276,13 +270,9 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ exte
     setExpandedId(expandedId === id ? null : id);
   };
 
-  const handleActionClick = (e: React.MouseEvent, bookingId: string, hasQuote: boolean) => {
+  const handleActionClick = (e: React.MouseEvent, bookingId: string) => {
     e.stopPropagation();
-    if (!hasQuote) {
-      router.push(`/affiliate/shoots/${bookingId}/edit-booking`);
-      return;
-    }
-    router.push(`/search-results/payment?shootId=${bookingId}`);
+    onShootClick(bookingId);
   };
 
   if (!mounted) return null;
@@ -373,58 +363,44 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ exte
                 </div>
 
                 {/* Collapsible Content */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                      className={`transition-colors duration-300 ${isDark ? "border-t border-white/5 bg-black/10" : "border-[#E5E5E5] bg-[#F9F9F9]"
-                        }`}
-                    >
-                      <div className="p-3 space-y-4">
-                        <div className="grid grid-cols-2 gap-y-3">
-                          <div>
-                            <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Shoot ID</p>
-                            <p className={`text-sm ${isDark ? "text-white" : "text-[#333]"}`}>{shoot.id}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Price</p>
-                            <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#333]"}`}>{shoot.price}</p>
-                          </div>
-                          <div>
-                            <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Category</p>
-                            <p className={`text-sm ${isDark ? "text-white" : "text-[#333]"}`}>{shoot.category}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Payment</p>
-                            <p className={`text-sm font-medium ${shoot.paymentStatus === "paid" ? "text-green-400" : "text-yellow-400"}`}>
-                              {shoot.paymentStatus === "paid" ? "Done" : "Pending"}
-                            </p>
-                          </div>
-                          <div className="col-span-2 pt-2">
-                            {shoot.paymentStatus === "pending" && (
-                              <button
-                                onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
-                                className="w-full mb-2 py-2 bg-[#E8D1AB] hover:bg-[#dcb98a] rounded-lg text-black text-sm font-semimediumbold"
-                              >
-                                {shoot.hasQuote ? "Proceed to Payment" : "Complete Booking"}
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleRowClick(shoot.id)}
-                              className={`w-full py-2 border rounded-lg  text-sm font-medium ${isDark ? "bg-white/5 border-white/10 text-[#E8D1AB]" : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232]"}`}
-                            >
-                              View Full Details
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-
-                  )}
-                </AnimatePresence>
+                {isExpanded && (
+                  <div className="mt-4 grid grid-cols-2 gap-y-4 px-2">
+                    <div>
+                      <p className="text-[#666666] text-[10px] uppercase tracking-wider">Shoot ID</p>
+                      <p className="text-white text-sm">{shoot.id}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[#666666] text-[10px] uppercase tracking-wider">Price</p>
+                      <p className="text-white text-sm">{shoot.price}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-[#666666] text-[10px] uppercase tracking-wider">Category</p>
+                      <p className="text-white text-sm truncate pr-2">{shoot.category}</p>
+                    </div>
+                    <div>
+                      <p className="text-[#666666] text-[10px] uppercase tracking-wider">Payment</p>
+                      <p className={`text-sm font-medium ${shoot.paymentStatus === "paid" ? "text-green-400" : "text-yellow-400"}`}>
+                        {shoot.paymentStatus === "paid" ? "Done" : "Pending"}
+                      </p>
+                    </div>
+                    <div className="col-span-2 pt-2">
+                      {shoot.paymentStatus === "pending" && (
+                        <button
+                          onClick={(e) => handleActionClick(e, shoot.bookingId)}
+                          className="w-full mb-2 py-2 bg-[#E8D1AB] hover:bg-[#dcb98a] rounded-lg text-black text-sm font-semibold"
+                        >
+                          {shoot.hasQuote ? "Proceed to Payment" : "Complete Booking"}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleRowClick(shoot.id)}
+                        className="w-full py-2 bg-white/5 border border-white/10 rounded-lg text-[#E8D1AB] text-sm font-medium"
+                      >
+                        View Full Details
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -505,8 +481,8 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ exte
                       <div className="flex items-center justify-end gap-2">
                         {shoot.paymentStatus === "pending" && (
                           <button
-                            onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
-                            className="px-3 py-1.5 rounded-lg bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-xs font-medium"
+                            onClick={(e) => handleActionClick(e, shoot.bookingId)}
+                            className="px-3 py-1.5 rounded-lg bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-xs font-semibold"
                           >
                             {shoot.hasQuote ? "Proceed to Payment" : "Complete Booking"}
                           </button>

@@ -131,7 +131,7 @@ export default function AffiliateRecentActivity({ externalSelectedDate }: { exte
               />
 
               {/* Content */}
-              <div className="flex-1">
+              <div className="flex-1 max-w-3/5">
                 <p className={`text-xs font-semibold mb-0.5 ${isDark ? "text-[#E5D5B8]" : "text-[#B18A00]"}`}>
                   {activity.title}
                 </p>

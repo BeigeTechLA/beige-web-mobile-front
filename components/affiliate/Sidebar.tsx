@@ -10,8 +10,8 @@ import { useTheme } from "next-themes";
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard' },
   { name: 'Affiliate Overview', icon: Users, link: '/affiliate/overview' },
-  { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager', isDisabled: true },
-  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages', isDisabled: true },
+  // { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager', isDisabled: true },
+  // { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages', isDisabled: true },
   { name: 'Shoots', icon: Camera, link: '/affiliate/shoots' },
   { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot' },
   { name: 'Profile', icon: Settings, link: '/affiliate/profile' },
