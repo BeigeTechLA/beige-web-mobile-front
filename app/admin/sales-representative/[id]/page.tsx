@@ -20,7 +20,8 @@ import {
   Clock,
   Circle,
   Edit,
-  Pencil
+  Pencil,
+  Edit2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -258,6 +259,7 @@ export default function LeadDetailPage() {
   const lead = leadData;
   const booking = lead?.booking;
   const primaryQuote = booking?.primary_quote;
+  const projectedQuote = lead?.projected_quote;
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -330,6 +332,10 @@ export default function LeadDetailPage() {
       lineItems,
     };
   }, [booking?.quote_id, isQuoteConvertedLead, lead?.pricing_breakdown?.total, lead?.projected_quote, primaryQuote]);
+
+  const customQuoteId =
+    lead?.custom_quote_id ?? (lead as any)?.customQuoteId ?? null;
+  const canEditQuote = Boolean(customQuoteId);
 
   const categorizedQuoteLineItems = useMemo(() => {
     if (!quotePricingDetails?.lineItems?.length) {
@@ -554,6 +560,17 @@ export default function LeadDetailPage() {
       console.error("Error generating discount:", error);
       toast.error(error?.data?.message || "Failed to generate discount code");
     }
+  };
+
+  const handleEditQuoteRedirect = () => {
+    if (!customQuoteId) {
+      toast.error("Custom quote id is missing.");
+      return;
+    }
+
+    router.push(
+      `/admin/quotes/create?quoteId=${encodeURIComponent(customQuoteId)}&view=details&editMode=full`
+    );
   };
 
   const handleUpdateIntent = async (intent: string, notes: string) => {
@@ -1350,14 +1367,29 @@ export default function LeadDetailPage() {
                         Converted from quote #{quotePricingDetails.quoteId ?? "N/A"}
                       </p>
                     </div>
-                    {quotePricingDetails.status && (
-                      <span
-                        className={`rounded-full px-3 py-1 text-[11px] font-medium capitalize ${isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-[#FFF6D9] text-[#7A5A00]"
+                    <div className="flex flex-wrap items-center gap-2">
+                      {quotePricingDetails.status && (
+                        <span
+                          className={`rounded-full px-3 py-1 text-[11px] font-medium capitalize ${
+                            isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-[#FFF6D9] text-[#7A5A00]"
                           }`}
+                        >
+                          {quotePricingDetails.status}
+                        </span>
+                      )}
+                      <Button
+                        type="button"
+                        onClick={handleEditQuoteRedirect}
+                        className={`h-8 px-3 text-xs font-semibold rounded-lg border transition-all ${
+                          isDark
+                            ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
+                            : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
+                        } ${!canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
                       >
-                        {quotePricingDetails.status}
-                      </span>
-                    )}
+                        <Edit2 size={14} />
+                        <span className="ml-2">Edit Quote</span>
+                      </Button>
+                    </div>
                   </div>
 
                   <div className={`mt-5 grid grid-cols-2 gap-3 rounded-2xl p-4 ${isDark ? "bg-[#111111]" : "bg-[#F8F8F8]"}`}>
@@ -1438,15 +1470,15 @@ export default function LeadDetailPage() {
                                 className={`p-4 ${index !== category.items.length - 1 ? (isDark ? "border-b border-[#2D2D2D]" : "border-b border-[#ECECEC]") : ""}`}
                               >
                                 <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                  <div className="min-w-0 flex-1">
+                                    <p className={`text-sm font-medium break-words ${isDark ? "text-white" : "text-black"}`}>
                                       {item.name}
                                     </p>
                                     <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
                                       Qty {item.quantity} x {formatCurrencyValue(item.unitPrice)}
                                     </p>
                                   </div>
-                                  <p className={`shrink-0 text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                                  <p className={`shrink-0 text-sm font-semibold text-right ${isDark ? "text-white" : "text-black"}`}>
                                     {formatCurrencyValue(item.total)}
                                   </p>
                                 </div>

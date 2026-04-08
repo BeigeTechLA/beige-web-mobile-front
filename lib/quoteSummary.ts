@@ -293,9 +293,16 @@ const buildServiceItems = (
         return null;
       }
 
-      const quantity = 1;
-      const duration = Math.max(0, normalizeNumber(config.duration));
-      const crew = Math.max(1, normalizeNumber(config.crewSize));
+      const isEditingService = isEditingServiceLabel(normalizedServiceName);
+      const quantity = isEditingService
+        ? Math.max(1, normalizeNumber(config.crewSize))
+        : 1;
+      const duration = isEditingService
+        ? 0
+        : Math.max(0, normalizeNumber(config.duration));
+      const crew = isEditingService
+        ? 0
+        : Math.max(1, normalizeNumber(config.crewSize));
       const unitRate = Math.max(
         0,
         normalizeNumber(config.estimatedPrice || service.price || service.basePrice)
@@ -327,7 +334,9 @@ const buildServiceItems = (
         duration,
         crew,
         unitRate,
-        amount: Math.max(duration, 1) * Math.max(crew, 1) * unitRate,
+        amount: isEditingService
+          ? quantity * unitRate
+          : Math.max(duration, 1) * Math.max(crew, 1) * unitRate,
         subtitle:
           shouldShowShootTypeSubtitle && serviceShootTypeLabel
             ? `(${serviceShootTypeLabel})`

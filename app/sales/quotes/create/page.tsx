@@ -56,7 +56,6 @@ import {
   getQuoteValidationMessage,
   validateQuoteForReview,
   validateQuoteStep,
-  buildPreviewQuoteFromSummary,
   type QuoteSummarySnapshot,
 } from "@/lib/quoteSummary";
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
@@ -485,6 +484,11 @@ const findMatchingShootTypeLabel = (
 const getSelectedShootTypeLabel = (shootTypeOptions: ShootTypeOption[], selectedId: string) =>
   shootTypeOptions.find((type) => type.id === selectedId)?.label?.trim() || "";
 
+const getSelectedShootTypeLabels = (shootTypeOptions: ShootTypeOption[], selectedIds: string[]) =>
+  selectedIds
+    .map((selectedId) => getSelectedShootTypeLabel(shootTypeOptions, selectedId))
+    .filter(Boolean);
+
 const mergeShootTypeOptions = (currentOptions: ShootTypeOption[], nextOption: ShootTypeOption) => {
   const mergedOptions = [
     ...currentOptions.filter((option) => option.id !== nextOption.id),
@@ -724,6 +728,10 @@ export default function CreateQuotePage() {
   const { isDark } = useResolvedTheme();
   const editQuoteId = searchParams.get("quoteId");
   const isEditMode = Boolean(editQuoteId);
+  const editModeParam = searchParams.get("editMode");
+  const isFullEditFlow = isEditMode && editModeParam === "full";
+  const [createdQuoteId, setCreatedQuoteId] = useState<string | null>(null);
+  const effectiveQuoteId = editQuoteId || createdQuoteId;
   const requestedEditView = normalizeQuoteEditorView(
     searchParams.get("view"),
     isEditMode ? "details" : "selection"
@@ -757,7 +765,7 @@ export default function CreateQuotePage() {
   const [customShootType, setCustomShootType] = useState("");
   const [showAddServiceForm, setShowAddServiceForm] = useState(false);
   const [activeShootTypeForm, setActiveShootTypeForm] = useState<ShootTypeKind | null>(null);
-  const [selectedEditingType, setSelectedEditingType] = useState<string>("");
+  const [selectedEditingTypes, setSelectedEditingTypes] = useState<string[]>([]);
   const [showAddEditingTypeForm, setShowAddEditingTypeForm] = useState(false);
   const [customEditingType, setCustomEditingType] = useState("");
   const [isVideoShootTypeExpanded, setIsVideoShootTypeExpanded] = useState(true);
@@ -820,6 +828,7 @@ export default function CreateQuotePage() {
   const [previewQuote, setPreviewQuote] = useState<SalesQuoteDetailData | null>(null);
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isQuoteSaved, setIsQuoteSaved] = useState(false);
   const [quoteSummarySnapshot, setQuoteSummarySnapshot] = useState<QuoteSummarySnapshot | null>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [quoteToEdit, setQuoteToEdit] = React.useState<SalesQuoteDetailData | null>(null);
@@ -1009,7 +1018,7 @@ export default function CreateQuotePage() {
 
     if (!hasEditingService) {
       setEditingTypeOptions([]);
-      setSelectedEditingType("");
+      setSelectedEditingTypes([]);
       return [] as ShootTypeOption[];
     }
 
@@ -1031,14 +1040,20 @@ export default function CreateQuotePage() {
         );
 
       setEditingTypeOptions(mergedEditingTypes);
-      setSelectedEditingType((currentValue) => {
+      setSelectedEditingTypes((currentValue) => {
         if (mergedEditingTypes.length === 0) {
-          return "";
+          return [];
         }
 
-        return mergedEditingTypes.some((type) => type.id === currentValue)
-          ? currentValue
-          : mergedEditingTypes[0].id;
+        const validSelections = currentValue.filter((id) =>
+          mergedEditingTypes.some((type) => type.id === id)
+        );
+
+        if (validSelections.length > 0) {
+          return validSelections;
+        }
+
+        return [mergedEditingTypes[0].id];
       });
 
       return mergedEditingTypes;
@@ -1271,75 +1286,84 @@ export default function CreateQuotePage() {
         }
 
         if (hydratedHasEditingTypeContext) {
-          const savedEditingConfiguration =
-            extractQuoteLineItems(quoteToEdit)
-              .map((lineItem) => getQuoteLineItemEditingTypeConfiguration(lineItem))
-              .find((item) => Boolean(item)) || null;
-          const savedEditingLabel =
-            savedEditingConfiguration?.editingTypeLabel ||
-            extractQuoteLineItems(quoteToEdit)
-              .map((lineItem) => getQuoteLineItemEditingTypeLabel(lineItem))
-              .find(Boolean) || "";
-          const editingLabel =
-            savedEditingLabel || parsedShootTypeLabels.editing || hydratedState.shootTypeLabel;
-          const normalizedEditingLabel = editingLabel.trim();
-          const normalizedEditingKey =
-            savedEditingConfiguration?.editingTypeKey?.trim().toLowerCase() || "";
+          const editingLineItems = extractQuoteLineItems(quoteToEdit);
+          const editingSelections = editingLineItems
+            .map((lineItem) => {
+              const config = getQuoteLineItemEditingTypeConfiguration(lineItem);
+              const label =
+                config?.editingTypeLabel ||
+                getQuoteLineItemEditingTypeLabel(lineItem) ||
+                "";
+              return {
+                label: label.trim(),
+                key: config?.editingTypeKey?.trim().toLowerCase() || "",
+                isCustom: config?.isCustomEditingType ?? true,
+              };
+            })
+            .filter((selection) => selection.label);
 
-          if (normalizedEditingLabel) {
-            const matchedEditingType = availableEditingTypes.find(
-              (type) =>
-                (normalizedEditingKey &&
-                  type.key.trim().toLowerCase() === normalizedEditingKey) ||
-                normalizeShootTypeLabelKey(type.label) ===
-                normalizeShootTypeLabelKey(normalizedEditingLabel)
-            );
+          const fallbackEditingLabel =
+            parsedShootTypeLabels.editing || hydratedState.shootTypeLabel;
+          if (editingSelections.length === 0 && fallbackEditingLabel.trim()) {
+            editingSelections.push({
+              label: fallbackEditingLabel.trim(),
+              key: "",
+              isCustom: true,
+            });
+          }
 
-            if (matchedEditingType) {
-              setSelectedEditingType(matchedEditingType.id);
-            } else {
-              const existingEditingType = [
-                ...availableEditingTypes,
-                ...editingTypeOptionsRef.current,
-              ].find(
-                (type) =>
-                  (normalizedEditingKey &&
-                    type.key.trim().toLowerCase() === normalizedEditingKey) ||
-                  normalizeShootTypeLabelKey(type.label) ===
-                  normalizeShootTypeLabelKey(normalizedEditingLabel)
-              );
+          if (editingSelections.length > 0) {
+            const selectedIds = new Set<string>();
+            const nextOptions: ShootTypeOption[] = [];
+            const existingOptions = [
+              ...availableEditingTypes,
+              ...editingTypeOptionsRef.current,
+            ];
 
-              if (existingEditingType) {
-                setSelectedEditingType(existingEditingType.id);
+            editingSelections.forEach((selection, index) => {
+              const normalizedLabel = selection.label;
+              const normalizedKey = selection.key;
+              const matchedEditingType =
+                existingOptions.find(
+                  (type) =>
+                    (normalizedKey &&
+                      type.key.trim().toLowerCase() === normalizedKey) ||
+                    normalizeShootTypeLabelKey(type.label) ===
+                    normalizeShootTypeLabelKey(normalizedLabel)
+                ) ||
+                nextOptions.find(
+                  (type) =>
+                    (normalizedKey &&
+                      type.key.trim().toLowerCase() === normalizedKey) ||
+                    normalizeShootTypeLabelKey(type.label) ===
+                    normalizeShootTypeLabelKey(normalizedLabel)
+                );
+
+              if (matchedEditingType) {
+                selectedIds.add(matchedEditingType.id);
                 return;
               }
 
-              const fallbackEditingTypeId = `edit_editing_shoot_type_${editQuoteId}`;
+              const fallbackEditingTypeId = `edit_editing_shoot_type_${editQuoteId}_${index}`;
+              if (!findMatchingShootTypeLabel(existingOptions, normalizedLabel)) {
+                nextOptions.push({
+                  id: fallbackEditingTypeId,
+                  apiId: null,
+                  label: normalizedLabel,
+                  key: selection.key || buildEditingTypeKey(normalizedLabel),
+                  isCustom: selection.isCustom,
+                  createdAt: quoteToEdit.created_at || null,
+                  isSystemDefault: false,
+                  originalIndex: existingOptions.length + nextOptions.length,
+                });
+              }
+              selectedIds.add(fallbackEditingTypeId);
+            });
 
-              setEditingTypeOptions((prev) => {
-                if (findMatchingShootTypeLabel(prev, normalizedEditingLabel)) {
-                  return prev;
-                }
-
-                return [
-                  ...prev,
-                  {
-                    id: fallbackEditingTypeId,
-                    apiId: null,
-                    label: normalizedEditingLabel,
-                    key:
-                      savedEditingConfiguration?.editingTypeKey ||
-                      buildEditingTypeKey(normalizedEditingLabel),
-                    isCustom:
-                      savedEditingConfiguration?.isCustomEditingType ?? true,
-                    createdAt: quoteToEdit.created_at || null,
-                    isSystemDefault: false,
-                    originalIndex: prev.length,
-                  },
-                ];
-              });
-              setSelectedEditingType(fallbackEditingTypeId);
+            if (nextOptions.length) {
+              setEditingTypeOptions((prev) => [...prev, ...nextOptions]);
             }
+            setSelectedEditingTypes(Array.from(selectedIds));
           }
         }
 
@@ -1892,9 +1916,13 @@ export default function CreateQuotePage() {
 
   const canContinueToNextStep = currentStepValidation.isValid;
   const canPrimaryAction = isEditMode
-    ? currentStepValidation.isValid
+    ? isFullEditFlow
+      ? view === "tax"
+        ? quoteReviewValidation.isValid && !isQuoteSaved
+        : currentStepValidation.isValid
+      : currentStepValidation.isValid
     : view === "tax"
-      ? quoteReviewValidation.isValid
+      ? quoteReviewValidation.isValid && !isQuoteSaved
       : canContinueToNextStep;
 
   const handleContinue = async () => {
@@ -1999,7 +2027,8 @@ export default function CreateQuotePage() {
   const hasEditingTypeContext = hasEditingService;
   const selectedVideoShootTypeLabel = getSelectedShootTypeLabel(videoShootTypes, selectedVideoShootType);
   const selectedPhotoShootTypeLabel = getSelectedShootTypeLabel(photoShootTypes, selectedPhotoShootType);
-  const selectedEditingTypeLabel = getSelectedShootTypeLabel(editingTypeOptions, selectedEditingType);
+  const selectedEditingTypeLabels = getSelectedShootTypeLabels(editingTypeOptions, selectedEditingTypes);
+  const selectedEditingTypeLabel = selectedEditingTypeLabels.join(", ");
   const storedShootTypeLabel = buildStoredShootTypeLabel({
     hasVideoService,
     hasPhotoService,
@@ -2030,7 +2059,10 @@ export default function CreateQuotePage() {
   const totalServicesCost = selectedServices.reduce((total, serviceId) => {
     const config = serviceConfigs[serviceId];
     if (!config) return total;
-    return total + (config.duration * config.crewSize * config.estimatedPrice);
+    const service = services.find((item) => item.id === serviceId);
+    const isEditingService = isEditingServiceLabel(service?.label || "");
+    const baseTotal = config.crewSize * config.estimatedPrice;
+    return total + (isEditingService ? baseTotal : baseTotal * config.duration);
   }, 0);
 
   React.useEffect(() => {
@@ -2047,7 +2079,7 @@ export default function CreateQuotePage() {
       return;
     }
 
-    setSelectedEditingType("");
+    setSelectedEditingTypes([]);
     setEditingTypeOptions([]);
     setCustomEditingType("");
     setShowAddEditingTypeForm(false);
@@ -2121,7 +2153,7 @@ export default function CreateQuotePage() {
       normalizedTaxRate,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
-      selectedEditingType,
+      selectedEditingTypes,
       editingTypeOptions,
       selectedServices,
       services,
@@ -2153,7 +2185,7 @@ export default function CreateQuotePage() {
       normalizedTaxRate,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
-      selectedEditingType,
+      selectedEditingTypes,
       editingTypeOptions,
       selectedServices,
       services,
@@ -2186,7 +2218,7 @@ export default function CreateQuotePage() {
         normalizedTaxRate,
         selectedShootType: quoteDraftSelectedShootType,
         shootTypes: quoteDraftShootTypes,
-        selectedEditingType,
+        selectedEditingTypes,
         editingTypeOptions,
         selectedServices,
         services,
@@ -2234,10 +2266,13 @@ export default function CreateQuotePage() {
   const delayAfterSuccessToast = () =>
     new Promise((resolve) => window.setTimeout(resolve, 450));
 
-  const saveQuoteDraft = async (action: "preview" | "save" | "draft") => {
+  const saveQuoteDraft = async (
+    action: "preview" | "save" | "draft",
+    options?: { suppressRedirect?: boolean; openPreview?: boolean }
+  ) => {
     if (isCreatingQuoteDraft) return;
 
-    const isUpdatingExistingQuote = Boolean(isEditMode && editQuoteId);
+    const isUpdatingExistingQuote = Boolean(effectiveQuoteId);
     const basePayload = getQuoteDraftPayload(action === "draft" ? view : undefined);
     const payload = isUpdatingExistingQuote
       ? {
@@ -2254,7 +2289,9 @@ export default function CreateQuotePage() {
     setIsCreatingQuoteDraft(true);
     setActiveQuoteAction(action);
 
-    if (action === "preview") {
+    const shouldOpenPreview = action === "preview" || Boolean(options?.openPreview);
+
+    if (shouldOpenPreview) {
       setPreviewQuote(null);
       setPreviewQuoteId(null);
       setIsPreviewModalOpen(true);
@@ -2264,7 +2301,7 @@ export default function CreateQuotePage() {
 
     try {
       const response = isUpdatingExistingQuote
-        ? await salesApi.updateQuote(editQuoteId as string, payload)
+        ? await salesApi.updateQuote(effectiveQuoteId as string, payload)
         : await salesApi.createQuoteDraft(payload);
       const persistedQuoteSource =
         response && typeof response === "object" && "data" in response
@@ -2283,9 +2320,13 @@ export default function CreateQuotePage() {
       }
 
       savedQuoteId =
-        (isUpdatingExistingQuote && editQuoteId ? String(editQuoteId) : null) ??
+        (isUpdatingExistingQuote && effectiveQuoteId ? String(effectiveQuoteId) : null) ??
         extractQuoteIdFromResponse(response) ??
         extractQuoteIdFromResponse(persistedQuote);
+
+      if (!createdQuoteId && savedQuoteId) {
+        setCreatedQuoteId(savedQuoteId);
+      }
 
       if (persistedQuote) {
         setQuoteToEdit(persistedQuote);
@@ -2298,8 +2339,10 @@ export default function CreateQuotePage() {
             : "Quote saved successfully"
         );
         await delayAfterSuccessToast();
-        router.push(isUpdatingExistingQuote ? editQuoteDetailsHref : "/sales/quotes");
-        return;
+        setIsQuoteSaved(true);
+        if (!shouldOpenPreview) {
+          return;
+        }
       }
 
       if (action === "draft") {
@@ -2345,9 +2388,11 @@ export default function CreateQuotePage() {
         throw new Error("Quote preview could not be loaded");
       }
 
-      setPreviewQuoteId(savedQuoteId);
-      setPreviewQuote(quoteDetail);
-      toast.success("Quote preview loaded");
+      if (shouldOpenPreview) {
+        setPreviewQuoteId(savedQuoteId);
+        setPreviewQuote(quoteDetail);
+        toast.success("Quote preview loaded");
+      }
     } catch (error) {
       console.error(
         action === "preview"
@@ -2358,7 +2403,7 @@ export default function CreateQuotePage() {
         error
       );
 
-      if (action === "preview") {
+      if (shouldOpenPreview) {
         setIsPreviewModalOpen(false);
       }
 
@@ -2388,12 +2433,7 @@ export default function CreateQuotePage() {
       return;
     }
 
-    const summarySnapshot = getQuoteSummarySnapshot();
-    const localQuotePreview = buildPreviewQuoteFromSummary(summarySnapshot);
-
-    setPreviewQuote(localQuotePreview);
-    setPreviewQuoteId(editQuoteId || null);
-    setIsPreviewModalOpen(true);
+    await saveQuoteDraft("save", { suppressRedirect: true, openPreview: true });
   };
 
   const handleSaveQuote = async () => {
@@ -2447,19 +2487,33 @@ export default function CreateQuotePage() {
   };
 
   const handlePrimaryAction = isEditMode
-    ? handleSaveCurrentEditStep
+    ? isFullEditFlow
+      ? view === "tax"
+        ? handleSaveQuote
+        : handleContinue
+      : handleSaveCurrentEditStep
     : view === "tax"
       ? handleSaveQuote
       : handleContinue;
 
   const primaryActionLabel = isEditMode
-    ? isCreatingQuoteDraft && activeQuoteAction === "save"
-      ? "Saving..."
-      : "Save"
+    ? isFullEditFlow
+      ? view === "tax"
+        ? isCreatingQuoteDraft && activeQuoteAction === "save"
+          ? "Saving Quote..."
+          : isQuoteSaved
+            ? "Saved"
+            : "Save Quote"
+        : "Continue"
+      : isCreatingQuoteDraft && activeQuoteAction === "save"
+        ? "Saving..."
+        : "Save"
     : view === "tax"
       ? isCreatingQuoteDraft && activeQuoteAction === "save"
         ? "Saving Quote..."
-        : "Save Quote"
+        : isQuoteSaved
+          ? "Saved"
+          : "Save Quote"
       : "Continue";
 
   const handleSaveAsDraft = async () => {
@@ -2778,7 +2832,9 @@ export default function CreateQuotePage() {
   };
 
   const resolveEditingTypeCategory = (): "video" | "photo" | null => {
-    const selectedOption = editingTypeOptions.find((type) => type.id === selectedEditingType);
+    const selectedOption = editingTypeOptions.find((type) =>
+      selectedEditingTypes.includes(type.id)
+    );
 
     if (selectedOption?.category === "video" || selectedOption?.category === "photo") {
       return selectedOption.category;
@@ -2851,12 +2907,13 @@ export default function CreateQuotePage() {
 
           if (itemToDelete.type === 'editing_type') {
             setEditingTypeOptions((prev) => prev.filter(filterDeletedShootType));
-            if (
-              String(selectedEditingType) === itemToDelete.id ||
-              String(editingTypeOptions.find((type) => type.id === selectedEditingType)?.apiId ?? "") === itemToDelete.id
-            ) {
-              setSelectedEditingType("");
-            }
+            setSelectedEditingTypes((prev) =>
+              prev.filter(
+                (editingTypeId) =>
+                  String(editingTypeId) !== itemToDelete.id &&
+                  String(editingTypeOptions.find((type) => type.id === editingTypeId)?.apiId ?? "") !== itemToDelete.id
+              )
+            );
             await fetchEditingTypes(selectedServices);
           } else {
             setVideoShootTypes((prev) => prev.filter(filterDeletedShootType));
@@ -2955,7 +3012,11 @@ export default function CreateQuotePage() {
         );
 
         if (matchingEditingType) {
-          setSelectedEditingType(matchingEditingType.id);
+          setSelectedEditingTypes((prev) =>
+            prev.includes(matchingEditingType.id)
+              ? prev
+              : [...prev, matchingEditingType.id]
+          );
         }
 
         setCustomEditingType("");
@@ -3086,14 +3147,16 @@ export default function CreateQuotePage() {
           pathname={pathname}
           breadcrumbOverrides={quoteEditorBreadcrumbs}
           actions={
-            <Button
-              type="button"
-              onClick={handleOpenQuoteSummary}
-              disabled={!canOpenQuoteSummary}
-              className="bg-[#E5D5B8] text-black disabled:opacity-60"
-            >
-              View Quote Summary
-            </Button>
+            view === "tax" ? (
+              <Button
+                type="button"
+                onClick={handleOpenQuoteSummary}
+                disabled={!canOpenQuoteSummary}
+                className="bg-[#E5D5B8] text-black disabled:opacity-60"
+              >
+                View Quote Summary
+              </Button>
+            ) : null
           }
         />
 
@@ -3120,14 +3183,16 @@ export default function CreateQuotePage() {
         pathname={pathname}
         breadcrumbOverrides={quoteEditorBreadcrumbs}
         actions={
-          <Button
-            type="button"
-            onClick={handleOpenQuoteSummary}
-            disabled={!canOpenQuoteSummary}
-            className="bg-[#E5D5B8] text-black disabled:opacity-60"
-          >
-            View Quote Summary
-          </Button>
+          view === "tax" ? (
+            <Button
+              type="button"
+              onClick={handleOpenQuoteSummary}
+              disabled={!canOpenQuoteSummary}
+              className="bg-[#E5D5B8] text-black disabled:opacity-60"
+            >
+              View Quote Summary
+            </Button>
+          ) : null
         }
       />
 
@@ -3143,14 +3208,16 @@ export default function CreateQuotePage() {
           </button>
 
           <div className="text-right">
-            <Button
-              type="button"
-              onClick={handleOpenQuoteSummary}
-              disabled={!canOpenQuoteSummary}
-              className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black disabled:opacity-60"
-            >
-              View Quote Summary
-            </Button>
+            {view === "tax" && (
+              <Button
+                type="button"
+                onClick={handleOpenQuoteSummary}
+                disabled={!canOpenQuoteSummary}
+                className="block lg:hidden bg-[#E5D5B8] text-sm h-8 text-black disabled:opacity-60"
+              >
+                View Quote Summary
+              </Button>
+            )}
             <span className="hidden lg:block text-base font-semibold text-white">
               Step {stepNumber} - {progressLabel} Completed
             </span>
@@ -3769,8 +3836,14 @@ export default function CreateQuotePage() {
                                       return (
                                         <div key={type.id} className="relative">
                                           <button
-                                            onClick={() => setSelectedEditingType(type.id)}
-                                            className={`h-10 w-full lg:h-[52px] px-6 pr-11 rounded-xl font-medium transition-all border text-sm lg:text-base text-center lg:text-left leading-tight tracking-tight ${selectedEditingType === type.id
+                                            onClick={() =>
+                                              setSelectedEditingTypes((prev) =>
+                                                prev.includes(type.id)
+                                                  ? prev.filter((id) => id !== type.id)
+                                                  : [...prev, type.id]
+                                              )
+                                            }
+                                            className={`h-10 w-full lg:h-[52px] px-6 pr-11 rounded-xl font-medium transition-all border text-sm lg:text-base text-center lg:text-left leading-tight tracking-tight ${selectedEditingTypes.includes(type.id)
                                               ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
                                               : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
                                               }`}
@@ -3871,8 +3944,11 @@ export default function CreateQuotePage() {
                                 : shootTypeKind === "photo"
                                   ? selectedPhotoShootTypeLabel
                                   : "";
-                            const editingTypeLabel = editingTypeOptions.find(t => t.id === selectedEditingType)?.label;
-                            const serviceTotal = config.duration * config.crewSize * config.estimatedPrice;
+                            const editingTypeLabel = selectedEditingTypeLabels.join(", ");
+                            const isEditingService = isEditingServiceLabel(service.label);
+                            const serviceTotal = isEditingService
+                              ? config.crewSize * config.estimatedPrice
+                              : config.duration * config.crewSize * config.estimatedPrice;
 
                             return (
                               <div key={serviceId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden">
@@ -3911,32 +3987,34 @@ export default function CreateQuotePage() {
                                 </div>
                                 <div className="lg:hidden my-4 lg:my-8 border-t border-[#303030]" />
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-6">
-                                  {/* Duration */}
-                                  <div className="space-y-3">
-                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Duration (hours)</span>
-                                    <div className="flex items-center gap-2 h-9">
-                                      <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'duration', config.duration - 1)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Minus size={16} strokeWidth={2.5} />
-                                      </button>
-                                      <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
-                                        {config.duration}
+                                <div className={`grid grid-cols-1 ${isEditingService ? "md:grid-cols-2" : "md:grid-cols-3"} gap-6 lg:gap-6`}>
+                                  {!isEditingService && (
+                                    <div className="space-y-3">
+                                      <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Duration (hours)</span>
+                                      <div className="flex items-center gap-2 h-9">
+                                        <button
+                                          onClick={() => handleConfigUpdate(serviceId, 'duration', config.duration - 1)}
+                                          className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        >
+                                          <Minus size={16} strokeWidth={2.5} />
+                                        </button>
+                                        <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
+                                          {config.duration}
+                                        </div>
+                                        <button
+                                          onClick={() => handleConfigUpdate(serviceId, 'duration', config.duration + 1)}
+                                          className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
+                                        >
+                                          <Plus size={16} strokeWidth={2.5} />
+                                        </button>
                                       </div>
-                                      <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'duration', config.duration + 1)}
-                                        className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
-                                      >
-                                        <Plus size={16} strokeWidth={2.5} />
-                                      </button>
                                     </div>
-                                  </div>
+                                  )}
 
-                                  {/* Crew Size */}
                                   <div className="space-y-3">
-                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Crew Size</span>
+                                    <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">
+                                      {isEditingService ? "Quantity" : "Crew Size"}
+                                    </span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
                                         onClick={() => handleConfigUpdate(serviceId, 'crewSize', config.crewSize - 1)}

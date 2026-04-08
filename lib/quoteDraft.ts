@@ -104,7 +104,7 @@ export interface BuildQuoteDraftPayloadInput {
   normalizedTaxRate: number;
   selectedShootType: string;
   shootTypes: QuoteDraftShootType[];
-  selectedEditingType: string;
+  selectedEditingTypes: string[];
   editingTypeOptions: QuoteDraftShootType[];
   selectedServices: string[];
   services: QuoteDraftCatalogItem[];
@@ -167,7 +167,7 @@ export function buildQuoteDraftPayload(
           input.selectedServices,
           input.services,
           input.serviceConfigs,
-          input.selectedEditingType,
+          input.selectedEditingTypes,
           input.editingTypeOptions
         )
       : []),
@@ -274,7 +274,7 @@ export function buildQuoteStepUpdatePayload(
           input.selectedServices,
           input.services,
           input.serviceConfigs,
-          input.selectedEditingType,
+          input.selectedEditingTypes,
           input.editingTypeOptions
         )
       ),
@@ -357,65 +357,84 @@ function buildServiceItems(
   selectedServices: string[],
   services: QuoteDraftCatalogItem[],
   serviceConfigs: Record<string, QuoteDraftServiceConfig>,
-  selectedEditingType: string,
+  selectedEditingTypes: string[],
   editingTypeOptions: QuoteDraftShootType[]
 ): QuoteDraftLineItem[] {
-  const selectedEditingTypeOption = editingTypeOptions.find(
-    (option) => String(option.id) === String(selectedEditingType)
-  );
+  const selectedEditingTypeOptions = selectedEditingTypes
+    .map((id) =>
+      editingTypeOptions.find((option) => String(option.id) === String(id))
+    )
+    .filter(Boolean) as QuoteDraftShootType[];
 
   return selectedServices
-    .map((serviceId) => {
+    .flatMap((serviceId) => {
       const service = services.find((item) => String(item.id) === serviceId);
       const config = serviceConfigs[serviceId];
 
       if (!service || !config) {
-        return null;
+        return [];
       }
 
       const catalogItemId = getPositiveInteger(service.id);
-      const quantity = 1;
       const estimatedPricing = Math.max(
         0,
         normalizeNumber(config.estimatedPrice || service.price)
       );
       const serviceLabel = service.label?.trim() || "";
-      const editingConfiguration =
-        isEditingServiceLabel(serviceLabel) &&
-        selectedEditingTypeOption?.label?.trim()
-          ? {
-              editing_type_key:
-                selectedEditingTypeOption.key?.trim() ||
-                buildEditingTypeKey(selectedEditingTypeOption.label),
-              editing_type_label: selectedEditingTypeOption.label.trim(),
-              is_custom_editing_type: Boolean(selectedEditingTypeOption.isCustom),
-            }
-          : undefined;
+      const isEditingService = isEditingServiceLabel(serviceLabel);
+      const quantity = 1;
 
-      if (catalogItemId) {
-        return {
-          catalog_item_id: catalogItemId,
+      const applySource = (item: QuoteDraftLineItem): QuoteDraftLineItem =>
+        catalogItemId
+          ? { ...item, catalog_item_id: catalogItemId }
+          : {
+              ...item,
+              source_type: "custom",
+              item_name: service.label || "Custom Service",
+              rate_type: "per_hour",
+              unit_rate: estimatedPricing,
+            };
+
+      const buildLineItem = (option?: QuoteDraftShootType | null): QuoteDraftLineItem => {
+        const editingConfiguration =
+          isEditingService && option?.label?.trim()
+            ? {
+                editing_type_key:
+                  option.key?.trim() || buildEditingTypeKey(option.label),
+                editing_type_label: option.label.trim(),
+                is_custom_editing_type: Boolean(option.isCustom),
+              }
+            : undefined;
+
+        if (isEditingService) {
+          return applySource({
+            section_type: "service",
+            quantity,
+            duration_hours: Math.max(0, normalizeNumber(config.duration)),
+            crew_size: Math.max(1, normalizeNumber(config.crewSize)),
+            estimated_pricing: estimatedPricing,
+            ...(editingConfiguration ? { configuration: editingConfiguration } : {}),
+          });
+        }
+
+        return applySource({
           section_type: "service",
           quantity,
           duration_hours: Math.max(0, normalizeNumber(config.duration)),
           crew_size: Math.max(1, normalizeNumber(config.crewSize)),
           estimated_pricing: estimatedPricing,
           ...(editingConfiguration ? { configuration: editingConfiguration } : {}),
-        };
+        });
+      };
+
+      if (isEditingService) {
+        if (selectedEditingTypeOptions.length) {
+          return selectedEditingTypeOptions.map((option) => buildLineItem(option));
+        }
+        return [buildLineItem(null)];
       }
 
-      return {
-        source_type: "custom",
-        section_type: "service",
-        item_name: service.label || "Custom Service",
-        rate_type: "per_hour",
-        unit_rate: estimatedPricing,
-        quantity,
-        duration_hours: Math.max(0, normalizeNumber(config.duration)),
-        crew_size: Math.max(1, normalizeNumber(config.crewSize)),
-        estimated_pricing: estimatedPricing,
-        ...(editingConfiguration ? { configuration: editingConfiguration } : {}),
-      };
+      return [buildLineItem(null)];
     })
     .filter((item): item is QuoteDraftLineItem => item !== null);
 }
