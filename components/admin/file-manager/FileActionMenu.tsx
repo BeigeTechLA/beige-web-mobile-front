@@ -17,10 +17,14 @@ interface FileActionMenuProps {
   onOpenLinkModal: () => void; // Prop to trigger the second modal
   anchor: { x: number; y: number }; // Add this
   folderName: string | number | null;
+  href?: string;
+  onDownload?: () => void;
+  onDelete?: () => void;
+  onRename?: () => void;
 }
 
 const FileActionMenu: React.FC<FileActionMenuProps> = ({
-  isOpen, onClose, onOpenLinkModal, anchor, folderName
+  isOpen, onClose, onOpenLinkModal, anchor, folderName, href, onDownload, onDelete, onRename
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -29,21 +33,35 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
 
   const handleOpenFolder = () => {
     const folder = folderName?.toString().trim().toLowerCase().split(" ").join("-")
-    router.push(`${pathname}/${folder}`);
+    router.push(href || `${pathname}/${folder}`);
+    onClose();
+  };
+
+  const handleBackdropClose = (event: React.SyntheticEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     onClose();
   };
 
   return (
     <>
       {/* Invisible backdrop to close when clicking away */}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        className="fixed inset-0 z-40"
+        onMouseDown={handleBackdropClose}
+        onClick={handleBackdropClose}
+      />
 
       {/* Menu Container */}
-      <div className="fixed z-50 w-[220px] overflow-hidden rounded-[20px] border border-white/10 bg-[#0A0A0A] shadow-2xl"
+      <div
+        className="fixed z-50 w-[220px] overflow-hidden rounded-[20px] border border-white/10 bg-[#0A0A0A] shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
         style={{
           top: `${anchor.y}px`,
           left: `${anchor.x}px`
-        }}>
+        }}
+      >
 
         {/* Section 1: Navigation & Edit */}
         <div className="flex flex-col p-1.5">
@@ -52,7 +70,10 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
             label="Open"
             onClick={handleOpenFolder}
           />
-          <MenuButton icon={<Pencil size={18} />} label="Rename" onClick={onClose} />
+          <MenuButton icon={<Pencil size={18} />} label="Rename" onClick={() => {
+            onRename?.();
+            onClose();
+          }} />
           <MenuButton
             icon={<LinkIcon size={18} />}
             label="Link to Shoot"
@@ -69,7 +90,10 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
         {/* Section 2: Sharing */}
         <div className="flex flex-col p-1.5">
           <MenuButton icon={<Share2 size={18} />} label="Share" onClick={onClose} />
-          <MenuButton icon={<Download size={18} />} label="Download" onClick={onClose} />
+          <MenuButton icon={<Download size={18} />} label="Download" onClick={() => {
+            onDownload?.();
+            onClose();
+          }} />
         </div>
 
         {/* Divider */}
@@ -81,7 +105,10 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
             icon={<Trash2 size={18} />}
             label="Delete"
             variant="danger"
-            onClick={onClose}
+            onClick={() => {
+              onDelete?.();
+              onClose();
+            }}
           />
         </div>
       </div>

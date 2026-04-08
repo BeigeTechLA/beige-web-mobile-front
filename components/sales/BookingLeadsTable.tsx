@@ -9,6 +9,7 @@ import { useTheme } from "next-themes";
 
 interface LeadData {
   lead_id: number;
+  bookingId?: string;
   clientName: string;
   email: string;
   leadType: "Self-Serve" | "Sales Assisted";
@@ -119,6 +120,11 @@ export default function LeadsTable({
                     <p className={`text-xs lg:text-sm mt-1 ${isDark ? "text-white/40" : "text-[#999]"}`}>
                       {format(lead.date, "MMM dd, yyyy")}
                     </p>
+                    {lead.bookingId ? (
+                      <p className={`text-xs ${isDark ? "text-white" : "text-[#171717]"}`}>
+                        #{lead.bookingId}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               </td>

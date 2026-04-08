@@ -12,6 +12,12 @@ interface FolderCardProps {
   lastOpened: string;
   userInitials: string;
   onOpenLinkModal: () => void;
+  href?: string;
+  onOpen?: () => void;
+  showMenu?: boolean;
+  onDownload?: () => void;
+  onDelete?: () => void;
+  onRename?: () => void;
 }
 
 export const FolderCard: React.FC<FolderCardProps> = ({
@@ -21,7 +27,13 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   isLinked,
   lastOpened,
   userInitials,
-  onOpenLinkModal
+  onOpenLinkModal,
+  href,
+  onOpen,
+  showMenu = true,
+  onDownload,
+  onDelete,
+  onRename
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -31,8 +43,13 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   const handleOpenFolder = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
 
+    if (onOpen) {
+      onOpen();
+      return;
+    }
+
     const folderSlug = title.toString().trim().toLowerCase().split(" ").join("-");
-    router.push(`${pathname}/${folderSlug}`);
+    router.push(href || `${pathname}/${folderSlug}`);
   };
 
   const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -73,12 +90,14 @@ export const FolderCard: React.FC<FolderCardProps> = ({
               <p className="text-[#E8D1AB]/60 text-sm mt-1">{fileCount.toString().padStart(2, '0')} Files</p>
             </div>
           </div>
-          <Button
-            className="text-white hover:text-white/90 transition-colors p-0 h-6"
-            onClick={handleOpenMenu}
-          >
-            <MoreVertical size={24} />
-          </Button>
+          {showMenu ? (
+            <Button
+              className="h-9 w-9 rounded-full p-0 text-white transition-colors hover:bg-white/10 hover:text-white/90"
+              onClick={handleOpenMenu}
+            >
+              <MoreVertical size={20} />
+            </Button>
+          ) : null}
         </div>
 
         {/* Badges */}
@@ -107,17 +126,21 @@ export const FolderCard: React.FC<FolderCardProps> = ({
         <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-[#000] text-base">
           {userInitials}
         </div>
-        <span className="text-[#CDC5C5] text-sm">Opened {lastOpened}</span>
+        <span className="text-[#CDC5C5] text-sm">Updated {lastOpened}</span>
       </div>
 
       {/* Menu Overlay */}
-      {menuAnchor && (
+      {showMenu && menuAnchor && (
         <FileActionMenu
           folderName={title}
           isOpen={true}
           onClose={() => setMenuAnchor(null)}
           onOpenLinkModal={onOpenLinkModal}
           anchor={menuAnchor}
+          href={href}
+          onDownload={onDownload}
+          onDelete={onDelete}
+          onRename={onRename}
         />
       )}
     </div>

@@ -1,17 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   LayoutDashboard,
   Camera,
+  FolderOpen,
   Menu,
   X,
   LogOut,
   Wallet,
   Settings,
   Calendar,
-  User
+  User,
+  MessageCircle,
+  CalendarClock,
+  type LucideIcon
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -98,6 +102,7 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
 function Sidebar({ pathname, onClose }: { pathname: string; onClose?: () => void; }) {
   const { logout, user } = useAuth();
   const [isVerified, setIsVerified] = useState(false);
+  const handleLogout = useCallback(() => { logout(); localStorage.clear(); onClose?.(); }, [logout, onClose]);
 
   // LOGIC TO SYNC SIDEBAR LOCKS AND CHECK STATUS
   useEffect(() => {
@@ -131,12 +136,10 @@ function Sidebar({ pathname, onClose }: { pathname: string; onClose?: () => void
       }
     };
     syncStatus();
-  }, [user, pathname]);
-
-  const handleLogout = () => { logout(); localStorage.clear(); onClose?.(); };
+  }, [handleLogout, pathname, user]);
   const isActive = (path: string) => pathname === path;
 
-  const NavLink = ({ href, icon: Icon, label }: { href: string; icon: any; label: string }) => {
+  const NavLink = ({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) => {
     const active = isActive(href);
     // Allow Dashboard and Profile always; lock others if not verified
     const isPublic = href === "/creator/dashboard" || href === "/creator/dashboard/profile";
@@ -170,6 +173,9 @@ function Sidebar({ pathname, onClose }: { pathname: string; onClose?: () => void
       <div className="flex-1 py-6 px-3 space-y-1">
         <NavLink href="/creator/dashboard" icon={LayoutDashboard} label="Dashboard" />
         <NavLink href="/creator/dashboard/request" icon={Camera} label="Request & Shoots" />
+        {/* <NavLink href="/creator/dashboard/file-manager" icon={FolderOpen} label="File Manager" /> */}
+        {/* <NavLink href="/creator/dashboard/meetings" icon={CalendarClock} label="Meetings" /> */}
+        {/* <NavLink href="/creator/dashboard/messages" icon={MessageCircle} label="Messages" /> */}
         <NavLink href="/creator/dashboard/affiliate" icon={LayoutDashboard} label="Affiliate" />
         <NavLink href="/creator/dashboard/availability" icon={Calendar} label="Availability" />
         <NavLink href="/creator/dashboard/profile" icon={User} label="Profile" />

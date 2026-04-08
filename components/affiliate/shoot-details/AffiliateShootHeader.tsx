@@ -1,41 +1,57 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import Image from "next/image";
-import { ArrowLeft, SlidersHorizontal, Pencil, CheckCircle2, Circle, CircleX } from "lucide-react";
+import React from "react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { cn, getInitials } from "@/lib/utils";
-import {
-  getPaymentStatusMeta,
-  getProjectFolderLink,
-  getProjectTimeText,
-  getShootFilesText,
-} from "@/lib/utils/shootDetails";
-import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
+import { getPaymentStatusMeta } from "@/lib/utils/shootDetails";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 
 interface AffiliateShootHeaderProps {
   activeTab?: string;
   project?: any;
-  // onBack?: () => void;
+  onBack?: () => void;
+  projectId?: string;
 }
 
-// export default function AffiliateShootHeader({ activeTab = "Overview", project, onBack }: AffiliateShootHeaderProps) {
-export default function AffiliateShootHeader({ activeTab = "Overview", project }: AffiliateShootHeaderProps) {
-
+export default function AffiliateShootHeader({ activeTab = "Overview", project, onBack, projectId }: AffiliateShootHeaderProps) {
   const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+  const [workspaceFolderLink, setWorkspaceFolderLink] = React.useState("");
+  const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
-  const folderLink = getProjectFolderLink(project);
-  const projectTimeText = getProjectTimeText(project);
-  const shootFilesText = getShootFilesText(project);
+  const folderLink = workspaceFolderLink;
+  const shootFilesText =
+    workspaceFileCount != null
+      ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
+      : "No files available";
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadWorkspaceSummary = async () => {
+      if (!projectId) return;
+
+      try {
+        const response = await fileManagerApi.getExternalWorkspace(projectId);
+        if (!isMounted) return;
+
+        setWorkspaceFolderLink(response.workspace.consoleUrl || "");
+        setWorkspaceFileCount(
+          typeof response.workspace.fileCount === "number" ? response.workspace.fileCount : null
+        );
+      } catch (error) {
+        if (!isMounted) return;
+        setWorkspaceFolderLink("");
+        setWorkspaceFileCount(null);
+      }
+    };
+
+    loadWorkspaceSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId]);
 
   const formatShootDate = (dateValue?: string) => {
     if (!dateValue) return "N/A";
@@ -176,13 +192,13 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project }
                 <span className="text-nowrap">Folder Link :</span>
                 <a
                   href={folderLink || "#"}
-                  target={folderLink ? "_blank" : undefined}
-                  rel={folderLink ? "noopener noreferrer" : undefined}
+                  target={workspaceFolderLink ? "_blank" : undefined}
+                  rel={workspaceFolderLink ? "noopener noreferrer" : undefined}
                   className={cn(
                     "underline underline-offset-4 transition-all",
-                    folderLink
-                      ? isDark ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]" : "text-[#B18A00] decoration-[#B18A00]/30 hover:decoration-[#B18A00]"
-                      : isDark ? "text-white/50 decoration-white/10 pointer-events-none" : "text-black/50 decoration-black/10 pointer-events-none"
+                    workspaceFolderLink
+                      ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]"
+                      : "text-white/50 decoration-white/10 pointer-events-none"
                   )}
                 >
                   {folderLink || "No Link Available"}

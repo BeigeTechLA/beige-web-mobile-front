@@ -86,7 +86,11 @@ export const extractQuoteIdFromResponse = (value: unknown): string | null => {
     }
 
     const directId = extractPositiveId(
-      record.quote_id ?? record.quoteId ?? record["quoteID"]
+      record.quote_id ??
+      record.quoteId ??
+      record["quoteID"] ??
+      record.sales_quote_id ??
+      record.salesQuoteId
     );
     if (directId) {
       return directId;

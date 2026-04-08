@@ -127,7 +127,7 @@ export const paymentApi = {
 
   confirmBooking: async (
     paymentIntentId: string,
-    bookingData: BookingFormData & { creator_id: string; guest_email?: string; user_id?: string | number; hourly_rate?: number; referral_code?: string }
+    bookingData: BookingFormData & { creator_id: string; guest_email?: string; user_id?: string | number; hourly_rate?: number; referral_code?: string; booking_id?: string | number }
   ): Promise<BookingResponse> => {
     const response = await api.post('/payments/confirm', {
       paymentIntentId: paymentIntentId,
@@ -142,6 +142,7 @@ export const paymentApi = {
       notes: bookingData.special_requests || '',
       guest_email: bookingData.guest_email,
       referral_code: bookingData.referral_code,
+      booking_id: bookingData.booking_id,
     });
     return response.data;
   },
@@ -468,9 +469,64 @@ export interface SalesQuoteConvertToBookingData {
   missing_required_fields?: string[];
 }
 
+export type SalesQuoteConvertSingleDayPayload = {
+  booking_type: "single_day";
+  time_zone: string;
+  start_date: string;
+  start_time: string;
+  end_time: string;
+  location: string;
+};
+
+export type SalesQuoteConvertMultiDayPayload = {
+  booking_type: "multi_day";
+  time_zone: string;
+  location: string;
+  booking_days: Array<{
+    date: string;
+    start_time: string;
+    end_time: string;
+  }>;
+};
+
+export type SalesQuoteConvertToBookingPayload =
+  | SalesQuoteConvertSingleDayPayload
+  | SalesQuoteConvertMultiDayPayload;
+
 export interface SalesQuoteConvertToBookingResponse {
   success: boolean;
   data: SalesQuoteConvertToBookingData | null;
+  error?: string;
+  message?: string;
+}
+
+export type LeadBookingScheduleSingleDayPayload = {
+  location: string;
+  booking_type: "single_day";
+  time_zone: string;
+  start_date: string;
+  start_time: string;
+  end_time: string;
+};
+
+export type LeadBookingScheduleMultiDayPayload = {
+  location: string;
+  booking_type: "multi_day";
+  time_zone: string;
+  booking_days: Array<{
+    date: string;
+    start_time: string;
+    end_time: string;
+  }>;
+};
+
+export type LeadBookingSchedulePayload =
+  | LeadBookingScheduleSingleDayPayload
+  | LeadBookingScheduleMultiDayPayload;
+
+export interface SalesLeadUpdateBookingScheduleResponse {
+  success: boolean;
+  data: unknown;
   error?: string;
   message?: string;
 }
@@ -1960,11 +2016,14 @@ export const salesApi = {
       };
     }
   },
-  convertQuoteToBooking: async (quoteId: number | string) => {
+  convertQuoteToBooking: async (
+    quoteId: number | string,
+    payload: SalesQuoteConvertToBookingPayload
+  ) => {
     try {
       const response = await api.post<SalesQuoteConvertToBookingResponse>(
         `/sales/quotes/${quoteId}/convert-to-booking`,
-        {}
+        payload
       );
       return response.data;
     } catch (error: any) {
@@ -1973,6 +2032,25 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to convert quote to booking',
+      };
+    }
+  },
+  updateLeadBookingSchedule: async (
+    leadId: number | string,
+    payload: LeadBookingSchedulePayload
+  ) => {
+    try {
+      const response = await api.put<SalesLeadUpdateBookingScheduleResponse>(
+        `/sales/leads/${leadId}/booking-schedule`,
+        payload
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Lead Booking Schedule Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update booking schedule',
       };
     }
   },
@@ -1994,7 +2072,7 @@ export const salesApi = {
     name: string;
     default_rate: number;
     rate_type: string;
-    rate_unit: string;
+    rate_unit: string | null;
   }) => {
     try {
       const response = await api.post('/sales/quotes/catalog', data);
@@ -2005,6 +2083,28 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to create catalog item',
+      };
+    }
+  },
+  updateQuoteCatalog: async (
+    id: number | string,
+    data: {
+      section_type: string;
+      name: string;
+      default_rate: number;
+      rate_type: string;
+      rate_unit: string | null;
+    },
+  ) => {
+    try {
+      const response = await api.put(`/sales/quotes/catalog/${id}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Quote Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update catalog item',
       };
     }
   },

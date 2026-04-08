@@ -114,7 +114,10 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
             )}
             
             {activeTab === "messages" && (
-                <MessagesTab project={project} />
+                <MessagesTab
+                  bookingId={project?.stream_project_booking_id || project?.project_id || project?.id}
+                  role="cp"
+                />
             )}
           </div>
         </div>

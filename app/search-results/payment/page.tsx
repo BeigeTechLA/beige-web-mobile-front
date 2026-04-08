@@ -281,7 +281,7 @@ function StripePaymentFormMulti({
 }: {
   clientSecret: string;
   amount: number;
-  onSuccess: (paymentIntentId: string, referralCode?: string) => void;
+  onSuccess: (paymentIntentId: string, referralCode?: string) => Promise<void> | void;
   onError: (error: string) => void;
   shootId: string | null;
   booking: any;
@@ -763,7 +763,7 @@ function StripePaymentFormMulti({
       setIsProcessing(true);
       try {
         // We pass the clientSecret which is the mock ID from backend
-        onSuccess(
+        await onSuccess(
           clientSecret,
           referralCodeValid ? referralCode : undefined,
         );
@@ -848,7 +848,7 @@ function StripePaymentFormMulti({
           payment_status: "Success"
         });
 
-        onSuccess(
+        await onSuccess(
           paymentIntent.id,
           referralCodeValid ? referralCode : undefined,
         );

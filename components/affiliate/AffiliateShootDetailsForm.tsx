@@ -26,6 +26,7 @@ import { affiliateApi, getProject } from "@/lib/api";
 import Cookies from "js-cookie";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 
 const shootTypeOptions = [
   "Private Event (Birthday Parties, Family Reunions, Baby Showers, VIP Events)",
@@ -303,10 +304,12 @@ export const AffiliateShootDetailsForm = ({
   pendingProjects = [],
   hideAffiliateStep = false,
   redirectTo,
-  isDark
+  isDark: isDarkProp
 }: AffiliateShootDetailsFormProps) => {
   const router = useRouter();
+  const { theme, resolvedTheme } = useTheme();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -314,8 +317,16 @@ export const AffiliateShootDetailsForm = ({
   const [referralCode, setReferralCode] = useState<string>("");
   const [showReferralCode, setShowReferralCode] = useState(false);
   const [isProjectLoading, setIsProjectLoading] = useState(false);
+  const isDark =
+    typeof isDarkProp === "boolean"
+      ? isDarkProp
+      : mounted && (resolvedTheme === "dark" || theme === "dark");
 
   const totalSteps = hideAffiliateStep ? 4 : 5;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Reset scroll position to top when step changes
   useEffect(() => {
@@ -718,7 +729,7 @@ export const AffiliateShootDetailsForm = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={`max-w-4xl p-0 overflow-hidden max-h-[90vh] flex flex-col transition-colors duration-300 ${isDark
+      <DialogContent className={`max-w-4xl p-0 overflow-hidden max-h-[90vh] flex flex-col transition-colors duration-300 [&>button]:hidden ${isDark
         ? "bg-[#0A0A0A] border-white/10 shadow-[0_0_50px_rgba(232,209,171,0.1)]"
         : "bg-white border-zinc-200 shadow-xl"
         }`}>
@@ -863,7 +874,7 @@ export const AffiliateShootDetailsForm = ({
                         placeholder="Your email"
                         value={formData.email}
                         onChange={(e) => updateFormData("email", e.target.value)}
-                        className={`${darkFieldClass} h-10`}
+                        className={`${darkFieldClass(isDark)} h-10`}
                       />
                     </div>
                   </div>
@@ -877,7 +888,7 @@ export const AffiliateShootDetailsForm = ({
                         placeholder="Your answer"
                         value={formData.onsiteContact}
                         onChange={(e) => updateFormData("onsiteContact", e.target.value)}
-                        className={`${darkFieldClass} h-10`}
+                        className={`${darkFieldClass(isDark)} h-10`}
                       />
                     </div>
                   </div>
@@ -904,7 +915,7 @@ export const AffiliateShootDetailsForm = ({
                               : currentTypes.filter((t) => t !== option);
                             updateFormData("shootTypes", newTypes);
                           }}
-                          className="w-5 h-5 border-white/20 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB]"
+                          className={`w-5 h-5 ${isDark ? "border-white/20 data-[state=checked]:text-black" : "border-zinc-300"} data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB]`}
                         />
                         <div className="flex-1 flex items-center gap-2">
                           <Label htmlFor={option} className={`text-sm cursor-pointer whitespace-nowrap ${isDark ? "text-white/80" : "text-zinc-700"}`}>
@@ -969,7 +980,7 @@ export const AffiliateShootDetailsForm = ({
                       const val = e.target.value.replace(/[^0-9]/g, "");
                       updateFormData("numPeople", val);
                     }}
-                    className={`${darkFieldClass} h-10`}
+                    className={`${darkFieldClass(isDark)} h-10`}
                   />
                 </div>
 
@@ -1048,9 +1059,9 @@ export const AffiliateShootDetailsForm = ({
                               : currentSpecs.filter((t) => t !== opt);
                             updateFormData("locationSpec", newSpecs);
                           }}
-                          className="w-5 h-5 border-white/20 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB]"
+                          className={`w-5 h-5 ${isDark ? "border-white/20 data-[state=checked]:text-black" : "border-zinc-300"} data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB]`}
                         />
-                        <Label htmlFor={opt} className="text-sm text-white/80 cursor-pointer">{opt}</Label>
+                        <Label htmlFor={opt} className={`text-sm cursor-pointer ${isDark ? "text-white/80" : "text-zinc-700"}`}>{opt}</Label>
                       </div>
                     ))}
                   </div>
@@ -1162,7 +1173,7 @@ export const AffiliateShootDetailsForm = ({
                     placeholder="Your answer"
                     value={formData.dressCode}
                     onChange={(e) => updateFormData("dressCode", e.target.value)}
-                    className={`${darkFieldClass} h-10`}
+                    className={`${darkFieldClass(isDark)} h-10`}
                   />
                 </div>
 
@@ -1263,7 +1274,7 @@ export const AffiliateShootDetailsForm = ({
                   </div>
 
                   {showReferralCode ? (
-                    <div className="p-6 rounded-2xl bg-white/5 border border-[#E8D1AB]/30 flex items-center justify-between gap-4 animate-in fade-in zoom-in duration-300">
+                    <div className={`p-6 rounded-2xl border flex items-center justify-between gap-4 animate-in fade-in zoom-in duration-300 ${isDark ? "bg-white/5 border-[#E8D1AB]/30" : "bg-[#FFF8EC] border-[#E8D1AB]/40"}`}>
                       <div className="space-y-1">
                         <p className="text-xs text-[#E8D1AB] uppercase tracking-widest font-bold">Your Unique Code</p>
                         <p className={`text-3xl font-black tracking-widest leading-none ${isDark ? "text-white" : "text-zinc-900"}`}>{referralCode || "GETTING CODE..."}</p>
@@ -1291,7 +1302,7 @@ export const AffiliateShootDetailsForm = ({
                 </div>
 
                 {/* Rights Section */}
-                <div className="p-8 lg:p-10 rounded-3xl bg-[#111]/50 border border-white/5 space-y-8">
+                <div className={`p-8 lg:p-10 rounded-3xl space-y-8 ${isDark ? "bg-[#111]/50 border border-white/5" : "bg-zinc-50 border border-zinc-200"}`}>
                   <div className="space-y-2">
                     <h4 className={`text-xl font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-zinc-900"}`}>RIGHTS</h4>
                     <div className="h-1 w-20 bg-[#E8D1AB] rounded-full" />
