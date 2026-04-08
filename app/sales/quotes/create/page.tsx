@@ -812,6 +812,7 @@ export default function CreateQuotePage() {
     crewSize: number;
     estimatedPrice: number;
   }>>({});
+  const [editingTypeConfigs, setEditingTypeConfigs] = useState<Record<string, { quantity: number; estimatedPrice: number }>>({});
 
   const [services, setServices] = useState<any[]>([]);
   const [videoShootTypes, setVideoShootTypes] = useState<ShootTypeOption[]>([]);
@@ -1298,6 +1299,13 @@ export default function CreateQuotePage() {
                 label: label.trim(),
                 key: config?.editingTypeKey?.trim().toLowerCase() || "",
                 isCustom: config?.isCustomEditingType ?? true,
+                quantity: Number(lineItem.quantity ?? 1),
+                estimatedPrice: Number(
+                  lineItem.estimated_pricing ??
+                  lineItem.unit_rate ??
+                  lineItem.unit_price ??
+                  0
+                ),
               };
             })
             .filter((selection) => selection.label);
@@ -1315,6 +1323,7 @@ export default function CreateQuotePage() {
           if (editingSelections.length > 0) {
             const selectedIds = new Set<string>();
             const nextOptions: ShootTypeOption[] = [];
+            const nextEditingConfigs: Record<string, { quantity: number; estimatedPrice: number }> = {};
             const existingOptions = [
               ...availableEditingTypes,
               ...editingTypeOptionsRef.current,
@@ -1341,6 +1350,10 @@ export default function CreateQuotePage() {
 
               if (matchedEditingType) {
                 selectedIds.add(matchedEditingType.id);
+                nextEditingConfigs[matchedEditingType.id] = {
+                  quantity: Math.max(1, Number(selection.quantity || 1)),
+                  estimatedPrice: Math.max(0, Number(selection.estimatedPrice || 0)),
+                };
                 return;
               }
 
@@ -1358,12 +1371,17 @@ export default function CreateQuotePage() {
                 });
               }
               selectedIds.add(fallbackEditingTypeId);
+              nextEditingConfigs[fallbackEditingTypeId] = {
+                quantity: Math.max(1, Number(selection.quantity || 1)),
+                estimatedPrice: Math.max(0, Number(selection.estimatedPrice || 0)),
+              };
             });
 
             if (nextOptions.length) {
               setEditingTypeOptions((prev) => [...prev, ...nextOptions]);
             }
             setSelectedEditingTypes(Array.from(selectedIds));
+            setEditingTypeConfigs(nextEditingConfigs);
           }
         }
 
@@ -2062,7 +2080,18 @@ export default function CreateQuotePage() {
     const service = services.find((item) => item.id === serviceId);
     const isEditingService = isEditingServiceLabel(service?.label || "");
     const baseTotal = config.crewSize * config.estimatedPrice;
-    return total + (isEditingService ? baseTotal : baseTotal * config.duration);
+    if (!isEditingService) {
+      return total + baseTotal * config.duration;
+    }
+
+    const editingTotal = selectedEditingTypes.reduce((sum, editingTypeId) => {
+      const editingConfig = editingTypeConfigs[editingTypeId];
+      const quantity = Math.max(1, Number(editingConfig?.quantity ?? config.crewSize ?? 1));
+      const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
+      return sum + quantity * estimatedPrice;
+    }, 0);
+
+    return total + (selectedEditingTypes.length ? editingTotal : baseTotal);
   }, 0);
 
   React.useEffect(() => {
@@ -2083,7 +2112,43 @@ export default function CreateQuotePage() {
     setEditingTypeOptions([]);
     setCustomEditingType("");
     setShowAddEditingTypeForm(false);
+    setEditingTypeConfigs({});
   }, [hasEditingTypeContext]);
+
+  const getEditingServiceDefaults = React.useCallback(() => {
+    const editingServiceId = selectedServices.find((id) =>
+      isEditingServiceLabel(services.find((service) => service.id === id)?.label || "")
+    );
+    const service = services.find((item) => item.id === editingServiceId);
+    const config = editingServiceId ? serviceConfigs[editingServiceId] : null;
+
+    return {
+      quantity: Math.max(1, Number(config?.crewSize ?? 1)),
+      estimatedPrice: Math.max(0, Number(config?.estimatedPrice ?? service?.price ?? 0)),
+    };
+  }, [selectedServices, serviceConfigs, services]);
+
+  React.useEffect(() => {
+    if (!hasEditingTypeContext) {
+      return;
+    }
+
+    const defaults = getEditingServiceDefaults();
+    setEditingTypeConfigs((prev) => {
+      const next = { ...prev };
+      selectedEditingTypes.forEach((id) => {
+        if (!next[id]) {
+          next[id] = defaults;
+        }
+      });
+      Object.keys(next).forEach((id) => {
+        if (!selectedEditingTypes.includes(id)) {
+          delete next[id];
+        }
+      });
+      return next;
+    });
+  }, [getEditingServiceDefaults, hasEditingTypeContext, selectedEditingTypes]);
   const quoteSubtotal = totalServicesCost + totalAddOnsCost + totalLogisticsCost + totalLineItemsCost;
   const maxDiscountValue = discountType === "percentage" ? 100 : quoteSubtotal;
   const normalizedDiscountValue = Math.min(Math.max(0, Number(discountValue) || 0), maxDiscountValue);
@@ -2154,6 +2219,7 @@ export default function CreateQuotePage() {
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
+      editingTypeConfigs,
       editingTypeOptions,
       selectedServices,
       services,
@@ -2186,6 +2252,7 @@ export default function CreateQuotePage() {
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
+      editingTypeConfigs,
       editingTypeOptions,
       selectedServices,
       services,
@@ -2219,6 +2286,7 @@ export default function CreateQuotePage() {
         selectedShootType: quoteDraftSelectedShootType,
         shootTypes: quoteDraftShootTypes,
         selectedEditingTypes,
+        editingTypeConfigs,
         editingTypeOptions,
         selectedServices,
         services,
@@ -3932,31 +4000,46 @@ export default function CreateQuotePage() {
                         </div>
 
                         <div className="space-y-4 lg:space-y-6">
-                          {(selectedServices || []).map(serviceId => {
-                            const service = services.find(s => s.id === serviceId);
+                          {(selectedServices || []).flatMap((serviceId) => {
+                            const service = services.find((s) => s.id === serviceId);
                             const config = serviceConfigs[serviceId];
-                            if (!service || !config) return null;
+                            if (!service || !config) return [];
 
-                            const shootTypeKind = resolveServiceShootTypeKind(service.label);
-                            const shootTypeLabel =
-                              shootTypeKind === "video"
-                                ? selectedVideoShootTypeLabel
-                                : shootTypeKind === "photo"
-                                  ? selectedPhotoShootTypeLabel
-                                  : "";
-                            const editingTypeLabel = selectedEditingTypeLabels.join(", ");
                             const isEditingService = isEditingServiceLabel(service.label);
-                            const serviceTotal = isEditingService
-                              ? config.crewSize * config.estimatedPrice
-                              : config.duration * config.crewSize * config.estimatedPrice;
+                            const editingTypeIds = isEditingService
+                              ? (selectedEditingTypes.length > 0 ? selectedEditingTypes : [""])
+                              : [""];
 
-                            return (
-                              <div key={serviceId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden">
+                            return editingTypeIds.map((editingTypeId, index) => {
+                              const shootTypeKind = resolveServiceShootTypeKind(service.label);
+                              const shootTypeLabel =
+                                shootTypeKind === "video"
+                                  ? selectedVideoShootTypeLabel
+                                  : shootTypeKind === "photo"
+                                    ? selectedPhotoShootTypeLabel
+                                    : "";
+                              const editingLabel = editingTypeId
+                                ? getSelectedShootTypeLabel(editingTypeOptions, editingTypeId)
+                                : "";
+                              const editingConfig = editingTypeId
+                                ? editingTypeConfigs[editingTypeId]
+                                : null;
+                              const quantity = Math.max(1, Number(editingConfig?.quantity ?? config.crewSize ?? 1));
+                              const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
+                              const serviceTotal = isEditingService
+                                ? quantity * estimatedPrice
+                                : config.duration * config.crewSize * config.estimatedPrice;
+                              const cardKey = isEditingService
+                                ? `${serviceId}-${editingTypeId || "editing"}-${index}`
+                                : serviceId;
+
+                              return (
+                              <div key={cardKey} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden">
                                 <div className="mb-4 flex items-start justify-between gap-4 lg:mb-8">
                                   <div className="min-w-0 flex-1 space-y-2">
                                     <h3 className="flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug text-white">
                                       {isEditingServiceLabel(service.label) ? (
-                                        <>Editing Type - <span className="break-words text-[#8E826A]">{editingTypeLabel}</span></>
+                                        <>Editing Type - <span className="break-words text-[#8E826A]">{editingLabel || "Not selected"}</span></>
                                       ) : shootTypeLabel ? (
                                         <>{getServiceDisplayLabel(service.label)} - <span className="break-words text-[#8E826A]">({shootTypeLabel})</span></>
                                       ) : (
@@ -3970,12 +4053,14 @@ export default function CreateQuotePage() {
                                       <span className="text-[#7B7B85] text-xs font-normal">Total</span>
                                       <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">${serviceTotal.toLocaleString()}</span>
                                     </div>
-                                    <button
-                                      onClick={() => setSelectedServices(prev => prev.filter(id => id !== serviceId))}
-                                      className="w-10 h-10 rounded-full bg-[#2A2A2A] border border-transparent flex items-center justify-center text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                                    >
-                                      <Trash2 size={18} />
-                                    </button>
+                                    {index === 0 && (
+                                      <button
+                                        onClick={() => setSelectedServices(prev => prev.filter(id => id !== serviceId))}
+                                        className="w-10 h-10 rounded-full bg-[#2A2A2A] border border-transparent flex items-center justify-center text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                                      >
+                                        <Trash2 size={18} />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
 
@@ -4017,16 +4102,36 @@ export default function CreateQuotePage() {
                                     </span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'crewSize', config.crewSize - 1)}
+                                        onClick={() =>
+                                          isEditingService
+                                            ? setEditingTypeConfigs((prev) => ({
+                                              ...prev,
+                                              [editingTypeId]: {
+                                                quantity: Math.max(1, quantity - 1),
+                                                estimatedPrice,
+                                              },
+                                            }))
+                                            : handleConfigUpdate(serviceId, 'crewSize', config.crewSize - 1)
+                                        }
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
                                       <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
-                                        {config.crewSize}
+                                        {isEditingService ? quantity : config.crewSize}
                                       </div>
                                       <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'crewSize', config.crewSize + 1)}
+                                        onClick={() =>
+                                          isEditingService
+                                            ? setEditingTypeConfigs((prev) => ({
+                                              ...prev,
+                                              [editingTypeId]: {
+                                                quantity: Math.max(1, quantity + 1),
+                                                estimatedPrice,
+                                              },
+                                            }))
+                                            : handleConfigUpdate(serviceId, 'crewSize', config.crewSize + 1)
+                                        }
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Plus size={16} strokeWidth={2.5} />
@@ -4039,19 +4144,49 @@ export default function CreateQuotePage() {
                                     <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Estimated Pricing</span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice - 50)}
+                                        onClick={() =>
+                                          isEditingService
+                                            ? setEditingTypeConfigs((prev) => ({
+                                              ...prev,
+                                              [editingTypeId]: {
+                                                quantity,
+                                                estimatedPrice: Math.max(0, estimatedPrice - 50),
+                                              },
+                                            }))
+                                            : handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice - 50)
+                                        }
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
                                       <Input
-                                        value={`$ ${formatAddonDisplayValue(getServiceDraftPrice(serviceId))}`}
-                                        onChange={(e) => handleServicePriceUpdate(serviceId, e.target.value)}
+                                        value={`$ ${formatAddonDisplayValue(isEditingService ? estimatedPrice : getServiceDraftPrice(serviceId))}`}
+                                        onChange={(e) =>
+                                          isEditingService
+                                            ? setEditingTypeConfigs((prev) => ({
+                                              ...prev,
+                                              [editingTypeId]: {
+                                                quantity,
+                                                estimatedPrice: parseCurrencyInput(e.target.value),
+                                              },
+                                            }))
+                                            : handleServicePriceUpdate(serviceId, e.target.value)
+                                        }
                                         inputMode="decimal"
                                         className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
                                       />
                                       <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice + 50)}
+                                        onClick={() =>
+                                          isEditingService
+                                            ? setEditingTypeConfigs((prev) => ({
+                                              ...prev,
+                                              [editingTypeId]: {
+                                                quantity,
+                                                estimatedPrice: Math.max(0, estimatedPrice + 50),
+                                              },
+                                            }))
+                                            : handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice + 50)
+                                        }
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Plus size={16} strokeWidth={2.5} />
@@ -4061,6 +4196,7 @@ export default function CreateQuotePage() {
                                 </div>
                               </div>
                             );
+                            });
                           })}
                         </div>
                       </section>

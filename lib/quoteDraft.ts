@@ -105,6 +105,7 @@ export interface BuildQuoteDraftPayloadInput {
   selectedShootType: string;
   shootTypes: QuoteDraftShootType[];
   selectedEditingTypes: string[];
+  editingTypeConfigs?: Record<string, { quantity: number; estimatedPrice: number }>;
   editingTypeOptions: QuoteDraftShootType[];
   selectedServices: string[];
   services: QuoteDraftCatalogItem[];
@@ -168,7 +169,8 @@ export function buildQuoteDraftPayload(
           input.services,
           input.serviceConfigs,
           input.selectedEditingTypes,
-          input.editingTypeOptions
+          input.editingTypeOptions,
+          input.editingTypeConfigs
         )
       : []),
     ...(includeAddons
@@ -275,7 +277,8 @@ export function buildQuoteStepUpdatePayload(
           input.services,
           input.serviceConfigs,
           input.selectedEditingTypes,
-          input.editingTypeOptions
+          input.editingTypeOptions,
+          input.editingTypeConfigs
         )
       ),
     };
@@ -358,7 +361,8 @@ function buildServiceItems(
   services: QuoteDraftCatalogItem[],
   serviceConfigs: Record<string, QuoteDraftServiceConfig>,
   selectedEditingTypes: string[],
-  editingTypeOptions: QuoteDraftShootType[]
+  editingTypeOptions: QuoteDraftShootType[],
+  editingTypeConfigs?: Record<string, { quantity: number; estimatedPrice: number }>
 ): QuoteDraftLineItem[] {
   const selectedEditingTypeOptions = selectedEditingTypes
     .map((id) =>
@@ -382,7 +386,9 @@ function buildServiceItems(
       );
       const serviceLabel = service.label?.trim() || "";
       const isEditingService = isEditingServiceLabel(serviceLabel);
-      const quantity = 1;
+      const quantity = isEditingService
+        ? Math.max(1, normalizeNumber(config.crewSize))
+        : 1;
 
       const applySource = (item: QuoteDraftLineItem): QuoteDraftLineItem =>
         catalogItemId
@@ -396,6 +402,16 @@ function buildServiceItems(
             };
 
       const buildLineItem = (option?: QuoteDraftShootType | null): QuoteDraftLineItem => {
+        const optionConfig =
+          option && editingTypeConfigs ? editingTypeConfigs[String(option.id)] : undefined;
+        const resolvedQuantity = Math.max(
+          1,
+          normalizeNumber(optionConfig?.quantity ?? quantity)
+        );
+        const resolvedEstimatedPricing = Math.max(
+          0,
+          normalizeNumber(optionConfig?.estimatedPrice ?? estimatedPricing)
+        );
         const editingConfiguration =
           isEditingService && option?.label?.trim()
             ? {
@@ -409,10 +425,8 @@ function buildServiceItems(
         if (isEditingService) {
           return applySource({
             section_type: "service",
-            quantity,
-            duration_hours: Math.max(0, normalizeNumber(config.duration)),
-            crew_size: Math.max(1, normalizeNumber(config.crewSize)),
-            estimated_pricing: estimatedPricing,
+            quantity: resolvedQuantity,
+            estimated_pricing: resolvedEstimatedPricing,
             ...(editingConfiguration ? { configuration: editingConfiguration } : {}),
           });
         }
