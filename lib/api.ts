@@ -259,6 +259,12 @@ export interface QuotesDashboardChartItem {
   label: string;
   quote_count: number;
   total_amount: number;
+  accepted_count?: number;
+  pending_count?: number;
+  draft_count?: number;
+  rejected_count?: number;
+  expired_count?: number;
+  sent_count?: number;
 }
 
 export interface QuotesDashboardData {
@@ -1931,7 +1937,14 @@ export const salesApi = {
       };
     }
   },
-  getQuotesDashboard: async (params: { range?: string; date_on?: string } = {}) => {
+  getQuotesDashboard: async (
+    params: {
+      range?: string;
+      date_on?: string;
+      status?: string;
+      assigned_sales_rep_id?: number | string;
+    } = {}
+  ) => {
     try {
       const response = await api.get<QuotesDashboardResponse>('/sales/quotes/dashboard', { params });
       return response.data;
@@ -1945,7 +1958,15 @@ export const salesApi = {
     }
   },
   getQuotesList: async (
-    params: { page?: number; limit?: number; search?: string; status?: string; range?: string; date_on?: string } = {}
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      range?: string;
+      date_on?: string;
+      assigned_sales_rep_id?: number | string;
+    } = {}
   ) => {
     try {
       const response = await api.get<QuotesListResponse>('/sales/quotes', { params });
