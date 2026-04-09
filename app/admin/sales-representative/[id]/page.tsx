@@ -341,7 +341,7 @@ export default function LeadDetailPage() {
 
   const customQuoteId =
     lead?.custom_quote_id ?? (lead as any)?.customQuoteId ?? null;
-  const editableQuoteId = quotePricingDetails?.quoteId ?? customQuoteId;
+  const editableQuoteId = customQuoteId ?? quotePricingDetails?.quoteId;
   const canEditQuote = Boolean(editableQuoteId);
   const hasQuoteLevelDiscount = Number(quotePricingDetails?.discountAmount ?? 0) > 0;
   const isDiscountLockedByQuote = isQuoteConvertedLead && hasQuoteLevelDiscount;
