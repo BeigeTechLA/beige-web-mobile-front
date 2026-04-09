@@ -59,10 +59,6 @@ const GeneratePaymentLink = ({
   }, [activeLink]);
 
   useEffect(() => {
-    setHasPreviewedInvoice(false);
-  }, [bookingId, paymentData?.id]);
-
-  useEffect(() => {
     if (discountLocked) {
       setAttachDiscount("No");
     }
