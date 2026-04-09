@@ -173,9 +173,9 @@ function Sidebar({ pathname, onClose }: { pathname: string; onClose?: () => void
       <div className="flex-1 py-6 px-3 space-y-1">
         <NavLink href="/creator/dashboard" icon={LayoutDashboard} label="Dashboard" />
         <NavLink href="/creator/dashboard/request" icon={Camera} label="Request & Shoots" />
-        {/* <NavLink href="/creator/dashboard/file-manager" icon={FolderOpen} label="File Manager" /> */}
-        {/* <NavLink href="/creator/dashboard/meetings" icon={CalendarClock} label="Meetings" /> */}
-        {/* <NavLink href="/creator/dashboard/messages" icon={MessageCircle} label="Messages" /> */}
+        <NavLink href="/creator/dashboard/file-manager" icon={FolderOpen} label="File Manager" />
+        <NavLink href="/creator/dashboard/meetings" icon={CalendarClock} label="Meetings" />
+        <NavLink href="/creator/dashboard/messages" icon={MessageCircle} label="Messages" />
         <NavLink href="/creator/dashboard/affiliate" icon={LayoutDashboard} label="Affiliate" />
         <NavLink href="/creator/dashboard/availability" icon={Calendar} label="Availability" />
         <NavLink href="/creator/dashboard/profile" icon={User} label="Profile" />
