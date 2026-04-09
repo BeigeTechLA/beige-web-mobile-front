@@ -208,7 +208,7 @@ export default function AffiliateDashboardPage() {
           />
         </div>
 
-        <div className="flex gap-2 overflow-x-auto rounded-xl bg-[#171717] p-1.5 no-scrollbar">
+        {/* <div className="flex gap-2 overflow-x-auto rounded-xl bg-[#171717] p-1.5 no-scrollbar">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -235,7 +235,7 @@ export default function AffiliateDashboardPage() {
               </Button>
             );
           })}
-        </div>
+        </div> */}
 
         {renderContent()}
       </div>

@@ -18,6 +18,7 @@ import { StatusBadge } from "../admin/StatusBadge";
 import { useTheme } from "next-themes";
 import { MobileShootRow } from "../admin/shoot-details/MobileShootRow";
 import { AnimatePresence, motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 type Status = "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Pending" | "Cancelled" | "Unknown";
 
@@ -76,7 +77,7 @@ const parseSkills = (skills: string | number[] | null | undefined, skillMap: Rec
 };
 
 interface AffiliateShootsTableProps {
-  // onShootClick: (shootId: string) => void;
+  onShootClick?: (shootId: string) => void;
   externalSelectedDate?: Date | null;
 }
 
@@ -86,6 +87,8 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const itemsPerPage = 10;
+  const [mounted, setMounted] = useState(false);
+  const { theme, resolvedTheme } = useTheme();
 
   // Filtering states
   const [range, setRange] = useState<string>("all");
@@ -94,6 +97,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 500);
+  const router = useRouter();
 
   // --- SORTING STATE ---
   const [sortConfig, setSortConfig] = useState<{ key: keyof ShootRecord; direction: 'asc' | 'desc' | null }>({

@@ -3,8 +3,9 @@
 import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { getPaymentStatusMeta } from "@/lib/utils/shootDetails";
+import { useTheme } from "next-themes";
+import { cn, getInitials } from "@/lib/utils";
+import { getPaymentStatusMeta, getProjectTimeText } from "@/lib/utils/shootDetails";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 
 interface AffiliateShootHeaderProps {
@@ -16,14 +17,22 @@ interface AffiliateShootHeaderProps {
 
 export default function AffiliateShootHeader({ activeTab = "Overview", project, onBack, projectId }: AffiliateShootHeaderProps) {
   const router = useRouter();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
   const [workspaceFolderLink, setWorkspaceFolderLink] = React.useState("");
   const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const folderLink = workspaceFolderLink;
+  const isDark = !mounted || theme === "dark";
+  const projectTimeText = getProjectTimeText(project);
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
       : "No files available";
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   React.useEffect(() => {
     let isMounted = true;
