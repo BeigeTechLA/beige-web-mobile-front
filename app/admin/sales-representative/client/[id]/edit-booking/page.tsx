@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
-import EditBookingForm from "@/components/admin/EditBookingForm";
+import { useGetClientLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
+import EditBookingDetailsForm from "@/components/admin/EditBookingDetailsForm";
 import Topbar from "@/components/admin/Topbar";
-import { Loader2 } from "lucide-react";
 import { useTheme } from "next-themes";
 
 export default function EditBookingPage() {
@@ -24,7 +23,7 @@ export default function EditBookingPage() {
   const isDark = !mounted || theme === "dark";
 
   // Fetch lead data for pre-population
-  const { data: leadData, isLoading: isLeadLoading } = useGetLeadByIdQuery(parseInt(leadId), {
+  const { data: leadData, isLoading: isLeadLoading } = useGetClientLeadByIdQuery(parseInt(leadId), {
     skip: !leadId,
   });
 
@@ -48,7 +47,7 @@ export default function EditBookingPage() {
     <>
       <Topbar pathname={pathname} />
       <div className={`${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"} min-h-screen`}>
-        <EditBookingForm
+        <EditBookingDetailsForm
           leadId={leadId}
           initialBookingData={leadData}
           onSuccess={() => router.back()}

@@ -1260,6 +1260,32 @@ export const adminApi = {
       };
     }
   },
+  getCrewForBooking: async (params: { booking_id: number | string, role_type: string, search_query: string, radius?: number }) => {
+    try {
+      const response = await api.get('admin/get-crew-for-booking/', { params });
+      return response.data;
+    } catch (error: any) {
+      // Backward-compatible fallback for environments still using project_id.
+      try {
+        const fallbackResponse = await api.get('admin/get-crew-for-shoot/', {
+          params: {
+            project_id: params.booking_id,
+            role_type: params.role_type,
+            search_query: params.search_query,
+            radius: params.radius,
+          },
+        });
+        return fallbackResponse.data;
+      } catch (fallbackError) {
+        console.error('Get Crew For Booking Error:', error);
+        return {
+          success: false,
+          data: null,
+          error: 'Failed to fetch crew for booking',
+        };
+      }
+    }
+  },
   getMonthlyRevenue: async () => {
     try {
       const response = await api.get('admin/dashboard/revenue/monthly');
