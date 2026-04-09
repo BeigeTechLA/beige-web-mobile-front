@@ -67,6 +67,9 @@ export interface SalesLead {
     discount: number;
     total: number;
   };
+  custom_quote_id?: number;
+  custom_quote_number?: string;
+  custom_quote_status?: string;
 }
 
 export interface SalesLeadDetails extends SalesLead {

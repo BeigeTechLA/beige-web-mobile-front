@@ -111,7 +111,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
             <div className="hidden lg:flex items-center justify-between px-9 py-6 gap-4">
                 {/* Left: Logo & Breadcrumbs/Title */}
                 <div className="flex items-center gap-6 shrink-0">
-                    <a href="https://beige.app" target="_blank" rel="noopener noreferrer" className="relative flex items-center shrink-0">
+                    {/* <a href="https://beige.app" target="_blank" rel="noopener noreferrer" className="relative flex items-center shrink-0">
                         <Image
                             src="https://d2jhn32fsulyac.cloudfront.net/assets/logos/beige_logo_vb.png"
                             alt="BEIGE"
@@ -124,7 +124,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
                             Beta
                             <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-40 -translate-x-full animate-shimmer" />
                         </span>
-                    </a>
+                    </a> */}
 
                     {isShootsPage ? (
                         <h1 className="text-white font-semibold text-lg">Shoots Management</h1>
@@ -159,7 +159,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
                 )}
 
                 {/* Right: Desktop Actions (Kept exactly as original) */}
-                <div className="flex items-center gap-3 shrink-0">
+                {/* <div className="flex items-center gap-3 shrink-0">
                     {isShootsPage && (
                         <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-10 px-5 font-semibold">
                             Book a Shoot
@@ -189,7 +189,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
               </>
             )
           }
-        </div >
+        </div > */}
       </div >
     </header >
   );

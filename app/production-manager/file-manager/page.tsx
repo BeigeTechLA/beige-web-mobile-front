@@ -10,10 +10,15 @@ import UploadModal from "@/components/production-manager/file-manager/UploadFile
 import { SortDateButton } from "@/components/production-manager/SortDateButton";
 import { MobileFolderRow } from "@/components/production-manager/file-manager/MobileFolderRow";
 import { fileManagerApi, mapProjectToFolderCard, type UiFolderItem } from "@/lib/fileManagerApi";
+import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
+
+import { usePathname } from "next/navigation";
+import Topbar from "@/components/production-manager/Topbar";
 
 const STATUSES = ["Linked", "Unlinked"];
 
 export default function ProductionManagerFileManagerPage() {
+  const pathname = usePathname();
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -31,8 +36,8 @@ export default function ProductionManagerFileManagerPage() {
     { name: "All Files", icon: Grid3X3 },
     { name: "Linked to folders", icon: Link },
     { name: "Recent", icon: History },
-    { name: "Shared", icon: Share2 },
-    { name: "Trash", icon: Trash2 },
+    // { name: "Shared", icon: Share2 },
+    // { name: "Trash", icon: Trash2 },
   ];
 
   useEffect(() => {
@@ -66,9 +71,10 @@ export default function ProductionManagerFileManagerPage() {
       items = items.filter((item) => item.isLinked);
     } else if (selectedTab === "Recent") {
       items = items.slice(0, 10);
-    } else if (selectedTab === "Shared" || selectedTab === "Trash") {
-      items = [];
     }
+    // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
+    //   items = [];
+    // }
 
     if (status === "Linked") {
       items = items.filter((item) => item.isLinked);
@@ -88,11 +94,14 @@ export default function ProductionManagerFileManagerPage() {
     return items;
   }, [projects, searchTerm, selectedTab, status]);
 
-  const toggleDropdown = () => setIsOpen((prev) => !prev);
+const toggleDropdown = () => setIsOpen((prev) => !prev);
 
-  return (
+return (
     <>
-      <div className="flex justify-between items-center mb-3 lg:mb-6">
+    <Topbar pathname={pathname} />
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9">
+        <div className="flex justify-between items-center mb-3 lg:mb-6">
+
         <div className="text-white">
           <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">File Manager</h1>
           <p className="text-xs lg:text-sm text-white/70">
@@ -103,15 +112,17 @@ export default function ProductionManagerFileManagerPage() {
         <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-2 justify-between items-center mb-4 lg:mb-9">
-        <div className="flex flex-nowrap items-center gap-3 bg-[#171717] p-1 rounded-lg w-full md:w-fit overflow-x-auto no-scrollbar">
+        <div className="flex flex-col lg:flex-row gap-4 justify-between items-center w-full mb-4 lg:mb-9">
+          <div className="flex flex-nowrap items-center gap-1.5 lg:gap-3 bg-[#171717] p-1.5 rounded-xl w-full lg:w-fit overflow-x-auto no-scrollbar scroll-smooth">
           {tabs.map((tab) => (
             <Button
               key={tab.name}
               onClick={() => setSelectedTab(tab.name)}
-              className={`flex gap-2 px-2 py-[2px] text-sm font-medium transition-all rounded-lg h-7 lg:h-10 ${
-                selectedTab === tab.name ? "bg-white text-black " : "hover:bg-white/10"
-              }`}
+               className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${
+                  selectedTab === tab.name
+                    ? "bg-white text-black shadow-lg scale-[1.02]"
+                    : "text-white/60 hover:bg-white/10 hover:text-white"
+                }`}
             >
               <tab.icon size={20} />
               {tab.name}
@@ -119,10 +130,11 @@ export default function ProductionManagerFileManagerPage() {
           ))}
         </div>
 
-        <div className="w-full flex justify-between lg:justify-end gap-1 text-sm lg:text-base text-[#8F8F8F]">
-          <span>Projects:</span>
-          <p>
-            <span className="text-[#E8D1AB]">{projects.length}</span> total
+          <div className="w-full lg:w-auto flex justify-between lg:justify-end items-center gap-2 text-sm lg:text-base text-[#8F8F8F] bg-[#171717]/50 px-4 py-2 rounded-lg border border-white/5">
+            <span className="whitespace-nowrap">Projects:</span>
+            <p className="font-medium">
+              <span className="text-[#E8D1AB]">{projects.length}</span>
+              <span className="mx-1">total</span>
           </p>
         </div>
       </div>
@@ -215,7 +227,7 @@ export default function ProductionManagerFileManagerPage() {
         ) : error ? (
           <div className="text-red-300 text-sm">{error}</div>
         ) : filteredFolders.length === 0 ? (
-          <div className="text-white/60 text-sm">No folders found for this view.</div>
+           <EmptyFolderState/>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
             {filteredFolders.map((folder) => (
@@ -296,6 +308,7 @@ export default function ProductionManagerFileManagerPage() {
         onClose={() => setIsUploadModalOpen(false)}
         folderName={selectedFolder || ""}
       />
+    </div>
     </>
   );
 }

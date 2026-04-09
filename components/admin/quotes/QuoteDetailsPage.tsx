@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   Loader2,
+  Mail,
   MapPin,
   Percent,
   Radio,
@@ -65,6 +66,7 @@ type QuoteDetailsPageProps = {
 };
 
 type OtherDetailsTab = "discounts" | "tax";
+type QuoteConvertIntent = "convert_only" | "send_invoice";
 
 type QuoteActivityLike = {
   activity_type?: string;
@@ -80,6 +82,45 @@ type QuoteActivityLike = {
     name?: string;
     [key: string]: unknown;
   } | null;
+};
+
+const getActivityBookingId = (activity: QuoteActivityLike | null | undefined) => {
+  if (!activity) {
+    return null;
+  }
+
+  const directBookingId = activity.metadata?.booking_id;
+  if (
+    directBookingId !== undefined &&
+    directBookingId !== null &&
+    String(directBookingId).trim()
+  ) {
+    return String(directBookingId);
+  }
+
+  if (activity.metadata_json) {
+    try {
+      const parsed =
+        typeof activity.metadata_json === "string"
+          ? JSON.parse(activity.metadata_json)
+          : activity.metadata_json;
+
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        "booking_id" in parsed &&
+        parsed.booking_id !== undefined &&
+        parsed.booking_id !== null &&
+        String(parsed.booking_id).trim()
+      ) {
+        return String(parsed.booking_id);
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 };
 
 const getStatusStyles = (status: string) => {
@@ -307,9 +348,12 @@ export default function QuoteDetailsPage({
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
   const [isRejecting, setIsRejecting] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
+  const [isViewingInvoice, setIsViewingInvoice] = useState(false);
+  const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
-  const [convertedBookingIdOverride] = useState<string | null>(null);
-  const [isConvertedOverride] = useState(false);
+  const [convertIntent, setConvertIntent] = useState<QuoteConvertIntent>("convert_only");
+  const [convertedBookingIdOverride, setConvertedBookingIdOverride] = useState<string | null>(null);
+  const [isConvertedOverride, setIsConvertedOverride] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -446,9 +490,16 @@ export default function QuoteDetailsPage({
 
     return activities.find((activity) => {
       const message = String(activity?.message || "").toLowerCase();
+      const activityType = String(activity?.activity_type || "").toLowerCase();
+      const bookingId = getActivityBookingId(activity);
       return (
-        activity?.activity_type === "updated" &&
-        message.includes("converted to booking")
+        Boolean(bookingId) &&
+        (
+          message.includes("converted to booking") ||
+          message.includes("conversion reopened") ||
+          activityType === "accepted" ||
+          activityType === "updated"
+        )
       );
     }) || null;
   }, [quote]);
@@ -466,24 +517,9 @@ export default function QuoteDetailsPage({
       return String(activityBookingId);
     }
 
-    if (conversionActivity?.metadata_json) {
-      try {
-        const parsed =
-          typeof conversionActivity.metadata_json === "string"
-            ? JSON.parse(conversionActivity.metadata_json)
-            : conversionActivity.metadata_json;
-        if (
-          typeof parsed === "object" &&
-          parsed !== null &&
-          "booking_id" in parsed &&
-          parsed.booking_id !== undefined &&
-          parsed.booking_id !== null
-        ) {
-          return String(parsed.booking_id);
-        }
-      } catch {
-        return null;
-      }
+    const parsedActivityBookingId = getActivityBookingId(conversionActivity);
+    if (parsedActivityBookingId) {
+      return parsedActivityBookingId;
     }
 
     return null;
@@ -545,7 +581,122 @@ export default function QuoteDetailsPage({
       return;
     }
 
+    setConvertIntent("convert_only");
     setIsConvertModalOpen(true);
+  };
+
+  const handleViewInvoice = async () => {
+    if (!resolvedQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (!isConvertedToBooking) {
+      toast.error("Convert this quote to a booking before viewing the invoice.");
+      return;
+    }
+
+    setIsViewingInvoice(true);
+    try {
+      const response = await salesApi.previewQuoteInvoice(resolvedQuoteId);
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string" ? response.error : "Failed to preview invoice"
+        );
+      }
+
+      const hostedInvoiceUrl = response.data?.invoiceUrl || null;
+      const invoicePdfUrl = response.data?.invoicePdf || null;
+      const invoiceBookingId =
+        response.data?.booking_id !== undefined &&
+        response.data?.booking_id !== null &&
+        String(response.data.booking_id).trim()
+          ? String(response.data.booking_id)
+          : convertedBookingId;
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
+      ).replace(/\/$/, "");
+      const proxiedPdfUrl = invoiceBookingId
+        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?t=${Date.now()}`
+        : null;
+      const proxiedDownloadUrl = invoiceBookingId
+        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?download=1&t=${Date.now()}`
+        : null;
+
+      if (!hostedInvoiceUrl && !invoicePdfUrl) {
+        throw new Error("Invoice preview URL is not available");
+      }
+
+      if (hostedInvoiceUrl) {
+        window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+      }
+
+      if (invoicePdfUrl) {
+        const link = document.createElement("a");
+        if (!proxiedDownloadUrl && !proxiedPdfUrl) {
+          throw new Error("Invoice PDF URL is not available");
+        }
+        link.href = proxiedDownloadUrl || proxiedPdfUrl || invoicePdfUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.click();
+      }
+
+      toast.success("Invoice opened successfully");
+    } catch (error) {
+      console.error("Failed to preview invoice", error);
+      toast.error(error instanceof Error ? error.message : "Failed to preview invoice");
+    } finally {
+      setIsViewingInvoice(false);
+    }
+  };
+
+  const sendQuoteInvoiceRequest = async () => {
+    if (!resolvedQuoteId) {
+      toast.error("Quote id is missing.");
+      return false;
+    }
+
+    setIsSendingInvoice(true);
+    try {
+      const response = await salesApi.sendQuoteInvoice(resolvedQuoteId);
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string" ? response.error : "Failed to send quote invoice"
+        );
+      }
+
+      if (response?.data?.booking_id) {
+        setConvertedBookingIdOverride(String(response.data.booking_id));
+        setIsConvertedOverride(true);
+      }
+
+      toast.success(response?.message || "Invoice sent successfully");
+      return true;
+    } catch (error) {
+      console.error("Failed to send quote invoice", error);
+      toast.error(error instanceof Error ? error.message : "Failed to send quote invoice");
+      return false;
+    } finally {
+      setIsSendingInvoice(false);
+    }
+  };
+
+  const handleSendInvoice = async () => {
+    if (!resolvedQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (!isConvertedToBooking || !convertedBookingId) {
+      setConvertIntent("send_invoice");
+      setIsConvertModalOpen(true);
+      return;
+    }
+
+    await sendQuoteInvoiceRequest();
   };
 
   const handleConvertBookingSubmit = async (
@@ -598,6 +749,23 @@ export default function QuoteDetailsPage({
 
       const bookingId = response?.data?.booking_id;
       const alreadyConverted = Boolean(response?.data?.already_converted);
+      const nextBookingId =
+        bookingId !== undefined && bookingId !== null && String(bookingId).trim()
+          ? String(bookingId)
+          : null;
+
+      if (nextBookingId) {
+        setConvertedBookingIdOverride(nextBookingId);
+      }
+      setIsConvertedOverride(true);
+      setQuote((current) =>
+        current
+          ? {
+              ...current,
+              ...(nextBookingId ? { booking_id: nextBookingId } : {}),
+            }
+          : current
+      );
 
       toast.success(
         alreadyConverted
@@ -606,6 +774,10 @@ export default function QuoteDetailsPage({
       );
       dispatch(salesRtkApi.util.invalidateTags([{ type: "Lead", id: "LIST" }]));
       setIsConvertModalOpen(false);
+
+      if (convertIntent === "send_invoice") {
+        await sendQuoteInvoiceRequest();
+      }
     } catch (error) {
       console.error("Failed to convert quote to booking", error);
       toast.error(
@@ -661,14 +833,42 @@ export default function QuoteDetailsPage({
           {topbarActions}
         </div>
 
-        <button
-          type="button"
-          onClick={() => router.push(baseHref)}
-          className="mb-6 flex items-center gap-2 text-[15px] text-[#D4D4D4] transition-colors hover:text-white"
-        >
-          <ArrowLeft size={18} />
-          Back
-        </button>
+        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <button
+            type="button"
+            onClick={() => router.push(baseHref)}
+            className="flex items-center gap-2 text-[15px] text-[#D4D4D4] transition-colors hover:text-white"
+          >
+            <ArrowLeft size={18} />
+            Back
+          </button>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button
+              type="button"
+              onClick={() => {
+                void handleViewInvoice();
+              }}
+              disabled={loading || !quote || isViewingInvoice || isSendingInvoice}
+              variant="outline"
+              className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
+            >
+              {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
+              {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void handleSendInvoice();
+              }}
+              disabled={loading || !quote || isRejecting || isConverting || isSendingInvoice}
+              className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
+            >
+              {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
+              {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
+            </Button>
+          </div>
+        </div>
 
         {loading ? (
           <div className="flex min-h-[360px] items-center justify-center rounded-[26px] border border-[#2B2B2B] bg-[#171717]">
@@ -967,6 +1167,17 @@ export default function QuoteDetailsPage({
         }}
         isSubmitting={isConverting}
         isDark={isDark}
+        title={
+          convertIntent === "send_invoice"
+            ? "Convert to Booking Before Sending Invoice"
+            : "Convert to Booking"
+        }
+        description={
+          convertIntent === "send_invoice"
+            ? "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
+            : "Select booking type, shoot date and time, and location before continuing."
+        }
+        submitLabel="Convert to Booking"
       />
     </div>
   );

@@ -29,6 +29,7 @@ import {
 } from "@/lib/fileManagerApi";
 import { GetCreatorDashboardDetails } from "@/lib/api";
 import { toast } from "sonner";
+import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 
 const STATUSES = ["Linked", "Unlinked"];
 
@@ -60,8 +61,8 @@ export default function CreatorFileManagerPage() {
     { name: "All Files", icon: FolderOpen },
     { name: "Linked to folders", icon: Link },
     { name: "Recent", icon: History },
-    { name: "Shared", icon: Share2 },
-    { name: "Trash", icon: Trash2 },
+    // { name: "Shared", icon: Share2 },
+    // { name: "Trash", icon: Trash2 },
   ];
 
   const loadProjects = async () => {
@@ -126,9 +127,10 @@ export default function CreatorFileManagerPage() {
       items = items.filter((item) => item.isLinked);
     } else if (selectedTab === "Recent") {
       items = items.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5));
-    } else if (selectedTab === "Shared" || selectedTab === "Trash") {
-      items = [];
     }
+    // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
+    //   items = [];
+    // }
 
     if (status === "Linked") {
       items = items.filter((item) => item.isLinked);
@@ -310,7 +312,10 @@ export default function CreatorFileManagerPage() {
         {loading ? (
           <div className="text-sm text-white/70">Loading projects...</div>
         ) : error ? (
+          
           <div className="text-sm text-red-300">{error}</div>
+        ) : filteredFolders.length === 0 ? (
+            <EmptyFolderState/>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {filteredFolders.map((folder) => (
