@@ -119,6 +119,12 @@ export const salesApi = createApi({
       providesTags: (result, error, id) => [{ type: 'Lead', id }],
     }),
 
+    getLeadBookingById: builder.query<any, number>({
+      query: (id) => `sales/leads/${id}/booking`,
+      transformResponse: (response: ApiResponse<any>) => response.data!,
+      providesTags: (result, error, id) => [{ type: 'Lead', id }],
+    }),
+
     assignLead: builder.mutation<ApiResponse<void>, { leadId: number; sales_rep_id: number }>({
       query: ({ leadId, sales_rep_id }) => ({
         url: `sales/leads/${leadId}/assign`,
@@ -398,6 +404,14 @@ export const salesApi = createApi({
       }),
       invalidatesTags: (result, error, { lead_id }) => lead_id ? [{ type: 'Lead', id: lead_id }] : ['Lead'],
     }),
+    updateClientBooking: builder.mutation<ApiResponse<any>, { booking_id: number; payload: any; lead_id?: number }>({
+      query: ({ booking_id, payload }) => ({
+        url: `sales/client/${booking_id}/booking`,
+        method: 'PUT',
+        body: payload,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => lead_id ? [{ type: 'Lead', id: lead_id }] : ['Lead'],
+    }),
     updateClientLeadBooking: builder.mutation<ApiResponse<any>, { lead_id: number; payload: any }>({
       query: ({ lead_id, payload }) => ({
         url: `sales/client-leads/${lead_id}/booking`,
@@ -451,6 +465,7 @@ export const {
   // Lead management
   useGetLeadsQuery,
   useGetLeadByIdQuery,
+  useGetLeadBookingByIdQuery,
   useAssignLeadMutation,
   useUpdateLeadStatusMutation,
   useDeleteLeadMutation,
@@ -480,6 +495,7 @@ export const {
   useUpdateBookingCrewMutation,
   useRemoveAssignedCrewMutation,
   useUpdateLeadBookingMutation,
+  useUpdateClientBookingMutation,
   useAssignCrewFromLeadMutation,
   useAssignCrewFromShootMutation,
   useNotifyPaymentLinkMutation,

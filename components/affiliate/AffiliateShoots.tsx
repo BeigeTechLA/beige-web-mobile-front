@@ -59,7 +59,7 @@ export const AffiliateShoots: React.FC<AffiliateShootsProps> = ({
       )}
 
       <AffiliateShootsTable
-        // onShootClick={onShootClick}
+        onShootClick={onShootClick}
         externalSelectedDate={selectedDate}
       />
     </div>

@@ -32,6 +32,7 @@ import {
 } from "@/lib/fileManagerApi";
 import type { SalesLead } from "@/types/sales";
 import { toast } from "sonner";
+import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 
 const STATUSES = ["Linked", "Unlinked"];
 
@@ -68,8 +69,8 @@ export default function SalesFolderManagerPage() {
     { name: "All Files", icon: FolderOpen },
     { name: "Linked to folders", icon: Link },
     { name: "Recent", icon: History },
-    { name: "Shared", icon: Share2 },
-    { name: "Trash", icon: Trash2 },
+    // { name: "Shared", icon: Share2 },
+    // { name: "Trash", icon: Trash2 },
   ];
 
   const loadProjects = async () => {
@@ -126,9 +127,10 @@ export default function SalesFolderManagerPage() {
       items = items.filter((item) => item.isLinked);
     } else if (selectedTab === "Recent") {
       items = items.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5));
-    } else if (selectedTab === "Shared" || selectedTab === "Trash") {
-      items = [];
     }
+    // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
+    //   items = [];
+    // }
 
     if (status === "Linked") {
       items = items.filter((item) => item.isLinked);
@@ -320,7 +322,7 @@ export default function SalesFolderManagerPage() {
           ) : error ? (
             <div className="text-red-300 text-sm">{error}</div>
           ) : filteredFolders.length === 0 ? (
-            <div className="text-white/60 text-sm">No assigned project folders found for this sales rep.</div>
+            <EmptyFolderState/>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
               {filteredFolders.map((folder) => (

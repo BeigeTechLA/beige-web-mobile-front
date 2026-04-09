@@ -291,6 +291,11 @@ export default function LeadDetailPage() {
     return {
       source: projectedQuote?.source || "database",
       quoteId: projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id || null,
+      quoteDisplayNumber: lead?.custom_quote_number
+        ? String(lead.custom_quote_number).trim()
+        : projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id
+          ? `#${projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id}`
+          : "N/A",
       pricingMode: primaryQuote?.pricing_mode || null,
       shootHours: projectedQuote?.shoot_hours || primaryQuote?.shoot_hours || null,
       subtotal: Number(projectedQuote?.subtotal ?? primaryQuote?.subtotal ?? 0),
@@ -1193,7 +1198,7 @@ export default function LeadDetailPage() {
                         Quote Pricing Details
                       </h2>
                       <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
-                        Converted from quote #{quotePricingDetails.quoteId ?? "N/A"}
+                        Converted from quote {quotePricingDetails.quoteDisplayNumber}
                       </p>
                     </div>
                     {quotePricingDetails.status && (

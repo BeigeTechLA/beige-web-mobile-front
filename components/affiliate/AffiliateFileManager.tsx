@@ -13,8 +13,6 @@ import {
   List,
   Loader2,
   Search,
-  Share2,
-  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
@@ -338,9 +336,10 @@ export default function AffiliateFileManager() {
       items = items.filter((workspace) =>
         isRecentWithinHours(workspace.updatedAtRaw, 24 * 5)
       );
-    } else if (selectedTab === "Shared" || selectedTab === "Trash") {
-      items = [];
     }
+    // else if (selectedTab === "Shared" || selectedTab === "Trash") {
+    //   items = [];
+    // }
 
     if (status === "Unlinked") {
       items = [];
@@ -871,8 +870,8 @@ export default function AffiliateFileManager() {
                 { name: "All Files", icon: FolderOpen },
                 { name: "Linked to folders", icon: Link },
                 { name: "Recent", icon: History },
-                { name: "Shared", icon: Share2 },
-                { name: "Trash", icon: Trash2 },
+                // { name: "Shared", icon: Share2 },
+                // { name: "Trash", icon: Trash2 },
               ].map((tab) => (
                 <Button
                   key={tab.name}
