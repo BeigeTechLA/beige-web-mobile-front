@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { salesApi, adminApi, ROLE_MAP } from '@/lib/api';
-import { Search, SlidersHorizontal, Video, Camera, Calendar, Check } from 'lucide-react';
+import { Search, SlidersHorizontal, Video, Camera, Calendar, Check, Loader2 } from 'lucide-react';
 import { CreativeFilterModal } from './CreativeFilterModal';
 import { Separator } from '@/src/components/landing/Separator';
 
@@ -47,7 +47,7 @@ export const CreativeProfileSelectorAdd = ({
     const [stats, setStats] = useState<any>(null);
     const [creatives, setCreatives] = useState<any[]>([]);
     const [roleType, setRoleType] = useState<string>('videographer');
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -93,12 +93,19 @@ export const CreativeProfileSelectorAdd = ({
     useEffect(() => {
         const fetchCreatives = async () => {
             // Completely skip if disableCrewFetch is true
-            if (disableCrewFetch) return;
+            if (disableCrewFetch) {
+                setIsLoading(false);
+                return;
+            }
 
             const location = currentLocation || stats?.location;
 
             // Allow search with location even without leadId
             if (!location && !debouncedSearch) {
+                if (leadId && !targets && !stats) {
+                    return;
+                }
+                setIsLoading(false);
                 return;
             }
 
@@ -287,7 +294,9 @@ export const CreativeProfileSelectorAdd = ({
             <div className={`border rounded-2xl p-4 md:p-8 space-y-4 lg:space-y-8 transition-colors ${isDark ? "bg-[#101010] border-white/5" : "bg-white border-[#D8D8D8]"
                 }`}>
                 {isLoading ? (
-                    <div className={`text-center py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>Loading creatives...</div>
+                    <div className="flex flex-col items-center justify-center py-10">
+                        <Loader2 className="mb-4 animate-spin text-[#E8D1AB]" size={32} />
+                    </div>
                 ) : creatives.length > 0 ? (
                     creatives.map((creative, index) => (
                         <div
