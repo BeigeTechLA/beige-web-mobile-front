@@ -57,6 +57,7 @@ import {
   type LeadBookingSchedulePayload,
 } from "@/lib/api";
 import { getBrowserTimeZone } from "@/lib/timezone";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -332,6 +333,11 @@ export default function SalesLeadDetailsPage() {
     return {
       source: projectedQuote?.source || "database",
       quoteId: projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id || null,
+      quoteDisplayNumber: lead?.custom_quote_number
+        ? String(lead.custom_quote_number).trim()
+        : projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id
+          ? `#${projectedQuote?.quote_id || primaryQuote?.quote_id || booking?.quote_id}`
+          : "N/A",
       pricingMode: primaryQuote?.pricing_mode || null,
       shootHours: projectedQuote?.shoot_hours || primaryQuote?.shoot_hours || null,
       subtotal: Number(projectedQuote?.subtotal ?? primaryQuote?.subtotal ?? 0),
@@ -349,7 +355,12 @@ export default function SalesLeadDetailsPage() {
 
   const customQuoteId =
     lead?.custom_quote_id ?? (lead as any)?.customQuoteId ?? null;
-  const canEditQuote = Boolean(customQuoteId);
+  const editableQuoteId = customQuoteId ?? quotePricingDetails?.quoteId;
+  const canEditQuote = Boolean(editableQuoteId);
+  const hasQuoteLevelDiscount = Number(quotePricingDetails?.discountAmount ?? 0) > 0;
+  const isDiscountLockedByQuote = isQuoteConvertedLead && hasQuoteLevelDiscount;
+  const quoteDiscountLockMessage =
+    "A discount is already applied in Quote Create/Edit. Update the quote there, then save it before generating the payment link.";
 
   const categorizedQuoteLineItems = useMemo(() => {
     if (!quotePricingDetails?.lineItems?.length) {
@@ -543,6 +554,11 @@ export default function SalesLeadDetailsPage() {
 
   // Handle discount code generation
   const handleGenerateDiscount = async () => {
+    if (isDiscountLockedByQuote) {
+      toast.error(quoteDiscountLockMessage);
+      return;
+    }
+
     if (!discount || parseFloat(discount) <= 0) {
       toast.error("Please enter a valid discount value");
       return;
@@ -576,14 +592,19 @@ export default function SalesLeadDetailsPage() {
   };
 
   const handleEditQuoteRedirect = () => {
-    if (!customQuoteId) {
-      toast.error("Custom quote id is missing.");
+    if (!editableQuoteId) {
+      toast.error("Quote id is missing.");
       return;
     }
 
-    router.push(
-      `/sales/quotes/create?quoteId=${encodeURIComponent(customQuoteId)}&view=details&editMode=full`
-    );
+    const query = new URLSearchParams({
+      quoteId: String(editableQuoteId),
+      view: "details",
+      editMode: "full",
+      returnTo: pathname,
+    });
+
+    router.push(`/sales/quotes/create?${query.toString()}`);
   };
 
   const handleUpdateIntent = async (intent: string, notes: string) => {
@@ -1250,9 +1271,29 @@ export default function SalesLeadDetailsPage() {
           {/* Right Sidebar - Discount Generator */}
           <div className="lg:col-span-4 space-y-3 lg:space-y-6">
             <div className={`border transition-colors duration-300 rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"}`}>
-              <h2 className={`lg:text-xl font-medium p-4 lg:p-9 !pb-0 ${isDark ? "text-white" : "text-black"}`}>
-                Generate Discount
-              </h2>
+              <div className="flex items-center gap-2 p-4 lg:p-9 !pb-0">
+                <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                  Generate Discount
+                </h2>
+                {isDiscountLockedByQuote && (
+                  <>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] ${
+                        isDark
+                          ? "bg-white/5 text-[#E8D1AB]"
+                          : "bg-[#FFF3D6] text-[#7A5A00]"
+                      }`}
+                    >
+                      Locked
+                    </span>
+                    <InfoTooltip
+                      message={quoteDiscountLockMessage}
+                      isDark={isDark}
+                      align="right"
+                    />
+                  </>
+                )}
+              </div>
               <hr className={`mt-4 lg:mt-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
               <div className="flex flex-col gap-6 p-5 pt-6 lg:p-9">
                 {/* Discount Type Dropdown */}
@@ -1263,11 +1304,16 @@ export default function SalesLeadDetailsPage() {
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      onClick={() => {
+                        if (isDiscountLockedByQuote) return;
+                        setIsDropdownOpen(!isDropdownOpen);
+                      }}
+                      disabled={isDiscountLockedByQuote}
                       className={`flex items-center justify-between w-full border rounded-xl px-4 py-4 text-left text-base transition-all duration-300 ${isDark
                         ? `text-white ${isDropdownOpen ? "border-white/80 ring-1 ring-white/20" : "border-white/50"} hover:border-white/80`
                         : `text-black ${isDropdownOpen ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20" : "border-[#D8D8D8]"} hover:border-[#E8D1AB]`
-                        }`}
+                        } ${isDiscountLockedByQuote ? "cursor-not-allowed opacity-60" : ""}`}
+                      title={isDiscountLockedByQuote ? quoteDiscountLockMessage : undefined}
                     >
                       {discountType === "percentage" ? "Percentage" : "Fixed Amount"}
                       <ChevronDown size={18} className={`transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""} ${isDark ? "text-white" : "text-black"}`} />
@@ -1321,6 +1367,7 @@ export default function SalesLeadDetailsPage() {
                     <input
                       type="number"
                       placeholder="0"
+                      disabled={isDiscountLockedByQuote}
                       className={`bg-transparent w-full outline-none text-base transition-colors ${isDark ? "text-white placeholder:text-white/40" : "text-black placeholder:text-black/40"}`}
                       value={discount}
                       onChange={(e) => {
@@ -1343,8 +1390,8 @@ export default function SalesLeadDetailsPage() {
                 <Button
                   className={`h-12 w-full font-semibold py-3.5 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   onClick={handleGenerateDiscount}
-                  disabled={isGenerating || !discount || discountAmount > 0}
-                  title={discountAmount > 0 ? "Discount already applied" : undefined}
+                  disabled={isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0}
+                  title={isDiscountLockedByQuote ? quoteDiscountLockMessage : discountAmount > 0 ? "Discount already applied" : undefined}
                 >
                   {isGenerating ? "Generating..." : "Generate Code"}
                 </Button>
@@ -1388,6 +1435,8 @@ export default function SalesLeadDetailsPage() {
               leadId={parseInt(leadId)}
               bookingId={lead?.booking_id}
               discountCodeId={generatedDiscountId}
+              discountLocked={isDiscountLockedByQuote}
+              discountLockedMessage={quoteDiscountLockMessage}
               bookingStatus={status}
               isDark={isDark}
               activeLink={lead?.active_payment_link}
@@ -1402,7 +1451,7 @@ export default function SalesLeadDetailsPage() {
                         Quote Pricing Details
                       </h2>
                       <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
-                        Converted from quote #{quotePricingDetails.quoteId ?? "N/A"}
+                        Converted from quote {quotePricingDetails.quoteDisplayNumber}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
