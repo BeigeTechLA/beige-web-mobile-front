@@ -119,6 +119,12 @@ export const salesApi = createApi({
       providesTags: (result, error, id) => [{ type: 'Lead', id }],
     }),
 
+    getLeadBookingById: builder.query<any, number>({
+      query: (id) => `sales/leads/${id}/booking`,
+      transformResponse: (response: ApiResponse<any>) => response.data!,
+      providesTags: (result, error, id) => [{ type: 'Lead', id }],
+    }),
+
     assignLead: builder.mutation<ApiResponse<void>, { leadId: number; sales_rep_id: number }>({
       query: ({ leadId, sales_rep_id }) => ({
         url: `sales/leads/${leadId}/assign`,
@@ -459,6 +465,7 @@ export const {
   // Lead management
   useGetLeadsQuery,
   useGetLeadByIdQuery,
+  useGetLeadBookingByIdQuery,
   useAssignLeadMutation,
   useUpdateLeadStatusMutation,
   useDeleteLeadMutation,

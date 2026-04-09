@@ -46,7 +46,7 @@ import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/ti
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
-import { useUpdateLeadBookingMutation, useUpdateClientLeadBookingMutation } from "@/lib/redux/features/sales/salesApi";
+import { useUpdateLeadBookingMutation } from "@/lib/redux/features/sales/salesApi";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import { getFormattedDateString } from "@/lib/utils";
 
@@ -100,9 +100,7 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
   const dragStartX = useRef(0);
   const dragStartScrollLeft = useRef(0);
 
-  const [updateLeadBooking, { isLoading: isUpdatingInitial }] = useUpdateLeadBookingMutation();
-  const [updateClientLeadBooking, { isLoading: isUpdatingClient }] = useUpdateClientLeadBookingMutation();
-  const isUpdating = isUpdatingInitial || isUpdatingClient;
+  const [updateLeadBooking, { isLoading: isUpdating }] = useUpdateLeadBookingMutation();
 
   const normalizeArrayField = (value: unknown): string[] => {
     if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
@@ -607,8 +605,8 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
 
     try {
       if (leadId) {
-        await updateClientLeadBooking({
-          lead_id: typeof leadId === 'string' ? parseInt(leadId) : leadId,
+        await updateLeadBooking({
+          booking_id: typeof leadId === 'string' ? parseInt(leadId) : leadId,
           payload
         }).unwrap();
       } else if (formData.bookingId) {
