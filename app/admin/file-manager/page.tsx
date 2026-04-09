@@ -56,8 +56,8 @@ export default function AdminFolderManagerPage() {
     { name: "All Files", icon: FolderOpen },
     { name: "Linked to folders", icon: Link },
     { name: "Recent", icon: History },
-    { name: "Shared", icon: Share2 },
-    { name: "Trash", icon: Trash2 },
+    // { name: "Shared", icon: Share2 },
+    // { name: "Trash", icon: Trash2 },
   ];
 
   const loadProjects = async () => {
@@ -94,9 +94,9 @@ export default function AdminFolderManagerPage() {
       items = items.filter((item) => item.isLinked);
     } else if (selectedTab === "Recent") {
       items = items.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5));
-    } else if (selectedTab === "Shared" || selectedTab === "Trash") {
-      items = [];
-    }
+    // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
+    //   items = [];
+    // }
 
     if (status === "Linked") {
       items = items.filter((item) => item.isLinked);

@@ -35,8 +35,8 @@ export default function ProductionManagerFileManagerPage() {
     { name: "All Files", icon: Grid3X3 },
     { name: "Linked to folders", icon: Link },
     { name: "Recent", icon: History },
-    { name: "Shared", icon: Share2 },
-    { name: "Trash", icon: Trash2 },
+    // { name: "Shared", icon: Share2 },
+    // { name: "Trash", icon: Trash2 },
   ];
 
   useEffect(() => {
@@ -70,9 +70,9 @@ export default function ProductionManagerFileManagerPage() {
       items = items.filter((item) => item.isLinked);
     } else if (selectedTab === "Recent") {
       items = items.slice(0, 10);
-    } else if (selectedTab === "Shared" || selectedTab === "Trash") {
-      items = [];
-    }
+    // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
+    //   items = [];
+    // }
 
     if (status === "Linked") {
       items = items.filter((item) => item.isLinked);
