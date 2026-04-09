@@ -95,6 +95,21 @@ type CatalogEditItem = {
   price: number;
 };
 
+const getCatalogEditItemLabel = (type: CatalogEditType) => {
+  switch (type) {
+    case "service":
+      return "Service Item";
+    case "addon":
+      return "Add-on Item";
+    case "logistics":
+      return "Logistics Item";
+    case "line_item":
+      return "Line Item";
+    default:
+      return "Catalog Item";
+  }
+};
+
 type ShootTypeApiItem = {
   sales_shoot_type_id?: string | number | null;
   shoot_type_id?: string | number | null;
@@ -816,12 +831,15 @@ export default function CreateQuotePage() {
   const isEditMode = Boolean(editQuoteId);
   const editModeParam = searchParams.get("editMode");
   const isFullEditFlow = isEditMode && editModeParam === "full";
+  const returnToParam = searchParams.get("returnTo");
   const [createdQuoteId, setCreatedQuoteId] = useState<string | null>(null);
   const effectiveQuoteId = editQuoteId || createdQuoteId;
   const requestedEditView = normalizeQuoteEditorView(
     searchParams.get("view"),
     isEditMode ? "details" : "selection",
   );
+  const quoteEditReturnHref =
+    returnToParam && returnToParam.startsWith("/") ? returnToParam : null;
 
   // Using a Record so it works for multiple rows/items in a list
   const [inputValue, setInputValue] = useState<Record<string, string>>({});
@@ -2737,6 +2755,10 @@ export default function CreateQuotePage() {
         await delayAfterSuccessToast();
         setIsQuoteSaved(true);
         if (!shouldOpenPreview) {
+          if (isEditMode && quoteEditReturnHref) {
+            router.push(quoteEditReturnHref);
+            return;
+          }
           return;
         }
       }
@@ -2871,7 +2893,7 @@ export default function CreateQuotePage() {
 
       toast.success("Quote updated successfully");
       await delayAfterSuccessToast();
-      router.push(editQuoteDetailsHref);
+      router.push(quoteEditReturnHref || editQuoteDetailsHref);
     } catch (error) {
       console.error("Failed to save quote edit step", error);
       toast.error(
@@ -3709,17 +3731,28 @@ export default function CreateQuotePage() {
       });
 
       if (res && !res.error) {
-        toast.success("Catalog item updated");
+        toast.success(
+          `${getCatalogEditItemLabel(editCatalogItem.type)} updated`,
+        );
         await fetchCatalog();
         setEditCatalogItem(null);
         setEditCatalogName("");
         setEditCatalogCost("");
       } else {
-        toast.error(res?.error || "Failed to update catalog item");
+        toast.error(
+          res?.error ||
+            `Failed to update ${getCatalogEditItemLabel(
+              editCatalogItem.type,
+            ).toLowerCase()}`,
+        );
       }
     } catch (error) {
       console.error("Error updating catalog item:", error);
-      toast.error("Failed to update catalog item");
+      toast.error(
+        `Failed to update ${getCatalogEditItemLabel(
+          editCatalogItem.type,
+        ).toLowerCase()}`,
+      );
     } finally {
       setIsSavingCatalogEdit(false);
     }
@@ -6362,7 +6395,9 @@ export default function CreateQuotePage() {
       >
         <DialogContent className="bg-[#171717] text-white border border-[#2E2E2E]">
           <DialogHeader>
-            <DialogTitle className="text-white">Edit Catalog Item</DialogTitle>
+            <DialogTitle className="text-white">
+              {`Edit ${getCatalogEditItemLabel(editCatalogItem?.type ?? "line_item")}`}
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="space-y-2">
