@@ -462,6 +462,25 @@ export interface SalesQuoteSendResponse {
   message?: string;
 }
 
+export interface SalesQuoteInvoiceData {
+  quote_id?: number | string;
+  booking_id?: number | string;
+  projectTitle?: string;
+  invoiceUrl?: string | null;
+  invoicePdf?: string | null;
+  invoiceNumber?: string | null;
+  totalAmount?: number | string;
+  isPaid?: boolean;
+  [key: string]: unknown;
+}
+
+export interface SalesQuoteInvoiceResponse {
+  success: boolean;
+  data: SalesQuoteInvoiceData | null;
+  error?: string;
+  message?: string;
+}
+
 export interface SalesQuoteConvertToBookingData {
   quote_id: number;
   lead_id: number;
@@ -2018,6 +2037,38 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to send quote proposal',
+      };
+    }
+  },
+  previewQuoteInvoice: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteInvoiceResponse>(
+        `/sales/quotes/${quoteId}/preview-invoice`,
+        {}
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Preview Quote Invoice Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to preview quote invoice',
+      };
+    }
+  },
+  sendQuoteInvoice: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteInvoiceResponse>(
+        `/sales/quotes/${quoteId}/send-invoice`,
+        {}
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Send Quote Invoice Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to send quote invoice',
       };
     }
   },
