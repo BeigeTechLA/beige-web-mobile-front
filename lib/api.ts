@@ -259,6 +259,12 @@ export interface QuotesDashboardChartItem {
   label: string;
   quote_count: number;
   total_amount: number;
+  accepted_count?: number;
+  pending_count?: number;
+  draft_count?: number;
+  rejected_count?: number;
+  expired_count?: number;
+  sent_count?: number;
 }
 
 export interface QuotesDashboardData {
@@ -452,6 +458,25 @@ export interface SalesQuoteStatusUpdateResponse {
 export interface SalesQuoteSendResponse {
   success: boolean;
   data: SalesQuoteDetailData | null;
+  error?: string;
+  message?: string;
+}
+
+export interface SalesQuoteInvoiceData {
+  quote_id?: number | string;
+  booking_id?: number | string;
+  projectTitle?: string;
+  invoiceUrl?: string | null;
+  invoicePdf?: string | null;
+  invoiceNumber?: string | null;
+  totalAmount?: number | string;
+  isPaid?: boolean;
+  [key: string]: unknown;
+}
+
+export interface SalesQuoteInvoiceResponse {
+  success: boolean;
+  data: SalesQuoteInvoiceData | null;
   error?: string;
   message?: string;
 }
@@ -1957,7 +1982,14 @@ export const salesApi = {
       };
     }
   },
-  getQuotesDashboard: async (params: { range?: string; date_on?: string } = {}) => {
+  getQuotesDashboard: async (
+    params: {
+      range?: string;
+      date_on?: string;
+      status?: string;
+      assigned_sales_rep_id?: number | string;
+    } = {}
+  ) => {
     try {
       const response = await api.get<QuotesDashboardResponse>('/sales/quotes/dashboard', { params });
       return response.data;
@@ -1971,7 +2003,15 @@ export const salesApi = {
     }
   },
   getQuotesList: async (
-    params: { page?: number; limit?: number; search?: string; status?: string; range?: string; date_on?: string } = {}
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      range?: string;
+      date_on?: string;
+      assigned_sales_rep_id?: number | string;
+    } = {}
   ) => {
     try {
       const response = await api.get<QuotesListResponse>('/sales/quotes', { params });
@@ -2023,6 +2063,38 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to send quote proposal',
+      };
+    }
+  },
+  previewQuoteInvoice: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteInvoiceResponse>(
+        `/sales/quotes/${quoteId}/preview-invoice`,
+        {}
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Preview Quote Invoice Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to preview quote invoice',
+      };
+    }
+  },
+  sendQuoteInvoice: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteInvoiceResponse>(
+        `/sales/quotes/${quoteId}/send-invoice`,
+        {}
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Send Quote Invoice Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to send quote invoice',
       };
     }
   },
