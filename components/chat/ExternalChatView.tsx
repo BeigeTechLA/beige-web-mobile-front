@@ -33,6 +33,7 @@ import {
 } from "@/lib/externalChatApi";
 import ConversationComposerModal from "@/components/chat/ConversationComposerModal";
 import ManageParticipantsModal from "@/components/chat/ManageParticipantsModal";
+import EmptyChatState from "./EmptyChatState";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 type RoomSortOrder = "latest" | "oldest";
@@ -1487,14 +1488,7 @@ export default function ExternalChatView({
                   </div>
                 </div>
               ) : messages.length === 0 ? (
-                <div className="flex h-full items-center justify-center">
-                  <div className="rounded-[30px] border border-white/10 bg-[#171411] px-8 py-10 text-center">
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[20px] bg-[#E5D5B8]/12 text-[#E5D5B8]">
-                      <MessageCircle className="h-7 w-7" />
-                    </div>
-                    <p className="text-sm text-white/45">Chat room is active. No message history was returned yet.</p>
-                  </div>
-                </div>
+                <EmptyChatState/>
               ) : visibleMessages.length === 0 ? (
                 <div className="flex h-full items-center justify-center">
                   <div className="rounded-[30px] border border-white/10 bg-[#171411] px-8 py-10 text-center">

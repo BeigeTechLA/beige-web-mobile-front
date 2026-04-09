@@ -29,6 +29,7 @@ import {
 } from "@/lib/fileManagerApi";
 import { GetCreatorDashboardDetails } from "@/lib/api";
 import { toast } from "sonner";
+import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 
 const STATUSES = ["Linked", "Unlinked"];
 
@@ -310,7 +311,10 @@ export default function CreatorFileManagerPage() {
         {loading ? (
           <div className="text-sm text-white/70">Loading projects...</div>
         ) : error ? (
+          
           <div className="text-sm text-red-300">{error}</div>
+        ) : filteredFolders.length === 0 ? (
+            <EmptyFolderState/>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {filteredFolders.map((folder) => (

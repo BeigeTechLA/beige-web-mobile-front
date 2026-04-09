@@ -13,6 +13,7 @@ import { meetingsApi, type MeetingItem } from "@/lib/meetingsApi";
 import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import EmptyMeetingState from "./EmptyMeetingState";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 
@@ -204,7 +205,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
           <div className="py-16 text-center text-sm text-white/45">
             {search.trim()
               ? "No meetings match your search."
-              : "No meetings available yet. You can create one from any shoot details page."}
+              : <EmptyMeetingState />}
           </div>
         ) : (
           <div className="space-y-4">

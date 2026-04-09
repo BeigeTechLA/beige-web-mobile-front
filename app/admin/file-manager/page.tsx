@@ -31,6 +31,7 @@ import {
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
+import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 
 const STATUSES = ["Linked", "Unlinked"];
 
@@ -288,7 +289,7 @@ export default function AdminFolderManagerPage() {
           ) : error ? (
             <div className="text-red-300 text-sm">{error}</div>
           ) : filteredFolders.length === 0 ? (
-            <div className="text-white/60 text-sm">No project folders found for this view.</div>
+            <EmptyFolderState/>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
               {filteredFolders.map((folder) => (
