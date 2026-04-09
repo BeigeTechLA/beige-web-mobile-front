@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
+import { useGetClientLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import EditBookingDetailsForm from "@/components/admin/EditBookingDetailsForm";
 import Topbar from "@/components/admin/Topbar";
 import { useTheme } from "next-themes";
@@ -23,7 +23,7 @@ export default function EditBookingPage() {
   const isDark = !mounted || theme === "dark";
 
   // Fetch lead data for pre-population
-  const { data: leadData, isLoading: isLeadLoading } = useGetLeadByIdQuery(parseInt(leadId), {
+  const { data: leadData, isLoading: isLeadLoading } = useGetClientLeadByIdQuery(parseInt(leadId), {
     skip: !leadId,
   });
 
