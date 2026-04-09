@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes"; // Integrated theme hook
 

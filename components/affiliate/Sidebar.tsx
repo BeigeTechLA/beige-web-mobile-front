@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, Receipt, Settings } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, X, Settings, Calendar, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -10,8 +10,9 @@ import { useTheme } from "next-themes";
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard' },
   { name: 'Affiliate Overview', icon: Users, link: '/affiliate/overview' },
-  { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager', isDisabled: true },
-  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages', isDisabled: true },
+  { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager' },
+  { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings' },
+  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages'},
   { name: 'Shoots', icon: Camera, link: '/affiliate/shoots' },
   { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot' },
   { name: 'Profile', icon: Settings, link: '/affiliate/profile' },
@@ -19,7 +20,7 @@ const menuItems = [
 
 type MenuItem = {
   name: string;
-  icon: any;
+  icon: LucideIcon;
   link?: string;
   children?: { name: string; link: string; isDisabled?: boolean }[];
   isDisabled?: boolean;
