@@ -524,7 +524,10 @@ export default function AdminSaleRepManagerPage() {
     isLoading: leadsIsLoading,
     isFetching: leadsIsFetching,
     refetch: refetchLeads,
-  } = useGetLeadsQuery(leadsQueryArgs);
+  } = useGetLeadsQuery(leadsQueryArgs, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+  });
 
   // Fetch users for Client and Creative Partner tabs
   const fetchUsers = async () => {

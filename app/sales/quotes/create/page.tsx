@@ -13,6 +13,7 @@ import {
   Calendar,
   Minus,
   Trash2,
+  Pencil,
   Video,
   Camera,
   Scissors,
@@ -27,6 +28,13 @@ import Topbar from "@/components/sales/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
@@ -73,6 +81,15 @@ type CatalogSectionItem = {
   name?: string;
   effective_rate?: string | number | null;
   created_at?: string | null;
+};
+
+type CatalogEditType = "service" | "addon" | "logistics" | "line_item";
+
+type CatalogEditItem = {
+  id: string;
+  type: CatalogEditType;
+  label: string;
+  price: number;
 };
 
 type ShootTypeApiItem = {
@@ -812,6 +829,7 @@ export default function CreateQuotePage() {
     crewSize: number;
     estimatedPrice: number;
   }>>({});
+  const [editingTypeConfigs, setEditingTypeConfigs] = useState<Record<string, { quantity: number; estimatedPrice: number }>>({});
 
   const [services, setServices] = useState<any[]>([]);
   const [videoShootTypes, setVideoShootTypes] = useState<ShootTypeOption[]>([]);
@@ -1298,6 +1316,13 @@ export default function CreateQuotePage() {
                 label: label.trim(),
                 key: config?.editingTypeKey?.trim().toLowerCase() || "",
                 isCustom: config?.isCustomEditingType ?? true,
+                quantity: Number(lineItem.quantity ?? 1),
+                estimatedPrice: Number(
+                  lineItem.estimated_pricing ??
+                  lineItem.unit_rate ??
+                  lineItem.unit_price ??
+                  0
+                ),
               };
             })
             .filter((selection) => selection.label);
@@ -1315,6 +1340,7 @@ export default function CreateQuotePage() {
           if (editingSelections.length > 0) {
             const selectedIds = new Set<string>();
             const nextOptions: ShootTypeOption[] = [];
+            const nextEditingConfigs: Record<string, { quantity: number; estimatedPrice: number }> = {};
             const existingOptions = [
               ...availableEditingTypes,
               ...editingTypeOptionsRef.current,
@@ -1341,6 +1367,10 @@ export default function CreateQuotePage() {
 
               if (matchedEditingType) {
                 selectedIds.add(matchedEditingType.id);
+                nextEditingConfigs[matchedEditingType.id] = {
+                  quantity: Math.max(1, Number(selection.quantity || 1)),
+                  estimatedPrice: Math.max(0, Number(selection.estimatedPrice || 0)),
+                };
                 return;
               }
 
@@ -1358,12 +1388,17 @@ export default function CreateQuotePage() {
                 });
               }
               selectedIds.add(fallbackEditingTypeId);
+              nextEditingConfigs[fallbackEditingTypeId] = {
+                quantity: Math.max(1, Number(selection.quantity || 1)),
+                estimatedPrice: Math.max(0, Number(selection.estimatedPrice || 0)),
+              };
             });
 
             if (nextOptions.length) {
               setEditingTypeOptions((prev) => [...prev, ...nextOptions]);
             }
             setSelectedEditingTypes(Array.from(selectedIds));
+            setEditingTypeConfigs(nextEditingConfigs);
           }
         }
 
@@ -2062,7 +2097,18 @@ export default function CreateQuotePage() {
     const service = services.find((item) => item.id === serviceId);
     const isEditingService = isEditingServiceLabel(service?.label || "");
     const baseTotal = config.crewSize * config.estimatedPrice;
-    return total + (isEditingService ? baseTotal : baseTotal * config.duration);
+    if (!isEditingService) {
+      return total + baseTotal * config.duration;
+    }
+
+    const editingTotal = selectedEditingTypes.reduce((sum, editingTypeId) => {
+      const editingConfig = editingTypeConfigs[editingTypeId];
+      const quantity = Math.max(1, Number(editingConfig?.quantity ?? config.crewSize ?? 1));
+      const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
+      return sum + quantity * estimatedPrice;
+    }, 0);
+
+    return total + (selectedEditingTypes.length ? editingTotal : baseTotal);
   }, 0);
 
   React.useEffect(() => {
@@ -2083,7 +2129,43 @@ export default function CreateQuotePage() {
     setEditingTypeOptions([]);
     setCustomEditingType("");
     setShowAddEditingTypeForm(false);
+    setEditingTypeConfigs({});
   }, [hasEditingTypeContext]);
+
+  const getEditingServiceDefaults = React.useCallback(() => {
+    const editingServiceId = selectedServices.find((id) =>
+      isEditingServiceLabel(services.find((service) => service.id === id)?.label || "")
+    );
+    const service = services.find((item) => item.id === editingServiceId);
+    const config = editingServiceId ? serviceConfigs[editingServiceId] : null;
+
+    return {
+      quantity: Math.max(1, Number(config?.crewSize ?? 1)),
+      estimatedPrice: Math.max(0, Number(config?.estimatedPrice ?? service?.price ?? 0)),
+    };
+  }, [selectedServices, serviceConfigs, services]);
+
+  React.useEffect(() => {
+    if (!hasEditingTypeContext) {
+      return;
+    }
+
+    const defaults = getEditingServiceDefaults();
+    setEditingTypeConfigs((prev) => {
+      const next = { ...prev };
+      selectedEditingTypes.forEach((id) => {
+        if (!next[id]) {
+          next[id] = defaults;
+        }
+      });
+      Object.keys(next).forEach((id) => {
+        if (!selectedEditingTypes.includes(id)) {
+          delete next[id];
+        }
+      });
+      return next;
+    });
+  }, [getEditingServiceDefaults, hasEditingTypeContext, selectedEditingTypes]);
   const quoteSubtotal = totalServicesCost + totalAddOnsCost + totalLogisticsCost + totalLineItemsCost;
   const maxDiscountValue = discountType === "percentage" ? 100 : quoteSubtotal;
   const normalizedDiscountValue = Math.min(Math.max(0, Number(discountValue) || 0), maxDiscountValue);
@@ -2132,6 +2214,11 @@ export default function CreateQuotePage() {
   const [isSubmittingService, setIsSubmittingService] = React.useState(false);
   const [isCreatingQuoteDraft, setIsCreatingQuoteDraft] = React.useState(false);
   const [activeQuoteAction, setActiveQuoteAction] = React.useState<"preview" | "save" | "draft" | null>(null);
+  const isPreviewLoading =
+    isPreviewModalOpen &&
+    isCreatingQuoteDraft &&
+    activeQuoteAction !== "draft" &&
+    !previewQuote;
   const editQuoteDetailsHref = editQuoteId
     ? `/sales/quotes/${encodeURIComponent(editQuoteId)}`
     : "/sales/quotes";
@@ -2154,6 +2241,7 @@ export default function CreateQuotePage() {
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
+      editingTypeConfigs,
       editingTypeOptions,
       selectedServices,
       services,
@@ -2186,6 +2274,7 @@ export default function CreateQuotePage() {
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
+      editingTypeConfigs,
       editingTypeOptions,
       selectedServices,
       services,
@@ -2219,6 +2308,7 @@ export default function CreateQuotePage() {
         selectedShootType: quoteDraftSelectedShootType,
         shootTypes: quoteDraftShootTypes,
         selectedEditingTypes,
+        editingTypeConfigs,
         editingTypeOptions,
         selectedServices,
         services,
@@ -3097,14 +3187,24 @@ export default function CreateQuotePage() {
   };
 
   const [isSubmittingLineItem, setIsSubmittingLineItem] = React.useState(false);
+  const [isSavingCatalogEdit, setIsSavingCatalogEdit] = React.useState(false);
+  const [editCatalogItem, setEditCatalogItem] =
+    React.useState<CatalogEditItem | null>(null);
+  const [editCatalogName, setEditCatalogName] = React.useState("");
+  const [editCatalogCost, setEditCatalogCost] = React.useState("");
 
   const handleCreateLineItem = async () => {
     if (!customItemName || !customItemCost) return;
 
     setIsSubmittingLineItem(true);
     try {
-      const cost = parseFloat(customItemCost.replace(/[^0-9.]/g, '')) || 0;
       const trimmedName = clampTextLength(customItemName).trim();
+      const cost = parseFloat(customItemCost.replace(/[^0-9.]/g, '')) || 0;
+      if (!trimmedName) {
+        toast.error("Name is required");
+        return;
+      }
+
       const newId = `custom_${Date.now()}`;
 
       setLineItems(prev => ([
@@ -3125,6 +3225,96 @@ export default function CreateQuotePage() {
       console.error("Error creating line item:", error);
     } finally {
       setIsSubmittingLineItem(false);
+    }
+  };
+
+  const getCatalogEditPayload = (type: CatalogEditType) => {
+    if (type === "service") {
+      return {
+        section_type: "service",
+        rate_type: "per_hour",
+        rate_unit: "per hour",
+      };
+    }
+
+    if (type === "line_item") {
+      return {
+        section_type: "custom",
+        rate_type: "flat",
+        rate_unit: null,
+      };
+    }
+
+    return {
+      section_type: type,
+      rate_type: "flat",
+      rate_unit: null,
+    };
+  };
+
+  const openEditCatalogItem = (item: {
+    id: string;
+    label: string;
+    price?: number;
+    basePrice?: number;
+  }, type: CatalogEditType) => {
+    const numericId = getPositiveCatalogItemId(item.id);
+    if (!numericId) {
+      toast.error("This item can't be edited.");
+      return;
+    }
+
+    const priceValue = Number(item.price ?? item.basePrice ?? 0);
+    setEditCatalogItem({
+      id: String(numericId),
+      type,
+      label: item.label,
+      price: priceValue,
+    });
+    setEditCatalogName(item.label);
+    setEditCatalogCost(
+      Number.isFinite(priceValue) ? priceValue.toFixed(2) : "",
+    );
+  };
+
+  const handleUpdateCatalogItem = async () => {
+    if (!editCatalogItem || isSavingCatalogEdit) return;
+
+    const trimmedName = clampTextLength(editCatalogName).trim();
+    if (!trimmedName) {
+      toast.error("Name is required");
+      return;
+    }
+
+    const numericRate = parseCurrencyInput(editCatalogCost);
+    if (!Number.isFinite(numericRate)) {
+      toast.error("Enter a valid rate");
+      return;
+    }
+
+    setIsSavingCatalogEdit(true);
+    try {
+      const payload = getCatalogEditPayload(editCatalogItem.type);
+      const res = await salesApi.updateQuoteCatalog(editCatalogItem.id, {
+        ...payload,
+        name: trimmedName,
+        default_rate: numericRate,
+      });
+
+      if (res && !res.error) {
+        toast.success("Catalog item updated");
+        await fetchCatalog();
+        setEditCatalogItem(null);
+        setEditCatalogName("");
+        setEditCatalogCost("");
+      } else {
+        toast.error(res?.error || "Failed to update catalog item");
+      }
+    } catch (error) {
+      console.error("Error updating catalog item:", error);
+      toast.error("Failed to update catalog item");
+    } finally {
+      setIsSavingCatalogEdit(false);
     }
   };
 
@@ -3291,6 +3481,13 @@ export default function CreateQuotePage() {
                             </div>
                             <div className="flex items-center gap-6 lg:gap-4">
                               <button
+                                onClick={() => openEditCatalogItem(item, "logistics")}
+                                className="text-zinc-500 hover:text-[#E8D1AB] transition-colors"
+                                title="Edit logistics"
+                              >
+                                <Pencil size={18} />
+                              </button>
+                              <button
                                 onClick={() => handleDeleteCatalogItem(item.id, 'logistics')}
                                 className="text-red-500 hover:text-red-400 transition-colors"
                               >
@@ -3426,13 +3623,24 @@ export default function CreateQuotePage() {
                             </div>
                           </div>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCatalogItem(addon.id, 'addon')}
-                          className="absolute top-5 right-5 z-10 rounded-md p-1 text-[#FF6467] transition-colors hover:bg-[#FF6467]/10 hover:text-red-500"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        <div className="absolute top-5 right-5 z-10 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEditCatalogItem(addon, "addon")}
+                            className="rounded-md p-1 text-zinc-500 transition-colors hover:bg-white/10 hover:text-[#E8D1AB]"
+                            title="Edit add-on"
+                          >
+                            <Pencil size={18} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCatalogItem(addon.id, 'addon')}
+                            className="rounded-md p-1 text-[#FF6467] transition-colors hover:bg-[#FF6467]/10 hover:text-red-500"
+                            title="Delete add-on"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -3682,20 +3890,31 @@ export default function CreateQuotePage() {
                               ${service.price.toFixed(2)} <span className="text-[#71717B] font-medium text-xs lowercase ml-1">per hour</span>
                             </div>
                             {selectedServices.includes(service.id) && (
-                              <div className={`absolute top-6 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none ${isProtectedService ? 'right-6' : 'right-12'}`}>
+                              <div className={`absolute top-6 bg-[#0DC752] text-[#09090B] text-xs font-medium px-4 py-1 rounded-[6px] leading-none ${isProtectedService ? 'right-16 lg:right-16' : 'right-20 lg:right-20'}`}>
                                 Selected
                               </div>
                             )}
                           </button>
-                          {!isProtectedService && (
+                          <div className="absolute top-6 right-6 flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => handleDeleteCatalogItem(service.id, 'service')}
-                              className="absolute top-6 right-6 text-zinc-500 transition-colors hover:text-red-500"
+                              onClick={() => openEditCatalogItem(service, "service")}
+                              className="text-zinc-500 transition-colors hover:text-[#E8D1AB]"
+                              title="Edit service"
                             >
-                              <Trash2 size={18} />
+                              <Pencil size={18} />
                             </button>
-                          )}
+                            {!isProtectedService && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCatalogItem(service.id, 'service')}
+                                className="text-zinc-500 transition-colors hover:text-red-500"
+                                title="Delete service"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -3932,31 +4151,46 @@ export default function CreateQuotePage() {
                         </div>
 
                         <div className="space-y-4 lg:space-y-6">
-                          {(selectedServices || []).map(serviceId => {
-                            const service = services.find(s => s.id === serviceId);
+                          {(selectedServices || []).flatMap((serviceId) => {
+                            const service = services.find((s) => s.id === serviceId);
                             const config = serviceConfigs[serviceId];
-                            if (!service || !config) return null;
+                            if (!service || !config) return [];
 
-                            const shootTypeKind = resolveServiceShootTypeKind(service.label);
-                            const shootTypeLabel =
-                              shootTypeKind === "video"
-                                ? selectedVideoShootTypeLabel
-                                : shootTypeKind === "photo"
-                                  ? selectedPhotoShootTypeLabel
-                                  : "";
-                            const editingTypeLabel = selectedEditingTypeLabels.join(", ");
                             const isEditingService = isEditingServiceLabel(service.label);
-                            const serviceTotal = isEditingService
-                              ? config.crewSize * config.estimatedPrice
-                              : config.duration * config.crewSize * config.estimatedPrice;
+                            const editingTypeIds = isEditingService
+                              ? (selectedEditingTypes.length > 0 ? selectedEditingTypes : [""])
+                              : [""];
 
-                            return (
-                              <div key={serviceId} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden">
+                            return editingTypeIds.map((editingTypeId, index) => {
+                              const shootTypeKind = resolveServiceShootTypeKind(service.label);
+                              const shootTypeLabel =
+                                shootTypeKind === "video"
+                                  ? selectedVideoShootTypeLabel
+                                  : shootTypeKind === "photo"
+                                    ? selectedPhotoShootTypeLabel
+                                    : "";
+                              const editingLabel = editingTypeId
+                                ? getSelectedShootTypeLabel(editingTypeOptions, editingTypeId)
+                                : "";
+                              const editingConfig = editingTypeId
+                                ? editingTypeConfigs[editingTypeId]
+                                : null;
+                              const quantity = Math.max(1, Number(editingConfig?.quantity ?? config.crewSize ?? 1));
+                              const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
+                              const serviceTotal = isEditingService
+                                ? quantity * estimatedPrice
+                                : config.duration * config.crewSize * config.estimatedPrice;
+                              const cardKey = isEditingService
+                                ? `${serviceId}-${editingTypeId || "editing"}-${index}`
+                                : serviceId;
+
+                              return (
+                              <div key={cardKey} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden">
                                 <div className="mb-4 flex items-start justify-between gap-4 lg:mb-8">
                                   <div className="min-w-0 flex-1 space-y-2">
                                     <h3 className="flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug text-white">
                                       {isEditingServiceLabel(service.label) ? (
-                                        <>Editing Type - <span className="break-words text-[#8E826A]">{editingTypeLabel}</span></>
+                                        <>Editing Type - <span className="break-words text-[#8E826A]">{editingLabel || "Not selected"}</span></>
                                       ) : shootTypeLabel ? (
                                         <>{getServiceDisplayLabel(service.label)} - <span className="break-words text-[#8E826A]">({shootTypeLabel})</span></>
                                       ) : (
@@ -3970,12 +4204,14 @@ export default function CreateQuotePage() {
                                       <span className="text-[#7B7B85] text-xs font-normal">Total</span>
                                       <span className="text-xl font-semibold text-[#F0DCB1] tracking-tight leading-none">${serviceTotal.toLocaleString()}</span>
                                     </div>
-                                    <button
-                                      onClick={() => setSelectedServices(prev => prev.filter(id => id !== serviceId))}
-                                      className="w-10 h-10 rounded-full bg-[#2A2A2A] border border-transparent flex items-center justify-center text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                                    >
-                                      <Trash2 size={18} />
-                                    </button>
+                                    {index === 0 && (
+                                      <button
+                                        onClick={() => setSelectedServices(prev => prev.filter(id => id !== serviceId))}
+                                        className="w-10 h-10 rounded-full bg-[#2A2A2A] border border-transparent flex items-center justify-center text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                                      >
+                                        <Trash2 size={18} />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
 
@@ -4017,16 +4253,36 @@ export default function CreateQuotePage() {
                                     </span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'crewSize', config.crewSize - 1)}
+                                        onClick={() =>
+                                          isEditingService
+                                            ? setEditingTypeConfigs((prev) => ({
+                                              ...prev,
+                                              [editingTypeId]: {
+                                                quantity: Math.max(1, quantity - 1),
+                                                estimatedPrice,
+                                              },
+                                            }))
+                                            : handleConfigUpdate(serviceId, 'crewSize', config.crewSize - 1)
+                                        }
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
                                       <div className="flex-1 h-full flex items-center justify-center bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm">
-                                        {config.crewSize}
+                                        {isEditingService ? quantity : config.crewSize}
                                       </div>
                                       <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'crewSize', config.crewSize + 1)}
+                                        onClick={() =>
+                                          isEditingService
+                                            ? setEditingTypeConfigs((prev) => ({
+                                              ...prev,
+                                              [editingTypeId]: {
+                                                quantity: Math.max(1, quantity + 1),
+                                                estimatedPrice,
+                                              },
+                                            }))
+                                            : handleConfigUpdate(serviceId, 'crewSize', config.crewSize + 1)
+                                        }
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Plus size={16} strokeWidth={2.5} />
@@ -4039,19 +4295,49 @@ export default function CreateQuotePage() {
                                     <span className="text-sm font-normal text-[#9A9AA4] mb-1.5">Estimated Pricing</span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice - 50)}
+                                        onClick={() =>
+                                          isEditingService
+                                            ? setEditingTypeConfigs((prev) => ({
+                                              ...prev,
+                                              [editingTypeId]: {
+                                                quantity,
+                                                estimatedPrice: Math.max(0, estimatedPrice - 50),
+                                              },
+                                            }))
+                                            : handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice - 50)
+                                        }
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
                                       <Input
-                                        value={`$ ${formatAddonDisplayValue(getServiceDraftPrice(serviceId))}`}
-                                        onChange={(e) => handleServicePriceUpdate(serviceId, e.target.value)}
+                                        value={`$ ${formatAddonDisplayValue(isEditingService ? estimatedPrice : getServiceDraftPrice(serviceId))}`}
+                                        onChange={(e) =>
+                                          isEditingService
+                                            ? setEditingTypeConfigs((prev) => ({
+                                              ...prev,
+                                              [editingTypeId]: {
+                                                quantity,
+                                                estimatedPrice: parseCurrencyInput(e.target.value),
+                                              },
+                                            }))
+                                            : handleServicePriceUpdate(serviceId, e.target.value)
+                                        }
                                         inputMode="decimal"
                                         className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
                                       />
                                       <button
-                                        onClick={() => handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice + 50)}
+                                        onClick={() =>
+                                          isEditingService
+                                            ? setEditingTypeConfigs((prev) => ({
+                                              ...prev,
+                                              [editingTypeId]: {
+                                                quantity,
+                                                estimatedPrice: Math.max(0, estimatedPrice + 50),
+                                              },
+                                            }))
+                                            : handleConfigUpdate(serviceId, 'estimatedPrice', config.estimatedPrice + 50)
+                                        }
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Plus size={16} strokeWidth={2.5} />
@@ -4061,6 +4347,7 @@ export default function CreateQuotePage() {
                                 </div>
                               </div>
                             );
+                            });
                           })}
                         </div>
                       </section>
@@ -4175,6 +4462,9 @@ export default function CreateQuotePage() {
                     const config = lineItemConfigs[item.id];
                     const hasPendingChanges = hasPendingLineItemChanges(item.id);
                     const isProtectedLineItem = isProtectedLineItemLabel(item.label);
+                    const canEditLineItem = Boolean(
+                      getPositiveCatalogItemId(item.id),
+                    );
 
                     return (
                       <div key={item.id} className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-5 relative overflow-hidden">
@@ -4206,6 +4496,15 @@ export default function CreateQuotePage() {
                               />
                             </div>
                             <div className="flex items-center gap-4">
+                              {canEditLineItem && (
+                                <button
+                                  onClick={() => openEditCatalogItem(item, "line_item")}
+                                  className="text-zinc-500 hover:text-[#E8D1AB] transition-colors"
+                                  title="Edit line item"
+                                >
+                                  <Pencil size={18} />
+                                </button>
+                              )}
                               {!isProtectedLineItem && (
                                 <button
                                   onClick={() => handleDeleteCatalogItem(item.id, 'line_item')}
@@ -4877,7 +5176,7 @@ export default function CreateQuotePage() {
                 disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
                 className="bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all border-0 shadow-lg disabled:opacity-70"
               >
-                {isCreatingQuoteDraft && activeQuoteAction === "preview" ? "Loading Preview..." : "Preview Quote"}
+                {isPreviewLoading ? "Loading Preview..." : "Preview Quote"}
               </Button>
             ) : null}
           </div>
@@ -4902,7 +5201,7 @@ export default function CreateQuotePage() {
               disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
               className="bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
-              {isCreatingQuoteDraft && activeQuoteAction === "preview" ? "Loading Preview..." : "Preview Quote"}
+              {isPreviewLoading ? "Loading Preview..." : "Preview Quote"}
             </Button>
           </div>
         ) : (
@@ -4953,6 +5252,68 @@ export default function CreateQuotePage() {
         description={`Are you sure you want to delete this ${itemToDelete?.type === 'service' ? 'service' : itemToDelete?.type === 'addon' ? 'add-on' : itemToDelete?.type === 'logistics' ? 'logistics item' : itemToDelete?.type === 'shoot_type' ? 'shoot type' : itemToDelete?.type === 'editing_type' ? 'editing type' : 'line item'}? This action cannot be undone.`}
         isLoading={isDeleting}
       />
+      <Dialog
+        open={Boolean(editCatalogItem)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditCatalogItem(null);
+            setEditCatalogName("");
+            setEditCatalogCost("");
+          }
+        }}
+      >
+        <DialogContent className="bg-[#171717] text-white border border-[#2E2E2E]">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Catalog Item</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <label className="text-sm text-[#A1A1AA]">Name</label>
+              <Input
+                value={editCatalogName}
+                onChange={(e) =>
+                  setEditCatalogName(clampTextLength(e.target.value))
+                }
+                maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
+                className="h-11 bg-transparent border-[#4A4A4A] rounded-xl text-white placeholder:text-[#666666]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-[#A1A1AA]">Rate</label>
+              <Input
+                value={editCatalogCost}
+                onChange={(e) =>
+                  setEditCatalogCost(sanitizeCurrencyInput(e.target.value))
+                }
+                inputMode="decimal"
+                className="h-11 bg-transparent border-[#4A4A4A] rounded-xl text-white placeholder:text-[#666666]"
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="border border-[#363636] text-[#D4D4D4] hover:text-white hover:bg-[#181818]"
+              onClick={() => {
+                setEditCatalogItem(null);
+                setEditCatalogName("");
+                setEditCatalogCost("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleUpdateCatalogItem}
+              disabled={isSavingCatalogEdit}
+              className="bg-[#E8D1AB] text-[#101010] hover:opacity-90"
+            >
+              {isSavingCatalogEdit ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <QuoteSummaryModal
         open={isSummaryModalOpen}
         onClose={() => setIsSummaryModalOpen(false)}
@@ -4965,7 +5326,7 @@ export default function CreateQuotePage() {
         onClose={() => setIsPreviewModalOpen(false)}
         quote={previewQuote}
         quoteId={previewQuoteId}
-        isLoading={isCreatingQuoteDraft && activeQuoteAction === "preview"}
+        isLoading={isPreviewLoading}
       />
     </div>
   );

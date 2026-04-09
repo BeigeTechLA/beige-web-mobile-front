@@ -293,6 +293,8 @@ const buildServiceItems = (
         return null;
       }
 
+      const serviceName = service.label?.trim() || service.name?.trim() || "Service";
+      const normalizedServiceName = serviceName.toLowerCase();
       const isEditingService = isEditingServiceLabel(normalizedServiceName);
       const quantity = isEditingService
         ? Math.max(1, normalizeNumber(config.crewSize))
@@ -307,8 +309,6 @@ const buildServiceItems = (
         0,
         normalizeNumber(config.estimatedPrice || service.price || service.basePrice)
       );
-      const serviceName = service.label?.trim() || service.name?.trim() || "Service";
-      const normalizedServiceName = serviceName.toLowerCase();
       const serviceShootTypeLabel =
         normalizedServiceName === "videography"
           ? parsedShootTypeLabels.video
