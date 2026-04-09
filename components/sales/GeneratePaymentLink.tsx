@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Copy, Mail, Check, Clock, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { InfoTooltip } from "../ui/info-tooltip";
 import {
   useGeneratePaymentLinkMutation,
   useGenerateClientPaymentLinkMutation,
@@ -16,6 +17,8 @@ interface GeneratePaymentLinkProps {
   leadId?: number;
   bookingId?: number;
   discountCodeId?: number;
+  discountLocked?: boolean;
+  discountLockedMessage?: string;
   bookingStatus?: string | null;
   activeLink?: {
     payment_link_id: number;
@@ -28,10 +31,23 @@ interface GeneratePaymentLinkProps {
   isDark?: boolean;
 }
 
-const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus, activeLink, isClientLead, isDark = true }: GeneratePaymentLinkProps) => {
+const GeneratePaymentLink = ({
+  leadId,
+  bookingId,
+  discountCodeId,
+  discountLocked = false,
+  discountLockedMessage,
+  bookingStatus,
+  activeLink,
+  isClientLead,
+  isDark = true,
+}: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>("No");
   const [hasPreviewedInvoice, setHasPreviewedInvoice] = useState(false);
   const [paymentData, setPaymentData] = useState<{ url: string; id: number; isExpired: boolean } | null>(null);
+  const effectiveDiscountLockMessage =
+    discountLockedMessage?.trim() ||
+    "This payment is tied to quote pricing. Apply or update discounts in Quote Create/Edit, then save the quote before generating the payment link.";
 
   useEffect(() => {
     if (activeLink) {
@@ -47,6 +63,12 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
     setHasPreviewedInvoice(false);
   }, [bookingId, paymentData?.id]);
 
+  useEffect(() => {
+    if (discountLocked) {
+      setAttachDiscount("No");
+    }
+  }, [discountLocked]);
+
   const [generateLink, { isLoading: isGeneratingLink }] = useGeneratePaymentLinkMutation();
   const [generateClientLink, { isLoading: isGeneratingClientLink }] = useGenerateClientPaymentLinkMutation();
   const isGenerating = isGeneratingLink || isGeneratingClientLink;
@@ -58,6 +80,8 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
   const isPaidBooking = String(bookingStatus || "").toLowerCase() === "paid";
   const showInvoiceActions = (!!paymentData && !paymentData.isExpired) || isPaidBooking;
   const showGenerateSection = !isPaidBooking && (!paymentData || (paymentData.isExpired && !activeLink));
+  const shouldAttachDiscount =
+    !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
 
   const handleGenerate = async () => {
     if (!bookingId) {
@@ -71,14 +95,14 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
         response = await generateClientLink({
           client_lead_id: leadId,
           booking_id: bookingId,
-          discount_code_id: attachDiscount === "Yes" ? discountCodeId : undefined,
+          discount_code_id: shouldAttachDiscount ? discountCodeId : undefined,
           expiry_hours: 2 // User requested 2 hours in example
         }).unwrap();
       } else {
         response = await generateLink({
           lead_id: leadId,
           booking_id: bookingId,
-          discount_code_id: attachDiscount === "Yes" ? discountCodeId : undefined,
+          discount_code_id: shouldAttachDiscount ? discountCodeId : undefined,
           expiry_hours: 48
         }).unwrap();
       }
@@ -224,19 +248,44 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
           <div className="space-y-6 mt-4">
             {/* Attach Discount Selection */}
             <div className="space-y-3">
-              <label className={`text-sm block font-light ${isDark ? "text-[#9F9FA9]" : "text-black/60"}`}>
-                Attach Discount
-              </label>
+              <div className="flex items-center gap-2">
+                <label className={`text-sm block font-light ${isDark ? "text-[#9F9FA9]" : "text-black/60"}`}>
+                  Attach Discount
+                </label>
+                {discountLocked && (
+                  <>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] ${
+                        isDark
+                          ? "bg-white/5 text-[#E8D1AB]"
+                          : "bg-[#FFF3D6] text-[#7A5A00]"
+                      }`}
+                    >
+                      Locked
+                    </span>
+                    <InfoTooltip
+                      message={effectiveDiscountLockMessage}
+                      isDark={isDark}
+                      align="right"
+                    />
+                  </>
+                )}
+              </div>
               <div className="flex gap-4">
                 {["Yes", "No"].map((opt) => (
                   <button
                     key={opt}
                     type="button"
-                    onClick={() => setAttachDiscount(opt as any)}
+                    onClick={() => {
+                      if (discountLocked) return;
+                      setAttachDiscount(opt as any);
+                    }}
+                    disabled={discountLocked}
+                    title={discountLocked ? effectiveDiscountLockMessage : undefined}
                     className={`flex-1 h-12 rounded-xl border flex items-center justify-between px-4 transition-all duration-300 ${attachDiscount === opt
                       ? (isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/5 text-white" : "border-[#E8D1AB] bg-[#E8D1AB]/50 text-black")
                       : (isDark ? "border-[#3D3D3D] bg-transparent text-[#9F9FA9]" : "border-[#D8D8D8] bg-transparent text-black/40")
-                      }`}
+                      } ${discountLocked ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     <span className="font-medium text-sm">{opt}</span>
                     <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${attachDiscount === opt
