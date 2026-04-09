@@ -398,6 +398,14 @@ export const salesApi = createApi({
       }),
       invalidatesTags: (result, error, { lead_id }) => lead_id ? [{ type: 'Lead', id: lead_id }] : ['Lead'],
     }),
+    updateClientBooking: builder.mutation<ApiResponse<any>, { booking_id: number; payload: any; lead_id?: number }>({
+      query: ({ booking_id, payload }) => ({
+        url: `sales/client/${booking_id}/booking`,
+        method: 'PUT',
+        body: payload,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => lead_id ? [{ type: 'Lead', id: lead_id }] : ['Lead'],
+    }),
     updateClientLeadBooking: builder.mutation<ApiResponse<any>, { lead_id: number; payload: any }>({
       query: ({ lead_id, payload }) => ({
         url: `sales/client-leads/${lead_id}/booking`,
@@ -480,6 +488,7 @@ export const {
   useUpdateBookingCrewMutation,
   useRemoveAssignedCrewMutation,
   useUpdateLeadBookingMutation,
+  useUpdateClientBookingMutation,
   useAssignCrewFromLeadMutation,
   useAssignCrewFromShootMutation,
   useNotifyPaymentLinkMutation,

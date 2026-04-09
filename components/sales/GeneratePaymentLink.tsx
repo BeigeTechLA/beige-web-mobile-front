@@ -30,7 +30,6 @@ interface GeneratePaymentLinkProps {
 
 const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus, activeLink, isClientLead, isDark = true }: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>("No");
-  const [hasPreviewedInvoice, setHasPreviewedInvoice] = useState(false);
   const [paymentData, setPaymentData] = useState<{ url: string; id: number; isExpired: boolean } | null>(null);
 
   useEffect(() => {
@@ -42,10 +41,6 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
       });
     }
   }, [activeLink]);
-
-  useEffect(() => {
-    setHasPreviewedInvoice(false);
-  }, [bookingId, paymentData?.id]);
 
   const [generateLink, { isLoading: isGeneratingLink }] = useGeneratePaymentLinkMutation();
   const [generateClientLink, { isLoading: isGeneratingClientLink }] = useGenerateClientPaymentLinkMutation();
@@ -138,7 +133,6 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
           link.click();
         }
 
-        setHasPreviewedInvoice(true);
         toast.success("Invoice opened and download started");
       }
     } catch (error: any) {
@@ -148,16 +142,11 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
 
   const handleSendInvoice = async () => {
     if (!bookingId) return;
-    if (!hasPreviewedInvoice) {
-      toast.error("Please preview invoice first");
-      return;
-    }
 
     try {
       const response = await sendInvoice({ booking_id: bookingId }).unwrap();
       if (response.success) {
         toast.success("Invoice sent successfully to client email");
-        setHasPreviewedInvoice(false);
       }
     } catch (error: any) {
       toast.error(error?.data?.message || "Failed to send invoice");
@@ -198,7 +187,7 @@ const GeneratePaymentLink = ({ leadId, bookingId, discountCodeId, bookingStatus,
             </Button>
             <Button
               onClick={handleSendInvoice}
-              disabled={!hasPreviewedInvoice || isSendingInvoice}
+              disabled={isSendingInvoice}
               className={`h-10 text-xs lg:text-sm px-3 lg:px-4 py-1.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${isDark
                 ? "text-[#101010] bg-[#E8D1AB] hover:bg-[#D4C3A3]"
                 : "text-black bg-[#E8D1AB] hover:bg-[#D9C19A]"

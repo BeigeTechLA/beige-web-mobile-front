@@ -385,15 +385,15 @@ export default function LeadDetailPage() {
 
     const bookingDays = Array.isArray(booking.booking_days)
       ? (booking.booking_days as BookingDayLike[])
-          .filter((day) => day?.event_date)
+          .filter((day) => day?.event_date || (day as any)?.date)
           .map((day) => ({
-            date: String(day.event_date),
+            date: String(day.event_date || (day as any).date),
             startTime: normalizeTimeKey(day.start_time),
             endTime: normalizeTimeKey(day.end_time),
           }))
       : [];
 
-    const isMultiDayBooking = bookingDays.length > 1 || Boolean(booking.is_multiple_day_shoot);
+    const isMultiDayBooking = bookingDays.length > 1;
 
     if (!isMultiDayBooking) {
       const singleDate = bookingDays[0]?.date || booking.event_date || "";
@@ -1042,7 +1042,7 @@ export default function LeadDetailPage() {
               <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
 
               <div className="flex flex-col gap-3 lg:gap-5 px-4 lg:px-9">
-                {booking?.is_multiple_day_shoot && (booking?.booking_days?.length ?? 0) > 0 ? (
+                {Array.isArray(booking?.booking_days) && (booking?.booking_days?.length ?? 0) > 1 ? (
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-4 mb-1">
                       <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
