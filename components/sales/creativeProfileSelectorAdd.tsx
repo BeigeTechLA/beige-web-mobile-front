@@ -164,7 +164,7 @@ export const CreativeProfileSelectorAdd = ({
         };
 
         fetchCreatives();
-    }, [leadId, stats?.location, currentLocation, roleType, debouncedSearch, appliedFilters.radius]);
+    }, [leadId, projectId, stats?.location, currentLocation, roleType, debouncedSearch, appliedFilters.radius]);
 
     const selectedIds = externalSelectedIds || internalSelectedIds;
 

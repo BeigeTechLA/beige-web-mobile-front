@@ -739,7 +739,7 @@ export default function LeadDetailPage() {
                   </div>
                 ) : (
                   <>
-                    {booking?.is_multiple_day_shoot && (booking?.booking_days?.length ?? 0) > 0 ? (
+                    {Array.isArray(booking?.booking_days) && (booking?.booking_days?.length ?? 0) > 1 ? (
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-4 mb-1">
                           <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>

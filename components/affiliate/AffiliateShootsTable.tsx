@@ -4,7 +4,7 @@ import React, { useMemo, useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronRight, Loader2, Trash2, Search, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import Cookies from "js-cookie";
-import { affiliateApi, adminApi } from "@/lib/api";
+import { affiliateApi } from "@/lib/api";
 import { format } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
@@ -19,6 +19,7 @@ import { useTheme } from "next-themes";
 import { MobileShootRow } from "../admin/shoot-details/MobileShootRow";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { parseISO } from "date-fns";
 
 type Status = "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Pending" | "Cancelled" | "Unknown";
 
@@ -44,36 +45,6 @@ const STATUS_LABEL_MAP: Record<number, string> = {
   3: "Revision",
   4: "Completed",
   5: "Cancelled",
-};
-
-const parseSkills = (skills: string | number[] | null | undefined, skillMap: Record<number, string>): string => {
-  if (!skills) return "N/A";
-
-  let parsedSkills: any[] = [];
-
-  if (Array.isArray(skills)) {
-    parsedSkills = skills;
-  } else if (typeof skills === "string") {
-    try {
-      if (skills.trim().startsWith("[") && skills.trim().endsWith("]")) {
-        parsedSkills = JSON.parse(skills);
-      } else {
-        parsedSkills = skills.split(',').map(s => s.trim());
-      }
-    } catch (e) {
-      parsedSkills = [skills.replace(/[\[\]"]/g, "")];
-    }
-  }
-
-  const skillNames = parsedSkills.map(skill => {
-    const skillId = Number(skill);
-    if (!isNaN(skillId) && skillMap[skillId]) {
-      return skillMap[skillId];
-    }
-    return String(skill).replace(/["]/g, "");
-  });
-
-  return skillNames.join(", ");
 };
 
 interface AffiliateShootsTableProps {
@@ -137,22 +108,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
           params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
         }
 
-        const [projectsResponse, skillsResponse] = await Promise.all([
-          affiliateApi.getMyShoots(token, params),
-          adminApi.getSkills()
-        ]);
-
-        // Create Skill Map: ID -> Name
-        const skillMap: Record<number, string> = {};
-        if (skillsResponse && skillsResponse.data) {
-          const skillsList = Array.isArray(skillsResponse.data) ? skillsResponse.data : (skillsResponse.data?.data || []);
-          skillsList.forEach((s: any) => {
-            const name = s.name || s.skill_name || s.title;
-            if (s.id && name) {
-              skillMap[s.id] = name;
-            }
-          });
-        }
+        const projectsResponse = await affiliateApi.getMyShoots(token, params);
 
         const projectsList = projectsResponse?.data?.projects || [];
 
@@ -167,6 +123,8 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
           const quoteTotal = project.quote_total;
           const budgetTotal = project.budget;
           const displayAmount = quoteTotal !== null && quoteTotal !== undefined ? quoteTotal : budgetTotal;
+          const numericAmount = displayAmount ? parseFloat(displayAmount) : 0;
+          const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
 
           // Categorization: Use labels if available, otherwise event_type mapping
           const category = project.event_type_labels || project.event_type || "Uncategorized";
@@ -177,8 +135,10 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
             customerName,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
+            rawDate: dateObj.getTime(),
             category: category,
-            price: displayAmount ? `$${parseFloat(displayAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
+            price: displayAmount ? `$${numericAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
+            rawPrice: numericAmount,
             status: statusLabel as Status,
             hasQuote,
             paymentStatus: project.payment_status === "paid" || !!project.payment_id ? "paid" : "pending",
@@ -252,9 +212,9 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
       : <ChevronDown size={14} className={`ml-2 ${isDark ? "text-[#E8D1AB]" : "text-[#B18A00]"}`} />;
   };
 
-  const totalPages = Math.ceil(shoots.length / itemsPerPage);
+  const totalPages = Math.ceil(processedShoots.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentShoots = shoots.slice(startIndex, startIndex + itemsPerPage);
+  const currentShoots = processedShoots.slice(startIndex, startIndex + itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -274,9 +234,17 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
     setExpandedId(expandedId === id ? null : id);
   };
 
-  const handleActionClick = (e: React.MouseEvent, bookingId: string) => {
+  const handleActionClick = (e: React.MouseEvent, bookingId: string, hasQuote: boolean) => {
     e.stopPropagation();
-    onShootClick(bookingId);
+    // Preserve parent callback support (if used) and ensure action still works if callback is missing.
+    onShootClick?.(bookingId);
+
+    if (hasQuote) {
+      router.push(`/search-results/payment?shootId=${bookingId}`);
+      return;
+    }
+
+    router.push(`/affiliate/shoots/${bookingId}/edit-booking`);
   };
 
   if (!mounted) return null;
@@ -390,7 +358,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                     <div className="col-span-2 pt-2">
                       {shoot.paymentStatus === "pending" && (
                         <button
-                          onClick={(e) => handleActionClick(e, shoot.bookingId)}
+                          onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
                           className="w-full mb-2 py-2 bg-[#E8D1AB] hover:bg-[#dcb98a] rounded-lg text-black text-sm font-semibold"
                         >
                           {shoot.hasQuote ? "Proceed to Payment" : "Complete Booking"}
@@ -485,7 +453,7 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
                       <div className="flex items-center justify-end gap-2">
                         {shoot.paymentStatus === "pending" && (
                           <button
-                            onClick={(e) => handleActionClick(e, shoot.bookingId)}
+                            onClick={(e) => handleActionClick(e, shoot.bookingId, shoot.hasQuote)}
                             className="px-3 py-1.5 rounded-lg bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-xs font-semibold"
                           >
                             {shoot.hasQuote ? "Proceed to Payment" : "Complete Booking"}
