@@ -71,6 +71,7 @@ export default function ProductionManagerFileManagerPage() {
       items = items.filter((item) => item.isLinked);
     } else if (selectedTab === "Recent") {
       items = items.slice(0, 10);
+    }
     // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
     //   items = [];
     // }

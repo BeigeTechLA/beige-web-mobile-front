@@ -127,6 +127,7 @@ export default function SalesFolderManagerPage() {
       items = items.filter((item) => item.isLinked);
     } else if (selectedTab === "Recent") {
       items = items.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5));
+    }
     // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
     //   items = [];
     // }
