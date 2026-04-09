@@ -10,6 +10,7 @@ import UploadModal from "@/components/production-manager/file-manager/UploadFile
 import { SortDateButton } from "@/components/production-manager/SortDateButton";
 import { MobileFolderRow } from "@/components/production-manager/file-manager/MobileFolderRow";
 import { fileManagerApi, mapProjectToFolderCard, type UiFolderItem } from "@/lib/fileManagerApi";
+import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 
 import { usePathname } from "next/navigation";
 import Topbar from "@/components/production-manager/Topbar";
@@ -225,7 +226,7 @@ return (
         ) : error ? (
           <div className="text-red-300 text-sm">{error}</div>
         ) : filteredFolders.length === 0 ? (
-          <div className="text-white/60 text-sm">No folders found for this view.</div>
+           <EmptyFolderState/>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
             {filteredFolders.map((folder) => (

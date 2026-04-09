@@ -423,9 +423,11 @@ export default function ConversationComposerModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-4xl overflow-hidden rounded-[28px] border border-white/10 bg-[#090909] shadow-2xl">
+      <div className="absolute inset-0 overflow-y-auto">
+        <div className="flex min-h-full items-start justify-center p-4 pb-8 sm:p-6 sm:pb-10">
+        <div className="my-4 w-full max-w-4xl overflow-hidden rounded-[28px] border border-white/10 bg-[#090909] shadow-2xl sm:my-6">
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <div>
             <h2 className="text-2xl font-semibold text-white">Start New Conversation</h2>
@@ -674,6 +676,9 @@ export default function ConversationComposerModal({
           </div>
         </div>
       </div>
+      </div>
     </div>
+  </div>
+
   );
 }
