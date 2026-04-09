@@ -23,6 +23,22 @@ const CustomQuotesIcon = ({ size = 24 }) => (
   />
 );
 
+const CustomStudiosIcon = ({ size = 24 }) => (
+  <div
+    style={{
+      width: size,
+      height: size,
+      backgroundColor: 'currentColor',
+      WebkitMaskImage: `url('/images/misc/Studios.svg')`,
+      maskImage: `url('/images/misc/Studios.svg')`,
+      WebkitMaskRepeat: 'no-repeat',
+      maskRepeat: 'no-repeat',
+      WebkitMaskSize: 'contain',
+      maskSize: 'contain'
+    }}
+  />
+);
+
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
@@ -41,6 +57,7 @@ const menuItems = [
     ]
   },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/admin/quotes' },
+  { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studios' },
 ];
 
 type MenuItem = {
