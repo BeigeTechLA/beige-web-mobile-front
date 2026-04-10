@@ -2066,6 +2066,19 @@ export const salesApi = {
       };
     }
   },
+  getInvoiceHistory: async (params: {page?: number;limit?: number; } = {}) => {
+    try {
+      const response = await api.get('/sales/dashboard/invoice-history', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Invoice History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch invoice history',
+      };
+    }
+  },
   previewQuoteInvoice: async (quoteId: number | string) => {
     try {
       const response = await api.post<SalesQuoteInvoiceResponse>(

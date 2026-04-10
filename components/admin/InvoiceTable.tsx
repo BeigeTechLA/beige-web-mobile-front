@@ -1,0 +1,313 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { Download, Loader2 } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { useTheme } from "next-themes";
+import { salesApi } from "@/lib/api";
+import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
+
+interface InvoiceHistoryItem {
+  invoice_send_history_id: number;
+  lead_id: number | null;
+  client_lead_id: number | null;
+  booking_id: number | null;
+  quote_id: number | null;
+  quote_number: string | null;
+  client_name: string | null;
+  client_email: string | null;
+  send_date_time: string | null;
+  payment_status: string | null;
+  invoice_number: string | null;
+  invoice_url: string | null;
+  invoice_pdf: string | null;
+  sent_by: string | null;
+  sales_rep?: {
+    id: number;
+    name: string;
+  } | null;
+  created_at: string | null;
+}
+
+interface InvoiceTableRow {
+  id: number;
+  invoiceSendHistory: string;
+  bookingId: string;
+  clientName: string;
+  clientEmail: string;
+  leadOrQuoteId: string;
+  paymentStatus: string;
+  sendDateLabel: string;
+  sendDateRaw: number;
+  invoicePdf: string | null;
+}
+
+const normalizeStatus = (status: string | null) => {
+  if (!status) return "Unknown";
+
+  return status
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const formatDateLabel = (dateValue: string | null) => {
+  if (!dateValue) return "N/A";
+
+  const parsed = parseISO(dateValue);
+  if (!Number.isFinite(parsed.getTime())) return "N/A";
+
+  return format(parsed, "MMM dd, yyyy hh:mm a");
+};
+
+const getDateValue = (dateValue: string | null) => {
+  if (!dateValue) return 0;
+
+  const parsed = parseISO(dateValue);
+  return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
+};
+
+const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
+  if (item.quote_id) {
+    return `Quote Id : ${item.quote_id}`;
+  }
+
+  if (item.lead_id) {
+    return `Lead Id : ${item.lead_id}`;
+  }
+  
+  return "N/A";
+};
+
+export const InvoiceTable = () => {
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rows, setRows] = useState<InvoiceTableRow[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 20;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const fetchInvoiceHistory = async () => {
+      setLoading(true);
+
+      try {
+        const response = await salesApi.getInvoiceHistory({
+          page: currentPage,
+          limit: itemsPerPage,
+        });
+
+        const items: InvoiceHistoryItem[] = response?.data?.items || [];
+        const pagination = response?.data?.pagination;
+
+        const mappedRows = items.map((item) => {
+          const sendDate = item.send_date_time || item.created_at;
+
+          return {
+            id: item.invoice_send_history_id,
+            invoiceSendHistory: String(item.invoice_send_history_id ?? "N/A"),
+            bookingId: item.booking_id ? `#${item.booking_id}` : "N/A",
+            clientName: item.client_name || "N/A",
+            clientEmail: item.client_email || "N/A",
+            leadOrQuoteId: getLeadOrQuoteValue(item),
+            paymentStatus: normalizeStatus(item.payment_status),
+            sendDateLabel: formatDateLabel(sendDate),
+            sendDateRaw: getDateValue(sendDate),
+            invoicePdf: item.invoice_pdf,
+          };
+        });
+
+        setRows(mappedRows);
+        setTotalPages(pagination?.total_pages || 1);
+        setTotalItems(pagination?.total || mappedRows.length);
+      } catch (error) {
+        console.error("Failed to fetch invoice history:", error);
+        setRows([]);
+        setTotalPages(1);
+        setTotalItems(0);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvoiceHistory();
+  }, [currentPage]);
+
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+
+  const handleDownload = (invoicePdf: string | null) => {
+    if (!invoicePdf || typeof window === "undefined") return;
+
+    const link = document.createElement("a");
+    link.href = invoicePdf;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.download = "";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  if (!mounted) {
+    return null;
+  }
+
+  return (
+    <div
+      className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`}
+      style={{ fontFamily: "var(--font-instrument-sans)" }}
+    >
+      {loading ? (
+        <div className="text-center py-20">
+          <div className="flex justify-center items-center">
+            <Loader2 className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`} size={32} />
+          </div>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className={`py-20 text-center ${isDark ? "text-white/50" : "text-[#999]"}`}>No invoice history found.</div>
+      ) : (
+        <>
+          <div className={`lg:hidden divide-y ${isDark ? "divide-[#222222]" : "divide-[#F3F3F3]"}`}>
+            {rows.map((row) => (
+              <div key={row.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                      Send History #{row.invoiceSendHistory}
+                    </p>
+                    <p className={`text-sm mt-1 ${isDark ? "text-white/70" : "text-[#555]"}`}>{row.sendDateLabel}</p>
+                  </div>
+                  <LeadsStatusBadge status={row.paymentStatus} />
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 text-sm">
+                  <div>
+                    <p className={isDark ? "text-white/40" : "text-[#888]"}>Booking ID</p>
+                    <p className={isDark ? "text-white/80" : "text-[#333]"}>{row.bookingId}</p>
+                  </div>
+                  <div>
+                    <p className={isDark ? "text-white/40" : "text-[#888]"}>Client Name</p>
+                    <p className={isDark ? "text-white/80" : "text-[#333]"}>{row.clientName}</p>
+                  </div>
+                  <div>
+                    <p className={isDark ? "text-white/40" : "text-[#888]"}>Email</p>
+                    <p className={`break-all ${isDark ? "text-white/80" : "text-[#333]"}`}>{row.clientEmail}</p>
+                  </div>
+                  <div>
+                    <p className={isDark ? "text-white/40" : "text-[#888]"}>Lead ID/Quote ID</p>
+                    <p className={isDark ? "text-white/80" : "text-[#333]"}>{row.leadOrQuoteId}</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(row.invoicePdf)}
+                    disabled={!row.invoicePdf}
+                    className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
+                  >
+                    <Download size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden lg:block w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className={`text-base font-medium border-b leading-none tracking-normal transition-colors duration-300 ${isDark ? "text-[#E8D1AB] border-[#333333]" : "text-[#000000] border-[#E5E5E5] bg-[#FFFCF6]"}`}>
+                  <th className="py-5 px-6 font-medium">Send History</th>
+                  <th className="py-5 px-6 font-medium">Booking ID</th>
+                  <th className="py-5 px-6 font-medium">Client Name</th>
+                  <th className="py-5 px-6 font-medium">Email</th>
+                  <th className="py-5 px-6 font-medium">Lead ID/Quote ID</th>
+                  <th className="py-5 px-6 font-medium">Status</th>
+                  <th className="py-5 px-6 font-medium text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className={`border-b transition-colors last:border-0 ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
+                  >
+                    <td className="py-5 px-6">
+                      <div>
+                        <p className={`text-base ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.invoiceSendHistory}</p>
+                      </div>
+                    </td>
+                    <td className={`py-5 px-6 text-base ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.bookingId}</td>
+                    <td className={`py-5 px-6 text-base ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.clientName}</td>
+                    <td className={`py-5 px-6 text-base break-all ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.clientEmail}</td>
+                    <td className={`py-5 px-6 text-base ${isDark ? "text-[#666666]" : "text-[#999]"}`}>{row.leadOrQuoteId}</td>
+                    <td className="py-5 px-6">
+                      <LeadsStatusBadge status={row.paymentStatus} />
+                    </td>
+                    <td className="py-5 px-6 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(row.invoicePdf)}
+                        disabled={!row.invoicePdf}
+                        className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
+                        aria-label="Download invoice pdf"
+                        title="Download invoice pdf"
+                      >
+                        <Download size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {!loading && rows.length > 0 && (
+        <div className={`flex justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
+          <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
+            Showing page {currentPage} of {totalPages} ({totalItems} total entries)
+          </div>
+
+          <div className="flex gap-2 items-center ml-auto">
+            <button
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
+            >
+              Previous
+            </button>
+            <div className="flex gap-1">
+              {Array.from({ length: totalPages }, (_, index) => index + 1)
+                .slice(Math.max(0, currentPage - 2), Math.min(totalPages, currentPage + 1))
+                .map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page ? (isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black") : (isDark ? "text-white/60 hover:bg-white/5" : "text-[#666] hover:bg-zinc-100")}`}
+                  >
+                    {page}
+                  </button>
+                ))}
+             </div>
+            <button
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

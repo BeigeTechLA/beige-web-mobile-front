@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight, X, MapPinHouse } from "lucide-react";
+import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Loader2, ChevronDown, ChevronUp, Check, Calendar, ChevronLeft, ChevronRight, X, MapPinHouse } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import DottedDivider from "@/components/admin/DottedDivider";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import { ContentTypeCheckbox } from "@/components/book-a-shoot/v3/components/ContentTypeCheckbox";
-import { MultiSelectDropdown } from "@/components/book-a-shoot";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
@@ -45,6 +44,7 @@ import {
   behindScenesPhotoEditTypes,
 } from "@/app/data/shootData";
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
+import { getPhotoEditSummary, getTotalDurationHours } from "@/components/book-a-shoot/v3/utils";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
@@ -126,6 +126,7 @@ export default function ClientDetailPage() {
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
+  const [openEditPanel, setOpenEditPanel] = useState<"video" | "photo" | null>(null);
 
   // 1. Fetch Client Lead Details
   const { data: leadData, isLoading: isLeadLoading } = useGetClientLeadByIdQuery(parseInt(leadId), { skip: !leadId });
@@ -571,6 +572,92 @@ export default function ClientDetailPage() {
     const minKey = format(minTime, "HH:mm");
     return timeOptions.filter((opt) => opt.key >= minKey);
   }, [selectedShootDate, timeOptions]);
+
+  const buildEditCounts = (keys: string[]) =>
+    keys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+  const getEditSummaryItems = (
+    counts: Record<string, number>,
+    options: { key: string; value: string }[]
+  ) =>
+    Object.entries(counts).map(([key, count]) => ({
+      key,
+      count,
+      label: options.find((option) => option.key === key)?.value || key,
+    }));
+
+  const videoEditCounts = useMemo(
+    () => buildEditCounts(formData.videoEditTypes),
+    [formData.videoEditTypes]
+  );
+
+  const photoEditCounts = useMemo(
+    () => buildEditCounts(formData.photoEditTypes),
+    [formData.photoEditTypes]
+  );
+
+  const videoEditSummaryItems = useMemo(
+    () => getEditSummaryItems(videoEditCounts, videoEditTypeOptions),
+    [videoEditCounts, videoEditTypeOptions]
+  );
+
+  const photoEditSummaryItems = useMemo(
+    () => getEditSummaryItems(photoEditCounts, photoEditTypeOptions),
+    [photoEditCounts, photoEditTypeOptions]
+  );
+
+  const totalDurationHours = useMemo(
+    () =>
+      getTotalDurationHours(
+        formData.bookingType,
+        formData.startDate,
+        formData.endDate,
+        formData.bookingDays
+      ),
+    [formData.bookingType, formData.startDate, formData.endDate, formData.bookingDays]
+  );
+
+  const selectedPhotoEditSets = useMemo(
+    () => Object.values(photoEditCounts).reduce((sum, count) => sum + count, 0),
+    [photoEditCounts]
+  );
+
+  const photoEditSummary = useMemo(
+    () =>
+      getPhotoEditSummary({
+        shootType: formData.shootType,
+        durationHours: totalDurationHours,
+        selectedAddOnSets: selectedPhotoEditSets,
+      }),
+    [formData.shootType, totalDurationHours, selectedPhotoEditSets]
+  );
+
+  const updateEditQuantity = (type: "video" | "photo", key: string, nextQty: number) => {
+    const base = type === "video" ? formData.videoEditTypes : formData.photoEditTypes;
+    const cleaned = base.filter((value) => value !== key);
+    const next =
+      nextQty > 0 ? [...cleaned, ...Array.from({ length: nextQty }, () => key)] : cleaned;
+
+    if (type === "video") {
+      updateData({ videoEditTypes: next });
+    } else {
+      updateData({ photoEditTypes: next });
+    }
+  };
+
+  const isVideoEditOpen = openEditPanel === "video";
+  const isPhotoEditOpen = openEditPanel === "photo";
+
+  const handleVideoEditToggle = () => {
+    setOpenEditPanel((prev) => (prev === "video" ? null : "video"));
+  };
+
+  const handlePhotoEditToggle = () => {
+    setOpenEditPanel((prev) => (prev === "photo" ? null : "photo"));
+  };
 
   const handleExtraTeamChange = (id: string, delta: number) => {
     const nextExtra = { ...extraTeam };
@@ -1215,7 +1302,14 @@ export default function ClientDetailPage() {
           </h3>
           <div className="flex gap-4">
             <button
-              onClick={() => { updateData({ editsNeeded: true }); scrollToRef(navigationRef); }}
+              onClick={() => {
+                updateData({ editsNeeded: true });
+                if (!openEditPanel) {
+                  if (formData.contentType.includes("videographer")) setOpenEditPanel("video");
+                  else if (formData.contentType.includes("photographer")) setOpenEditPanel("photo");
+                }
+                scrollToRef(navigationRef);
+              }}
               disabled={formData.shootType === ""}
               className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${formData.editsNeeded
                 ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
@@ -1227,7 +1321,11 @@ export default function ClientDetailPage() {
               </div>
             </button>
             <button
-              onClick={() => { updateData({ editsNeeded: false }); scrollToRef(navigationRef); }}
+              onClick={() => {
+                setOpenEditPanel(null);
+                updateData({ editsNeeded: false, videoEditTypes: [], photoEditTypes: [] });
+                scrollToRef(navigationRef);
+              }}
               disabled={formData.shootType === ""}
               className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${!formData.editsNeeded
                 ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
@@ -1242,31 +1340,129 @@ export default function ClientDetailPage() {
 
           {formData.editsNeeded && (
             <div className="animate-in slide-in-from-top-4 duration-300 mt-4 lg:mt-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
                 {formData.contentType.includes("videographer") && videoEditTypeOptions.length > 0 && (
-                  <MultiSelectDropdown
-                    title="Video Edit Type"
-                    options={videoEditTypeOptions}
-                    value={formData.videoEditTypes}
-                    onChange={(values) => updateData({ videoEditTypes: values })}
-                    bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
-                    isDark={isDark}
-                  />
+                  <div className={`self-start rounded-[24px] border overflow-hidden ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-black/10 shadow-sm"}`}>
+                    <button
+                      type="button"
+                      className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                      onClick={handleVideoEditToggle}
+                    >
+                      <div className="min-w-0 flex flex-1 items-center gap-3">
+                        <p className={`shrink-0 text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Video Edit Type</p>
+                        {videoEditSummaryItems.length > 0 && (
+                          <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                            {videoEditSummaryItems.map((item) => (
+                              <span
+                                key={item.key}
+                                className={`inline-flex max-w-full items-center gap-1 rounded-[10px] px-3 py-1.5 text-xs lg:text-sm ${isDark ? "bg-[#2A2A2A] text-white" : "bg-[#F4F5F7] text-black"}`}
+                              >
+                                <span className="truncate max-w-[160px]">{item.label}</span>
+                                <span className={`${isDark ? "text-white/60" : "text-black/60"}`}>x{item.count}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {isVideoEditOpen ? (
+                        <ChevronUp className={`${isDark ? "text-white" : "text-black"} flex-shrink-0`} />
+                      ) : (
+                        <ChevronDown className={`${isDark ? "text-white" : "text-black"} flex-shrink-0`} />
+                      )}
+                    </button>
+                    {isVideoEditOpen && (
+                      <div className={`px-4 py-2 border-t ${isDark ? "border-white/10" : "border-black/10"}`}>
+                        {videoEditTypeOptions.map((option) => {
+                          const count = videoEditCounts[option.key] || 0;
+                          return (
+                            <div
+                              key={option.key}
+                              className={`flex items-center justify-between gap-4 py-3 border-b last:border-0 ${isDark ? "border-white/10" : "border-black/10"}`}
+                            >
+                              <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-black"}`}>{option.value}</span>
+                              <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                <QuantityControl
+                                  value={count}
+                                  onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                                  onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )}
                 {formData.contentType.includes("photographer") && photoEditTypeOptions.length > 0 && (
-                  <div>
-                    <MultiSelectDropdown
-                      title="Photo Edit Type"
-                      options={photoEditTypeOptions}
-                      value={formData.photoEditTypes}
-                      onChange={(values) => updateData({ photoEditTypes: values })}
-                      bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
-                      isDark={isDark}
-                    />
-                    {photoEditNote && (
-                      <div className={`mt-3 flex items-start gap-2 text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#919191]"}`}>
-                        <Info size={16} className="mt-0.5 flex-shrink-0" />
-                        <span>{photoEditNote}</span>
+                  <div className={`self-start rounded-[24px] border overflow-hidden ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-black/10 shadow-sm"}`}>
+                    <button
+                      type="button"
+                      className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                      onClick={handlePhotoEditToggle}
+                    >
+                      <div className="min-w-0 flex flex-1 items-center gap-3">
+                        <p className={`shrink-0 text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Photo Edit Type</p>
+                        {photoEditSummaryItems.length > 0 && (
+                          <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                            {photoEditSummaryItems.map((item) => (
+                              <span
+                                key={item.key}
+                                className={`inline-flex max-w-full items-center gap-1 rounded-[10px] px-3 py-1.5 text-xs lg:text-sm ${isDark ? "bg-[#2A2A2A] text-white" : "bg-[#F4F5F7] text-black"}`}
+                              >
+                                <span className="truncate max-w-[160px]">{item.label}</span>
+                                <span className={`${isDark ? "text-white/60" : "text-black/60"}`}>x{item.count}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {isPhotoEditOpen ? (
+                        <ChevronUp className={`${isDark ? "text-white" : "text-black"} flex-shrink-0`} />
+                      ) : (
+                        <ChevronDown className={`${isDark ? "text-white" : "text-black"} flex-shrink-0`} />
+                      )}
+                    </button>
+                    {isPhotoEditOpen && (
+                      <div className={`px-4 py-2 border-t ${isDark ? "border-white/10" : "border-black/10"}`}>
+                        {photoEditTypeOptions.map((option) => {
+                          const count = photoEditCounts[option.key] || 0;
+                          return (
+                            <div
+                              key={option.key}
+                              className={`flex items-center justify-between gap-4 py-3 border-b last:border-0 ${isDark ? "border-white/10" : "border-black/10"}`}
+                            >
+                              <div>
+                                <div className={`text-sm lg:text-base ${isDark ? "text-white" : "text-black"}`}>{option.value}</div>
+                                <div className={`${isDark ? "text-white/40" : "text-black/40"} text-xs mt-1`}>+25 Photos Per Set</div>
+                              </div>
+                              <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                <QuantityControl
+                                  value={count}
+                                  onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                                  onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {photoEditNote && (
+                          <div className={`pt-3 pb-2 flex items-start gap-2 text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#919191]"}`}>
+                            <Info size={16} className="mt-0.5 flex-shrink-0" />
+                            <span>{photoEditNote}</span>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-3 pt-2 pb-3">
+                          <div className={`rounded-xl px-4 py-3 text-sm ${isDark ? "bg-[#211F1C] text-[#E8D1AB]" : "bg-[#F4F5F7] text-black/80"}`}>
+                            Includes {photoEditSummary.includedCount} free photo edits
+                          </div>
+                          <div className={`rounded-xl px-4 py-3 text-sm font-medium ${isDark ? "bg-white text-[#171717]" : "bg-black text-white"}`}>
+                            {totalDurationHours} Hour Duration
+                          </div>
+                          <div className={`rounded-xl px-4 py-3 text-sm ${isDark ? "bg-[#211F1C] text-[#E8D1AB]" : "bg-[#F4F5F7] text-black/80"}`}>
+                            + {photoEditSummary.extraCount} Added Extra
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
