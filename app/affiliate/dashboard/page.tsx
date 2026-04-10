@@ -3,8 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import Cookies from "js-cookie";
-import { format } from "date-fns";
 
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
@@ -13,9 +11,7 @@ import { AffiliateOverallShootsTable } from "@/components/affiliate/AffiliateOve
 import AffiliateShootByCategory from "@/components/affiliate/AffiliateShootByCategory";
 import { AffiliateShootStatusChart } from "@/components/affiliate/AffiliateShootStatusChart";
 import AffiliateRecentActivity from "@/components/affiliate/AffiliateRecentActivity";
-import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { affiliateApi } from "@/lib/api";
 
 export default function AffiliateDashboardPage() {
   const { theme } = useTheme();
@@ -24,8 +20,6 @@ export default function AffiliateDashboardPage() {
 
   const [mounted, setMounted] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isCheckingEmptyState, setIsCheckingEmptyState] = useState(true);
-  const [hasDashboardData, setHasDashboardData] = useState(true);
 
   useEffect(() => setMounted(true), []);
 
@@ -34,51 +28,6 @@ export default function AffiliateDashboardPage() {
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
   };
-
-  useEffect(() => {
-    let active = true;
-
-    const checkDashboardData = async () => {
-      const token = Cookies.get("revure_token");
-      if (!token) {
-        if (active) {
-          setHasDashboardData(false);
-          setIsCheckingEmptyState(false);
-        }
-        return;
-      }
-
-      try {
-        setIsCheckingEmptyState(true);
-
-        const params: any = { range: "all" };
-        if (selectedDate) {
-          params.date_on = format(selectedDate, "yyyy-MM-dd");
-        }
-
-        const response = await affiliateApi.getDashboardSummary(token, params);
-        const totalShoots = Number(response?.data?.total_shoots?.count || 0);
-
-        if (active) {
-          setHasDashboardData(totalShoots > 0);
-        }
-      } catch (error) {
-        if (active) {
-          setHasDashboardData(true);
-        }
-      } finally {
-        if (active) {
-          setIsCheckingEmptyState(false);
-        }
-      }
-    };
-
-    checkDashboardData();
-
-    return () => {
-      active = false;
-    };
-  }, [selectedDate]);
 
   return (
     <>
@@ -113,34 +62,27 @@ export default function AffiliateDashboardPage() {
           />
         </div>
 
-        {!isCheckingEmptyState && !hasDashboardData ? (
-          <EmptyFileState
-            title="No Dashboard Data"
-            description="No shoots found for the selected date range yet. Once shoots are added, your dashboard insights will appear here."
-          />
-        ) : (
-          <>
-            <AffiliateOverviewChart externalSelectedDate={selectedDate} />
+        <>
+          <AffiliateOverviewChart externalSelectedDate={selectedDate} />
 
-            <div className="flex flex-col lg:flex-row gap-4 mt-5">
-              <div className="lg:w-3/4 flex flex-col gap-4">
-                <AffiliateOverallShootsTable externalSelectedDate={selectedDate} />
-              </div>
-              <div className="lg:w-1/4">
-                <AffiliateShootByCategory externalSelectedDate={selectedDate} />
-              </div>
+          <div className="flex flex-col lg:flex-row gap-4 mt-5">
+            <div className="lg:w-3/4 flex flex-col gap-4">
+              <AffiliateOverallShootsTable externalSelectedDate={selectedDate} />
             </div>
+            <div className="lg:w-1/4">
+              <AffiliateShootByCategory externalSelectedDate={selectedDate} />
+            </div>
+          </div>
 
-            <div className="flex flex-col lg:flex-row gap-4 mt-5">
-              <div className="lg:w-3/4">
-                <AffiliateShootStatusChart externalSelectedDate={selectedDate} />
-              </div>
-              <div className="lg:w-1/4">
-                <AffiliateRecentActivity externalSelectedDate={selectedDate} />
-              </div>
+          <div className="flex flex-col lg:flex-row gap-4 mt-5">
+            <div className="lg:w-3/4">
+              <AffiliateShootStatusChart externalSelectedDate={selectedDate} />
             </div>
-          </>
-        )}
+            <div className="lg:w-1/4">
+              <AffiliateRecentActivity externalSelectedDate={selectedDate} />
+            </div>
+          </div>
+        </>
       </div>
     </>
   );

@@ -20,8 +20,9 @@ import { MobileShootRow } from "../admin/shoot-details/MobileShootRow";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { parseISO } from "date-fns";
+import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils/projectTimeline";
 
-type Status = "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Pending" | "Cancelled" | "Unknown";
+type Status = "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Pending" | "Cancelled" | "Unknown";
 
 interface ShootRecord {
   id: string;
@@ -37,15 +38,6 @@ interface ShootRecord {
   hasQuote: boolean;
   paymentStatus: "paid" | "pending";
 }
-
-const STATUS_LABEL_MAP: Record<number, string> = {
-  0: "Initiated",
-  1: "PreProduction",
-  2: "PostProduction",
-  3: "Revision",
-  4: "Completed",
-  5: "Cancelled",
-};
 
 interface AffiliateShootsTableProps {
   onShootClick?: (shootId: string) => void;
@@ -115,7 +107,9 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
           const hasQuote = project.quote_id !== null && project.quote_id !== undefined;
-          const statusLabel = hasQuote ? (STATUS_LABEL_MAP[project.status] || "Unknown") : "Pending";
+          const statusLabel = hasQuote
+            ? timelineStageToDashboardLabel(resolveTimelineStage(project))
+            : "Pending";
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 

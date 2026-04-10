@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils"
+import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
 
 interface ShootHeaderProps {
   activeTab?: string;
@@ -38,6 +39,9 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
   const folderLink = getProjectFolderLink(project);
   const projectTimeText = getProjectTimeText(project);
   const shootFilesText = getShootFilesText(project);
+  const resolvedStatusLabel =
+    project?.timeline_label ||
+    timelineStageToHeaderLabel(resolveTimelineStage(project));
 
   if (!mounted) return null;
 
@@ -94,7 +98,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
                 {project?.skills_needed && project.skills_needed !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({project.skills_needed})</span>}
               </h1>
               <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
-                {project?.status !== undefined ? (["Initiated", "Pre Production", "Post Production", "Revision", "Completed", "Cancelled"][project.status] || "Unknown") : "Pending"}
+                {resolvedStatusLabel || "Pending"}
               </span>
             </div>
             <p className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line leading-relaxed ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>

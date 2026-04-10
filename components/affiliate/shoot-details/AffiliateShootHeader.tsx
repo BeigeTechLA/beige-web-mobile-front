@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import { cn, getInitials } from "@/lib/utils";
 import { getPaymentStatusMeta, getProjectTimeText } from "@/lib/utils/shootDetails";
 import { fileManagerApi } from "@/lib/fileManagerApi";
+import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
 
 interface AffiliateShootHeaderProps {
   activeTab?: string;
@@ -29,6 +30,9 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
       : "No files available";
+  const resolvedStatusLabel =
+    project?.timeline_label ||
+    timelineStageToHeaderLabel(resolveTimelineStage(project));
 
   React.useEffect(() => {
     setMounted(true);
@@ -153,7 +157,7 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
                 {project?.project_name || "Untitled Project"}
               </h1>
               <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
-                {project?.status !== undefined ? (["Initiated", "Pre-Production", "Post-Production", "Revision", "Completed", "Cancelled"][project.status] || "Unknown") : "Pending"}
+                {resolvedStatusLabel || "Pending"}
               </span>
             </div>
             {project?.skills_needed && project.skills_needed !== "N/A" && (
