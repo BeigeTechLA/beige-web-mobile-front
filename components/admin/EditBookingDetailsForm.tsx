@@ -9,7 +9,6 @@ import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Check, C
 
 import { Button } from "@/components/ui/button";
 import { ContentTypeCheckbox } from "@/components/book-a-shoot/v3/components/ContentTypeCheckbox";
-import { MultiSelectDropdown } from "@/components/book-a-shoot";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
@@ -41,12 +40,13 @@ import {
 } from "@/app/data/shootData";
 
 import { BookingDataV3, initialDataV3 } from "@/components/book-a-shoot/v3";
+import { getPhotoEditSummary, getTotalDurationHours } from "@/components/book-a-shoot/v3/utils";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdown";
-import { useUpdateLeadBookingMutation, useUpdateClientLeadBookingMutation } from "@/lib/redux/features/sales/salesApi";
+import { useUpdateLeadBookingMutation } from "@/lib/redux/features/sales/salesApi";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import { getFormattedDateString } from "@/lib/utils";
 
@@ -83,6 +83,7 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
   const [videoEditTypeOptions, setVideoEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
+  const [openEditPanel, setOpenEditPanel] = useState<"video" | "photo" | null>(null);
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
   const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>({});
@@ -99,13 +100,70 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
   const dragStartX = useRef(0);
   const dragStartScrollLeft = useRef(0);
 
-  const [updateLeadBooking, { isLoading: isUpdatingInitial }] = useUpdateLeadBookingMutation();
-  const [updateClientLeadBooking, { isLoading: isUpdatingClient }] = useUpdateClientLeadBookingMutation();
-  const isUpdating = isUpdatingInitial || isUpdatingClient;
+  const [updateLeadBooking, { isLoading: isUpdating }] = useUpdateLeadBookingMutation();
+
+  const normalizeArrayField = (value: unknown): string[] => {
+    if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item) => String(item).trim()).filter(Boolean);
+        }
+      } catch {
+        // Fallback to comma-separated values
+      }
+      return trimmed.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+    return [];
+  };
 
   const updateData = useCallback((newData: Partial<BookingDataV3>) => {
     setFormData((prev) => ({ ...prev, ...newData }));
   }, []);
+
+  const buildEditCounts = (keys: string[]) =>
+    keys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+  const getEditSummaryItems = (
+    counts: Record<string, number>,
+    options: { key: string; value: string }[]
+  ) =>
+    Object.entries(counts).map(([key, count]) => ({
+      key,
+      count,
+      label: options.find((option) => option.key === key)?.value || key,
+    }));
+
+  const videoEditCounts = useMemo(
+    () => buildEditCounts(formData.videoEditTypes || []),
+    [formData.videoEditTypes]
+  );
+  const photoEditCounts = useMemo(
+    () => buildEditCounts(formData.photoEditTypes || []),
+    [formData.photoEditTypes]
+  );
+  const videoEditSummaryItems = useMemo(
+    () => getEditSummaryItems(videoEditCounts, videoEditTypeOptions),
+    [videoEditCounts, videoEditTypeOptions]
+  );
+  const photoEditSummaryItems = useMemo(
+    () => getEditSummaryItems(photoEditCounts, photoEditTypeOptions),
+    [photoEditCounts, photoEditTypeOptions]
+  );
+
+  const updateEditQuantity = (type: "video" | "photo", key: string, nextQty: number) => {
+    const base = type === "video" ? (formData.videoEditTypes || []) : (formData.photoEditTypes || []);
+    const cleaned = base.filter((k) => k !== key);
+    const next = nextQty > 0 ? [...cleaned, ...Array.from({ length: nextQty }, () => key)] : cleaned;
+    if (type === "video") updateData({ videoEditTypes: next });
+    else updateData({ photoEditTypes: next });
+  };
 
   // Generate time options
   useEffect(() => {
@@ -200,6 +258,19 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
 
       setFormData((prev) => {
         const contentTypeRaw = b.content_type || b.event_type || b.skills_needed || "";
+        const normalizedBookingDays = Array.isArray(b.booking_days)
+          ? b.booking_days
+              .map((day: any) => ({
+                date: day?.date || day?.event_date || null,
+                start_time: (day?.start_time || day?.startTime || "").slice(0, 8),
+                end_time: (day?.end_time || day?.endTime || "").slice(0, 8),
+              }))
+              .filter((day: any) => day.date)
+          : [];
+        const isMultiDayBooking =
+          b.booking_type === "multi_day" ||
+          normalizedBookingDays.length > 1 ||
+          (Boolean(b.is_multiple_day_shoot) && normalizedBookingDays.length > 0);
 
         return {
           ...prev,
@@ -209,8 +280,8 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
           startDate: (start && !isNaN(start.getTime())) ? format(start, "yyyy-MM-dd HH:mm:ss") : "",
           endDate: (end && !isNaN(end.getTime())) ? format(end, "yyyy-MM-dd HH:mm:ss") : "",
           editsNeeded: b.edits_needed ?? true,
-          videoEditTypes: b.video_edit_types || [],
-          photoEditTypes: b.photo_edit_types || [],
+          videoEditTypes: normalizeArrayField(b.video_edit_types),
+          photoEditTypes: normalizeArrayField(b.photo_edit_types),
           location: b.event_location || b.location || "",
           crewCount: b.crew_size_needed || b.crew_size || 0,
           selectedCrewIds: b.selected_crew_ids ||
@@ -220,22 +291,36 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
           fullName: initialBookingData.client_name || initialBookingData.user?.name || b.project_name || "",
           email: initialBookingData.guest_email || initialBookingData.user?.email || b.guest_email || "",
           phone: initialBookingData.user?.phone_number || "",
-          bookingType: b.booking_type || "single_day",
-          bookingDays: b.booking_days || []
+          bookingType: isMultiDayBooking ? "multi_day" : "single_day",
+          bookingDays: normalizedBookingDays
         }
       });
 
-      if (b.booking_type === "multi_day" && b.booking_days) {
+      const normalizedBookingDays = Array.isArray(b.booking_days)
+        ? b.booking_days
+            .map((day: any) => ({
+              date: day?.date || day?.event_date || null,
+              start_time: (day?.start_time || day?.startTime || "").slice(0, 8),
+              end_time: (day?.end_time || day?.endTime || "").slice(0, 8),
+            }))
+            .filter((day: any) => day.date)
+        : [];
+      const shouldInitMultiDay =
+        b.booking_type === "multi_day" ||
+        normalizedBookingDays.length > 1 ||
+        (Boolean(b.is_multiple_day_shoot) && normalizedBookingDays.length > 0);
+
+      if (shouldInitMultiDay && normalizedBookingDays.length > 0) {
         setBookingType("multi_day");
-        const dates = b.booking_days.map((d: any) => new Date(d.date + "T00:00:00"));
+        const dates = normalizedBookingDays.map((d: any) => new Date(`${d.date}T00:00:00`));
         setSelectedDates(dates);
 
         const times: Record<string, { startKey?: string; endKey?: string }> = {};
         let allSame = true;
-        let firstStart = b.booking_days[0]?.start_time?.slice(0, 5);
-        let firstEnd = b.booking_days[0]?.end_time?.slice(0, 5);
+        const firstStart = normalizedBookingDays[0]?.start_time?.slice(0, 5);
+        const firstEnd = normalizedBookingDays[0]?.end_time?.slice(0, 5);
 
-        b.booking_days.forEach((d: any) => {
+        normalizedBookingDays.forEach((d: any) => {
           const s = d.start_time?.slice(0, 5);
           const e = d.end_time?.slice(0, 5);
           times[d.date] = { startKey: s, endKey: e };
@@ -510,6 +595,7 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
       payload.end_time = endTime;
       payload.start_date_time = formData.startDate;
       payload.duration_hours = duration;
+      payload.booking_days = [];
     } else {
       payload.booking_days = (formData.bookingDays || []).map((d: any) => ({
         ...d,
@@ -519,8 +605,8 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
 
     try {
       if (leadId) {
-        await updateClientLeadBooking({
-          lead_id: typeof leadId === 'string' ? parseInt(leadId) : leadId,
+        await updateLeadBooking({
+          booking_id: typeof leadId === 'string' ? parseInt(leadId) : leadId,
           payload
         }).unwrap();
       } else if (formData.bookingId) {
@@ -542,6 +628,32 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
 
   const availableRolesToAdd = TEAM_ROLES.filter(role => formData.contentType.includes(role.id as any));
   const shootTypeOptions = useMemo(() => availableShootTypes.map((shoot) => ({ value: shoot.key, label: shoot.title })), [availableShootTypes]);
+  const durationHours = useMemo(
+    () =>
+      getTotalDurationHours(
+        bookingType,
+        formData.startDate,
+        formData.endDate,
+        (formData.bookingDays || []).map((day: any) => ({
+          startTime: day?.start_time?.slice(0, 5),
+          endTime: day?.end_time?.slice(0, 5),
+        }))
+      ),
+    [bookingType, formData.startDate, formData.endDate, formData.bookingDays]
+  );
+  const photoEditAddOnSets = useMemo(
+    () => (formData.photoEditTypes || []).filter((type) => type === "edited_photos").length,
+    [formData.photoEditTypes]
+  );
+  const photoEditSummary = useMemo(
+    () =>
+      getPhotoEditSummary({
+        shootType: formData.shootType,
+        durationHours,
+        selectedAddOnSets: photoEditAddOnSets,
+      }),
+    [formData.shootType, durationHours, photoEditAddOnSets]
+  );
 
   const videographerTarget = useMemo(() => formData.contentType.includes("videographer") ? (extraTeam["videographer"] || 0) + 1 : 0, [formData.contentType, extraTeam]);
   const photographerTarget = useMemo(() => formData.contentType.includes("photographer") ? (extraTeam["photographer"] || 0) + 1 : 0, [formData.contentType, extraTeam]);
@@ -887,13 +999,97 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
         {formData.editsNeeded && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 animate-in slide-in-from-top-4 duration-300">
             {formData.contentType.includes("videographer") && videoEditTypeOptions.length > 0 && (
-              <MultiSelectDropdown title="Video Edit Type" options={videoEditTypeOptions} value={formData.videoEditTypes} onChange={(v) => updateData({ videoEditTypes: v })} bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
-                isDark={isDark} />
+              <div className={`self-start rounded-2xl border overflow-hidden ${isDark ? "border-white/10 bg-[#171717]" : "border-black/10 bg-white"}`}>
+                <button
+                  type="button"
+                  className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left"
+                  onClick={() => setOpenEditPanel((prev) => (prev === "video" ? null : "video"))}
+                >
+                  <div className="min-w-0 flex items-center gap-3">
+                    <div className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Video Edits</div>
+                    {videoEditSummaryItems.length > 0 && (
+                      <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                        {videoEditSummaryItems.map((item) => (
+                          <span key={item.key} className={`inline-flex max-w-full items-center gap-1 rounded-md px-3 py-1.5 text-xs ${isDark ? "bg-[#2A2A2A] text-white" : "bg-black/5 text-black"}`}>
+                            <span className="truncate max-w-[180px]">{item.label}</span>
+                            <span className={`${isDark ? "text-white/50" : "text-black/50"}`}>x{item.count}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <ChevronDown className={`shrink-0 transition-transform ${openEditPanel === "video" ? "rotate-180" : ""} ${isDark ? "text-white" : "text-black"}`} />
+                </button>
+                {openEditPanel === "video" && (
+                  <div className={`border-t px-5 py-3 ${isDark ? "border-white/10" : "border-black/10"}`}>
+                    {videoEditTypeOptions.map((option) => {
+                      const count = videoEditCounts[option.key] || 0;
+                      return (
+                        <div key={option.key} className={`flex items-center justify-between gap-4 py-4 border-b last:border-b-0 ${isDark ? "border-white/10" : "border-black/10"}`}>
+                          <div className={`text-sm lg:text-base ${isDark ? "text-white" : "text-black"}`}>{option.value}</div>
+                          <QuantityControl
+                            value={count}
+                            onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                            onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
             {formData.contentType.includes("photographer") && photoEditTypeOptions.length > 0 && (
               <div>
-                <MultiSelectDropdown title="Photo Edit Type" options={photoEditTypeOptions} value={formData.photoEditTypes} onChange={(v) => updateData({ photoEditTypes: v })} bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
-                isDark={isDark} />
+                <div className={`self-start rounded-2xl border overflow-hidden ${isDark ? "border-white/10 bg-[#171717]" : "border-black/10 bg-white"}`}>
+                  <button
+                    type="button"
+                    className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left"
+                    onClick={() => setOpenEditPanel((prev) => (prev === "photo" ? null : "photo"))}
+                  >
+                    <div className="min-w-0 flex items-center gap-3">
+                      <div className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Photo Edits</div>
+                      {photoEditSummaryItems.length > 0 && (
+                        <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                          {photoEditSummaryItems.map((item) => (
+                            <span key={item.key} className={`inline-flex max-w-full items-center gap-1 rounded-md px-3 py-1.5 text-xs ${isDark ? "bg-[#2A2A2A] text-white" : "bg-black/5 text-black"}`}>
+                              <span className="truncate max-w-[180px]">{item.label}</span>
+                              <span className={`${isDark ? "text-white/50" : "text-black/50"}`}>x{item.count}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <ChevronDown className={`shrink-0 transition-transform ${openEditPanel === "photo" ? "rotate-180" : ""} ${isDark ? "text-white" : "text-black"}`} />
+                  </button>
+                  {openEditPanel === "photo" && (
+                    <div className={`border-t px-5 py-3 ${isDark ? "border-white/10" : "border-black/10"}`}>
+                      {photoEditTypeOptions.map((option) => {
+                        const count = photoEditCounts[option.key] || 0;
+                        return (
+                          <div key={option.key} className={`flex items-center justify-between gap-4 py-4 border-b last:border-b-0 ${isDark ? "border-white/10" : "border-black/10"}`}>
+                            <div className={`text-sm lg:text-base ${isDark ? "text-white" : "text-black"}`}>{option.value}</div>
+                            <QuantityControl
+                              value={count}
+                              onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                              onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3 mt-3">
+                  <div className={`rounded-xl px-4 py-3 text-sm ${isDark ? "bg-[#211F1C] text-[#E8D1AB]" : "bg-white text-[#323232]"}`}>
+                    Includes {photoEditSummary.includedCount} free photo edits
+                  </div>
+                  {photoEditSummary.extraCount > 0 && (
+                    <div className={`rounded-xl px-4 py-3 text-sm ${isDark ? "bg-[#211F1C] text-[#E8D1AB]" : "bg-white text-[#323232]"}`}>
+                      + {photoEditSummary.extraCount} Added Extra
+                    </div>
+                  )}
+                </div>
                 {photoEditNote && <div className={`mt-3 flex items-start gap-2 text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#919191]"}`}><Info size={16} className="mt-0.5 flex-shrink-0" /><span>{photoEditNote}</span></div>}
               </div>
             )}

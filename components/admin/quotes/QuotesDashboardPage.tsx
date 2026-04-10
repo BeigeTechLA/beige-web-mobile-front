@@ -104,9 +104,15 @@ type DisplayQuoteRow = {
   statusColor: string;
   validUntil: string;
   salesperson: string;
+  salespersonId: string;
   salespersonKey: string;
   createdAtRaw: string;
   searchValue: string;
+};
+
+type SalesRepOption = {
+  id: string;
+  name: string;
 };
 
 type QuoteListPaginationState = {
@@ -417,7 +423,6 @@ const getSelectedStatForStatus = (statusFilter: string) => {
     case "confirmed":
       return "Accepted Quotes";
     case "pending":
-    case "sent":
       return "Pending Quotes";
     case "draft":
       return "Draft Quotes";
@@ -431,14 +436,18 @@ const getSelectedStatForStatus = (statusFilter: string) => {
   }
 };
 
-const normalizeStatusForChart = (statusKey: string): keyof Omit<ChartPoint, "name"> => {
+const normalizeStatusForChart = (
+  statusKey: string
+): keyof Omit<ChartPoint, "name"> | null => {
   switch (statusKey) {
     case "accepted":
     case "confirmed":
       return "accepted";
     case "pending":
-    case "sent":
       return "pending";
+    case "sent":
+    case "viewed":
+      return null;
     case "rejected":
     case "cancelled":
       return "rejected";
@@ -553,7 +562,12 @@ const buildQuoteChartData = (
     }
 
     point.total += 1;
-    point[normalizeStatusForChart(getText(quote.quote_status, quote.status, "draft").toLowerCase())] += 1;
+    const chartStatusKey = normalizeStatusForChart(
+      getText(quote.quote_status, quote.status, "draft").toLowerCase()
+    );
+    if (chartStatusKey) {
+      point[chartStatusKey] += 1;
+    }
   });
 
   return buckets.map((bucket) => chartMap.get(bucket.key) ?? createEmptyChartPoint(bucket.name));
@@ -759,6 +773,9 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     statusColor: getStatusColor(statusKey),
     validUntil: formatDate(getText(quote.valid_until, quote.expires_at)),
     salesperson,
+    salespersonId: String(
+      quote.assigned_sales_rep?.id ?? quote.created_by?.id ?? ""
+    ),
     salespersonKey: salesperson.toLowerCase(),
     createdAtRaw: getText(quote.created_at, quote.updated_at),
     searchValue: [
@@ -795,6 +812,7 @@ export default function QuotesDashboardPage({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
+  const [salespersonOptions, setSalespersonOptions] = useState<SalesRepOption[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
@@ -810,19 +828,59 @@ export default function QuotesDashboardPage({
   }, [selectedDate]);
 
   useEffect(() => {
+    const fetchSalesReps = async () => {
+      const response = await salesApi.getSalesReps();
+      if (!response?.success || !Array.isArray(response.data)) {
+        setSalespersonOptions([]);
+        return;
+      }
+
+      setSalespersonOptions(
+        response.data
+          .map((salesRep) => ({
+            id: String(salesRep?.id ?? "").trim(),
+            name: String(salesRep?.name ?? "").trim(),
+          }))
+          .filter((salesRep) => salesRep.id && salesRep.name)
+      );
+    };
+
+    void fetchSalesReps();
+  }, []);
+
+  useEffect(() => {
     const fetchQuotesData = async () => {
       setLoading(true);
 
       try {
         const effectiveRange = selectedDate ? "custom" : chartRange;
+        const effectiveDateOn = selectedDate
+          ? formatDateFns(selectedDate, "yyyy-MM-dd")
+          : undefined;
         const dashboardParams = {
           range: effectiveRange,
-          ...(selectedDate ? { date_on: formatDateFns(selectedDate, "yyyy-MM-dd") } : {}),
+          ...(effectiveDateOn ? { date_on: effectiveDateOn } : {}),
+          ...(selectedStatusFilter !== "all" ? { status: selectedStatusFilter } : {}),
+          ...(selectedSalesperson !== "all"
+            ? { assigned_sales_rep_id: selectedSalesperson }
+            : {}),
         };
 
         const [dashboardResponse, listResponse] = await Promise.all([
           salesApi.getQuotesDashboard(dashboardParams),
-          salesApi.getQuotesList({ page: 1, limit: 1000 }),
+          salesApi.getQuotesList({
+            page: currentPage,
+            limit: QUOTES_PER_PAGE,
+            ...(searchTerm.trim() ? { search: searchTerm.trim() } : {}),
+            ...(selectedStatusFilter !== "all"
+              ? { status: selectedStatusFilter }
+              : {}),
+            ...(selectedSalesperson !== "all"
+              ? { assigned_sales_rep_id: selectedSalesperson }
+              : {}),
+            range: effectiveRange,
+            ...(effectiveDateOn ? { date_on: effectiveDateOn } : {}),
+          }),
         ]);
 
         const normalizedListState = listResponse.success
@@ -845,7 +903,14 @@ export default function QuotesDashboardPage({
     };
 
     fetchQuotesData();
-  }, [chartRange, selectedDate]);
+  }, [
+    chartRange,
+    currentPage,
+    searchTerm,
+    selectedDate,
+    selectedSalesperson,
+    selectedStatusFilter,
+  ]);
 
   const handleUnsupportedQuoteAction = (
     actionLabel: "Duplicate" | "Edit" | "Reject Quote"
@@ -951,7 +1016,7 @@ export default function QuotesDashboardPage({
         ((rowStatusSummary.accepted ?? 0) + (rowStatusSummary.confirmed ?? 0)),
       pending_quotes:
         getOptionalNumber(quoteSummary.pending_quotes, quoteSummary.pending) ??
-        ((rowStatusSummary.pending ?? 0) + (rowStatusSummary.sent ?? 0)),
+        (rowStatusSummary.pending ?? 0),
       draft_quotes:
         getOptionalNumber(quoteSummary.draft_quotes, quoteSummary.draft) ??
         (rowStatusSummary.draft ?? 0),
@@ -1010,18 +1075,23 @@ export default function QuotesDashboardPage({
     [activeChartRange, quotes, selectedDate]
   );
 
-  const dashboardChartFallback = useMemo<ChartPoint[]>(
+  const dashboardChartData = useMemo<ChartPoint[]>(
     () =>
       (activeChartRange === "all" ? (dashboardData?.chart ?? []).slice(-6) : dashboardData?.chart ?? []).map((item, index) => ({
         ...createEmptyChartPoint(item.label || `Item ${index + 1}`),
         total: Number(item.quote_count ?? 0),
+        accepted: Number(item.accepted_count ?? 0),
+        pending: Number(item.pending_count ?? 0),
+        draft: Number(item.draft_count ?? 0),
+        rejected: Number(item.rejected_count ?? 0),
+        expired: Number(item.expired_count ?? 0),
       })),
     [activeChartRange, dashboardData]
   );
 
   const displayChartData = useMemo(
     () =>
-      derivedChartData.some(
+      dashboardChartData.some(
         (point) =>
           point.total > 0 ||
           point.accepted > 0 ||
@@ -1030,9 +1100,9 @@ export default function QuotesDashboardPage({
           point.rejected > 0 ||
           point.expired > 0
       )
-        ? derivedChartData
-        : dashboardChartFallback,
-    [dashboardChartFallback, derivedChartData]
+        ? dashboardChartData
+        : derivedChartData,
+    [dashboardChartData, derivedChartData]
   );
 
   const hasChartData = useMemo(
@@ -1040,73 +1110,37 @@ export default function QuotesDashboardPage({
     [activeChartMetric, displayChartData]
   );
 
-  const salespersonOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          displayQuotesData
-            .map((quote) => quote.salesperson)
-            .filter((salesperson) => salesperson && salesperson !== "N/A")
-        )
-      ).sort((left, right) => left.localeCompare(right)),
-    [displayQuotesData]
-  );
-
   const statusOptions = useMemo(
     () =>
-      Array.from(
-        new Set([
-          "accepted",
-          "pending",
-          "draft",
-          "rejected",
-          ...displayQuotesData.map((quote) => quote.statusKey),
-        ])
-      )
-        .filter(Boolean)
-        .sort((left, right) => left.localeCompare(right)),
+      [
+        "accepted",
+        "draft",
+        "pending",
+        "rejected",
+        "sent",
+        ...displayQuotesData
+          .map((quote) => quote.statusKey)
+          .filter((status) =>
+            !["accepted", "draft", "pending", "rejected", "sent"].includes(status)
+          ),
+      ].filter((status, index, array) => Boolean(status) && array.indexOf(status) === index),
     [displayQuotesData]
   );
 
-  const filteredQuotesData = useMemo(() => {
-    const trimmedSearch = searchTerm.trim().toLowerCase();
-
-    return displayQuotesData.filter((quote) => {
-      if (trimmedSearch && !quote.searchValue.includes(trimmedSearch)) {
-        return false;
-      }
-
-      if (selectedSalesperson !== "all" && quote.salespersonKey !== selectedSalesperson) {
-        return false;
-      }
-
-      if (!matchesStatusFilter(quote.statusKey, selectedStatusFilter)) {
-        return false;
-      }
-
-      if (selectedDate) {
-        const quoteDate = parseDateValue(quote.createdAtRaw);
-        if (!quoteDate || quoteDate.toDateString() !== selectedDate.toDateString()) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [displayQuotesData, searchTerm, selectedDate, selectedSalesperson, selectedStatusFilter]);
+  const filteredQuotesData = useMemo(() => displayQuotesData, [displayQuotesData]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedDate, selectedSalesperson, selectedStatusFilter]);
+  }, [chartRange, searchTerm, selectedDate, selectedSalesperson, selectedStatusFilter]);
 
-  const totalFilteredQuotes = filteredQuotesData.length;
-  const totalListPages = Math.max(1, Math.ceil(totalFilteredQuotes / QUOTES_PER_PAGE));
-  const safeCurrentPage = Math.min(currentPage, totalListPages);
-  const listStartIndex = totalFilteredQuotes === 0 ? 0 : (safeCurrentPage - 1) * QUOTES_PER_PAGE;
-  const paginatedQuotesData = filteredQuotesData.slice(
-    listStartIndex,
-    listStartIndex + QUOTES_PER_PAGE
-  );
+  const totalFilteredQuotes = quotePagination?.total ?? filteredQuotesData.length;
+  const totalListPages = Math.max(1, quotePagination?.totalPages ?? 1);
+  const safeCurrentPage = quotePagination?.page ?? Math.min(currentPage, totalListPages);
+  const listStartIndex =
+    totalFilteredQuotes === 0
+      ? 0
+      : (safeCurrentPage - 1) * (quotePagination?.limit ?? QUOTES_PER_PAGE);
+  const paginatedQuotesData = filteredQuotesData;
   const paginationItems = buildPaginationItems(safeCurrentPage, totalListPages);
 
   useEffect(() => {
@@ -1393,8 +1427,8 @@ export default function QuotesDashboardPage({
                   >
                     <SelectItem value="all">All Salesperson</SelectItem>
                     {salespersonOptions.map((salesperson) => (
-                      <SelectItem key={salesperson} value={salesperson.toLowerCase()}>
-                        {salesperson}
+                      <SelectItem key={salesperson.id} value={salesperson.id}>
+                        {salesperson.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
