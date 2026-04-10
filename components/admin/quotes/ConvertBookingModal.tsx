@@ -29,7 +29,7 @@ import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/com
 
 export type ConvertBookingModalSubmitData = {
   bookingType: "single_day" | "multi_day";
-  location: string;
+  location?: string;
   singleDay?: {
     date: string;
     startTime: string;
@@ -59,6 +59,7 @@ type ConvertBookingModalProps = {
   title?: string;
   description?: string;
   submitLabel?: string;
+  showLocationField?: boolean;
 };
 
 export default function ConvertBookingModal({
@@ -69,8 +70,9 @@ export default function ConvertBookingModal({
   isDark,
   initialData,
   title = "Convert to Booking",
-  description = "Select booking type, shoot date and time, and location before continuing.",
+  description = "Select booking type, shoot date and time before continuing.",
   submitLabel = "Convert to Booking",
+  showLocationField = true,
 }: ConvertBookingModalProps) {
   const [validationErrors, setValidationErrors] = useState({
     location: false,
@@ -378,7 +380,7 @@ export default function ConvertBookingModal({
       multiTimes: false,
     };
 
-    if (!trimmedLocation) {
+    if (showLocationField && !trimmedLocation) {
       nextErrors.location = true;
       setValidationErrors(nextErrors);
       toast.error("Required Field", {
@@ -387,7 +389,7 @@ export default function ConvertBookingModal({
       return false;
     }
 
-    if (trimmedLocation.length < 3) {
+    if (showLocationField && trimmedLocation.length < 3) {
       nextErrors.location = true;
       setValidationErrors(nextErrors);
       toast.error("Invalid Input", {
@@ -913,28 +915,30 @@ export default function ConvertBookingModal({
             )}
           </div>
 
-          <div className="my-4 lg:my-9">
-            <h3 className={`mb-6 text-base font-medium lg:text-xl ${isDark ? "text-white" : "text-black/90"}`}>
-              Location
-            </h3>
-            <LocationPicker
-              value={location}
-              onChange={(address) => {
-                setLocation(address);
-                setValidationErrors((prev) => ({ ...prev, location: false }));
-              }}
-              placeholder="Search for a location"
-              colors={validationErrors.location ? {
-                ...(isDark ? darkThemeColors : {}),
-                inputBorder: "#ef4444",
-                inputBorderHover: "#ef4444",
-                inputBorderFocus: "#ef4444",
-                labelText: "#ef4444",
-                errorText: "#ef4444",
-              } : isDark ? darkThemeColors : undefined}
-              hasError={validationErrors.location}
-            />
-          </div>
+          {showLocationField ? (
+            <div className="my-4 lg:my-9">
+              <h3 className={`mb-6 text-base font-medium lg:text-xl ${isDark ? "text-white" : "text-black/90"}`}>
+                Location
+              </h3>
+              <LocationPicker
+                value={location}
+                onChange={(address) => {
+                  setLocation(address);
+                  setValidationErrors((prev) => ({ ...prev, location: false }));
+                }}
+                placeholder="Search for a location"
+                colors={validationErrors.location ? {
+                  ...(isDark ? darkThemeColors : {}),
+                  inputBorder: "#ef4444",
+                  inputBorderHover: "#ef4444",
+                  inputBorderFocus: "#ef4444",
+                  labelText: "#ef4444",
+                  errorText: "#ef4444",
+                } : isDark ? darkThemeColors : undefined}
+                hasError={validationErrors.location}
+              />
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-end">
@@ -956,7 +960,7 @@ export default function ConvertBookingModal({
               if (bookingType === "single_day") {
                 onSubmit({
                   bookingType,
-                  location: location.trim(),
+                  ...(showLocationField ? { location: location.trim() } : {}),
                   singleDay: {
                     date: selectedShootDate ? getDateKey(selectedShootDate) : "",
                     startTime: getStartTimeKey(),
@@ -968,7 +972,7 @@ export default function ConvertBookingModal({
 
               onSubmit({
                 bookingType,
-                location: location.trim(),
+                ...(showLocationField ? { location: location.trim() } : {}),
                 multiDay: {
                   sameTimings: sameTimingsMulti,
                   sharedStartTime: sameTimingsMulti ? sharedMultiStartTime : undefined,

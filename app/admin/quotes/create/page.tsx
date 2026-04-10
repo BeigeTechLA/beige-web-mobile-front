@@ -23,6 +23,9 @@ import {
   Percent,
   DollarSign,
   ArrowLeft,
+  Eye,
+  Loader2,
+  Mail,
 } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
@@ -36,16 +39,28 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import DottedDivider from "@/components/admin/DottedDivider";
+import ConvertBookingModal, {
+  type ConvertBookingModalSubmitData,
+} from "@/components/admin/quotes/ConvertBookingModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import QuoteSummaryModal from "@/components/quotes/QuoteSummaryModal";
-import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
+import {
+  LocationPicker,
+  darkThemeColors,
+} from "@/src/components/booking/v2/component/LocationPicker";
+import {
+  salesApi,
+  type SalesQuoteConvertToBookingPayload,
+  type SalesQuoteDetailData,
+} from "@/lib/api";
 import {
   extractQuoteLineItems,
   formatQuoteItemDisplayName,
+  getQuoteText,
   getQuoteLineItemEditingTypeConfiguration,
   getQuoteLineItemEditingTypeLabel,
 } from "@/lib/quoteDetail";
@@ -71,6 +86,7 @@ import {
   extractQuoteIdFromResponse,
   unwrapSalesQuoteDetail,
 } from "@/lib/salesQuotePreview";
+import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
@@ -268,6 +284,25 @@ const parseCurrencyInput = (value: string) => {
   const sanitizedValue = sanitizeCurrencyInput(value);
   const parsedValue = Number.parseFloat(sanitizedValue);
   return Number.isFinite(parsedValue) ? parsedValue : 0;
+};
+
+const mergeCatalogItemsById = <T extends { id: string }>(
+  primaryItems: T[],
+  secondaryItems: T[],
+) => {
+  const existingIds = new Set(primaryItems.map((item) => item.id));
+  const mergedItems = [...primaryItems];
+
+  secondaryItems.forEach((item) => {
+    if (existingIds.has(item.id)) {
+      return;
+    }
+
+    existingIds.add(item.id);
+    mergedItems.push(item);
+  });
+
+  return mergedItems;
 };
 
 const pickFirstClientValue = (
@@ -840,6 +875,8 @@ export default function CreateQuotePage() {
   );
   const quoteEditReturnHref =
     returnToParam && returnToParam.startsWith("/") ? returnToParam : null;
+  const paidQuoteRedirectHref = quoteEditReturnHref ||
+    (editQuoteId ? `/admin/quotes/${encodeURIComponent(editQuoteId)}` : "/admin/quotes");
 
   // Using a Record so it works for multiple rows/items in a list
   const [inputValue, setInputValue] = useState<Record<string, string>>({});
@@ -910,6 +947,7 @@ export default function CreateQuotePage() {
   const [customAddonCost, setCustomAddonCost] = useState("");
 
   // Step 4: Logistics State
+  const [selectedLogistics, setSelectedLogistics] = useState<string[]>([]);
   const [logisticsItems, setLogisticsItems] = useState<any[]>([]);
   const [logisticsConfigs, setLogisticsConfigs] = useState<
     Record<string, { price: number }>
@@ -993,6 +1031,14 @@ export default function CreateQuotePage() {
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isQuoteSaved, setIsQuoteSaved] = useState(false);
+  const [isViewingInvoice, setIsViewingInvoice] = useState(false);
+  const [isSendingInvoice, setIsSendingInvoice] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+  const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+  const [convertIntent, setConvertIntent] = useState<"convert_only" | "send_invoice">("convert_only");
+  const [convertedBookingIdOverride, setConvertedBookingIdOverride] =
+    useState<string | null>(null);
+  const [isConvertedOverride, setIsConvertedOverride] = useState(false);
   const [quoteSummarySnapshot, setQuoteSummarySnapshot] =
     useState<QuoteSummarySnapshot | null>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
@@ -1001,11 +1047,17 @@ export default function CreateQuotePage() {
   const [isLoadingQuoteToEdit, setIsLoadingQuoteToEdit] = React.useState(false);
   const [isHydratingQuoteToEdit, setIsHydratingQuoteToEdit] =
     React.useState(false);
+  const isPaidQuoteEdit =
+    isEditMode &&
+    ["paid"].includes(
+      getQuoteText(quoteToEdit?.quote_status, quoteToEdit?.status).trim().toLowerCase()
+    );
   const [isCatalogLoaded, setIsCatalogLoaded] = React.useState(false);
   const hydratedQuoteIdRef = React.useRef<string | null>(null);
   const hydratingQuoteIdRef = React.useRef<string | null>(null);
   const servicesRef = React.useRef(services);
   const addonsRef = React.useRef(addons);
+  const selectedLogisticsRef = React.useRef(selectedLogistics);
   const logisticsItemsRef = React.useRef(logisticsItems);
   const lineItemsRef = React.useRef(lineItems);
   const editingTypeOptionsRef = React.useRef(editingTypeOptions);
@@ -1075,10 +1127,11 @@ export default function CreateQuotePage() {
   React.useEffect(() => {
     servicesRef.current = services;
     addonsRef.current = addons;
+    selectedLogisticsRef.current = selectedLogistics;
     logisticsItemsRef.current = logisticsItems;
     lineItemsRef.current = lineItems;
     editingTypeOptionsRef.current = editingTypeOptions;
-  }, [addons, editingTypeOptions, lineItems, logisticsItems, services]);
+  }, [addons, editingTypeOptions, lineItems, logisticsItems, selectedLogistics, services]);
 
   const fetchShootTypes = React.useCallback(
     async (
@@ -1301,6 +1354,17 @@ export default function CreateQuotePage() {
           return;
         }
 
+        const normalizedQuoteStatus = getQuoteText(
+          quoteDetail.quote_status,
+          quoteDetail.status,
+        ).trim().toLowerCase();
+
+        if (normalizedQuoteStatus === "paid") {
+          toast.error("Paid quotes cannot be edited.");
+          router.replace(paidQuoteRedirectHref);
+          return;
+        }
+
         setQuoteToEdit(quoteDetail);
       } catch (error) {
         console.error("Failed to load quote for edit", error);
@@ -1327,7 +1391,7 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [editQuoteId]);
+  }, [editQuoteId, paidQuoteRedirectHref, router]);
 
   React.useEffect(() => {
     if (!editQuoteId || !quoteToEdit || !isCatalogLoaded) {
@@ -1389,7 +1453,10 @@ export default function CreateQuotePage() {
         setSelectedAddons(hydratedState.selectedAddons);
         setAddonConfigs(hydratedState.addonConfigs);
         setAppliedAddonConfigs(hydratedState.appliedAddonConfigs);
-        setLogisticsItems(hydratedState.logisticsItems);
+        setLogisticsItems((prev) =>
+          mergeCatalogItemsById(prev, hydratedState.logisticsItems),
+        );
+        setSelectedLogistics(hydratedState.logisticsItems.map((item) => item.id));
         setLogisticsConfigs(hydratedState.logisticsConfigs);
         setAppliedLogisticsConfigs(hydratedState.appliedLogisticsConfigs);
         setLineItems(hydratedState.lineItems);
@@ -1755,8 +1822,8 @@ export default function CreateQuotePage() {
     handleAddonConfigUpdate(addonId, "price", nextPrice);
   };
 
-  const removeLogisticsItem = (itemId: string) => {
-    setLogisticsItems((prev) => prev.filter((item) => item.id !== itemId));
+  const removeSelectedLogistics = (itemId: string) => {
+    setSelectedLogistics((prev) => prev.filter((id) => id !== itemId));
     setLogisticsConfigs((prev) => {
       const newConfigs = { ...prev };
       delete newConfigs[itemId];
@@ -1767,6 +1834,39 @@ export default function CreateQuotePage() {
       delete newConfigs[itemId];
       return newConfigs;
     });
+    setInputValue((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  const toggleSelectedLogistics = (itemId: string) => {
+    const isSelected = selectedLogistics.includes(itemId);
+
+    if (isSelected) {
+      removeSelectedLogistics(itemId);
+      return;
+    }
+
+    const logisticsItem = logisticsItems.find((item) => item.id === itemId);
+    if (!logisticsItem) return;
+
+    const initialConfig = { price: logisticsItem.basePrice };
+    setSelectedLogistics((prev) => [...prev, itemId]);
+    setLogisticsConfigs((prev) => ({
+      ...prev,
+      [itemId]: prev[itemId] ?? initialConfig,
+    }));
+    setAppliedLogisticsConfigs((prev) => ({
+      ...prev,
+      [itemId]: prev[itemId] ?? initialConfig,
+    }));
+  };
+
+  const removeLogisticsItem = (itemId: string) => {
+    setLogisticsItems((prev) => prev.filter((item) => item.id !== itemId));
+    removeSelectedLogistics(itemId);
   };
 
   const applyLogisticsChanges = (itemId: string, itemLabel: string) => {
@@ -2388,7 +2488,10 @@ export default function CreateQuotePage() {
     if (!config) return total;
     return total + config.quantity * config.price;
   }, 0);
-  const totalLogisticsCost = logisticsItems.reduce((total, item) => {
+  const selectedLogisticsItems = selectedLogistics
+    .map((itemId) => logisticsItems.find((item) => item.id === itemId))
+    .filter((item): item is (typeof logisticsItems)[number] => Boolean(item));
+  const totalLogisticsCost = selectedLogisticsItems.reduce((total, item) => {
     const config = appliedLogisticsConfigs[item.id];
     if (!config) return total;
     return total + config.price;
@@ -2525,7 +2628,7 @@ export default function CreateQuotePage() {
     selectedShootType: quoteDraftSelectedShootType,
     selectedServices,
     selectedAddons,
-    logisticsItems,
+    logisticsItems: selectedLogisticsItems,
     lineItems,
     discountEnabled,
     discountValue,
@@ -2544,6 +2647,22 @@ export default function CreateQuotePage() {
   const editQuoteDetailsHref = editQuoteId
     ? `/admin/quotes/${encodeURIComponent(editQuoteId)}`
     : "/admin/quotes";
+  const resolvedInvoiceQuoteId = effectiveQuoteId ? String(effectiveQuoteId) : null;
+  const convertedBookingId = React.useMemo(() => {
+    if (convertedBookingIdOverride) {
+      return convertedBookingIdOverride;
+    }
+
+    const bookingId = quoteToEdit?.booking_id ?? previewQuote?.booking_id;
+    if (bookingId === undefined || bookingId === null || !String(bookingId).trim()) {
+      return null;
+    }
+
+    return String(bookingId);
+  }, [convertedBookingIdOverride, previewQuote, quoteToEdit]);
+  const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId);
+  const showInvoiceActions = view === "tax" && isQuoteSaved && Boolean(resolvedInvoiceQuoteId);
+  const showPreviewAction = view === "tax";
 
   const getQuoteDraftPayload = (maxStep?: typeof view) =>
     buildQuoteDraftPayload({
@@ -2571,7 +2690,7 @@ export default function CreateQuotePage() {
       selectedAddons,
       addons,
       appliedAddonConfigs,
-      logisticsItems,
+      logisticsItems: selectedLogisticsItems,
       appliedLogisticsConfigs,
       lineItems,
       appliedLineItemConfigs,
@@ -2604,7 +2723,7 @@ export default function CreateQuotePage() {
       selectedAddons,
       addons,
       appliedAddonConfigs,
-      logisticsItems,
+      logisticsItems: selectedLogisticsItems,
       appliedLogisticsConfigs,
       lineItems,
       appliedLineItemConfigs,
@@ -2638,7 +2757,7 @@ export default function CreateQuotePage() {
         selectedAddons,
         addons,
         appliedAddonConfigs,
-        logisticsItems,
+        logisticsItems: selectedLogisticsItems,
         appliedLogisticsConfigs,
         lineItems,
         appliedLineItemConfigs,
@@ -2669,7 +2788,7 @@ export default function CreateQuotePage() {
       selectedAddons,
       addons,
       appliedAddonConfigs,
-      logisticsItems,
+      logisticsItems: selectedLogisticsItems,
       appliedLogisticsConfigs,
       lineItems,
       appliedLineItemConfigs,
@@ -2682,6 +2801,12 @@ export default function CreateQuotePage() {
     action: "preview" | "save" | "draft",
     options?: { suppressRedirect?: boolean; openPreview?: boolean },
   ) => {
+    if (isPaidQuoteEdit) {
+      toast.error("Paid quotes cannot be edited.");
+      router.replace(paidQuoteRedirectHref);
+      return;
+    }
+
     if (isCreatingQuoteDraft) return;
 
     const isUpdatingExistingQuote = Boolean(effectiveQuoteId);
@@ -2869,6 +2994,12 @@ export default function CreateQuotePage() {
       return;
     }
 
+    if (isPaidQuoteEdit) {
+      toast.error("Paid quotes cannot be edited.");
+      router.replace(paidQuoteRedirectHref);
+      return;
+    }
+
     if (!currentStepValidation.isValid) {
       toast.error(getQuoteValidationMessage(currentStepValidation));
       return;
@@ -2947,6 +3078,211 @@ export default function CreateQuotePage() {
 
     setQuoteSummarySnapshot(getQuoteSummarySnapshot());
     setIsSummaryModalOpen(true);
+  };
+
+  const handleViewInvoice = async () => {
+    if (!resolvedInvoiceQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (!isConvertedToBooking) {
+      toast.error("Convert this quote to a booking before viewing the invoice.");
+      return;
+    }
+
+    setIsViewingInvoice(true);
+    try {
+      const response = await salesApi.previewQuoteInvoice(resolvedInvoiceQuoteId);
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string" ? response.error : "Failed to preview invoice"
+        );
+      }
+
+      const hostedInvoiceUrl = response.data?.invoiceUrl || null;
+      const invoicePdfUrl = response.data?.invoicePdf || null;
+      const invoiceBookingId =
+        response.data?.booking_id !== undefined &&
+        response.data?.booking_id !== null &&
+        String(response.data.booking_id).trim()
+          ? String(response.data.booking_id)
+          : convertedBookingId;
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/"
+      ).replace(/\/$/, "");
+      const proxiedPdfUrl = invoiceBookingId
+        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?t=${Date.now()}`
+        : null;
+      const proxiedDownloadUrl = invoiceBookingId
+        ? `${apiBase}/sales/invoice-pdf/${invoiceBookingId}?download=1&t=${Date.now()}`
+        : null;
+
+      if (!hostedInvoiceUrl && !invoicePdfUrl) {
+        throw new Error("Invoice preview URL is not available");
+      }
+
+      if (hostedInvoiceUrl) {
+        window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+      }
+
+      if (invoicePdfUrl) {
+        const link = document.createElement("a");
+        if (!proxiedDownloadUrl && !proxiedPdfUrl) {
+          throw new Error("Invoice PDF URL is not available");
+        }
+        link.href = proxiedDownloadUrl || proxiedPdfUrl || invoicePdfUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.click();
+      }
+
+      toast.success("Invoice opened successfully");
+    } catch (error) {
+      console.error("Failed to preview invoice", error);
+      toast.error(error instanceof Error ? error.message : "Failed to preview invoice");
+    } finally {
+      setIsViewingInvoice(false);
+    }
+  };
+
+  const sendQuoteInvoiceRequest = async () => {
+    if (!resolvedInvoiceQuoteId) {
+      toast.error("Quote id is missing.");
+      return false;
+    }
+
+    setIsSendingInvoice(true);
+    try {
+      const response = await salesApi.sendQuoteInvoice(resolvedInvoiceQuoteId);
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string" ? response.error : "Failed to send quote invoice"
+        );
+      }
+
+      if (response?.data?.booking_id) {
+        setConvertedBookingIdOverride(String(response.data.booking_id));
+        setIsConvertedOverride(true);
+      }
+
+      toast.success(response?.message || "Invoice sent successfully");
+      return true;
+    } catch (error) {
+      console.error("Failed to send quote invoice", error);
+      toast.error(error instanceof Error ? error.message : "Failed to send quote invoice");
+      return false;
+    } finally {
+      setIsSendingInvoice(false);
+    }
+  };
+
+  const handleSendInvoice = async () => {
+    if (!resolvedInvoiceQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (!isConvertedToBooking || !convertedBookingId) {
+      setConvertIntent("send_invoice");
+      setIsConvertModalOpen(true);
+      return;
+    }
+
+    await sendQuoteInvoiceRequest();
+  };
+
+  const handleConvertBookingSubmit = async (
+    bookingData: ConvertBookingModalSubmitData,
+  ) => {
+    if (!resolvedInvoiceQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    setIsConverting(true);
+    try {
+      const browserTimeZone = getBrowserTimeZone();
+      let payload: SalesQuoteConvertToBookingPayload;
+
+      if (bookingData.bookingType === "single_day") {
+        if (!bookingData.singleDay) {
+          throw new Error("Single day booking data is missing.");
+        }
+
+        payload = {
+          booking_type: "single_day",
+          time_zone: browserTimeZone,
+          start_date: bookingData.singleDay.date,
+          start_time: `${bookingData.singleDay.startTime}:00`,
+          end_time: `${bookingData.singleDay.endTime}:00`,
+        };
+      } else {
+        if (!bookingData.multiDay) {
+          throw new Error("Multi day booking data is missing.");
+        }
+
+        payload = {
+          booking_type: "multi_day",
+          time_zone: browserTimeZone,
+          booking_days: bookingData.multiDay.days.map((day) => ({
+            date: day.date,
+            start_time: `${day.startTime}:00`,
+            end_time: `${day.endTime}:00`,
+          })),
+        };
+      }
+
+      const response = await salesApi.convertQuoteToBooking(
+        resolvedInvoiceQuoteId,
+        payload,
+      );
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to convert quote to booking",
+        );
+      }
+
+      const bookingId = response?.data?.booking_id;
+      const nextBookingId =
+        bookingId !== undefined && bookingId !== null && String(bookingId).trim()
+          ? String(bookingId)
+          : null;
+
+      if (nextBookingId) {
+        setConvertedBookingIdOverride(nextBookingId);
+      }
+      setIsConvertedOverride(true);
+      setQuoteToEdit((current) =>
+        current
+          ? {
+            ...current,
+            ...(nextBookingId ? { booking_id: nextBookingId } : {}),
+          }
+          : current,
+      );
+
+      toast.success(
+        `Your quote has been converted into booking${nextBookingId ? ` #${nextBookingId}` : ""}. You can continue with invoice actions now.`,
+      );
+      setIsConvertModalOpen(false);
+
+      if (convertIntent === "send_invoice") {
+        await sendQuoteInvoiceRequest();
+      }
+    } catch (error) {
+      console.error("Failed to convert quote to booking", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to convert quote to booking",
+      );
+    } finally {
+      setIsConverting(false);
+    }
   };
 
   const fetchCatalog = async () => {
@@ -3117,15 +3453,40 @@ export default function CreateQuotePage() {
             return a.originalIndex - b.originalIndex;
           });
 
-          setLogisticsItems(sortedLogistics);
+          const mergedLogistics = mergeCatalogItemsById(
+            sortedLogistics,
+            logisticsItemsRef.current,
+          );
+          const nextSelectedLogistics = selectedLogisticsRef.current.filter(
+            (itemId) => mergedLogistics.some((item) => item.id === itemId),
+          );
 
-          // Initialize logistics configs
-          const configs: Record<string, { price: number }> = {};
-          sortedLogistics.forEach((item: any) => {
-            configs[item.id] = { price: item.basePrice };
+          setLogisticsItems(mergedLogistics);
+          setSelectedLogistics(nextSelectedLogistics);
+          setLogisticsConfigs((prev) => {
+            const nextConfigs: Record<string, { price: number }> = {};
+
+            nextSelectedLogistics.forEach((itemId) => {
+              const logisticsItem = mergedLogistics.find((item) => item.id === itemId);
+              if (!logisticsItem) return;
+
+              nextConfigs[itemId] = prev[itemId] ?? { price: logisticsItem.basePrice };
+            });
+
+            return nextConfigs;
           });
-          setLogisticsConfigs(configs);
-          setAppliedLogisticsConfigs(configs);
+          setAppliedLogisticsConfigs((prev) => {
+            const nextConfigs: Record<string, { price: number }> = {};
+
+            nextSelectedLogistics.forEach((itemId) => {
+              const logisticsItem = mergedLogistics.find((item) => item.id === itemId);
+              if (!logisticsItem) return;
+
+              nextConfigs[itemId] = prev[itemId] ?? { price: logisticsItem.basePrice };
+            });
+
+            return nextConfigs;
+          });
         }
 
         const lineItemSection = LINE_ITEM_SECTION_KEYS.map(
@@ -3598,6 +3959,7 @@ export default function CreateQuotePage() {
       if (res && !res.error) {
         setCustomLogisticsName("");
         setCustomLogisticsCost("");
+        setShowAddLogisticsForm(false);
         await fetchCatalog();
       } else {
         console.error(
@@ -3900,6 +4262,75 @@ export default function CreateQuotePage() {
                 </div>
                 <hr className="border-t border-[#3D3D3D]" />
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
+                  {logisticsItems.map((item) => (
+                    <div key={item.id} className="relative">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={selectedLogistics.includes(item.id)}
+                        onClick={() => toggleSelectedLogistics(item.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            toggleSelectedLogistics(item.id);
+                          }
+                        }}
+                        className={`group relative flex h-[78px] w-full flex-col items-start overflow-hidden rounded-xl border p-5 pr-14 text-left transition-all lg:h-[98px] lg:rounded-2xl lg:p-6 ${selectedLogistics.includes(item.id)
+                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          }`}
+                      >
+                        <div className="absolute right-4 top-4 z-10 flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openEditCatalogItem(item, "logistics");
+                            }}
+                            className="text-zinc-500 hover:text-[#E8D1AB] transition-colors"
+                            title="Edit logistics"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeleteCatalogItem(item.id, "logistics");
+                            }}
+                            className="text-red-500 hover:text-red-400 transition-colors"
+                            title="Delete logistics"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        <div className="flex w-full min-w-0 items-start gap-4">
+                          <div
+                            className={`w-6 h-6 rounded-[4px] border-[1.5px] mt-0.5 flex items-center justify-center transition-all ${selectedLogistics.includes(item.id)
+                              ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                              : "border-zinc-700 bg-transparent"
+                              }`}
+                          >
+                            {selectedLogistics.includes(item.id) && (
+                              <Check size={14} strokeWidth={4} />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <div className="block w-full truncate font-medium text-base text-white leading-none">
+                              {item.label}
+                            </div>
+                            <div className="block w-full truncate text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                              ${formatAddonDisplayValue(item.basePrice)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <hr className="border-t border-[#3D3D3D]" />
+
                 <div className="p-4 lg:p-8 lg:pb-6">
                   <h3 className="lg:text-xl font-medium text-white mb-6">
                     Add Custom Logistics Item
@@ -3910,7 +4341,8 @@ export default function CreateQuotePage() {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+                        className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6"
+                      >
                         <div className="md:col-span-12 flex flex-col md:flex-row gap-6 items-end">
                           <div className="flex-1 relative w-full">
                             <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
@@ -3979,121 +4411,182 @@ export default function CreateQuotePage() {
                     className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-10 px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                   >
                     <Plus size={16} strokeWidth={3} />
-                    Add Item
+                    Add More Logistics
                   </Button>
                 </div>
-                <hr className="border-t border-[#3D3D3D]" />
 
-                <div className="space-y-4 lg:space-y-6 p-4 lg:p-8">
-                  {logisticsItems.map((item) => {
-                    const config = logisticsConfigs[item.id];
-                    const hasPendingChanges = hasPendingLogisticsChanges(
-                      item.id,
-                    );
-                    return (
-                      <div
-                        key={item.id}
-                        className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-xl p-4 lg:p-6 relative overflow-hidden"
-                      >
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                          <div className="min-w-0 flex-1 lg:flex lg:flex-col lg:justify-between lg:gap-1">
-                            <h3 className="text-sm lg:text-base font-medium text-white leading-snug break-words">
-                              {item.label}
-                            </h3>
-                            <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
-                              ${item.basePrice.toFixed(2)}
-                            </p>
-                          </div>
-
-                          <hr className="lg:hidden border-t border-[#3D3D3D]" />
-
-                          <div className="flex shrink-0 items-center gap-6">
-                            <div className="relative w-2/3 lg:w-36">
-                              <Input
-                                // value={`$ ${config?.price || 0}`}
-                                value={
-                                  inputValue[item.id] !== undefined
-                                    ? inputValue[item.id]
-                                    : `$ ${(config?.price || 0).toFixed(2)}`
-                                }
-                                onChange={(e) => {
-                                  // const val =
-                                  //   parseFloat(
-                                  //     e.target.value.replace("$ ", ""),
-                                  //   ) || 0;
-                                  // setLogisticsConfigs((prev) => ({
-                                  //   ...prev,
-                                  //   [item.id]: { price: val },
-                                  // }));
-                                  const raw = sanitizeCurrencyInput(e.target.value);
-                                  setInputValue((prev) => ({ ...prev, [item.id]: `$ ${raw}` }));
-
-                                  const numericVal = Number.parseFloat(raw);
-                                  if (!Number.isNaN(numericVal)) {
-                                    setLogisticsConfigs((prev) => ({
-                                      ...prev,
-                                      [item.id]: { ...prev[item.id], price: numericVal },
-                                    }));
-                                  }
-                                }}
-                                onBlur={() => {
-                                  setInputValue((prev) => {
-                                    const next = { ...prev };
-                                    delete next[item.id];
-                                    return next;
-                                  });
-                                }}
-                                className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
-                                inputMode="decimal"
-                              />
-                            </div>
-                            <div className="flex items-center gap-6 lg:gap-4">
-                              <button
-                                onClick={() =>
-                                  openEditCatalogItem(item, "logistics")
-                                }
-                                className="text-zinc-500 hover:text-[#E8D1AB] transition-colors"
-                                title="Edit logistics"
-                              >
-                                <Pencil size={18} />
-                              </button>
-                              <button
-                                onClick={() =>
-                                  handleDeleteCatalogItem(item.id, "logistics")
-                                }
-                                className="text-red-500 hover:text-red-400 transition-colors"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                              <button
-                                onClick={() =>
-                                  applyLogisticsChanges(item.id, item.label)
-                                }
-                                className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-700/70 hover:text-green-600"}`}
-                              >
-                                <Check size={18} strokeWidth={3} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                {selectedLogistics.length > 0 && (
+                  <>
+                    <hr className="border-t border-[#3D3D3D]" />
+                    <section className="p-4 lg:p-8">
+                      <div className="mb-4 lg:mb-7">
+                        <h2 className="text-base lg:text-xl font-medium text-white">
+                          Selected Logistics
+                        </h2>
                       </div>
-                    );
-                  })}
-                </div>
 
+                      <div className="space-y-4 lg:space-y-6">
+                        {selectedLogisticsItems.map((item) => {
+                          const config = logisticsConfigs[item.id];
+                          const hasPendingChanges = hasPendingLogisticsChanges(
+                            item.id,
+                          );
+                          if (!config) return null;
 
-                <div className="m-4 lg:m-8 mt-0 lg:mt-0 bg-[#282727] rounded-xl p-4 lg:p-6 flex justify-between items-center border border-[#FFFFFF80]/50">
-                  <span className="text-sm lg:text-xl font-medium text-[#FFF]">
-                    Total Logistics Cost
-                  </span>
-                  <span className="text-lg lg:text-2xl font-bold text-[#E8D1AB] tracking-tight">
-                    $
-                    {totalLogisticsCost.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
+                          return (
+                            <div
+                              key={item.id}
+                              className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-4 lg:p-6 relative overflow-hidden"
+                            >
+                              <div className="hidden lg:flex items-center justify-between gap-6">
+                                <div className="min-w-0 flex-1 space-y-2 pr-2">
+                                  <h3
+                                    title={item.label}
+                                    className="max-w-full truncate text-[18px] font-medium text-white leading-snug"
+                                  >
+                                    {item.label}
+                                  </h3>
+                                  <p className="text-[#F0DCB1] text-[15px] font-semibold tracking-tight leading-none">
+                                    {formatCurrency(item.basePrice)}
+                                  </p>
+                                </div>
+
+                                <div className="flex shrink-0 items-center gap-4">
+                                  <div className="relative w-[190px]">
+                                    <Input
+                                      value={
+                                        inputValue[item.id] !== undefined
+                                          ? inputValue[item.id]
+                                          : `$ ${formatAddonDisplayValue(config.price)}`
+                                      }
+                                      onChange={(e) => {
+                                        const raw = sanitizeCurrencyInput(e.target.value);
+                                        setInputValue((prev) => ({
+                                          ...prev,
+                                          [item.id]: `$ ${raw}`,
+                                        }));
+
+                                        const numericVal = Number.parseFloat(raw);
+                                        if (!Number.isNaN(numericVal)) {
+                                          setLogisticsConfigs((prev) => ({
+                                            ...prev,
+                                            [item.id]: {
+                                              ...prev[item.id],
+                                              price: numericVal,
+                                            },
+                                          }));
+                                        }
+                                      }}
+                                      onBlur={() => {
+                                        setInputValue((prev) => {
+                                          const next = { ...prev };
+                                          delete next[item.id];
+                                          return next;
+                                        });
+                                      }}
+                                      inputMode="decimal"
+                                      className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-xl text-white text-base pl-5"
+                                    />
+                                  </div>
+
+                                  <div className="flex items-center gap-5 ml-2">
+                                    <button
+                                      onClick={() => removeSelectedLogistics(item.id)}
+                                      className="text-red-500 hover:text-red-400 transition-colors"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        applyLogisticsChanges(item.id, item.label)
+                                      }
+                                      className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
+                                    >
+                                      <Check size={18} strokeWidth={3} />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col lg:hidden gap-4">
+                                <div className="space-y-1">
+                                  <h3 className="text-sm font-medium text-white leading-snug break-words">
+                                    {item.label}
+                                  </h3>
+                                  <p className="text-[#F0DCB1] text-sm font-semibold tracking-tight leading-none">
+                                    {formatCurrency(item.basePrice)}
+                                  </p>
+                                </div>
+                                <hr className="border-t border-[#3D3D3D]" />
+                                <div className="flex gap-3 items-center">
+                                  <div className="relative flex-1">
+                                    <Input
+                                      value={
+                                        inputValue[item.id] !== undefined
+                                          ? inputValue[item.id]
+                                          : `$ ${formatAddonDisplayValue(config.price)}`
+                                      }
+                                      onChange={(e) => {
+                                        const raw = sanitizeCurrencyInput(e.target.value);
+                                        setInputValue((prev) => ({
+                                          ...prev,
+                                          [item.id]: `$ ${raw}`,
+                                        }));
+
+                                        const numericVal = Number.parseFloat(raw);
+                                        if (!Number.isNaN(numericVal)) {
+                                          setLogisticsConfigs((prev) => ({
+                                            ...prev,
+                                            [item.id]: {
+                                              ...prev[item.id],
+                                              price: numericVal,
+                                            },
+                                          }));
+                                        }
+                                      }}
+                                      onBlur={() => {
+                                        setInputValue((prev) => {
+                                          const next = { ...prev };
+                                          delete next[item.id];
+                                          return next;
+                                        });
+                                      }}
+                                      inputMode="decimal"
+                                      className="h-10 bg-[#1A1A1F] border-[#3B3B46] rounded-[10px] text-white text-sm pl-4"
+                                    />
+                                  </div>
+                                  <button
+                                    onClick={() => removeSelectedLogistics(item.id)}
+                                    className="text-red-500 hover:text-red-400 transition-colors"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      applyLogisticsChanges(item.id, item.label)
+                                    }
+                                    className={`transition-colors ${hasPendingChanges ? "text-green-500 hover:text-green-400" : "text-green-500/40 hover:text-green-500/70"}`}
+                                  >
+                                    <Check size={18} strokeWidth={3} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-4 lg:mt-6 rounded-xl bg-[#2A2A2A] p-4 lg:p-6 flex items-center justify-between">
+                        <span className="text-base lg:text-xl font-medium text-white">
+                          Total Logistics
+                        </span>
+                        <span className="text-xl font-semibold tracking-tight text-[#F0DCB1]">
+                          ${formatAddonDisplayValue(totalLogisticsCost)}
+                        </span>
+                      </div>
+                    </section>
+                  </>
+                )}
               </section>
             </div>
           ) : view === "addons" ? (
@@ -5861,19 +6354,12 @@ export default function CreateQuotePage() {
                 </div>
 
                 <div className="relative">
-                  <div className={`absolute -top-3 left-4 z-10 px-2 ${isDark ? "bg-[#171717]" : "bg-white"}`}>
-                    <span className={`text-sm font-medium ${isDark ? "text-[#D3D3D3]" : "text-[#71717B]"}`}>
-                      Address*
-                    </span>
-                  </div>
-                  <Input
+                  <LocationPicker
                     value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="567 Mission Street, San Francisco, CA 94105"
-                    className={`h-16 rounded-xl transition-all pl-6 text-sm lg:text-base ${isDark
-                      ? "bg-transparent border-[#FFFFFF80] text-white placeholder-zinc-600 focus:border-[#E8D1AB]/30"
-                      : "bg-white border-[#D7D7D7] text-black placeholder:text-[#71717B] focus:border-[#E8D1AB]"
-                      }`}
+                    onChange={(selectedAddress) => setAddress(selectedAddress)}
+                    placeholder="Search for an address"
+                    label="Address*"
+                    colors={isDark ? darkThemeColors : undefined}
                   />
                 </div>
 
@@ -6253,40 +6739,70 @@ export default function CreateQuotePage() {
             >
               Back
             </Button>
-            <Button
-              className={`${view === "tax"
-                ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
-                : canPrimaryAction
-                  ? "bg-[#E8D1AB] text-[#101010]"
-                  : isDark
-                    ? "bg-[#2A2B2D] text-zinc-600"
-                    : "bg-[#A4A5A6] text-white"
-                } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
-              disabled={!canPrimaryAction || isCreatingQuoteDraft}
-              onClick={handlePrimaryAction}
-            >
-              {primaryActionLabel}
-            </Button>
+            {!showInvoiceActions ? (
+              <Button
+                className={`${view === "tax"
+                  ? "bg-white text-[#1B1B1B] hover:bg-zinc-100 border-0 shadow-lg"
+                  : canPrimaryAction
+                    ? "bg-[#E8D1AB] text-[#101010]"
+                    : isDark
+                      ? "bg-[#2A2B2D] text-zinc-600"
+                      : "bg-[#A4A5A6] text-white"
+                  } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
+                disabled={!canPrimaryAction || isCreatingQuoteDraft}
+                onClick={handlePrimaryAction}
+              >
+                {primaryActionLabel}
+              </Button>
+            ) : null}
           </div>
 
           <div className="flex gap-4 self-start sm:self-auto">
-            <Button
-              type="button"
-              onClick={handleSaveAsDraft}
-              disabled={isCreatingQuoteDraft}
-              className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg disabled:opacity-70"
-            >
-              <div className="flex items-center justify-center">
-                <Save
-                  size={20}
-                  className="group-hover:scale-110 transition-transform"
-                />
-              </div>
-              {isCreatingQuoteDraft && activeQuoteAction === "draft"
-                ? "Saving Draft..."
-                : "Save as Draft"}
-            </Button>
-            {view === "tax" ? (
+            {showInvoiceActions ? (
+              <>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleViewInvoice();
+                  }}
+                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  variant="outline"
+                  className="border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all shadow-lg disabled:opacity-70"
+                >
+                  {isViewingInvoice ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}
+                  {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleSendInvoice();
+                  }}
+                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  className="bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all border-0 shadow-lg disabled:opacity-70"
+                >
+                  {isSendingInvoice ? <Loader2 size={20} className="animate-spin" /> : <Mail size={20} />}
+                  {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                onClick={handleSaveAsDraft}
+                disabled={isCreatingQuoteDraft}
+                className="bg-white text-[#1B1B1B] hover:bg-zinc-100 h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all group border-0 shadow-lg disabled:opacity-70"
+              >
+                <div className="flex items-center justify-center">
+                  <Save
+                    size={20}
+                    className="group-hover:scale-110 transition-transform"
+                  />
+                </div>
+                {isCreatingQuoteDraft && activeQuoteAction === "draft"
+                  ? "Saving Draft..."
+                  : "Save as Draft"}
+              </Button>
+            )}
+            {showPreviewAction ? (
               <Button
                 type="button"
                 onClick={handlePreviewQuote}
@@ -6306,7 +6822,30 @@ export default function CreateQuotePage() {
 
       {/* --- FLOATING MOBILE BUTTON --- */}
       <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
-        {view === "tax" ? (
+        {showInvoiceActions ? (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                void handleViewInvoice();
+              }}
+              disabled={isViewingInvoice || isSendingInvoice || isConverting}
+              className="flex-1 bg-white text-[#1B1B1B] hover:bg-zinc-100 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            >
+              {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void handleSendInvoice();
+              }}
+              disabled={isViewingInvoice || isSendingInvoice || isConverting}
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            >
+              {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
+            </Button>
+          </div>
+        ) : showPreviewAction ? (
           <div className="flex gap-2">
             <Button
               type="button"
@@ -6348,6 +6887,18 @@ export default function CreateQuotePage() {
           </Button>
         )}
         <div className="flex gap-2">
+          {showInvoiceActions && showPreviewAction ? (
+            <Button
+              type="button"
+              onClick={handlePreviewQuote}
+              disabled={isCreatingQuoteDraft || !quoteReviewValidation.isValid}
+              className="flex-1 bg-[#E8D1AB] text-[#101010] hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            >
+              {isPreviewLoading
+                ? "Loading Preview..."
+                : "Preview Quote"}
+            </Button>
+          ) : null}
           <Button
             variant="outline"
             className="flex-1 border border-[#363636] text-[#FFF] hover:text-white hover:bg-[#181818] h-14 min-w-[166px] rounded-xl text-sm font-medium bg-transparent transition-all"
@@ -6355,20 +6906,22 @@ export default function CreateQuotePage() {
           >
             Back
           </Button>
-          <Button
-            className={`${canPrimaryAction
-              ? view === "tax"
-                ? "bg-white text-[#1B1B1B]"
-                : "bg-[#E8D1AB] text-[#101010]"
-              : isDark
-                ? "bg-[#2A2B2D] text-zinc-600"
-                : "bg-[#A4A5A6] text-white"
-              } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md flex-1 `}
-            disabled={!canPrimaryAction || isCreatingQuoteDraft}
-            onClick={handlePrimaryAction}
-          >
-            {primaryActionLabel}
-          </Button>
+          {!showInvoiceActions ? (
+            <Button
+              className={`${canPrimaryAction
+                ? view === "tax"
+                  ? "bg-white text-[#1B1B1B]"
+                  : "bg-[#E8D1AB] text-[#101010]"
+                : isDark
+                  ? "bg-[#2A2B2D] text-zinc-600"
+                  : "bg-[#A4A5A6] text-white"
+                } hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md flex-1 `}
+              disabled={!canPrimaryAction || isCreatingQuoteDraft}
+              onClick={handlePrimaryAction}
+            >
+              {primaryActionLabel}
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -6447,6 +7000,27 @@ export default function CreateQuotePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConvertBookingModal
+        open={isConvertModalOpen}
+        onClose={() => setIsConvertModalOpen(false)}
+        onSubmit={(data) => {
+          void handleConvertBookingSubmit(data);
+        }}
+        isSubmitting={isConverting}
+        isDark={isDark}
+        showLocationField={false}
+        title={
+          convertIntent === "send_invoice"
+            ? "Convert to Booking Before Sending Invoice"
+            : "Convert to Booking"
+        }
+        description={
+          convertIntent === "send_invoice"
+            ? "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
+            : "Select booking type, shoot date and time before continuing."
+        }
+        submitLabel="Convert to Booking"
+      />
       <QuoteSummaryModal
         open={isSummaryModalOpen}
         onClose={() => setIsSummaryModalOpen(false)}

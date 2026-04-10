@@ -161,6 +161,7 @@ type QuoteActionMenuProps = {
   onDuplicate: () => void;
   onEdit: () => void;
   onReject: () => void;
+  allowEdit?: boolean;
   mobile?: boolean;
 };
 
@@ -210,6 +211,7 @@ const QuoteActionMenu = ({
   onDuplicate,
   onEdit,
   onReject,
+  allowEdit = true,
   mobile = false,
 }: QuoteActionMenuProps) => {
   const handleTriggerClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -256,11 +258,13 @@ const QuoteActionMenu = ({
             label="Duplicate"
             onClick={handleMenuAction(onDuplicate)}
           />
-          <QuoteActionMenuButton
-            icon={<Pencil size={18} />}
-            label="Edit"
-            onClick={handleMenuAction(onEdit)}
-          />
+          {allowEdit ? (
+            <QuoteActionMenuButton
+              icon={<Pencil size={18} />}
+              label="Edit"
+              onClick={handleMenuAction(onEdit)}
+            />
+          ) : null}
         </div>
 
         <div className="h-[1px] w-full bg-white/10" />
@@ -983,9 +987,18 @@ export default function QuotesDashboardPage({
     router.push(`${detailBaseHref}/${quoteId}`);
   };
 
-  const handleEditQuote = (quoteId: string, targetView: string = "details") => {
+  const handleEditQuote = (
+    quoteId: string,
+    statusKey: string,
+    targetView: string = "details"
+  ) => {
     if (!quoteId) {
       toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (statusKey.trim().toLowerCase() === "paid") {
+      toast.error("Paid quotes cannot be edited.");
       return;
     }
 
@@ -1560,10 +1573,11 @@ export default function QuotesDashboardPage({
                               handleViewQuoteDetails(quote.id);
                             }}
                             onDuplicate={() => handleUnsupportedQuoteAction("Duplicate")}
-                            onEdit={() => handleEditQuote(quote.id)}
+                            onEdit={() => handleEditQuote(quote.id, quote.statusKey)}
                             onReject={() => {
                               void handleRejectQuote(quote.id, quote.statusKey);
                             }}
+                            allowEdit={quote.statusKey !== "paid"}
                           />
                         </td>
                       </tr>
