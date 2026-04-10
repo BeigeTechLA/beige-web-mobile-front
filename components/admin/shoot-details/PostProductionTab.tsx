@@ -34,7 +34,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
       const response = await fileManagerApi.getExternalWorkspaceFiles(projectId, "post");
       setFolders(
         mapExternalFoldersToUi(
-          response.folders,
+          response?.folders || [],
           (folder) =>
             `/admin/file-manager/${projectId}/post-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
         )
