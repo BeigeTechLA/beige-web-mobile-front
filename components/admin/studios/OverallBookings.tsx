@@ -251,19 +251,19 @@ export default function OverallBookingsStack({ isDark = true, cards }: Props) {
 
       {/* Tabs */}
       <div className={`px-5 ${isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"} rounded-b-2xl border-b border-b-[#3D3D3D]`}>
-        <div className={`flex gap-4 text-xs sm:text-sm ${isDark ? "text-white/50" : "text-[#32323299]"}`}>
-          {(["Upcoming", "Completed", "Cancelled"] as BookingStatus[]).map((t) => {
-            const active = activeTab === t;
+        <div className={`flex gap-4 text-xs sm:text-sm font-medium ${isDark ? "text-white/50" : "text-[#32323299]"}`}>
+          {(["Upcoming", "Completed", "Cancelled"] as BookingStatus[]).map((tab) => {
+            const active = activeTab === tab;
             return (
               <button
-                key={t}
+                key={tab}
                 type="button"
-                onClick={() => setActiveTab(t)}
-                className={`w-full py-4 max-w-[150px] relative transition-colors ${active ? (isDark ? "text-white" : "text-[#323232]") : ""}`}
+                onClick={() => setActiveTab(tab)}
+                className={`w-full py-4 max-w-[150px] relative transition-colors ${active ? (isDark ? "text-[#E8D1AB]" : "text-[#323232]") : ""}`}
               >
-                {t}
+                {tab}
                 {active && (
-                  <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#E5D5B8]" />
+                  <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-[#E8D1AB]" />
                 )}
               </button>
             );

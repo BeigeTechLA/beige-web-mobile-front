@@ -54,6 +54,7 @@ import { StudioRequestsTable } from "@/components/admin/studios/StudioRequestsTa
 import { EarningsTable } from "@/components/admin/studios/EarningsTable";
 import OverviewChart from "@/components/admin/studios/OverviewChart";
 import OverallBookingsStack from "@/components/admin/studios/OverallBookings";
+import StudioListing from "@/components/admin/studios/StudioListing";
 
 export default function AdminStudiosPage() {
   const { isDark } = useResolvedTheme();
@@ -155,11 +156,13 @@ export default function AdminStudiosPage() {
             activeTab === "Operations" ? (
               <div className="space-y-3 lg:space-y-5">
                 <OverviewChart isDark={isDark} />
-                <OverallBookingsStack />
+                <OverallBookingsStack isDark={isDark} />
                 <EarningsTable isDark={isDark} />
               </div>
             ) : activeTab === "My Studios" ? (
-              <>My Studios</>
+              <>
+                <StudioListing isDark={isDark} />
+              </>
             ) : (
               <>
                 <StudioRequestsTable isDark={isDark} />
