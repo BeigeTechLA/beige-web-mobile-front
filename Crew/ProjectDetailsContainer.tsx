@@ -5,8 +5,8 @@ import { X, Maximize2, MoreVertical } from "lucide-react";
 
 // Imports for Tab Components
 import ShootOverviewTab from "./ShootOverviewTab";
-import PreProductionTab from "@/components/admin/shoot-details/PreProductionTab";
-import PostProductionTab from "@/components/admin/shoot-details/PostProductionTab";
+import AffiliatePreProductionTab from "@/components/affiliate/shoot-details/AffiliatePreProductionTab";
+import AffiliatePostProductionTab from "@/components/affiliate/shoot-details/AffiliatePostProductionTab";
 import MeetingSchedule from "@/components/admin/shoot-details/MeetingSchedule";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
 
@@ -104,11 +104,11 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
             )}
             
             {activeTab === "pre-prod" && (
-                <PreProductionTab projectId={projectId} />
+                <AffiliatePreProductionTab projectId={projectId} />
             )}
             
             {activeTab === "post-prod" && (
-                <PostProductionTab projectId={projectId} />
+                <AffiliatePostProductionTab projectId={projectId} />
             )}
             
             {activeTab === "meetings" && (
