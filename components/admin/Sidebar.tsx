@@ -41,6 +41,7 @@ const menuItems = [
     ]
   },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/admin/quotes' },
+  { name: 'Invoice', icon: Receipt, link: '/admin/invoice' },
 ];
 
 type MenuItem = {
