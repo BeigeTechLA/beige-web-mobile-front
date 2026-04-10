@@ -17,6 +17,8 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
 
   const project = apiResponse.project;
   const crew = apiResponse.assignedCrew?.[0]?.crew_member;
+  const projectId =
+    project?.stream_project_booking_id || project?.project_id || project?.id;
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col font-sans">
@@ -102,11 +104,11 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
             )}
             
             {activeTab === "pre-prod" && (
-                <PreProductionTab project={project} />
+                <PreProductionTab projectId={projectId} />
             )}
             
             {activeTab === "post-prod" && (
-                <PostProductionTab project={project} />
+                <PostProductionTab projectId={projectId} />
             )}
             
             {activeTab === "meetings" && (
