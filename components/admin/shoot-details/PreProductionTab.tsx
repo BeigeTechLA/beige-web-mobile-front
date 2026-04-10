@@ -25,15 +25,15 @@ export default function PreProductionTab({ projectId }: { projectId: string }) {
       setLoading(true);
       setError(null);
       const response = await fileManagerApi.getExternalWorkspaceFiles(projectId, "pre");
-      setWorkspaceName(response.workspace.folderName);
+      setWorkspaceName(response?.workspace?.folderName || "");
       setFolders(
         mapExternalFoldersToUi(
-          response.folders,
+          response?.folders || [],
           (folder) =>
             `/admin/file-manager/${projectId}/pre-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
         )
       );
-      setFiles(mapExternalFilesToUi(response.files));
+      setFiles(mapExternalFilesToUi(response?.files || []));
     } catch (err: any) {
       setError(err?.message || "Failed to load pre-production files");
     } finally {
