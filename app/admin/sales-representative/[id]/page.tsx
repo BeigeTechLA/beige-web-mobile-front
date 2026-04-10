@@ -178,6 +178,33 @@ type BookingDayLike = {
   end_time?: string | null;
 };
 
+type HoverTooltipProps = {
+  message: string;
+  isDark?: boolean;
+  align?: "left" | "right";
+};
+
+function HoverTooltip({
+  message,
+  isDark = true,
+  align = "left",
+}: HoverTooltipProps) {
+  return (
+    <div
+      role="tooltip"
+      className={`pointer-events-none absolute top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border px-3 py-2 text-xs leading-5 shadow-xl opacity-0 translate-y-1 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 ${
+        align === "right" ? "right-0" : "left-0"
+      } ${
+        isDark
+          ? "border-[#3D3D3D] bg-[#111111] text-white/80"
+          : "border-[#E7D7BC] bg-white text-black/75"
+      }`}
+    >
+      {message}
+    </div>
+  );
+}
+
 export default function LeadDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -513,6 +540,7 @@ export default function LeadDetailPage() {
       String(lead?.payment_status || "").trim().toLowerCase()
     ) ||
     Boolean(booking?.payment_id || booking?.payment_completed_at);
+  const paidEditTooltipMessage = "Already paid. Editing is disabled for this booking.";
 
   const bookingDate = booking?.event_date
     ? (parseDate(booking.event_date) || new Date(booking.event_date)).toLocaleDateString("en-US", {
@@ -1048,22 +1076,40 @@ export default function LeadDetailPage() {
                   Booking Summary
                 </h2>
                 {!isQuoteConvertedLead && (
-                  <Button
-                    onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
-                    disabled={isAmountPaid}
-                    className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                  >
-                    Edit Details
-                  </Button>
+                  <div className="group relative inline-flex">
+                    <Button
+                      onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
+                      disabled={isAmountPaid}
+                      className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                    >
+                      Edit Details
+                    </Button>
+                    {isAmountPaid && (
+                      <HoverTooltip
+                        message={paidEditTooltipMessage}
+                        isDark={isDark}
+                        align="right"
+                      />
+                    )}
+                  </div>
                 )}
                 {isQuoteConvertedLead && (
-                  <Button
-                    onClick={() => setIsConvertedBookingEditModalOpen(true)}
-                    disabled={isAmountPaid || !convertedBookingInitialValues || isUpdatingConvertedBooking}
-                    className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                  >
-                    Edit Details
-                  </Button>
+                  <div className="group relative inline-flex">
+                    <Button
+                      onClick={() => setIsConvertedBookingEditModalOpen(true)}
+                      disabled={isAmountPaid || !convertedBookingInitialValues || isUpdatingConvertedBooking}
+                      className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                    >
+                      Edit Details
+                    </Button>
+                    {isAmountPaid && (
+                      <HoverTooltip
+                        message={paidEditTooltipMessage}
+                        isDark={isDark}
+                        align="right"
+                      />
+                    )}
+                  </div>
                 )}
               </div>
               <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
@@ -1441,20 +1487,29 @@ export default function LeadDetailPage() {
                           {quotePricingDetails.status}
                         </span>
                       )}
-                      <Button
-                        type="button"
-                        onClick={handleEditQuoteRedirect}
-                        disabled={isAmountPaid || !canEditQuote}
-                        className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
-                          isDark
-                            ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
-                            : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
-                        } ${isAmountPaid || !canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
-                        aria-label="Edit Quote"
-                        title={isAmountPaid ? "Amount already paid" : "Edit Quote"}
-                      >
-                        <Edit2 size={14} />
-                      </Button>
+                      <div className="group relative inline-flex">
+                        <Button
+                          type="button"
+                          onClick={handleEditQuoteRedirect}
+                          disabled={isAmountPaid || !canEditQuote}
+                          className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
+                            isDark
+                              ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
+                              : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
+                          } ${isAmountPaid || !canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
+                          aria-label="Edit Quote"
+                          title={!isAmountPaid ? "Edit Quote" : undefined}
+                        >
+                          <Edit2 size={14} />
+                        </Button>
+                        {isAmountPaid && (
+                          <HoverTooltip
+                            message={paidEditTooltipMessage}
+                            isDark={isDark}
+                            align="right"
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
 
