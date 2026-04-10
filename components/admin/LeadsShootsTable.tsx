@@ -181,11 +181,7 @@ export const LeadsShootsTable = () => {
     };
 
     const handleLeadClick = (lead: LeadRecord) => {
-        const basePath =
-            lead.leadType === "Self-Serve"
-                ? "/admin/sales-representative/client"
-                : "/admin/sales-representative";
-        router.push(`${basePath}/${lead.rawLeadId}`);
+        router.push(`/admin/sales-representative/${lead.rawLeadId}`);
     };
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
