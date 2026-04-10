@@ -6,6 +6,7 @@ import { format, parseISO } from "date-fns";
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 import { salesApi } from "@/lib/api";
+import apiClient from "@/lib/apiClient";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 
 interface InvoiceHistoryItem {
@@ -86,6 +87,33 @@ const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
   return "N/A";
 };
 
+const resolveLivePaymentStatus = async (item: InvoiceHistoryItem) => {
+  const currentStatus = String(item.payment_status || "").trim().toLowerCase();
+  if (currentStatus === "paid") {
+    return item.payment_status;
+  }
+
+  try {
+    if (item.client_lead_id) {
+      const response = await apiClient.get<{ success: boolean; data?: { payment_status?: string | null } }>(
+        `sales/client-leads/${item.client_lead_id}`
+      );
+      return response?.data?.payment_status || item.payment_status;
+    }
+
+    if (item.lead_id) {
+      const response = await apiClient.get<{ success: boolean; data?: { payment_status?: string | null } }>(
+        `sales/leads/${item.lead_id}`
+      );
+      return response?.data?.payment_status || item.payment_status;
+    }
+  } catch (error) {
+    console.error("Failed to resolve live invoice payment status:", error);
+  }
+
+  return item.payment_status;
+};
+
 export const InvoiceTable = () => {
   const { theme, resolvedTheme } = useTheme();
   const pathname = usePathname();
@@ -116,7 +144,14 @@ export const InvoiceTable = () => {
         const pagination = response?.data?.pagination;
         const isSalesRoute = pathname?.startsWith("/sales");
 
-        const mappedRows = items.map((item) => {
+        const itemsWithLiveStatus = await Promise.all(
+          items.map(async (item) => ({
+            item,
+            livePaymentStatus: await resolveLivePaymentStatus(item),
+          }))
+        );
+
+        const mappedRows = itemsWithLiveStatus.map(({ item, livePaymentStatus }) => {
           const sendDate = item.send_date_time || item.created_at;
           const detailHref = item.client_lead_id
             ? isSalesRoute
@@ -136,7 +171,7 @@ export const InvoiceTable = () => {
             clientName: item.client_name || "N/A",
             clientEmail: item.client_email || "N/A",
             leadOrQuoteId: getLeadOrQuoteValue(item),
-            paymentStatus: normalizeStatus(item.payment_status),
+            paymentStatus: normalizeStatus(livePaymentStatus),
             sendDateLabel: formatDateLabel(sendDate),
             sendDateRaw: getDateValue(sendDate),
             invoicePdf: item.invoice_pdf,
