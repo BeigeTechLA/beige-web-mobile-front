@@ -10,6 +10,7 @@ import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
 import {
   buildAbsoluteQuotePreviewUrl,
   createSignedQuotePreviewUrl,
+  normalizeQuotePreviewUrlForClient,
   resolveSecureQuotePreviewKey,
   resolveSecureQuotePreviewUrl,
 } from "@/lib/quotePreview";
@@ -76,7 +77,10 @@ export default function QuotePreviewModal({
   );
   const secureQuotePreviewKey = resolveSecureQuotePreviewKey(quoteData);
   const secureQuotePreviewUrl =
-    resolveSecureQuotePreviewUrl(quoteData) ??
+    normalizeQuotePreviewUrlForClient(
+      resolveSecureQuotePreviewUrl(quoteData),
+      secureQuotePreviewKey
+    ) ??
     (secureQuotePreviewKey
       ? buildAbsoluteQuotePreviewUrl({ quoteKey: secureQuotePreviewKey })
       : null);
