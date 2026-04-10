@@ -45,6 +45,17 @@ interface ShootRecord {
   status: ShootStatus;
 }
 
+const normalizeStatusKey = (value: string) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+
+const timelineStatusKeyFromLabel = (status: ShootStatus) => {
+  const normalized = normalizeStatusKey(status);
+  if (normalized === "assetsdelivered") return "assetsdelivered";
+  return normalized;
+};
+
 const CONTENT_TYPE_LABELS: Record<string, string> = {
   videographer: "Videography",
   photographer: "Photography",
@@ -226,10 +237,15 @@ export const ShootsTable = ({
   // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
   const processedShoots = useMemo(() => {
     // 1. Filter
-    let result = shoots.filter((shoot) =>
-      shoot.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shoot.id.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    let result = shoots.filter((shoot) => {
+      const matchesSearch =
+        shoot.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        shoot.id.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+
+      if (statusFilter === "all") return true;
+      return timelineStatusKeyFromLabel(shoot.status) === statusFilter;
+    });
 
     // 2. Sort
     if (sortConfig.direction !== null) {
@@ -373,14 +389,14 @@ export const ShootsTable = ({
               </SelectTrigger>
               <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Initiated">Initiated</SelectItem>
-                <SelectItem value="PreProduction">Pre Production</SelectItem>
-                <SelectItem value="Shoot Day">Shoot Day</SelectItem>
-                <SelectItem value="PostProduction">Post Production</SelectItem>
-                <SelectItem value="Revision">Revision</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-                <SelectItem value="Assets Delivered">Assets Delivered</SelectItem>
-                <SelectItem value="Cancelled">Cancelled</SelectItem>
+                <SelectItem value="initiated">Initiated</SelectItem>
+                <SelectItem value="preproduction">Pre Production</SelectItem>
+                <SelectItem value="shootday">Shoot Day</SelectItem>
+                <SelectItem value="postproduction">Post Production</SelectItem>
+                <SelectItem value="revision">Revision</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="assetsdelivered">Assets Delivered</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
 
