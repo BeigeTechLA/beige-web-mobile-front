@@ -16,8 +16,9 @@ import {
 import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow";
 import { StatusBadge } from "../admin/StatusBadge";
 import { useTheme } from "next-themes";
+import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils/projectTimeline";
 
-type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Unknown";
+type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Unknown";
 
 interface ShootRecord {
   id: string;
@@ -28,15 +29,6 @@ interface ShootRecord {
   price: string;
   status: ShootStatus;
 }
-
-const STATUS_LABEL_MAP: Record<number, string> = {
-  0: "Initiated",
-  1: "PreProduction",
-  2: "PostProduction",
-  3: "Revision",
-  4: "Completed",
-  5: "Cancelled",
-};
 
 const getCategoryFromContentType = (contentType: string | null | undefined): string => {
   if (!contentType) return "N/A";
@@ -100,7 +92,7 @@ export default function SalesShootsTable({ externalSelectedDate }: { externalSel
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
-          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as ShootStatus;
+          const statusLabel = timelineStageToDashboardLabel(resolveTimelineStage(project)) as ShootStatus;
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 

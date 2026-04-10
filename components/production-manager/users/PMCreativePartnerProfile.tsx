@@ -20,6 +20,7 @@ import { EffectCoverflow } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 import { getInitials } from "@/lib/utils";
+import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
 
 interface ProfileProps {
   id: string;
@@ -263,20 +264,15 @@ export const PMCreativePartnerProfile = ({ id, hideActions = false, isDark = tru
 
   const shoots = (Array.isArray(allShoots) ? allShoots : []).map(s => {
     const project = s.project || {};
-    const statusMap: Record<string, string> = {
-      '0': 'Initiated',
-      '1': 'Pre Production',
-      '2': 'Post Production',
-      '3': 'Revision',
-      '4': 'Completed',
-      '5': 'Cancelled'
-    };
+    const timelineStage = resolveTimelineStage(
+      project.status !== undefined ? project : { ...project, status: s.status }
+    );
     return {
       id: `#${project.stream_project_booking_id || project.id || s.project_id || s.id}`,
       name: project.project_name || s.title || 'Project',
       files: s.files_count || 0,
       price: `$${project.budget || s.total_amount || '0.00'}`,
-      status: statusMap[project.status !== undefined ? project.status.toString() : s.status] || 'Unknown'
+      status: timelineStageToHeaderLabel(timelineStage)
     };
   });
 
