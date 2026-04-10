@@ -73,7 +73,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const isDark = !mounted || theme === "dark";
   const canViewInvoice = isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined);
   const visibleSalesMenuItems = salesMenuItems.filter(
-    (item) => item.name !== "Invoice" || canViewInvoice
+    (item) => item.name !== "Invoices" || canViewInvoice
   );
 
   // Shared helper to handle navigation and closing sidebar
