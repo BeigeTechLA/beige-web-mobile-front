@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ExternalLink, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDown, ExternalLink, Loader2, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -289,9 +289,11 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
             <span>Status</span>
           </div>
 
-          {loading ? (
-            <div className="px-2 py-10 text-center text-sm text-white/45">Loading meetings...</div>
-          ) : error ? (
+          {loading ? 
+          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>: error ? (
             <div className="px-2 py-10 text-center text-sm text-[#ff8e8e]">{error}</div>
           ) : filteredMeetings.length === 0 ? (
             <div className="px-2 py-10 text-center text-sm text-white/45">No meetings found for this project yet.</div>

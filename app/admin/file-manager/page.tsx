@@ -8,6 +8,7 @@ import {
   Link,
   LinkIcon,
   List,
+  Loader2,
   MoreVertical,
   Search,
   Share2,
@@ -286,7 +287,10 @@ export default function AdminFolderManagerPage() {
           </div>
 
           {loading ? (
-            <div className="text-white/70 text-sm">Loading projects...</div>
+             <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>
           ) : error ? (
             <div className="text-red-300 text-sm">{error}</div>
           ) : filteredFolders.length === 0 ? (

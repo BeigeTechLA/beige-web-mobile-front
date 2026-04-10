@@ -10,6 +10,7 @@ import {
   Grid3X3,
   Image as ImageIcon,
   List,
+  Loader2,
   Play,
   Search,
   Trash2,
@@ -222,8 +223,11 @@ export default function SubFolderDetailsPage() {
         </Button>
 
         {loading ? (
-          <div className="text-white/70 text-sm">Loading files...</div>
-        ) : error ? (
+<div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>        
+      ) : error ? (
           <div className="text-red-300 text-sm">{error || "Folder not found"}</div>
         ) : (
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl">
