@@ -58,9 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     const quoteKey = createQuotePreviewToken(quoteId);
-    const previewUrl = `${request.nextUrl.origin}/quotes/preview?quoteKey=${encodeURIComponent(
-      quoteKey
-    )}`;
+    const previewUrl = `/quotes/preview?quoteKey=${encodeURIComponent(quoteKey)}`;
 
     return NextResponse.json({
       success: true,

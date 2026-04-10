@@ -30,7 +30,7 @@ const salesMenuItems: SalesMenuItem[] = [
   { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
   { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/sales/quotes' },
-  { name: 'Invoice', icon: Receipt, link: '/sales/invoice' },
+  { name: 'Invoices', icon: Receipt, link: '/sales/invoice' },
 ];
 
 type SalesMenuItem = {
