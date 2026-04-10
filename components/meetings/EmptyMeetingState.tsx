@@ -18,7 +18,7 @@ export default function EmptyFileState({
   onAction,
 }: EmptyMeetingStateProps) {
   return (
-    <div className="flex min-h-[260px] w-full flex-col items-center justify-center rounded-2xl border border-white/5 bg-[#111111] px-6 py-10 text-center">
+    <div className="flex min-h-[260px] w-full flex-col items-center justify-center px-6 py-10 text-center">
       <Image
         src="/images/meeting-empty-state.png"
         alt="No file uploaded"
