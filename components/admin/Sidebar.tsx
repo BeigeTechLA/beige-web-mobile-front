@@ -57,7 +57,7 @@ const menuItems = [
     ]
   },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/admin/quotes' },
-  { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studios' },
+  { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studio-management' },
 ];
 
 type MenuItem = {

@@ -32,8 +32,57 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
     .filter((path) => path !== "admin");
 
   const isShootsPage = pathname.includes("shoots");
+  const isStudiosPage = pathname.includes("studio-management/");
 
   const isDark = !mounted || theme === "dark";
+
+  // 2. Add a helper for the breadcrumb display to avoid repetition
+  const renderBreadcrumbs = (isMobile: boolean) => {
+    const textSize = isMobile ? "text-xs" : "text-sm";
+    const titleSize = isMobile ? "text-sm" : "text-lg";
+
+    // Case: Shoots Page
+    if (isShootsPage) {
+      return (
+        <h1 className={`font-semibold ${titleSize} ${isDark ? "text-white" : "text-[#101010]"}`}>
+          {title || "Shoots Management"}
+        </h1>
+      );
+    }
+
+    // Case: Studio Management Details (e.g., /studios-management/123)
+    if (isStudiosPage) {
+      return (
+        <nav className={`flex items-center gap-2 ${textSize} ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
+          <span className="capitalize">Studio Management</span>
+          <span className={isMobile ? "mx-1" : "mx-2"}>/</span>
+          <span className={`capitalize font-bold ${isDark ? "text-white" : "text-[#101010]"}`}>
+            Studio Details
+          </span>
+        </nav>
+      );
+    }
+
+    // Case: Default Breadcrumbs
+    return (
+      <nav className={`flex items-center gap-2 ${textSize} whitespace-nowrap ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
+        {paths.map((path, index) => {
+          const isLast = index === paths.length - 1;
+          const displayText = breadcrumbOverrides?.[path] ||
+            (path === "create-new-deal" ? "create new lead" : path.split("-").join(" "));
+
+          return (
+            <React.Fragment key={index}>
+              <span className={`capitalize ${isLast ? (isDark ? "text-white font-bold" : "text-[#101010] font-bold") : ""}`}>
+                {displayText}
+              </span>
+              {!isLast && <span className={isMobile ? "mx-1" : "mx-2"}>/</span>}
+            </React.Fragment>
+          );
+        })}
+      </nav>
+    );
+  };
 
   return (
     <header className={`
@@ -82,29 +131,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
 
         {/* Bottom Row: Breadcrumbs & Counts */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-          {isShootsPage ? (
-            <h1 className={`font-semibold text-sm whitespace-nowrap ${isDark ? "text-white" : "text-[#101010]"}`}>
-              {title}
-            </h1>
-          ) : (
-            <nav className={`flex items-center gap-2 text-xs whitespace-nowrap ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
-              {paths.map((path, index) => {
-                const isLast = index === paths.length - 1;
-                // CHANGED: Specific check for create-new-deal to show as "create new lead"
-                const displayText = breadcrumbOverrides?.[path] ||
-                  (path === "create-new-deal" ? "create new lead" : path.split("-").join(" "));
-
-                return (
-                  <React.Fragment key={index}>
-                    <span className={`capitalize ${isLast ? (isDark ? "text-white font-bold" : "text-[#101010] font-bold") : ""}`}>
-                      {displayText}
-                    </span>
-                    {!isLast && <span className="mx-1">/</span>}
-                  </React.Fragment>
-                );
-              })}
-            </nav>
-          )}
+          {renderBreadcrumbs(true)}
         </div>
       </div>
 
@@ -114,30 +141,8 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
       <div className="hidden lg:flex items-center justify-between px-9 py-6 gap-4">
         {/* Left: Title */}
         <div className="flex items-center gap-6 shrink-0">
-          {
-            isShootsPage ? (
-              <h1 className={`font-semibold text-lg ${isDark ? "text-white" : "text-[#101010]"}`}>{title || "Shoots Management"}</h1>
-            ) : (
-              <nav className={`flex items-center gap-4 text-sm ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
-                {paths.map((path, index) => {
-                  const isLast = index === paths.length - 1;
-                  // CHANGED: Specific check for create-new-deal to show as "create new lead"
-                  const displayText = breadcrumbOverrides?.[path] ||
-                    (path === "create-new-deal" ? "create new lead" : path.split("-").join(" "));
-
-                  return (
-                    <React.Fragment key={index}>
-                      <span className={`capitalize ${isLast ? (isDark ? "text-white font-bold" : "text-[#101010] font-bold") : ""}`}>
-                        {displayText}
-                      </span>
-                      {!isLast && <span className="mx-2">/</span>}
-                    </React.Fragment>
-                  );
-                })}
-              </nav>
-            )
-          }
-        </div >
+          {renderBreadcrumbs(false)}
+        </div>
 
         {/* Right: Desktop Actions */}
         < div className="flex items-center gap-3 shrink-0" >

@@ -125,9 +125,9 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
       </div>
       <div className="p-2 lg:p-5 flex flex-col gap-2.5">
         {dummyStudios.map((studio) => {
-          return <div key={studio.id}>
+          return <a key={studio.id} href={`/admin/studio-management/${studio.id}`} className="block">
             <StudioCard studio={studio} isDark={isDark} />
-          </div>
+          </a>
         })}
 
       </div>
