@@ -70,6 +70,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
+  const bookingId =
+    project?.booking_id || project?.stream_project_booking_id || id;
 
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
@@ -235,11 +237,11 @@ const projectData: ProjectDetails | undefined =
               )}
 
           {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-            <PreProductionTab projectId={id} />
+            <PreProductionTab projectId={String(bookingId)} />
           )}
 
           {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-            <PostProductionTab projectId={id} />
+            <PostProductionTab projectId={String(bookingId)} />
           )}
 
           {activeTab === "Meetings" && (
