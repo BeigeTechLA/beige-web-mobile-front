@@ -475,6 +475,7 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
+  const isPaidQuote = normalizedQuoteStatus === "paid";
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -718,7 +719,6 @@ export default function QuoteDetailsPage({
           start_date: bookingData.singleDay.date,
           start_time: `${bookingData.singleDay.startTime}:00`,
           end_time: `${bookingData.singleDay.endTime}:00`,
-          location: bookingData.location,
         };
       } else {
         if (!bookingData.multiDay) {
@@ -728,7 +728,6 @@ export default function QuoteDetailsPage({
         payload = {
           booking_type: "multi_day",
           time_zone: browserTimeZone,
-          location: bookingData.location,
           booking_days: bookingData.multiDay.days.map((day) => ({
             date: day.date,
             start_time: `${day.startTime}:00`,
@@ -789,6 +788,11 @@ export default function QuoteDetailsPage({
   };
 
   const handleEditQuote = (targetView: QuoteEditorView) => {
+    if (isPaidQuote) {
+      toast.error("Paid quotes cannot be edited.");
+      return;
+    }
+
     if (quote) {
       persistQuoteEditorNavigationCache(quoteId, quote);
     }
@@ -843,7 +847,7 @@ export default function QuoteDetailsPage({
             Back
           </button>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          {/* <div className="flex flex-col gap-3 sm:flex-row">
             <Button
               type="button"
               onClick={() => {
@@ -867,7 +871,7 @@ export default function QuoteDetailsPage({
               {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
               {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
             </Button>
-          </div>
+          </div> */}
         </div>
 
         {loading ? (
@@ -895,8 +899,8 @@ export default function QuoteDetailsPage({
           <div className="space-y-6">
             <SectionShell
               title="Client Information"
-              actionLabel="Edit Details"
-              onAction={() => handleEditQuote("details")}
+              actionLabel={isPaidQuote ? undefined : "Edit Details"}
+              onAction={isPaidQuote ? undefined : () => handleEditQuote("details")}
             >
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -958,8 +962,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
-              actionLabel="Edit Services"
-              onAction={() => handleEditQuote("services")}
+              actionLabel={isPaidQuote ? undefined : "Edit Services"}
+              onAction={isPaidQuote ? undefined : () => handleEditQuote("services")}
             >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
@@ -978,8 +982,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Add-On Includes"
-              actionLabel="Edit Add ons"
-              onAction={() => handleEditQuote("addons")}
+              actionLabel={isPaidQuote ? undefined : "Edit Add ons"}
+              onAction={isPaidQuote ? undefined : () => handleEditQuote("addons")}
             >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1001,8 +1005,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Logistics"
-              actionLabel="Edit Logistics"
-              onAction={() => handleEditQuote("logistics")}
+              actionLabel={isPaidQuote ? undefined : "Edit Logistics"}
+              onAction={isPaidQuote ? undefined : () => handleEditQuote("logistics")}
             >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1023,8 +1027,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Custom Line Item"
-              actionLabel="Edit Items"
-              onAction={() => handleEditQuote("customlineitems")}
+              actionLabel={isPaidQuote ? undefined : "Edit Items"}
+              onAction={isPaidQuote ? undefined : () => handleEditQuote("customlineitems")}
             >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
@@ -1052,8 +1056,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Other Details"
-              actionLabel="Edit Tax & Discounts"
-              onAction={() => handleEditQuote("discounts")}
+              actionLabel={isPaidQuote ? undefined : "Edit Tax & Discounts"}
+              onAction={isPaidQuote ? undefined : () => handleEditQuote("discounts")}
             >
               <div className="space-y-6">
                 <div className="inline-flex rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
@@ -1167,6 +1171,7 @@ export default function QuoteDetailsPage({
         }}
         isSubmitting={isConverting}
         isDark={isDark}
+        showLocationField={false}
         title={
           convertIntent === "send_invoice"
             ? "Convert to Booking Before Sending Invoice"
@@ -1175,7 +1180,7 @@ export default function QuoteDetailsPage({
         description={
           convertIntent === "send_invoice"
             ? "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
-            : "Select booking type, shoot date and time, and location before continuing."
+            : "Select booking type, shoot date and time before continuing."
         }
         submitLabel="Convert to Booking"
       />
