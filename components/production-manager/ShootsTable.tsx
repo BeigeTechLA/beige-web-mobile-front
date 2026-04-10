@@ -17,8 +17,9 @@ import {
 import { MobileShootRow } from "@/components/production-manager/shoot-details/MobileShootRow";
 import { StatusBadge } from "./StatusBadge";
 import { useTheme } from "next-themes";
+import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils/projectTimeline";
 
-type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Unknown";
+type ShootStatus = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Unknown";
 
 interface ShootRecord {
     id: string;
@@ -31,17 +32,6 @@ interface ShootRecord {
     rawPrice: number; // Added for correct numerical sorting
     status: ShootStatus;
 }
-
-const STATUS_LABEL_MAP: Record<number, string> = {
-    0: "Initiated",
-    1: "PreProduction",
-    2: "Shoot Day",
-    3: "PostProduction",
-    4: "Revision",
-    5: "Completed",
-    6: "Assets Delivered",
-    7: "Cancelled",
-};
 
 export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: Date | null }) => {
     const router = useRouter();
@@ -97,7 +87,7 @@ export const ShootsTable = ({ externalSelectedDate }: { externalSelectedDate?: D
 
                 const mappedShoots = projectsList.map((item: any) => {
                     const project = item.project || item;
-                    const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as ShootStatus;
+                    const statusLabel = timelineStageToDashboardLabel(resolveTimelineStage(project)) as ShootStatus;
                     const customerName = project.project_name || "Untitled Project";
                     const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 

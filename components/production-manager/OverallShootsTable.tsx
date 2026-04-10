@@ -15,18 +15,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "./StatusBadge";
+import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils/projectTimeline";
 
-const STATUS_LABEL_MAP: Record<number, string> = {
-  0: "Initiated",
-  1: "PreProduction",
-  2: "Shoot Day",
-  3: "PostProduction",
-  4: "Revision",
-  5: "Completed",
-  7: "Cancelled",
-};
-
-type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Unknown";
+type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Unknown";
 
 interface ShootRecord {
   id: string;
@@ -109,7 +100,7 @@ export const OverallShootsTable = () => {
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
-          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as Status;
+          const statusLabel = timelineStageToDashboardLabel(resolveTimelineStage(project)) as Status;
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 

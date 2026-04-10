@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useTheme } from "next-themes";
+import { usePathname, useRouter } from "next/navigation";
 import { salesApi } from "@/lib/api";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 
@@ -33,6 +34,7 @@ interface InvoiceTableRow {
   id: number;
   invoiceSendHistory: string;
   bookingId: string;
+  detailHref: string | null;
   clientName: string;
   clientEmail: string;
   leadOrQuoteId: string;
@@ -73,6 +75,10 @@ const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
     return `Quote Id : ${item.quote_id}`;
   }
 
+  if (item.client_lead_id) {
+    return `Client Lead Id : ${item.client_lead_id}`;
+  }
+
   if (item.lead_id) {
     return `Lead Id : ${item.lead_id}`;
   }
@@ -82,6 +88,8 @@ const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
 
 export const InvoiceTable = () => {
   const { theme, resolvedTheme } = useTheme();
+  const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -106,14 +114,25 @@ export const InvoiceTable = () => {
 
         const items: InvoiceHistoryItem[] = response?.data?.items || [];
         const pagination = response?.data?.pagination;
+        const isSalesRoute = pathname?.startsWith("/sales");
 
         const mappedRows = items.map((item) => {
           const sendDate = item.send_date_time || item.created_at;
+          const detailHref = item.client_lead_id
+            ? isSalesRoute
+              ? `/sales/client/${item.client_lead_id}`
+              : `/admin/sales-representative/client/${item.client_lead_id}`
+            : item.lead_id
+              ? isSalesRoute
+                ? `/sales/leads/${item.lead_id}`
+                : `/admin/sales-representative/${item.lead_id}`
+              : null;
 
           return {
             id: item.invoice_send_history_id,
             invoiceSendHistory: String(item.invoice_send_history_id ?? "N/A"),
             bookingId: item.booking_id ? `#${item.booking_id}` : "N/A",
+            detailHref,
             clientName: item.client_name || "N/A",
             clientEmail: item.client_email || "N/A",
             leadOrQuoteId: getLeadOrQuoteValue(item),
@@ -138,7 +157,7 @@ export const InvoiceTable = () => {
     };
 
     fetchInvoiceHistory();
-  }, [currentPage]);
+  }, [currentPage, pathname]);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
@@ -153,6 +172,24 @@ export const InvoiceTable = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleRowNavigation = (detailHref: string | null) => {
+    if (!detailHref) return;
+
+    router.push(detailHref);
+  };
+
+  const handleRowKeyDown = (
+    event: React.KeyboardEvent<HTMLElement>,
+    detailHref: string | null
+  ) => {
+    if (!detailHref) return;
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      router.push(detailHref);
+    }
   };
 
   if (!mounted) {
@@ -176,7 +213,14 @@ export const InvoiceTable = () => {
         <>
           <div className={`lg:hidden divide-y ${isDark ? "divide-[#222222]" : "divide-[#F3F3F3]"}`}>
             {rows.map((row) => (
-              <div key={row.id} className="p-4 space-y-3">
+              <div
+                key={row.id}
+                className={`p-4 space-y-3 ${row.detailHref ? "cursor-pointer" : ""}`}
+                onClick={() => handleRowNavigation(row.detailHref)}
+                onKeyDown={(event) => handleRowKeyDown(event, row.detailHref)}
+                role={row.detailHref ? "button" : undefined}
+                tabIndex={row.detailHref ? 0 : undefined}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
@@ -209,7 +253,10 @@ export const InvoiceTable = () => {
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    onClick={() => handleDownload(row.invoicePdf)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleDownload(row.invoicePdf);
+                    }}
                     disabled={!row.invoicePdf}
                     className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
                   >
@@ -237,7 +284,11 @@ export const InvoiceTable = () => {
                 {rows.map((row) => (
                   <tr
                     key={row.id}
-                    className={`border-b transition-colors last:border-0 ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
+                    className={`border-b transition-colors last:border-0 ${row.detailHref ? "cursor-pointer" : ""} ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
+                    onClick={() => handleRowNavigation(row.detailHref)}
+                    onKeyDown={(event) => handleRowKeyDown(event, row.detailHref)}
+                    role={row.detailHref ? "button" : undefined}
+                    tabIndex={row.detailHref ? 0 : undefined}
                   >
                     <td className="py-5 px-6">
                       <div>
@@ -254,7 +305,10 @@ export const InvoiceTable = () => {
                     <td className="py-5 px-6 text-right">
                       <button
                         type="button"
-                        onClick={() => handleDownload(row.invoicePdf)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleDownload(row.invoicePdf);
+                        }}
                         disabled={!row.invoicePdf}
                         className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
                         aria-label="Download invoice pdf"

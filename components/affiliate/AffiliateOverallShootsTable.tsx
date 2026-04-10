@@ -17,17 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "../admin/StatusBadge";
+import { resolveTimelineStage, timelineStageToDashboardLabel } from "@/lib/utils/projectTimeline";
 
-type Status = "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed";
-
-const STATUS_LABEL_MAP: Record<number, string> = {
-  0: "Initiated",
-  1: "PreProduction",
-  2: "PostProduction",
-  3: "Revision",
-  4: "Completed",
-  5: "Cancelled",
-};
+type Status = "Initiated" | "PreProduction" | "Shoot Day" | "PostProduction" | "Revision" | "Completed" | "Assets Delivered" | "Cancelled" | "Pending" | "Unknown";
 
 interface ShootRecord {
   id: string;
@@ -126,7 +118,9 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
           const hasQuote = project.quote_id !== null && project.quote_id !== undefined;
-          const statusLabel = hasQuote ? (STATUS_LABEL_MAP[project.status] || "Unknown") : "Pending";
+          const statusLabel = hasQuote
+            ? timelineStageToDashboardLabel(resolveTimelineStage(project))
+            : "Pending";
 
           // Use quote total if available, otherwise budget
           const quoteTotal = project.quote_total;

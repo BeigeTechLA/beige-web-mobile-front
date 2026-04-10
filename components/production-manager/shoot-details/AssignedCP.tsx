@@ -21,12 +21,12 @@ const CP_MEMBERS = [
   { id: 3, name: "Sara Kim", role: "Editor", image: "/images/crew/CREW(5).png", bgColor: "bg-white" }, // White
 ];
 
-export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { projectId: string; leadId?: string | number, assignedCrew?: any[] }) {
+export default function AssignedCP({ projectId, leadId, assignedCrew }: { projectId: string; leadId?: string | number, assignedCrew?: any[] }) {
   const router = useRouter()
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [crewMembers, setCrewMembers] = useState<any[]>(assignedCrew);
+  const [crewMembers, setCrewMembers] = useState<any[]>(assignedCrew ?? []);
   const [removingCrewId, setRemovingCrewId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -36,7 +36,9 @@ export default function AssignedCP({ projectId, leadId, assignedCrew = [] }: { p
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
   useEffect(() => {
-    setCrewMembers(assignedCrew);
+    if (Array.isArray(assignedCrew)) {
+      setCrewMembers(assignedCrew);
+    }
   }, [assignedCrew]);
 
   const hasCPs = crewMembers.length > 0;

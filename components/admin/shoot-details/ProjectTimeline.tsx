@@ -24,20 +24,20 @@ export default function ProjectTimeline({ status = 0 }: { status?: number }) {
 
     const isDark = !mounted || (resolvedTheme === "dark" || theme === "dark");
 
-    // Mapping project status (0-5) to timeline step indices
-    // 0: Initiated -> Step 1
-    // 1: Pre Production -> Step 2
-    // 2: Post Production -> Step 4 (Skip Shoot Day 3 as it's implied/transient)
-    // 3: Revision -> Step 5
-    // 4: Completed -> Step 6
-    // 5: Cancelled -> Special casing required, but usually stops at Initiated
+    // Timeline status mapping (0-7):
+    // 0 Initiated, 1 Pre Production, 2 Shoot Day, 3 Post Production,
+    // 4 Revision, 5 Completed, 6 Assets Delivered, 7 Cancelled.
+    // Backward compatible with legacy booking.status values (0-5).
 
     const getCurrentStep = () => {
+        if (status === 7) return 1;
         if (status === 0) return 1;
         if (status === 1) return 2;
-        if (status === 2) return 4;
-        if (status === 3) return 5;
-        if (status >= 4) return 6;
+        if (status === 2) return 3;
+        if (status === 3) return 4;
+        if (status === 4) return 5;
+        if (status === 5) return 6;
+        if (status >= 6) return 7;
         return 1;
     };
 

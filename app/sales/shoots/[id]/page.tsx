@@ -16,6 +16,7 @@ import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
 import { adminApi } from "@/lib/api";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
+import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 
 export default function SalesShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -157,7 +158,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
         </div>
 
         <div className="hidden lg:block">
-          <ProjectTimeline />
+          <ProjectTimeline status={resolveTimelineStage(project)} />
         </div>
 
         {isTimelineOpen && (
@@ -173,7 +174,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
               </div>
 
               <div className="h-full overflow-y-auto">
-                <ProjectTimeline status={project?.status} />
+                <ProjectTimeline status={resolveTimelineStage(project)} />
               </div>
             </div>
           </div>

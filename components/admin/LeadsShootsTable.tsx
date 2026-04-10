@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, Loader2, Calendar as CalendarIcon, Search } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { format } from "date-fns";
@@ -49,6 +50,7 @@ const STATUS_LABEL_MAP: Record<number, string> = {
 
 interface LeadRecord {
     id: string;
+    rawLeadId: string;
     customerName: string;
     email: string;
     leadType: "Self-Serve" | "Sales Assisted";
@@ -111,6 +113,7 @@ const formatRelativeTime = (dateString: string): string => {
 };
 
 export const LeadsShootsTable = () => {
+    const router = useRouter();
     const { theme, resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
 
@@ -149,6 +152,7 @@ export const LeadsShootsTable = () => {
         if (data?.leads) {
             const mapped = (data.leads || []).map((lead: any) => ({
                 id: `#${lead.lead_id}`,
+                rawLeadId: String(lead.lead_id),
                 customerName: lead.client_name || lead.guest_email || "Unknown User",
                 email: lead.guest_email || "No email",
                 leadType: lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted",
@@ -174,6 +178,10 @@ export const LeadsShootsTable = () => {
 
     const toggleExpand = (id: string) => {
         setExpandedId(expandedId === id ? null : id);
+    };
+
+    const handleLeadClick = (lead: LeadRecord) => {
+        router.push(`/admin/sales-representative/${lead.rawLeadId}`);
     };
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -219,11 +227,18 @@ export const LeadsShootsTable = () => {
                         </div>
                         <div className={`transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
                             {currentLeads.map((lead) => (
-                                <div key={lead.id} className={`px-4 border-b pb-4 last:border-0 ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
+                                <div
+                                    key={lead.id}
+                                    onClick={() => handleLeadClick(lead)}
+                                    className={`cursor-pointer px-4 border-b pb-4 last:border-0 transition-colors ${isDark ? "border-white/5 hover:bg-white/[0.02]" : "border-[#E5E5E5] hover:bg-black/[0.02]"}`}
+                                >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <button
-                                                onClick={() => toggleExpand(lead.id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleExpand(lead.id);
+                                                }}
                                                 className={`w-6 h-6 flex items-center justify-center rounded-full border ${expandedId === lead.id ? 'border-[#E8D1AB] text-[#E8D1AB]' : 'border-[#777674] text-[#777674]'} shrink-0`}
                                             >
                                                 {expandedId === lead.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -285,7 +300,11 @@ export const LeadsShootsTable = () => {
                     <tbody className={`p-5 transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
                         {currentLeads.length > 0 ? (
                             currentLeads.map((lead, idx) => (
-                                <tr key={idx} className={`group transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}>
+                                <tr
+                                    key={idx}
+                                    onClick={() => handleLeadClick(lead)}
+                                    className={`group cursor-pointer transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
+                                >
                                     <td className={`py-2 px-4 ${isDark ? "text-white" : "text-[#333]"}`}>{lead.id}</td>
                                     <td className="py-2 px-4">
                                         <div className="flex items-center gap-4">
