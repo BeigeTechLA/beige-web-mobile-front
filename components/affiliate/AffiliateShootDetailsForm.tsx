@@ -1130,7 +1130,7 @@ export const AffiliateShootDetailsForm = ({
                     <p className={`text-sm ${isDark ? "text-white/70" : "text-zinc-500"}`}>
                       If you have video or photo samples that you'd like to recreate, please share a link for our team to view.
                       <br />
-                      here: <a href="https://vimeo.com/beigemedia" target="_blank" rel="noopener noreferrer" className="text-[#E8D1AB] underline">https://vimeo.com/beigevideo</a>.
+                      here: <a href="https://vimeo.com/beigemedia" target="_blank" rel="noopener noreferrer" className="text-[#E8D1AB] underline">https://vimeo.com/beigemedia</a>.
                       <br />
                       If you do not have any yet, please write 'TBD'
                     </p>
