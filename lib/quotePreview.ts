@@ -119,6 +119,43 @@ const extractQuotePreviewKeyFromUrl = (value: string | null) => {
   return null;
 };
 
+export const normalizeQuotePreviewUrlForClient = (
+  value?: string | null,
+  quoteKey?: string | null
+) => {
+  const normalizedValue = getNormalizedString(value);
+  const normalizedQuoteKey = getNormalizedString(quoteKey);
+
+  if (typeof window === "undefined") {
+    if (normalizedValue) {
+      return normalizedValue;
+    }
+
+    if (normalizedQuoteKey) {
+      return buildQuotePreviewPath({ quoteKey: normalizedQuoteKey });
+    }
+
+    return null;
+  }
+
+  if (normalizedQuoteKey) {
+    return `${window.location.origin}${buildQuotePreviewPath({ quoteKey: normalizedQuoteKey })}`;
+  }
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(normalizedValue, window.location.origin);
+    return `${window.location.origin}${parsed.pathname}${parsed.search}`;
+  } catch {
+    return normalizedValue.startsWith("/")
+      ? `${window.location.origin}${normalizedValue}`
+      : normalizedValue;
+  }
+};
+
 export const resolveSecureQuotePreviewKey = (
   quote: SalesQuoteDetailData | null | undefined
 ) => {
@@ -267,7 +304,10 @@ export const createSignedQuotePreviewUrl = async (
     );
   }
 
-  const previewUrl = getNormalizedString(data?.data?.previewUrl);
+  const previewUrl = normalizeQuotePreviewUrlForClient(
+    getNormalizedString(data?.data?.previewUrl),
+    getNormalizedString(data?.data?.quoteKey)
+  );
 
   if (!previewUrl) {
     throw new Error("Quote preview link is unavailable.");
