@@ -615,7 +615,7 @@ export default function AffiliateFileManager() {
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace.externalId}
               </p>
-              {selectedWorkspace.consoleUrl ? (
+              {/* {selectedWorkspace.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
                   target="_blank"
@@ -624,14 +624,14 @@ export default function AffiliateFileManager() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null}
+              ) : null} */}
             </div>
           </div>
           <p className="lg:hidden text-xs text-[#D0D0D0]">
             <span className="text-[#AAA7A7]">Project Code: </span>
             {selectedWorkspace.externalId}
           </p>
-          {selectedWorkspace.consoleUrl ? (
+          {/* {selectedWorkspace.consoleUrl ? (
             <a
               href={selectedWorkspace.consoleUrl}
               target="_blank"
@@ -640,7 +640,7 @@ export default function AffiliateFileManager() {
             >
               Open Storage Folder
             </a>
-          ) : null}
+          ) : null} */}
         </div>
 
         <div className="pb-20 lg:pb-0">
@@ -751,7 +751,7 @@ export default function AffiliateFileManager() {
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace?.externalId}
               </p>
-              {selectedWorkspace?.consoleUrl ? (
+              {/* {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
                   target="_blank"
@@ -760,7 +760,7 @@ export default function AffiliateFileManager() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null}
+              ) : null} */}
             </div>
           </div>
         </div>

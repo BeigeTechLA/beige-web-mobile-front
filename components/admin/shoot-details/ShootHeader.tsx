@@ -234,34 +234,12 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
                 {paymentStatus.label}
               </span>
             </div>
-          </div>
-
-            <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base text-[#AAAAAA] mt-2 lg:mt-4">
-              <div className="flex gap-2">
-                <span>Folder Link :</span>
-                <a
-                  href={folderLink || "#"}
-                  target={folderLink ? "_blank" : undefined}
-                  rel={folderLink ? "noopener noreferrer" : undefined}
-                  className={cn(
-                    "underline underline-offset-4 transition-all",
-                    folderLink
-                      ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]"
-                      : "text-white/50 decoration-white/10 pointer-events-none"
-                  )}
-                >
-                  {folderLink || "No Link Available"}
-                  {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production" || activeTab === "Pre Production" || activeTab === "Post Production") && (
-                    <span className="text-white"> / {activeTab.replace("_", " ")}</span>
-                  )}
-                </a>
-              </div>
-              <div className="hidden lg:block w-px h-5 bg-[#333333]" />
-              <div className="flex gap-2">
-                <span>Shoot Files :</span>
-                <span className="text-white font-medium">{shootFilesText}</span>
-              </div>
+            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
+            <div className="flex gap-2">
+              <span>Shoot Files :</span>
+              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
             </div>
+          </div>
 
           <div className={`mt-2 lg:mt-4 text-sm lg:text-base flex gap-2 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
             <span>Location :</span>

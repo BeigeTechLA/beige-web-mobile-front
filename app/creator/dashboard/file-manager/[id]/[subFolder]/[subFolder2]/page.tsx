@@ -239,7 +239,7 @@ export default function CreatorSubFolderDetailsPage() {
               <div>
                 <p className="text-sm lg:text-base">Project: {workspaceName}</p>
                 <p className="mt-0.5 text-xs text-white/60 lg:text-base">Project Code: {workspaceCode}</p>
-                {workspaceConsoleUrl ? (
+                {/* {workspaceConsoleUrl ? (
                   <a
                     href={workspaceConsoleUrl}
                     target="_blank"
@@ -248,7 +248,7 @@ export default function CreatorSubFolderDetailsPage() {
                   >
                     Open Storage Folder
                   </a>
-                ) : null}
+                ) : null} */}
               </div>
             </div>
           </>

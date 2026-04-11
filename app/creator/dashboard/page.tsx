@@ -73,6 +73,20 @@ const formatDisplayLocation = (location?: string) => {
   return addressStr;
 };
 
+const isUpcomingDate = (dateStr?: string) => {
+  if (!dateStr) return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return true;
+  return d.getTime() >= today.getTime();
+};
+
+const isCompletedFlag = (item: any) => {
+  const flag = item?.is_completed ?? item?.project?.is_completed;
+  return flag === true || flag === 1;
+};
+
 const CHART_COLORS = {
   purple: "#A179F8",
   blue: "#49B6F5",
@@ -351,9 +365,21 @@ export default function CreatorDashboardPage() {
         if (response && !response.error) {
           const fetchedAllShoots = response.data.data.allShoots || [];
           const fetchedPending = response.data.data.pendingRequests || [];
+          const upcomingPending = fetchedPending.filter((item: any) => {
+            const dateStr =
+              item?.project?.event_date ||
+              item?.event_date ||
+              item?.project?.shoot_date ||
+              item?.shoot_date;
+            return isUpcomingDate(dateStr) && !isCompletedFlag(item);
+          });
 
           setAllShoots(fetchedAllShoots);
-          setPendingRequests(fetchedPending);
+          setPendingRequests(upcomingPending);
+          setDashboardStats((prev) => ({
+            ...prev,
+            pendingRequests: upcomingPending.length,
+          }));
 
           const newMarkers: any[] = [];
           const getMarkers = async (list: any[], markerType: 'active' | 'pending') => {
@@ -369,7 +395,7 @@ export default function CreatorDashboardPage() {
           }
 
           await getMarkers(fetchedAllShoots, 'active');
-          await getMarkers(fetchedPending, 'pending');
+          await getMarkers(upcomingPending, 'pending');
 
           setMapMarkers(newMarkers);
 
