@@ -148,7 +148,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
 
           <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-2 lg:mt-4 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"
             }`}>
-            <div className="flex gap-2">
+            {/* <div className="flex gap-2">
               <span>Folder Link :</span>
               <a
                 href={folderLink || "#"}
@@ -167,7 +167,7 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
                   <span className={isDark ? "text-white" : "text-black"}> / {activeTab.replace("_", " ")}</span>
                 )}
               </a>
-            </div>
+            </div> */}
             <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
             <div className="flex gap-2">
               <span>Shoot Files :</span>

@@ -929,6 +929,28 @@ export const GetUpcomingShoots = async (payload: { crew_member_id: number }) => 
   }
 };
 
+export const getAcceptedShoots = async (payload: { crew_member_id: number }) => {
+  try {
+    const response = await api.post(
+      "creator/accepted-shoots",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Get Accepted Shoots Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch accepted shoots",
+    };
+  }
+};
+
 
 export const acceptOrDeclineProject = async (payload: {
   project_id: number;

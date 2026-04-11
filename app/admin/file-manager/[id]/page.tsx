@@ -189,7 +189,7 @@ export default function AdminFolderDetailsPage() {
                     <span className="text-[#AAA7A7]">Project Code: </span>
                     {workspaceCode}
                   </p>
-                  {workspaceConsoleUrl ? (
+                  {/* {workspaceConsoleUrl ? (
                     <a
                       href={workspaceConsoleUrl}
                       target="_blank"
@@ -198,7 +198,7 @@ export default function AdminFolderDetailsPage() {
                     >
                       Open Storage Folder
                     </a>
-                  ) : null}
+                  ) : null} */}
                 </div>
               </div>
 
@@ -206,7 +206,7 @@ export default function AdminFolderDetailsPage() {
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {workspaceCode}
               </p>
-              {workspaceConsoleUrl ? (
+              {/* {workspaceConsoleUrl ? (
                 <a
                   href={workspaceConsoleUrl}
                   target="_blank"
@@ -215,7 +215,7 @@ export default function AdminFolderDetailsPage() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null}
+              ) : null} */}
             </div>
 
             <div className="pb-20 lg:pb-0">

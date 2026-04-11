@@ -360,11 +360,13 @@ export default function AdminFolderManagerPage() {
                           router.push(folder.href || `${pathname}/${folder.id}`);
                         }}
                       >
-                        <td className="py-5 px-6 text-white flex gap-2 items-center">
+                        <td className="py-5 px-6 text-white flex gap-2 items-center min-w-0">
                           <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
                             <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
                           </div>
-                          <span className="text-sm font-semibold">{folder.title}</span>
+                          <span className="text-sm font-semibold truncate max-w-[220px]" title={folder.title}>
+                            {folder.title}
+                          </span>
                         </td>
                         <td className="py-5 px-6 text-white text-[15px]">
                           <span className="px-4 py-1.5 rounded-xl bg-[#171717] text-white text-xs font-medium ">
