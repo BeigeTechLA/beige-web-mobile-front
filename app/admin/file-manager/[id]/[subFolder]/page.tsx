@@ -357,7 +357,7 @@ export default function AdminFileManagerPhasePage() {
                     <span className="text-[#AAA7A7]">Project Code: </span>
                     {workspaceCode}
                   </p>
-                  {workspaceConsoleUrl ? (
+                  {/* {workspaceConsoleUrl ? (
                     <a
                       href={workspaceConsoleUrl}
                       target="_blank"
@@ -366,14 +366,14 @@ export default function AdminFileManagerPhasePage() {
                     >
                       Open Storage Folder
                     </a>
-                  ) : null}
+                  ) : null} */}
                 </div>
               </div>
               <p className="lg:hidden text-xs text-[#D0D0D0]">
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {workspaceCode}
               </p>
-              {workspaceConsoleUrl ? (
+              {/* {workspaceConsoleUrl ? (
                 <a
                   href={workspaceConsoleUrl}
                   target="_blank"
@@ -382,7 +382,7 @@ export default function AdminFileManagerPhasePage() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null}
+              ) : null} */}
             </div>
 
             <div className="pb-20 lg:pb-0">

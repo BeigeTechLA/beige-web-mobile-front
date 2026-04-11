@@ -129,7 +129,7 @@ export default function AffiliateFileDetailsView({ folderId, subFolderId, onBack
           <p className="">Payment Status: <span className="text-[#45DB17]">{data.PaymentStatus}</span></p>
           </div>
         <div className="flex flex-wrap  gap-2 lg:gap-5 text-[#AAA7A7] text-sm divide-x divide-white/10">
-            <p className="pr-5">Folder Link: <span className="text-[#E8D1AB] underline">{data.folderLink}</span></p>
+            {/* <p className="pr-5">Folder Link: <span className="text-[#E8D1AB] underline">{data.folderLink}</span></p> */}
           <p className="">Shoot Files: <span className="text-white">{data.totalImageFiles} Images & {data.totalVideoFiles} Videos</span></p>
           </div>
           <p className="text-[#AAA7A7] text-sm capitalize">Location: <span className="text-white">{data.location}</span></p>

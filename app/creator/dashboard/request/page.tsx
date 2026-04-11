@@ -40,7 +40,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { getStatusCount, getPendingProjects, GetUpcomingShoots, acceptOrDeclineProject } from "@/lib/api";
+import { getStatusCount, getPendingProjects, GetUpcomingShoots, getAcceptedShoots, acceptOrDeclineProject } from "@/lib/api";
 // import ProjectDetailsModal from "@/Crew/ProfileDetailsModal";
 import ProjectDetailsContainer from "@/Crew/ProjectDetailsContainer";
 import { getProject } from "@/lib/api";
@@ -55,6 +55,7 @@ export default function RequestsShootsPage() {
   /* ---------------- VIEW TOGGLE STATE ---------------- */
   const [view, setView] = useState<"grid" | "list">("grid");
   const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"requests" | "shoots">("requests");
 
   // Modals & Data State
   const [projectDetailsOpen, setProjectDetailsOpen] = useState(false);
@@ -72,7 +73,14 @@ export default function RequestsShootsPage() {
   const [crewMemberId, setCrewMemberId] = useState<string | null>(null);
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
+  const [shoots, setShoots] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [computedStats, setComputedStats] = useState<{
+    pendingRequests: number;
+    confirmedRequests: number;
+    completedShoots: number;
+    declinedRequests: number;
+  } | null>(null);
 
   /* ---------------- LOAD USER ---------------- */
   useEffect(() => {
@@ -90,6 +98,10 @@ export default function RequestsShootsPage() {
   useEffect(() => {
     if (crewMemberId) fetchData();
   }, [crewMemberId]);
+
+  useEffect(() => {
+    setStatusFilter("all");
+  }, [activeTab]);
 
   const getCrewMemberId = () => {
     const userStr = localStorage.getItem("revure_user");
@@ -123,24 +135,39 @@ export default function RequestsShootsPage() {
       }
 
       const commonPayload = { crew_member_id };
-      const [pendingRes, upcomingRes] = await Promise.all([
+      const [pendingRes, upcomingRes, acceptedRes] = await Promise.all([
         getPendingProjects(commonPayload),
         GetUpcomingShoots(commonPayload),
+        getAcceptedShoots(commonPayload),
       ]);
 
       let allProjects: any[] = [];
-      if (pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)) {
+      const pendingFiltered =
+        pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)
+          ? pendingRes.data.filter((p: any) => {
+              const dateStr = p.event_date || p.shoot_date;
+              return isUpcomingDate(dateStr) && !isCompletedFlag(p);
+            })
+          : [];
+      if (pendingFiltered.length > 0) {
         allProjects.push(
-          ...pendingRes.data.map((p: any) => ({
+          ...pendingFiltered.map((p: any) => ({
             ...p,
             status: "Pending",
             project_id: p.project_id || p.id,
           }))
         );
       }
-      if (upcomingRes && upcomingRes.error === false && Array.isArray(upcomingRes.data)) {
+      const upcomingFiltered =
+        upcomingRes && upcomingRes.error === false && Array.isArray(upcomingRes.data)
+          ? upcomingRes.data.filter((p: any) => {
+              const dateStr = p.event_date || p.shoot_date;
+              return isUpcomingDate(dateStr);
+            })
+          : [];
+      if (upcomingFiltered.length > 0) {
         allProjects.push(
-          ...upcomingRes.data.map((p: any) => ({
+          ...upcomingFiltered.map((p: any) => ({
             ...p,
             status: "Confirmed",
             project_id: p.project_id || p.id,
@@ -148,6 +175,31 @@ export default function RequestsShootsPage() {
         );
       }
       setProjects(allProjects);
+
+      if (acceptedRes && acceptedRes.error === false && Array.isArray(acceptedRes.data)) {
+        const acceptedProjects = acceptedRes.data.map((p: any) => ({
+          ...p,
+          status: p.is_completed ? "Completed" : "Confirmed",
+          project_id: p.project_id || p.id,
+        }));
+        setShoots(acceptedProjects);
+        const completedCount = acceptedProjects.filter((p: any) => isCompletedFlag(p)).length;
+        const confirmedCount = acceptedProjects.filter((p: any) => !isCompletedFlag(p)).length;
+        setComputedStats({
+          pendingRequests: pendingFiltered.length,
+          confirmedRequests: confirmedCount,
+          completedShoots: completedCount,
+          declinedRequests: dashboardStats?.declinedRequests || 0,
+        });
+      } else {
+        setShoots([]);
+        setComputedStats({
+          pendingRequests: pendingFiltered.length,
+          confirmedRequests: 0,
+          completedShoots: 0,
+          declinedRequests: dashboardStats?.declinedRequests || 0,
+        });
+      }
     } catch (error) {
       console.error("Fetch Error:", error);
       toast.error("Failed to load dashboard data");
@@ -173,6 +225,20 @@ export default function RequestsShootsPage() {
       return `${city}, ${state}, ${country}`;
     }
     return addressStr;
+  };
+
+  const isUpcomingDate = (dateStr?: string) => {
+    if (!dateStr) return true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(`${dateStr}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return true;
+    return d.getTime() >= today.getTime();
+  };
+
+  const isCompletedFlag = (item: any) => {
+    const flag = item?.is_completed ?? item?.project?.is_completed;
+    return flag === true || flag === 1;
   };
 
   /* ---------------- ACTIONS ---------------- */
@@ -229,7 +295,8 @@ export default function RequestsShootsPage() {
 
 
   /* ---------------- FILTERING ---------------- */
-  const filteredProjects = projects.filter((p) => {
+  const visibleProjects = activeTab === "requests" ? projects : shoots;
+  const filteredProjects = visibleProjects.filter((p) => {
     const title = (p.project_name || p.title || "").toLowerCase();
     const matchesSearch = title.includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || p.status.toLowerCase() === statusFilter;
@@ -267,11 +334,35 @@ export default function RequestsShootsPage() {
           <p className="text-white/60">Manage your production schedule and requests</p>
         </div>
 
-        {/* 2. Stats Cards Section */}
+        {/* 2. Tabs */}
+        <div className="inline-flex items-center gap-1 rounded-xl bg-[#171717] border border-white/10 p-1">
+          <button
+            onClick={() => setActiveTab("requests")}
+            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+              activeTab === "requests"
+                ? "bg-[#E8D1AB] text-black"
+                : "text-white/60 hover:text-white"
+            }`}
+          >
+            Requests
+          </button>
+          <button
+            onClick={() => setActiveTab("shoots")}
+            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+              activeTab === "shoots"
+                ? "bg-[#E8D1AB] text-black"
+                : "text-white/60 hover:text-white"
+            }`}
+          >
+            Shoots
+          </button>
+        </div>
+
+        {/* 3. Stats Cards Section */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label="Pending Requests"
-            value={dashboardStats?.pendingRequests || 0}
+            value={computedStats?.pendingRequests ?? dashboardStats?.pendingRequests || 0}
             icon={Clock}
             iconColor="text-yellow-500"
             valueColor="text-yellow-500"
@@ -279,14 +370,14 @@ export default function RequestsShootsPage() {
           />
           <StatCard
             label="Confirmed Shoots"
-            value={dashboardStats?.confirmedRequests || 0}
+            value={computedStats?.confirmedRequests ?? dashboardStats?.confirmedRequests || 0}
             icon={Camera}
             iconColor="text-[#E8D1AB]"
             hoverBorder="hover:border-[#E8D1AB]/30"
           />
           <StatCard
             label="Completed"
-            value={dashboardStats?.completedShoots || 0}
+            value={computedStats?.completedShoots ?? dashboardStats?.completedShoots || 0}
             icon={CheckCircle2}
             iconColor="text-green-400"
             valueColor="text-green-400"
@@ -294,7 +385,7 @@ export default function RequestsShootsPage() {
           />
           <StatCard
             label="Declined"
-            value={dashboardStats?.declinedRequests || 0}
+            value={computedStats?.declinedRequests ?? dashboardStats?.declinedRequests || 0}
             icon={Ban}
             iconColor="text-red-400"
             valueColor="text-red-400"
@@ -324,7 +415,11 @@ export default function RequestsShootsPage() {
               <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
+                {activeTab === "requests" ? (
+                  <SelectItem value="pending">Pending</SelectItem>
+                ) : (
+                  <SelectItem value="completed">Completed</SelectItem>
+                )}
               </SelectContent>
             </Select>
 
@@ -395,10 +490,13 @@ export default function RequestsShootsPage() {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <span
-                      className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${item.status === "Confirmed"
-                        ? "bg-green-400/10 text-green-400"
-                        : "bg-blue-400/10 text-blue-400"
-                        }`}
+                      className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                        item.status === "Completed"
+                          ? "bg-emerald-400/10 text-emerald-400"
+                          : item.status === "Confirmed"
+                          ? "bg-green-400/10 text-green-400"
+                          : "bg-blue-400/10 text-blue-400"
+                      }`}
                     >
                       {item.status}
                     </span>
@@ -479,6 +577,10 @@ export default function RequestsShootsPage() {
                         statusBg = "bg-[#DCFCE7]"; // Light Green
                         statusText = "text-[#166534]"; // Dark Green
                         label = "Approved";
+                      } else if (item.status === "Completed") {
+                        statusBg = "bg-[#D1FAE5]"; // Light Emerald
+                        statusText = "text-[#065F46]"; // Dark Emerald
+                        label = "Completed";
                       } else if (item.status === "Rejected" || item.status === "Declined") {
                         statusBg = "bg-[#FEE2E2]"; // Light Red
                         statusText = "text-[#991B1B]"; // Dark Red

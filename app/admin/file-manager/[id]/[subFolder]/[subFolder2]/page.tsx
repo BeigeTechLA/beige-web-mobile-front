@@ -243,7 +243,7 @@ export default function SubFolderDetailsPage() {
                 <div>
                   <p className="text-sm lg:text-base">Project: {workspaceName}</p>
                   <p className="text-xs lg:text-base text-white/60 mt-0.5">Project Code: {workspaceCode}</p>
-                  {workspaceConsoleUrl ? (
+                  {/* {workspaceConsoleUrl ? (
                     <a
                       href={workspaceConsoleUrl}
                       target="_blank"
@@ -252,7 +252,7 @@ export default function SubFolderDetailsPage() {
                     >
                       Open Storage Folder
                     </a>
-                  ) : null}
+                  ) : null} */}
                 </div>
                 {/* <Button
                   onClick={() => setIsLinkModalOpen(true)}

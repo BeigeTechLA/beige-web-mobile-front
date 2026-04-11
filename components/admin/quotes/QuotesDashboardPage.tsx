@@ -1283,7 +1283,6 @@ export default function QuotesDashboardPage({
                     key={stat.title}
                     onClick={() => {
                       setSelectedStat(stat.title);
-                      setSelectedStatusFilter(getStatusFilterForStat(stat.title));
                     }}
                     className={`${bgColor} ${textColor} flex h-40 cursor-pointer flex-col justify-between rounded-2xl p-6 transition-all hover:scale-[1.02] active:scale-[0.98]`}
                   >

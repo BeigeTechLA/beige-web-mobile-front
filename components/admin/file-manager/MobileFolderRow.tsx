@@ -32,7 +32,7 @@ export const MobileFolderRow = ({ folder, handleOpenMenu }: { folder: FolderEntr
           <div className="h-10 w-10 bg-white/5 flex items-center justify-center rounded-lg">
             <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/10" size={20} />
           </div>
-          <span className="text-sm font-semibold text-white truncate max-w-[180px]">
+          <span className="text-sm font-semibold text-white truncate max-w-[180px]" title={folder.title}>
             {folder.title}
           </span>
         </div>
