@@ -60,6 +60,7 @@ type ConvertBookingModalProps = {
   description?: string;
   submitLabel?: string;
   showLocationField?: boolean;
+  maxDurationHours?: number | null;
 };
 
 export default function ConvertBookingModal({
@@ -73,6 +74,7 @@ export default function ConvertBookingModal({
   description = "Select booking type, shoot date and time before continuing.",
   submitLabel = "Convert to Booking",
   showLocationField = true,
+  maxDurationHours = null,
 }: ConvertBookingModalProps) {
   const [validationErrors, setValidationErrors] = useState({
     location: false,
@@ -266,6 +268,43 @@ export default function ConvertBookingModal({
     );
   };
 
+  const calculateDurationHours = (startKey: string, endKey: string) => {
+    if (!startKey || !endKey) return null;
+
+    const [startHour, startMinute] = startKey.split(":").map(Number);
+    const [endHour, endMinute] = endKey.split(":").map(Number);
+    const diffInMinutes = endHour * 60 + endMinute - (startHour * 60 + startMinute);
+
+    return diffInMinutes > 0 ? Math.round((diffInMinutes / 60) * 100) / 100 : null;
+  };
+
+  const hasDurationLimit =
+    typeof maxDurationHours === "number" &&
+    Number.isFinite(maxDurationHours) &&
+    maxDurationHours > 0;
+
+  const isTimeRangeWithinDurationLimit = (startKey: string, endKey: string) => {
+    const duration = calculateDurationHours(startKey, endKey);
+    if (duration === null) {
+      return false;
+    }
+
+    if (!hasDurationLimit) {
+      return true;
+    }
+
+    return duration <= maxDurationHours;
+  };
+
+  const getFilteredEndTimeOptions = (startKey: string) => {
+    if (!startKey) return timeOptions;
+    return timeOptions.filter(
+      (option) =>
+        option.key > startKey &&
+        isTimeRangeWithinDurationLimit(startKey, option.key)
+    );
+  };
+
   const handleDateChange = (date: Date | null) => {
     setSelectedShootDate(date);
     setValidationErrors((prev) => ({ ...prev, singleDate: false }));
@@ -289,6 +328,13 @@ export default function ConvertBookingModal({
 
   const handleStartTimeChange = (timeKey: string) => {
     setValidationErrors((prev) => ({ ...prev, singleStart: false, multiTimes: false }));
+    const currentEndKey = getEndTimeKey();
+    if (
+      currentEndKey &&
+      !isTimeRangeWithinDurationLimit(timeKey, currentEndKey)
+    ) {
+      setEndDateTime("");
+    }
     setStartDateTime(updateDateTime(selectedShootDate, timeKey));
   };
 
@@ -301,14 +347,12 @@ export default function ConvertBookingModal({
     if (!startDateTime) return timeOptions;
     const startDate = new Date(startDateTime);
     const startKey = Number.isNaN(startDate.getTime()) ? "" : format(startDate, "HH:mm");
-    if (!startKey) return timeOptions;
-    return timeOptions.filter((option) => option.key > startKey);
-  }, [timeOptions, startDateTime]);
+    return getFilteredEndTimeOptions(startKey);
+  }, [timeOptions, startDateTime, maxDurationHours]);
 
   const filteredSharedMultiEndTimeOptions = useMemo(() => {
-    if (!sharedMultiStartTime) return timeOptions;
-    return timeOptions.filter((option) => option.key > sharedMultiStartTime);
-  }, [timeOptions, sharedMultiStartTime]);
+    return getFilteredEndTimeOptions(sharedMultiStartTime);
+  }, [timeOptions, sharedMultiStartTime, maxDurationHours]);
 
   const getTimeLabel = (key: string) =>
     timeOptions.find((option) => option.key === key)?.value || key;
@@ -319,21 +363,6 @@ export default function ConvertBookingModal({
       .sort((a, b) => a.getTime() - b.getTime())
       .map((date) => format(date, "MMM dd"))
       .join(", ");
-
-  const calculateDurationHours = (startKey: string, endKey: string) => {
-    if (!startKey || !endKey) return null;
-
-    const [startHour, startMinute] = startKey.split(":").map(Number);
-    const [endHour, endMinute] = endKey.split(":").map(Number);
-    const diffInMinutes = endHour * 60 + endMinute - (startHour * 60 + startMinute);
-
-    return diffInMinutes > 0 ? Math.round((diffInMinutes / 60) * 100) / 100 : null;
-  };
-
-  const getFilteredEndTimeOptions = (startKey: string) => {
-    if (!startKey) return timeOptions;
-    return timeOptions.filter((option) => option.key > startKey);
-  };
 
   const toggleDateSelection = (date: Date) => {
     setValidationErrors((prev) => ({ ...prev, multiDates: false }));
@@ -354,6 +383,11 @@ export default function ConvertBookingModal({
       [dateKey]: {
         ...prev[dateKey],
         startKey: timeKey,
+        endKey:
+          prev[dateKey]?.endKey &&
+          !isTimeRangeWithinDurationLimit(timeKey, prev[dateKey]?.endKey || "")
+            ? undefined
+            : prev[dateKey]?.endKey,
       },
     }));
   };
@@ -433,6 +467,17 @@ export default function ConvertBookingModal({
         });
         return false;
       }
+
+      if (!isTimeRangeWithinDurationLimit(getStartTimeKey(), getEndTimeKey())) {
+        nextErrors.singleEnd = true;
+        setValidationErrors(nextErrors);
+        toast.error("Invalid Duration", {
+          description: hasDurationLimit
+            ? `Booking duration cannot exceed ${maxDurationHours} hours.`
+            : "End time must be after start time.",
+        });
+        return false;
+      }
     }
 
     if (bookingType === "multi_day") {
@@ -469,6 +514,17 @@ export default function ConvertBookingModal({
           });
           return false;
         }
+
+        if (!isTimeRangeWithinDurationLimit(sharedMultiStartTime, sharedMultiEndTime)) {
+          nextErrors.multiTimes = true;
+          setValidationErrors(nextErrors);
+          toast.error("Invalid Duration", {
+            description: hasDurationLimit
+              ? `Booking duration cannot exceed ${maxDurationHours} hours per day.`
+              : "End time must be after start time.",
+          });
+          return false;
+        }
       } else {
         const hasMissingTimes = selectedDates.some((date) => {
           const dateKey = getDateKey(date);
@@ -480,6 +536,25 @@ export default function ConvertBookingModal({
           setValidationErrors(nextErrors);
           toast.error("Required Field", {
             description: "Please fill in all required fields",
+          });
+          return false;
+        }
+
+        const hasDurationOverflow = selectedDates.some((date) => {
+          const dateKey = getDateKey(date);
+          return !isTimeRangeWithinDurationLimit(
+            multiDayTimes[dateKey]?.startKey || "",
+            multiDayTimes[dateKey]?.endKey || ""
+          );
+        });
+
+        if (hasDurationOverflow) {
+          nextErrors.multiTimes = true;
+          setValidationErrors(nextErrors);
+          toast.error("Invalid Duration", {
+            description: hasDurationLimit
+              ? `Each selected day must be ${maxDurationHours} hours or less.`
+              : "End time must be after start time.",
           });
           return false;
         }
@@ -554,6 +629,11 @@ export default function ConvertBookingModal({
           </div>
 
           <div className="my-4 lg:my-9">
+            {hasDurationLimit ? (
+              <p className={`mb-4 text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#6B5A3A]"}`}>
+                Maximum booking duration: {maxDurationHours} hours per day.
+              </p>
+            ) : null}
             {bookingType === "single_day" ? (
               <>
                 <h3 className={`mb-3 text-base font-medium lg:mb-6 lg:text-xl ${isDark ? "text-white/90" : "text-black/80"}`}>
@@ -779,7 +859,10 @@ export default function ConvertBookingModal({
                               onChange={(value) => {
                                 setValidationErrors((prev) => ({ ...prev, multiTimes: false }));
                                 setSharedMultiStartTime(value);
-                                if (sharedMultiEndTime && sharedMultiEndTime <= value) {
+                                if (
+                                  sharedMultiEndTime &&
+                                  !isTimeRangeWithinDurationLimit(value, sharedMultiEndTime)
+                                ) {
                                   setSharedMultiEndTime("");
                                 }
                               }}

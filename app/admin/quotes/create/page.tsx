@@ -1035,7 +1035,7 @@ export default function CreateQuotePage() {
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
-  const [convertIntent, setConvertIntent] = useState<"convert_only" | "send_invoice">("convert_only");
+  const [convertIntent, setConvertIntent] = useState<"convert_only" | "send_invoice" | "view_invoice">("convert_only");
   const [convertedBookingIdOverride, setConvertedBookingIdOverride] =
     useState<string | null>(null);
   const [isConvertedOverride, setIsConvertedOverride] = useState(false);
@@ -2520,6 +2520,18 @@ export default function CreateQuotePage() {
 
     return total + (selectedEditingTypes.length ? editingTotal : baseTotal);
   }, 0);
+  const selectedServicesMaxDurationHours = React.useMemo(() => {
+    const durations = selectedServices
+      .filter((serviceId) => {
+        const resolvedLabel =
+          services.find((service) => service.id === serviceId)?.label || serviceId;
+        return !isEditingServiceLabel(resolvedLabel);
+      })
+      .map((serviceId) => Number(serviceConfigs[serviceId]?.duration))
+      .filter((duration) => Number.isFinite(duration) && duration > 0);
+
+    return durations.length > 0 ? Math.max(...durations) : null;
+  }, [selectedServices, serviceConfigs, services]);
 
   React.useEffect(() => {
     if (activeShootTypeForm === "video" && !hasVideoService) {
@@ -3080,14 +3092,9 @@ export default function CreateQuotePage() {
     setIsSummaryModalOpen(true);
   };
 
-  const handleViewInvoice = async () => {
+  const previewQuoteInvoiceRequest = async () => {
     if (!resolvedInvoiceQuoteId) {
       toast.error("Quote id is missing.");
-      return;
-    }
-
-    if (!isConvertedToBooking) {
-      toast.error("Convert this quote to a booking before viewing the invoice.");
       return;
     }
 
@@ -3147,6 +3154,21 @@ export default function CreateQuotePage() {
     }
   };
 
+  const handleViewInvoice = async () => {
+    if (!resolvedInvoiceQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (!isConvertedToBooking) {
+      setConvertIntent("view_invoice");
+      setIsConvertModalOpen(true);
+      return;
+    }
+
+    await previewQuoteInvoiceRequest();
+  };
+
   const sendQuoteInvoiceRequest = async () => {
     if (!resolvedInvoiceQuoteId) {
       toast.error("Quote id is missing.");
@@ -3185,7 +3207,7 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (!isConvertedToBooking || !convertedBookingId) {
+    if (!isConvertedToBooking) {
       setConvertIntent("send_invoice");
       setIsConvertModalOpen(true);
       return;
@@ -3274,6 +3296,8 @@ export default function CreateQuotePage() {
 
       if (convertIntent === "send_invoice") {
         await sendQuoteInvoiceRequest();
+      } else if (convertIntent === "view_invoice") {
+        await previewQuoteInvoiceRequest();
       }
     } catch (error) {
       console.error("Failed to convert quote to booking", error);
@@ -7009,14 +7033,19 @@ export default function CreateQuotePage() {
         isSubmitting={isConverting}
         isDark={isDark}
         showLocationField={false}
+        maxDurationHours={selectedServicesMaxDurationHours}
         title={
           convertIntent === "send_invoice"
             ? "Convert to Booking Before Sending Invoice"
+            : convertIntent === "view_invoice"
+              ? "Convert to Booking Before Viewing Invoice"
             : "Convert to Booking"
         }
         description={
           convertIntent === "send_invoice"
             ? "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
+            : convertIntent === "view_invoice"
+              ? "This quote must be converted to a booking before an invoice can be viewed. Complete the booking details below to continue."
             : "Select booking type, shoot date and time before continuing."
         }
         submitLabel="Convert to Booking"
