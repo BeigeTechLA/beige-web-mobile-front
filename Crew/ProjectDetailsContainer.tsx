@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
-import { X, Maximize2, MoreVertical } from "lucide-react";
+// Added ChevronLeft to the imports
+import { X, Maximize2, MoreVertical, ChevronLeft } from "lucide-react"; 
 import { cn } from "@/lib/utils";
-import { getPaymentStatusMeta, getProjectTimeText, getShootFilesText } from "@/lib/utils/shootDetails";
+import { getProjectTimeText, getShootFilesText } from "@/lib/utils/shootDetails";
 import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 
@@ -24,7 +25,6 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
   const crew = apiResponse.assignedCrew?.[0]?.crew_member;
   const projectId =
     project?.stream_project_booking_id || project?.project_id || project?.id;
-  const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const projectTimeText = getProjectTimeText(project);
   const timelineLabel = useMemo(
     () => timelineStageToHeaderLabel(resolveTimelineStage(project)),
@@ -88,12 +88,29 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col font-sans">
       
-      {/* 1. TOP ID BAR */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-white/5 bg-[#111]">
-        <div className="flex items-center gap-3 text-white/40 text-[11px] font-medium uppercase tracking-wider">
-          <Maximize2 size={14} />
-          <span>ID / {projectId || "N/A"}</span>
+      {/* 1. TOP ID BAR - Updated with Back Button */}
+      <div className="flex items-center justify-between px-4 lg:px-6 py-3 border-b border-white/5 bg-[#111]">
+        <div className="flex items-center gap-4 lg:gap-6">
+          {/* Back Button */}
+          <button 
+            onClick={onBack} 
+            className="flex items-center gap-2 text-white/40 hover:text-white transition-colors group"
+          >
+            <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+
+          {/* Vertical Divider between Back and ID */}
+          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
+
+          {/* ID Display */}
+          <div className="flex items-center gap-3 text-white/40 text-[11px] font-medium uppercase tracking-wider">
+            <Maximize2 size={14} />
+            <span>ID / {projectId || "N/A"}</span>
+          </div>
         </div>
+
+        {/* Close Icon (Right side) */}
         <button onClick={onBack} className="text-white/40 hover:text-white transition-colors">
           <X size={20} />
         </button>
@@ -140,13 +157,6 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
             <StripItem label="Shoot Date" value={project?.event_date} />
             <Divider />
             <StripItem label="Time" value={projectTimeText} />
-            <Divider />
-            <StripItem
-              label="Total Value"
-              value={project?.total_paid_amount ? `$${project.total_paid_amount}` : project?.budget ? `$${project.budget}` : "$0.00"}
-            />
-            <Divider />
-            <StripItem label="Payment Status" value={paymentStatus.label} valueClassName={paymentStatus.className} />
             
             <div className="w-full flex flex-col lg:flex-row gap-3 lg:gap-8 pt-2 mt-2 border-t border-white/5">
                 <StripItem
@@ -171,14 +181,14 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
             <TabBtn label="Messages" active={activeTab === "messages"} onClick={() => setActiveTab("messages")} />
           </div>
 
-          {/* 5. TAB CONTENT - Condition Rendering for each Tab */}
+          {/* 5. TAB CONTENT */}
           <div className="pt-4 pb-20">
             {activeTab === "shoot-details" && (
                 <ShootOverviewTab project={project} />
             )}
             
             {activeTab === "pre-prod" && (
-                <AffiliatePreProductionTab projectId={projectId} />
+                <AffiliatePreProductionTab projectId={projectId} canUpload={false} />
             )}
             
             {activeTab === "post-prod" && (
@@ -186,7 +196,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
             )}
             
             {activeTab === "meetings" && (
-                <MeetingSchedule project={project} />
+                <MeetingSchedule orderId={projectId} role="cp" />
             )}
             
             {activeTab === "messages" && (
