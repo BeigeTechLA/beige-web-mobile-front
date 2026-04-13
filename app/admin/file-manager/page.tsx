@@ -53,6 +53,24 @@ export default function AdminFolderManagerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const getUpdatedTimestamp = (value?: string) => {
+    if (!value) return 0;
+    const timestamp = new Date(value).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  };
+
+  const isSameCalendarDate = (value: string | undefined, selected: Date) => {
+    if (!value) return false;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+
+    return (
+      date.getFullYear() === selected.getFullYear() &&
+      date.getMonth() === selected.getMonth() &&
+      date.getDate() === selected.getDate()
+    );
+  };
+
   const tabs = [
     { name: "All Files", icon: FolderOpen },
     { name: "Linked to folders", icon: Link },
@@ -115,8 +133,18 @@ export default function AdminFolderManagerPage() {
       );
     }
 
+    if (selectedDate) {
+      items = items.filter((item) => isSameCalendarDate(item.updatedAtRaw, selectedDate));
+    }
+
+    items.sort((a, b) => {
+      const diff = getUpdatedTimestamp(b.updatedAtRaw) - getUpdatedTimestamp(a.updatedAtRaw);
+      if (diff !== 0) return diff;
+      return a.title.localeCompare(b.title);
+    });
+
     return items;
-  }, [projects, searchTerm, selectedTab, status]);
+  }, [projects, searchTerm, selectedTab, status, selectedDate]);
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,

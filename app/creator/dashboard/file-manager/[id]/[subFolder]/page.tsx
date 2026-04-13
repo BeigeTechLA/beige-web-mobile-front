@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Grid3X3, List, Search, Upload } from "lucide-react";
+import { ArrowLeft, CalendarClock, Grid3X3, List, Search, Upload } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
@@ -20,6 +20,7 @@ import {
   slugToWorkspaceName,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
+import { getProject } from "@/lib/api";
 import { toast } from "sonner";
 
 const STATUSES = ["Linked", "Unlinked"];
@@ -48,6 +49,16 @@ export default function CreatorFileManagerPhasePage() {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [viewerFile, setViewerFile] = useState<Record<string, unknown> | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [shootDate, setShootDate] = useState<string | null>(null);
+
+  const isOnOrAfterShootDay = useCallback((date?: string | null) => {
+    if (!date) return false;
+    const shootDay = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(shootDay.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return shootDay.getTime() <= today.getTime();
+  }, []);
 
   const loadPhase = useCallback(async () => {
     try {
@@ -60,6 +71,17 @@ export default function CreatorFileManagerPhasePage() {
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setWorkspaceFolders(workspaceData.folders);
       setWorkspaceFiles(workspaceData.files);
+
+      if (Number.isFinite(Number(projectId))) {
+        try {
+          const projectDetails = await getProject(Number(projectId));
+          setShootDate(projectDetails?.data?.project?.event_date || null);
+        } catch {
+          setShootDate(null);
+        }
+      } else {
+        setShootDate(null);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load folder");
     } finally {
@@ -128,6 +150,18 @@ export default function CreatorFileManagerPhasePage() {
     const query = searchTerm.toLowerCase();
     return viewState.files.filter((item) => item.title.toLowerCase().includes(query));
   }, [searchTerm, viewState.files]);
+
+  const formattedShootDate = useMemo(() => {
+    if (!shootDate) return "your shoot day";
+    const parsed = new Date(`${shootDate}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return shootDate;
+    return parsed.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }, [shootDate]);
 
   useEffect(() => {
     const previewableFiles = viewState.files.filter(
@@ -231,7 +265,8 @@ export default function CreatorFileManagerPhasePage() {
     }
   };
 
-  const canUpload = phaseSlug === "post-production";
+  const canUpload = phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate);
+  const showUploadLockBanner = phaseSlug === "post-production" && !canUpload;
 
   return (
     <div className="overflow-hidden">
@@ -293,6 +328,22 @@ export default function CreatorFileManagerPhasePage() {
           </div>
 
           <div className="pb-20 lg:pb-0">
+            {showUploadLockBanner ? (
+              <div className="mb-3 rounded-xl border border-[#E8D1AB]/25 bg-gradient-to-r from-[#2A2215] to-[#17130E] p-3 lg:mb-4 lg:p-4">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-lg bg-[#E8D1AB]/15 p-2 text-[#E8D1AB]">
+                    <CalendarClock size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[#F2E4C8]">Uploads unlock on shoot day</p>
+                    <p className="mt-1 text-xs text-[#DCC7A0] lg:text-sm">
+                      Post-production upload will be available on{" "}
+                      <span className="font-medium text-[#F2E4C8]">{formattedShootDate}</span>. You can review folders and existing files now.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div className="mb-3 flex items-center justify-between gap-2 lg:mb-6">
               <div className="relative max-w-xl flex-1">
                 <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/40 lg:left-3 lg:h-4 lg:w-4" />

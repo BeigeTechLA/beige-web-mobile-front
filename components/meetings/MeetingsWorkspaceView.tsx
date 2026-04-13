@@ -45,6 +45,12 @@ const getIdentityId = (value: unknown) => {
   return "";
 };
 
+const formatInvitationResponse = (response: string) => {
+  if (response === "declined") return "Rejected";
+  if (response === "accepted") return "Accepted";
+  return "Pending";
+};
+
 const formatDateTime = (value?: string) => {
   if (!value) return "No schedule";
   const date = new Date(value);
@@ -184,14 +190,15 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
               Refresh
             </Button>
-            <Button
-              type="button"
-              onClick={() => setIsCreateModalOpen(true)}
-              disabled={!canCreateMeeting}
-              className="bg-[#E5D5B8] text-black hover:bg-[#d9c5a0]"
-            >
-              Create Meeting
-            </Button>
+            {canCreateMeeting ? (
+              <Button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="bg-[#E5D5B8] text-black hover:bg-[#d9c5a0]"
+              >
+                Create Meeting
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -252,7 +259,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
                         {meeting.order?.name ? <span>Order: {meeting.order.name}</span> : null}
                         {canRespond ? (
                           <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-medium capitalize text-amber-300">
-                            Your response: {currentResponse}
+                            Your response: {formatInvitationResponse(currentResponse)}
                           </span>
                         ) : null}
                       </div>

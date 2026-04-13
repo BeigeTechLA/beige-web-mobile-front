@@ -3,11 +3,8 @@
 import React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  Pencil,
   FolderOpen,
-  Link as LinkIcon,
   Download,
-  Share2,
   Trash2
 } from "lucide-react";
 
@@ -24,7 +21,7 @@ interface FileActionMenuProps {
 }
 
 const FileActionMenu: React.FC<FileActionMenuProps> = ({
-  isOpen, onClose, onOpenLinkModal, anchor, folderName, href, onDownload, onDelete, onRename
+  isOpen, onClose, anchor, folderName, href, onDownload, onDelete
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -70,18 +67,19 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
             label="Open"
             onClick={handleOpenFolder}
           />
-          <MenuButton icon={<Pencil size={18} />} label="Rename" onClick={() => {
+          {/* Temporarily hidden actions: Rename / Link to Shoot */}
+          {/* <MenuButton icon={<Pencil size={18} />} label="Rename" onClick={() => {
             onRename?.();
             onClose();
-          }} />
-          <MenuButton
+          }} /> */}
+          {/* <MenuButton
             icon={<LinkIcon size={18} />}
             label="Link to Shoot"
             onClick={() => {
               onOpenLinkModal();
               onClose();
             }}
-          />
+          /> */}
         </div>
 
         {/* Divider */}
@@ -89,7 +87,8 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
 
         {/* Section 2: Sharing */}
         <div className="flex flex-col p-1.5">
-          <MenuButton icon={<Share2 size={18} />} label="Share" onClick={onClose} />
+          {/* Temporarily hidden action: Share */}
+          {/* <MenuButton icon={<Share2 size={18} />} label="Share" onClick={onClose} /> */}
           <MenuButton icon={<Download size={18} />} label="Download" onClick={() => {
             onDownload?.();
             onClose();
