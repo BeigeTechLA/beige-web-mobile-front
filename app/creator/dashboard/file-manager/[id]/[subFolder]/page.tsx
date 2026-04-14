@@ -15,6 +15,7 @@ import { FileCard } from "@/components/admin/file-manager/FileCard";
 import {
   fileManagerApi,
   getDisplayInitials,
+  isCommonEventWorkspaceId,
   mapExternalFilesToUi,
   mapExternalFoldersToUi,
   slugToWorkspaceName,
@@ -30,6 +31,7 @@ export default function CreatorFileManagerPhasePage() {
   const params = useParams<{ id: string; subFolder: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
+  const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -265,8 +267,8 @@ export default function CreatorFileManagerPhasePage() {
     }
   };
 
-  const canUpload = phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate);
-  const showUploadLockBanner = phaseSlug === "post-production" && !canUpload;
+  const canUpload = isCommonEventWorkspace || (phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate));
+  const showUploadLockBanner = !isCommonEventWorkspace && phaseSlug === "post-production" && !canUpload;
 
   return (
     <div className="overflow-hidden">

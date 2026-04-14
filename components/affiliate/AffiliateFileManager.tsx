@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Cookies from "js-cookie";
 import {
   ArrowLeft,
+  Camera,
   ExternalLink,
   FolderOpen,
   Grid3X3,
@@ -25,8 +26,10 @@ import { affiliateApi } from "@/lib/api";
 import {
   fileManagerApi,
   inferWorkspaceCategory,
+  isCommonEventWorkspaceId,
   isRecentWithinHours,
 } from "@/lib/fileManagerApi";
+import { toast } from "sonner";
 
 interface WorkspaceCard {
   externalId: string;
@@ -54,6 +57,22 @@ interface BrowserFile {
   lastOpened: string;
   userInitials: string;
 }
+
+interface FaceMatchItem {
+  path: string;
+  score: number;
+  confidence: number;
+  url?: string;
+}
+
+interface ProjectLite {
+  project_name?: string;
+  stream_project_booking_id?: string | number;
+  booking_id?: string | number;
+}
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 const prettifyFolderName = (name?: string) => {
   const normalized = String(name || "").trim();
@@ -120,6 +139,12 @@ export default function AffiliateFileManager() {
   const [viewerType, setViewerType] = useState("");
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [viewerMetaId, setViewerMetaId] = useState<string | null>(null);
+  const [isFaceScanning, setIsFaceScanning] = useState(false);
+  const [faceMatches, setFaceMatches] = useState<FaceMatchItem[]>([]);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
 
   const loadRoot = async () => {
     const token = Cookies.get("revure_token");
@@ -138,11 +163,18 @@ export default function AffiliateFileManager() {
         fileManagerApi.listExternalWorkspaces(),
       ]);
 
-      const projects = shootsResponse?.data?.projects || [];
-      const projectMap = new Map<string, any>();
+      const projects = Array.isArray(shootsResponse?.data?.projects)
+        ? shootsResponse.data.projects
+        : [];
+      const projectMap = new Map<string, ProjectLite>();
 
-      projects.forEach((item: any) => {
-        const project = item.project || item;
+      projects.forEach((item: unknown) => {
+        const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+        const nestedProject =
+          row.project && typeof row.project === "object"
+            ? (row.project as ProjectLite)
+            : null;
+        const project = nestedProject || (row as ProjectLite);
         const bookingId = String(
           project?.stream_project_booking_id || project?.booking_id || ""
         );
@@ -152,17 +184,20 @@ export default function AffiliateFileManager() {
       });
 
       const mapped = externalWorkspaces
-        .filter((workspace) => projectMap.has(String(workspace.externalId)))
+        .filter((workspace) =>
+          isCommonEventWorkspaceId(workspace.externalId) ||
+          projectMap.has(String(workspace.externalId))
+        )
         .map((workspace) => {
           const project = projectMap.get(String(workspace.externalId));
           return {
             externalId: String(workspace.externalId),
-            title: project?.project_name || workspace.folderName,
+            title: workspace.folderName || project?.project_name || "Common Event",
             fileCount: Number(workspace.fileCount || 0),
             lastOpened: workspace.updatedAt || workspace.createdAt || "",
-            userInitials: getInitials(project?.project_name || workspace.folderName),
+            userInitials: getInitials(workspace.folderName || project?.project_name),
             category: inferWorkspaceCategory(
-              project?.project_name || workspace.folderName
+              workspace.folderName || project?.project_name
             ),
             updatedAtRaw: workspace.updatedAt || workspace.createdAt || "",
             consoleUrl: workspace.consoleUrl,
@@ -170,8 +205,8 @@ export default function AffiliateFileManager() {
         });
 
       setWorkspaces(mapped);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load your file manager");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load your file manager"));
     } finally {
       setLoading(false);
     }
@@ -210,8 +245,8 @@ export default function AffiliateFileManager() {
           userInitials: getInitials(file.name),
         }))
       );
-    } catch (err: any) {
-      setError(err?.message || "Failed to load folder contents");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load folder contents"));
     } finally {
       setIsPhaseLoading(false);
     }
@@ -220,6 +255,7 @@ export default function AffiliateFileManager() {
   const openWorkspace = async (workspace: WorkspaceCard) => {
     try {
       setIsPhaseLoading(true);
+      setFaceMatches([]);
       setSelectedWorkspace(workspace);
       setSelectedPhase(null);
       setSelectedPath("");
@@ -233,8 +269,8 @@ export default function AffiliateFileManager() {
           lastOpened: folder.updatedAt || folder.createdAt || "",
         }))
       );
-    } catch (err: any) {
-      setError(err?.message || "Failed to load workspace");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load workspace"));
     } finally {
       setIsPhaseLoading(false);
     }
@@ -287,6 +323,31 @@ export default function AffiliateFileManager() {
     };
   }, [phaseFiles]);
 
+  const stopCamera = useCallback(() => {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isCameraOpen) return;
+    if (!cameraStreamRef.current || !videoRef.current) return;
+
+    videoRef.current.srcObject = cameraStreamRef.current;
+    videoRef.current.play().catch(() => {
+      // Ignore autoplay issues; user can retry/capture after interaction.
+    });
+  }, [isCameraOpen]);
+
+  useEffect(() => () => {
+    stopCamera();
+  }, [stopCamera]);
+
   const handleOpenFile = async (file: BrowserFile) => {
     try {
       setViewerOpen(true);
@@ -314,6 +375,199 @@ export default function AffiliateFileManager() {
     }
   };
 
+  const fileToBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || "");
+        const base64 = result.includes(",") ? result.split(",")[1] : result;
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error("Failed to read selected image"));
+      reader.readAsDataURL(file);
+    });
+
+  const runFaceScan = async (scanImageBase64: string) => {
+    if (!selectedWorkspace) return;
+
+    setIsFaceScanning(true);
+    setFaceMatches([]);
+
+    const response = await fileManagerApi.searchFaceMatches({
+      externalId: selectedWorkspace.externalId,
+      scanImageBase64,
+      threshold: 0.7,
+      maxResults: 200,
+    });
+
+    const matches = response?.matches || [];
+    if (!matches.length) {
+      setFaceMatches([]);
+      toast.info("No matching photos found for this face scan");
+      return;
+    }
+
+    const enriched = await Promise.all(
+      matches.map(async (match) => {
+        const path = String(match.path || "");
+        if (!path) return null;
+        try {
+          const view = await fileManagerApi.getExternalFileViewUrl(path);
+          return {
+            path,
+            score: Number(match.score || 0),
+            confidence: Number(match.confidence || match.score || 0),
+            url: view?.url || "",
+          } as FaceMatchItem;
+        } catch {
+          return {
+            path,
+            score: Number(match.score || 0),
+            confidence: Number(match.confidence || match.score || 0),
+            url: "",
+          } as FaceMatchItem;
+        }
+      })
+    );
+
+    const validMatches = enriched.filter((item): item is FaceMatchItem => Boolean(item));
+    setFaceMatches(validMatches);
+    toast.success(`Found ${validMatches.length} matching photo${validMatches.length === 1 ? "" : "s"}`);
+  };
+
+  const handleFaceScanFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file || !selectedWorkspace) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image for face scan");
+      return;
+    }
+
+    try {
+      const scanImageBase64 = await fileToBase64(file);
+      await runFaceScan(scanImageBase64);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Face scan failed");
+    } finally {
+      setIsFaceScanning(false);
+    }
+  };
+
+  const handleOpenCamera = async () => {
+    if (!selectedWorkspace) return;
+    setCameraError(null);
+    setIsCameraOpen(true);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Camera is not supported on this device/browser.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
+      cameraStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch {
+      setCameraError("Unable to access camera. Please allow camera permission.");
+    }
+  };
+
+  const handleCloseCamera = () => {
+    setIsCameraOpen(false);
+    setCameraError(null);
+    stopCamera();
+  };
+
+  const handleCaptureFromCamera = async () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+
+    if (!width || !height) {
+      toast.error("Camera is still loading. Please try again.");
+      return;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      toast.error("Unable to process camera capture.");
+      return;
+    }
+
+    context.drawImage(video, 0, 0, width, height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : "";
+
+    if (!base64) {
+      toast.error("Failed to capture image from camera.");
+      return;
+    }
+
+    try {
+      await runFaceScan(base64);
+      handleCloseCamera();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Face scan failed");
+    } finally {
+      setIsFaceScanning(false);
+    }
+  };
+
+  const renderFaceScanActions = (uploadInputId: string) => (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <input
+        id={uploadInputId}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        onChange={handleFaceScanFile}
+      />
+      <label
+        htmlFor={uploadInputId}
+        className={`inline-flex cursor-pointer items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${
+          isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
+        }`}
+      >
+        {isFaceScanning ? "Scanning..." : "Upload Face Photo"}
+      </label>
+      <button
+        type="button"
+        onClick={handleOpenCamera}
+        disabled={isFaceScanning}
+        className={`inline-flex items-center gap-1 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white transition ${
+          isFaceScanning ? "pointer-events-none opacity-60" : "hover:bg-white/10"
+        }`}
+      >
+        <Camera size={14} />
+        Use Camera
+      </button>
+    </div>
+  );
+
+  const handleOpenMatchedImage = (match: FaceMatchItem) => {
+    if (!match.url) return;
+    setViewerOpen(true);
+    setViewerName(match.path.split("/").pop() || "Matched Image");
+    setViewerType("image/*");
+    setViewerMetaId(match.path);
+    setViewerUrl(match.url);
+  };
+
   const handleBack = () => {
     if (selectedPath) {
       const parts = selectedPath.split("/").filter(Boolean);
@@ -322,9 +576,11 @@ export default function AffiliateFileManager() {
       return;
     }
     if (selectedPhase) {
+      setFaceMatches([]);
       setSelectedPhase(null);
       return;
     }
+    setFaceMatches([]);
     setSelectedWorkspace(null);
     setWorkspaceFolders([]);
   };
@@ -384,6 +640,10 @@ export default function AffiliateFileManager() {
     }
     return items;
   }, [selectedWorkspace, selectedPhase, selectedPath]);
+
+  const canRunFaceScan = Boolean(
+    selectedWorkspace && isCommonEventWorkspaceId(selectedWorkspace.externalId)
+  );
 
   const renderRoot = () => {
     if (loading) {
@@ -619,6 +879,7 @@ export default function AffiliateFileManager() {
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace.externalId}
               </p>
+              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input") : null}
               {/* {selectedWorkspace.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
@@ -648,6 +909,39 @@ export default function AffiliateFileManager() {
         </div>
 
         <div className="pb-20 lg:pb-0">
+          {canRunFaceScan && faceMatches.length > 0 ? (
+            <div className="mb-6 rounded-xl border border-white/10 bg-[#141414] p-4">
+              <p className="mb-3 text-sm font-medium text-[#E8D1AB]">
+                Your matched photos ({faceMatches.length})
+              </p>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {faceMatches.map((match) => (
+                  <button
+                    key={match.path}
+                    onClick={() => handleOpenMatchedImage(match)}
+                    className="overflow-hidden rounded-lg border border-white/10 bg-black/20 text-left"
+                  >
+                    {match.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={match.url}
+                        alt="Matched face result"
+                        className="h-36 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-36 w-full items-center justify-center text-xs text-white/50">
+                        Preview unavailable
+                      </div>
+                    )}
+                    <div className="p-2 text-xs text-white/70">
+                      Confidence: {Math.round((match.confidence || 0) * 100)}%
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {filteredPhaseCards.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
               {filteredPhaseCards.map((phase) => (
@@ -719,6 +1013,7 @@ export default function AffiliateFileManager() {
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace?.externalId}
               </p>
+              {canRunFaceScan ? renderFaceScanActions("affiliate-face-scan-input-phase") : null}
               {/* {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
@@ -732,6 +1027,39 @@ export default function AffiliateFileManager() {
             </div>
           </div>
         </div>
+
+        {canRunFaceScan && faceMatches.length > 0 ? (
+          <div className="rounded-xl border border-white/10 bg-[#141414] p-4">
+            <p className="mb-3 text-sm font-medium text-[#E8D1AB]">
+              Your matched photos ({faceMatches.length})
+            </p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {faceMatches.map((match) => (
+                <button
+                  key={match.path}
+                  onClick={() => handleOpenMatchedImage(match)}
+                  className="overflow-hidden rounded-lg border border-white/10 bg-black/20 text-left"
+                >
+                  {match.url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={match.url}
+                      alt="Matched face result"
+                      className="h-36 w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-36 w-full items-center justify-center text-xs text-white/50">
+                      Preview unavailable
+                    </div>
+                  )}
+                  <div className="p-2 text-xs text-white/70">
+                    Confidence: {Math.round((match.confidence || 0) * 100)}%
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {filteredFolders.length > 0 ? (
           <div>
@@ -973,6 +1301,59 @@ export default function AffiliateFileManager() {
       ) : (
         renderRoot()
       )}
+
+      {isCameraOpen ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-[#111111]">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <h3 className="text-sm font-semibold text-white">Face Scan Camera</h3>
+              <button
+                type="button"
+                onClick={handleCloseCamera}
+                className="rounded-md border border-white/10 px-2 py-1 text-xs text-white/80 hover:bg-white/10"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-4">
+              {cameraError ? (
+                <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">
+                  {cameraError}
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="aspect-video w-full rounded-lg border border-white/10 bg-black object-cover"
+                />
+              )}
+              <div className="mt-3 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleCloseCamera}
+                  className="rounded-md border border-white/15 px-3 py-1.5 text-sm text-white hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCaptureFromCamera}
+                  disabled={Boolean(cameraError) || isFaceScanning}
+                  className={`rounded-md px-3 py-1.5 text-sm ${
+                    cameraError || isFaceScanning
+                      ? "cursor-not-allowed bg-[#E8D1AB]/30 text-black/70"
+                      : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
+                  }`}
+                >
+                  {isFaceScanning ? "Scanning..." : "Capture & Scan"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <FileViewerModal
         isOpen={viewerOpen}

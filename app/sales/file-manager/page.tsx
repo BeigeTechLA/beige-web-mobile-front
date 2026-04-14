@@ -10,8 +10,6 @@ import {
   List,
   MoreVertical,
   Search,
-  Share2,
-  Trash2,
   Unlink,
 } from "lucide-react";
 import { FolderOpen } from "lucide-react";
@@ -26,6 +24,7 @@ import Topbar from "@/components/admin/Topbar";
 import { apiClient } from "@/lib/apiClient";
 import {
   fileManagerApi,
+  isCommonEventWorkspaceId,
   isRecentWithinHours,
   mapExternalWorkspaceToFolderCard,
   type UiFolderItem,
@@ -35,6 +34,8 @@ import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 
 const STATUSES = ["Linked", "Unlinked"];
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 interface SalesLeadsResponse {
   success: boolean;
@@ -91,6 +92,7 @@ export default function SalesFolderManagerPage() {
       );
 
       const filteredWorkspaces = workspaceData.filter((workspace) =>
+        isCommonEventWorkspaceId(workspace.externalId) ||
         assignedBookingIds.has(String(workspace.externalId))
       );
 
@@ -99,8 +101,8 @@ export default function SalesFolderManagerPage() {
           mapExternalWorkspaceToFolderCard(workspace, "/sales/file-manager")
         )
       );
-    } catch (err: any) {
-      setError(err?.message || "Failed to load sales file manager projects");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load sales file manager projects"));
     } finally {
       setLoading(false);
     }
@@ -173,8 +175,8 @@ export default function SalesFolderManagerPage() {
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to download workspace");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to download workspace"));
     }
   };
 
@@ -189,8 +191,8 @@ export default function SalesFolderManagerPage() {
       setMenuAnchor(null);
       setSelectedFolder(null);
       await loadProjects();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to delete workspace");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to delete workspace"));
     } finally {
       setIsDeleting(false);
     }
@@ -342,10 +344,10 @@ export default function SalesFolderManagerPage() {
                       if (result?.url) {
                         window.open(result.url, "_blank", "noopener,noreferrer");
                       }
-                    } catch (err: any) {
-                      toast.error(err?.message || "Failed to download workspace");
-                    }
-                  }}
+                        } catch (err: unknown) {
+                          toast.error(getErrorMessage(err, "Failed to download workspace"));
+                        }
+                      }}
                   onDelete={() => {
                     setSelectedFolder(folder);
                     setIsDeleteModalOpen(true);

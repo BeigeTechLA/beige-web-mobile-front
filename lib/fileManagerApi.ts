@@ -73,6 +73,9 @@ interface ExternalWorkspaceSummary {
   fileCount?: number;
   createdAt?: string;
   updatedAt?: string;
+  isCommonEvent?: boolean;
+  eventId?: string | number;
+  eventName?: string;
 }
 
 interface ExternalWorkspaceFolder {
@@ -141,6 +144,46 @@ interface ExternalUploadPolicyResponse {
     fields: Record<string, string>;
     filePath: string;
     success: boolean;
+  };
+}
+
+interface CommonEventResponse {
+  success: boolean;
+  data: Array<{
+    eventId: number;
+    eventName: string;
+    eventSlug: string;
+    externalId: string;
+    rootPath?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+  }>;
+}
+
+interface CreateCommonEventResponse {
+  success: boolean;
+  data: {
+    eventName: string;
+    eventSlug: string;
+    externalId: string;
+    workspace?: ExternalWorkspaceSummary | null;
+  };
+}
+
+interface FaceScanResponse {
+  success: boolean;
+  data: {
+    externalId: string;
+    scanMode: "full_face_scan";
+    integrated: boolean;
+    candidatesCount: number;
+    matches: Array<{
+      path?: string;
+      score?: number;
+      confidence?: number;
+      [key: string]: unknown;
+    }>;
+    provider?: string | null;
   };
 }
 
@@ -241,6 +284,7 @@ export const inferWorkspaceCategory = (name?: string) => {
   const normalized = String(name || "").trim().toLowerCase();
 
   if (!normalized) return "Project";
+  if (normalized.startsWith("event -")) return "Common Event";
   if (normalized.includes("wedding")) return "Wedding";
   if (normalized.includes("corporate")) return "Corporate Event";
   if (normalized.includes("commercial")) return "Commercial & Advertising";
@@ -299,6 +343,40 @@ export const fileManagerApi = {
   async listExternalWorkspaces() {
     const response = await apiClient.get<ExternalWorkspacesResponse>("external-file-manager/workspaces");
     return response.data.workspaces || [];
+  },
+
+  async listCommonEvents() {
+    const response = await apiClient.get<CommonEventResponse>("external-file-manager/common-events");
+    return response.data || [];
+  },
+
+  async createCommonEvent(eventName: string, externalId?: string) {
+    const response = await apiClient.post<CreateCommonEventResponse>("external-file-manager/common-events", {
+      eventName,
+      externalId,
+    });
+    return response.data;
+  },
+
+  async createCreatorEventFolder(eventExternalId: string, folderName?: string) {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { externalId: string; folderName: string; folder: Record<string, unknown> | null };
+    }>(`external-file-manager/common-events/${eventExternalId}/creator-folder`, {
+      folderName,
+    });
+    return response.data;
+  },
+
+  async searchFaceMatches(payload: {
+    externalId: string;
+    scanImageBase64?: string;
+    scanImageUrl?: string;
+    threshold?: number;
+    maxResults?: number;
+  }) {
+    const response = await apiClient.post<FaceScanResponse>("external-file-manager/face-scan/search", payload);
+    return response.data;
   },
 
   async getExternalWorkspace(externalId: string | number) {
@@ -574,6 +652,9 @@ export const slugToWorkspaceName = (slug?: string) => {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 };
+
+export const isCommonEventWorkspaceId = (workspaceId?: string | number) =>
+  String(workspaceId || "").toLowerCase().startsWith("event_");
 
 export const mapExternalWorkspaceToFolderCard = (
   workspace: ExternalWorkspaceSummary,

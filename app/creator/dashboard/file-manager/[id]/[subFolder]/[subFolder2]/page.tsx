@@ -25,6 +25,7 @@ import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import {
   fileManagerApi,
   getDisplayInitials,
+  isCommonEventWorkspaceId,
   mapExternalFilesToUi,
   slugToWorkspaceName,
 } from "@/lib/fileManagerApi";
@@ -40,6 +41,7 @@ export default function CreatorSubFolderDetailsPage() {
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const nestedSlug = params.subFolder2;
+  const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -231,8 +233,8 @@ export default function CreatorSubFolderDetailsPage() {
     }
   };
 
-  const canUpload = phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate);
-  const showUploadLockBanner = phaseSlug === "post-production" && !canUpload;
+  const canUpload = isCommonEventWorkspace || (phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate));
+  const showUploadLockBanner = !isCommonEventWorkspace && phaseSlug === "post-production" && !canUpload;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
@@ -505,7 +507,7 @@ export default function CreatorSubFolderDetailsPage() {
         folderName={folderTitle}
         uploadPath={
           canUpload && workspaceName
-            ? `${workspaceName}/Post-Production/${slugToWorkspaceName(nestedSlug)}`
+            ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${slugToWorkspaceName(nestedSlug)}`
             : undefined
         }
         onUploadComplete={loadFiles}

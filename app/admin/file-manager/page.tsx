@@ -49,6 +49,7 @@ export default function AdminFolderManagerPage() {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -192,6 +193,22 @@ export default function AdminFolderManagerPage() {
     }
   };
 
+  const handleCreateCommonEventFolder = async () => {
+    const eventName = window.prompt("Enter common event folder name (example: Weekend Wedding)");
+    if (!eventName || !eventName.trim()) return;
+
+    try {
+      setIsCreatingEvent(true);
+      await fileManagerApi.createCommonEvent(eventName.trim());
+      toast.success("Common event folder created");
+      await loadProjects();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to create common event folder");
+    } finally {
+      setIsCreatingEvent(false);
+    }
+  };
+
   return (
     <>
       <Topbar pathname={pathname} />
@@ -205,7 +222,16 @@ export default function AdminFolderManagerPage() {
             </p>
           </div>
 
-          <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleCreateCommonEventFolder}
+              disabled={isCreatingEvent}
+              className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+            >
+              {isCreatingEvent ? "Creating..." : "Create Common Event"}
+            </Button>
+            <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-center w-full mb-4 lg:mb-9">
