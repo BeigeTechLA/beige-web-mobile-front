@@ -29,7 +29,15 @@ const salesMenuItems: SalesMenuItem[] = [
   { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
   { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
   { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
-  { name: 'Quotes', icon: CustomQuotesIcon, link: '/sales/quotes' },
+  {
+    name: 'Quotes',
+    icon: CustomQuotesIcon,
+    link: '/sales/quotes',
+    children: [
+      { name: 'All Quotes', link: '/sales/quotes' },
+      { name: 'Master Pricing', link: '/sales/quotes/pricing' }
+    ],
+  },
   { name: 'Invoices', icon: Receipt, link: '/sales/invoice' },
 ];
 
@@ -72,6 +80,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
   const isDark = !mounted || theme === "dark";
   const canViewInvoice = isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined);
+  const isSalesAdmin = isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined);
   const visibleSalesMenuItems = salesMenuItems.filter(
     (item) => item.name !== "Invoices" || canViewInvoice
   );
@@ -156,7 +165,23 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     <span className="font-medium">{item.name}</span>
                   </button>
                 )}
+                {item.name === 'Quotes' && item.children && isSalesAdmin && (
+                  <div className="ml-8 mt-1 space-y-1">
+                    {item.children.map((child) => (
+                      <button
+                        key={child.name}
+                        onClick={() => handleNavigation(child.link)}
+                        className={`w-full text-left px-4 py-2 rounded-lg text-sm transition-colors ${pathname === child.link
+                            ? 'bg-[#E5D5B8] text-[#171717]'
+                            : isDark ? 'text-[#676767] hover:text-white' : 'text-[#676767] hover:text-[#101010]'
+                          }`}
+                      >
+                        {child.name}
+                      </button>
+                    ))}
               </div>
+            )}
+            </div>
             );
           })}
         </nav>
