@@ -50,7 +50,7 @@ const salesMenuItems: SalesMenuItem[] = [
   
 
 
-  { name: 'Invoices', icon: Receipt, link: '/sales/invoice' },
+  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', visibleForUserTypes: [7] },
 ];
 
 type SalesMenuItem = {
