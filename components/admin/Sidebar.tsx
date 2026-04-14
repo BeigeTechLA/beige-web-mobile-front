@@ -57,11 +57,8 @@ const menuItems = [
     ]
   },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/admin/quotes' },
-<<<<<<< HEAD
   { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studio-management' },
-=======
   { name: 'Invoices', icon: Receipt, link: '/admin/invoice' },
->>>>>>> 2e9939750c39dadfd3efe0ba79db6788714f7a76
 ];
 
 type MenuItem = {
