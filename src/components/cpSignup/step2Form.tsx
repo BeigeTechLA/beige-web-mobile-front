@@ -32,13 +32,13 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
   const toggleRole = (roleValue: string) => {
     const currentRoles = data.roles || [];
     if (currentRoles.includes(roleValue)) {
-      setData({ ...data, roles: currentRoles.filter((r) => r !== roleValue) });
+      setData((prev) => ({ ...prev, roles: currentRoles.filter((r) => r !== roleValue) }))
     } else {
-      setData({ ...data, roles: [...currentRoles, roleValue] });
+      setData((prev) => ({ ...prev, roles: [...currentRoles, roleValue] }));
     }
   };
 
-  const mergeUniqueSkills = (...lists) => {
+  const mergeUniqueSkills = (...lists) => { 
     const map = new Map();
     lists.flat().forEach((skill) => {
       if (skill && !map.has(skill.value)) {
@@ -129,15 +129,17 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
   };
 
   const handleBioChange = (e) => {
-    setData({ ...data, bio: e.target.value })
+    setData((prev) => ({ ...prev, bio: e.target.value }))
   }
 
   const cleanBio = () => {
-    let value = data.bio
-    value = value.replace(/ {3,}/g, "  ")
-    value = value.replace(/\n{3,}/g, "\n\n")
-    value = value.trim()
-    setData({ ...data, bio: value })
+    setData((prev) => {
+      let value = prev.bio
+      value = value.replace(/ {3,}/g, "  ")
+      value = value.replace(/\n{3,}/g, "\n\n")
+      value = value.trim()
+      return { ...prev, bio: value }
+    })
   }
 
   return (
@@ -185,7 +187,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
               onChange={(e) => {
                 const value = e.target.value;
                 if (value === "" || Number(value) >= 0) {
-                  setData({ ...data, yoe: value });
+                  setData((prev) => ({ ...prev, yoe: value }));
                 }
               }}
               // Added noSpinners here
@@ -208,7 +210,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
                 onChange={(e) => {
                   const value = e.target.value;
                   if (value === "" || Number(value) >= 0) {
-                    setData({ ...data, hourlyRate: value });
+                    setData((prev) => ({ ...prev, hourlyRate: value }));
                   }
                 }}
                 // Added noSpinners here
@@ -243,7 +245,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
             <AddSkills
               options={getSkillOptionsByRole()}
               value={data.skills}
-              onChange={(v) => setData({ ...data, skills: v })}
+              onChange={(v) => setData((prev) => ({ ...prev, skills: v }))}
             />
           </div>
         </div>
@@ -259,11 +261,7 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
               value={data.equipments || []}
               names={data.equipmentNames || []}
               onChange={(ids, names) =>
-                setData({
-                  ...data,
-                  equipments: ids,
-                  equipmentNames: names
-                })
+                setData((prev) => ({ ...prev, equipments: ids, equipmentNames: names }))
               }
             />
           </div>

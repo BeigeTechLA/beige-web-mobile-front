@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Grid3X3, History, Link, List, Search, Share2, Trash2 } from "lucide-react";
+import { Grid3X3, History, Link, List, Loader2, Search, Share2, Trash2 } from "lucide-react";
 import { FolderCard } from "@/components/production-manager/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/production-manager/BasicDropdown";
@@ -222,9 +222,11 @@ return (
           </div>
         </div>
 
-        {loading ? (
-          <div className="text-white/70 text-sm">Loading projects...</div>
-        ) : error ? (
+        {loading ? 
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+                }`}>
+                <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+              </div>: error ? (
           <div className="text-red-300 text-sm">{error}</div>
         ) : filteredFolders.length === 0 ? (
            <EmptyFolderState/>

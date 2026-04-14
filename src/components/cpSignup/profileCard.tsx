@@ -171,7 +171,12 @@ const ProfileCard = ({ data }) => {
     .join(", ");
   // --- ROLES LOGIC END ---
 
-  const skills = data?.skills?.map(skillId => skillOptions.find(option => option.value === skillId)?.label).join(", ");
+  const skills = data?.skills?.map((skill) => {
+    if (typeof skill === "string") {
+      return skillOptions.find(option => option.value === skill)?.label;
+    }
+    return skill?.label || skill?.value;
+  }).filter(Boolean).join(", ");
   const profileImage = data?.profilePreview || "/images/loginsignup/Group.png";
   const locationLabel =
     typeof data?.location === "object" && data?.location !== null
@@ -229,26 +234,28 @@ const ProfileCard = ({ data }) => {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {data?.hourlyRate && (
-              <div className="flex flex-col gap-[1px] md:col-span-1">
-                <p className="text-base font-medium text-white">${data?.hourlyRate}</p>
+              <div className="flex flex-col gap-[1px] min-w-0">
+                <p className="text-base font-medium text-white truncate">${data?.hourlyRate}</p>
                 <p className="text-xs text-gray-400">/Hour</p>
               </div>
             )}
             {data?.yoe && (
-              <div className="flex flex-col gap-[1px] md:col-span-1">
-                <p className="text-base font-medium text-white">{data?.yoe}</p>
+              <div className="flex flex-col gap-[1px] min-w-0">
+                <p className="text-base font-medium text-white truncate">{data?.yoe}</p>
                 <p className="text-xs text-gray-400">Experience</p>
               </div>
             )}
             {data?.workingDistance && (
-              <div className="flex flex-col gap-[1px] col-span-2 md:col-span-2">
-                <p className="text-base font-medium text-white whitespace-nowrap">
+              <div className="flex flex-col gap-[1px] col-span-2 min-w-0">
+                <p className="text-base font-medium text-white truncate">
                   {data.workingDistance}
                 </p>
                 <p className="text-xs text-gray-400">Range</p>
               </div>
             )}
           </div>
+        
+        
 
           <div className="flex flex-col gap-6">
             {data?.email && (

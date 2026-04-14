@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, Grid3X3, List, Search, Upload } from "lucide-react";
+import { ArrowLeft, CalendarClock, Grid3X3, List, Loader2, Search, Upload } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
@@ -284,8 +284,11 @@ export default function CreatorFileManagerPhasePage() {
       </div>
 
       {loading ? (
-        <div className="text-sm text-white/70">Loading folder...</div>
-      ) : error ? (
+<div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>    
+        ) : error ? (
         <div className="text-sm text-red-300">{error || "Folder not found"}</div>
       ) : (
         <>
