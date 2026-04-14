@@ -463,7 +463,7 @@ export default function ConversationComposerModal({
             ) : mode === "project" ? (
               <div className="space-y-5">
                 <div>
-                  <label className="mb-2 block text-sm text-white/70">Select Shoot</label>
+                  {/* <label className="mb-2 block text-sm text-white/70">Select Shoot</label> */}
                   <SearchAutocomplete
                     label="Select Shoot"
                     placeholder="Search shoot / client"
@@ -546,7 +546,7 @@ export default function ConversationComposerModal({
             ) : (
               <div className="space-y-5">
                 <div>
-                  <label className="mb-2 block text-sm text-white/70">Select Client</label>
+                  {/* <label className="mb-2 block text-sm text-white/70">Select Client</label> */}
                   <SearchAutocomplete
                     label="Select Client"
                     placeholder="Search client"

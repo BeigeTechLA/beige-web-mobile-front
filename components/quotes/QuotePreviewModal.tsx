@@ -87,7 +87,7 @@ export default function QuotePreviewModal({
   const copyQuoteUrl = secureQuotePreviewUrl ?? generatedPreviewUrl;
   const quoteSentFromData = isQuoteAlreadySent(quoteData);
   const quoteSent = hasSentQuote || quoteSentFromData;
-  const canSendQuote = Boolean(resolvedQuoteId) && !isLoading && !isSending && !quoteSent;
+  const canSendQuote = Boolean(resolvedQuoteId) && !isLoading && !isSending;
 
   React.useEffect(() => {
     setHasSentQuote(quoteSentFromData);
@@ -142,10 +142,7 @@ export default function QuotePreviewModal({
       return;
     }
 
-    if (quoteSent) {
-      toast("Quote proposal email has already been sent.");
-      return;
-    }
+    const isResend = quoteSent;
 
     setIsSending(true);
 
@@ -160,7 +157,11 @@ export default function QuotePreviewModal({
 
       const updatedQuote = unwrapSalesQuoteDetail(response?.data ?? null);
       setHasSentQuote(true);
-      toast.success(getQuoteSendSuccessMessage(updatedQuote ?? quoteData));
+      toast.success(
+        isResend
+          ? "Quote resent successfully."
+          : getQuoteSendSuccessMessage(updatedQuote ?? quoteData)
+      );
     } catch (error) {
       console.error("Failed to send quote", error);
       toast.error(error instanceof Error ? error.message : "Failed to send quote");
@@ -225,12 +226,10 @@ export default function QuotePreviewModal({
             >
               {isSending ? (
                 <Loader2 size={18} className="mr-2 animate-spin" />
-              ) : quoteSent ? (
-                <Check size={18} className="mr-2" />
               ) : (
                 <Send size={18} className="mr-2" />
               )}
-              {isSending ? "Sending..." : quoteSent ? "Quote Sent" : "Send Quote"}
+              {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
             </PreviewActionButton>
           </div>
         </div>
@@ -283,12 +282,10 @@ export default function QuotePreviewModal({
                   >
                     {isSending ? (
                       <Loader2 size={18} className="mr-2 animate-spin" />
-                    ) : quoteSent ? (
-                      <Check size={18} className="mr-2" />
                     ) : (
                       <Send size={18} className="mr-2" />
                     )}
-                    {isSending ? "Sending..." : quoteSent ? "Quote Sent" : "Send"}
+                    {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
                   </PreviewActionButton>
                 </div>
 

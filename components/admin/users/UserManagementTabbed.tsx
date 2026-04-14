@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { ChevronRight, Search, User, Camera, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ChevronRight, Search, User, Camera, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -325,8 +325,11 @@ export const UserManagementTabbed = () => {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={6} className="py-10 text-center text-[#888]">Loading...</td></tr>
-                            ) : sortedUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-20 text-center">
+                    <Loader2 className={`animate-spin inline ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`} />
+                  </td>
+                </tr>                            ) : sortedUsers.length === 0 ? (
                                 <tr><td colSpan={6} className="py-10 text-center text-[#888]">No users found.</td></tr>
                             ) : (
                                 sortedUsers.map((user, idx) => (

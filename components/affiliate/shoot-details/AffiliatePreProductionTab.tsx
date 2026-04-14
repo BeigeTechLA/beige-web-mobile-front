@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink, FileText, Folder, Loader2, Upload, CloudUpload } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Folder, Loader2, CloudUpload } from "lucide-react";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
@@ -9,6 +9,7 @@ import { fileManagerApi } from "@/lib/fileManagerApi";
 
 interface AffiliatePreProductionTabProps {
   projectId: string;
+  canUpload?: boolean;
 }
 
 const prettifyFolderName = (name?: string) => {
@@ -17,7 +18,7 @@ const prettifyFolderName = (name?: string) => {
   return normalized.replace(/-/g, " ");
 };
 
-export default function AffiliatePreProductionTab({ projectId }: AffiliatePreProductionTabProps) {
+export default function AffiliatePreProductionTab({ projectId, canUpload = true }: AffiliatePreProductionTabProps) {
   const [currentPath, setCurrentPath] = useState("");
   const [workspaceName, setWorkspaceName] = useState("");
   const [folders, setFolders] = useState<any[]>([]);
@@ -78,14 +79,16 @@ export default function AffiliatePreProductionTab({ projectId }: AffiliatePrePro
         <div className="px-6 text-[#666666] text-xs lg:text-base font-medium">
           {workspaceName ? `Live Pre Production for ${workspaceName}` : "Open and manage Pre Production files"}
         </div>
-        <button
-          onClick={() => setIsUploadModalOpen(true)}
-          className="bg-white text-black px-6 h-full min-h-[46px] lg:min-h-[72px] rounded-r-lg lg:rounded-xl font-medium flex items-center gap-2 hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={!workspaceName}
-        >
-          <CloudUpload size={20} />
-          <span className="text-xs lg:text-base leading-none">Upload File</span>
-        </button>
+        {canUpload ? (
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            className="bg-white text-black px-6 h-full min-h-[46px] lg:min-h-[72px] rounded-r-lg lg:rounded-xl font-medium flex items-center gap-2 hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!workspaceName}
+          >
+            <CloudUpload size={20} />
+            <span className="text-xs lg:text-base leading-none">Upload File</span>
+          </button>
+        ) : null}
       </div>
 
       {currentPath && (
@@ -166,8 +169,8 @@ export default function AffiliatePreProductionTab({ projectId }: AffiliatePrePro
                 <EmptyFileState
                   title="No File Uploaded"
                   description="No files have been uploaded for this project yet."
-                  onAction={() => setIsUploadModalOpen(true)}
-                  actionLabel="Upload Files"
+                  onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined}
+                  actionLabel={canUpload ? "Upload Files" : undefined}
                 />
               )}
             </div>
@@ -187,13 +190,15 @@ export default function AffiliatePreProductionTab({ projectId }: AffiliatePrePro
         fileMetaId={viewerMetaId}
       />
 
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        folderName={currentPath ? prettifyFolderName(currentPath.split("/").slice(-1)[0]) : "Pre Production"}
-        uploadPath={workspaceName ? `${workspaceName}/Pre-Production${currentPath ? `/${currentPath}` : ""}` : undefined}
-        onUploadComplete={loadPreProduction}
-      />
+      {canUpload ? (
+        <UploadModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          folderName={currentPath ? prettifyFolderName(currentPath.split("/").slice(-1)[0]) : "Pre Production"}
+          uploadPath={workspaceName ? `${workspaceName}/Pre-Production${currentPath ? `/${currentPath}` : ""}` : undefined}
+          onUploadComplete={loadPreProduction}
+        />
+      ) : null}
     </div>
   );
 }

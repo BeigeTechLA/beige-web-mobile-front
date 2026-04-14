@@ -28,7 +28,7 @@ export default function InvoicePage() {
             <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
               }`}>Invoice History</h1>
            {  <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"
-              }`}>keep track of your billing history.</p> }
+              }`}>Keep track of your billing history.</p> }
           </div>
           {/* <SortDateButton
             selectedDate={selectedDate}

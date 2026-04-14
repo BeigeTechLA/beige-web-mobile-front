@@ -7,6 +7,7 @@ import {
   History,
   Link,
   List,
+  Loader2,
   MoreVertical,
   Search,
   Share2,
@@ -163,10 +164,11 @@ export default function CreatorFileManagerPage() {
     });
   };
 
-  const handleDownloadSelectedFolder = async () => {
-    if (!selectedFolder) return;
+  const handleDownloadSelectedFolder = async (folder?: UiFolderItem | null) => {
+    const targetFolder = folder || selectedFolder;
+    if (!targetFolder) return;
     try {
-      const result = await fileManagerApi.getExternalFolderDownloadUrl(selectedFolder.id);
+      const result = await fileManagerApi.getExternalFolderDownloadUrl(targetFolder.id);
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
       }
@@ -309,9 +311,10 @@ export default function CreatorFileManagerPage() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="text-sm text-white/70">Loading projects...</div>
-        ) : error ? (
+        {loading ? <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+                }`}>
+                <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+              </div> : error ? (
           
           <div className="text-sm text-red-300">{error}</div>
         ) : filteredFolders.length === 0 ? (
@@ -336,7 +339,7 @@ export default function CreatorFileManagerPage() {
                   setSelectedFolder(folder);
                   setIsDeleteModalOpen(true);
                 }}
-                onDownload={handleDownloadSelectedFolder}
+                onDownload={() => handleDownloadSelectedFolder(folder)}
                 onRename={() => toast.info("Folder rename is the next safe step.")}
               />
             ))}

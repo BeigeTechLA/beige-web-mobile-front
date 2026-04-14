@@ -183,7 +183,7 @@ export default function QuotePreviewPageShell({
   ).trim();
   const quoteSent = isQuoteAlreadySent(quote);
   const canSendQuote =
-    showActionButtons && !loading && Boolean(resolvedQuoteId) && !quoteSent;
+    showActionButtons && !loading && Boolean(resolvedQuoteId);
   const copyQuoteUrl =
     generatedPreviewUrl ||
     (typeof window !== "undefined" && queryQuoteKey
@@ -244,10 +244,7 @@ export default function QuotePreviewPageShell({
       return;
     }
 
-    if (quoteSent) {
-      toast("Quote proposal email has already been sent.");
-      return;
-    }
+    const isResend = quoteSent;
 
     setIsSending(true);
 
@@ -266,7 +263,11 @@ export default function QuotePreviewPageShell({
         (current ? { ...current, status: "sent", quote_status: "sent" } : current)
       );
 
-      toast.success(getQuoteSendSuccessMessage(updatedQuote ?? quote));
+      toast.success(
+        isResend
+          ? "Quote resent successfully."
+          : getQuoteSendSuccessMessage(updatedQuote ?? quote)
+      );
     } catch (error) {
       console.error("Failed to send quote", error);
       toast.error(error instanceof Error ? error.message : "Failed to send quote");
@@ -307,12 +308,10 @@ export default function QuotePreviewPageShell({
       >
         {isSending ? (
           <Loader2 size={18} className="mr-2 animate-spin" />
-        ) : quoteSent ? (
-          <Check size={18} className="mr-2" />
         ) : (
           <Send size={18} className="mr-2" />
         )}
-        {isSending ? "Sending..." : quoteSent ? "Quote Sent" : "Send Quote"}
+        {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
       </ActionButton>
     </>
   ) : undefined;
@@ -350,12 +349,10 @@ export default function QuotePreviewPageShell({
             >
               {isSending ? (
                 <Loader2 size={18} className="mr-2 animate-spin" />
-              ) : quoteSent ? (
-                <Check size={18} className="mr-2" />
               ) : (
                 <Send size={18} className="mr-2" />
               )}
-              {isSending ? "Sending..." : quoteSent ? "Quote Sent" : "Send"}
+              {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
             </ActionButton>
           </div>
         ) : null}

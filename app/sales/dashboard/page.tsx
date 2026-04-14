@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { MoreVertical, Search, Target, ChartLine, Calendar, Users } from "lucide-react";
+import { MoreVertical, Search, Target, ChartLine, Calendar, Users, Loader2 } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -22,6 +22,14 @@ import UsersTable from "@/components/sales/UsersTable";
 import LeadsTable from "@/components/sales/BookingLeadsTable";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import Topbar from "@/components/admin/Topbar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type TabType = "Booking" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
@@ -202,6 +210,72 @@ const formatMetricValue = (value: unknown, suffix = ""): string => {
   return `${numericValue}${suffix}`;
 };
 
+type SalesStatusPayload = {
+  is_available?: unknown;
+  isAvailable?: unknown;
+  available?: unknown;
+  reason?: unknown;
+  unavailable_reason?: unknown;
+  unavailableReason?: unknown;
+};
+
+type SalesStatusResponse = {
+  data?: SalesStatusPayload;
+  is_available?: unknown;
+  isAvailable?: unknown;
+  success?: boolean;
+  error?: string;
+};
+
+type SalesUserLike = {
+  user_type_id?: unknown;
+  userTypeId?: unknown;
+  role?: unknown;
+  userRole?: unknown;
+} | null | undefined;
+
+const parseSalesAvailabilityStatus = (response: SalesStatusResponse | null | undefined) => {
+  const payload = response?.data ?? response ?? {};
+  const rawAvailability =
+    payload.is_available ??
+    payload.isAvailable ??
+    payload.available ??
+    response?.is_available ??
+    response?.isAvailable;
+  const rawReason =
+    payload.reason ??
+    payload.unavailable_reason ??
+    payload.unavailableReason;
+
+  return {
+    isAvailable:
+      rawAvailability === true ||
+      rawAvailability === 1 ||
+      rawAvailability === "1",
+    reason: typeof rawReason === "string" ? rawReason.trim() : "",
+  };
+};
+
+const getCurrentUserTypeId = (currentUser: SalesUserLike): number | null => {
+  const normalizedUserTypeId = Number(
+    currentUser?.user_type_id ?? currentUser?.userTypeId
+  );
+
+  return Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null;
+};
+
+const canManageLiveSalesStatus = (currentUser: SalesUserLike): boolean => {
+  const normalizedRole = String(
+    currentUser?.role ?? currentUser?.userRole ?? ""
+  ).trim().toLowerCase();
+  const userTypeId = getCurrentUserTypeId(currentUser);
+
+  return (
+    userTypeId === 5 ||
+    normalizedRole === "sales_rep"
+  );
+};
+
 const getGrowthValue = (
   growth: DashboardOverviewPayload["growth"],
   keys: string[]
@@ -349,7 +423,14 @@ export default function SalesLeadsPage() {
   const [activeMetric, setActiveMetric] = useState('total_active');
   const [isLoading, setIsLoading] = useState(false);
   const [range, setRange] = useState('All Time');
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
+  const [isAvailabilityUpdating, setIsAvailabilityUpdating] = useState(false);
+  const [isSalesAvailable, setIsSalesAvailable] = useState(false);
+  const [salesUnavailableReason, setSalesUnavailableReason] = useState("");
+  const [inactiveReasonDraft, setInactiveReasonDraft] = useState("");
+  const [isInactiveReasonDialogOpen, setIsInactiveReasonDialogOpen] = useState(false);
   const sessionIdentity = `${token ?? "anonymous"}:${user?.id ?? user?.email ?? "no-user"}`;
+  const isAvailabilityToggleVisible = canManageLiveSalesStatus(user);
 
   const fetchDashboardOverview = async () => {
     if (!token) {
@@ -462,6 +543,59 @@ export default function SalesLeadsPage() {
   useEffect(() => {
     fetchDashboardOverview();
   }, [range, sessionIdentity]);
+
+  useEffect(() => {
+    if (!token || !isAvailabilityToggleVisible) {
+      setIsSalesAvailable(false);
+      setSalesUnavailableReason("");
+      setIsAvailabilityLoading(false);
+      return;
+    }
+
+    let isSubscribed = true;
+
+    const fetchCurrentSalesStatus = async () => {
+      setIsAvailabilityLoading(true);
+
+      try {
+        const response = await salesService.getCurrentSalesStatus();
+
+        if (response?.success === false && response?.error) {
+          throw new Error(response.error);
+        }
+
+        const nextStatus = parseSalesAvailabilityStatus(response);
+
+        if (!isSubscribed) {
+          return;
+        }
+
+        setIsSalesAvailable(nextStatus.isAvailable);
+        setSalesUnavailableReason(nextStatus.reason);
+        setInactiveReasonDraft(nextStatus.reason || "");
+      } catch (error) {
+        console.error("Failed to fetch current sales status:", error);
+
+        if (!isSubscribed) {
+          return;
+        }
+
+        toast.error(
+          error instanceof Error ? error.message : "Failed to fetch current sales status"
+        );
+      } finally {
+        if (isSubscribed) {
+          setIsAvailabilityLoading(false);
+        }
+      }
+    };
+
+    void fetchCurrentSalesStatus();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [isAvailabilityToggleVisible, token, sessionIdentity]);
 
   useEffect(() => {
     if (!mounted || !hasRestoredFiltersRef.current) return;
@@ -709,6 +843,162 @@ export default function SalesLeadsPage() {
     }
   };
 
+  const handleToggleSalesAvailability = async () => {
+    if (!isAvailabilityToggleVisible || !token || isAvailabilityLoading || isAvailabilityUpdating) {
+      return;
+    }
+
+    const nextIsAvailable = !isSalesAvailable;
+
+    if (!nextIsAvailable) {
+      setInactiveReasonDraft(salesUnavailableReason || "");
+      setIsInactiveReasonDialogOpen(true);
+      return;
+    }
+
+    setIsAvailabilityUpdating(true);
+
+    try {
+      const response = await salesService.toggleSalesStatus({ is_available: 1 });
+
+      if (response?.success === false && response?.error) {
+        throw new Error(response.error);
+      }
+
+      const nextStatus = parseSalesAvailabilityStatus(response);
+      const resolvedIsAvailable =
+        response?.data || response?.is_available !== undefined
+          ? nextStatus.isAvailable
+          : nextIsAvailable;
+
+      setIsSalesAvailable(resolvedIsAvailable);
+      setSalesUnavailableReason(
+        resolvedIsAvailable
+          ? ""
+          : nextStatus.reason || salesUnavailableReason || ""
+      );
+      setInactiveReasonDraft("");
+
+      toast.success(
+        resolvedIsAvailable
+          ? "Sales status changed to active."
+          : "Sales status changed to inactive."
+      );
+    } catch (error) {
+      console.error("Failed to update sales status:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update sales status"
+      );
+    } finally {
+      setIsAvailabilityUpdating(false);
+    }
+  };
+
+  const handleConfirmInactiveStatus = async () => {
+    if (!token || isAvailabilityLoading || isAvailabilityUpdating) {
+      return;
+    }
+
+    const normalizedReason = inactiveReasonDraft.trim();
+
+    if (!normalizedReason) {
+      toast.error("Please enter a reason before setting status to inactive.");
+      return;
+    }
+
+    setIsAvailabilityUpdating(true);
+
+    try {
+      const response = await salesService.toggleSalesStatus({
+        is_available: 0,
+        reason: normalizedReason,
+      });
+
+      if (response?.success === false && response?.error) {
+        throw new Error(response.error);
+      }
+
+      const nextStatus = parseSalesAvailabilityStatus(response);
+      const resolvedReason = nextStatus.reason || normalizedReason;
+
+      setIsSalesAvailable(false);
+      setSalesUnavailableReason(resolvedReason);
+      setInactiveReasonDraft(resolvedReason);
+      setIsInactiveReasonDialogOpen(false);
+      toast.success("Sales status changed to inactive.");
+    } catch (error) {
+      console.error("Failed to update sales status:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update sales status"
+      );
+    } finally {
+      setIsAvailabilityUpdating(false);
+    }
+  };
+
+  const handleCreateNewLead = () => {
+    if (isAvailabilityToggleVisible && isAvailabilityLoading) {
+      toast.error("Please wait until your status is loaded.");
+      return;
+    }
+
+    if (isAvailabilityToggleVisible && !isSalesAvailable) {
+      toast.error("Please set your status to active before creating a new lead.");
+      return;
+    }
+
+    router.push("/sales/create-new-deal");
+  };
+
+  const renderSalesAvailabilityToggle = (className = "") => (
+    <button
+      type="button"
+      onClick={() => {
+        void handleToggleSalesAvailability();
+      }}
+      disabled={isAvailabilityLoading || isAvailabilityUpdating}
+      aria-pressed={isSalesAvailable}
+      className={`flex h-12 items-center gap-3 rounded-lg border px-4 transition-all disabled:cursor-not-allowed disabled:opacity-70 ${
+        isDark
+          ? isSalesAvailable
+            ? "border-[#E5D5B8]/40 bg-[#E5D5B8]/12 text-[#F3E2C2] hover:bg-[#E5D5B8]/18"
+            : "border-white/10 bg-[#18181b] text-white/85 hover:bg-white/5"
+          : isSalesAvailable
+            ? "border-[#D8BE93] bg-[#F6E7C8] text-[#4F3B1F] hover:bg-[#F1DDB5]"
+            : "border-[#D8D8D8] bg-white text-[#303030] hover:bg-[#F7F7F7]"
+      } ${className}`}
+    >
+      {isAvailabilityLoading || isAvailabilityUpdating ? (
+        <Loader2 size={16} className="animate-spin" />
+      ) : (
+        <span
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            isSalesAvailable
+              ? "bg-[#CFA96A]"
+              : isDark
+                ? "bg-zinc-700"
+                : "bg-zinc-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 rounded-full bg-white transition-transform ${
+              isSalesAvailable ? "translate-x-5" : "translate-x-1"
+            }`}
+          />
+        </span>
+      )}
+      <span className="text-sm font-medium">
+        {isAvailabilityLoading
+          ? "Loading status..."
+          : isAvailabilityUpdating
+            ? "Updating..."
+            : isSalesAvailable
+              ? "Active"
+              : "Inactive"}
+      </span>
+    </button>
+  );
+
   if (!mounted) return null;
 
   return (
@@ -729,11 +1019,12 @@ export default function SalesLeadsPage() {
                   }`}
               />
             </div>
+            {isAvailabilityToggleVisible ? renderSalesAvailabilityToggle() : null}
             {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
             </Button> */}
             <Button
-              onClick={() => router.push("/sales/create-new-deal")}
+              onClick={handleCreateNewLead}
               className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
                 }`}
             >
@@ -754,6 +1045,11 @@ export default function SalesLeadsPage() {
               your sales team.
             </p>
           </div>
+          {isAvailabilityToggleVisible ? (
+            <div className="w-full lg:hidden">
+              {renderSalesAvailabilityToggle("w-full justify-between")}
+            </div>
+          ) : null}
         </div>
         {/* <DottedDivider /> */}
 
@@ -1017,12 +1313,79 @@ export default function SalesLeadsPage() {
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
-            onClick={() => router.push("/sales/create-new-deal")}
+            onClick={handleCreateNewLead}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
             Create new lead
           </Button>
         </div>
+
+        <Dialog
+          open={isInactiveReasonDialogOpen}
+          onOpenChange={(open) => {
+            setIsInactiveReasonDialogOpen(open);
+
+            if (!open) {
+              setInactiveReasonDraft(salesUnavailableReason || "");
+            }
+          }}
+        >
+          <DialogContent
+            className={`border transition-colors ${
+              isDark
+                ? "border-white/10 bg-[#111111] text-white"
+                : "border-[#E5D5B8] bg-[#FFFDFC] text-[#1F1F1F]"
+            }`}
+          >
+            <DialogHeader>
+              <DialogTitle className={isDark ? "text-white" : "text-[#1F1F1F]"}>
+                Set Status To Inactive
+              </DialogTitle>
+              <DialogDescription className={isDark ? "text-white/60" : "text-[#6B6256]"}>
+                Enter the reason that should be sent when your sales status becomes inactive.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              <Textarea
+                value={inactiveReasonDraft}
+                onChange={(e) => setInactiveReasonDraft(e.target.value)}
+                placeholder="For example: On break"
+                className={`min-h-[110px] ${
+                  isDark
+                    ? "border-white/10 bg-[#181818] text-white placeholder:text-white/30"
+                    : "border-[#D8C29A] bg-white text-[#1F1F1F] placeholder:text-[#9D8C75]"
+                }`}
+              />
+              <p className={`text-xs ${isDark ? "text-white/45" : "text-[#7A7064]"}`}>
+                API payload: {`{ "is_available": 0, "reason": "${inactiveReasonDraft.trim()}" }`}
+              </p>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                onClick={() => {
+                  setIsInactiveReasonDialogOpen(false);
+                  setInactiveReasonDraft(salesUnavailableReason || "");
+                }}
+                className={isDark ? "border border-white/10 bg-transparent text-white hover:bg-white/5" : "border border-[#D8D8D8] bg-white text-[#303030] hover:bg-[#F7F7F7]"}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  void handleConfirmInactiveStatus();
+                }}
+                disabled={isAvailabilityUpdating}
+                className={isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}
+              >
+                {isAvailabilityUpdating ? "Saving..." : "Set Inactive"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );

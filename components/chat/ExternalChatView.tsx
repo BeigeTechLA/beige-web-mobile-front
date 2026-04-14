@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   CalendarDays,
+  Loader2,
   Lock,
   MessageCircle,
   MoreVertical,
@@ -535,6 +536,7 @@ export default function ExternalChatView({
   const [localUnreadCounts, setLocalUnreadCounts] = useState<Record<string, number>>({});
   const [activeThreadUnreadCount, setActiveThreadUnreadCount] = useState(0);
   const [isNearBottom, setIsNearBottom] = useState(true);
+  const [accessRevokedNotice, setAccessRevokedNotice] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
@@ -575,9 +577,12 @@ export default function ExternalChatView({
     ) as Array<{ id?: string; name?: string; email?: string; role?: string }>;
   }, [participants]);
 
-  const filteredRooms = useMemo(() => {
-    const scopedRooms = rooms.filter((room) => roomMatchesRoleUser(room, effectiveUser, role));
+  const scopedRooms = useMemo(
+    () => rooms.filter((room) => roomMatchesRoleUser(room, effectiveUser, role)),
+    [rooms, role, effectiveUser]
+  );
 
+  const filteredRooms = useMemo(() => {
     const sortedRooms = [...scopedRooms].sort((a, b) => {
       const left = new Date(a.updatedAt || a.last_message?.createdAt || a.createdAt || 0).getTime();
       const right = new Date(b.updatedAt || b.last_message?.createdAt || b.createdAt || 0).getTime();
@@ -591,7 +596,7 @@ export default function ExternalChatView({
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     );
-  }, [rooms, role, search, roomSortOrder, effectiveUser]);
+  }, [scopedRooms, search, roomSortOrder]);
 
   const visibleMessages = useMemo(() => {
     const query = threadSearch.trim().toLowerCase();
@@ -646,6 +651,18 @@ export default function ExternalChatView({
     }
   };
 
+  const clearSelectedConversation = (notice?: string) => {
+    setSelectedRoom(null);
+    selectedRoomRef.current = null;
+    setMessages([]);
+    setParticipants({});
+    setDraftMessage("");
+    setReplyTarget(null);
+    setActiveThreadUnreadCount(0);
+    setIsNearBottom(true);
+    setAccessRevokedNotice(notice || null);
+  };
+
   const syncRoomSnapshot = (room: ExternalChatRoom | null, messageData?: ExternalChatMessage[]) => {
     const roomId = getRoomId(room);
     if (!roomId) return;
@@ -696,6 +713,9 @@ export default function ExternalChatView({
             : item
         )
       );
+      if (activeSelectedRoomId && !roomList.some((item) => getRoomId(item) === activeSelectedRoomId)) {
+        clearSelectedConversation("You no longer have access to this conversation.");
+      }
       return;
     }
 
@@ -760,6 +780,9 @@ export default function ExternalChatView({
       return next;
     });
     setRooms(mergedRooms);
+    if (activeSelectedRoomId && !mergedRooms.some((item) => getRoomId(item) === activeSelectedRoomId)) {
+      clearSelectedConversation("You no longer have access to this conversation.");
+    }
   };
 
   const hydrateRoomPreviews = async (
@@ -819,6 +842,7 @@ export default function ExternalChatView({
         : room;
 
     setSelectedRoom(roomWithClearedUnread);
+    setAccessRevokedNotice(null);
     selectedRoomRef.current = roomWithClearedUnread;
     if (roomId && userId && !shouldPreserveRoomUnread) {
       setRooms((current) =>
@@ -897,6 +921,11 @@ export default function ExternalChatView({
           (participantData?.managers && participantData.managers.length ? participantData.managers : room?.manager_ids) || [],
       });
     } catch (err: any) {
+      if (err?.status === 403 || err?.status === 404) {
+        setRooms((current) => current.filter((item) => getRoomId(item) !== roomId));
+        clearSelectedConversation("You were removed from this conversation. Access has been disabled.");
+        return;
+      }
       if (!options?.silent) {
         setMessages([]);
         setParticipants(buildParticipantStateFromRoom(room));
@@ -919,12 +948,7 @@ export default function ExternalChatView({
           roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
         });
         setRooms(roomList);
-        setSelectedRoom(null);
-        selectedRoomRef.current = null;
-        setMessages([]);
-        setParticipants({});
-        setActiveThreadUnreadCount(0);
-        setIsNearBottom(true);
+        clearSelectedConversation();
       } else {
         const roomList = await externalChatApi.listRooms({ page: 1, limit: 100, sortBy: "updatedAt:desc" });
         const hydratedRooms = await hydrateRoomPreviews(roomList);
@@ -932,12 +956,7 @@ export default function ExternalChatView({
           roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
         });
         setRooms(hydratedRooms);
-        setSelectedRoom(null);
-        selectedRoomRef.current = null;
-        setMessages([]);
-        setParticipants({});
-        setActiveThreadUnreadCount(0);
-        setIsNearBottom(true);
+        clearSelectedConversation();
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to load chat rooms");
@@ -1004,6 +1023,15 @@ export default function ExternalChatView({
     setIsThreadSearchOpen(false);
     setIsHeaderMenuOpen(false);
   }, [selectedRoom?.id, selectedRoom?._id]);
+
+  useEffect(() => {
+    const currentSelectedRoomId = getRoomId(selectedRoom);
+    if (!currentSelectedRoomId) return;
+    const isStillAccessible = scopedRooms.some((room) => getRoomId(room) === currentSelectedRoomId);
+    if (!isStillAccessible) {
+      clearSelectedConversation("You no longer have access to this conversation.");
+    }
+  }, [scopedRooms, selectedRoom]);
 
   useEffect(() => {
     const handleGlobalClick = (event: MouseEvent) => {
@@ -1223,8 +1251,11 @@ export default function ExternalChatView({
 
               <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {loading ? (
-                <div className="px-2 py-8 text-sm text-white/45">Loading chat rooms...</div>
-              ) : filteredRooms.length === 0 ? (
+                  <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+                      }`}>
+                    <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+                  </div>             
+                   ) : filteredRooms.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-white/10 bg-[#111] p-5">
                   <p className="text-base font-medium text-white">No active conversation yet</p>
                   <p className="mt-2 text-sm text-white/45">
@@ -1481,9 +1512,12 @@ export default function ExternalChatView({
                     <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[26px] bg-[linear-gradient(135deg,rgba(229,213,184,0.18),rgba(188,216,240,0.14))] text-[#E5D5B8]">
                       <MessageCircle className="h-9 w-9" />
                     </div>
-                    <h4 className="text-2xl font-semibold tracking-tight text-white">Select a conversation</h4>
+                    <h4 className="text-2xl font-semibold tracking-tight text-white">
+                      {accessRevokedNotice ? "Conversation unavailable" : "Select a conversation"}
+                    </h4>
                     <p className="mt-3 text-sm leading-6 text-white/52">
-                      Choose a conversation from the left side to open the thread and continue the chat from here.
+                      {accessRevokedNotice ||
+                        "Choose a conversation from the left side to open the thread and continue the chat from here."}
                     </p>
                   </div>
                 </div>
@@ -1623,20 +1657,20 @@ export default function ExternalChatView({
                                 >
                                   <Reply className="h-4 w-4" />
                                 </button>
-                                <div className="relative">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenMessageMenuId((current) => (current === messageId ? null : messageId));
-                                      setShowReactionPickerId(null);
-                                    }}
-                                    className="rounded-full border border-white/10 bg-[#151515] p-2 text-white/65 transition hover:bg-[#202020] hover:text-white"
-                                  >
-                                    <MoreVertical className="h-4 w-4" />
-                                  </button>
-                                  {openMessageMenuId === messageId ? (
-                                    <div className={`absolute top-1/2 z-20 min-w-[150px] -translate-y-1/2 rounded-2xl border border-white/10 bg-[#171717] p-2 shadow-2xl ${isOwn ? "right-[calc(100%+8px)]" : "left-[calc(100%+8px)]"}`}>
-                                      {isOwn ? (
+                                {isOwn ? (
+                                  <div className="relative">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenMessageMenuId((current) => (current === messageId ? null : messageId));
+                                        setShowReactionPickerId(null);
+                                      }}
+                                      className="rounded-full border border-white/10 bg-[#151515] p-2 text-white/65 transition hover:bg-[#202020] hover:text-white"
+                                    >
+                                      <MoreVertical className="h-4 w-4" />
+                                    </button>
+                                    {openMessageMenuId === messageId ? (
+                                      <div className={`absolute top-1/2 z-20 min-w-[150px] -translate-y-1/2 rounded-2xl border border-white/10 bg-[#171717] p-2 shadow-2xl right-[calc(100%+8px)]`}>
                                         <button
                                           type="button"
                                           onClick={() => startEditingMessage(message)}
@@ -1645,8 +1679,6 @@ export default function ExternalChatView({
                                           <Pencil className="h-4 w-4" />
                                           Edit
                                         </button>
-                                      ) : null}
-                                      {isOwn ? (
                                         <button
                                           type="button"
                                           onClick={() => {
@@ -1658,10 +1690,10 @@ export default function ExternalChatView({
                                           <Trash2 className="h-4 w-4" />
                                           Delete
                                         </button>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
-                                </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
                               </div>
 
                               <div
@@ -1832,13 +1864,14 @@ export default function ExternalChatView({
                   </div>
                 ) : null}
                 <div className="flex items-center gap-3 rounded-[24px] border border-white/10 bg-[#151515] p-3">
-                  <button
+                  {/* Attachment support is not ready yet, so hide the button for now */}
+                  {/* <button
                     type="button"
                     onClick={() => toast.info("File attachments are not connected to external chat yet")}
                     className="text-white/45 transition hover:text-white"
                   >
                     <Paperclip className="h-5 w-5" />
-                  </button>
+                  </button> */}
                   <textarea
                     value={draftMessage}
                     onChange={(e) => setDraftMessage(e.target.value)}

@@ -63,7 +63,18 @@ interface ProjectSource {
   project_name?: string;
   title?: string;
   client_name?: string;
+  client_email?: string;
+  guest_name?: string;
+  guest_email?: string;
   description?: string;
+  client?: {
+    client_name?: string;
+    name?: string;
+    full_name?: string;
+    email?: string;
+    client_email?: string;
+    guest_email?: string;
+  };
   assignedCrew?: CrewSource[];
   assigned_crews?: CrewSource[];
   lead_details?: {
@@ -128,6 +139,7 @@ const getProjectName = (project: ProjectSource | null | undefined) => {
     project?.project_name,
     project?.title,
     project?.client_name,
+    project?.guest_name,
     project?.description,
     eventType ? `${String(eventType).replace(/[_-]+/g, " ")} Shoot` : "",
     bookingId ? `Shoot #${bookingId}` : "",
@@ -153,6 +165,28 @@ const getCrewName = (member: CrewSource | null | undefined) =>
   member?.crew_member?.email ||
   member?.email ||
   "Creative Partner";
+
+const resolveClientName = (project: ProjectSource | null | undefined) => {
+  const candidates = [
+    project?.client_name,
+    project?.guest_name,
+    project?.client?.client_name,
+    project?.client?.full_name,
+    project?.client?.name,
+  ];
+  return String(candidates.find((value) => value && String(value).trim()) || "").trim();
+};
+
+const resolveClientEmail = (project: ProjectSource | null | undefined) => {
+  const candidates = [
+    project?.client_email,
+    project?.guest_email,
+    project?.client?.email,
+    project?.client?.client_email,
+    project?.client?.guest_email,
+  ];
+  return String(candidates.find((value) => value && String(value).trim()) || "").trim();
+};
 
 const resolveUser = (value: unknown) => {
   if (!value) return null;
@@ -430,6 +464,8 @@ export default function CreateMeetingModal({
   if (!isOpen) return null;
 
   const activeOrderId = selectedOrderId || (orderId ? String(orderId) : "");
+  const clientName = resolveClientName(selectedOrder);
+  const clientEmail = resolveClientEmail(selectedOrder);
 
   const generateMeetLink = async () => {
     if (!activeOrderId) {
@@ -464,7 +500,33 @@ export default function CreateMeetingModal({
       }
 
       if (response?.authUrl) {
-        toast.error("Google Meet is not authorized on this backend yet. Please connect the meetings service token first.");
+        const authWindow = window.open("", "_blank");
+        if (authWindow) {
+          const authUrl = String(response.authUrl).replace(/"/g, "&quot;");
+          authWindow.document.write(`
+            <html>
+              <head>
+                <title>Redirecting to Google</title>
+                <style>body{margin:0;background:#090909;color:#fff;font-family:Inter,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;} .card{max-width:520px;padding:32px;border-radius:24px;background:rgba(17,17,17,.95);box-shadow:0 20px 80px rgba(0,0,0,.35); text-align:center;} .button{display:inline-flex;align-items:center;justify-content:center;margin-top:24px;padding:12px 22px;border-radius:999px;background:#E5D5B8;color:#000;text-decoration:none;font-weight:700;}</style>
+              </head>
+              <body>
+                <div class="card">
+                  <h1 style="margin:0;font-size:1.8rem;">Redirecting to Google authorization</h1>
+                  <p style="margin:16px 0 0;color:#ccc;line-height:1.6;">Please wait while we open the Google authorization page. If it does not load automatically, click the button below.</p>
+                  <a class="button" id="redirectLink" href="${authUrl}" target="_self">Continue to Google</a>
+                </div>
+                <script>setTimeout(function(){window.location.href = "${authUrl}";}, 2000);</script>
+              </body>
+            </html>
+          `);
+          authWindow.document.close();
+          toast.info("Authorization will open in the new tab in 2 seconds...");
+        } else {
+          window.open(response.authUrl, "_blank", "noopener,noreferrer");
+          toast.info(
+            "Google authorization opened in a new tab. Complete the sign-in flow there, then retry creating the meeting."
+          );
+        }
       } else {
         toast.error("Unable to generate a meet link right now.");
       }
@@ -724,6 +786,23 @@ export default function CreateMeetingModal({
                 <p className="text-sm text-white/40">Choose a project first to load sales rep and assigned creative partners.</p>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
+                  {(clientName || clientEmail) ? (
+                    <div className="rounded-2xl border px-4 py-4 text-left border-[#E5D5B8]/40 bg-[#1B1812]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-white">{clientName || clientEmail || "Client"}</p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/35">Client</p>
+                          {clientEmail ? (
+                            <p className="mt-2 truncate text-xs text-white/60">{clientEmail}</p>
+                          ) : null}
+                        </div>
+                        <span className="rounded-full bg-[#E5D5B8] px-2.5 py-1 text-[11px] font-medium text-black">
+                          Client
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+
                   {managerOption ? (
                     <button
                       type="button"

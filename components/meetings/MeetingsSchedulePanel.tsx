@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ExternalLink, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDown, ExternalLink, Loader2, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,12 @@ const getParticipantResponse = (meeting: MeetingItem, userId?: string | number) 
   });
 
   return response?.response || "pending";
+};
+
+const formatInvitationResponse = (response: string) => {
+  if (response === "declined") return "Rejected";
+  if (response === "accepted") return "Accepted";
+  return "Pending";
 };
 
 const formatDateTime = (value?: string) => {
@@ -240,7 +246,9 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
             <p className="mt-1 text-sm text-white/45">
               {role === "client"
                 ? "Track project meetings, create them when needed, and open the join link when available."
-                : "View and create meetings for this project using the live meetings API."}
+                : role === "cp"
+                  ? "View project meetings and open the join link when available."
+                  : "View and create meetings for this project using the live meetings API."}
             </p>
           </div>
 
@@ -289,9 +297,11 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
             <span>Status</span>
           </div>
 
-          {loading ? (
-            <div className="px-2 py-10 text-center text-sm text-white/45">Loading meetings...</div>
-          ) : error ? (
+          {loading ? 
+          <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>: error ? (
             <div className="px-2 py-10 text-center text-sm text-[#ff8e8e]">{error}</div>
           ) : filteredMeetings.length === 0 ? (
             <div className="px-2 py-10 text-center text-sm text-white/45">No meetings found for this project yet.</div>
@@ -330,7 +340,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                       <div>
                         <StatusBadge status={effectiveStatus} />
                         {canRespond ? (
-                          <p className="mt-2 text-xs capitalize text-white/45">Your response: {currentResponse}</p>
+                          <p className="mt-2 text-xs capitalize text-white/45">Your response: {formatInvitationResponse(currentResponse)}</p>
                         ) : null}
                       </div>
                       <div className="flex items-center justify-end gap-3">
@@ -435,7 +445,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                           {canRespond ? (
                             <div className="col-span-2">
                               <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Your Response</p>
-                              <p className="capitalize text-white">{currentResponse}</p>
+                              <p className="capitalize text-white">{formatInvitationResponse(currentResponse)}</p>
                             </div>
                           ) : null}
                           <div className="col-span-2 flex items-center justify-between">
