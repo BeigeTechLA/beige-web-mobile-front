@@ -38,6 +38,9 @@ const salesMenuItems: SalesMenuItem[] = [
       { name: 'Master Pricing', link: '/sales/quotes/pricing' }
     ],
   },
+  
+
+
   { name: 'Invoices', icon: Receipt, link: '/sales/invoice' },
 ];
 
@@ -157,7 +160,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                       <span className="font-medium">{item.name}</span>
                     </div>
                   </div>
-                ) : item.name === 'Quotes' && item.children ? (
+                ) : item.name === 'Quotes' && item.children && user?.user_type_id === 7 ? (
                 
                   <button
                     onClick={() => setQuotesExpanded((p) => !p)}
@@ -188,7 +191,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                   </button>
                 )}
 
-                {item.name === 'Quotes' && item.children && quotesExpanded && (
+                {item.name === 'Quotes' && item.children && quotesExpanded && user?.user_type_id === 7 && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {item.children.map((child) => {
                       if (child.name === 'Master Pricing' && !isSalesAdmin) return null;

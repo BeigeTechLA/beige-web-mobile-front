@@ -471,8 +471,8 @@ function PricingSection({
             }}
             className={`h-8 gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all ${
               showAddForm
-                ? "border border-[#3D3930] bg-[#1D1A14] text-[#E8D1AB] hover:bg-[#231F18]"
-                : "border border-[#2D4020] bg-[#1A2814] text-[#86EFAC] hover:bg-[#1E3018]"
+                ? "border border-[#3D3930] bg-[#1D1A14] text-[#E8D1AB] hover:bg-[#E5D5B8]"
+                : "border border-[#2D4020] bg-[#E5D5B8] text-black "
             }`}
           >
             {showAddForm ? (
@@ -551,7 +551,7 @@ useEffect(() => {
 
    const userTypeId = (user as Record<string, unknown>)?.user_type_id ?? (user as Record<string, unknown>)?.userTypeId;
     const role = String((user as Record<string, unknown>)?.role ?? "").trim().toLowerCase();
-    
+
      if (Number(userTypeId) !== 7 || role !== "sales_admin") {
       router.replace("/sales/dashboard");
     }
@@ -723,7 +723,7 @@ useEffect(() => {
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-[#E0E0DC] lg:text-3xl">
                 Master Pricing
-                <span className="ml-2 text-[#E8D1AB]">Control</span>
+                              <span className="ml-2 text-[#E0E0DC]">Control</span>
               </h1>
               <p className="mt-1 text-sm text-[#555]">
                 Edit prices here → auto-reflects in all new quotes
