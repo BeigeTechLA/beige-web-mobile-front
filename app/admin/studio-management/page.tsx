@@ -113,7 +113,7 @@ export default function AdminStudiosPage() {
               <Download size={18} className="mr-2" />
               Export
             </Button>
-            <Link href={"#"}>
+            <Link href={"/admin/studio-management/add-studio"}>
               <Button className="h-12 bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
                 Create or Add Studio
               </Button>
