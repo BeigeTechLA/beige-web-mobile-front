@@ -7,8 +7,13 @@ import { toast } from "sonner";
 import QuotePreviewDocument from "@/components/quotes/QuotePreviewDocument";
 import { Button } from "@/components/ui/button";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { getQuoteText } from "@/lib/quoteDetail";
-import { buildAbsoluteQuotePreviewUrl } from "@/lib/quotePreview";
+import {
+  buildAbsoluteQuotePreviewUrl,
+  createSignedQuotePreviewUrl,
+  normalizeQuotePreviewUrlForClient,
+  resolveSecureQuotePreviewKey,
+  resolveSecureQuotePreviewUrl,
+} from "@/lib/quotePreview";
 import { getQuoteSendSuccessMessage, isQuoteAlreadySent } from "@/lib/quoteSend";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -47,7 +52,9 @@ export default function QuotePreviewModal({
   const { isDark } = useResolvedTheme();
   const [copied, setCopied] = React.useState(false);
   const [isSending, setIsSending] = React.useState(false);
+  const [isPreparingLink, setIsPreparingLink] = React.useState(false);
   const [hasSentQuote, setHasSentQuote] = React.useState(false);
+  const [generatedPreviewUrl, setGeneratedPreviewUrl] = React.useState<string | null>(null);
   const copyResetTimeoutRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
@@ -68,12 +75,19 @@ export default function QuotePreviewModal({
   const resolvedQuoteId = String(
     quoteData?.sales_quote_id ?? quoteData?.quote_id ?? quoteData?.id ?? quoteId ?? ""
   );
-  const quoteNumber =
-    getQuoteText(quoteData?.quote_number) ||
-    (resolvedQuoteId ? `Q-${resolvedQuoteId}` : "Draft Quote");
+  const secureQuotePreviewKey = resolveSecureQuotePreviewKey(quoteData);
+  const secureQuotePreviewUrl =
+    normalizeQuotePreviewUrlForClient(
+      resolveSecureQuotePreviewUrl(quoteData),
+      secureQuotePreviewKey
+    ) ??
+    (secureQuotePreviewKey
+      ? buildAbsoluteQuotePreviewUrl({ quoteKey: secureQuotePreviewKey })
+      : null);
+  const copyQuoteUrl = secureQuotePreviewUrl ?? generatedPreviewUrl;
   const quoteSentFromData = isQuoteAlreadySent(quoteData);
   const quoteSent = hasSentQuote || quoteSentFromData;
-  const canSendQuote = Boolean(resolvedQuoteId) && !isLoading && !isSending && !quoteSent;
+  const canSendQuote = Boolean(resolvedQuoteId) && !isLoading && !isSending;
 
   React.useEffect(() => {
     setHasSentQuote(quoteSentFromData);
@@ -90,9 +104,17 @@ export default function QuotePreviewModal({
     }
 
     try {
-      const shareValue = resolvedQuoteId
-        ? buildAbsoluteQuotePreviewUrl(resolvedQuoteId)
-        : quoteNumber;
+      let shareValue = copyQuoteUrl;
+
+      if (!shareValue) {
+        if (!resolvedQuoteId) {
+          throw new Error("Save the quote before copying the preview link.");
+        }
+
+        setIsPreparingLink(true);
+        shareValue = await createSignedQuotePreviewUrl(resolvedQuoteId);
+        setGeneratedPreviewUrl(shareValue);
+      }
 
       await navigator.clipboard.writeText(shareValue);
       setCopied(true);
@@ -108,7 +130,9 @@ export default function QuotePreviewModal({
       toast.success("Quote link copied successfully");
     } catch (error) {
       console.error("Failed to copy quote preview link", error);
-      toast.error("Failed to copy quote link");
+      toast.error(error instanceof Error ? error.message : "Failed to copy quote link");
+    } finally {
+      setIsPreparingLink(false);
     }
   };
 
@@ -118,10 +142,7 @@ export default function QuotePreviewModal({
       return;
     }
 
-    if (quoteSent) {
-      toast("Quote proposal email has already been sent.");
-      return;
-    }
+    const isResend = quoteSent;
 
     setIsSending(true);
 
@@ -136,7 +157,11 @@ export default function QuotePreviewModal({
 
       const updatedQuote = unwrapSalesQuoteDetail(response?.data ?? null);
       setHasSentQuote(true);
-      toast.success(getQuoteSendSuccessMessage(updatedQuote ?? quoteData));
+      toast.success(
+        isResend
+          ? "Quote resent successfully."
+          : getQuoteSendSuccessMessage(updatedQuote ?? quoteData)
+      );
     } catch (error) {
       console.error("Failed to send quote", error);
       toast.error(error instanceof Error ? error.message : "Failed to send quote");
@@ -182,14 +207,15 @@ export default function QuotePreviewModal({
               onClick={() => {
                 void handleCopy();
               }}
+              disabled={isPreparingLink}
               className={`h-11 rounded-xl px-4 ${
                 isDark
                   ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
                   : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
               }`}
             >
-              {copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
-              {copied ? "Copied" : "Copy Link"}
+              {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
+              {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
             </PreviewActionButton>
             <PreviewActionButton
               onClick={() => {
@@ -200,12 +226,10 @@ export default function QuotePreviewModal({
             >
               {isSending ? (
                 <Loader2 size={18} className="mr-2 animate-spin" />
-              ) : quoteSent ? (
-                <Check size={18} className="mr-2" />
               ) : (
                 <Send size={18} className="mr-2" />
               )}
-              {isSending ? "Sending..." : quoteSent ? "Quote Sent" : "Send Quote"}
+              {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
             </PreviewActionButton>
           </div>
         </div>
@@ -239,14 +263,15 @@ export default function QuotePreviewModal({
                     onClick={() => {
                       void handleCopy();
                     }}
+                    disabled={isPreparingLink}
                     className={`h-11 rounded-xl ${
                       isDark
                         ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
                         : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
                     }`}
                   >
-                    {copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
-                    {copied ? "Copied" : "Copy Link"}
+                    {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
+                    {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
                   </PreviewActionButton>
                   <PreviewActionButton
                     onClick={() => {
@@ -257,12 +282,10 @@ export default function QuotePreviewModal({
                   >
                     {isSending ? (
                       <Loader2 size={18} className="mr-2 animate-spin" />
-                    ) : quoteSent ? (
-                      <Check size={18} className="mr-2" />
                     ) : (
                       <Send size={18} className="mr-2" />
                     )}
-                    {isSending ? "Sending..." : quoteSent ? "Quote Sent" : "Send"}
+                    {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
                   </PreviewActionButton>
                 </div>
 

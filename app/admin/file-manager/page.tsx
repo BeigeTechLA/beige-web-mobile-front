@@ -54,6 +54,24 @@ export default function AdminFolderManagerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const getUpdatedTimestamp = (value?: string) => {
+    if (!value) return 0;
+    const timestamp = new Date(value).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  };
+
+  const isSameCalendarDate = (value: string | undefined, selected: Date) => {
+    if (!value) return false;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+
+    return (
+      date.getFullYear() === selected.getFullYear() &&
+      date.getMonth() === selected.getMonth() &&
+      date.getDate() === selected.getDate()
+    );
+  };
+
   const tabs = [
     { name: "All Files", icon: FolderOpen },
     { name: "Linked to folders", icon: Link },
@@ -116,8 +134,18 @@ export default function AdminFolderManagerPage() {
       );
     }
 
+    if (selectedDate) {
+      items = items.filter((item) => isSameCalendarDate(item.updatedAtRaw, selectedDate));
+    }
+
+    items.sort((a, b) => {
+      const diff = getUpdatedTimestamp(b.updatedAtRaw) - getUpdatedTimestamp(a.updatedAtRaw);
+      if (diff !== 0) return diff;
+      return a.title.localeCompare(b.title);
+    });
+
     return items;
-  }, [projects, searchTerm, selectedTab, status]);
+  }, [projects, searchTerm, selectedTab, status, selectedDate]);
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -364,11 +392,13 @@ export default function AdminFolderManagerPage() {
                           router.push(folder.href || `${pathname}/${folder.id}`);
                         }}
                       >
-                        <td className="py-5 px-6 text-white flex gap-2 items-center">
+                        <td className="py-5 px-6 text-white flex gap-2 items-center min-w-0">
                           <div className="h-10 w-10 bg-white/10 flex items-center justify-center rounded-md">
                             <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
                           </div>
-                          <span className="text-sm font-semibold">{folder.title}</span>
+                          <span className="text-sm font-semibold truncate max-w-[220px]" title={folder.title}>
+                            {folder.title}
+                          </span>
                         </td>
                         <td className="py-5 px-6 text-white text-[15px]">
                           <span className="px-4 py-1.5 rounded-xl bg-[#171717] text-white text-xs font-medium ">

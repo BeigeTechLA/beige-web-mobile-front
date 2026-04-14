@@ -80,6 +80,12 @@ const getParticipantResponse = (meeting: MeetingItem, userId?: string | number) 
   return response?.response || "pending";
 };
 
+const formatInvitationResponse = (response: string) => {
+  if (response === "declined") return "Rejected";
+  if (response === "accepted") return "Accepted";
+  return "Pending";
+};
+
 const formatDateTime = (value?: string) => {
   if (!value) return "No schedule";
   const date = new Date(value);
@@ -240,7 +246,9 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
             <p className="mt-1 text-sm text-white/45">
               {role === "client"
                 ? "Track project meetings, create them when needed, and open the join link when available."
-                : "View and create meetings for this project using the live meetings API."}
+                : role === "cp"
+                  ? "View project meetings and open the join link when available."
+                  : "View and create meetings for this project using the live meetings API."}
             </p>
           </div>
 
@@ -332,7 +340,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                       <div>
                         <StatusBadge status={effectiveStatus} />
                         {canRespond ? (
-                          <p className="mt-2 text-xs capitalize text-white/45">Your response: {currentResponse}</p>
+                          <p className="mt-2 text-xs capitalize text-white/45">Your response: {formatInvitationResponse(currentResponse)}</p>
                         ) : null}
                       </div>
                       <div className="flex items-center justify-end gap-3">
@@ -437,7 +445,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
                           {canRespond ? (
                             <div className="col-span-2">
                               <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#888888]">Your Response</p>
-                              <p className="capitalize text-white">{currentResponse}</p>
+                              <p className="capitalize text-white">{formatInvitationResponse(currentResponse)}</p>
                             </div>
                           ) : null}
                           <div className="col-span-2 flex items-center justify-between">

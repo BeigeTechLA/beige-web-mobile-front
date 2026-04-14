@@ -16,19 +16,31 @@ import {
 } from "@/components/ui/select";
 import { StatusBadge } from "./StatusBadge";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
+import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 
 const STATUS_LABEL_MAP: Record<number, string> = {
   0: "Initiated",
-  1: "Pre_Production",
+  1: "PreProduction",
   2: "Shoot Day",
-  3: "Post_Production",
+  3: "PostProduction",
   4: "Revision",
   5: "Completed",
   6: "Assets Delivered",
   7: "Cancelled",
 };
 
-type Status = "Booked" | "Cancelled" | "In-Progress" | "Initiated" | "PreProduction" | "PostProduction" | "Revision" | "Completed" | "Unknown";
+type Status =
+  | "Booked"
+  | "Cancelled"
+  | "In-Progress"
+  | "Initiated"
+  | "PreProduction"
+  | "Shoot Day"
+  | "PostProduction"
+  | "Revision"
+  | "Completed"
+  | "Assets Delivered"
+  | "Unknown";
 
 interface ShootRecord {
   id: string;
@@ -39,6 +51,17 @@ interface ShootRecord {
   price: string;
   status: Status;
 }
+
+const normalizeStatusKey = (value: string) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+
+const timelineStatusKeyFromLabel = (status: Status) => {
+  const normalized = normalizeStatusKey(status);
+  if (normalized === "assetsdelivered") return "assetsdelivered";
+  return normalized;
+};
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
   videographer: "Videography",
@@ -177,7 +200,8 @@ export const OverallShootsTable = () => {
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
-          const statusLabel = STATUS_LABEL_MAP[project.status] || "Unknown" as Status;
+          const resolvedStatus = resolveTimelineStage(project);
+          const statusLabel = (STATUS_LABEL_MAP[resolvedStatus] || "Unknown") as Status;
           const customerName = project.project_name || "Untitled Project";
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 
@@ -207,9 +231,14 @@ export const OverallShootsTable = () => {
   }, [range, status, startDate, endDate]);
 
   const isDark = !mounted || theme === "dark";
-  const totalPages = Math.ceil(shoots.length / itemsPerPage);
+  const filteredShoots = shoots.filter((shoot) => {
+    if (status === "all") return true;
+    return timelineStatusKeyFromLabel(shoot.status) === status;
+  });
+
+  const totalPages = Math.ceil(filteredShoots.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentShoots = shoots.slice(startIndex, startIndex + itemsPerPage);
+  const currentShoots = filteredShoots.slice(startIndex, startIndex + itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -268,21 +297,21 @@ export const OverallShootsTable = () => {
         </div>
 
         <div className="flex gap-3">
-          <Select value={status} onValueChange={setStatus}>
+            <Select value={status} onValueChange={(v) => { setStatus(v); setCurrentPage(1); }}>
             <SelectTrigger className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"
               }`}>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Initiated">Initiated</SelectItem>
-              <SelectItem value="PreProduction">Pre Production</SelectItem>
-              <SelectItem value="Shoot Day">Shoot Day</SelectItem>
-              <SelectItem value="PostProduction">Post Production</SelectItem>
-              <SelectItem value="Revision">Revision</SelectItem>
-              <SelectItem value="Completed">Completed</SelectItem>
-              <SelectItem value="Assets Delivered">Assets Delivered</SelectItem>
-              <SelectItem value="Cancelled">Cancelled</SelectItem>
+              <SelectItem value="initiated">Initiated</SelectItem>
+              <SelectItem value="preproduction">Pre Production</SelectItem>
+              <SelectItem value="shootday">Shoot Day</SelectItem>
+              <SelectItem value="postproduction">Post Production</SelectItem>
+              <SelectItem value="revision">Revision</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="assetsdelivered">Assets Delivered</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
 

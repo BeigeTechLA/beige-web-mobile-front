@@ -18,6 +18,7 @@ import { adminApi } from "@/lib/api";
 import { CircleX, Loader2, X, SlidersHorizontal, Eye } from "lucide-react"; // Added X icon for closing
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
+import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 
 type SkillOption = {
   id?: number | string;
@@ -69,6 +70,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
+  const bookingId =
+    project?.booking_id || project?.stream_project_booking_id || id;
 
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
@@ -234,11 +237,11 @@ const projectData: ProjectDetails | undefined =
               )}
 
           {(activeTab === "Pre_Production" || activeTab === "Pre Production") && (
-            <PreProductionTab projectId={id} />
+            <PreProductionTab projectId={String(bookingId)} />
           )}
 
           {(activeTab === "Post_Production" || activeTab === "Post Production") && (
-            <PostProductionTab projectId={id} />
+            <PostProductionTab projectId={String(bookingId)} />
           )}
 
           {activeTab === "Meetings" && (
@@ -264,7 +267,7 @@ const projectData: ProjectDetails | undefined =
 
         {/* Right Sidebar (Timeline) */}
         < div className="hidden lg:block" >
-          <ProjectTimeline />
+          <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
         </div>
 
         {/* Mobile Timeline Overlay (Conditional) */}
@@ -280,7 +283,7 @@ const projectData: ProjectDetails | undefined =
                 </button>
 
                 <div className="h-full overflow-y-auto">
-                  <ProjectTimeline status={project?.status} />
+                  <ProjectTimeline status={resolveTimelineStage(project as ProjectDetails & { timeline_status?: number })} />
                 </div>
               </div>
             </div>

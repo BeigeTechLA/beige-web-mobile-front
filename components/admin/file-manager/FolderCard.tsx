@@ -81,12 +81,17 @@ export const FolderCard: React.FC<FolderCardProps> = ({
       {/* Top Section */}
       <div className="p-5">
         <div className="flex items-start justify-between">
-          <div className="flex gap-3 items-start">
+          <div className="flex gap-3 items-start min-w-0">
             <div>
               <FolderOpen className="text-[#E8D1AB] fill-[#E8D1AB]/20" size={24} />
             </div>
-            <div>
-              <h3 className="text-white font-semibold text-sm leading-tight">{title}</h3>
+            <div className="min-w-0">
+              <h3
+                className="text-white font-semibold text-sm leading-tight truncate"
+                title={title}
+              >
+                {title}
+              </h3>
               <p className="text-[#E8D1AB]/60 text-sm mt-1">{fileCount.toString().padStart(2, '0')} Files</p>
             </div>
           </div>

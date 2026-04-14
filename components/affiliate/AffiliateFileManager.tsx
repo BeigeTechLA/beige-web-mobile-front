@@ -595,6 +595,10 @@ export default function AffiliateFileManager() {
       );
     }
 
+    const filteredPhaseCards = phaseCards.filter((phase) =>
+      phase.title.toLowerCase().includes(searchTerm.trim().toLowerCase())
+    );
+
     return (
       <div className="space-y-8">
         <div>
@@ -615,7 +619,7 @@ export default function AffiliateFileManager() {
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace.externalId}
               </p>
-              {selectedWorkspace.consoleUrl ? (
+              {/* {selectedWorkspace.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
                   target="_blank"
@@ -624,14 +628,14 @@ export default function AffiliateFileManager() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null}
+              ) : null} */}
             </div>
           </div>
           <p className="lg:hidden text-xs text-[#D0D0D0]">
             <span className="text-[#AAA7A7]">Project Code: </span>
             {selectedWorkspace.externalId}
           </p>
-          {selectedWorkspace.consoleUrl ? (
+          {/* {selectedWorkspace.consoleUrl ? (
             <a
               href={selectedWorkspace.consoleUrl}
               target="_blank"
@@ -640,74 +644,38 @@ export default function AffiliateFileManager() {
             >
               Open Storage Folder
             </a>
-          ) : null}
+          ) : null} */}
         </div>
 
         <div className="pb-20 lg:pb-0">
-          <div className="flex justify-between items-center gap-2 mb-3 lg:mb-6">
-            <div className="relative flex-1 max-w-xl">
-              <Search className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 text-white/40 w-3 lg:w-4 h-3 lg:h-4" />
-              <input
-                type="text"
-                placeholder="Search folder..."
-                value={searchTerm}
-                className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          {filteredPhaseCards.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+              {filteredPhaseCards.map((phase) => (
+                <FolderCard
+                  key={phase.id}
+                  title={phase.title}
+                  fileCount={phase.fileCount}
+                  lastOpened={formatRelativeTime(
+                    (phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
+                      selectedWorkspace.lastOpened
+                  )}
+                  userInitials={selectedWorkspace.userInitials}
+                  onOpenLinkModal={() => {}}
+                  onOpen={() => {
+                    setSelectedPhase(phase.id as "pre" | "post");
+                    setSelectedPath("");
+                    setSearchTerm("");
+                  }}
+                  showMenu={false}
+                />
+              ))}
             </div>
-            <div className="flex gap-2">
-              <BasicDropdown
-                label="Status"
-                value={status}
-                onChange={setStatus}
-                options={["Linked", "Unlinked"]}
-              />
-              <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
-                <Button
-                  onClick={() => setViewMode("grid")}
-                  className={`px-5 py-2.5 rounded-l-lg transition-colors ${
-                    viewMode === "grid"
-                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                      : "bg-transparent text-white/40 hover:text-white"
-                  }`}
-                >
-                  <Grid3X3 size={20} />
-                </Button>
-                <Button
-                  onClick={() => setViewMode("list")}
-                  className={`px-5 py-2.5 rounded-r-lg transition-colors ${
-                    viewMode === "list"
-                      ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                      : "bg-transparent text-white/40 hover:text-white"
-                  }`}
-                >
-                  <List size={20} />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-            {phaseCards.map((phase) => (
-              <FolderCard
-                key={phase.id}
-                title={phase.title}
-                fileCount={phase.fileCount}
-                lastOpened={formatRelativeTime(
-                  (phase.id === "pre" ? preFolder?.lastOpened : postFolder?.lastOpened) ||
-                    selectedWorkspace.lastOpened
-                )}
-                userInitials={selectedWorkspace.userInitials}
-                onOpenLinkModal={() => {}}
-                onOpen={() => {
-                  setSelectedPhase(phase.id as "pre" | "post");
-                  setSelectedPath("");
-                  setSearchTerm("");
-                }}
-                showMenu={false}
-              />
-            ))}
-          </div>
+          ) : (
+            <EmptyFileState
+              title="No matching folders"
+              description="Try another search term to find the project phase."
+            />
+          )}
         </div>
       </div>
     );
@@ -751,7 +719,7 @@ export default function AffiliateFileManager() {
                 <span className="text-[#AAA7A7]">Project Code: </span>
                 {selectedWorkspace?.externalId}
               </p>
-              {selectedWorkspace?.consoleUrl ? (
+              {/* {selectedWorkspace?.consoleUrl ? (
                 <a
                   href={selectedWorkspace.consoleUrl}
                   target="_blank"
@@ -760,7 +728,7 @@ export default function AffiliateFileManager() {
                 >
                   Open Storage Folder
                 </a>
-              ) : null}
+              ) : null} */}
             </div>
           </div>
         </div>

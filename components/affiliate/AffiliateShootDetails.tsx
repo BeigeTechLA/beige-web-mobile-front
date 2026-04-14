@@ -18,6 +18,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { Loader2, X, Eye } from "lucide-react";
 import Cookies from "js-cookie";
 import { useTheme } from "next-themes";
+import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 
 interface AffiliateShootDetailsProps {
   shootId: string;
@@ -182,7 +183,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
 
       {/* Right Sidebar (Timeline) */}
       <div className="hidden lg:block">
-        <AffiliateProjectTimeline />
+        <AffiliateProjectTimeline status={resolveTimelineStage(project)} />
       </div>
 
       {/* Mobile Timeline Overlay */}
@@ -200,7 +201,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
             </div>
 
             <div className="h-full overflow-y-auto">
-              <AffiliateProjectTimeline />
+              <AffiliateProjectTimeline status={resolveTimelineStage(project)} />
             </div>
           </div>
         </div>

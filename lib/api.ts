@@ -929,6 +929,28 @@ export const GetUpcomingShoots = async (payload: { crew_member_id: number }) => 
   }
 };
 
+export const getAcceptedShoots = async (payload: { crew_member_id: number }) => {
+  try {
+    const response = await api.post(
+      "creator/accepted-shoots",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Get Accepted Shoots Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch accepted shoots",
+    };
+  }
+};
+
 
 export const acceptOrDeclineProject = async (payload: {
   project_id: number;
@@ -2366,6 +2388,32 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch dashboard overview',
+      };
+    }
+  },
+  getCurrentSalesStatus: async () => {
+    try {
+      const response = await api.get('/sales/current-status');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Current Sales Status Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch current sales status',
+      };
+    }
+  },
+  toggleSalesStatus: async (payload: { is_available: 0 | 1; reason?: string }) => {
+    try {
+      const response = await api.post('/sales/toggle-status', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Toggle Sales Status Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update sales status',
       };
     }
   },

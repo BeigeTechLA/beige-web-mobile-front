@@ -110,16 +110,17 @@ export default function CreatorFolderDetailsPage() {
     });
   };
 
-  const getSelectedFolderPhase = () => {
-    if (!selectedFolder?.title) return "root";
-    return selectedFolder.title.toLowerCase().includes("post") ? "post" : "pre";
+  const getFolderPhase = (folder?: UiFolderItem | null) => {
+    if (!folder?.title) return "root";
+    return folder.title.toLowerCase().includes("post") ? "post" : "pre";
   };
 
-  const handleDownloadSelectedFolder = async () => {
-    if (!selectedFolder) return;
+  const handleDownloadSelectedFolder = async (folder?: UiFolderItem | null) => {
+    const targetFolder = folder || selectedFolder;
+    if (!targetFolder) return;
     try {
       const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
-        phase: getSelectedFolderPhase(),
+        phase: getFolderPhase(targetFolder),
       });
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
@@ -182,7 +183,7 @@ export default function CreatorFolderDetailsPage() {
                   <span className="text-[#AAA7A7]">Project Code: </span>
                   {workspaceCode}
                 </p>
-                {workspaceConsoleUrl ? (
+                {/* {workspaceConsoleUrl ? (
                   <a
                     href={workspaceConsoleUrl}
                     target="_blank"
@@ -191,7 +192,7 @@ export default function CreatorFolderDetailsPage() {
                   >
                     Open Storage Folder
                   </a>
-                ) : null}
+                ) : null} */}
               </div>
             </div>
 
@@ -199,7 +200,7 @@ export default function CreatorFolderDetailsPage() {
               <span className="text-[#AAA7A7]">Project Code: </span>
               {workspaceCode}
             </p>
-            {workspaceConsoleUrl ? (
+            {/* {workspaceConsoleUrl ? (
               <a
                 href={workspaceConsoleUrl}
                 target="_blank"
@@ -208,7 +209,7 @@ export default function CreatorFolderDetailsPage() {
               >
                 Open Storage Folder
               </a>
-            ) : null}
+            ) : null} */}
           </div>
 
           <div className="pb-20 lg:pb-0">
@@ -265,8 +266,7 @@ export default function CreatorFolderDetailsPage() {
                     }}
                     href={folder.href}
                     onDownload={async () => {
-                      setSelectedFolder(folder);
-                      await handleDownloadSelectedFolder();
+                      await handleDownloadSelectedFolder(folder);
                     }}
                     onDelete={() => {
                       setSelectedFolder(folder);

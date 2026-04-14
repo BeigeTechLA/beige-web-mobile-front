@@ -12,7 +12,7 @@ interface EmptyFileStateProps {
 }
 
 export default function EmptyFileState({
-  title = "No Project Folder Craeted",
+  title = "No Project Folder Created",
   description = "No project folders have been created.",
   actionLabel,
   onAction,

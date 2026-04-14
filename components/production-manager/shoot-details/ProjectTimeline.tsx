@@ -25,11 +25,14 @@ export default function ProjectTimeline({ status = 0 }: { status?: number }) {
     const isDark = !mounted || (resolvedTheme === "dark" || theme === "dark");
 
     const getCurrentStep = () => {
+        if (status === 7) return 1;
         if (status === 0) return 1;
         if (status === 1) return 2;
-        if (status === 2) return 4;
-        if (status === 3) return 5;
-        if (status >= 4) return 6;
+        if (status === 2) return 3;
+        if (status === 3) return 4;
+        if (status === 4) return 5;
+        if (status === 5) return 6;
+        if (status >= 6) return 7;
         return 1;
     };
 

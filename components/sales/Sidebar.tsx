@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, X, type LucideIcon, FileText, Receipt } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, X, type LucideIcon, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -30,6 +30,7 @@ const salesMenuItems: SalesMenuItem[] = [
   { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
   { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/sales/quotes' },
+  { name: 'Invoices', icon: Receipt, link: '/sales/invoice' },
 ];
 
 type SalesMenuItem = {
@@ -48,7 +49,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const initialPath = useRef(pathname);
 
   const [mounted, setMounted] = useState(false);
-  const [expanded, setExpanded] = useState<string[]>(["Users"]);
 
   useEffect(() => setMounted(true), []);
 
@@ -61,20 +61,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }, [pathname, onClose]);
 
   const isDark = !mounted || theme === "dark";
+  const visibleSalesMenuItems = salesMenuItems.filter(
+    (item) => item.name !== "Invoices"
+  );
 
   // Shared helper to handle navigation and closing sidebar
   const handleNavigation = (link: string) => {
     if (link && link !== "#") {
       router.push(link);
     }
-  };
-
-  const toggleExpand = (name: string) => {
-    setExpanded((prev) =>
-      prev.includes(name)
-        ? prev.filter((item) => item !== name)
-        : [...prev, name],
-    );
   };
 
   const isActiveLink = (link?: string) => {
@@ -123,7 +118,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2">
-          {salesMenuItems.map((item) => {
+          {visibleSalesMenuItems.map((item) => {
             const active = isActiveLink(item.link);
             const isDisabled = item.isDisabled;
 

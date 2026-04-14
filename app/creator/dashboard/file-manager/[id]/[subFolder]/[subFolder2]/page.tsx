@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   ArrowLeft,
+  CalendarClock,
   Download,
   FileVideo,
   Grid3X3,
@@ -27,6 +28,7 @@ import {
   mapExternalFilesToUi,
   slugToWorkspaceName,
 } from "@/lib/fileManagerApi";
+import { getProject } from "@/lib/api";
 import { toast } from "sonner";
 
 const defaultImgSrc = "/images/misc/Data.png";
@@ -56,6 +58,16 @@ export default function CreatorSubFolderDetailsPage() {
   const [viewerFile, setViewerFile] = useState<Record<string, unknown> | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<Record<string, unknown> | null>(null);
+  const [shootDate, setShootDate] = useState<string | null>(null);
+
+  const isOnOrAfterShootDay = useCallback((date?: string | null) => {
+    if (!date) return false;
+    const shootDay = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(shootDay.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return shootDay.getTime() <= today.getTime();
+  }, []);
 
   const loadFiles = useCallback(async () => {
     try {
@@ -71,6 +83,17 @@ export default function CreatorSubFolderDetailsPage() {
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setFiles(workspaceData.files);
+
+      if (Number.isFinite(Number(projectId))) {
+        try {
+          const projectDetails = await getProject(Number(projectId));
+          setShootDate(projectDetails?.data?.project?.event_date || null);
+        } catch {
+          setShootDate(null);
+        }
+      } else {
+        setShootDate(null);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load files");
     } finally {
@@ -114,6 +137,18 @@ export default function CreatorSubFolderDetailsPage() {
     const query = searchTerm.toLowerCase();
     return items.filter((item) => item.title.toLowerCase().includes(query));
   }, [folderFiles, searchTerm, status]);
+
+  const formattedShootDate = useMemo(() => {
+    if (!shootDate) return "your shoot day";
+    const parsed = new Date(`${shootDate}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return shootDate;
+    return parsed.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }, [shootDate]);
 
   useEffect(() => {
     const previewableFiles = folderFiles.filter(
@@ -196,7 +231,8 @@ export default function CreatorSubFolderDetailsPage() {
     }
   };
 
-  const canUpload = phaseSlug === "post-production";
+  const canUpload = phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate);
+  const showUploadLockBanner = phaseSlug === "post-production" && !canUpload;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
@@ -239,7 +275,7 @@ export default function CreatorSubFolderDetailsPage() {
               <div>
                 <p className="text-sm lg:text-base">Project: {workspaceName}</p>
                 <p className="mt-0.5 text-xs text-white/60 lg:text-base">Project Code: {workspaceCode}</p>
-                {workspaceConsoleUrl ? (
+                {/* {workspaceConsoleUrl ? (
                   <a
                     href={workspaceConsoleUrl}
                     target="_blank"
@@ -248,7 +284,7 @@ export default function CreatorSubFolderDetailsPage() {
                   >
                     Open Storage Folder
                   </a>
-                ) : null}
+                ) : null} */}
               </div>
             </div>
           </>
@@ -257,6 +293,22 @@ export default function CreatorSubFolderDetailsPage() {
 
       {!loading && !error ? (
         <div className="p-5">
+          {showUploadLockBanner ? (
+            <div className="mb-3 rounded-xl border border-[#E8D1AB]/25 bg-gradient-to-r from-[#2A2215] to-[#17130E] p-3 lg:mb-4 lg:p-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-[#E8D1AB]/15 p-2 text-[#E8D1AB]">
+                  <CalendarClock size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#F2E4C8]">Uploads unlock on shoot day</p>
+                  <p className="mt-1 text-xs text-[#DCC7A0] lg:text-sm">
+                    Post-production upload will be available on{" "}
+                    <span className="font-medium text-[#F2E4C8]">{formattedShootDate}</span>. You can review folders and existing files now.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div className="mb-6 flex flex-row items-center justify-between gap-4">
             <div className="relative max-w-xl flex-1">
               <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/40 lg:left-3 lg:h-4 lg:w-4" />
