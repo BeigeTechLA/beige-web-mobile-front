@@ -38,8 +38,19 @@ const salesMenuItems: SalesMenuItem[] = [
   { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
   { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
   { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
-  { name: 'Quotes', icon: CustomQuotesIcon, link: '/sales/quotes' },
-  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', visibleForUserTypes: [7] },
+  {
+    name: 'Quotes',
+    icon: CustomQuotesIcon,
+    link: '/sales/quotes',
+    children: [
+      { name: 'All Quotes', link: '/sales/quotes' },
+      { name: 'Master Pricing', link: '/sales/quotes/pricing' }
+    ],
+  },
+  
+
+
+  { name: 'Invoices', icon: Receipt, link: '/sales/invoice' },
 ];
 
 type SalesMenuItem = {
@@ -56,6 +67,26 @@ type SalesMenuItem = {
   }[];
 };
 
+// const isSalesAdminInvoiceUser = (user: Record<string, unknown> | null | undefined) => {
+//   if (!user) return false;
+
+//   const userTypeId = user.user_type_id ?? user.userTypeId;
+//   const roleValue = user.role ?? user.userRole;
+//   const normalizedRole = String(roleValue ?? "").trim().toLowerCase();
+
+//   return userTypeId === 7 && normalizedRole === "sales_admin";
+// };
+
+const isSalesAdminInvoiceUser = (user: Record<string, unknown> | null | undefined) => {
+  if (!user) return false;
+
+  const userTypeId = user.user_type_id ?? user.userTypeId;
+  const roleValue = user.role ?? user.userRole;
+  const normalizedRole = String(roleValue ?? "").trim().toLowerCase();
+
+  return userTypeId === 7 && normalizedRole === "sales_admin";
+};
+
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -65,7 +96,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const initialPath = useRef(pathname);
 
   const [mounted, setMounted] = useState(false);
-  const [localUserTypeId, setLocalUserTypeId] = useState<number | null>(null);
+  const [quotesExpanded, setQuotesExpanded] = useState(false);
+    const [localUserTypeId, setLocalUserTypeId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<string[]>([]);
 
   useEffect(() => {
@@ -247,10 +279,31 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                       <span className="font-medium">{item.name}</span>
                     </div>
                   </div>
+                ) : item.name === 'Quotes' && item.children && user?.user_type_id === 7 ? (
+                
+                  <button
+                    onClick={() => setQuotesExpanded((p) => !p)}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-sm font-medium ${active
+                        ? "bg-[#E5D5B8] text-[#171717]"
+                        : isDark ? "text-[#676767] hover:text-white" : "text-[#676767] hover:text-[#101010]"
+                      }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon size={20} />
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                    <ChevronDown
+                      size={16}
+                      className={`transition-transform duration-200 ${quotesExpanded ? "rotate-180" : ""}`}
+                    />
+                  </button>
                 ) : (
                   <button
                     onClick={() => handleNavigation(item.link || '#')}
-                    className={`${baseClass} ${active ? activeClass : inactiveClass} ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium ${active
+                        ? "bg-[#E5D5B8] text-[#171717]"
+                        : isDark ? "text-[#676767] hover:text-white" : "text-[#676767] hover:text-[#101010]"
+                      }`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       <item.icon size={20} />
@@ -270,6 +323,27 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                           className={`block px-4 py-2 text-sm rounded-lg transition-colors ${childActive
                             ? (isDark ? "text-white font-medium" : "text-[#101010] font-bold")
                             : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
+                            }`}
+                        >
+                          {child.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {item.name === 'Quotes' && item.children && quotesExpanded && user?.user_type_id === 7 && (
+                  <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
+                    {item.children.map((child) => {
+                      if (child.name === 'Master Pricing' && !isSalesAdmin) return null;
+
+                      return (
+                        <button
+                          key={child.name}
+                          onClick={() => handleNavigation(child.link)}
+                          className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-colors ${pathname === child.link
+                              ? isDark ? "text-white font-medium" : "text-[#101010] font-bold"
+                              : isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]"
                             }`}
                         >
                           {child.name}

@@ -104,6 +104,38 @@ export const getShootFilesText = (project: any) => {
   return `${imageCount} Image${imageCount === 1 ? "" : "s"} & ${videoCount} Video${videoCount === 1 ? "" : "s"}`;
 };
 
+type ProjectScheduleDay = {
+  duration_hours?: number | string | null;
+};
+
+type ProjectScheduleLike = {
+  booking_days?: ProjectScheduleDay[] | null;
+  event_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  event_start_time?: string | null;
+};
+
+const getProjectBookingDays = (project: ProjectScheduleLike | null | undefined) =>
+  Array.isArray(project?.booking_days) ? project.booking_days : [];
+
+const formatProjectDateValue = (value?: string | null) => {
+  if (!value) {
+    return "N/A";
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "N/A";
+  }
+
+  return parsedDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
 const formatUsTime = (hours: number, minutes: number) => {
   const date = new Date();
   date.setHours(hours, minutes, 0, 0);
@@ -156,7 +188,7 @@ export const formatProjectTimeValue = (value?: string | null) => {
   return normalizedValue;
 };
 
-export const getProjectTimeText = (project: any) => {
+export const getProjectTimeText = (project: ProjectScheduleLike | null | undefined) => {
   const startTime = formatProjectTimeValue(project?.start_time);
   const endTime = formatProjectTimeValue(project?.end_time);
 
@@ -173,4 +205,30 @@ export const getProjectTimeText = (project: any) => {
   }
 
   return "N/A";
+};
+
+export const getProjectDateText = (project: ProjectScheduleLike | null | undefined) => {
+  const bookingDays = getProjectBookingDays(project);
+
+  if (bookingDays.length > 1) {
+    return "Multiple Days";
+  }
+
+  return formatProjectDateValue(project?.event_date);
+};
+
+export const getProjectScheduleTimeText = (project: ProjectScheduleLike | null | undefined) => {
+  const bookingDays = getProjectBookingDays(project);
+
+  if (bookingDays.length > 1) {
+    const totalHours = bookingDays.reduce((sum, day) => {
+      const parsedHours = Number(day?.duration_hours);
+      return Number.isFinite(parsedHours) ? sum + parsedHours : sum;
+    }, 0);
+    const roundedHours = Math.round(totalHours * 100) / 100;
+
+    return `${Number.isInteger(roundedHours) ? roundedHours : roundedHours} hours`;
+  }
+
+  return getProjectTimeText(project);
 };

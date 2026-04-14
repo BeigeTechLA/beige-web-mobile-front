@@ -48,7 +48,15 @@ const menuItems = [
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
-  { name: 'Quotes', icon: CustomQuotesIcon, link: '/admin/quotes' },
+  {
+    name: 'Quotes',
+    icon: CustomQuotesIcon,
+    link: '/admin/quotes',
+    children: [
+      { name: 'All Quotes', link: '/admin/quotes' },
+      { name: 'Master Pricing', link: '/admin/quotes/pricing' },
+    ],
+  },
   { name: 'Invoices', icon: Receipt, link: '/admin/invoice' },
 ];
 
