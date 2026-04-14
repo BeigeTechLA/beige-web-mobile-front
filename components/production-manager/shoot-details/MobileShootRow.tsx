@@ -17,25 +17,16 @@ interface ShootRecord {
 
 // internal status mapping for styles
 const STATUS_STYLES = {
-    "Initiated": "bg-[#FFF9E5] text-[#B18A00]",
-    "Pre_Production": "bg-[#FDF4FF] text-[#C065F0]",
-    "Shoot Day": "bg-[#FFF9E5] text-[#B18A00]",
-    "Post_Production": "bg-[#EAEAEA] text-[#666666]",
-    "Revision": "bg-[#E6F0FF] text-[#3B82F6]",
-    "Completed": "bg-[#F0FFF4] text-[#22C55E]",
-    "Assets Delivered": "bg-[#EAEAEA] text-[#666666]",
-    "Cancelled": "bg-[#FFF5F5] text-[#EF4444]",
-};
-
-const STATUS_LABEL_MAP: Record<number, string> = {
-    0: "Initiated",
-    1: "Pre_Production",
-    2: "Shoot Day",
-    3: "Post_Production",
-    4: "Revision",
-    5: "Completed",
-    6: "Assets Delivered",
-    7: "Cancelled",
+    "Initiated": "bg-[#FFF5CC] text-[#A86500] border border-[#E9CE7A]",
+    "Pre_Production": "bg-[#F6EEFF] text-[#A334D5] border border-[#E4CCFF]",
+    "PreProduction": "bg-[#F6EEFF] text-[#A334D5] border border-[#E4CCFF]",
+    "Shoot Day": "bg-[#FFECCF] text-[#C26A00] border border-[#F4C987]",
+    "Post_Production": "bg-[#F1F1F1] text-[#666666] border border-[#D7D7D7]",
+    "PostProduction": "bg-[#F1F1F1] text-[#666666] border border-[#D7D7D7]",
+    "Revision": "bg-[#E9EEFF] text-[#3258D8] border border-[#C8D5FF]",
+    "Completed": "bg-[#DCF7E8] text-[#1F8A53] border border-[#B9E7CD]",
+    "Assets Delivered": "bg-[#D7F3E4] text-[#1D7A4F] border border-[#A7DEBF]",
+    "Cancelled": "bg-[#FFE8E8] text-[#D03434] border border-[#F4C0C0]",
 };
 
 interface MobileShootRowProps {
@@ -44,10 +35,10 @@ interface MobileShootRowProps {
 }
 
 const StatusBadge = ({ status }: { status: string }) => {
-    const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#F3F4F6] text-[#6B7280]";
+    const style = STATUS_STYLES[status as keyof typeof STATUS_STYLES] || "bg-[#ECECEC] text-[#6D6D6D] border border-[#D5D5D5]";
 
     return (
-        <span className={`px-3 py-2 rounded-full text-xs font-medium leading-none ${style}`}>
+        <span className={`px-3 py-1.5 rounded-full text-xs font-semibold leading-none whitespace-nowrap ${style}`}>
             {status}
         </span>
     );

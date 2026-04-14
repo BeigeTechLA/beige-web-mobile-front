@@ -9,8 +9,10 @@ import QuotePreviewBrandBlock from "@/components/quotes/QuotePreviewBrandBlock";
 import QuotePreviewDocument from "@/components/quotes/QuotePreviewDocument";
 import { Button } from "@/components/ui/button";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { getQuoteText } from "@/lib/quoteDetail";
-import { buildAbsoluteQuotePreviewUrl } from "@/lib/quotePreview";
+import {
+  createSignedQuotePreviewUrl,
+  fetchQuotePreviewByKey,
+} from "@/lib/quotePreview";
 import { getQuoteSendSuccessMessage, isQuoteAlreadySent } from "@/lib/quoteSend";
 import {
   buildPreviewQuoteFromSummary,
@@ -68,6 +70,7 @@ export default function QuotePreviewPageShell({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryQuoteKey = searchParams.get("quoteKey");
   const queryQuoteId = searchParams.get("quoteId");
   const { isDark } = useResolvedTheme();
 
@@ -76,6 +79,8 @@ export default function QuotePreviewPageShell({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isPreparingLink, setIsPreparingLink] = useState(false);
+  const [generatedPreviewUrl, setGeneratedPreviewUrl] = useState<string | null>(null);
   const copyResetTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -93,7 +98,7 @@ export default function QuotePreviewPageShell({
       setLoading(true);
       setErrorMessage(null);
 
-      if (!queryQuoteId) {
+      if (!queryQuoteKey && !queryQuoteId) {
         if (!summaryStorageKey) {
           setQuote(null);
           setErrorMessage("No quote preview link was provided.");
@@ -122,7 +127,13 @@ export default function QuotePreviewPageShell({
       try {
         const response =
           quoteDetailMode === "public"
-            ? await salesApi.getPublicQuoteDetail(queryQuoteId)
+            ? queryQuoteKey
+              ? await fetchQuotePreviewByKey(queryQuoteKey)
+              : {
+                  success: false,
+                  error:
+                    "Legacy quote preview links using quoteId are no longer supported. Request a new secure quote link.",
+                }
             : await salesApi.getQuoteDetail(queryQuoteId);
 
         if (response?.error || response?.success === false) {
@@ -165,17 +176,19 @@ export default function QuotePreviewPageShell({
     return () => {
       isMounted = false;
     };
-  }, [queryQuoteId, quoteDetailMode, summaryStorageKey]);
+  }, [queryQuoteId, queryQuoteKey, quoteDetailMode, summaryStorageKey]);
 
-  const quoteNumber =
-    getQuoteText(quote?.quote_number) ||
-    (queryQuoteId ? `Q-${queryQuoteId}` : "Draft Quote");
   const resolvedQuoteId = String(
     quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? queryQuoteId ?? ""
   ).trim();
   const quoteSent = isQuoteAlreadySent(quote);
   const canSendQuote =
     showActionButtons && !loading && Boolean(resolvedQuoteId) && !quoteSent;
+  const copyQuoteUrl =
+    generatedPreviewUrl ||
+    (typeof window !== "undefined" && queryQuoteKey
+      ? `${window.location.origin}/quotes/preview?quoteKey=${encodeURIComponent(queryQuoteKey)}`
+      : null);
 
   const handleBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -193,9 +206,17 @@ export default function QuotePreviewPageShell({
     }
 
     try {
-      const shareValue = queryQuoteId
-        ? buildAbsoluteQuotePreviewUrl(queryQuoteId)
-        : quoteNumber;
+      let shareValue = copyQuoteUrl;
+
+      if (!shareValue) {
+        if (!resolvedQuoteId) {
+          throw new Error("Save the quote before copying the preview link.");
+        }
+
+        setIsPreparingLink(true);
+        shareValue = await createSignedQuotePreviewUrl(resolvedQuoteId);
+        setGeneratedPreviewUrl(shareValue);
+      }
 
       await navigator.clipboard.writeText(shareValue);
       setCopied(true);
@@ -211,7 +232,9 @@ export default function QuotePreviewPageShell({
       toast.success("Quote link copied successfully");
     } catch (error) {
       console.error("Failed to copy quote preview link", error);
-      toast.error("Failed to copy quote link");
+      toast.error(error instanceof Error ? error.message : "Failed to copy quote link");
+    } finally {
+      setIsPreparingLink(false);
     }
   };
 
@@ -266,13 +289,14 @@ export default function QuotePreviewPageShell({
         onClick={() => {
           void handleCopy();
         }}
+        disabled={isPreparingLink}
         className={`h-11 rounded-xl px-4 ${isDark
             ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
             : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
           }`}
       >
-        {copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
-        {copied ? "Copied" : "Copy Link"}
+        {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
+        {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
       </ActionButton>
       <ActionButton
         onClick={() => {
@@ -308,13 +332,14 @@ export default function QuotePreviewPageShell({
               onClick={() => {
                 void handleCopy();
               }}
+              disabled={isPreparingLink}
               className={`h-11 rounded-xl ${isDark
                   ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
                   : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
                 }`}
             >
-              {copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
-              {copied ? "Copied" : "Copy Link"}
+              {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
+              {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
             </ActionButton>
             <ActionButton
               onClick={() => {
@@ -367,7 +392,7 @@ export default function QuotePreviewPageShell({
             Loading quote preview...
           </div>
         ) : quote ? (
-          <QuotePreviewDocument quote={quote} quoteId={queryQuoteId} />
+          <QuotePreviewDocument quote={quote} quoteId={queryQuoteId ?? queryQuoteKey} />
         ) : (
           <div
             className={`flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-[24px] px-6 text-center ${isDark

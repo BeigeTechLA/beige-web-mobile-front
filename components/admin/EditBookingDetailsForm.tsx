@@ -604,18 +604,19 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
     }
 
     try {
-      if (leadId) {
-        await updateLeadBooking({
-          booking_id: typeof leadId === 'string' ? parseInt(leadId) : leadId,
-          payload
-        }).unwrap();
-      } else if (formData.bookingId) {
-        await updateLeadBooking({
-          booking_id: formData.bookingId as number,
-          payload,
-          lead_id: undefined
-        }).unwrap();
+      const bookingIdToUpdate =
+        formData.bookingId ?? (leadId ? (typeof leadId === "string" ? parseInt(leadId) : leadId) : undefined);
+
+      if (!bookingIdToUpdate) {
+        toast.error("Booking ID missing");
+        return;
       }
+
+      await updateLeadBooking({
+        booking_id: bookingIdToUpdate as number,
+        payload,
+        lead_id: leadId ? (typeof leadId === "string" ? parseInt(leadId) : leadId) : undefined
+      }).unwrap();
       toast.success("Booking updated successfully");
 
       if (onSuccess) onSuccess();

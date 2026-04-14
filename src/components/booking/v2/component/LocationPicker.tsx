@@ -95,6 +95,7 @@ interface LocationPickerProps {
   value: string;
   onChange: (address: string, details?: any) => void;
   placeholder?: string;
+  label?: string;
   colors?: Partial<LocationPickerColors>;
   hasError?: boolean;
 }
@@ -103,6 +104,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   value,
   onChange,
   placeholder = "Select location on map",
+  label = "Select Location",
   colors: customColors,
   hasError = false
 }) => {
@@ -272,7 +274,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           style={{ backgroundColor: colors.inputBg, color: hasError ? colors.errorText : colors.labelText }}
           className="absolute -top-3 left-4 px-2 text-base transition-colors duration-300"
         >
-          Select Location
+          {label}
         </label>
         <div className="flex items-center gap-3 h-full px-4">
           <div

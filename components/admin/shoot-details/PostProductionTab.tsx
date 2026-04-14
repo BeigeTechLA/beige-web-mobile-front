@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, FolderSearch, Grid3X3, LayoutGrid, List, Loader2, Folder, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useTheme } from "next-themes";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import {
   fileManagerApi,
@@ -13,11 +14,18 @@ import {
 
 export default function PostProductionTab({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const { theme, resolvedTheme } = useTheme();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [folders, setFolders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isDark = !mounted || resolvedTheme === "dark" || theme === "dark";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const loadPostProduction = async () => {
     try {
@@ -26,7 +34,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
       const response = await fileManagerApi.getExternalWorkspaceFiles(projectId, "post");
       setFolders(
         mapExternalFoldersToUi(
-          response.folders,
+          response?.folders || [],
           (folder) =>
             `/admin/file-manager/${projectId}/post-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
         )

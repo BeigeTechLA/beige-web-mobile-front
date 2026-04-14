@@ -233,7 +233,7 @@ export function buildQuoteUpdatePayload(
 ): QuoteUpdatePayload {
   const draftPayload = buildQuoteDraftPayload(input);
   const normalizedLineItems = normalizeQuoteUpdateLineItems(draftPayload.line_items);
-  const lineItemSections = getLineItemSections(normalizedLineItems);
+  const lineItemSections = getIncludedLineItemSections(input.maxStep);
 
   return {
     ...draftPayload,
@@ -346,14 +346,28 @@ function normalizeQuoteUpdateLineItems(
   });
 }
 
-function getLineItemSections(
-  lineItems?: QuoteDraftLineItem[]
+function getIncludedLineItemSections(
+  maxStep?: QuoteDraftStep
 ): QuoteDraftSectionType[] | undefined {
-  if (!lineItems?.length) {
-    return undefined;
+  const sections: QuoteDraftSectionType[] = [];
+
+  if (hasReachedStep(maxStep, "services")) {
+    sections.push("service");
   }
 
-  return Array.from(new Set(lineItems.map((lineItem) => lineItem.section_type)));
+  if (hasReachedStep(maxStep, "addons")) {
+    sections.push("addon");
+  }
+
+  if (hasReachedStep(maxStep, "logistics")) {
+    sections.push("logistics");
+  }
+
+  if (hasReachedStep(maxStep, "customlineitems")) {
+    sections.push("custom");
+  }
+
+  return sections.length ? sections : undefined;
 }
 
 function buildServiceItems(

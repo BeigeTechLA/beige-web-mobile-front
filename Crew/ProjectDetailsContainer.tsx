@@ -1,22 +1,89 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { X, Maximize2, MoreVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { getPaymentStatusMeta, getProjectTimeText, getShootFilesText } from "@/lib/utils/shootDetails";
+import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 
 // Imports for Tab Components
 import ShootOverviewTab from "./ShootOverviewTab";
-import PreProductionTab from "@/components/admin/shoot-details/PreProductionTab";
-import PostProductionTab from "@/components/admin/shoot-details/PostProductionTab";
+import AffiliatePreProductionTab from "@/components/affiliate/shoot-details/AffiliatePreProductionTab";
+import AffiliatePostProductionTab from "@/components/affiliate/shoot-details/AffiliatePostProductionTab";
 import MeetingSchedule from "@/components/admin/shoot-details/MeetingSchedule";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
 
 export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
   const [activeTab, setActiveTab] = useState("shoot-details");
+  const [phaseFileCount, setPhaseFileCount] = useState<number | null>(null);
 
   if (!apiResponse) return null;
 
   const project = apiResponse.project;
   const crew = apiResponse.assignedCrew?.[0]?.crew_member;
+  const projectId =
+    project?.stream_project_booking_id || project?.project_id || project?.id;
+  const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
+  const projectTimeText = getProjectTimeText(project);
+  const timelineLabel = useMemo(
+    () => timelineStageToHeaderLabel(resolveTimelineStage(project)),
+    [project]
+  );
+  const projectNameInitials = useMemo(() => {
+    const name = project?.project_name || "";
+    return name ? name.trim().slice(0, 2).toUpperCase() : "NA";
+  }, [project]);
+  const locationText =
+    project?.event_location ||
+    [project?.location, project?.city, project?.state, project?.country]
+      .filter(Boolean)
+      .join(", ") ||
+    "No location specified";
+  const descriptionText = project?.description
+    ? project.description.replace(/Matching Method:.*$/gm, "").trim()
+    : "No description available.";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPhaseFilesCount = async () => {
+      if (!projectId) {
+        if (isMounted) setPhaseFileCount(null);
+        return;
+      }
+
+      try {
+        const [preRes, postRes] = await Promise.all([
+          fileManagerApi.getExternalWorkspaceFiles(projectId, "pre"),
+          fileManagerApi.getExternalWorkspaceFiles(projectId, "post"),
+        ]);
+
+        const getCount = (response: any) => {
+          const folders = response?.folders || [];
+          const files = response?.files || [];
+          const folderCount = folders.reduce(
+            (sum: number, folder: any) => sum + (Number(folder.fileCount) || 0),
+            0
+          );
+          return files.length + folderCount;
+        };
+
+        const totalCount = getCount(preRes) + getCount(postRes);
+        if (isMounted) {
+          setPhaseFileCount(totalCount);
+        }
+      } catch {
+        if (isMounted) setPhaseFileCount(null);
+      }
+    };
+
+    loadPhaseFilesCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col font-sans">
@@ -25,7 +92,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
       <div className="flex items-center justify-between px-6 py-3 border-b border-white/5 bg-[#111]">
         <div className="flex items-center gap-3 text-white/40 text-[11px] font-medium uppercase tracking-wider">
           <Maximize2 size={14} />
-          <span>ID / {project?.stream_project_booking_id}</span>
+          <span>ID / {projectId || "N/A"}</span>
         </div>
         <button onClick={onBack} className="text-white/40 hover:text-white transition-colors">
           <X size={20} />
@@ -39,20 +106,21 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
           <div className="flex flex-col lg:flex-row gap-2 lg:items-start justify-between">
             <div className="flex items-start gap-3 lg:gap-5">
               <div className="w-10 h-10 lg:h-20 lg:w-20 rounded-lg lg:rounded-2xl bg-blue-400/20 border border-blue-400/20 flex items-center justify-center text-blue-400 text-sm lg:text-3xl font-bold shadow-lg shrink-0">
-                {project?.project_name?.slice(0, 2).toUpperCase()}
+                {projectNameInitials}
               </div>
               
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <h2 className="lg:text-2xl font-bold text-white/90">
-                    {crew ? `${crew.first_name} ${crew.last_name}` : "Unassigned"} ({project?.skills_needed || "Videography"})
+                    {crew ? `${crew.first_name} ${crew.last_name}` : project?.project_name || "Untitled Project"}
+                    {project?.skills_needed ? ` (${project.skills_needed})` : ""}
                   </h2>
                   <span className="bg-[#E8D1AB]/10 text-[#E8D1AB] text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest border border-[#E8D1AB]/10">
-                    {project?.is_active ? "Pending" : "Completed"}
+                    {timelineLabel}
                   </span>
                 </div>
                 <p className="text-white/50 text-sm leading-relaxed max-w-3xl">
-                  <span className="font-bold text-white/70">Description :</span> {project?.description || "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."}
+                  <span className="font-bold text-white/70">Description :</span> {descriptionText}
                 </p>
               </div>
             </div>
@@ -71,18 +139,26 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
           <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-y-3 lg:gap-y-4 lg:gap-x-8 p-5 rounded-xl bg-[#E8D1AB]/[0.03] border border-[#E8D1AB]/10 text-[12px]">
             <StripItem label="Shoot Date" value={project?.event_date} />
             <Divider />
-            <StripItem label="Time" value={`${project?.start_time?.slice(0,5)} - ${project?.duration_hours} Hours (${project?.duration_hours} Hours Duration)`} />
+            <StripItem label="Time" value={projectTimeText} />
             <Divider />
-            <StripItem label="Total Value" value={`$${project?.budget}`} />
+            <StripItem
+              label="Total Value"
+              value={project?.total_paid_amount ? `$${project.total_paid_amount}` : project?.budget ? `$${project.budget}` : "$0.00"}
+            />
             <Divider />
-            <StripItem label="Payment Status" value={project?.payment_id ? "Paid" : "Pending"} />
+            <StripItem label="Payment Status" value={paymentStatus.label} valueClassName={paymentStatus.className} />
             
             <div className="w-full flex flex-col lg:flex-row gap-3 lg:gap-8 pt-2 mt-2 border-t border-white/5">
-                <StripItem label="Folder Link" value="http://drive.link/folder" isLink />
+                <StripItem
+                  label="Shoot Files"
+                  value={
+                    phaseFileCount != null
+                      ? `${phaseFileCount} File${phaseFileCount === 1 ? "" : "s"}`
+                      : getShootFilesText(project)
+                  }
+                />
                 <Divider />
-                <StripItem label="Shoot Files" value="200 Image & 50 Videos" />
-                <Divider />
-                <StripItem label="Location" value={project?.event_location?.split(',')[0]} />
+                <StripItem label="Location" value={locationText} />
             </div>
           </div>
 
@@ -102,11 +178,11 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
             )}
             
             {activeTab === "pre-prod" && (
-                <PreProductionTab project={project} />
+                <AffiliatePreProductionTab projectId={projectId} />
             )}
             
             {activeTab === "post-prod" && (
-                <PostProductionTab project={project} />
+                <AffiliatePostProductionTab projectId={projectId} />
             )}
             
             {activeTab === "meetings" && (
@@ -129,11 +205,19 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
 // Helpers
 const Divider = () => <div className="hidden lg:block h-4 w-[1px] bg-white/10" />;
 
-function StripItem({ label, value, isLink }: any) {
+function StripItem({ label, value, isLink, valueClassName }: any) {
   return (
     <div className="flex gap-2">
       <span className="text-white/40">{label} :</span>
-      <span className={`font-semibold ${isLink ? "text-blue-400 underline" : "text-white/80"}`}>{value}</span>
+      <span
+        className={cn(
+          "font-semibold",
+          isLink ? "text-blue-400 underline" : "text-white/80",
+          valueClassName
+        )}
+      >
+        {value}
+      </span>
     </div>
   );
 }

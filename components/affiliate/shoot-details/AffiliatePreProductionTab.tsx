@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink, FileText, Folder, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Folder, Loader2, Upload, CloudUpload } from "lucide-react";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
@@ -36,9 +36,9 @@ export default function AffiliatePreProductionTab({ projectId }: AffiliatePrePro
       setLoading(true);
       setError(null);
       const response = await fileManagerApi.getExternalWorkspaceFiles(projectId, "pre", currentPath || undefined);
-      setWorkspaceName(response.workspace.folderName || "");
-      setFolders(response.folders || []);
-      setFiles(response.files || []);
+      setWorkspaceName(response?.workspace?.folderName || "");
+      setFolders(response?.folders || []);
+      setFiles(response?.files || []);
     } catch (err: any) {
       setError(err?.message || "Failed to load pre-production files");
     } finally {
@@ -74,21 +74,18 @@ export default function AffiliatePreProductionTab({ projectId }: AffiliatePrePro
 
   return (
     <div className="space-y-6" style={{ fontFamily: "var(--font-instrument-sans)" }}>
-      <div className="bg-[#111111] lg:p-4 rounded-lg lg:rounded-2xl border border-[#222222] min-h-[46px]">
-        <div className="flex items-center justify-between gap-4 px-6 py-4">
-          <div className="text-[#666666] text-xs lg:text-base font-medium">
-            {workspaceName ? `View Pre Production files for ${workspaceName}` : "View Pre Production files"}
-          </div>
-          {workspaceName ? (
-            <button
-              onClick={() => setIsUploadModalOpen(true)}
-              className="flex items-center gap-2 rounded-lg bg-[#E5D5B8] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#D4C3A3]"
-            >
-              <Upload size={16} />
-              Upload Files
-            </button>
-          ) : null}
+      <div className="flex items-center justify-between bg-[#111111] lg:p-2 rounded-lg lg:rounded-2xl border border-[#222222] min-h-[46px] lg:min-h-[72px]">
+        <div className="px-6 text-[#666666] text-xs lg:text-base font-medium">
+          {workspaceName ? `Live Pre Production for ${workspaceName}` : "Open and manage Pre Production files"}
         </div>
+        <button
+          onClick={() => setIsUploadModalOpen(true)}
+          className="bg-white text-black px-6 h-full min-h-[46px] lg:min-h-[72px] rounded-r-lg lg:rounded-xl font-medium flex items-center gap-2 hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!workspaceName}
+        >
+          <CloudUpload size={20} />
+          <span className="text-xs lg:text-base leading-none">Upload File</span>
+        </button>
       </div>
 
       {currentPath && (

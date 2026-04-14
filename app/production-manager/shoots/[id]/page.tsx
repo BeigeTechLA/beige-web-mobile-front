@@ -18,6 +18,7 @@ import { adminApi } from "@/lib/api";
 import { CircleX, Loader2, X, SlidersHorizontal, Eye } from "lucide-react"; // Added X icon for closing
 import { Button } from "@/src/components/landing/ui/button";
 import { useTheme } from "next-themes";
+import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -215,7 +216,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
         {/* Right Sidebar (Timeline) */}
         < div className="hidden lg:block" >
-          <ProjectTimeline />
+          <ProjectTimeline status={resolveTimelineStage(project)} />
         </div>
 
         {/* Mobile Timeline Overlay (Conditional) */}
@@ -234,7 +235,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               </div>
 
               <div className="h-full overflow-y-auto">
-                <ProjectTimeline />
+                <ProjectTimeline status={resolveTimelineStage(project)} />
               </div>
             </div>
           </div>

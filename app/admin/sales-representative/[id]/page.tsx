@@ -178,6 +178,33 @@ type BookingDayLike = {
   end_time?: string | null;
 };
 
+type HoverTooltipProps = {
+  message: string;
+  isDark?: boolean;
+  align?: "left" | "right";
+};
+
+function HoverTooltip({
+  message,
+  isDark = true,
+  align = "left",
+}: HoverTooltipProps) {
+  return (
+    <div
+      role="tooltip"
+      className={`pointer-events-none absolute top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border px-3 py-2 text-xs leading-5 shadow-xl opacity-0 translate-y-1 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 ${
+        align === "right" ? "right-0" : "left-0"
+      } ${
+        isDark
+          ? "border-[#3D3D3D] bg-[#111111] text-white/80"
+          : "border-[#E7D7BC] bg-white text-black/75"
+      }`}
+    >
+      {message}
+    </div>
+  );
+}
+
 export default function LeadDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -508,6 +535,12 @@ export default function LeadDetailPage() {
   const phone = lead?.phone || "N/A";
   const leadType = lead ? LEAD_TYPE_LABELS[lead.lead_type as keyof typeof LEAD_TYPE_LABELS] : "Unknown";
   const status = lead ? (lead.booking_status || mapLeadStatusToUI(lead.lead_status)) : "Unknown";
+  const isAmountPaid =
+    ["paid", "success", "completed"].includes(
+      String(lead?.payment_status || "").trim().toLowerCase()
+    ) ||
+    Boolean(booking?.payment_id || booking?.payment_completed_at);
+  const paidEditTooltipMessage = "Already paid. Editing is disabled for this booking.";
 
   const bookingDate = booking?.event_date
     ? (parseDate(booking.event_date) || new Date(booking.event_date)).toLocaleDateString("en-US", {
@@ -1043,21 +1076,40 @@ export default function LeadDetailPage() {
                   Booking Summary
                 </h2>
                 {!isQuoteConvertedLead && (
-                  <Button
-                    onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
-                    className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                  >
-                    Edit Details
-                  </Button>
+                  <div className="group relative inline-flex">
+                    <Button
+                      onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
+                      disabled={isAmountPaid}
+                      className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                    >
+                      Edit Details
+                    </Button>
+                    {isAmountPaid && (
+                      <HoverTooltip
+                        message={paidEditTooltipMessage}
+                        isDark={isDark}
+                        align="right"
+                      />
+                    )}
+                  </div>
                 )}
                 {isQuoteConvertedLead && (
-                  <Button
-                    onClick={() => setIsConvertedBookingEditModalOpen(true)}
-                    disabled={!convertedBookingInitialValues || isUpdatingConvertedBooking}
-                    className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                  >
-                    Edit Details
-                  </Button>
+                  <div className="group relative inline-flex">
+                    <Button
+                      onClick={() => setIsConvertedBookingEditModalOpen(true)}
+                      disabled={isAmountPaid || !convertedBookingInitialValues || isUpdatingConvertedBooking}
+                      className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                    >
+                      Edit Details
+                    </Button>
+                    {isAmountPaid && (
+                      <HoverTooltip
+                        message={paidEditTooltipMessage}
+                        isDark={isDark}
+                        align="right"
+                      />
+                    )}
+                  </div>
                 )}
               </div>
               <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
@@ -1274,14 +1326,14 @@ export default function LeadDetailPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (isDiscountLockedByQuote) return;
+                        if (isDiscountLockedByQuote || isAmountPaid) return;
                         setIsDropdownOpen(!isDropdownOpen);
                       }}
-                      disabled={isDiscountLockedByQuote}
+                      disabled={isDiscountLockedByQuote || isAmountPaid}
                       className={`flex items-center justify-between w-full border rounded-xl px-4 py-4 text-left text-base transition-all duration-300 ${isDark
                         ? `text-white ${isDropdownOpen ? "border-white/80 ring-1 ring-white/20" : "border-white/50"} hover:border-white/80`
                         : `text-black ${isDropdownOpen ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]/20" : "border-[#D8D8D8]"} hover:border-[#E8D1AB]`
-                        } ${isDiscountLockedByQuote ? "cursor-not-allowed opacity-60" : ""}`}
+                        } ${isDiscountLockedByQuote || isAmountPaid ? "cursor-not-allowed opacity-60" : ""}`}
                       title={isDiscountLockedByQuote ? quoteDiscountLockMessage : undefined}
                     >
                       {discountType === "percentage" ? "Percentage" : "Fixed Amount"}
@@ -1333,7 +1385,7 @@ export default function LeadDetailPage() {
                     <input
                       type="number"
                       placeholder="0"
-                      disabled={isDiscountLockedByQuote}
+                      disabled={isDiscountLockedByQuote || isAmountPaid}
                       className={`bg-transparent w-full outline-none text-base transition-colors ${isDark ? "text-white placeholder:text-white/40" : "text-black placeholder:text-black/40"}`}
                       value={discount}
                       onChange={(e) => {
@@ -1353,11 +1405,19 @@ export default function LeadDetailPage() {
                 <Button
                   className={`h-12 w-full font-semibold py-3.5 rounded-lg transition-all text-sm ${isDark ? "bg-[#E8D1AB] text-[#101010] hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"} disabled:opacity-50 disabled:cursor-not-allowed`}
                   onClick={handleGenerateDiscount}
-                  disabled={isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0}
+                  disabled={isAmountPaid || isDiscountLockedByQuote || isGenerating || !discount || discountAmount > 0}
                   title={isDiscountLockedByQuote ? quoteDiscountLockMessage : discountAmount > 0 ? "Discount already applied" : undefined}
                 >
                   {isGenerating ? "Generating..." : "Generate Code"}
                 </Button>
+
+                {isAmountPaid && (
+                  <div className={`rounded-xl border p-4 transition-colors ${isDark ? "border-emerald-500/25 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50"}`}>
+                    <p className={`text-sm font-medium ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
+                      Payment is already completed.
+                    </p>
+                  </div>
+                )}
 
                 {showDiscountCode && generatedCode && (
                   <div className={`flex flex-col gap-2 border rounded-xl p-4 transition-colors duration-300 ${isDark
@@ -1427,19 +1487,29 @@ export default function LeadDetailPage() {
                           {quotePricingDetails.status}
                         </span>
                       )}
-                      <Button
-                        type="button"
-                        onClick={handleEditQuoteRedirect}
-                        className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
-                          isDark
-                            ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
-                            : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
-                        } ${!canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
-                        aria-label="Edit Quote"
-                        title="Edit Quote"
-                      >
-                        <Edit2 size={14} />
-                      </Button>
+                      <div className="group relative inline-flex">
+                        <Button
+                          type="button"
+                          onClick={handleEditQuoteRedirect}
+                          disabled={isAmountPaid || !canEditQuote}
+                          className={`h-8 w-8 p-0 text-xs font-semibold rounded-lg border transition-all ${
+                            isDark
+                              ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
+                              : "text-black bg-white border-[#D8D8D8] hover:bg-gray-50 shadow-sm"
+                          } ${isAmountPaid || !canEditQuote ? "opacity-60 cursor-not-allowed" : ""}`}
+                          aria-label="Edit Quote"
+                          title={!isAmountPaid ? "Edit Quote" : undefined}
+                        >
+                          <Edit2 size={14} />
+                        </Button>
+                        {isAmountPaid && (
+                          <HoverTooltip
+                            message={paidEditTooltipMessage}
+                            isDark={isDark}
+                            align="right"
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
 

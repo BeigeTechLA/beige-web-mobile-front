@@ -42,9 +42,9 @@ const CustomStudiosIcon = ({ size = 24 }) => (
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard' },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
-  // { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
-  // { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings' },
-  // { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
+  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
+  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings' },
+  { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability' },
   { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
   {
@@ -57,7 +57,11 @@ const menuItems = [
     ]
   },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/admin/quotes' },
+<<<<<<< HEAD
   { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studio-management' },
+=======
+  { name: 'Invoices', icon: Receipt, link: '/admin/invoice' },
+>>>>>>> 2e9939750c39dadfd3efe0ba79db6788714f7a76
 ];
 
 type MenuItem = {

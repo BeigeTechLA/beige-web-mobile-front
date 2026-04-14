@@ -278,7 +278,7 @@ export default function CreatorFileManagerPhasePage() {
                   <span className="text-[#AAA7A7]">Project Code: </span>
                   {workspaceCode}
                 </p>
-                {workspaceConsoleUrl ? (
+                {/* {workspaceConsoleUrl ? (
                   <a
                     href={workspaceConsoleUrl}
                     target="_blank"
@@ -287,7 +287,7 @@ export default function CreatorFileManagerPhasePage() {
                   >
                     Open Storage Folder
                   </a>
-                ) : null}
+                ) : null} */}
               </div>
             </div>
           </div>

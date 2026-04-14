@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import { cn, getInitials } from "@/lib/utils";
 import { getPaymentStatusMeta, getProjectTimeText } from "@/lib/utils/shootDetails";
 import { fileManagerApi } from "@/lib/fileManagerApi";
+import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
 
 interface AffiliateShootHeaderProps {
   activeTab?: string;
@@ -29,6 +30,9 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
       : "No files available";
+  const resolvedStatusLabel =
+    project?.timeline_label ||
+    timelineStageToHeaderLabel(resolveTimelineStage(project));
 
   React.useEffect(() => {
     setMounted(true);
@@ -153,7 +157,7 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
                 {project?.project_name || "Untitled Project"}
               </h1>
               <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
-                {project?.status !== undefined ? (["Initiated", "Pre-Production", "Post-Production", "Revision", "Completed", "Cancelled"][project.status] || "Unknown") : "Pending"}
+                {resolvedStatusLabel || "Pending"}
               </span>
             </div>
             {project?.skills_needed && project.skills_needed !== "N/A" && (
@@ -194,34 +198,14 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
                   {paymentStatus.label}
                 </span>
               </div>
-            </div>
-
-            <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-2 lg:mt-4 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
-              <div className="flex gap-2">
-                <span className="text-nowrap">Folder Link :</span>
-                <a
-                  href={folderLink || "#"}
-                  target={workspaceFolderLink ? "_blank" : undefined}
-                  rel={workspaceFolderLink ? "noopener noreferrer" : undefined}
-                  className={cn(
-                    "underline underline-offset-4 transition-all",
-                    workspaceFolderLink
-                      ? "text-[#E5D5B8] decoration-[#E5D5B8]/30 hover:decoration-[#E5D5B8]"
-                      : "text-white/50 decoration-white/10 pointer-events-none"
-                  )}
-                >
-                  {folderLink || "No Link Available"}
-                  {folderLink && (activeTab === "Pre_Production" || activeTab === "Post_Production") && (
-                    <span className={isDark ? "text-white" : "text-black"}> / {activeTab.replace("_", " ")}</span>
-                  )}
-                </a>
-              </div>
               <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
               <div className="flex gap-2">
                 <span className="text-nowrap">Shoot Files :</span>
                 <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
               </div>
             </div>
+
+            <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-2 lg:mt-4 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`} />
 
             <div className={`mt-2 lg:mt-4 text-sm lg:text-base flex gap-2 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
               <span className="text-nowrap">Location :</span>

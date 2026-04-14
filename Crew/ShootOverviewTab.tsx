@@ -1,94 +1,167 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { MapPin, Clock, Calendar, CheckCircle2 } from "lucide-react";
+import { getProjectTimeText } from "@/lib/utils/shootDetails";
+import {
+  resolveTimelineStage,
+  TIMELINE_STAGE,
+  timelineStageToHeaderLabel,
+} from "@/lib/utils/projectTimeline";
 
 export default function ShootOverviewTab({ project }: any) {
+  const locationText =
+    project?.event_location ||
+    [project?.location, project?.city, project?.state, project?.country]
+      .filter(Boolean)
+      .join(", ") ||
+    "Not Specified";
+  const timeText = getProjectTimeText(project);
+  const timelineStage = useMemo(() => resolveTimelineStage(project), [project]);
+  const timelineLabel = useMemo(
+    () => timelineStageToHeaderLabel(timelineStage),
+    [timelineStage]
+  );
+  const isCancelled = timelineStage === TIMELINE_STAGE.CANCELLED;
+  const lastUpdatedText = project?.updated_at
+    ? new Date(project.updated_at).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "N/A";
+  const clientName =
+    project?.client?.name ||
+    project?.client_name ||
+    project?.lead_details?.client_name ||
+    "Not Specified";
+  const skillsText = (() => {
+    const raw = project?.skills_needed;
+    if (!raw) return "Not Specified";
+    if (Array.isArray(raw)) return raw.join(", ");
+    if (typeof raw === "string") {
+      const trimmed = raw.trim();
+      if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed.join(", ");
+        } catch {
+          return raw;
+        }
+      }
+      return raw;
+    }
+    return String(raw);
+  })();
+  const bookingType = project?.booking_type || project?.bookingType || "Not Specified";
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 animate-in fade-in duration-500">
-      
       {/* LEFT: DETAILS GRID */}
       <div className="lg:col-span-8 space-y-4 lg:space-y-8">
         <div className="bg-white/[0.01] border border-white/5 rounded-lg lg:rounded-3xl p-4 lg:p-8">
           <h3 className="lg:text-xl font-bold mb-4 lg:mb-10">Shoot Overview</h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 lg:gap-y-10 lg:gap-x-16">
-            <DetailItem label="Shoot Name" value={project.project_name} />
-            <DetailItem label="User Name" value="Luxe Apparel Co." />
-            
-            <DetailItem 
-              label="Shoot Type" 
+            <DetailItem label="Shoot Name" value={project?.project_name} />
+            <DetailItem label="User Name" value={clientName} />
+
+            <DetailItem
+              label="Shoot Type"
               value={
                 <span className="bg-white/5 text-white/70 px-4 py-1 rounded-full text-xs border border-white/10 uppercase tracking-widest font-bold">
-                  {project.event_type}
+                  {skillsText}
                 </span>
-              } 
+              }
             />
-            
-            <DetailItem 
-              label="Location" 
-              value={project.event_location} 
-              icon={<MapPin size={16} className="text-[#E8D1AB]" />} 
+
+            <DetailItem
+              label="Location"
+              value={locationText}
+              icon={<MapPin size={16} className="text-[#E8D1AB]" />}
             />
-            
-            <DetailItem 
-              label="Shoot Date" 
-              value={project.event_date} 
-              icon={<Calendar size={16} className="text-[#E8D1AB]" />} 
+
+            <DetailItem
+              label="Shoot Date"
+              value={project?.event_date}
+              icon={<Calendar size={16} className="text-[#E8D1AB]" />}
             />
-            
-            <DetailItem 
-              label="Time & Timezone" 
-              value={`${project.start_time} - ${project.end_time} EST`} 
-              icon={<Clock size={16} className="text-[#E8D1AB]" />} 
+
+            <DetailItem
+              label="Time & Timezone"
+              value={timeText}
+              icon={<Clock size={16} className="text-[#E8D1AB]" />}
             />
-            
-            <DetailItem label="Assigned Role" value={project.skills_needed} />
-            <DetailItem label="Booking Type" value="Edit & Shoot" />
+
+            <DetailItem label="Assigned Role" value={skillsText} />
+            <DetailItem label="Booking Type" value={bookingType} />
           </div>
         </div>
 
         {/* EQUIPMENT PLACEHOLDER */}
         <div className="bg-white/[0.01] border border-white/5 rounded-lg lg:rounded-3xl p-4 lg:p-8">
-            <h3 className="lg:text-lg font-bold mb-4">Equipment Needed (0/0)</h3>
-            <div className="h-24 flex items-center justify-center border-2 border-dashed border-white/5 rounded-lg lg:rounded-2xl text-white/20 text-sm">
-                No equipment items requested
-            </div>
+          <h3 className="lg:text-lg font-bold mb-4">Equipment Needed (0/0)</h3>
+          <div className="h-24 flex items-center justify-center border-2 border-dashed border-white/5 rounded-lg lg:rounded-2xl text-white/20 text-sm">
+            No equipment items requested
+          </div>
         </div>
       </div>
 
       {/* RIGHT: STATUS & TIMELINE */}
       <div className="lg:col-span-4 space-y-4 lg:space-y-6">
-        
         {/* VERTICAL STEPPER */}
         <div className="bg-[#E8D1AB]/[0.03] border border-[#E8D1AB]/10 rounded-lg lg:rounded-3xl p-4 lg:p-8">
-           <div className="space-y-8 relative">
-              {/* Vertical Connector Line */}
-              <div className="absolute left-[11px] top-2 bottom-2 w-[1px] bg-white/10" />
-              
-              <StatusStep label="Pending" completed />
-              <StatusStep label="Pre Production" active />
-              <StatusStep label="Post Production" />
-              <StatusStep label="Delivered" />
-           </div>
+          <div className="space-y-8 relative">
+            {/* Vertical Connector Line */}
+            <div className="absolute left-[11px] top-2 bottom-2 w-[1px] bg-white/10" />
+
+            <StatusStep
+              label="Pending"
+              completed={timelineStage > TIMELINE_STAGE.INITIATED}
+              active={timelineStage === TIMELINE_STAGE.INITIATED}
+            />
+            <StatusStep
+              label="Pre Production"
+              completed={timelineStage > TIMELINE_STAGE.PRE_PRODUCTION}
+              active={timelineStage === TIMELINE_STAGE.PRE_PRODUCTION}
+            />
+            <StatusStep
+              label="Post Production"
+              completed={timelineStage > TIMELINE_STAGE.POST_PRODUCTION}
+              active={timelineStage === TIMELINE_STAGE.POST_PRODUCTION}
+            />
+            <StatusStep
+              label="Delivered"
+              completed={
+                timelineStage >= TIMELINE_STAGE.ASSETS_DELIVERED ||
+                timelineStage === TIMELINE_STAGE.COMPLETED
+              }
+              active={
+                timelineStage === TIMELINE_STAGE.ASSETS_DELIVERED ||
+                timelineStage === TIMELINE_STAGE.COMPLETED
+              }
+            />
+          </div>
         </div>
 
         {/* STATUS SUMMARY BOX */}
         <div className="bg-white/[0.02] border border-white/5 rounded-lg lg:rounded-3xl p-4 lg:p-8 space-y-4 lg:space-y-6">
           <h4 className="text-sm font-bold uppercase tracking-widest text-white/60">Shoot Status</h4>
-          
+
           <div>
             <p className="text-[10px] uppercase text-white/30 font-bold mb-1">Current Stage</p>
-            <p className="text-sm lg:text-base font-semibold text-white/90">Pre Production</p>
+            <p className="text-sm lg:text-base font-semibold text-white/90">{timelineLabel}</p>
           </div>
 
           <div>
-             <span className="bg-[#E8D1AB]/10 text-[#E8D1AB] px-5 py-1.5 rounded-full text-xs font-bold border border-[#E8D1AB]/20">
-                On Track
-             </span>
+            <span className="bg-[#E8D1AB]/10 text-[#E8D1AB] px-5 py-1.5 rounded-full text-xs font-bold border border-[#E8D1AB]/20">
+              {isCancelled ? "Cancelled" : "On Track"}
+            </span>
           </div>
 
           <div className="pt-4 border-t border-white/5">
             <p className="text-[10px] uppercase text-white/30 font-bold mb-1">Last Updated</p>
-            <p className="text-xs text-white/50">Jan 20, 2024 • 2:30 PM</p>
+            <p className="text-xs text-white/50">{lastUpdatedText}</p>
           </div>
         </div>
       </div>
@@ -113,22 +186,26 @@ function DetailItem({ label, value, icon }: any) {
 function StatusStep({ label, completed, active }: any) {
   return (
     <div className="flex items-center gap-3 lg:gap-5 relative z-10">
-      <div className={`h-6 w-6 rounded-full flex items-center justify-center border transition-all ${
-        completed 
-          ? "bg-[#E8D1AB] border-[#E8D1AB]" 
-          : active 
-            ? "bg-black border-[#E8D1AB] ring-4 ring-[#E8D1AB]/10" 
-            : "bg-[#0A0A0A] border-white/10"
-      }`}>
+      <div
+        className={`h-6 w-6 rounded-full flex items-center justify-center border transition-all ${
+          completed
+            ? "bg-[#E8D1AB] border-[#E8D1AB]"
+            : active
+              ? "bg-black border-[#E8D1AB] ring-4 ring-[#E8D1AB]/10"
+              : "bg-[#0A0A0A] border-white/10"
+        }`}
+      >
         {completed ? (
           <CheckCircle2 size={14} className="text-black" />
         ) : (
           <div className={`h-1.5 w-1.5 rounded-full ${active ? "bg-[#E8D1AB]" : "bg-white/10"}`} />
         )}
       </div>
-      <span className={`text-sm font-semibold lg:font-bold uppercase tracking-widest ${
-        active || completed ? "text-white" : "text-white/20"
-      }`}>
+      <span
+        className={`text-sm font-semibold lg:font-bold uppercase tracking-widest ${
+          active || completed ? "text-white" : "text-white/20"
+        }`}
+      >
         {label}
       </span>
     </div>
