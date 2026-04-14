@@ -396,7 +396,7 @@ export default function AffiliateFileManager() {
     const response = await fileManagerApi.searchFaceMatches({
       externalId: selectedWorkspace.externalId,
       scanImageBase64,
-      threshold: 0.7,
+      threshold: 0.85,
       maxResults: 200,
     });
 
@@ -922,14 +922,16 @@ export default function AffiliateFileManager() {
                     className="overflow-hidden rounded-lg border border-white/10 bg-black/20 text-left"
                   >
                     {match.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={match.url}
-                        alt="Matched face result"
-                        className="h-36 w-full object-cover"
-                      />
+                      <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={match.url}
+                          alt="Matched face result"
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
                     ) : (
-                      <div className="flex h-36 w-full items-center justify-center text-xs text-white/50">
+                      <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
                         Preview unavailable
                       </div>
                     )}
@@ -1041,14 +1043,16 @@ export default function AffiliateFileManager() {
                   className="overflow-hidden rounded-lg border border-white/10 bg-black/20 text-left"
                 >
                   {match.url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={match.url}
-                      alt="Matched face result"
-                      className="h-36 w-full object-cover"
-                    />
+                    <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={match.url}
+                        alt="Matched face result"
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
                   ) : (
-                    <div className="flex h-36 w-full items-center justify-center text-xs text-white/50">
+                    <div className="flex aspect-23/18 w-full items-center justify-center text-xs text-white/50 bg-[#0f0f0f]">
                       Preview unavailable
                     </div>
                   )}
