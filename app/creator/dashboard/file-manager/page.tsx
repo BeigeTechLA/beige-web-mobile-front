@@ -163,10 +163,11 @@ export default function CreatorFileManagerPage() {
     });
   };
 
-  const handleDownloadSelectedFolder = async () => {
-    if (!selectedFolder) return;
+  const handleDownloadSelectedFolder = async (folder?: UiFolderItem | null) => {
+    const targetFolder = folder || selectedFolder;
+    if (!targetFolder) return;
     try {
-      const result = await fileManagerApi.getExternalFolderDownloadUrl(selectedFolder.id);
+      const result = await fileManagerApi.getExternalFolderDownloadUrl(targetFolder.id);
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
       }
@@ -336,7 +337,7 @@ export default function CreatorFileManagerPage() {
                   setSelectedFolder(folder);
                   setIsDeleteModalOpen(true);
                 }}
-                onDownload={handleDownloadSelectedFolder}
+                onDownload={() => handleDownloadSelectedFolder(folder)}
                 onRename={() => toast.info("Folder rename is the next safe step.")}
               />
             ))}

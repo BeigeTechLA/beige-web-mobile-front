@@ -48,16 +48,6 @@ type SalesMenuItem = {
   isDisabled?: boolean;
 };
 
-const isSalesAdminInvoiceUser = (user: Record<string, unknown> | null | undefined) => {
-  if (!user) return false;
-
-  const userTypeId = user.user_type_id ?? user.userTypeId;
-  const roleValue = user.role ?? user.userRole;
-  const normalizedRole = String(roleValue ?? "").trim().toLowerCase();
-
-  return userTypeId === 7 && normalizedRole === "sales_admin";
-};
-
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -79,10 +69,9 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }, [pathname, onClose]);
 
   const isDark = !mounted || theme === "dark";
-  const canViewInvoice = isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined);
   const isSalesAdmin = isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined);
   const visibleSalesMenuItems = salesMenuItems.filter(
-    (item) => item.name !== "Invoices" || canViewInvoice
+    (item) => item.name !== "Invoices"
   );
 
   // Shared helper to handle navigation and closing sidebar

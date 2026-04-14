@@ -2391,6 +2391,32 @@ export const salesApi = {
       };
     }
   },
+  getCurrentSalesStatus: async () => {
+    try {
+      const response = await api.get('/sales/current-status');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Current Sales Status Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch current sales status',
+      };
+    }
+  },
+  toggleSalesStatus: async (payload: { is_available: 0 | 1; reason?: string }) => {
+    try {
+      const response = await api.post('/sales/toggle-status', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Toggle Sales Status Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update sales status',
+      };
+    }
+  },
   changeLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
     try {
       const response = await api.put(`/sales/leads/${leadId}/change-sales-rep`, {
