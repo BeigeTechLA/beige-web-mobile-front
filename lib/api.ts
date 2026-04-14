@@ -1938,6 +1938,24 @@ export const CheckCPStatus = async () => {
   }
 };
 
+export const ConfirmCPEventLocation = async () => {
+  try {
+    const response = await api.post("auth/cp-event-location/confirm", {}, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error: any) {
+    console.error('Confirm CP Event Location Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error.response?.data?.message || 'Failed to confirm event location',
+    };
+  }
+};
+
 export const salesApi = {
   getLeadStats: async (leadId: number | string) => {
     try {

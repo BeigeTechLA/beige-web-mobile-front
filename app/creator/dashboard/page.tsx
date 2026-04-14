@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner"; // Using sonner for the high-end look of the first code
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useGetCurrentUserQuery } from "@/lib/redux/features/auth/authApi";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -42,7 +43,8 @@ import {
   getCrewAvailability,
   GetCreatorDashboardDetails,
   GetCreatorStats,
-  CheckVerificationStatus
+  CheckVerificationStatus,
+  ConfirmCPEventLocation
 } from "@/lib/api";
 
 // ----------------------------
@@ -208,6 +210,13 @@ function DonutChartCard({
 export default function CreatorDashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const [showTempEventPopup, setShowTempEventPopup] = useState(false);
+  const [isConfirmingTempEvent, setIsConfirmingTempEvent] = useState(false);
+  const isCreatorUser = (user as any)?.user_type_id === 2 || (user as any)?.userTypeId === 2;
+  const { data: currentUserData, refetch: refetchCurrentUser } = useGetCurrentUserQuery(undefined, {
+    skip: !isCreatorUser,
+  });
+  const tempEventLocation = currentUserData?.temp_event_popup?.event_location?.address;
 
   // Basic Top Counts State
   const [dashboardStats, setDashboardStats] = useState({
@@ -280,7 +289,36 @@ export default function CreatorDashboardPage() {
     setAcceptShootEvent(null);
   };
 
-   useEffect(() => {
+  const handleConfirmTempEvent = async () => {
+    setIsConfirmingTempEvent(true);
+    try {
+      const response = await ConfirmCPEventLocation();
+
+      if (response && !response.error) {
+        toast.success("Event confirmed successfully");
+        setShowTempEventPopup(false);
+        refetchCurrentUser();
+        return;
+      }
+
+      toast.error(response?.error || "Failed to confirm event");
+    } catch (error) {
+      console.error("Confirm temp event error:", error);
+      toast.error("Failed to confirm event");
+    } finally {
+      setIsConfirmingTempEvent(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isCreatorUser && currentUserData?.temp_event_popup?.show === true) {
+      setShowTempEventPopup(true);
+    } else {
+      setShowTempEventPopup(false);
+    }
+  }, [isCreatorUser, currentUserData]);
+
+  useEffect(() => {
     const syncStatusWithBackend = async () => {
       const userStr = localStorage.getItem("revure_user");
       const localUser = userStr ? JSON.parse(userStr) : null;
@@ -882,6 +920,40 @@ export default function CreatorDashboardPage() {
       </div>
 
       {/* --- MODALS --- */}
+
+      <Dialog open={showTempEventPopup} onOpenChange={setShowTempEventPopup}>
+        <DialogContent className="bg-[#111] border-white/10 text-white max-w-sm text-center">
+          <DialogTitle className="sr-only">Are you in this event?</DialogTitle>
+          <div className="py-6">
+            <div className="w-16 h-16 bg-[#E8D1AB]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CalendarIcon size={30} className="text-[#E8D1AB]" />
+            </div>
+            <h2 className="text-xl font-bold mb-2">Are you in this event?</h2>
+            <p className="text-white/40 text-sm mb-8 px-4">
+              {tempEventLocation
+                ? `Do you want to continue with this event at ${tempEventLocation}?`
+                : "Do you want to continue with this event?"}
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="ghost"
+                className="flex-1 hover:bg-white/5"
+                disabled={isConfirmingTempEvent}
+                onClick={() => setShowTempEventPopup(false)}
+              >
+                No
+              </Button>
+              <Button
+                className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-bold"
+                disabled={isConfirmingTempEvent}
+                onClick={handleConfirmTempEvent}
+              >
+                {isConfirmingTempEvent ? "Please wait..." : "Yes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Accept Shoot Modal */}
       <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
