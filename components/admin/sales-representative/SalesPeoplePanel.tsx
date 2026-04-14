@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Activity, CalendarDays, Loader2, Mail, UserRound } from "lucide-react";
+import { Activity, CalendarDays, Clock3, Loader2, Mail, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -44,6 +44,13 @@ type SalesRepStatusDetails = {
     activity_by_date?: StatusActivityByDate;
     total_status_changes_in_range?: number;
   };
+  unavailability?: Array<{
+    date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    is_full_day?: boolean | null;
+    notes?: string | null;
+  }>;
 };
 
 type SalesRepStatusResponse = {
@@ -87,6 +94,40 @@ const formatDateTimeLabel = (dateValue?: string | null) => {
   return format(parsedDate, "MMM dd, yyyy hh:mm a");
 };
 
+const formatTimeLabel = (timeValue?: string | null) => {
+  if (!timeValue) return null;
+
+  const [hoursString = "0", minutesString = "0"] = String(timeValue).split(":");
+  const hours = Number(hoursString);
+  const minutes = Number(minutesString);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return timeValue;
+  }
+
+  const timeDate = new Date();
+  timeDate.setHours(hours, minutes, 0, 0);
+
+  return format(timeDate, "hh:mm a");
+};
+
+const normalizeSelectedDate = (dateValue: Date | null) => {
+  if (!dateValue || Number.isNaN(dateValue.getTime())) {
+    return null;
+  }
+
+  // Keep the picked calendar day stable when converted to query params.
+  return new Date(
+    dateValue.getFullYear(),
+    dateValue.getMonth(),
+    dateValue.getDate(),
+    12,
+    0,
+    0,
+    0
+  );
+};
+
 export default function SalesPeoplePanel({
   salesPeople,
   loading,
@@ -121,15 +162,31 @@ export default function SalesPeoplePanel({
     );
   }, [statusDetails]);
 
+  const unavailabilityEntries = useMemo(() => {
+    const entries = statusDetails?.unavailability || [];
+
+    return [...entries].sort((entryA, entryB) =>
+      new Date(entryA.date || 0).getTime() - new Date(entryB.date || 0).getTime()
+    );
+  }, [statusDetails]);
+
   useEffect(() => {
     if (!selectedRep) return;
 
     const fetchStatusDetails = async () => {
       setStatusLoading(true);
       try {
+        const selectedDateValue = selectedDate
+          ? format(selectedDate, "yyyy-MM-dd")
+          : undefined;
         const response = (await salesService.getSalesRepStatusDetails({
           sales_rep_id: selectedRep.id,
-          ...(selectedDate ? { date: format(selectedDate, "yyyy-MM-dd") } : {}),
+          ...(selectedDateValue
+            ? {
+                start_date: selectedDateValue,
+                end_date: selectedDateValue,
+              }
+            : {}),
         })) as SalesRepStatusResponse;
 
         if (response?.error) {
@@ -302,7 +359,7 @@ export default function SalesPeoplePanel({
                   <DatePicker
                     label=""
                     value={selectedDate}
-                    onChange={setSelectedDate}
+                    onChange={(date) => setSelectedDate(normalizeSelectedDate(date))}
                     maxDate={new Date()}
                     format="dd-MM-yyyy"
                     isDark={isDark}
@@ -386,6 +443,65 @@ export default function SalesPeoplePanel({
                     </p>
                   </div>
                 ) : null}
+
+                <div className={`rounded-2xl border p-4 ${isDark ? "border-white/10 bg-[#181818]" : "border-[#E8E8E8] bg-[#FCFCFC]"}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-white/45" : "text-[#8A8A8A]"}`}>
+                        Unavailability
+                      </p>
+                      <p className={`mt-2 text-sm ${isDark ? "text-white/70" : "text-[#555]"}`}>
+                        Dynamic unavailable dates from `sales/status-details`.
+                      </p>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${isDark ? "bg-white/5 text-white/70" : "bg-[#F2F2F2] text-[#444]"}`}>
+                      {unavailabilityEntries.length}
+                    </span>
+                  </div>
+
+                  {unavailabilityEntries.length === 0 ? (
+                    <div className={`mt-4 rounded-xl border px-4 py-6 text-sm text-center ${isDark ? "border-white/5 text-white/50" : "border-[#EFEFEF] text-[#666]"}`}>
+                      No unavailable dates found for the current response.
+                    </div>
+                  ) : (
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {unavailabilityEntries.map((item, index) => {
+                        const startTimeLabel = formatTimeLabel(item.start_time);
+                        const endTimeLabel = formatTimeLabel(item.end_time);
+                        const timeRangeLabel = item.is_full_day
+                          ? "Full day"
+                          : startTimeLabel && endTimeLabel
+                            ? `${startTimeLabel} - ${endTimeLabel}`
+                            : "Unavailable";
+
+                        return (
+                          <div
+                            key={`${item.date || "unknown"}-${index}`}
+                            className={`rounded-xl border p-4 ${isDark ? "border-white/5 bg-[#141414]" : "border-[#EFEFEF] bg-white"}`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                  {formatDateLabel(item.date)}
+                                </p>
+                                <div className={`mt-2 flex items-center gap-2 text-xs ${isDark ? "text-white/55" : "text-[#666]"}`}>
+                                  <Clock3 size={14} />
+                                  <span>{timeRangeLabel}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {item.notes ? (
+                              <p className={`mt-3 text-xs leading-relaxed ${isDark ? "text-white/65" : "text-[#555]"}`}>
+                                {item.notes}
+                              </p>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
                 <div className={`overflow-hidden rounded-2xl border ${isDark ? "border-white/10" : "border-[#EAEAEA]"}`}>
                   <div className={`grid grid-cols-[1.2fr_1fr_1fr_1fr] gap-3 px-4 py-3 text-xs font-medium uppercase tracking-[0.18em] ${isDark ? "bg-[#161616] text-white/45" : "bg-[#FAF7F1] text-[#8A8A8A]"}`}>

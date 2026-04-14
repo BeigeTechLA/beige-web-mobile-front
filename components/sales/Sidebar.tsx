@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, Calendar, CalendarClock, MessageCircle, X, type LucideIcon, Receipt } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, Calendar, CalendarClock, MessageCircle, X, ChevronDown, type LucideIcon, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -24,7 +24,15 @@ const CustomQuotesIcon = ({ size = 24 }) => (
 );
 
 const salesMenuItems: SalesMenuItem[] = [
-  { name: 'Sales', icon: LayoutDashboard, link: '/sales/dashboard' },
+  {
+    name: 'Sales',
+    icon: LayoutDashboard,
+    link: '/sales/dashboard',
+    children: [
+      { name: 'Dashboard', link: '/sales/dashboard', visibleForUserTypes: [7] },
+      { name: 'Sales People', link: '/sales/sales-people', visibleForUserTypes: [7] },
+    ],
+  },
   { name: 'Availability', icon: Calendar, link: '/sales/availability', visibleForUserTypes: [5] },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
@@ -40,6 +48,12 @@ type SalesMenuItem = {
   link?: string;
   isDisabled?: boolean;
   visibleForUserTypes?: number[];
+  children?: {
+    name: string;
+    link: string;
+    isDisabled?: boolean;
+    visibleForUserTypes?: number[];
+  }[];
 };
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -52,6 +66,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
   const [mounted, setMounted] = useState(false);
   const [localUserTypeId, setLocalUserTypeId] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<string[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -88,6 +103,30 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     return currentUserTypeId != null && item.visibleForUserTypes.includes(currentUserTypeId);
   });
 
+  useEffect(() => {
+    if (currentUserTypeId !== 7) {
+      return;
+    }
+
+    if (pathname === "/sales/dashboard" || pathname?.startsWith("/sales/sales-people")) {
+      setExpanded((prev) => (prev.includes("Sales") ? prev : [...prev, "Sales"]));
+    }
+  }, [currentUserTypeId, pathname]);
+
+  const getVisibleChildren = (item: SalesMenuItem) => {
+    if (!item.children?.length) {
+      return [];
+    }
+
+    return item.children.filter((child) => {
+      if (!child.visibleForUserTypes?.length) {
+        return true;
+      }
+
+      return currentUserTypeId != null && child.visibleForUserTypes.includes(currentUserTypeId);
+    });
+  };
+
   // Shared helper to handle navigation and closing sidebar
   const handleNavigation = (link: string) => {
     if (link && link !== "#") {
@@ -95,12 +134,45 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     }
   };
 
+  const toggleExpand = (name: string) => {
+    setExpanded((prev) =>
+      prev.includes(name)
+        ? prev.filter((item) => item !== name)
+        : [...prev, name],
+    );
+  };
+
   const isActiveLink = (link?: string) => {
     if (!link || link === "#") return false;
+
+    if (link === "/sales/dashboard") {
+      return pathname === link;
+    }
+
     return (
       pathname === link ||
       (link !== "/sales/dashboard" && pathname?.startsWith(link))
     );
+  };
+
+  const isChildActive = (parentName: string, link?: string) => {
+    if (!link || link === "#") return false;
+
+    if (parentName === "Sales" && link === "/sales/dashboard") {
+      return pathname === "/sales/dashboard";
+    }
+
+    return isActiveLink(link);
+  };
+
+  const isParentActive = (item: SalesMenuItem) => {
+    const visibleChildren = getVisibleChildren(item);
+
+    if (visibleChildren.length > 0) {
+      return visibleChildren.some((child) => isChildActive(item.name, child.link));
+    }
+
+    return isActiveLink(item.link);
   };
 
   const handleLogout = () => {
@@ -142,16 +214,32 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2">
           {visibleSalesMenuItems.map((item) => {
-            const active = isActiveLink(item.link);
+            const visibleChildren = getVisibleChildren(item);
+            const hasChildren = currentUserTypeId === 7 && visibleChildren.length > 0;
+            const isExpanded = expanded.includes(item.name);
+            const active = isParentActive(item);
             const isDisabled = item.isDisabled;
 
-            const baseClass = `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium`;
+            const baseClass = `w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-sm font-medium`;
             const activeClass = "bg-[#E5D5B8] text-[#171717]";
             const inactiveClass = isDark ? "text-[#676767] hover:text-white" : "text-[#676767] hover:text-[#101010]";
 
             return (
               <div key={item.name}>
-                {isDisabled ? (
+                {hasChildren ? (
+                  <button
+                    onClick={() => !isDisabled && toggleExpand(item.name)}
+                    className={`${baseClass} ${active ? activeClass : inactiveClass} ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <item.icon size={20} />
+                      <span className="min-w-0 truncate text-left font-medium whitespace-nowrap">
+                        {item.name}
+                      </span>
+                    </div>
+                    <ChevronDown size={16} className={`shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                  </button>
+                ) : isDisabled ? (
                   /* Render a DIV instead of a LINK if disabled */
                   <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
                     <div className="flex items-center gap-3">
@@ -164,9 +252,31 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     onClick={() => handleNavigation(item.link || '#')}
                     className={`${baseClass} ${active ? activeClass : inactiveClass} ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
-                    <item.icon size={20} />
-                    <span className="font-medium">{item.name}</span>
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <item.icon size={20} />
+                      <span className="font-medium">{item.name}</span>
+                    </div>
                   </button>
+                )}
+
+                {hasChildren && isExpanded && (
+                  <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
+                    {visibleChildren.map((child) => {
+                      const childActive = isChildActive(item.name, child.link);
+                      return (
+                        <button
+                          key={child.name}
+                          onClick={() => handleNavigation(child.link)}
+                          className={`block px-4 py-2 text-sm rounded-lg transition-colors ${childActive
+                            ? (isDark ? "text-white font-medium" : "text-[#101010] font-bold")
+                            : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
+                            }`}
+                        >
+                          {child.name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             );
