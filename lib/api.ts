@@ -2088,7 +2088,7 @@ export const salesApi = {
       };
     }
   },
-  getInvoiceHistory: async (params: {page?: number;limit?: number; } = {}) => {
+  getInvoiceHistory: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
     try {
       const response = await api.get('/sales/dashboard/invoice-history', { params });
       return response.data;
@@ -2363,6 +2363,26 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch sales representatives',
+      };
+    }
+  },
+  getSalesRepStatusDetails: async (
+    params: {
+      sales_rep_id: number | string;
+      date?: string;
+      start_date?: string;
+      end_date?: string;
+    }
+  ) => {
+    try {
+      const response = await api.get('/sales/status-details', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Sales Rep Status Details Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch sales representative status details',
       };
     }
   },

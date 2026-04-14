@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, X, type LucideIcon, Receipt } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, Calendar, CalendarClock, MessageCircle, X, type LucideIcon, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -25,12 +25,13 @@ const CustomQuotesIcon = ({ size = 24 }) => (
 
 const salesMenuItems: SalesMenuItem[] = [
   { name: 'Sales', icon: LayoutDashboard, link: '/sales/dashboard' },
+  { name: 'Availability', icon: Calendar, link: '/sales/availability', visibleForUserTypes: [5] },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
   { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
   { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
   { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/sales/quotes' },
-  { name: 'Invoices', icon: Receipt, link: '/sales/invoice' },
+  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', visibleForUserTypes: [7] },
 ];
 
 type SalesMenuItem = {
@@ -38,6 +39,7 @@ type SalesMenuItem = {
   icon: LucideIcon;
   link?: string;
   isDisabled?: boolean;
+  visibleForUserTypes?: number[];
 };
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -49,8 +51,23 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const initialPath = useRef(pathname);
 
   const [mounted, setMounted] = useState(false);
+  const [localUserTypeId, setLocalUserTypeId] = useState<number | null>(null);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+
+    try {
+      const storedUser = localStorage.getItem("revure_user");
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      const normalizedUserTypeId = Number(
+        parsedUser?.user_type_id ?? parsedUser?.userTypeId ?? user?.user_type_id ?? user?.userTypeId
+      );
+
+      setLocalUserTypeId(Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null);
+    } catch {
+      setLocalUserTypeId(null);
+    }
+  }, [user]);
 
   useEffect(() => {
     // Only trigger onClose if the current pathname is different 
@@ -61,9 +78,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }, [pathname, onClose]);
 
   const isDark = !mounted || theme === "dark";
-  const visibleSalesMenuItems = salesMenuItems.filter(
-    (item) => item.name !== "Invoices"
-  );
+  const normalizedUserTypeId = Number(user?.user_type_id ?? user?.userTypeId ?? localUserTypeId);
+  const currentUserTypeId = Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null;
+  const visibleSalesMenuItems = salesMenuItems.filter((item) => {
+    if (!item.visibleForUserTypes?.length) {
+      return true;
+    }
+
+    return currentUserTypeId != null && item.visibleForUserTypes.includes(currentUserTypeId);
+  });
 
   // Shared helper to handle navigation and closing sidebar
   const handleNavigation = (link: string) => {
