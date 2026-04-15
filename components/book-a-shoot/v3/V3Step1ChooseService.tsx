@@ -1241,21 +1241,21 @@ useEffect(() => {
               <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("deliveryDateError") ? "text-red-400" : "text-white/90"}`}>
                 Expected Delivered Date
               </h3>
-              <div className="w-full">
+              <div className="flex flex-col lg:flex-row gap-6">
+                <div className="flex-1">
                 <DatePicker
                   label="Select Date"
                   value={expectedDeliveryDate}
                   onChange={handleExpectedDeliveryDateChange}
                   minDate={addDays(new Date(), 1)}
                   colors={datePickerColours}
-                  format="dd MMM, yyyy"
-                  floating
+                  format="MM/dd/yyyy"
                   sx={{
-                    width: "100%",
                     height: { xs: "56px", lg: "82px" },
-                    borderRadius: { xs: "12px", lg: "16px" },
+                    borderRadius: "16px",
                   }}
                 />
+                </div>
               </div>
               <div className="mt-4 inline-flex max-w-full rounded-xl bg-[#211F1C] px-4 py-3 text-sm font-medium text-[#E8D1AB]">
                 Note : Minimum 24 Hours Required for Editing Delivery
