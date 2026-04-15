@@ -1,9 +1,11 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, Calendar, CalendarClock, MessageCircle, X, ChevronDown, type LucideIcon, Receipt } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, Calendar, X, ChevronDown, type LucideIcon, Receipt } from 'lucide-react';
 import Link from 'next/link';
+import { useSalesStatus } from "@/context/SalesStatusContext";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { isSalesRouteAllowedWhileInactive } from "@/lib/sales-status";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
@@ -35,9 +37,9 @@ const salesMenuItems: SalesMenuItem[] = [
   },
   { name: 'Availability', icon: Calendar, link: '/sales/availability', visibleForUserTypes: [5] },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
-  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
-  { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
+  // { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
+  // { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
+  // { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,
@@ -47,7 +49,7 @@ const salesMenuItems: SalesMenuItem[] = [
       { name: 'Master Pricing', link: '/sales/quotes/pricing' }
     ],
   },
-  
+
 
 
   { name: 'Invoices', icon: Receipt, link: '/sales/invoice', visibleForUserTypes: [7] },
@@ -92,12 +94,17 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
+  const {
+    isManagedUser,
+    isSalesAvailable,
+    isLoading: isSalesStatusLoading,
+  } = useSalesStatus();
 
   const initialPath = useRef(pathname);
 
   const [mounted, setMounted] = useState(false);
   const [quotesExpanded, setQuotesExpanded] = useState(false);
-    const [localUserTypeId, setLocalUserTypeId] = useState<number | null>(null);
+  const [localUserTypeId, setLocalUserTypeId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<string[]>([]);
 
   useEffect(() => {
@@ -127,6 +134,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const isDark = !mounted || theme === "dark";
   const normalizedUserTypeId = Number(user?.user_type_id ?? user?.userTypeId ?? localUserTypeId);
   const currentUserTypeId = Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null;
+  const isSalesAdmin = isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined);
   const visibleSalesMenuItems = salesMenuItems.filter((item) => {
     if (!item.visibleForUserTypes?.length) {
       return true;
@@ -160,8 +168,17 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   // Shared helper to handle navigation and closing sidebar
+  const isRouteDisabled = (link?: string) =>
+    Boolean(
+      link &&
+      isManagedUser &&
+      !isSalesStatusLoading &&
+      !isSalesAvailable &&
+      !isSalesRouteAllowedWhileInactive(link)
+    );
+
   const handleNavigation = (link: string) => {
-    if (link && link !== "#") {
+    if (link && link !== "#" && !isRouteDisabled(link)) {
       router.push(link);
     }
   };
@@ -250,7 +267,12 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             const hasChildren = currentUserTypeId === 7 && visibleChildren.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);
-            const isDisabled = item.isDisabled;
+            const isDisabled =
+              Boolean(item.isDisabled) ||
+              (!hasChildren && isRouteDisabled(item.link)) ||
+              (hasChildren &&
+                visibleChildren.length > 0 &&
+                visibleChildren.every((child) => Boolean(child.isDisabled) || isRouteDisabled(child.link)));
 
             const baseClass = `w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-sm font-medium`;
             const activeClass = "bg-[#E5D5B8] text-[#171717]";
@@ -280,12 +302,12 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     </div>
                   </div>
                 ) : item.name === 'Quotes' && item.children && user?.user_type_id === 7 ? (
-                
+
                   <button
                     onClick={() => setQuotesExpanded((p) => !p)}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-sm font-medium ${active
-                        ? "bg-[#E5D5B8] text-[#171717]"
-                        : isDark ? "text-[#676767] hover:text-white" : "text-[#676767] hover:text-[#101010]"
+                      ? "bg-[#E5D5B8] text-[#171717]"
+                      : isDark ? "text-[#676767] hover:text-white" : "text-[#676767] hover:text-[#101010]"
                       }`}
                   >
                     <div className="flex items-center gap-3">
@@ -301,8 +323,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                   <button
                     onClick={() => handleNavigation(item.link || '#')}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium ${active
-                        ? "bg-[#E5D5B8] text-[#171717]"
-                        : isDark ? "text-[#676767] hover:text-white" : "text-[#676767] hover:text-[#101010]"
+                      ? "bg-[#E5D5B8] text-[#171717]"
+                      : isDark ? "text-[#676767] hover:text-white" : "text-[#676767] hover:text-[#101010]"
                       }`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -316,11 +338,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {visibleChildren.map((child) => {
                       const childActive = isChildActive(item.name, child.link);
+                      const childDisabled = Boolean(child.isDisabled) || isRouteDisabled(child.link);
                       return (
                         <button
                           key={child.name}
                           onClick={() => handleNavigation(child.link)}
-                          className={`block px-4 py-2 text-sm rounded-lg transition-colors ${childActive
+                          disabled={childDisabled}
+                          className={`block px-4 py-2 text-sm rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${childActive
                             ? (isDark ? "text-white font-medium" : "text-[#101010] font-bold")
                             : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
                             }`}
@@ -342,8 +366,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                           key={child.name}
                           onClick={() => handleNavigation(child.link)}
                           className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-colors ${pathname === child.link
-                              ? isDark ? "text-white font-medium" : "text-[#101010] font-bold"
-                              : isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]"
+                            ? isDark ? "text-white font-medium" : "text-[#101010] font-bold"
+                            : isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]"
                             }`}
                         >
                           {child.name}
