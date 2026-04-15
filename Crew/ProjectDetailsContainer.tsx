@@ -44,6 +44,18 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
     ? project.description.replace(/Matching Method:.*$/gm, "").trim()
     : "No description available.";
 
+     const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "TBD";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).replace(/ /g, ' ').replace(/(\w{3}) (\d{4})/, '$1, $2');
+  }; 
+
   useEffect(() => {
     let isMounted = true;
 
@@ -154,7 +166,7 @@ export default function ProjectDetailsContainer({ apiResponse, onBack }: any) {
 
           {/* 3. HORIZONTAL INFO STRIP */}
           <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-y-3 lg:gap-y-4 lg:gap-x-8 p-5 rounded-xl bg-[#E8D1AB]/[0.03] border border-[#E8D1AB]/10 text-[12px]">
-            <StripItem label="Shoot Date" value={project?.event_date} />
+            <StripItem label="Shoot Date" value={formatDate(project?.event_date)} />
             <Divider />
             <StripItem label="Time" value={projectTimeText} />
             

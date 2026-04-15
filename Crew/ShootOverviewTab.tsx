@@ -53,6 +53,19 @@ export default function ShootOverviewTab({ project }: any) {
     }
     return String(raw);
   })();
+
+     const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "TBD";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).replace(/ /g, ' ').replace(/(\w{3}) (\d{4})/, '$1, $2');
+  };
+
   const bookingType = project?.booking_type || project?.bookingType || "Not Specified";
 
   return (
@@ -83,7 +96,7 @@ export default function ShootOverviewTab({ project }: any) {
 
             <DetailItem
               label="Shoot Date"
-              value={project?.event_date}
+              value={formatDate(project?.event_date)}
               icon={<Calendar size={16} className="text-[#E8D1AB]" />}
             />
 
