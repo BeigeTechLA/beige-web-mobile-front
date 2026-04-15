@@ -9,8 +9,13 @@ export type BookingDataV3 = {
     timeZone?: string;
   }[];
   // Service & Content
-  contentType: ("videographer" | "photographer" | "cinematographer" | "editing")[];
+  contentType: ("videographer" | "photographer" | "cinematographer" | "editing" | "studio")[];
   shootType: string;
+
+  // Studio specific data
+  bookingFor: "production" | "audio" | "event" | string;
+  projectName: string;
+  description: string;
   
   // Date & Time
   startDate: string;

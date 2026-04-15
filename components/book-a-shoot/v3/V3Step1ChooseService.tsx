@@ -9,7 +9,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse, MapPin } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -42,8 +42,10 @@ import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, i
 import { AnimatePresence, motion } from "framer-motion";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
-import {getFormattedDateString} from "@/lib/utils";
+import { getFormattedDateString } from "@/lib/utils";
 import { getPhotoEditSummary, getTotalDurationHours, PHOTO_EDIT_ADDON_SET_SIZE } from "./utils";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 
 interface Props {
   data: BookingDataV3;
@@ -67,7 +69,7 @@ const datePickerColours = {
   inputBorder: "#ffffff4d",
   inputBorderHover: "#E8D1AB",
   inputBorderFocus: "#E8D1AB",
-  labelText: "#ffffff99",
+  labelText: "#FFFFFF99",
   iconColor: "#FFFFFF",
   accent: "#E8D1AB",
   accentText: "#101010",
@@ -89,6 +91,12 @@ const datePickerColours = {
   mutedText: "#ffffff66",
   desktopCalendarText: "#FFFFFF",
 };
+
+const STUDIO_BOOKING_TYPES = [
+  { key: "production", value: "Production" },
+  { key: "audio", value: "Audio" },
+  { key: "event", value: "Event" }
+];
 
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
@@ -137,6 +145,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const isAllVisible = visibleCount >= availableShootTypes.length;
 
+  const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(data.bookingFor || "");
+
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
 
   const emailRef = useRef<HTMLDivElement>(null);
@@ -147,6 +157,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const editsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const contactRef = useRef<HTMLDivElement>(null);
+  const projectDetailsRef = useRef<HTMLDivElement>(null);
 
   const [openEditPanel, setOpenEditPanel] = useState<"video" | "photo" | null>(null);
   const videoEditDropdownRef = useRef<HTMLDivElement>(null);
@@ -878,7 +890,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   }, [data]);
 
   const toggleContentType = (
-    type: "videographer" | "photographer" | "editing"
+    type: "videographer" | "photographer" | "editing" | "studio"
   ) => {
     const current = [...data.contentType];
     const isCurrentlySelected = current.includes(type);
@@ -1128,17 +1140,17 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             onChange={() => toggleContentType("photographer")}
           />
           <ContentTypeCheckbox
+            label="Studios"
+            icon={<MapPin size={20} />}
+            checked={data.contentType.includes("studio")}
+            onChange={() => toggleContentType("studio")}
+          // checked={false}
+          // onChange={() => { }}
+          />
+          <ContentTypeCheckbox
             label="AI Editing"
             subLabel="Coming Soon"
             icon={<Scissors size={20} />}
-            checked={false}
-            onChange={() => { }}
-            disabled={true}
-          />
-          <ContentTypeCheckbox
-            label="Locations"
-            subLabel="Coming Soon"
-            icon={<MapPinHouse size={20} />}
             checked={false}
             onChange={() => { }}
             disabled={true}
@@ -1156,51 +1168,136 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
       {data.contentType.length > 0 && (
         <>
-          {/* Shoot Type */}
-          <div ref={shootTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("shootTypeError") ? "text-red-400" : "text-white/90"
-              }`}>
-              {data.contentType.includes("videographer") &&
-                //  ||data.contentType.includes("cinematographer")) && : Commented cinematographer as it is not being mentioned anywhere in UI
-                data.contentType.includes("photographer")
-                ? "Video and Photo Shoot Type"
-                : data.contentType.includes("videographer") ||
-                  data.contentType.includes("cinematographer")
-                  ? "Video Shoot Type"
-                  : "Photo Shoot Type"}
-            </h3>
+          {(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && (
+            // {/* Shoot Type */ }
+            <div ref={shootTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+              <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("shootTypeError") ? "text-red-400" : "text-white/90"
+                }`}>
+                {data.contentType.includes("videographer") &&
+                  //  ||data.contentType.includes("cinematographer")) && : Commented cinematographer as it is not being mentioned anywhere in UI
+                  data.contentType.includes("photographer")
+                  ? "Video and Photo Shoot Type"
+                  : data.contentType.includes("videographer") ||
+                    data.contentType.includes("cinematographer")
+                    ? "Video Shoot Type"
+                    : "Photo Shoot Type"}
+              </h3>
 
-            {/* <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"> */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
-              {/* {availableShootTypes.map((type) => ( */}
-              {availableShootTypes.slice(0, visibleCount).map((type) => (
-                <div
-                  key={type.key}
-                  className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start"
+              {/* <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"> */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
+                {/* {availableShootTypes.map((type) => ( */}
+                {availableShootTypes.slice(0, visibleCount).map((type) => (
+                  <div
+                    key={type.key}
+                    className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start"
+                  >
+                    <ShootTypeCard
+                      title={type.title} // Assuming your shootTypes array has label
+                      details={type.details} // and details
+                      image={type.image}
+                      // stats={type.stats}
+                      selected={data.shootType === type.key}
+                      onClick={() => {
+                        updateData({ shootType: type.key });
+                        scrollToRef(bookingTypeRef);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleViewToggle}
+                  className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 rounded-lg  text-sm md:text-lg font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)]"
                 >
-                  <ShootTypeCard
-                    title={type.title} // Assuming your shootTypes array has label
-                    details={type.details} // and details
-                    image={type.image}
-                    // stats={type.stats}
-                    selected={data.shootType === type.key}
-                    onClick={() => {
-                      updateData({ shootType: type.key });
-                      scrollToRef(bookingTypeRef);
-                    }}
-                  />
+                  <span className="">{isAllVisible ? "View Less" : "View More"}</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {(data.contentType.length === 1 && data.contentType.includes("studio")) && (
+            <>
+              {/* Contact Details */}
+              <div ref={contactRef} className="pt-6 lg:pt-15 border-t border-white/10">
+                <h3 className={`text-base lg:text-xl font-medium mb-4 lg:mb-9 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                  }`}>
+                  Enter your Contact Details
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+                  <div className="relative">
+                    <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
+                      <span className={`text-sm font-medium `}>Full Name</span>
+                    </div>
+                    <Input
+                      value={data.fullName}
+                      onChange={(e) => updateData({ fullName: e.target.value })}
+                      className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                    />
+                  </div>
+                  <div className="relative">
+                    <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
+                      <span className={`text-sm font-medium `}>Email</span>
+                    </div>
+                    <Input
+                      value={data.email}
+                      onChange={(e) => updateData({ email: e.target.value })}
+                      className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                    />
+                  </div>
+                  <div className="relative">
+                    <div className={`absolute -top-3 left-4 z-20 px-3 bg-[#101010]`}>
+                      <span className={`text-sm font-medium `}>Phone Number</span>
+                    </div>
+                    <Input
+                      value={data.phone}
+                      onChange={(e) => updateData({ phone: e.target.value })}
+                      className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                    />
+                  </div>
                 </div>
-              ))}
-            </div>
-            <div className="flex justify-end">
-              <Button
-                onClick={handleViewToggle}
-                className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 rounded-lg  text-sm md:text-lg font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)]"
-              >
-                <span className="">{isAllVisible ? "View Less" : "View More"}</span>
-              </Button>
-            </div>
-          </div>
+              </div>
+
+              {/* Project Details */}
+              <div ref={projectDetailsRef} className="pt-6 lg:pt-15 border-t border-white/10">
+                <h3 className={`text-base lg:text-xl font-medium mb-4 lg:mb-9 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
+                  }`}>
+                  Project Details
+                </h3>
+                <div className="grid grid-cols-1  gap-4 lg:gap-9">
+                  <div className="flex-1">
+                    <DropdownSelect
+                      title="Booking For"
+                      options={STUDIO_BOOKING_TYPES}
+                      value={bookingFor}
+                      onChange={setBookingFor}
+                      bgColour="bg-[#101010]"
+                    />
+                  </div>
+                  <div className="relative">
+                    <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
+                      <span className={`text-sm font-medium `}>Project Name</span>
+                    </div>
+                    <Input
+                      value={data.projectName}
+                      onChange={(e) => updateData({ projectName: e.target.value })}
+                      className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                    />
+                  </div>
+                  <div className="relative">
+                    <div className={`absolute -top-3 left-4 z-20 px-3 bg-[#101010]`}>
+                      <span className={`text-sm font-medium `}>Description</span>
+                    </div>
+                    <textarea
+                      value={data.description}
+                      onChange={(e) => updateData({ description: e.target.value })}
+                      className={`w-full h-[82px] lg:h-[262px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Booking Type */}
           <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
@@ -1218,7 +1315,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   updateData({ bookingType: "single_day", bookingDays: [] });
                   scrollToRef(dateTimeRef);
                 }}
-                disabled={data.shootType === ""}
+                disabled={(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === ""}
                 className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
               >
                 <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
@@ -1237,7 +1334,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   updateData({ bookingType: "multi_day" });
                   scrollToRef(dateTimeRef);
                 }}
-                disabled={data.shootType === ""}
+                disabled={(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === ""}
                 className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
               >
                 <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
@@ -1274,6 +1371,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         height: { xs: "56px", md: "82px" },
                         borderRadius: "16px",
                       }}
+                      floating={true}
                     />
                   </div>
                   <div className="flex-1">
@@ -1423,7 +1521,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       <button
                         type="button"
                         onClick={() => handleSameTimingsModeChange(true)}
-                        disabled={data.shootType === ""}
+                        disabled={(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === ""}
                         className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                       >
                         <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
@@ -1439,7 +1537,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       <button
                         type="button"
                         onClick={() => handleSameTimingsModeChange(false)}
-                        disabled={data.shootType === ""}
+                        disabled={(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === ""}
                         className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                       >
                         <span className="font-medium text-sm lg:text-lg pr-2">No</span>
@@ -1554,230 +1652,233 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           </div>
 
           {/* Edits Needed */}
-          <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
-              }`}>
-              Edits Needed?
-            </h3>
+          {(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && (
+            <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
+              <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
+                }`}>
+                Edits Needed?
+              </h3>
 
-            <div className="flex gap-4">
-              <button
-                onClick={() => {
-                  updateData({ editsNeeded: true });
-                  scrollToRef(navigationRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    updateData({ editsNeeded: true });
+                    scrollToRef(navigationRef);
+                  }}
+                  disabled={data.shootType === ""}
+                  className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                 >
-                  {data.editsNeeded && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  setOpenEditPanel(null);
-                  updateData({
-                    editsNeeded: false,
-                    videoEditTypes: [],
-                    photoEditTypes: [],
-                  });
-                  scrollToRef(navigationRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
+                  <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                  <div
+                    className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                      }`}
+                  >
+                    {data.editsNeeded && (
+                      <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                    )}
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setOpenEditPanel(null);
+                    updateData({
+                      editsNeeded: false,
+                      videoEditTypes: [],
+                      photoEditTypes: [],
+                    });
+                    scrollToRef(navigationRef);
+                  }}
+                  disabled={data.shootType === ""}
+                  className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                 >
-                  {!data.editsNeeded && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
-                </div>
-              </button>
-            </div>
+                  <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                  <div
+                    className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                      }`}
+                  >
+                    {!data.editsNeeded && (
+                      <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                    )}
+                  </div>
+                </button>
+              </div>
 
-            {data.editsNeeded && (
-              <div className="animate-in slide-in-from-top-4 duration-300 mt-4 lg:mt-8">
-                <h4 className={` ${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
-                  <Info size={24} className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"}`} />
-                  Editing includes
-                </h4>
-                <p className="text-white/60 text-sm mb-11">
-                  Professional editing includes color grading, sound mixing, and
-                  basic revisions.
-                </p>
+              {data.editsNeeded && (
+                <div className="animate-in slide-in-from-top-4 duration-300 mt-4 lg:mt-8">
+                  <h4 className={` ${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
+                    <Info size={24} className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"}`} />
+                    Editing includes
+                  </h4>
+                  <p className="text-white/60 text-sm mb-11">
+                    Professional editing includes color grading, sound mixing, and
+                    basic revisions.
+                  </p>
 
-                <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
-                  {data.contentType.includes("videographer") && editTypeOptions.length > 0 && (
-                    <div ref={videoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
-                      <button
-                        type="button"
-                        className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
-                        onClick={handleVideoEditToggle}
-                      >
-                        <div className="min-w-0 flex flex-1 items-center gap-3">
-                          <div className="shrink-0 text-base lg:text-lg font-medium text-white">Video Edits</div>
-                          {videoEditSummaryItems.length > 0 && (
-                            <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
-                              {videoEditSummaryItems.map((item) => (
-                                <span
-                                  key={item.key}
-                                  className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
-                                >
-                                  <span className="truncate max-w-[180px]">{item.label}</span>
-                                  <span className="shrink-0 text-white/50">x{item.count}</span>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        {isVideoEditOpen ? (
-                          <ChevronUp className="text-white flex-shrink-0" />
-                        ) : (
-                          <ChevronDown className="text-white flex-shrink-0" />
-                        )}
-                      </button>
-
-                      {isVideoEditOpen && (
-                        <div className="border-t border-white/10 px-5 py-3">
-                          {editTypeOptions.map((option) => {
-                            const count = videoEditCounts[option.key] || 0;
-                            return (
-                              <div
-                                key={option.key}
-                                className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
-                              >
-                                <span className="text-sm lg:text-base text-white">{option.value}</span>
-                                <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-                                  <QuantityControl
-                                    value={count}
-                                    onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
-                                    onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
-                                    className="h-[52px] min-w-[110px] rounded-[16px] px-5"
-                                    buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
-                                    valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
-                                  />
-                                </div>
+                  <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
+                    {data.contentType.includes("videographer") && editTypeOptions.length > 0 && (
+                      <div ref={videoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+                        <button
+                          type="button"
+                          className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                          onClick={handleVideoEditToggle}
+                        >
+                          <div className="min-w-0 flex flex-1 items-center gap-3">
+                            <div className="shrink-0 text-base lg:text-lg font-medium text-white">Video Edits</div>
+                            {videoEditSummaryItems.length > 0 && (
+                              <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                                {videoEditSummaryItems.map((item) => (
+                                  <span
+                                    key={item.key}
+                                    className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                                  >
+                                    <span className="truncate max-w-[180px]">{item.label}</span>
+                                    <span className="shrink-0 text-white/50">x{item.count}</span>
+                                  </span>
+                                ))}
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {data.contentType.includes("photographer") && photoEditTypeOptions.length > 0 && (
-                    <div ref={photoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
-                      <button
-                        type="button"
-                        className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
-                        onClick={handlePhotoEditToggle}
-                      >
-                        <div className="min-w-0 flex flex-1 items-center gap-3">
-                          <div className="shrink-0 text-base lg:text-lg font-medium text-white">Photo Edits</div>
-                          {photoEditSummaryItems.length > 0 && (
-                            <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
-                              {photoEditSummaryItems.map((item) => (
-                                <span
-                                  key={item.key}
-                                  className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
-                                >
-                                  <span className="truncate max-w-[180px]">{item.label}</span>
-                                  <span className="shrink-0 text-white/50">x{item.count}</span>
-                                </span>
-                              ))}
-                            </div>
+                            )}
+                          </div>
+                          {isVideoEditOpen ? (
+                            <ChevronUp className="text-white flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="text-white flex-shrink-0" />
                           )}
-                        </div>
-                        {isPhotoEditOpen ? (
-                          <ChevronUp className="text-white flex-shrink-0" />
-                        ) : (
-                          <ChevronDown className="text-white flex-shrink-0" />
-                        )}
-                      </button>
+                        </button>
 
-                      {isPhotoEditOpen && (
-                        <div className="border-t border-white/10 px-5 py-3">
-                          {photoEditTypeOptions.map((option) => {
-                            const count = photoEditCounts[option.key] || 0;
-                            return (
-                              <div
-                                key={option.key}
-                                className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
-                              >
-                                <div>
-                                  <div className="text-sm lg:text-base text-white">{option.value}</div>
-                                  <div className="text-xs text-white/40 mt-1">
-                                    +{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set
+                        {isVideoEditOpen && (
+                          <div className="border-t border-white/10 px-5 py-3">
+                            {editTypeOptions.map((option) => {
+                              const count = videoEditCounts[option.key] || 0;
+                              return (
+                                <div
+                                  key={option.key}
+                                  className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                                >
+                                  <span className="text-sm lg:text-base text-white">{option.value}</span>
+                                  <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                    <QuantityControl
+                                      value={count}
+                                      onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                                      onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
+                                      className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                                      buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                                      valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                                    />
                                   </div>
                                 </div>
-                                <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-                                  <QuantityControl
-                                    value={count}
-                                    onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
-                                    onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
-                                    className="h-[52px] min-w-[110px] rounded-[16px] px-5"
-                                    buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
-                                    valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })}
-
-                          <div className="flex flex-wrap gap-3 pt-4">
-                            <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
-                              Includes {photoEditSummary.includedCount} free photo edits
-                            </div>
-                            <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
-                              {durationHours} Hour Duration
-                            </div>
-                            <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
-                              + {photoEditSummary.extraCount} Added Extra
-                            </div>
+                              );
+                            })}
                           </div>
+                        )}
+                      </div>
+                    )}
 
-                          {photoEditNote && (
-                            <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
-                              <Info size={16} className="mt-0.5 flex-shrink-0" />
-                              <span>{photoEditNote}</span>
-                            </div>
+                    {data.contentType.includes("photographer") && photoEditTypeOptions.length > 0 && (
+                      <div ref={photoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+                        <button
+                          type="button"
+                          className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                          onClick={handlePhotoEditToggle}
+                        >
+                          <div className="min-w-0 flex flex-1 items-center gap-3">
+                            <div className="shrink-0 text-base lg:text-lg font-medium text-white">Photo Edits</div>
+                            {photoEditSummaryItems.length > 0 && (
+                              <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                                {photoEditSummaryItems.map((item) => (
+                                  <span
+                                    key={item.key}
+                                    className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                                  >
+                                    <span className="truncate max-w-[180px]">{item.label}</span>
+                                    <span className="shrink-0 text-white/50">x{item.count}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {isPhotoEditOpen ? (
+                            <ChevronUp className="text-white flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="text-white flex-shrink-0" />
                           )}
-                        </div>
-                      )}
+                        </button>
+
+                        {isPhotoEditOpen && (
+                          <div className="border-t border-white/10 px-5 py-3">
+                            {photoEditTypeOptions.map((option) => {
+                              const count = photoEditCounts[option.key] || 0;
+                              return (
+                                <div
+                                  key={option.key}
+                                  className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                                >
+                                  <div>
+                                    <div className="text-sm lg:text-base text-white">{option.value}</div>
+                                    <div className="text-xs text-white/40 mt-1">
+                                      +{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set
+                                    </div>
+                                  </div>
+                                  <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                    <QuantityControl
+                                      value={count}
+                                      onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                                      onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
+                                      className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                                      buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                                      valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            <div className="flex flex-wrap gap-3 pt-4">
+                              <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                                Includes {photoEditSummary.includedCount} free photo edits
+                              </div>
+                              <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
+                                {durationHours} Hour Duration
+                              </div>
+                              <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                                + {photoEditSummary.extraCount} Added Extra
+                              </div>
+                            </div>
+
+                            {photoEditNote && (
+                              <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                                <Info size={16} className="mt-0.5 flex-shrink-0" />
+                                <span>{photoEditNote}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {receiveSummaryText && (
+                    <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black">
+                      <div className="grid h-10 w-10 place-items-center rounded-full bg-black text-[#E8D1AB]">
+                        <Image
+                          src="/images/misc/booking-sparkle.png"
+                          alt=""
+                          width={18}
+                          height={18}
+                          className="h-[18px] w-[18px]"
+                        />
+                      </div>
+                      <p className="text-sm lg:text-base font-semibold">
+                        You&apos;ll Receive {receiveSummaryText}
+                      </p>
                     </div>
                   )}
                 </div>
-
-                {receiveSummaryText && (
-                  <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black">
-                    <div className="grid h-10 w-10 place-items-center rounded-full bg-black text-[#E8D1AB]">
-                      <Image
-                        src="/images/misc/booking-sparkle.png"
-                        alt=""
-                        width={18}
-                        height={18}
-                        className="h-[18px] w-[18px]"
-                      />
-                    </div>
-                    <p className="text-sm lg:text-base font-semibold">
-                      You&apos;ll Receive {receiveSummaryText}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </>
-      )}
+      )
+      }
 
       {/* Navigation */}
       <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
@@ -1795,6 +1896,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           Continue
         </Button>
       </div>
-    </div>
+    </div >
   );
 };
