@@ -144,6 +144,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const shootTypeRef = useRef<HTMLDivElement>(null);
   const bookingTypeRef = useRef<HTMLDivElement>(null);
   const dateTimeRef = useRef<HTMLDivElement>(null);
+  const deliveryDateRef = useRef<HTMLDivElement>(null);
   const editsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -194,6 +195,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     [data.shootType, durationHours, photoEditSetCount]
   );
 
+
   const totalVideoEditsSelected = data.videoEditTypes.length;
   const totalPhotoEditsSelected = data.photoEditTypes.length;
   const videoEditSummaryItems = React.useMemo(
@@ -204,8 +206,15 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     () => getEditSummaryItems(photoEditCounts, photoEditTypeOptions),
     [photoEditCounts, photoEditTypeOptions]
   );
+  const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
+  const expectedDeliveryDate = React.useMemo(
+    () => (data.expectedDeliveryDate ? parseDate(data.expectedDeliveryDate) : null),
+    [data.expectedDeliveryDate]
+  );
   const receiveSummaryText = [
-    data.contentType.includes("photographer") ? `${photoEditSummary.totalCount} Photos` : null,
+    (data.contentType.includes("photographer") || isEditingOnly)
+      ? `${photoEditSummary.totalCount} Photos`
+      : null,
     totalVideoEditsSelected > 0 ? `${totalVideoEditsSelected} Videos` : null,
   ].filter(Boolean).join(" + ");
 
@@ -218,6 +227,17 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const handlePhotoEditToggle = () => {
     setOpenEditPanel((prev) => (prev === "photo" ? null : "photo"));
+  };
+
+  const handleExpectedDeliveryDateChange = (date: Date | null) => {
+    updateData({
+      expectedDeliveryDate: date
+        ? format(set(date, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 }), "yyyy-MM-dd")
+        : "",
+    });
+    if (date) {
+      scrollToRef(editsRef);
+    }
   };
 
   const updateEditQuantity = (type: "video" | "photo", key: string, nextQty: number) => {
@@ -351,20 +371,23 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   };
 
   // Determine available shoot types based on content type selection
-  useEffect(() => {
-    const isVideo = data.contentType.includes("videographer");
-    const isPhoto = data.contentType.includes("photographer");
+useEffect(() => {
+  const isVideo = data.contentType.includes("videographer");
+  const isPhoto = data.contentType.includes("photographer");
+  const isEditing = data.contentType.includes("editing");
 
-    if (isVideo && isPhoto) {
-      setAvailableShootTypes(hybridShootTypes);
-    } else if (isPhoto) {
-      setAvailableShootTypes(photoShootTypes);
-    } else if (isVideo) {
-      setAvailableShootTypes(videoShootTypes);
-    } else {
-      setAvailableShootTypes([]);
-    }
-  }, [data.contentType]);
+  if (isVideo && isPhoto) {
+    setAvailableShootTypes(hybridShootTypes);         // video + photo (with or without editing)
+  } else if (isPhoto) {
+    setAvailableShootTypes(photoShootTypes);           // photo only OR editing + photo
+  } else if (isVideo) {
+    setAvailableShootTypes(videoShootTypes);           // video only OR editing + video
+  } else if (isEditing) {
+    setAvailableShootTypes(hybridShootTypes);          // editing only
+  } else {
+    setAvailableShootTypes([]);
+  }
+}, [data.contentType]);
 
   // Generate time options
   useEffect(() => {
@@ -863,9 +886,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       if (data.email && newErrors.includes("emailError")) return newErrors.filter(e => e !== "emailError");
       if (data.contentType.length > 0 && newErrors.includes("contentError")) return newErrors.filter(e => e !== "contentError");
       if (data.shootType && newErrors.includes("shootTypeError")) return newErrors.filter(e => e !== "shootTypeError");
+      if (isEditingOnly && data.expectedDeliveryDate && newErrors.includes("deliveryDateError")) {
+        return newErrors.filter(e => e !== "deliveryDateError");
+      }
       const hasMultiDayTimes = Array.isArray(data.bookingDays) && data.bookingDays.length > 0 && data.bookingDays.every(d => d.startTime && d.endTime);
       if (
-        ((data.bookingType !== "multi_day" && data.startDate && data.endDate) ||
+        (isEditingOnly ||
+          (data.bookingType !== "multi_day" && data.startDate && data.endDate) ||
           (data.bookingType === "multi_day" && hasMultiDayTimes)) &&
         newErrors.includes("timeError")
       ) {
@@ -875,54 +902,53 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       if (data.photoEditTypes.length > 0 && newErrors.includes("photoEditError")) return newErrors.filter(e => e !== "photoEditError");
       return prev;
     });
-  }, [data]);
+  }, [data, isEditingOnly]);
 
-  const toggleContentType = (
-    type: "videographer" | "photographer" | "editing"
-  ) => {
-    const current = [...data.contentType];
-    const isCurrentlySelected = current.includes(type);
+      const toggleContentType = (type: "videographer" | "photographer" | "editing") => {
+      const current = [...data.contentType];
+      const isCurrentlySelected = current.includes(type);
+      const nextContentType = isCurrentlySelected
+        ? current.filter((t) => t !== type)
+        : [...current, type];
 
-    // Calculate the new content type array
-    const nextContentType = isCurrentlySelected
-      ? current.filter((t) => t !== type)
-      : [...current, type];
-
-    if (nextContentType.length === 0) {
-      // Reset data object to initial state if no content types are selected
-      updateData({
-        contentType: [],
-        shootType: "",
-        startDate: "",
-        endDate: "",
-        editsNeeded: true,
-        videoEditTypes: [],
-        photoEditTypes: [],
-      });
-    } else {
-      if (!nextContentType.includes("videographer")) {
+      if (nextContentType.length === 0) {
         updateData({
-          contentType: nextContentType,
+          contentType: [],
+          shootType: "",
+          startDate: "",
+          endDate: "",
+          expectedDeliveryDate: "",
+          editsNeeded: true,
           videoEditTypes: [],
-        });
-      } else if (!nextContentType.includes("photographer")) {
-        updateData({
-          contentType: nextContentType,
           photoEditTypes: [],
         });
       } else {
-        updateData({ contentType: nextContentType });
+        // Determine if editing is selected to automatically set editsNeeded to true
+        const includesEditing = nextContentType.includes("editing");
+        
+        const updateObj: Partial<BookingDataV3> = { 
+          contentType: nextContentType,
+          editsNeeded: includesEditing ? true : data.editsNeeded // Force true if editing is checked
+        };
+
+        if (!nextContentType.includes("videographer")) {
+          updateObj.videoEditTypes = [];
+        } 
+        if (!nextContentType.includes("photographer")) {
+          updateObj.photoEditTypes = [];
+        }
+        if (!nextContentType.includes("editing")) {
+          updateObj.expectedDeliveryDate = "";
+        }
+
+        updateData(updateObj);
       }
-    }
 
-    // Reset the view more toggle
-    setVisibleCount(INITIAL_COUNT);
-
-    if (nextContentType.length > 0) {
-      scrollToRef(shootTypeRef);
-    }
-  };
-
+      setVisibleCount(INITIAL_COUNT);
+      if (nextContentType.length > 0) {
+        scrollToRef(shootTypeRef);
+      }
+    };
   const validate = () => {
     if (!data.email) {
       toast.error("Please enter your email address");
@@ -948,39 +974,49 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
       return false;
     }
-    if (bookingType === "single_day") {
-      if (!data.startDate) {
-        toast.error("Please select a start date and time");
-        setErrors((prev) => [...prev, "timeError"]);
-        return false;
-      }
-      if (!data.endDate) {
-        toast.error("Please select an end date and time");
-        setErrors((prev) => [...prev, "timeError"]);
-        return false;
-      }
-      if (new Date(data.endDate) <= new Date(data.startDate)) {
-        toast.error("End time must be after start time");
-        setErrors((prev) => [...prev, "timeError"]);
+    if (isEditingOnly) {
+      if (!data.expectedDeliveryDate) {
+        toast.error("Please select an expected delivered date");
+        setErrors((prev) => [...prev, "deliveryDateError"]);
         return false;
       }
     } else {
-      if (!data.bookingDays || data.bookingDays.length === 0) {
-        toast.error("Please select at least one booking day");
-        setErrors((prev) => [...prev, "timeError"]);
-        return false;
-      }
-      const hasMissingTimes = data.bookingDays.some((d) => !d.startTime || !d.endTime);
-      if (hasMissingTimes) {
-        toast.error("Please select start and end time for all selected days");
-        setErrors((prev) => [...prev, "timeError"]);
-        return false;
+      if (bookingType === "single_day") {
+        if (!data.startDate) {
+          toast.error("Please select a start date and time");
+          setErrors((prev) => [...prev, "timeError"]);
+          return false;
+        }
+        if (!data.endDate) {
+          toast.error("Please select an end date and time");
+          setErrors((prev) => [...prev, "timeError"]);
+          return false;
+        }
+        if (new Date(data.endDate) <= new Date(data.startDate)) {
+          toast.error("End time must be after start time");
+          setErrors((prev) => [...prev, "timeError"]);
+          return false;
+        }
+      } else {
+        if (!data.bookingDays || data.bookingDays.length === 0) {
+          toast.error("Please select at least one booking day");
+          setErrors((prev) => [...prev, "timeError"]);
+          return false;
+        }
+        const hasMissingTimes = data.bookingDays.some((d) => !d.startTime || !d.endTime);
+        if (hasMissingTimes) {
+          toast.error("Please select start and end time for all selected days");
+          setErrors((prev) => [...prev, "timeError"]);
+          return false;
+        }
       }
     }
-    if (data.editsNeeded) {
+    const requiresEditSelection = data.editsNeeded || isEditingOnly;
+    if (requiresEditSelection) {
       const needsVideoEdit = data.contentType.includes("videographer")
-      // || data.contentType.includes("cinematographer");  Commented cinematographer as it is not being mentioned anywhere in UI
       const needsPhotoEdit = data.contentType.includes("photographer");
+      const hasVideoEditOptions = editTypeOptions.length > 0;
+      const hasPhotoEditOptions = photoEditTypeOptions.length > 0;
 
       if (needsVideoEdit && data.videoEditTypes.length === 0) {
         setErrors((prev) => [...prev, "videoEditError"]);
@@ -995,13 +1031,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       }
 
       if (
-        !needsVideoEdit &&
-        !needsPhotoEdit &&
-        data.videoEditTypes.length === 0 &&
-        data.photoEditTypes.length === 0
+        isEditingOnly &&
+        ((hasVideoEditOptions && hasPhotoEditOptions && data.videoEditTypes.length === 0 && data.photoEditTypes.length === 0) ||
+          (hasVideoEditOptions && !hasPhotoEditOptions && data.videoEditTypes.length === 0) ||
+          (!hasVideoEditOptions && hasPhotoEditOptions && data.photoEditTypes.length === 0))
       ) {
-        setErrors((prev) => [...prev, "editError"]);
-        toast.error("Please select an edit type since you requested editing");
+        setErrors((prev) => [...prev, "videoEditError", "photoEditError"]);
+        toast.error("Please select at least one photo or video edit type");
         return false;
       }
     }
@@ -1100,8 +1136,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             icon={<SquaresUnite size={20} />}
             checked={
               // data.contentType.length === 3 &&
-              data.contentType.length === 2 && //As cinematography is not to be included in the length count at present
-              !data.contentType.includes("editing")
+              data.contentType.length === 3 && //As cinematography is not to be included in the length count at present
+              data.contentType.includes("editing")
             }
             onChange={(checked) => {
               if (checked)
@@ -1109,8 +1145,10 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   contentType: [
                     "videographer",
                     "photographer",
+                    "editing",
                     // "cinematographer", This is not being mentioned in UI. Hence commented out
                   ],
+                  editsNeeded: true, 
                 });
               else updateData({ contentType: [] });
             }}
@@ -1128,13 +1166,12 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             onChange={() => toggleContentType("photographer")}
           />
           <ContentTypeCheckbox
-            label="AI Editing"
-            subLabel="Coming Soon"
+            label="Editing"
             icon={<Scissors size={20} />}
-            checked={false}
-            onChange={() => { }}
-            disabled={true}
+            checked={data.contentType.includes("editing")}
+            onChange={() => toggleContentType("editing")}
           />
+         
           <ContentTypeCheckbox
             label="Locations"
             subLabel="Coming Soon"
@@ -1158,18 +1195,15 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         <>
           {/* Shoot Type */}
           <div ref={shootTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("shootTypeError") ? "text-red-400" : "text-white/90"
-              }`}>
-              {data.contentType.includes("videographer") &&
-                //  ||data.contentType.includes("cinematographer")) && : Commented cinematographer as it is not being mentioned anywhere in UI
-                data.contentType.includes("photographer")
-                ? "Video and Photo Shoot Type"
-                : data.contentType.includes("videographer") ||
-                  data.contentType.includes("cinematographer")
+            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("shootTypeError") ? "text-red-400" : "text-white/90"}`}>
+           {data.contentType.includes("videographer") && data.contentType.includes("photographer")
+              ? "Video and Photo Shoot Type"
+              : data.contentType.includes("photographer")
+                ? "Photo Shoot Type"
+                : data.contentType.includes("videographer")
                   ? "Video Shoot Type"
-                  : "Photo Shoot Type"}
+                  : "Shoot Type"}
             </h3>
-
             {/* <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"> */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
               {/* {availableShootTypes.map((type) => ( */}
@@ -1186,7 +1220,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     selected={data.shootType === type.key}
                     onClick={() => {
                       updateData({ shootType: type.key });
-                      scrollToRef(bookingTypeRef);
+                      scrollToRef(isEditingOnly ? deliveryDateRef : bookingTypeRef);
                     }}
                   />
                 </div>
@@ -1202,7 +1236,36 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             </div>
           </div>
 
+          {isEditingOnly && (
+            <div ref={deliveryDateRef} className="pt-6 lg:pt-15 border-t border-white/10">
+              <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("deliveryDateError") ? "text-red-400" : "text-white/90"}`}>
+                Expected Delivered Date
+              </h3>
+              <div className="w-full">
+                <DatePicker
+                  label="Select Date"
+                  value={expectedDeliveryDate}
+                  onChange={handleExpectedDeliveryDateChange}
+                  minDate={addDays(new Date(), 1)}
+                  colors={datePickerColours}
+                  format="dd MMM, yyyy"
+                  floating
+                  sx={{
+                    width: "100%",
+                    height: { xs: "56px", lg: "82px" },
+                    borderRadius: { xs: "12px", lg: "16px" },
+                  }}
+                />
+              </div>
+              <div className="mt-4 inline-flex max-w-full rounded-xl bg-[#211F1C] px-4 py-3 text-sm font-medium text-[#E8D1AB]">
+                Note : Minimum 24 Hours Required for Editing Delivery
+              </div>
+            </div>
+          )}
+
           {/* Booking Type */}
+
+        {!isEditingOnly && (
           <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
             <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
               }`}>
@@ -1252,8 +1315,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
               </button>
             </div>
           </div>
+)}
 
           {/* Date & Time */}
+        {!isEditingOnly && (
+
           <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
             {bookingType === "single_day" ? (
               <>
@@ -1552,71 +1618,59 @@ export const V3Step1ChooseService: React.FC<Props> = ({
               </>
             )}
           </div>
-
+)}
           {/* Edits Needed */}
           <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
-            <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
-              }`}>
-              Edits Needed?
-            </h3>
-
-            <div className="flex gap-4">
-              <button
-                onClick={() => {
-                  updateData({ editsNeeded: true });
-                  scrollToRef(navigationRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
-                >
-                  {data.editsNeeded && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
+            {!data.contentType.includes("editing") && (
+              <>
+                <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"}`}>
+                  Edits Needed?
+                </h3>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => {
+                      updateData({ editsNeeded: true });
+                      scrollToRef(navigationRef);
+                    }}
+                    disabled={data.shootType === ""}
+                    className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                  >
+                    <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                    <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"}`}>
+                      {data.editsNeeded && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setOpenEditPanel(null);
+                      updateData({ editsNeeded: false, videoEditTypes: [], photoEditTypes: [] });
+                      scrollToRef(navigationRef);
+                    }}
+                    disabled={data.shootType === ""}
+                    className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                  >
+                    <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                    <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"}`}>
+                      {!data.editsNeeded && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
+                    </div>
+                  </button>
                 </div>
-              </button>
-              <button
-                onClick={() => {
-                  setOpenEditPanel(null);
-                  updateData({
-                    editsNeeded: false,
-                    videoEditTypes: [],
-                    photoEditTypes: [],
-                  });
-                  scrollToRef(navigationRef);
-                }}
-                disabled={data.shootType === ""}
-                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-              >
-                <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-                <div
-                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
-                    }`}
-                >
-                  {!data.editsNeeded && (
-                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                  )}
-                </div>
-              </button>
-            </div>
+              </>
+            )}
 
-            {data.editsNeeded && (
-              <div className="animate-in slide-in-from-top-4 duration-300 mt-4 lg:mt-8">
-                <h4 className={` ${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
+            {/* Edit Dropdowns — show when editsNeeded OR editing only */}
+            {(data.editsNeeded || isEditingOnly) && (
+              <div className={`animate-in slide-in-from-top-4 duration-300 ${!isEditingOnly ? "mt-4 lg:mt-8" : ""}`}>
+                <h4 className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
                   <Info size={24} className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"}`} />
                   Editing includes
                 </h4>
                 <p className="text-white/60 text-sm mb-11">
-                  Professional editing includes color grading, sound mixing, and
-                  basic revisions.
+                  Professional editing includes color grading, sound mixing, and basic revisions.
                 </p>
 
                 <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
-                  {data.contentType.includes("videographer") && editTypeOptions.length > 0 && (
+                  {(data.contentType.includes("videographer") || isEditingOnly) && editTypeOptions.length > 0 && (
                     <div ref={videoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
                       <button
                         type="button"
@@ -1628,10 +1682,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                           {videoEditSummaryItems.length > 0 && (
                             <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
                               {videoEditSummaryItems.map((item) => (
-                                <span
-                                  key={item.key}
-                                  className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
-                                >
+                                <span key={item.key} className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white">
                                   <span className="truncate max-w-[180px]">{item.label}</span>
                                   <span className="shrink-0 text-white/50">x{item.count}</span>
                                 </span>
@@ -1639,22 +1690,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                             </div>
                           )}
                         </div>
-                        {isVideoEditOpen ? (
-                          <ChevronUp className="text-white flex-shrink-0" />
-                        ) : (
-                          <ChevronDown className="text-white flex-shrink-0" />
-                        )}
+                        {isVideoEditOpen ? <ChevronUp className="text-white flex-shrink-0" /> : <ChevronDown className="text-white flex-shrink-0" />}
                       </button>
-
                       {isVideoEditOpen && (
                         <div className="border-t border-white/10 px-5 py-3">
                           {editTypeOptions.map((option) => {
                             const count = videoEditCounts[option.key] || 0;
                             return (
-                              <div
-                                key={option.key}
-                                className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
-                              >
+                              <div key={option.key} className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0">
                                 <span className="text-sm lg:text-base text-white">{option.value}</span>
                                 <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                                   <QuantityControl
@@ -1674,7 +1717,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     </div>
                   )}
 
-                  {data.contentType.includes("photographer") && photoEditTypeOptions.length > 0 && (
+                  {(data.contentType.includes("photographer") || isEditingOnly) && photoEditTypeOptions.length > 0 && (
                     <div ref={photoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
                       <button
                         type="button"
@@ -1686,10 +1729,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                           {photoEditSummaryItems.length > 0 && (
                             <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
                               {photoEditSummaryItems.map((item) => (
-                                <span
-                                  key={item.key}
-                                  className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
-                                >
+                                <span key={item.key} className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white">
                                   <span className="truncate max-w-[180px]">{item.label}</span>
                                   <span className="shrink-0 text-white/50">x{item.count}</span>
                                 </span>
@@ -1697,27 +1737,17 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                             </div>
                           )}
                         </div>
-                        {isPhotoEditOpen ? (
-                          <ChevronUp className="text-white flex-shrink-0" />
-                        ) : (
-                          <ChevronDown className="text-white flex-shrink-0" />
-                        )}
+                        {isPhotoEditOpen ? <ChevronUp className="text-white flex-shrink-0" /> : <ChevronDown className="text-white flex-shrink-0" />}
                       </button>
-
                       {isPhotoEditOpen && (
                         <div className="border-t border-white/10 px-5 py-3">
                           {photoEditTypeOptions.map((option) => {
                             const count = photoEditCounts[option.key] || 0;
                             return (
-                              <div
-                                key={option.key}
-                                className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
-                              >
+                              <div key={option.key} className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0">
                                 <div>
                                   <div className="text-sm lg:text-base text-white">{option.value}</div>
-                                  <div className="text-xs text-white/40 mt-1">
-                                    +{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set
-                                  </div>
+                                  <div className="text-xs text-white/40 mt-1">+{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set</div>
                                 </div>
                                 <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                                   <QuantityControl
@@ -1732,20 +1762,22 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                               </div>
                             );
                           })}
-
                           <div className="flex flex-wrap gap-3 pt-4">
-                            <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
-                              Includes {photoEditSummary.includedCount} free photo edits
-                            </div>
-                            <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
-                              {durationHours} Hour Duration
-                            </div>
+                            {!isEditingOnly && (
+                              <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                                Includes {photoEditSummary.includedCount} free photo edits
+                              </div>
+                            )}
+                            {!isEditingOnly && (
+                              <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
+                                {durationHours} Hour Duration
+                              </div>
+                            )}
                             <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
                               + {photoEditSummary.extraCount} Added Extra
                             </div>
                           </div>
-
-                          {photoEditNote && (
+                          {!isEditingOnly && photoEditNote && (
                             <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
                               <Info size={16} className="mt-0.5 flex-shrink-0" />
                               <span>{photoEditNote}</span>
@@ -1760,13 +1792,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                 {receiveSummaryText && (
                   <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black">
                     <div className="grid h-10 w-10 place-items-center rounded-full bg-black text-[#E8D1AB]">
-                      <Image
-                        src="/images/misc/booking-sparkle.png"
-                        alt=""
-                        width={18}
-                        height={18}
-                        className="h-[18px] w-[18px]"
-                      />
+                      <Image src="/images/misc/booking-sparkle.png" alt="" width={18} height={18} className="h-[18px] w-[18px]" />
                     </div>
                     <p className="text-sm lg:text-base font-semibold">
                       You&apos;ll Receive {receiveSummaryText}
