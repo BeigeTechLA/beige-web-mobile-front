@@ -231,7 +231,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
     // 1. Calculate Base Crew (Step 1 choices)
     includedRoles.forEach((role: any) => {
-      crewRoles[role.id] = 1;
+      const apiRoleId = role.id === "editing" ? "editor" : role.id;
+      crewRoles[apiRoleId] = 1;
     });
 
     // 2. Add Extra Crew (Step 2 choices)
@@ -241,26 +242,46 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       }
     });
 
+    if (isEditingOnly) {
+      crewRoles.editor = 1;
+    }
+
     try {
       // 3. CALL API WITH ALL DETAILS
-      const response = await updateBookingCrew({
+      const payload: {
+        booking_id: number;
+        crew_roles: Record<string, number>;
+        location?: string;
+        description?: string;
+        reference_links?: string;
+      } = {
         booking_id: data.bookingId,
         crew_roles: crewRoles,
-        location: data.location,               // NEW: From LocationPicker
         description: data.specialInstructions,  // NEW: From Textarea
         reference_links: data.referenceLinks,   // NEW: From Input
-      }).unwrap();
+      };
+
+      if (!isEditingOnly && data.location) {
+        payload.location = data.location;
+      }
+
+      const response = await updateBookingCrew(payload).unwrap();
 
       const serverCrewRoles = response.data.crew_roles;
       const vCount = serverCrewRoles.videographer || 0;
       const pCount = serverCrewRoles.photographer || 0;
+      const editorCount = serverCrewRoles.editor || 0;
+      const totalCrewCount = Object.values(serverCrewRoles || {}).reduce(
+        (sum: number, count: any) => sum + Number(count || 0),
+        0
+      );
 
       // Update local context for Step 3/4
       updateData({
         roleCounts: serverCrewRoles,
         videographyCount: vCount,
         photographyCount: pCount,
-        crewCount: vCount + pCount
+        crewCount: totalCrewCount || editorCount || vCount + pCount
       });
 
       const formFields: FormFields = {

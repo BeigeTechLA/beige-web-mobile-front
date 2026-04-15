@@ -232,7 +232,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const handleExpectedDeliveryDateChange = (date: Date | null) => {
     updateData({
       expectedDeliveryDate: date
-        ? format(set(date, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 }), "yyyy-MM-dd'T'HH:mm:ss")
+        ? format(set(date, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 }), "yyyy-MM-dd")
         : "",
     });
     if (date) {
