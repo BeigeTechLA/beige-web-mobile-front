@@ -6,7 +6,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
-import { Video, Camera } from "lucide-react";
+import { Video, Camera, Scissors } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { isValidUrl } from "@/lib/utils";
 import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
@@ -63,8 +63,19 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   const detailsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
 
-  const includedRoles = data.contentType.filter(t => t !== 'editing').map(t => {
-    const role = TEAM_ROLES.find(r => r.id === t);
+  const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
+
+  const includedRoles = data.contentType.map((type) => {
+    if (type === "editing") {
+      return {
+        id: "editing",
+        label: "Editing",
+        icon: <Scissors size={28} />,
+        count: 1,
+      };
+    }
+
+    const role = TEAM_ROLES.find((r) => r.id === type);
     return role ? { ...role, count: 1 } : null;
   }).filter(Boolean);
 
@@ -205,7 +216,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   // Inside V3Step2MoreDetails.tsx
 
   const handleNext = async () => {
-    if (!data.location) {
+    if (!isEditingOnly && !data.location) {
       toast.error("Please select a location");
       setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
       return;
@@ -340,6 +351,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         </div>
       </div>
       {/* Add More Team Members */}
+      {!isEditingOnly && (
       <div ref={extraTeamRef}>
         <div className="flex flex-col gap-3 lg:gap-6">
           <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
@@ -414,8 +426,10 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           </div>
         )}
       </div>
+      )}
 
       {/* Location */}
+      {!isEditingOnly && (
       <div ref={locationRef} className="pt-6 lg:pt-15 border-t border-white/10">
         {/* <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3> */}
         <LocationPicker
@@ -430,6 +444,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           hasError={errors.includes("locationError")}
         />
       </div>
+      )}
 
       {/* Details Form */}
       <div ref={detailsRef} className="pt-6 lg:pt-15 border-t border-white/10 flex flex-col gap-4 lg:gap-10">

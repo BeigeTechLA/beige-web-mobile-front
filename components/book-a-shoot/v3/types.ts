@@ -15,6 +15,7 @@ export type BookingDataV3 = {
   // Date & Time
   startDate: string;
   endDate: string;
+  expectedDeliveryDate?: string;
   
   // Edits
   editsNeeded: boolean;
@@ -57,6 +58,7 @@ export const initialDataV3: BookingDataV3 = {
   bookingDays: [],
   startDate: "",
   endDate: "",
+  expectedDeliveryDate: "",
   editsNeeded: true,
   videoEditTypes: [],
   photoEditTypes: [],
