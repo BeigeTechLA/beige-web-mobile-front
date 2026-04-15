@@ -447,6 +447,35 @@ export const salesApi = createApi({
       transformResponse: (response: ApiResponse<any>) => response.data!,
       providesTags: (result, error, id) => [{ type: 'Lead', id }],
     }),
+
+    // =====================================================
+    // Availability Endpoints
+    // =====================================================
+
+    addAvailability: builder.mutation<ApiResponse<void>, {
+      date: string;
+      availability_status: number;
+      is_full_day: number;
+      notes?: string;
+    }>({
+      query: (data) => ({
+        url: 'sales/add-availability',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
+    getAvailability: builder.mutation<ApiResponse<any>, {
+      sales_rep_id?: number;
+      year: string;
+      month: string;
+    }>({
+      query: (data) => ({
+        url: 'sales/availability',
+        method: 'POST',
+        body: data,
+      }),
+    }),
   }),
 });
 
@@ -501,5 +530,7 @@ export const {
   useSendInvoiceMutation,
   useUpdateLeadIntentMutation,
   useUpdateClientLeadIntentMutation,
-  useGenerateClientDiscountCodeMutation
+  useGenerateClientDiscountCodeMutation,
+  useAddAvailabilityMutation,
+  useGetAvailabilityMutation
 } = salesApi;

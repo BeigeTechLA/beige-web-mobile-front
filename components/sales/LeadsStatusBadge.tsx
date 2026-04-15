@@ -51,6 +51,10 @@ const BOOKING_STATUS_STYLES: Record<
   "Proposal Sent": { bg: "bg-[#DFD7FE]", text: "text-[#6947E8]" },
   "Payment Link Sent": { bg: "bg-[#DFD7FE]", text: "text-[#6947E8]" }, // NEW: Uses Proposal Sent color
   "Payment Sent": { bg: "bg-[#86DAFF]", text: "text-[#0F77A6]" },
+  "Link Sent": { bg: "bg-[#DFD7FE]", text: "text-[#6947E8]" },
+  "Link Expired": { bg: "bg-[#FFE3B3]", text: "text-[#A16207]" },
+  "Pending": { bg: "bg-[#FFF4C9]", text: "text-[#BA6605]" },
+  "Unpaid": { bg: "bg-[#FFF4C9]", text: "text-[#BA6605]" },
 
   // --- Ready Group ---
   "Ready for Payment": { bg: "bg-[#FFCA9E]", text: "text-[#BE5C0B]" },

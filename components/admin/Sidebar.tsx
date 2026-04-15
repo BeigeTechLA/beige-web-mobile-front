@@ -46,7 +46,15 @@ const menuItems = [
   { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings' },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability' },
-  { name: 'Sales Representative', icon: CircleDollarSign, link: '/admin/sales-representative' },
+  {
+    name: 'Sales Representative',
+    icon: CircleDollarSign,
+    link: '/admin/sales-representative',
+    children: [
+      { name: 'Dashboard', link: '/admin/sales-representative' },
+      { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
+    ]
+  },
   {
     name: 'Users',
     icon: Users,
@@ -56,9 +64,17 @@ const menuItems = [
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
-  { name: 'Quotes', icon: CustomQuotesIcon, link: '/admin/quotes' },
-  { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studio-management' },
+  {
+    name: 'Quotes',
+    icon: CustomQuotesIcon,
+    link: '/admin/quotes',
+    children: [
+      { name: 'All Quotes', link: '/admin/quotes' },
+      { name: 'Master Pricing', link: '/admin/quotes/pricing' },
+    ],
+  },
   { name: 'Invoices', icon: Receipt, link: '/admin/invoice' },
+  { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studio-management' },
 ];
 
 type MenuItem = {
@@ -81,6 +97,22 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const [expanded, setExpanded] = useState<string[]>(["Users"]);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    setExpanded((prev) => {
+      const next = [...prev];
+
+      if (pathname?.startsWith("/admin/users") && !next.includes("Users")) {
+        next.push("Users");
+      }
+
+      if (pathname?.startsWith("/admin/sales-representative") && !next.includes("Sales Representative")) {
+        next.push("Sales Representative");
+      }
+
+      return next;
+    });
+  }, [pathname]);
 
   useEffect(() => {
     // Only trigger onClose if the current pathname is different 
@@ -109,15 +141,33 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
   const isActiveLink = (link?: string) => {
     if (!link || link === "#") return false;
+
+    if (link === "/admin/sales-representative") {
+      return pathname === link || pathname?.startsWith(`${link}/`);
+    }
+
     return (
       pathname === link ||
       (link !== "/admin/dashboard" && pathname?.startsWith(link))
     );
   };
 
+  const isChildActive = (parentName: string, link?: string) => {
+    if (!link || link === "#") return false;
+
+    if (parentName === "Sales Representative" && link === "/admin/sales-representative") {
+      return pathname === link || (
+        pathname?.startsWith("/admin/sales-representative/") &&
+        !pathname?.startsWith("/admin/sales-representative/sales-people")
+      );
+    }
+
+    return isActiveLink(link);
+  };
+
   const isParentActive = (item: MenuItem) => {
     if (item.children) {
-      return item.children.some((child) => isActiveLink(child.link));
+      return item.children.some((child) => isChildActive(item.name, child.link)) || isActiveLink(item.link);
     }
     return isActiveLink(item.link);
   };
@@ -177,11 +227,17 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     onClick={() => !isDisabled && toggleExpand(item.name)}
                     className={`${baseClass} ${active ? activeClass : inactiveClass} ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                       <item.icon size={20} />
-                      <span className="font-medium">{item.name}</span>
+                      <span
+                        className={`min-w-0 truncate text-left font-medium whitespace-nowrap ${
+                          item.name === "Sales Representative" ? "text-[13px] lg:text-sm" : ""
+                        }`}
+                      >
+                        {item.name}
+                      </span>
                     </div>
-                    <ChevronDown size={16} className={`transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                    <ChevronDown size={16} className={`shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                   </button>
                 ) : isDisabled ? (
                   <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-not-allowed select-none opacity-30 ${isDark ? "text-zinc-200" : "text-zinc-700"}`}>
@@ -193,9 +249,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                     onClick={() => handleNavigation(item.link || '#')}
                     className={`${baseClass} ${active ? activeClass : inactiveClass}`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                       <item.icon size={20} />
-                      <span className="font-medium">{item.name}</span>
+                      <span
+                        className={`min-w-0 truncate text-left font-medium whitespace-nowrap ${
+                          item.name === "Sales Representative" ? "text-[13px] lg:text-sm" : ""
+                        }`}
+                      >
+                        {item.name}
+                      </span>
                     </div>
                   </button>
                 )}
@@ -204,12 +266,12 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {hasChildren && isExpanded && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {item.children!.map((child) => {
-                      const isChildActive = isActiveLink(child.link);
+                      const childActive = isChildActive(item.name, child.link);
                       return (
                         <button
                           key={child.name}
                           onClick={() => handleNavigation(child.link)}
-                          className={`block px-4 py-2 text-sm rounded-lg transition-colors ${isChildActive
+                          className={`block px-4 py-2 text-sm rounded-lg transition-colors ${childActive
                             ? (isDark ? "text-white font-medium" : "text-[#101010] font-bold")
                             : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
                             }`}

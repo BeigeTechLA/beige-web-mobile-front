@@ -8,6 +8,7 @@ import {
   Link,
   LinkIcon,
   List,
+  Loader2,
   MoreVertical,
   Search,
   Share2,
@@ -52,6 +53,24 @@ export default function AdminFolderManagerPage() {
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const getUpdatedTimestamp = (value?: string) => {
+    if (!value) return 0;
+    const timestamp = new Date(value).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  };
+
+  const isSameCalendarDate = (value: string | undefined, selected: Date) => {
+    if (!value) return false;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+
+    return (
+      date.getFullYear() === selected.getFullYear() &&
+      date.getMonth() === selected.getMonth() &&
+      date.getDate() === selected.getDate()
+    );
+  };
 
   const tabs = [
     { name: "All Files", icon: FolderOpen },
@@ -115,8 +134,18 @@ export default function AdminFolderManagerPage() {
       );
     }
 
+    if (selectedDate) {
+      items = items.filter((item) => isSameCalendarDate(item.updatedAtRaw, selectedDate));
+    }
+
+    items.sort((a, b) => {
+      const diff = getUpdatedTimestamp(b.updatedAtRaw) - getUpdatedTimestamp(a.updatedAtRaw);
+      if (diff !== 0) return diff;
+      return a.title.localeCompare(b.title);
+    });
+
     return items;
-  }, [projects, searchTerm, selectedTab, status]);
+  }, [projects, searchTerm, selectedTab, status, selectedDate]);
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -286,7 +315,10 @@ export default function AdminFolderManagerPage() {
           </div>
 
           {loading ? (
-            <div className="text-white/70 text-sm">Loading projects...</div>
+             <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>
           ) : error ? (
             <div className="text-red-300 text-sm">{error}</div>
           ) : filteredFolders.length === 0 ? (

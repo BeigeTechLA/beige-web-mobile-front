@@ -87,6 +87,12 @@ const normalizeParticipant = (
 
 const normalizeEmail = (value?: string | null) => String(value || "").trim().toLowerCase();
 
+const formatInvitationResponse = (response: string) => {
+  if (response === "declined") return "Rejected";
+  if (response === "accepted") return "Accepted";
+  return "Pending";
+};
+
 const getParticipantResponse = (
   meeting: MeetingItem | null,
   target: { id?: string | number; email?: string | null }
@@ -456,28 +462,32 @@ export default function MeetingDetailsModal({
                   <p className="mt-1 text-sm text-white/45">
                     Your current response is{" "}
                     <span className="capitalize text-[#E5D5B8]">
-                      {currentResponse}
+                      {formatInvitationResponse(currentResponse)}
                     </span>
                     .
                   </p>
                   <div className="mt-4 flex gap-3">
-                    <Button
-                      type="button"
-                      onClick={() => handleRespond("accepted")}
-                      disabled={submitting}
-                      className="bg-emerald-500 text-white hover:bg-emerald-600"
-                    >
-                      Accept
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleRespond("declined")}
-                      disabled={submitting}
-                      className="border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
-                    >
-                      Decline
-                    </Button>
+                    {currentResponse !== "accepted" ? (
+                      <Button
+                        type="button"
+                        onClick={() => handleRespond("accepted")}
+                        disabled={submitting}
+                        className="bg-emerald-500 text-white hover:bg-emerald-600"
+                      >
+                        Accept
+                      </Button>
+                    ) : null}
+                    {currentResponse !== "declined" ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleRespond("declined")}
+                        disabled={submitting}
+                        className="border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
+                      >
+                        Reject
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
@@ -502,8 +512,6 @@ export default function MeetingDetailsModal({
                 const removable = canManageParticipants && !isCompleted && !["client", "admin"].includes(String(participant?.role || ""));
                 const isCurrentUserParticipant =
                   !!currentUserId && String(participant?.id || "") === String(currentUserId);
-                const showInlineResponseActions =
-                  canRespond && isCurrentUserParticipant;
 
                 return (
                   <div
@@ -519,6 +527,9 @@ export default function MeetingDetailsModal({
                           </span>
                         ) : null}
                       </div>
+                      {participant?.email ? (
+                        <p className="mt-1 truncate text-sm text-white/45">{participant.email}</p>
+                      ) : null}
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <span className="text-xs uppercase tracking-[0.16em] text-white/35">
                           {String(participant?.role || "participant").replace(/_/g, " ")}
@@ -530,33 +541,6 @@ export default function MeetingDetailsModal({
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                      {showInlineResponseActions ? (
-                        <>
-                          {response !== "accepted" ? (
-                            <Button
-                              type="button"
-                              onClick={() => handleRespond("accepted")}
-                              disabled={submitting}
-                              className="h-9 bg-emerald-500 px-3 text-white hover:bg-emerald-600"
-                            >
-                              {submitting && currentResponse !== "accepted" ? <Loader2 size={14} className="animate-spin" /> : null}
-                              Accept
-                            </Button>
-                          ) : null}
-                          {response !== "declined" ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => handleRespond("declined")}
-                              disabled={submitting}
-                              className="h-9 border-rose-400/20 bg-rose-500/10 px-3 text-rose-200 hover:bg-rose-500/20"
-                            >
-                              Reject
-                            </Button>
-                          ) : null}
-                        </>
-                      ) : null}
-
                       {removable ? (
                         <button
                           type="button"

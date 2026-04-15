@@ -8,9 +8,10 @@ import { cn } from "@/lib/utils";
 import { adminApi } from "@/lib/api";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 import {
+  getProjectDateText,
   getPaymentStatusMeta,
   getProjectFolderLink,
-  getProjectTimeText,
+  getProjectScheduleTimeText,
   getShootFilesText,
 } from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
@@ -98,7 +99,8 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
       isMounted = false;
     };
   }, [projectId]);
-  const projectTimeText = getProjectTimeText(project);
+  const projectDateText = getProjectDateText(project);
+  const projectTimeText = getProjectScheduleTimeText(project);
   const resolvedStatusLabel =
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
@@ -206,18 +208,14 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
             <div className="flex gap-2">
               <span>Shoot Date :</span>
               <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                {project?.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ""}
+                {projectDateText}
               </span>
             </div>
             <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
             <div className="flex gap-2">
               <span>Time :</span>
               <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                {project?.start_time && project?.end_time ? (
-                  `${project.start_time.split(':').slice(0, 2).join(':')} - ${project.end_time.split(':').slice(0, 2).join(':')}`
-                ) : project?.event_start_time ? (
-                  new Date(project.event_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                ) : ""}
+                {projectTimeText}
               </span>
             </div>
             <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />

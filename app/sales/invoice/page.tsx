@@ -10,11 +10,7 @@ import { InvoiceTable } from "@/components/admin/InvoiceTable";
 const canAccessSalesInvoice = (user: Record<string, unknown> | null) => {
   if (!user) return false;
 
-  const userTypeId = user.user_type_id ?? user.userTypeId;
-  const roleValue = user.role ?? user.userRole;
-  const normalizedRole = String(roleValue ?? "").trim().toLowerCase();
-
-  return userTypeId === 7 && normalizedRole === "sales_admin";
+  return Number(user.user_type_id ?? user.userTypeId) === 7;
 };
 
 export default function SalesInvoicePage() {
@@ -71,7 +67,7 @@ export default function SalesInvoicePage() {
                 isDark ? "text-white/70" : "text-[#000000B2]"
               }`}
             >
-              keep track of your billing history.
+              Keep track of your billing history.
             </p>
           </div>
         </div>

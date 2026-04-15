@@ -235,6 +235,39 @@ interface BookingData {
   end_time: string;
   booking_days: BookingDay[];
 }
+
+const formatBookingDisplayTime = (value?: string) => {
+  if (!value) return "";
+
+  const trimmed = value.trim();
+  const timeMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+
+  if (timeMatch) {
+    const hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+      const date = new Date(2000, 0, 1, hours, minutes, 0, 0);
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
+  }
+
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+
+  return trimmed;
+};
+
 export const getBookingDetails = (data: BookingData) => {
   const bookingDays: BookingDay[] = data.booking_days || [];
 
@@ -287,10 +320,10 @@ export const getBookingDetails = (data: BookingData) => {
 
   const displayTimeText: string = isMultiDay
     ? (allSameTime && firstDay?.start_time && firstDay?.end_time
-      ? `${firstDay.start_time.slice(0, 5)} - ${firstDay.end_time.slice(0, 5)}`
+      ? `${formatBookingDisplayTime(firstDay.start_time)} - ${formatBookingDisplayTime(firstDay.end_time)}`
       : "Multiple times")
     : (data.start_time && data.end_time
-      ? `${data.start_time.slice(0, 5)} - ${data.end_time.slice(0, 5)}`
+      ? `${formatBookingDisplayTime(data.start_time)} - ${formatBookingDisplayTime(data.end_time)}`
       : "Time not set");
 
   return {

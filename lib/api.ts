@@ -1938,6 +1938,24 @@ export const CheckCPStatus = async () => {
   }
 };
 
+export const ConfirmCPEventLocation = async () => {
+  try {
+    const response = await api.post("auth/cp-event-location/confirm", {}, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error: any) {
+    console.error('Confirm CP Event Location Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error.response?.data?.message || 'Failed to confirm event location',
+    };
+  }
+};
+
 export const salesApi = {
   getLeadStats: async (leadId: number | string) => {
     try {
@@ -2088,7 +2106,7 @@ export const salesApi = {
       };
     }
   },
-  getInvoiceHistory: async (params: {page?: number;limit?: number; } = {}) => {
+  getInvoiceHistory: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
     try {
       const response = await api.get('/sales/dashboard/invoice-history', { params });
       return response.data;
@@ -2366,6 +2384,26 @@ export const salesApi = {
       };
     }
   },
+  getSalesRepStatusDetails: async (
+    params: {
+      sales_rep_id: number | string;
+      date?: string;
+      start_date?: string;
+      end_date?: string;
+    }
+  ) => {
+    try {
+      const response = await api.get('/sales/status-details', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Sales Rep Status Details Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch sales representative status details',
+      };
+    }
+  },
   getDashboardOverview: async (period: string = 'all_time') => {
     try {
       const response = await api.get('/sales/dashboard/overview', {
@@ -2388,6 +2426,32 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch dashboard overview',
+      };
+    }
+  },
+  getCurrentSalesStatus: async () => {
+    try {
+      const response = await api.get('/sales/current-status');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Current Sales Status Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch current sales status',
+      };
+    }
+  },
+  toggleSalesStatus: async (payload: { is_available: 0 | 1; reason?: string }) => {
+    try {
+      const response = await api.post('/sales/toggle-status', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Toggle Sales Status Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update sales status',
       };
     }
   },

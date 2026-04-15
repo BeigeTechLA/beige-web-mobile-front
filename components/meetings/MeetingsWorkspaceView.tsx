@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarClock, ExternalLink, Eye, RefreshCw, Search, Trash2 } from "lucide-react";
+import { CalendarClock, ExternalLink, Eye, Loader2, RefreshCw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import CreateMeetingModal from "@/components/meetings/CreateMeetingModal";
@@ -43,6 +43,12 @@ const getIdentityId = (value: unknown) => {
     return String(source._id || source.id || source.user_id || "");
   }
   return "";
+};
+
+const formatInvitationResponse = (response: string) => {
+  if (response === "declined") return "Rejected";
+  if (response === "accepted") return "Accepted";
+  return "Pending";
 };
 
 const formatDateTime = (value?: string) => {
@@ -184,22 +190,25 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
               Refresh
             </Button>
-            <Button
-              type="button"
-              onClick={() => setIsCreateModalOpen(true)}
-              disabled={!canCreateMeeting}
-              className="bg-[#E5D5B8] text-black hover:bg-[#d9c5a0]"
-            >
-              Create Meeting
-            </Button>
+            {canCreateMeeting ? (
+              <Button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="bg-[#E5D5B8] text-black hover:bg-[#d9c5a0]"
+              >
+                Create Meeting
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-[#222222] bg-[#111111] p-5">
-        {loading ? (
-          <div className="py-16 text-center text-sm text-white/45">Loading meetings...</div>
-        ) : error ? (
+        {loading ? 
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>: error ? (
           <div className="py-16 text-center text-sm text-[#ff8e8e]">{error}</div>
         ) : filteredMeetings.length === 0 ? (
           <div className="py-16 text-center text-sm text-white/45">
@@ -252,7 +261,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
                         {meeting.order?.name ? <span>Order: {meeting.order.name}</span> : null}
                         {canRespond ? (
                           <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-medium capitalize text-amber-300">
-                            Your response: {currentResponse}
+                            Your response: {formatInvitationResponse(currentResponse)}
                           </span>
                         ) : null}
                       </div>
