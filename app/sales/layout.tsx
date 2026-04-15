@@ -1,25 +1,55 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 
 import SalesSidebar from "@/components/sales/Sidebar";
-import SalesTopbar from '@/components/sales/Topbar';
 import { useTheme } from "next-themes"; // Integrated theme hook
 
+import { SalesStatusProvider, useSalesStatus } from '@/context/SalesStatusContext';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
+import { isSalesRouteAllowedWhileInactive } from '@/lib/sales-status';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const { isOpen, setIsOpen } = useSidebar();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const hasShownInactiveRedirectRef = React.useRef(false);
+  const {
+    isManagedUser,
+    isSalesAvailable,
+    isLoading: isSalesStatusLoading,
+  } = useSalesStatus();
 
   // Prevent hydration mismatch
   useEffect(() => setMounted(true), []);
 
   // Default to dark logic as per instructions
   const isDark = !mounted || theme === "dark";
+  const isAllowedWhileInactive = isSalesRouteAllowedWhileInactive(pathname);
+  const shouldBlockCurrentRoute =
+    isManagedUser &&
+    !isSalesStatusLoading &&
+    !isSalesAvailable &&
+    !isAllowedWhileInactive;
+
+  useEffect(() => {
+    if (!shouldBlockCurrentRoute) {
+      hasShownInactiveRedirectRef.current = false;
+      return;
+    }
+
+    if (!hasShownInactiveRedirectRef.current) {
+      toast.error("Your sales status is inactive. Set it to active to access details.");
+      hasShownInactiveRedirectRef.current = true;
+    }
+
+    router.replace("/sales/dashboard");
+  }, [router, shouldBlockCurrentRoute]);
 
   return (
     <div className={`flex flex-1 overflow-hidden relative transition-colors duration-300 ${
@@ -58,7 +88,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto custom-scrollbar">
-        {children}
+        {shouldBlockCurrentRoute ? null : children}
       </main>
     </div>
   );
@@ -74,14 +104,16 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
 
   return (
     <SidebarProvider>
-      {/* Root container handles base text and background colors */}
-      <div className={`flex flex-col h-screen overflow-hidden transition-colors duration-300 ${
-        isDark 
-          ? "bg-[#0f0f0f] text-white" 
-          : "bg-[#F4F5F7] text-[#000000]"
-      }`}>
-        <LayoutContent>{children}</LayoutContent>
-      </div>
+      <SalesStatusProvider>
+        {/* Root container handles base text and background colors */}
+        <div className={`flex flex-col h-screen overflow-hidden transition-colors duration-300 ${
+          isDark 
+            ? "bg-[#0f0f0f] text-white" 
+            : "bg-[#F4F5F7] text-[#000000]"
+        }`}>
+          <LayoutContent>{children}</LayoutContent>
+        </div>
+      </SalesStatusProvider>
     </SidebarProvider>
   );
 }

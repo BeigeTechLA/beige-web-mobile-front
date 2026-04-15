@@ -24,6 +24,7 @@ import {
   X,
   Video,
   Camera,
+  Scissors,
 } from "lucide-react";
 import {
   weddingEditTypes,
@@ -112,6 +113,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
   // Check if any editing services are selected
   const hasEditing = data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0;
+  const isEditingOnly =
+    data.contentType.length === 1 && data.contentType.includes("editing");
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -136,22 +139,28 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   );
   const displayDateText = isMultiDay
     ? `${sortedBookingDays.length} days • ${format(new Date(firstDay.date), "EEE, dd MMM yyyy")} - ${format(new Date(lastDay.date), "EEE, dd MMM yyyy")}`
-    : data.startDate
-      ? format(new Date(data.startDate), "EEEE, dd MMM yyyy")
-      : "Date not set";
+    : isEditingOnly && data.expectedDeliveryDate
+      ? format(new Date(data.expectedDeliveryDate), "EEEE, dd MMM yyyy")
+      : data.startDate
+        ? format(new Date(data.startDate), "EEEE, dd MMM yyyy")
+        : "Date not set";
   const displayTimeText = isMultiDay
     ? allSameTime && firstDay?.startTime && firstDay?.endTime
       ? `${firstDay.startTime} - ${firstDay.endTime}`
       : "Multiple times"
-    : data.startDate && data.endDate
-      ? `${format(new Date(data.startDate), "h:mm a")} - ${format(new Date(data.endDate), "h:mm a")}`
-      : "Time not set";
+    : isEditingOnly
+      ? "Not required for editing-only projects"
+      : data.startDate && data.endDate
+        ? `${format(new Date(data.startDate), "h:mm a")} - ${format(new Date(data.endDate), "h:mm a")}`
+        : "Time not set";
   const formatSummaryDate = (value: string) => format(new Date(value), "dd MMM, yyyy");
   const summaryDateText = displayDateText && (isMultiDay
     ? `${sortedBookingDays.length} Days • ${formatSummaryDate(firstDay.date)} - ${formatSummaryDate(lastDay.date)}`
-    : data.startDate
-      ? formatSummaryDate(data.startDate)
-      : "Date not set");
+    : isEditingOnly && data.expectedDeliveryDate
+      ? formatSummaryDate(data.expectedDeliveryDate)
+      : data.startDate
+        ? formatSummaryDate(data.startDate)
+        : "Date not set");
 
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(true);
@@ -165,7 +174,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   });
   const totalVideoEditsSelected = data.videoEditTypes.length;
   const editingSidebarRows = [
-    data.contentType.includes("photographer")
+    (data.contentType.includes("photographer") || isEditingOnly)
       ? {
         label: "Photos Included",
         value: `${photoEditSummary.includedCount} Photos`,
@@ -186,11 +195,15 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       : null,
   ].filter(Boolean) as Array<{ label: string; value: string; badge?: string }>;
   const receiveSummaryText = [
-    data.contentType.includes("photographer") ? `${photoEditSummary.totalCount} Photos` : null,
+    (data.contentType.includes("photographer") || isEditingOnly) && photoEditSummary.totalCount > 0
+      ? `${photoEditSummary.totalCount} Photos`
+      : null,
     totalVideoEditsSelected > 0 ? `${totalVideoEditsSelected} Videos Edits` : null,
   ].filter(Boolean).join(" + ");
   const totalEditsBadgeText = [
-    data.contentType.includes("photographer") ? `${photoEditSummary.totalCount} Photos` : null,
+    (data.contentType.includes("photographer") || isEditingOnly) && photoEditSummary.totalCount > 0
+      ? `${photoEditSummary.totalCount} Photos`
+      : null,
     totalVideoEditsSelected > 0 ? `${totalVideoEditsSelected} Videos` : null,
   ].filter(Boolean).join(" + ");
 
@@ -304,7 +317,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   useEffect(() => {
     const fetchQuote = async () => {
       // Check if we have duration
-      if (durationHours === 0) {
+      if (!isEditingOnly && durationHours === 0) {
         setQuoteTotal(null);
         setCrewBreakdown([]);
         return;
@@ -320,7 +333,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         console.log("V3Step4BookConfirm - Sending to API:", {
           creator_ids: data.selectedCrewIds,
           selectedCrewCount: data.selectedCrewIds?.length || 0,
-          shoot_hours: durationHours,
+          shoot_hours: isEditingOnly ? 0 : durationHours,
           event_type: data.shootType,
           crewCount: data.crewCount,
           shoot_start_date: data.startDate, // Verification log
@@ -341,17 +354,26 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           ? data.bookingDays.slice().sort((a, b) => a.date.localeCompare(b.date))[0]?.date
           : null;
 
-        const result = await calculateQuoteFromCreators({
+        const quotePayload: any = {
           creator_ids: data.selectedCrewIds,
-          shoot_hours: durationHours,
-          role_counts: data.roleCounts,
+          role_counts: isEditingOnly ? { editor: 1 } : data.roleCounts,
           event_type: data.shootType || "general",
-          shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : toIsoIfValid(data.startDate),
           video_edit_types: buildEditTypeCounts(data.videoEditTypes),
           photo_edit_types: buildEditTypeCounts(data.photoEditTypes),
           skip_discount: true,
           skip_margin: true,
-        }).unwrap();
+        };
+
+        if (isEditingOnly) {
+          quotePayload.content_type = "ai editing";
+        } else {
+          quotePayload.shoot_hours = durationHours;
+          quotePayload.shoot_start_date = firstBookingDate
+            ? `${firstBookingDate}T00:00:00.000Z`
+            : toIsoIfValid(data.startDate);
+        }
+
+        const result = await calculateQuoteFromCreators(quotePayload).unwrap();
 
         console.log("V3Step4BookConfirm - API Result:", {
           total: result.total,
@@ -459,7 +481,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     data.selectedCrewIds,
     data.shootType,
     data.startDate,
+    data.videoEditTypes,
+    data.photoEditTypes,
+    data.roleCounts,
     durationHours,
+    isEditingOnly,
     calculateQuoteFromCreators,
   ]);
 
@@ -482,6 +508,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   // 2. Logic to determine the icon
   const ContentTypeIcon = () => {
     const types = data.contentType.map((t) => t.toLowerCase());
+    if (isEditingOnly) {
+      return <Scissors size={20} className="text-[#E8D1AB]" />;
+    }
     if (types.some((t) => t.includes("video"))) {
       return <Video size={20} className="text-[#E8D1AB]" />;
     }
@@ -658,7 +687,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 </div>
                 <div className="p-4 lg:p-[30px] space-y-4">
 
-                  {data.contentType.includes("videographer") && (
+                  {data.videoEditTypes.length > 0 && (
                     <div className="flex flex-col gap-2 text-sm">
                       <span className="text-white">Video Edit</span>
                       <div className="flex flex-wrap gap-2">
@@ -675,7 +704,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     </div>
                   )}
 
-                  {data.contentType.includes("photographer") && (
+                  {(data.contentType.includes("photographer") || isEditingOnly) && data.photoEditTypes.length > 0 && (
                     <div className="flex flex-col gap-2 text-sm">
                       <span className="text-white">Photo Edit</span>
                       <div className="flex flex-wrap gap-2">
@@ -688,7 +717,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   )}
 
                   {/* Fallback if user selected "No" to edits for everything */}
-                  {!data.contentType.includes("videographer") && !data.contentType.includes("photographer") && (
+                  {data.videoEditTypes.length === 0 && data.photoEditTypes.length === 0 && (
                     <span className="text-white/40 text-sm">No editing services selected.</span>
                   )}
 
@@ -1061,3 +1090,4 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     </div>
   );
 };
+
