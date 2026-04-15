@@ -5,6 +5,7 @@ import Cookies from "js-cookie";
 import {
   ArrowLeft,
   Camera,
+  Download,
   ExternalLink,
   FolderOpen,
   Grid3X3,
@@ -142,6 +143,7 @@ export default function AffiliateFileManager() {
   const [isFaceScanning, setIsFaceScanning] = useState(false);
   const [faceMatches, setFaceMatches] = useState<FaceMatchItem[]>([]);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isCameraProcessing, setIsCameraProcessing] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -483,6 +485,7 @@ export default function AffiliateFileManager() {
 
   const handleCloseCamera = () => {
     setIsCameraOpen(false);
+    setIsCameraProcessing(false);
     setCameraError(null);
     stopCamera();
   };
@@ -517,12 +520,15 @@ export default function AffiliateFileManager() {
       return;
     }
 
+    setIsCameraProcessing(true);
+    stopCamera();
     try {
       await runFaceScan(base64);
       handleCloseCamera();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Face scan failed");
     } finally {
+      setIsCameraProcessing(false);
       setIsFaceScanning(false);
     }
   };
@@ -566,6 +572,18 @@ export default function AffiliateFileManager() {
     setViewerType("image/*");
     setViewerMetaId(match.path);
     setViewerUrl(match.url);
+  };
+
+  const handleDownloadMatchedImage = async (match: FaceMatchItem) => {
+    if (!match.path) return;
+    try {
+      const response = await fileManagerApi.getExternalFileDownloadUrl(match.path);
+      if (response?.url) {
+        window.open(response.url, "_blank", "noopener,noreferrer");
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to download image");
+    }
   };
 
   const handleBack = () => {
@@ -916,11 +934,15 @@ export default function AffiliateFileManager() {
               </p>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {faceMatches.map((match) => (
-                  <button
+                  <div
                     key={match.path}
-                    onClick={() => handleOpenMatchedImage(match)}
                     className="overflow-hidden rounded-lg border border-white/10 bg-black/20 text-left"
                   >
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMatchedImage(match)}
+                      className="w-full text-left"
+                    >
                     {match.url ? (
                       <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -935,10 +957,19 @@ export default function AffiliateFileManager() {
                         Preview unavailable
                       </div>
                     )}
+                    </button>
                     <div className="p-2 text-xs text-white/70">
                       Confidence: {Math.round((match.confidence || 0) * 100)}%
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadMatchedImage(match)}
+                        className="mt-2 inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-white/85 hover:bg-white/10"
+                      >
+                        <Download size={12} />
+                        Download
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -1037,11 +1068,15 @@ export default function AffiliateFileManager() {
             </p>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {faceMatches.map((match) => (
-                <button
+                <div
                   key={match.path}
-                  onClick={() => handleOpenMatchedImage(match)}
                   className="overflow-hidden rounded-lg border border-white/10 bg-black/20 text-left"
                 >
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMatchedImage(match)}
+                    className="w-full text-left"
+                  >
                   {match.url ? (
                     <div className="aspect-23/18 w-full bg-[#0f0f0f] flex items-center justify-center">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1056,10 +1091,19 @@ export default function AffiliateFileManager() {
                       Preview unavailable
                     </div>
                   )}
+                  </button>
                   <div className="p-2 text-xs text-white/70">
                     Confidence: {Math.round((match.confidence || 0) * 100)}%
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadMatchedImage(match)}
+                      className="mt-2 inline-flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[11px] text-white/85 hover:bg-white/10"
+                    >
+                      <Download size={12} />
+                      Download
+                    </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>
@@ -1320,9 +1364,17 @@ export default function AffiliateFileManager() {
               </button>
             </div>
             <div className="p-4">
-              {cameraError ? (
+              {cameraError && !isCameraProcessing ? (
                 <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">
                   {cameraError}
+                </div>
+              ) : null}
+              {isCameraProcessing ? (
+                <div className="flex aspect-video w-full items-center justify-center rounded-lg border border-white/10 bg-black">
+                  <div className="text-center">
+                    <Loader2 className="mx-auto animate-spin text-white/70" size={28} />
+                    <p className="mt-2 text-xs text-white/65">Scanning your face...</p>
+                  </div>
                 </div>
               ) : (
                 <video
@@ -1337,21 +1389,24 @@ export default function AffiliateFileManager() {
                 <button
                   type="button"
                   onClick={handleCloseCamera}
-                  className="rounded-md border border-white/15 px-3 py-1.5 text-sm text-white hover:bg-white/10"
+                  disabled={isCameraProcessing}
+                  className={`rounded-md border border-white/15 px-3 py-1.5 text-sm text-white ${
+                    isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleCaptureFromCamera}
-                  disabled={Boolean(cameraError) || isFaceScanning}
+                  disabled={Boolean(cameraError) || isFaceScanning || isCameraProcessing}
                   className={`rounded-md px-3 py-1.5 text-sm ${
-                    cameraError || isFaceScanning
+                    cameraError || isFaceScanning || isCameraProcessing
                       ? "cursor-not-allowed bg-[#E8D1AB]/30 text-black/70"
                       : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/90"
                   }`}
                 >
-                  {isFaceScanning ? "Scanning..." : "Capture & Scan"}
+                  {isFaceScanning || isCameraProcessing ? "Scanning..." : "Capture & Scan"}
                 </button>
               </div>
             </div>

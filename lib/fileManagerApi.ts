@@ -358,12 +358,24 @@ export const fileManagerApi = {
     return response.data;
   },
 
-  async createCreatorEventFolder(eventExternalId: string, folderName?: string) {
+  async createCreatorEventFolder(
+    eventExternalId: string,
+    folderName?: string,
+    options?: { phase?: string; path?: string }
+  ) {
     const response = await apiClient.post<{
       success: boolean;
-      data: { externalId: string; folderName: string; folder: Record<string, unknown> | null };
+      data: {
+        externalId: string;
+        phase?: string;
+        path?: string | null;
+        folderName: string;
+        folder: Record<string, unknown> | null;
+      };
     }>(`external-file-manager/common-events/${eventExternalId}/creator-folder`, {
       folderName,
+      phase: options?.phase,
+      path: options?.path,
     });
     return response.data;
   },

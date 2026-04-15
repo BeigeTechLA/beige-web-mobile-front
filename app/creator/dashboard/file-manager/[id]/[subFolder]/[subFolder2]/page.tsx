@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   ArrowLeft,
   CalendarClock,
   Download,
   FileVideo,
+  FolderPlus,
   Grid3X3,
   Image as ImageIcon,
   List,
@@ -18,7 +19,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
+import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
+import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
@@ -37,6 +40,7 @@ const STATUSES = ["Linked", "Unlinked"];
 
 export default function CreatorSubFolderDetailsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams<{ id: string; subFolder: string; subFolder2: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
@@ -46,6 +50,7 @@ export default function CreatorSubFolderDetailsPage() {
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceConsoleUrl, setWorkspaceConsoleUrl] = useState<string | null>(null);
+  const [folders, setFolders] = useState<Array<Record<string, unknown>>>([]);
   const [files, setFiles] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +58,7 @@ export default function CreatorSubFolderDetailsPage() {
   const [status, setStatus] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [openingFileId, setOpeningFileId] = useState<string | null>(null);
@@ -71,19 +77,24 @@ export default function CreatorSubFolderDetailsPage() {
     return shootDay.getTime() <= today.getTime();
   }, []);
 
+  const currentFolderPath = useMemo(() => {
+    const fromQuery = searchParams.get("path");
+    return fromQuery ? decodeURIComponent(fromQuery) : slugToWorkspaceName(nestedSlug);
+  }, [nestedSlug, searchParams]);
+
   const loadFiles = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const folderName = slugToWorkspaceName(nestedSlug);
       const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
         projectId,
         phaseSlug === "post-production" ? "post" : "pre",
-        folderName
+        currentFolderPath
       );
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
+      setFolders(workspaceData.folders || []);
       setFiles(workspaceData.files);
 
       if (Number.isFinite(Number(projectId))) {
@@ -101,7 +112,7 @@ export default function CreatorSubFolderDetailsPage() {
     } finally {
       setLoading(false);
     }
-  }, [nestedSlug, phaseSlug, projectId]);
+  }, [currentFolderPath, phaseSlug, projectId]);
 
   useEffect(() => {
     let mounted = true;
@@ -118,11 +129,37 @@ export default function CreatorSubFolderDetailsPage() {
   }, [loadFiles, projectId]);
 
   const folderTitle = useMemo(() => {
-    if (nestedSlug === "raw-footage") return "Raw Footages";
-    if (nestedSlug === "edited-footage") return "Edited Footages";
-    if (nestedSlug === "final-deliverables") return "Final Deliverables";
-    return "Files";
-  }, [nestedSlug]);
+    const safePath = String(currentFolderPath || "").trim();
+    if (!safePath) return "Files";
+    const parts = safePath.split("/").filter(Boolean);
+    const last = parts[parts.length - 1] || safePath;
+    return last
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, (ch) => ch.toUpperCase());
+  }, [currentFolderPath]);
+
+  const folderItems = useMemo(
+    () =>
+      (folders || []).map((folder) => {
+        const folderName = String(folder?.name || "").trim();
+        const nextPath = [currentFolderPath, folderName].filter(Boolean).join("/");
+        return {
+          id: String(folder?.path || nextPath || folderName),
+          title: folderName || "Folder",
+          fileCount: Number(folder?.fileCount || 0),
+          lastOpened: String(folder?.updatedAt || folder?.createdAt || ""),
+          category: String(folder?.folderType || "folder"),
+          isLinked: true,
+          userInitials: getDisplayInitials(folderName || "Folder"),
+          href: `/creator/dashboard/file-manager/${projectId}/${phaseSlug}/${String(folderName || "folder").toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
+            nextPath
+          )}`,
+        };
+      }),
+    [currentFolderPath, folders, phaseSlug, projectId]
+  );
 
   const folderFiles = useMemo(() => {
     return mapExternalFilesToUi(files as never[]).map((file) => ({
@@ -139,6 +176,12 @@ export default function CreatorSubFolderDetailsPage() {
     const query = searchTerm.toLowerCase();
     return items.filter((item) => item.title.toLowerCase().includes(query));
   }, [folderFiles, searchTerm, status]);
+
+  const filteredFolders = useMemo(() => {
+    if (!searchTerm.trim()) return folderItems;
+    const query = searchTerm.toLowerCase();
+    return folderItems.filter((item) => item.title.toLowerCase().includes(query));
+  }, [folderItems, searchTerm]);
 
   const formattedShootDate = useMemo(() => {
     if (!shootDate) return "your shoot day";
@@ -233,6 +276,22 @@ export default function CreatorSubFolderDetailsPage() {
     }
   };
 
+  const handleCreateFolder = async ({ name }: { name: string }) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      await fileManagerApi.createExternalFolder(projectId, trimmed, {
+        phase: phaseSlug === "post-production" ? "post" : "pre",
+        path: currentFolderPath,
+      });
+      toast.success("Folder created");
+      await loadFiles();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to create folder");
+      throw err;
+    }
+  };
+
   const canUpload = isCommonEventWorkspace || (phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate));
   const showUploadLockBanner = !isCommonEventWorkspace && phaseSlug === "post-production" && !canUpload;
 
@@ -245,15 +304,26 @@ export default function CreatorSubFolderDetailsPage() {
             <span className="text-sm font-medium">Back</span>
           </Button>
 
-          {canUpload ? (
-            <Button
-              onClick={() => setIsUploadModalOpen(true)}
-              className="flex items-center gap-2 rounded-lg bg-[#E5D5B8] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6"
-            >
-              <Upload size={18} />
-              Upload Files
-            </Button>
-          ) : null}
+	          {canUpload ? (
+	            <div className="flex items-center gap-2">
+	              {isCommonEventWorkspace ? (
+	                <Button
+	                  onClick={() => setIsCreateFolderModalOpen(true)}
+	                  className="flex items-center gap-2 rounded-lg border border-white/20 bg-[#202020] px-3 text-white hover:bg-white/10 lg:h-10 lg:px-6"
+	                >
+	                  <FolderPlus size={18} />
+	                  Create Folder
+	                </Button>
+	              ) : null}
+	              <Button
+	                onClick={() => setIsUploadModalOpen(true)}
+	                className="flex items-center gap-2 rounded-lg bg-[#E5D5B8] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6"
+	              >
+	                <Upload size={18} />
+	                Upload Files
+	              </Button>
+	            </div>
+	          ) : null}
         </div>
 
         {loading ? (
@@ -314,10 +384,10 @@ export default function CreatorSubFolderDetailsPage() {
           <div className="mb-6 flex flex-row items-center justify-between gap-4">
             <div className="relative max-w-xl flex-1">
               <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/40 lg:left-3 lg:h-4 lg:w-4" />
-              <input
-                type="text"
-                placeholder="Search files..."
-                value={searchTerm}
+	              <input
+	                type="text"
+	                placeholder="Search folders or files..."
+	                value={searchTerm}
                 className="w-full rounded-lg border border-white/10 bg-[#18181b] py-1.5 pl-6 pr-4 text-xs text-white placeholder:text-white/40 transition-all focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] lg:py-2 lg:pl-9 lg:text-sm"
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -349,9 +419,31 @@ export default function CreatorSubFolderDetailsPage() {
             </div>
           </div>
 
-          {viewMode === "grid" ? (
-            filteredData.length === 0 ? (
-              <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
+	          {filteredFolders.length > 0 ? (
+	            <div className="mb-6">
+	              <h3 className="mb-3 text-sm font-semibold text-[#E8D1AB]">Folders</h3>
+	              <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+	                {filteredFolders.map((folder) => (
+	                  <FolderCard
+	                    key={folder.id}
+	                    title={folder.title}
+	                    fileCount={folder.fileCount}
+	                    lastOpened={folder.lastOpened || "recently"}
+	                    category={folder.category}
+	                    isLinked={folder.isLinked}
+	                    userInitials={folder.userInitials}
+	                    onOpenLinkModal={() => undefined}
+	                    href={folder.href}
+	                    showMenu={false}
+	                  />
+	                ))}
+	              </div>
+	            </div>
+	          ) : null}
+
+	          {viewMode === "grid" ? (
+	            filteredData.length === 0 ? (
+	              <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
             ) : (
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
                 {filteredData.map((file) => (
@@ -501,17 +593,25 @@ export default function CreatorSubFolderDetailsPage() {
         </div>
       ) : null}
 
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        folderName={folderTitle}
-        uploadPath={
-          canUpload && workspaceName
-            ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${slugToWorkspaceName(nestedSlug)}`
-            : undefined
-        }
-        onUploadComplete={loadFiles}
-      />
+	      <UploadModal
+	        isOpen={isUploadModalOpen}
+	        onClose={() => setIsUploadModalOpen(false)}
+	        folderName={folderTitle}
+	        uploadPath={
+	          canUpload && workspaceName
+	            ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${currentFolderPath}`
+	            : undefined
+	        }
+	        onUploadComplete={loadFiles}
+	      />
+
+	      <CreateFolderModal
+	        isOpen={isCreateFolderModalOpen}
+	        onClose={() => setIsCreateFolderModalOpen(false)}
+	        onCreate={handleCreateFolder}
+	        title="Create Client Folder"
+	        description={`Create folder inside ${folderTitle}`}
+	      />
 
       <DeleteConfirmModal
         isOpen={isDeleteModalOpen}

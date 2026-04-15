@@ -22,6 +22,7 @@ import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
+import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import Topbar from "@/components/admin/Topbar";
@@ -51,6 +52,7 @@ export default function AdminFolderManagerPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+  const [isCreateCommonEventModalOpen, setIsCreateCommonEventModalOpen] = useState(false);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -194,13 +196,12 @@ export default function AdminFolderManagerPage() {
     }
   };
 
-  const handleCreateCommonEventFolder = async () => {
-    const eventName = window.prompt("Enter common event folder name (example: Weekend Wedding)");
-    if (!eventName || !eventName.trim()) return;
-
+  const handleCreateCommonEventFolder = async ({ name }: { name: string }) => {
+    const eventName = String(name || "").trim();
+    if (!eventName) return;
     try {
       setIsCreatingEvent(true);
-      await fileManagerApi.createCommonEvent(eventName.trim());
+      await fileManagerApi.createCommonEvent(eventName);
       toast.success("Common event folder created");
       await loadProjects();
     } catch (err: any) {
@@ -225,7 +226,7 @@ export default function AdminFolderManagerPage() {
 
           <div className="flex items-center gap-2">
             <Button
-              onClick={handleCreateCommonEventFolder}
+              onClick={() => setIsCreateCommonEventModalOpen(true)}
               disabled={isCreatingEvent}
               className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
             >
@@ -490,6 +491,16 @@ export default function AdminFolderManagerPage() {
           itemName={selectedFolder?.title || "this workspace"}
           itemType="workspace"
           isDeleting={isDeleting}
+        />
+
+        <CreateFolderModal
+          isOpen={isCreateCommonEventModalOpen}
+          onClose={() => {
+            if (!isCreatingEvent) setIsCreateCommonEventModalOpen(false);
+          }}
+          onCreate={handleCreateCommonEventFolder}
+          title="Create Common Event"
+          description="Create a common folder for admin uploads and file sharing"
         />
       </div>
     </>

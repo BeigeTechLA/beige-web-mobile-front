@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, X, Settings, Calendar, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, X, Settings, Calendar, Search, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -11,6 +11,7 @@ const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard' },
   { name: 'Affiliate Overview', icon: Users, link: '/affiliate/overview' },
   { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager' },
+  { name: 'Find Yourself', icon: Search, link: '/affiliate/find-yourself' },
   { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings' },
   { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages'},
   { name: 'Shoots', icon: Camera, link: '/affiliate/shoots' },

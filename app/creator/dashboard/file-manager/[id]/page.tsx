@@ -158,10 +158,21 @@ export default function CreatorFolderDetailsPage() {
     if (!isCommonEventWorkspace) return;
     try {
       setIsCreatingMyFolder(true);
-      const result = await fileManagerApi.createCreatorEventFolder(String(projectId));
-      const folderName = result?.folderName || "My Folder";
+      const results = await Promise.allSettled([
+        fileManagerApi.createCreatorEventFolder(String(projectId), undefined, { phase: "pre" }),
+        fileManagerApi.createCreatorEventFolder(String(projectId), undefined, { phase: "post" }),
+      ]);
+      const fulfilled = results
+        .filter((entry): entry is PromiseFulfilledResult<{ folderName?: string }> => entry.status === "fulfilled")
+        .map((entry) => entry.value);
+
+      if (!fulfilled.length) {
+        throw new Error("Failed to create Creative Partner folder");
+      }
+
+      const folderName = fulfilled[0]?.folderName || "My Folder";
       setCreatedCpFolderName(folderName);
-      toast.success("Your Creative Partner folder is ready");
+      toast.success("Your Creative Partner folder is ready in Pre and Post Production");
       await loadWorkspace();
       setIsUploadModalOpen(true);
     } catch (err: unknown) {
