@@ -488,8 +488,8 @@ export const CreativePartnersTable = () => {
                     <td className="py-5 px-6">
                       <StatusBadge status={user.status} />
                     </td>
-                    <td className="py-5 px-6 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                    <td className="py-5 px-6 text-center">
+                      <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                         {user.status === 'Approved' && (
                           <>
                             <button
@@ -507,7 +507,7 @@ export const CreativePartnersTable = () => {
                           <>
                             <button
                               onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="hover:text-red-500 transition-colors mr-2"
+                              className="hover:text-red-500 transition-colors"
                             >
                               <Trash2 size={18} />
                             </button>
@@ -523,7 +523,7 @@ export const CreativePartnersTable = () => {
                             >
                               Decline
                             </button>
-                            <button className="text-[#666] hover:text-white transition-colors ml-1">
+                            <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
                           </>
@@ -536,7 +536,7 @@ export const CreativePartnersTable = () => {
                             >
                               <Trash2 size={18} />
                             </button>
-                            <button className="text-[#666] hover:text-white transition-colors">
+                            <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
                               <ChevronRight size={20} />
                             </button>
                           </>
@@ -772,8 +772,8 @@ export const CreativePartnersTable = () => {
             <button
               onClick={() => setDeleteModalOpen(false)}
               className={`px-4 py-2 text-sm font-bold rounded-lg border transition-all ${isDark
-                  ? "bg-[#1A1A1A] text-white border-[#333] hover:bg-white/10"
-                  : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                ? "bg-[#1A1A1A] text-white border-[#333] hover:bg-white/10"
+                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
                 }`}
             >
               {deleteActionType === 'blocked' ? "Close" : "Cancel"}

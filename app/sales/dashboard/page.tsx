@@ -10,9 +10,11 @@ import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { useGetLeadsQuery } from "@/lib/redux/features/sales/salesApi";
 import { useDebounce } from "@/hooks/use-debounce";
 import { MobileLeadRow } from "@/components/admin/sales-representative/MobileDetailsBlock";
+import { useSalesStatus } from "@/context/SalesStatusContext";
 import { toast } from "sonner";
 import { adminApi, salesApi as salesService } from "@/lib/api";
 import { useAppSelector } from "@/lib/redux/hooks";
+import { parseSalesAvailabilityStatus } from "@/lib/sales-status";
 import { useTheme } from "next-themes";
 import DottedDivider from "@/components/admin/DottedDivider";
 import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
@@ -141,6 +143,9 @@ const OVERVIEW_PERIOD_MAP: Record<string, string> = {
   "Week": "7days",
 };
 
+const canUseSalesDashboardRepFilters = (userTypeId: number | null) =>
+  userTypeId === 5 || userTypeId === 7;
+
 const isMetricStat = (value: unknown): value is DashboardMetricStat =>
   !!value && typeof value === "object" && ("value" in value || "change_percent" in value);
 
@@ -208,72 +213,6 @@ const toNumber = (value: unknown): number => {
 const formatMetricValue = (value: unknown, suffix = ""): string => {
   const numericValue = toNumber(value);
   return `${numericValue}${suffix}`;
-};
-
-type SalesStatusPayload = {
-  is_available?: unknown;
-  isAvailable?: unknown;
-  available?: unknown;
-  reason?: unknown;
-  unavailable_reason?: unknown;
-  unavailableReason?: unknown;
-};
-
-type SalesStatusResponse = {
-  data?: SalesStatusPayload;
-  is_available?: unknown;
-  isAvailable?: unknown;
-  success?: boolean;
-  error?: string;
-};
-
-type SalesUserLike = {
-  user_type_id?: unknown;
-  userTypeId?: unknown;
-  role?: unknown;
-  userRole?: unknown;
-} | null | undefined;
-
-const parseSalesAvailabilityStatus = (response: SalesStatusResponse | null | undefined) => {
-  const payload = response?.data ?? response ?? {};
-  const rawAvailability =
-    payload.is_available ??
-    payload.isAvailable ??
-    payload.available ??
-    response?.is_available ??
-    response?.isAvailable;
-  const rawReason =
-    payload.reason ??
-    payload.unavailable_reason ??
-    payload.unavailableReason;
-
-  return {
-    isAvailable:
-      rawAvailability === true ||
-      rawAvailability === 1 ||
-      rawAvailability === "1",
-    reason: typeof rawReason === "string" ? rawReason.trim() : "",
-  };
-};
-
-const getCurrentUserTypeId = (currentUser: SalesUserLike): number | null => {
-  const normalizedUserTypeId = Number(
-    currentUser?.user_type_id ?? currentUser?.userTypeId
-  );
-
-  return Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null;
-};
-
-const canManageLiveSalesStatus = (currentUser: SalesUserLike): boolean => {
-  const normalizedRole = String(
-    currentUser?.role ?? currentUser?.userRole ?? ""
-  ).trim().toLowerCase();
-  const userTypeId = getCurrentUserTypeId(currentUser);
-
-  return (
-    userTypeId === 5 ||
-    normalizedRole === "sales_rep"
-  );
 };
 
 const getGrowthValue = (
@@ -387,6 +326,7 @@ export default function SalesLeadsPage() {
   const [mounted, setMounted] = useState(false);
   const hasRestoredFiltersRef = useRef(false);
   const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
+  const [canManageSalesDashboardFilters, setCanManageSalesDashboardFilters] = useState(false);
 
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
@@ -423,14 +363,18 @@ export default function SalesLeadsPage() {
   const [activeMetric, setActiveMetric] = useState('total_active');
   const [isLoading, setIsLoading] = useState(false);
   const [range, setRange] = useState('All Time');
-  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
-  const [isAvailabilityUpdating, setIsAvailabilityUpdating] = useState(false);
-  const [isSalesAvailable, setIsSalesAvailable] = useState(false);
-  const [salesUnavailableReason, setSalesUnavailableReason] = useState("");
   const [inactiveReasonDraft, setInactiveReasonDraft] = useState("");
   const [isInactiveReasonDialogOpen, setIsInactiveReasonDialogOpen] = useState(false);
   const sessionIdentity = `${token ?? "anonymous"}:${user?.id ?? user?.email ?? "no-user"}`;
-  const isAvailabilityToggleVisible = canManageLiveSalesStatus(user);
+  const {
+    isManagedUser: isAvailabilityToggleVisible,
+    isSalesAvailable,
+    unavailableReason: salesUnavailableReason,
+    isLoading: isAvailabilityLoading,
+    isUpdating: isAvailabilityUpdating,
+    setIsUpdating: setIsAvailabilityUpdating,
+    setSalesStatus,
+  } = useSalesStatus();
 
   const fetchDashboardOverview = async () => {
     if (!token) {
@@ -460,10 +404,15 @@ export default function SalesLeadsPage() {
     try {
       const storedUser = localStorage.getItem("revure_user");
       const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const userTypeId = parsedUser?.user_type_id ?? parsedUser?.userTypeId;
-      const canManageFilters = userTypeId === 7;
+      const userTypeId = Number(
+        parsedUser?.user_type_id ?? parsedUser?.userTypeId
+      );
+      const canManageFilters = canUseSalesDashboardRepFilters(
+        Number.isFinite(userTypeId) ? userTypeId : null
+      );
 
-      setIsUserTypeSeven(canManageFilters);
+      setIsUserTypeSeven(userTypeId === 7);
+      setCanManageSalesDashboardFilters(canManageFilters);
 
       const shouldPreserveFilters = window.sessionStorage.getItem(SALES_DASHBOARD_PRESERVE_KEY) === "true";
 
@@ -514,7 +463,7 @@ export default function SalesLeadsPage() {
   }, [usersStatusFilter, clientAssignedRepIdFilter, debouncedSearch]);
 
   useEffect(() => {
-    if (!token || !isUserTypeSeven) {
+    if (!token || !canManageSalesDashboardFilters) {
       setSalesRepOptions([{ label: "All Representatives", value: "all" }]);
       return;
     }
@@ -538,64 +487,11 @@ export default function SalesLeadsPage() {
     };
 
     fetchSalesReps();
-  }, [isUserTypeSeven]);
+  }, [canManageSalesDashboardFilters, token]);
 
   useEffect(() => {
     fetchDashboardOverview();
   }, [range, sessionIdentity]);
-
-  useEffect(() => {
-    if (!token || !isAvailabilityToggleVisible) {
-      setIsSalesAvailable(false);
-      setSalesUnavailableReason("");
-      setIsAvailabilityLoading(false);
-      return;
-    }
-
-    let isSubscribed = true;
-
-    const fetchCurrentSalesStatus = async () => {
-      setIsAvailabilityLoading(true);
-
-      try {
-        const response = await salesService.getCurrentSalesStatus();
-
-        if (response?.success === false && response?.error) {
-          throw new Error(response.error);
-        }
-
-        const nextStatus = parseSalesAvailabilityStatus(response);
-
-        if (!isSubscribed) {
-          return;
-        }
-
-        setIsSalesAvailable(nextStatus.isAvailable);
-        setSalesUnavailableReason(nextStatus.reason);
-        setInactiveReasonDraft(nextStatus.reason || "");
-      } catch (error) {
-        console.error("Failed to fetch current sales status:", error);
-
-        if (!isSubscribed) {
-          return;
-        }
-
-        toast.error(
-          error instanceof Error ? error.message : "Failed to fetch current sales status"
-        );
-      } finally {
-        if (isSubscribed) {
-          setIsAvailabilityLoading(false);
-        }
-      }
-    };
-
-    void fetchCurrentSalesStatus();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [isAvailabilityToggleVisible, token, sessionIdentity]);
 
   useEffect(() => {
     if (!mounted || !hasRestoredFiltersRef.current) return;
@@ -640,7 +536,7 @@ export default function SalesLeadsPage() {
         // Mapping the filters to API keys
         lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
         status: statusFilter === "All" ? undefined : statusFilter,
-        assigned_to: isUserTypeSeven && assignedRepIdFilter !== "all" ? assignedRepIdFilter : undefined,
+        assigned_to: canManageSalesDashboardFilters && assignedRepIdFilter !== "all" ? assignedRepIdFilter : undefined,
         // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
         intent: intentFilter === "All" ? undefined : intentFilter,
       }
@@ -666,7 +562,7 @@ export default function SalesLeadsPage() {
       };
       if (debouncedSearch) params.search = debouncedSearch;
       if (usersStatusFilter !== "all") params.status = usersStatusFilter;
-      if (activeTab === "Client" && isUserTypeSeven && clientAssignedRepIdFilter !== "all") {
+      if (activeTab === "Client" && canManageSalesDashboardFilters && clientAssignedRepIdFilter !== "all") {
         params.assigned_to = clientAssignedRepIdFilter;
       }
 
@@ -753,7 +649,7 @@ export default function SalesLeadsPage() {
     if (activeTab !== "Booking") {
       fetchUsers();
     }
-  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter, isUserTypeSeven, sessionIdentity]);
+  }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter, canManageSalesDashboardFilters, sessionIdentity]);
 
   useEffect(() => {
     setDisplayLeads([]);
@@ -795,6 +691,11 @@ export default function SalesLeadsPage() {
   const leadsTotalPages = Math.ceil(leadsTotalRecords / leadsLimit);
 
   const handleUserRowClick = (user: UserData) => {
+    if (isAvailabilityToggleVisible && !isAvailabilityLoading && !isSalesAvailable) {
+      toast.error("Set your sales status to active before opening details.");
+      return;
+    }
+
     window.sessionStorage.setItem(SALES_DASHBOARD_PRESERVE_KEY, "true");
     const rawId = user.id.replace('#', '');
     const basePath = activeTab === "Client"
@@ -830,6 +731,11 @@ export default function SalesLeadsPage() {
   };
 
   const handleRowClick = (leadId: number) => {
+    if (isAvailabilityToggleVisible && !isAvailabilityLoading && !isSalesAvailable) {
+      toast.error("Set your sales status to active before opening details.");
+      return;
+    }
+
     window.sessionStorage.setItem(SALES_DASHBOARD_PRESERVE_KEY, "true");
     router.push(`/sales/leads/${leadId}`);
   };
@@ -871,12 +777,10 @@ export default function SalesLeadsPage() {
           ? nextStatus.isAvailable
           : nextIsAvailable;
 
-      setIsSalesAvailable(resolvedIsAvailable);
-      setSalesUnavailableReason(
-        resolvedIsAvailable
-          ? ""
-          : nextStatus.reason || salesUnavailableReason || ""
-      );
+      setSalesStatus({
+        isAvailable: resolvedIsAvailable,
+        reason: resolvedIsAvailable ? "" : nextStatus.reason || salesUnavailableReason || "",
+      });
       setInactiveReasonDraft("");
 
       toast.success(
@@ -921,8 +825,7 @@ export default function SalesLeadsPage() {
       const nextStatus = parseSalesAvailabilityStatus(response);
       const resolvedReason = nextStatus.reason || normalizedReason;
 
-      setIsSalesAvailable(false);
-      setSalesUnavailableReason(resolvedReason);
+      setSalesStatus({ isAvailable: false, reason: resolvedReason });
       setInactiveReasonDraft(resolvedReason);
       setIsInactiveReasonDialogOpen(false);
       toast.success("Sales status changed to inactive.");
@@ -1086,9 +989,9 @@ export default function SalesLeadsPage() {
                     options={["All Leads", "Self-Serve", "Sales Assisted"]}
                     onChange={(val) => setLeadTypeFilter(val)}
                   />
-                  {isUserTypeSeven && (
+                  {canManageSalesDashboardFilters && (
                     <BasicDropdown
-                      label="Client Representative"
+                      label="Sales Representative"
                       value={assignedRepIdFilter}
                       options={salesRepOptions}
                       searchable
@@ -1113,10 +1016,10 @@ export default function SalesLeadsPage() {
                 </div>
               )}
 
-              {activeTab === "Client" && isUserTypeSeven && (
+              {activeTab === "Client" && canManageSalesDashboardFilters && (
                 <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
                   <BasicDropdown
-                    label="Client Representative"
+                    label="Sales Representative"
                     value={clientAssignedRepIdFilter}
                     options={salesRepOptions}
                     searchable
@@ -1357,9 +1260,6 @@ export default function SalesLeadsPage() {
                     : "border-[#D8C29A] bg-white text-[#1F1F1F] placeholder:text-[#9D8C75]"
                 }`}
               />
-              <p className={`text-xs ${isDark ? "text-white/45" : "text-[#7A7064]"}`}>
-                API payload: {`{ "is_available": 0, "reason": "${inactiveReasonDraft.trim()}" }`}
-              </p>
             </div>
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

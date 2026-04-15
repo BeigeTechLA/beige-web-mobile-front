@@ -1,5 +1,5 @@
 export type BookingDataV3 = {
-   bookingId?: number; 
+  bookingId?: number;
   bookingType?: 'single_day' | 'multi_day';
   bookingDays?: {
     date: string;
@@ -15,6 +15,7 @@ export type BookingDataV3 = {
   // Date & Time
   startDate: string;
   endDate: string;
+  expectedDeliveryDate?: string;
   
   // Edits
   editsNeeded: boolean;
@@ -23,6 +24,7 @@ export type BookingDataV3 = {
   
   // Step 2 Details
   teamIncluded: string[]; // e.g. ["Videographer x1"]
+  extraRoleSelections?: Record<string, number>;
   addTeamMembers: boolean;
   crewCount: number; // Total number of crew members (base + extra)
   location: string;
@@ -33,12 +35,15 @@ export type BookingDataV3 = {
   // Step 3 & 4
   matchingMethod: 'ai_matchmaker' | 'manual';
   selectedCrewIds: number[];
-  
-    roleCounts: {
+
+  roleCounts?: {
     videographer?: number;
     photographer?: number;
     cinematographer?: number;
+    editor?: number;
   };
+  videographyCount?: number;
+  photographyCount?: number;
   // Contact & Payment
   fullName: string;
   email: string;
@@ -57,6 +62,7 @@ export const initialDataV3: BookingDataV3 = {
   bookingDays: [],
   startDate: "",
   endDate: "",
+  expectedDeliveryDate: "",
   editsNeeded: true,
   videoEditTypes: [],
   photoEditTypes: [],
