@@ -2371,9 +2371,11 @@ export const salesApi = {
       };
     }
   },
-  getSalesReps: async () => {
+  getSalesReps: async (options?: { includeInactive?: boolean }) => {
     try {
-      const response = await api.get('/sales/sales-reps');
+      const response = await api.get('/sales/sales-reps', {
+        params: options?.includeInactive ? { include_inactive: true } : undefined,
+      });
       return response.data;
     } catch (error: any) {
       console.error('Get Sales Reps Error:', error.response?.data || error.message);
