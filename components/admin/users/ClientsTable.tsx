@@ -28,6 +28,7 @@ interface Client {
     initials: string;
     phoneNumber: string;
     imageUrl?: string | null;
+    referralCode?: string | null;
 }
 
 const StatusBadge = ({ status }: { status: UserStatus }) => {
@@ -124,6 +125,7 @@ export const ClientsTable = () => {
                             initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
                             phoneNumber: client.phone_number || "N/A",
                             imageUrl: client.profile_image || client.image || null,
+                            referralCode: client.referral_code || null,
                         };
                     });
                     setClients(mappedClients);
@@ -225,13 +227,14 @@ export const ClientsTable = () => {
                                 <th className="py-5 px-6 font-medium">Email ID</th>
                                 <th className="py-5 px-6 font-medium">Mobile Number</th>
                                 <th className="py-5 px-6 font-medium">Status</th>
+                                <th className="py-5 px-6 font-medium">Referral Code</th>
                                 <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={6} className="py-20 text-center text-[#888]">
+                                    <td colSpan={7} className="py-20 text-center text-[#888]">
                                         <div className="flex flex-col items-center gap-2">
                                             <div className="w-6 h-6 border-2 border-[#E5D5B8] border-t-transparent rounded-full animate-spin" />
                                             <span>Loading users...</span>
@@ -240,7 +243,7 @@ export const ClientsTable = () => {
                                 </tr>
                             ) : clients.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="py-20 text-center text-[#888]">
+                                    <td colSpan={7} className="py-20 text-center text-[#888]">
                                         No users found for the selected filters.
                                     </td>
                                 </tr>
@@ -284,6 +287,13 @@ export const ClientsTable = () => {
                                         </td>
                                         <td className="py-5 px-6">
                                             <StatusBadge status={client.status} />
+                                        </td>
+                                        <td className={`py-5 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
+                                            {client.referralCode ? (
+                                                <span className={`px-3 py-1 rounded-md text-xs font-mono font-medium ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]" : "bg-[#F5F0E8] text-[#8B7E66]"}`}>{client.referralCode}</span>
+                                            ) : (
+                                                <span className="opacity-40">—</span>
+                                            )}
                                         </td>
                                         <td className="py-5 px-6 text-right">
                                             <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>

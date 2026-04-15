@@ -6,7 +6,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
-import { Video, Camera } from "lucide-react";
+import { Video, Camera, Scissors } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { isValidUrl } from "@/lib/utils";
 import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
@@ -63,8 +63,19 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   const detailsRef = useRef<HTMLDivElement>(null);
   const navigationRef = useRef<HTMLDivElement>(null);
 
-  const includedRoles = data.contentType.filter(t => t !== 'editing').map(t => {
-    const role = TEAM_ROLES.find(r => r.id === t);
+  const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
+
+  const includedRoles = data.contentType.map((type) => {
+    if (type === "editing") {
+      return {
+        id: "editing",
+        label: "Editing",
+        icon: <Scissors size={28} />,
+        count: 1,
+      };
+    }
+
+    const role = TEAM_ROLES.find((r) => r.id === type);
     return role ? { ...role, count: 1 } : null;
   }).filter(Boolean);
 
@@ -205,7 +216,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   // Inside V3Step2MoreDetails.tsx
 
   const handleNext = async () => {
-    if (!data.location) {
+    if (!isEditingOnly && !data.location) {
       toast.error("Please select a location");
       setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
       return;
@@ -220,7 +231,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
     // 1. Calculate Base Crew (Step 1 choices)
     includedRoles.forEach((role: any) => {
-      crewRoles[role.id] = 1;
+      const apiRoleId = role.id === "editing" ? "editor" : role.id;
+      crewRoles[apiRoleId] = 1;
     });
 
     // 2. Add Extra Crew (Step 2 choices)
@@ -230,26 +242,46 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       }
     });
 
+    if (isEditingOnly) {
+      crewRoles.editor = 1;
+    }
+
     try {
       // 3. CALL API WITH ALL DETAILS
-      const response = await updateBookingCrew({
+      const payload: {
+        booking_id: number;
+        crew_roles: Record<string, number>;
+        location?: string;
+        description?: string;
+        reference_links?: string;
+      } = {
         booking_id: data.bookingId,
         crew_roles: crewRoles,
-        location: data.location,               // NEW: From LocationPicker
         description: data.specialInstructions,  // NEW: From Textarea
         reference_links: data.referenceLinks,   // NEW: From Input
-      }).unwrap();
+      };
+
+      if (!isEditingOnly && data.location) {
+        payload.location = data.location;
+      }
+
+      const response = await updateBookingCrew(payload).unwrap();
 
       const serverCrewRoles = response.data.crew_roles;
       const vCount = serverCrewRoles.videographer || 0;
       const pCount = serverCrewRoles.photographer || 0;
+      const editorCount = serverCrewRoles.editor || 0;
+      const totalCrewCount = Object.values(serverCrewRoles || {}).reduce(
+        (sum: number, count: any) => sum + Number(count || 0),
+        0
+      );
 
       // Update local context for Step 3/4
       updateData({
         roleCounts: serverCrewRoles,
         videographyCount: vCount,
         photographyCount: pCount,
-        crewCount: vCount + pCount
+        crewCount: totalCrewCount || editorCount || vCount + pCount
       });
 
       const formFields: FormFields = {
@@ -340,6 +372,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         </div>
       </div>
       {/* Add More Team Members */}
+      {!isEditingOnly && (
       <div ref={extraTeamRef}>
         <div className="flex flex-col gap-3 lg:gap-6">
           <h3 className="text-base lg:text-xl font-medium text-white">Would you like to add additional creatives?</h3>
@@ -414,8 +447,10 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           </div>
         )}
       </div>
+      )}
 
       {/* Location */}
+      {!isEditingOnly && (
       <div ref={locationRef} className="pt-6 lg:pt-15 border-t border-white/10">
         {/* <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3> */}
         <LocationPicker
@@ -430,6 +465,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           hasError={errors.includes("locationError")}
         />
       </div>
+      )}
 
       {/* Details Form */}
       <div ref={detailsRef} className="pt-6 lg:pt-15 border-t border-white/10 flex flex-col gap-4 lg:gap-10">

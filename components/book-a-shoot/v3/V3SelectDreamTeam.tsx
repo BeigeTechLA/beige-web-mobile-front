@@ -68,11 +68,15 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   // Sales lead mutation
   const [createSalesLead, { isLoading: isCreatingSalesLead }] =
     useCreateSalesAssistedLeadMutation();
+  const isEditingOnly =
+    data.contentType.length === 1 && data.contentType.includes("editing");
 
   // Build search params from booking data
   const searchParams = {
-    content_types: data.contentType.filter((t) => t !== "editing").join(","),
-    location: data.location || undefined,
+    content_types: isEditingOnly
+      ? "editor"
+      : data.contentType.filter((t) => t !== "editing").join(","),
+    location: isEditingOnly ? undefined : data.location || undefined,
     limit: 12,
     page: 1,
   };
@@ -83,7 +87,8 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     isLoading,
     error,
   } = useSearchCreatorsQuery(searchParams, {
-    skip: !data.location || data.contentType.length === 0,
+    skip:
+      data.contentType.length === 0 || (!isEditingOnly && !data.location),
   });
 
   // Transform API creators to display format

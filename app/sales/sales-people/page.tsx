@@ -16,6 +16,8 @@ type SalesPersonData = {
   name: string;
   email: string;
   user_type?: number | string;
+  status?: string;
+  is_active?: number | boolean;
 };
 
 const canAccessSalesPeoplePage = (user: Record<string, unknown> | null) => {
@@ -64,7 +66,7 @@ export default function SalesPeoplePage() {
     const fetchSalesPeople = async () => {
       setLoading(true);
       try {
-        const result = await salesService.getSalesReps();
+        const result = await salesService.getSalesReps({ includeInactive: true });
         if (result?.success && Array.isArray(result.data)) {
           setSalesPeople(result.data);
         } else {
@@ -114,7 +116,7 @@ export default function SalesPeoplePage() {
               Sales People
             </h1>
             <p className={`text-xs lg:text-sm transition-colors ${isDark ? "text-white/70" : "text-black/60"}`}>
-              View all active sales people and inspect their status activity.
+              View all sales people and inspect their status activity.
             </p>
           </div>
         </div>
@@ -125,6 +127,7 @@ export default function SalesPeoplePage() {
             loading={loading}
             searchQuery={searchQuery}
             isDark={isDark}
+            detailBasePath="/sales/sales-people"
           />
         </div>
       </div>
