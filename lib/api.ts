@@ -2472,6 +2472,19 @@ export const salesApi = {
       };
     }
   },
+  assignLeadToSelf: async (leadId: number | string) => {
+    try {
+      const response = await api.put(`/sales/leads/${leadId}/assign-self`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Assign Lead To Self Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to assign lead to yourself',
+      };
+    }
+  },
   changeClientLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
     try {
       const response = await api.put(`/sales/client-leads/${leadId}/change-sales-rep`, {
@@ -2484,6 +2497,19 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to update assigned sales representative',
+      };
+    }
+  },
+  assignClientLeadToSelf: async (leadId: number | string) => {
+    try {
+      const response = await api.put(`/sales/client-leads/${leadId}/assign-self`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Assign Client Lead To Self Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to assign client lead to yourself',
       };
     }
   },
