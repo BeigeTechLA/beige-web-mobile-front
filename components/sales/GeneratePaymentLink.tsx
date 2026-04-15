@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "../ui/button";
-import { Copy, Mail, Check, Clock, Loader2, FileText } from "lucide-react";
+import { Copy, Mail, Check, Clock, Loader2, FileText, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { InfoTooltip } from "../ui/info-tooltip";
 import {
@@ -184,6 +184,11 @@ const GeneratePaymentLink = ({
     }
   };
 
+  const handleOpenLink = () => {
+    if (!paymentData?.url) return;
+    window.open(paymentData.url, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className={`transition-all duration-300 border rounded-2xl w-full max-w-[500px] lg:max-w-6xl overflow-hidden ${
       isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#D8D8D8]"
@@ -318,9 +323,13 @@ const GeneratePaymentLink = ({
                     }`}>
                     {paymentData.url}
                   </div>
-                  <button onClick={handleCopy} className={`border p-3 rounded-lg transition-colors ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
+                  <button onClick={handleCopy} title="Copy payment link" className={`border p-3 rounded-lg transition-colors ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
                     }`}>
                     <Copy size={18} />
+                  </button>
+                  <button onClick={handleOpenLink} title="Open payment link in new tab" className={`border p-3 rounded-lg transition-colors ${isDark ? "bg-[#101010] border-white/5 text-white hover:bg-[#202020]" : "bg-white border-[#D8D8D8] text-black hover:bg-gray-50"
+                    }`}>
+                    <ExternalLink size={18} />
                   </button>
                 </div>
               )}

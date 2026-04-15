@@ -69,6 +69,7 @@ import "swiper/css";
 import "swiper/css/effect-coverflow";
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+const ASSIGN_TO_ME_VALUE = "__assign_to_me__";
 
 /** 
  * UPDATED ROLE MAPPING LOGIC
@@ -231,11 +232,22 @@ export default function LeadDetailPage() {
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
   const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([]);
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string>("");
+  const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isConvertedBookingEditModalOpen, setIsConvertedBookingEditModalOpen] = useState(false);
   const [isUpdatingConvertedBooking, setIsUpdatingConvertedBooking] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+
+    try {
+      const storedUser = localStorage.getItem("revure_user");
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      const resolvedUserId = parsedUser?.id ?? parsedUser?.user?.id;
+      setCurrentUserId(resolvedUserId ? String(resolvedUserId) : "");
+    } catch (error) {
+      console.error("Failed to read logged in user from localStorage:", error);
+      setCurrentUserId("");
+    }
   }, []);
 
   useEffect(() => {
@@ -480,6 +492,14 @@ export default function LeadDetailPage() {
     setSelectedSalesRepId(lead?.assigned_sales_rep?.id ? String(lead.assigned_sales_rep.id) : "");
   }, [lead?.assigned_sales_rep?.id]);
 
+  const salesRepDropdownOptions = useMemo(
+    () =>
+      currentUserId
+        ? [{ label: "Assign to Me", value: ASSIGN_TO_ME_VALUE }, ...salesRepOptions]
+        : salesRepOptions,
+    [currentUserId, salesRepOptions]
+  );
+
   // Filtered and Mapped CPs
   const filteredCPs = useMemo(() => {
     const crews = booking?.assigned_crews || [];
@@ -678,16 +698,34 @@ export default function LeadDetailPage() {
       return;
     }
 
-    if (salesRepId === String(lead?.assigned_sales_rep?.id || "")) {
+    const assignedSalesRepId = String(lead?.assigned_sales_rep?.id || "");
+    const isAssignToMe = salesRepId === ASSIGN_TO_ME_VALUE;
+
+    if (isAssignToMe && !currentUserId) {
+      toast.error("Unable to resolve current user");
+      return;
+    }
+
+    if ((isAssignToMe && currentUserId === assignedSalesRepId) || salesRepId === assignedSalesRepId) {
       setIsEditingSalesRep(false);
       return;
     }
 
     setIsUpdatingSalesRep(true);
     try {
-      const result = await salesApi.changeLeadSalesRep(leadId, salesRepId);
+      const result = isAssignToMe
+        ? await salesApi.assignLeadToSelf(leadId)
+        : await salesApi.changeLeadSalesRep(leadId, salesRepId);
+
       if (result.success) {
-        toast.success("Assigned sales representative updated successfully");
+        toast.success(
+          isAssignToMe
+            ? "Lead assigned to you successfully"
+            : "Assigned sales representative updated successfully"
+        );
+        if (isAssignToMe) {
+          setSelectedSalesRepId(currentUserId);
+        }
         setIsEditingSalesRep(false);
         refetch();
       } else {
@@ -896,13 +934,16 @@ export default function LeadDetailPage() {
                             </div>
                           ) : (
                             <div className="py-1.5">
-                              {salesRepOptions.map((option) => {
-                                const isSelected = option.value === selectedSalesRepId;
-                                return (
-                                  <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => {
+                                {salesRepDropdownOptions.map((option) => {
+                                  const isSelected =
+                                    option.value === ASSIGN_TO_ME_VALUE
+                                      ? Boolean(currentUserId) && currentUserId === String(lead?.assigned_sales_rep?.id || "")
+                                      : option.value === selectedSalesRepId;
+                                  return (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => {
                                       if (isUpdatingSalesRep) return;
                                       setSelectedSalesRepId(option.value);
                                       handleUpdateSalesRep(option.value);

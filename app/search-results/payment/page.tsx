@@ -142,22 +142,49 @@ const formatTime12 = (value?: string | null) => {
   const raw = String(value).trim();
   if (!raw) return "";
 
-  let date: Date | null = null;
-  if (raw.includes("T")) {
-    const parsed = parseDateValue(raw);
-    if (parsed) date = parsed;
-  } else {
-    const [hStr, mStr = "0", sStr = "0"] = raw.split(":");
-    const h = Number(hStr);
-    const m = Number(mStr);
-    const s = Number(sStr);
-    if (Number.isFinite(h) && Number.isFinite(m)) {
-      date = new Date(2000, 0, 1, h, m, Number.isFinite(s) ? s : 0);
+  const meridiemMatch = raw.match(/^(\d{1,2}):(\d{2})(?:\s)?([AaPp][Mm])$/);
+  if (meridiemMatch) {
+    const hours = Number(meridiemMatch[1]);
+    const minutes = Number(meridiemMatch[2]);
+    const suffix = meridiemMatch[3].toUpperCase();
+
+    if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+      const normalizedHours = suffix === "PM" ? (hours % 12) + 12 : hours % 12;
+      const date = new Date(2000, 0, 1, normalizedHours, minutes, 0);
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
     }
   }
 
-  if (!date) return "";
-  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const timeMatch =
+    raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/) ||
+    raw.match(/(?:T|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z)?$/);
+
+  if (timeMatch) {
+    const hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    const seconds = Number(timeMatch[3] || 0);
+
+    if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+      const date = new Date(2000, 0, 1, hours, minutes, Number.isFinite(seconds) ? seconds : 0);
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
+  }
+
+  const parsed = parseDateValue(raw);
+  if (!parsed) return raw;
+  return parsed.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 };
 
 const getTimeRange = (booking?: any) => {
