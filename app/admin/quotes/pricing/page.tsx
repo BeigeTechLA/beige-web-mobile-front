@@ -30,7 +30,7 @@ import { Input } from "@/components/ui/input";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SectionKey = "service" | "addon" | "logistics" | "line_item";
+type SectionKey = "service" | "addon" | "logistics";
 
 interface PricingItem {
   id: string;
@@ -43,7 +43,6 @@ interface CatalogData {
   service: PricingItem[];
   addon: PricingItem[];
   logistics: PricingItem[];
-  line_item: PricingItem[];
 }
 
 interface SectionMeta {
@@ -82,17 +81,9 @@ const SECTION_META: Record<SectionKey, SectionMeta> = {
     rateType: "fixed",
     rateUnit: "fixed",
   },
-  line_item: {
-    label: "Custom Line Items",
-    sub: "Miscellaneous fees & custom charges",
-    rateLabel: "fixed",
-    sectionType: "custom",
-    rateType: "flat",
-    rateUnit: null,
-  },
 };
 
-const SECTION_KEYS: SectionKey[] = ["service", "addon", "logistics", "line_item"];
+const SECTION_KEYS: SectionKey[] = ["service", "addon", "logistics"];
 
 const PROTECTED_SERVICES = [
   "videography",
@@ -102,13 +93,6 @@ const PROTECTED_SERVICES = [
   "studio",
 ];
 
-const LINE_ITEM_KEYS = [
-  "line_item",
-  "line_items",
-  "custom_line_items",
-  "customLineItems",
-  "custom_line_item",
-] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -535,7 +519,7 @@ export default function QuotePricingPage() {
   const pathname = usePathname();
 
   const [data, setData]       = useState<CatalogData>({
-    service: [], addon: [], logistics: [], line_item: [],
+    service: [], addon: [], logistics: [],
   });
   const [loading, setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | SectionKey>("all");
@@ -556,16 +540,12 @@ export default function QuotePricingPage() {
             price:     parseFloat(String(it.effective_rate ?? 0)) || 0,
             createdAt: it.created_at ?? null,
           }));
-
-        const lineArr =
-          LINE_ITEM_KEYS.map((k) => (res.data as Record<string, unknown>)[k])
-            .find((v): v is unknown[] => Array.isArray(v)) ?? [];
+;
 
         setData({
           service:   mapSection(res.data.service),
           addon:     mapSection(res.data.addon),
           logistics: mapSection(res.data.logistics),
-          line_item: mapSection(lineArr as Parameters<typeof mapSection>[0]),
         });
       }
     } catch {
@@ -682,7 +662,6 @@ export default function QuotePricingPage() {
     { key: "service",   label: "Services",  count: data.service.length },
     { key: "addon",     label: "Add-ons",   count: data.addon.length },
     { key: "logistics", label: "Logistics", count: data.logistics.length },
-    { key: "line_item", label: "Line Items",count: data.line_item.length },
   ];
 
   return (
