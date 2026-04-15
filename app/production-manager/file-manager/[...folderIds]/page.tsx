@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, FileText, FolderOpen, Grid3X3, List, MoreVertical, Search } from "lucide-react";
+import { ArrowLeft, FileText, FolderOpen, Grid3X3, List, Loader2, MoreVertical, Search } from "lucide-react";
 import { FolderCard } from "@/components/production-manager/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/production-manager/BasicDropdown";
@@ -126,7 +126,10 @@ export default function ProductionManagerFolderDetailsPage() {
       </Button>
 
       {loading ? (
-        <div className="text-white/70 text-sm">Loading folder...</div>
+      <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>     
       ) : error || !project ? (
         <div className="text-red-300 text-sm">{error || "Folder not found"}</div>
       ) : (

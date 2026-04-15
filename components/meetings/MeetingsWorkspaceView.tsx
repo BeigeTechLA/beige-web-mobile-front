@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarClock, ExternalLink, Eye, RefreshCw, Search, Trash2 } from "lucide-react";
+import { CalendarClock, ExternalLink, Eye, Loader2, RefreshCw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import CreateMeetingModal from "@/components/meetings/CreateMeetingModal";
@@ -204,9 +204,11 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-[#222222] bg-[#111111] p-5">
-        {loading ? (
-          <div className="py-16 text-center text-sm text-white/45">Loading meetings...</div>
-        ) : error ? (
+        {loading ? 
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>: error ? (
           <div className="py-16 text-center text-sm text-[#ff8e8e]">{error}</div>
         ) : filteredMeetings.length === 0 ? (
           <div className="py-16 text-center text-sm text-white/45">

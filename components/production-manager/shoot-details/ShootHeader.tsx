@@ -6,10 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { adminApi } from "@/lib/api";
+import { fileManagerApi } from "@/lib/fileManagerApi";
 import {
+  getProjectDateText,
   getPaymentStatusMeta,
   getProjectFolderLink,
-  getProjectTimeText,
+  getProjectScheduleTimeText,
   getShootFilesText,
 } from "@/lib/utils/shootDetails";
 import { toast } from "sonner";
@@ -26,22 +28,56 @@ interface ShootHeaderProps {
 export default function ShootHeader({ activeTab = "Overview", project, projectId }: ShootHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const isDark = !mounted || theme === "dark";
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const folderLink = getProjectFolderLink(project);
-  const projectTimeText = getProjectTimeText(project);
-  const shootFilesText = getShootFilesText(project);
+  const [workspaceFolderLink, setWorkspaceFolderLink] = React.useState("");
+  const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
+  const projectDateText = getProjectDateText(project);
+  const projectTimeText = getProjectScheduleTimeText(project);
+  const shootFilesText =
+    workspaceFileCount != null
+      ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
+      : getShootFilesText(project);
   const resolvedStatusLabel =
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadWorkspaceSummary = async () => {
+      if (!projectId) return;
+
+      try {
+        const response = await fileManagerApi.getExternalWorkspace(projectId);
+        if (!isMounted) return;
+
+        setWorkspaceFolderLink(response.workspace.consoleUrl || "");
+        setWorkspaceFileCount(
+          typeof response.workspace.fileCount === "number" ? response.workspace.fileCount : null
+        );
+      } catch (error) {
+        if (!isMounted) return;
+        setWorkspaceFolderLink("");
+        setWorkspaceFileCount(null);
+      }
+    };
+
+    loadWorkspaceSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId]);
 
   if (!mounted) return null;
 
@@ -116,25 +152,21 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
             <div className="flex gap-2">
               <span>Shoot Date :</span>
               <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                {project?.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ""}
+                {projectDateText}
               </span>
             </div>
             <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
             <div className="flex gap-2">
               <span>Time :</span>
               <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                {project?.start_time && project?.end_time ? (
-                  `${project.start_time.split(':').slice(0, 2).join(':')} - ${project.end_time.split(':').slice(0, 2).join(':')}`
-                ) : project?.event_start_time ? (
-                  new Date(project.event_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                ) : ""}
+                {projectTimeText}
               </span>
             </div>
             <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
             <div className="flex gap-2">
               <span>Total Value :</span>
               <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                {project?.budget ? `$${parseFloat(project.budget).toLocaleString()}` : "$0.00"}
+                {project?.total_paid_amount ? `$${parseFloat(project.total_paid_amount).toLocaleString()}` : "$0.00"}
               </span>
             </div>
             <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
@@ -144,9 +176,14 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
                 {paymentStatus.label}
               </span>
             </div>
+            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
+            <div className="flex gap-2">
+              <span>Shoot Files :</span>
+              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
+            </div>
           </div>
 
-          <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-2 lg:mt-4 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"
+          <div className={`flex flex-col lg:flex-row lg:flex-wrap gap-2 lg:gap-y-4 lg:gap-x-12 text-sm lg:text-base mt-0 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"
             }`}>
             {/* <div className="flex gap-2">
               <span>Folder Link :</span>
@@ -168,14 +205,9 @@ export default function ShootHeader({ activeTab = "Overview", project, projectId
                 )}
               </a>
             </div> */}
-            <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />
-            <div className="flex gap-2">
-              <span>Shoot Files :</span>
-              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
-            </div>
           </div>
 
-          <div className={`mt-2 lg:mt-4 text-sm lg:text-base flex gap-2 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
+          <div className={`mt-2 text-sm lg:text-base flex gap-2 ${isDark ? "text-[#AAAAAA]" : "text-[#666666]"}`}>
             <span>Location :</span>
             <span className={`${isDark ? "text-white" : "text-black"} font-medium whitespace-pre-wrap`}>
               {[project?.location, project?.city, project?.state, project?.country].filter(Boolean).join(", ") || "No location specified"}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronRight, Search, ChevronDown, Check, X, AlertCircle, Mail, Briefcase, Calendar, Hash, Trash2 } from "lucide-react";
+import { ChevronRight, Search, ChevronDown, Check, X, AlertCircle, Mail, Briefcase, Calendar, Hash, Trash2, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -433,7 +433,7 @@ export const CreativePartnersTable = () => {
               <tbody>
                 <tr>
                   <td colSpan={6} className="py-10 text-center text-[#888]">
-                    Loading creative partners...
+                    <Loader2 className="animate-spin mx-auto" size={24} />
                   </td>
                 </tr>
               </tbody>

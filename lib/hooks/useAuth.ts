@@ -137,13 +137,13 @@ export const useAuth = () => {
     }
     router.push('/');
   }, [dispatch, router]);
-
-  const getCurrentUser = useCallback(async () => {
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-    return refetchUser();
-  }, [token, refetchUser]);
+  
+  // const getCurrentUser = useCallback(async () => {
+  //   if (!token) {
+  //     throw new Error('No authentication token found');
+  //   }
+  //   return refetchUser();
+  // }, [token, refetchUser]);
 
   return {
     user,
@@ -172,7 +172,7 @@ export const useAuth = () => {
     registerCreatorStep2,
     registerCreatorStep3,
     logout,
-    getCurrentUser,
+    // getCurrentUser,
     currentUserData,
   };
 };

@@ -90,6 +90,9 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
     }));
   };
 
+  const bookingDays = Array.isArray(data?.booking_days) ? data.booking_days : [];
+  const hasMultipleBookingDays = bookingDays.length > 1;
+
   return (
     <div 
       id="booking-summary-modal"
@@ -234,12 +237,35 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                 <div className="flex items-start gap-4">
                   <div className="bg-white/5 p-3 rounded-2xl text-[#E8D1AB] no-print"><Calendar size={18} /></div>
                   <div>
-                    <p className="text-white font-medium print:text-black">
-                        {formatShortDate(data.date)}
-                    </p>
-                    <p className="text-white/50 text-sm print:text-gray-600">
-                      {formatTime(data.start_time)} - {formatTime(data.end_time)}
-                    </p>
+                    {hasMultipleBookingDays ? (
+                      <div className="space-y-2">
+                        {bookingDays.map((day: any, index: number) => {
+                          const dateValue = day?.event_date || day?.date || "";
+                          const startValue = day?.start_time || day?.startTime || "";
+                          const endValue = day?.end_time || day?.endTime || "";
+
+                          return (
+                            <div key={`${dateValue}-${startValue}-${endValue}-${index}`}>
+                              <p className="text-white font-medium print:text-black">
+                                {formatShortDate(dateValue)}
+                              </p>
+                              <p className="text-white/50 text-sm print:text-gray-600">
+                                {formatTime(startValue)} - {formatTime(endValue)}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-white font-medium print:text-black">
+                          {formatShortDate(data.date)}
+                        </p>
+                        <p className="text-white/50 text-sm print:text-gray-600">
+                          {formatTime(data.start_time)} - {formatTime(data.end_time)}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 

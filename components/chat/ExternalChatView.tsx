@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   CalendarDays,
+  Loader2,
   Lock,
   MessageCircle,
   MoreVertical,
@@ -1250,8 +1251,11 @@ export default function ExternalChatView({
 
               <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {loading ? (
-                <div className="px-2 py-8 text-sm text-white/45">Loading chat rooms...</div>
-              ) : filteredRooms.length === 0 ? (
+                  <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+                      }`}>
+                    <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+                  </div>             
+                   ) : filteredRooms.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-white/10 bg-[#111] p-5">
                   <p className="text-base font-medium text-white">No active conversation yet</p>
                   <p className="mt-2 text-sm text-white/45">
