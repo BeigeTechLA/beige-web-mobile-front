@@ -2371,6 +2371,20 @@ export const salesApi = {
       };
     }
   },
+  createClient: async (data: { name: string; email: string; phone_number: string }) => {
+    try {
+      const response = await api.post('/sales/create-client', data);
+      return response.data;
+    } catch (error: unknown) {
+      const apiError = error as { response?: { data?: { message?: string } } };
+      console.error('Create Client Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: apiError.response?.data?.message || 'Failed to create client',
+      };
+    }
+  },
   getSalesReps: async (options?: { includeInactive?: boolean }) => {
     try {
       const response = await api.get('/sales/sales-reps', {
@@ -2392,6 +2406,9 @@ export const salesApi = {
       date?: string;
       start_date?: string;
       end_date?: string;
+      search?: string;
+      lead_status?: string;
+      lead_type?: string;
     }
   ) => {
     try {

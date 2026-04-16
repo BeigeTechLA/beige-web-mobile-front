@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
+import React, { useEffect, useMemo, useState, Suspense } from "react";
+import { format, parseISO, isValid } from "date-fns";
 import {
   Activity,
   ArrowLeft,
@@ -13,13 +13,17 @@ import {
   Loader2,
   Mail,
   Phone,
+  Search,
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/ui/Datepicker";
+import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { salesApi as salesService } from "@/lib/api";
+import { useDebounce } from "@/hooks/use-debounce";
 
 type StatusActivityByDate = Record<string, { available_count?: number; unavailable_count?: number; total_status_changes?: number }>;
 type AssignedLeadItem = {
@@ -59,6 +63,8 @@ type LeadSectionConfig = {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  searchQuery?: string;
+  onSearchChange?: (val: string) => void;
 };
 
 interface SalesRepStatusDetailsViewProps {
@@ -116,7 +122,42 @@ const buildPageNumbers = (currentPage: number, totalPages: number) => {
 };
 
 export default function SalesRepStatusDetailsView({ salesRepId, isDark, onBack }: SalesRepStatusDetailsViewProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  return (
+    <Suspense fallback={<div className="flex justify-center p-10"><Loader2 className="animate-spin text-[#BFA780]" /></div>}>
+      <SalesRepStatusDetailsContent salesRepId={salesRepId} isDark={isDark} onBack={onBack} />
+    </Suspense>
+  );
+}
+
+function SalesRepStatusDetailsContent({ salesRepId, isDark, onBack }: SalesRepStatusDetailsViewProps) {
+  const searchParams = useSearchParams();
+
+  // Parse start and end date from URL if present
+  const initStartDate = searchParams ? searchParams.get("start_date") : null;
+  const initEndDate = searchParams ? searchParams.get("end_date") : null;
+
+  const [startDate, setStartDate] = useState<Date | null>(() => {
+    if (initStartDate) {
+      const d = parseISO(initStartDate);
+      if (isValid(d)) return d;
+    }
+    return null;
+  });
+  
+  const [endDate, setEndDate] = useState<Date | null>(() => {
+    if (initEndDate) {
+      const d = parseISO(initEndDate);
+      if (isValid(d)) return d;
+    }
+    return null;
+  });
+
+  const [salesSearchQuery, setSalesSearchQuery] = useState("");
+  const [clientSearchQuery, setClientSearchQuery] = useState("");
+
+  const [leadStatusFilter, setLeadStatusFilter] = useState(searchParams ? searchParams.get("lead_status") || "all" : "all");
+  const [leadTypeFilter, setLeadTypeFilter] = useState(searchParams ? searchParams.get("lead_type") || "all" : "all");
+
   const [salesLeadsPage, setSalesLeadsPage] = useState(1);
   const [clientLeadsPage, setClientLeadsPage] = useState(1);
   const [statusDetails, setStatusDetails] = useState<SalesRepStatusDetails | null>(null);
@@ -134,14 +175,27 @@ export default function SalesRepStatusDetailsView({ salesRepId, isDark, onBack }
     return [...entries].sort((entryA, entryB) => new Date(entryA.date || 0).getTime() - new Date(entryB.date || 0).getTime());
   }, [statusDetails]);
 
-  const salesLeadEntries = useMemo(
-    () => statusDetails?.assigned_leads?.sales_leads || [],
-    [statusDetails?.assigned_leads?.sales_leads]
-  );
-  const clientLeadEntries = useMemo(
-    () => statusDetails?.assigned_leads?.client_leads || [],
-    [statusDetails?.assigned_leads?.client_leads]
-  );
+  const salesLeadEntries = useMemo(() => {
+    const raw = statusDetails?.assigned_leads?.sales_leads || [];
+    if (!salesSearchQuery.trim()) return raw;
+    const lowerQ = salesSearchQuery.toLowerCase();
+    return raw.filter((lead) =>
+      (lead.client_name?.toLowerCase() || "").includes(lowerQ) ||
+      (lead.guest_email?.toLowerCase() || "").includes(lowerQ) ||
+      (lead.phone || "").includes(lowerQ)
+    );
+  }, [statusDetails?.assigned_leads?.sales_leads, salesSearchQuery]);
+
+  const clientLeadEntries = useMemo(() => {
+    const raw = statusDetails?.assigned_leads?.client_leads || [];
+    if (!clientSearchQuery.trim()) return raw;
+    const lowerQ = clientSearchQuery.toLowerCase();
+    return raw.filter((lead) =>
+      (lead.client_name?.toLowerCase() || "").includes(lowerQ) ||
+      (lead.guest_email?.toLowerCase() || "").includes(lowerQ) ||
+      (lead.phone || "").includes(lowerQ)
+    );
+  }, [statusDetails?.assigned_leads?.client_leads, clientSearchQuery]);
   const totalAssignedLeads = statusDetails?.assigned_leads?.total_count || 0;
   const totalAssignedSalesLeads = statusDetails?.assigned_leads?.sales_leads_count || 0;
   const totalAssignedClientLeads = statusDetails?.assigned_leads?.client_leads_count || 0;
@@ -156,10 +210,15 @@ export default function SalesRepStatusDetailsView({ salesRepId, isDark, onBack }
       setStatusLoading(true);
       setLoadError(null);
       try {
-        const selectedDateValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
+        const startDateValue = startDate && !Number.isNaN(startDate.getTime()) ? format(startDate, "yyyy-MM-dd") : undefined;
+        const endDateValue = endDate && !Number.isNaN(endDate.getTime()) ? format(endDate, "yyyy-MM-dd") : undefined;
+
         const response = (await salesService.getSalesRepStatusDetails({
           sales_rep_id: salesRepId,
-          ...(selectedDateValue ? { start_date: selectedDateValue, end_date: selectedDateValue } : {}),
+          ...(startDateValue ? { start_date: startDateValue } : {}),
+          ...(endDateValue ? { end_date: endDateValue } : {}),
+          ...(leadStatusFilter !== "all" ? { lead_status: leadStatusFilter } : {}),
+          ...(leadTypeFilter !== "all" ? { lead_type: leadTypeFilter } : {}),
         })) as SalesRepStatusResponse;
         if (response?.error) throw new Error(response?.message || response?.error_message || "Failed to load sales person details");
         setStatusDetails(response?.data || null);
@@ -176,10 +235,16 @@ export default function SalesRepStatusDetailsView({ salesRepId, isDark, onBack }
       }
     };
     void fetchStatusDetails();
-  }, [salesRepId, selectedDate]);
+  }, [salesRepId, startDate, endDate, leadStatusFilter, leadTypeFilter]);
 
-  useEffect(() => { setSalesLeadsPage(1); }, [salesLeadEntries.length]);
-  useEffect(() => { setClientLeadsPage(1); }, [clientLeadEntries.length]);
+  // Reset pagination when filters change
+  useEffect(() => {
+    setSalesLeadsPage(1);
+    setClientLeadsPage(1);
+  }, [startDate, endDate, leadStatusFilter, leadTypeFilter]);
+
+  useEffect(() => { setSalesLeadsPage(1); }, [salesSearchQuery]);
+  useEffect(() => { setClientLeadsPage(1); }, [clientSearchQuery]);
 
   const isCurrentlyAvailable = Boolean(statusDetails?.current_status?.is_available);
   const totalStatusChanges = statusDetails?.activity?.total_status_changes_in_range || 0;
@@ -190,9 +255,9 @@ export default function SalesRepStatusDetailsView({ salesRepId, isDark, onBack }
     : "Last 7 days";
 
   const leadSections: LeadSectionConfig[] = [
-    { title: "Assigned Sales Leads", count: totalAssignedSalesLeads, totalLeads: salesLeadEntries.length, leads: paginatedSalesLeadEntries, currentPage: salesLeadsPage, totalPages: salesLeadsTotalPages, onPageChange: setSalesLeadsPage },
-    { title: "Assigned Client Leads", count: totalAssignedClientLeads, totalLeads: clientLeadEntries.length, leads: paginatedClientLeadEntries, currentPage: clientLeadsPage, totalPages: clientLeadsTotalPages, onPageChange: setClientLeadsPage },
-  ].filter((section) => section.totalLeads > 0);
+    { title: "Assigned Sales Leads", count: totalAssignedSalesLeads, totalLeads: salesLeadEntries.length, leads: paginatedSalesLeadEntries, currentPage: salesLeadsPage, totalPages: salesLeadsTotalPages, onPageChange: setSalesLeadsPage, searchQuery: salesSearchQuery, onSearchChange: setSalesSearchQuery },
+    { title: "Assigned Client Leads", count: totalAssignedClientLeads, totalLeads: clientLeadEntries.length, leads: paginatedClientLeadEntries, currentPage: clientLeadsPage, totalPages: clientLeadsTotalPages, onPageChange: setClientLeadsPage, searchQuery: clientSearchQuery, onSearchChange: setClientSearchQuery },
+  ].filter((section) => section.count > 0);
 
   return (
     <div className="space-y-6">
@@ -211,30 +276,94 @@ export default function SalesRepStatusDetailsView({ salesRepId, isDark, onBack }
       </div>
 
       <div className={`rounded-2xl border p-6 ${isDark ? "border-[#2F2F2F] bg-[#121212]" : "border-[#E5E5E5] bg-white"}`}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-2">
-            <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/70" : "text-[#555]"}`}><Mail size={16} /><span>{statusDetails?.sales_rep_email || "No email"}</span></div>
-            <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/70" : "text-[#555]"}`}><UserRound size={16} /><span>Rep ID #{statusDetails?.sales_rep_id || salesRepId}</span></div>
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/70" : "text-[#555]"}`}><Mail size={16} /><span>{statusDetails?.sales_rep_email || "No email"}</span></div>
+              <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/70" : "text-[#555]"}`}><UserRound size={16} /><span>Rep ID #{statusDetails?.sales_rep_id || salesRepId}</span></div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => {
+                setStartDate(null);
+                setEndDate(null);
+                setSalesSearchQuery("");
+                setClientSearchQuery("");
+                setLeadStatusFilter("all");
+                setLeadTypeFilter("all");
+              }} className={`h-10 rounded-lg border px-4 text-sm font-medium transition-colors ${isDark ? "border-white/10 bg-[#1A1A1A] text-white hover:bg-white/5" : "border-[#D8D8D8] bg-white text-black hover:bg-[#F7F7F7]"}`}>Reset Filters</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="col-span-1">
+            <BasicDropdown
+              label="Lead Status"
+              value={leadStatusFilter}
+              onChange={(val) => setLeadStatusFilter(val)}
+              options={[
+                { label: "All Status", value: "all" },
+                { label: "Booked", value: "booked" },
+                { label: "In Progress (Self)", value: "in_progress_self_serve" },
+                { label: "In Progress (Sales)", value: "in_progress_sales_assisted" },
+                { label: "Payment Link Sent", value: "payment_link_sent" },
+                { label: "Discount Applied", value: "discount_applied" },
+                { label: "Signed Up", value: "signed_up" },
+                { label: "Abandoned", value: "abandoned" },
+              ]}
+              isDark={isDark}
+              transparent
+            />
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:justify-end">
-            <div className="w-full sm:min-w-[220px] sm:max-w-[240px]">
-              <DatePicker
-                label=""
-                value={selectedDate}
-                onChange={(date) => setSelectedDate(normalizeSelectedDate(date))}
-                maxDate={new Date()}
-                format="dd-MM-yyyy"
-                isDark={isDark}
-                sx={{ height: 44, "& .MuiInputBase-input": { fontSize: "15px", fontWeight: 500 } }}
-                colors={isDark ? {
-                  inputBackground: "#1A1A1A", inputBorder: "rgba(255,255,255,0.08)", paperBackground: "#3A3A3A", accent: "#8FB7E8", accentText: "#101010", hoverAccent: "#A8C7EE", navigationIconColor: "#FFFFFF", calendarHeaderText: "#FFFFFF", weekdayLabelText: "rgba(255,255,255,0.92)", dayNumberText: "#FFFFFF", mutedText: "rgba(255,255,255,0.55)",
-                } : {
-                  inputBackground: "#FFFFFF", inputBorder: "#D8D8D8", paperBackground: "#FFFFFF",
-                }}
-              />
-            </div>
-            <button type="button" onClick={() => setSelectedDate(null)} className={`h-11 rounded-lg border px-4 text-sm font-medium transition-colors ${isDark ? "border-white/10 bg-[#1A1A1A] text-white hover:bg-white/5" : "border-[#D8D8D8] bg-white text-black hover:bg-[#F7F7F7]"}`}>Last 7 Days</button>
+          <div className="col-span-1">
+            <BasicDropdown
+              label="Lead Type"
+              value={leadTypeFilter}
+              onChange={(val) => setLeadTypeFilter(val)}
+              options={[
+                { label: "All Types", value: "all" },
+                { label: "Self-Serve", value: "self_serve" },
+                { label: "Sales Assisted", value: "sales_assisted" },
+              ]}
+              isDark={isDark}
+              transparent
+            />
+          </div>
+
+          <div className="col-span-1">
+            <DatePicker
+              label=""
+              value={startDate}
+              onChange={(date) => setStartDate(normalizeSelectedDate(date))}
+              maxDate={new Date()}
+              format="dd-MM-yyyy"
+              isDark={isDark}
+              sx={{ height: 44, "& .MuiInputBase-input": { fontSize: "14px", fontWeight: 500 } }}
+              colors={isDark ? {
+                inputBackground: "#1A1A1A", inputBorder: "rgba(255,255,255,0.08)", paperBackground: "#3A3A3A", accent: "#8FB7E8", accentText: "#101010", hoverAccent: "#A8C7EE", navigationIconColor: "#FFFFFF", calendarHeaderText: "#FFFFFF", weekdayLabelText: "rgba(255,255,255,0.92)", dayNumberText: "#FFFFFF", mutedText: "rgba(255,255,255,0.55)",
+              } : {
+                inputBackground: "#FFFFFF", inputBorder: "#D8D8D8", paperBackground: "#FFFFFF",
+              }}
+            />
+          </div>
+
+          <div className="col-span-1">
+            <DatePicker
+              label=""
+              value={endDate}
+              onChange={(date) => setEndDate(normalizeSelectedDate(date))}
+              maxDate={new Date()}
+              format="dd-MM-yyyy"
+              isDark={isDark}
+              sx={{ height: 44, "& .MuiInputBase-input": { fontSize: "14px", fontWeight: 500 } }}
+              colors={isDark ? {
+                inputBackground: "#1A1A1A", inputBorder: "rgba(255,255,255,0.08)", paperBackground: "#3A3A3A", accent: "#8FB7E8", accentText: "#101010", hoverAccent: "#A8C7EE", navigationIconColor: "#FFFFFF", calendarHeaderText: "#FFFFFF", weekdayLabelText: "rgba(255,255,255,0.92)", dayNumberText: "#FFFFFF", mutedText: "rgba(255,255,255,0.55)",
+              } : {
+                inputBackground: "#FFFFFF", inputBorder: "#D8D8D8", paperBackground: "#FFFFFF",
+              }}
+            />
           </div>
         </div>
 
@@ -304,12 +433,31 @@ export default function SalesRepStatusDetailsView({ salesRepId, isDark, onBack }
 
             {leadSections.map((section) => (
               <div key={section.title} className={`overflow-hidden rounded-2xl border ${isDark ? "border-white/10 bg-[#121212]" : "border-[#EAEAEA] bg-white"}`}>
-                <div className={`flex items-center justify-between gap-3 px-4 py-4 border-b ${isDark ? "border-white/5 bg-[#161616]" : "border-[#EFEFEF] bg-[#FAF7F1]"}`}>
-                  <p className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-white/45" : "text-[#8A8A8A]"}`}>{section.title}</p>
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${isDark ? "bg-white/5 text-white/70" : "bg-[#F2F2F2] text-[#444]"}`}>{section.count}</span>
+                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-4 border-b ${isDark ? "border-white/5 bg-[#161616]" : "border-[#EFEFEF] bg-[#FAF7F1]"}`}>
+                  <div className="flex items-center gap-3">
+                    <p className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-white/45" : "text-[#8A8A8A]"}`}>{section.title}</p>
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${isDark ? "bg-white/5 text-white/70" : "bg-[#F2F2F2] text-[#444]"}`}>{section.count}</span>
+                  </div>
+                  {section.onSearchChange && (
+                    <div className="relative w-full sm:max-w-xs mt-2 sm:mt-0">
+                      <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDark ? "text-white/40" : "text-gray-400"}`} />
+                      <input
+                        type="text"
+                        placeholder="Search by name, email, phone..."
+                        value={section.searchQuery}
+                        onChange={(e) => section.onSearchChange!(e.target.value)}
+                        className={`h-9 w-full rounded-md border pl-9 pr-3 text-xs font-medium focus:outline-none focus:ring-1 transition-colors ${isDark ? "border-white/10 bg-[#1A1A1A] text-white focus:border-[#E8D1AB] focus:ring-[#E8D1AB] placeholder:text-white/40" : "border-[#D8D8D8] bg-white text-black focus:border-[#B38B4D] focus:ring-[#B38B4D] placeholder:text-gray-400"}`}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className={`hidden lg:grid grid-cols-[0.7fr_0.8fr_1.5fr_1.1fr_1fr_1fr_1.2fr] gap-3 px-4 py-3 text-xs font-medium uppercase tracking-[0.18em] ${isDark ? "bg-[#161616] text-white/45" : "bg-[#FAF7F1] text-[#8A8A8A]"}`}><span>Lead ID</span><span>Booking</span><span>Client</span><span>Status</span><span>Intent</span><span>Source</span><span>Last Activity</span></div>
                 <div>
+                  {section.leads.length === 0 ? (
+                    <div className={`px-4 py-8 text-center text-sm ${isDark ? "text-white/50" : "text-[#666]"}`}>
+                      No leads matched your search.
+                    </div>
+                  ) : null}
                   {section.leads.map((lead) => (
                     <div key={`${section.title}-${lead.lead_id}-${lead.booking_id ?? "no-booking"}`} className={`border-t ${isDark ? "border-white/5" : "border-[#EFEFEF]"}`}>
                       <div className={`hidden lg:grid grid-cols-[0.7fr_0.8fr_1.5fr_1.1fr_1fr_1fr_1.2fr] gap-3 px-4 py-4 text-sm ${isDark ? "text-white/85" : "text-[#333]"}`}>
