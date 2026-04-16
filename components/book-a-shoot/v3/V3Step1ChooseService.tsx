@@ -877,6 +877,18 @@ useEffect(() => {
     setEditTypeOptions(nextVideoOptions);
     setPhotoEditTypeOptions(nextPhotoOptions);
     setPhotoEditNote(nextPhotoNote);
+    const validVideoKeys = nextVideoOptions.map((o) => o.key);
+    const validPhotoKeys = nextPhotoOptions.map((o) => o.key);
+
+    const filteredVideo = data.videoEditTypes.filter((k) => validVideoKeys.includes(k));
+    const filteredPhoto = data.photoEditTypes.filter((k) => validPhotoKeys.includes(k));
+
+    if (filteredVideo.length !== data.videoEditTypes.length || filteredPhoto.length !== data.photoEditTypes.length) {
+      updateData({
+        videoEditTypes: filteredVideo,
+        photoEditTypes: filteredPhoto,
+      });
+    }
   }, [data.shootType, data.contentType]);
 
   // Clear errors when data changes
