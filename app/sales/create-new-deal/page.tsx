@@ -176,6 +176,7 @@ export default function ClientDetailPage() {
   const [clientPhone, setClientPhone] = useState("");
   const [clientSuggestions, setClientSuggestions] = useState<ClientDropdownItem[]>([]);
   const [selectedClientSuggestion, setSelectedClientSuggestion] = useState<ClientDropdownItem | null>(null);
+  const [isCreateNewClientFlow, setIsCreateNewClientFlow] = useState(false);
   const [isClientSuggestionOpen, setIsClientSuggestionOpen] = useState(false);
   const [isLoadingClientSuggestions, setIsLoadingClientSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -856,8 +857,24 @@ export default function ClientDetailPage() {
     setIsConfirmModalOpen(false);
     setIsSubmitting(true);
     try {
-      // Parse correctly from local time strings
       const token = getAuthToken();
+      if (isCreateNewClientFlow) {
+        const createClientResponse = await salesApi.createClient({
+          name: clientName.trim(),
+          email: clientEmail.trim(),
+          phone_number: clientPhone.trim(),
+        });
+
+        if (createClientResponse?.error || createClientResponse?.success === false) {
+          throw new Error(
+            typeof createClientResponse?.error === "string"
+              ? createClientResponse.error
+              : "Failed to create client"
+          );
+        }
+      }
+
+      // Parse correctly from local time strings
       const startDate = parseDate(formData.startDate);
       const endDate = parseDate(formData.endDate);
 
@@ -942,6 +959,7 @@ export default function ClientDetailPage() {
 
   const handleClientSuggestionSelect = (client: ClientDropdownItem) => {
     setSelectedClientSuggestion(client);
+    setIsCreateNewClientFlow(false);
     setClientName(getClientDisplayName(client));
     setClientEmail(getClientEmail(client));
     setClientPhone(getClientPhone(client));
@@ -950,6 +968,7 @@ export default function ClientDetailPage() {
   };
 
   const handleCreateNewClient = () => {
+    setIsCreateNewClientFlow(true);
     setSelectedClientSuggestion(null);
     setClientEmail("");
     setClientPhone("");
@@ -1006,6 +1025,26 @@ export default function ClientDetailPage() {
               {isClientSuggestionOpen && (
                 <div className={`absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-[12px] border shadow-lg ${isDark ? "border-white/10 bg-[#171717]" : "border-black/10 bg-white"}`}>
                   <div className="max-h-72 overflow-y-auto py-2">
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={handleCreateNewClient}
+                      className={`mb-2 flex w-full items-center gap-3 border-b px-4 py-4 text-left transition-colors ${
+                        isDark
+                          ? "border-white/10 text-[#E8D1AB] hover:bg-[#E8D1AB]/5"
+                          : "border-black/10 text-black hover:bg-black/5"
+                      }`}
+                    >
+                      <div className={`flex h-6 w-6 items-center justify-center rounded border ${
+                        isDark
+                          ? "border-[#E8D1AB]/40 bg-[#E8D1AB] text-black"
+                          : "border-black/20 bg-black text-white"
+                      }`}>
+                        <Plus size={14} />
+                      </div>
+                      <span className="text-sm font-semibold">Create New Client Lead</span>
+                    </button>
+
                     {isLoadingClientSuggestions ? (
                       <div className={`px-4 py-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                         Searching clients...
@@ -1045,26 +1084,6 @@ export default function ClientDetailPage() {
                         No matching clients found.
                       </div>
                     )}
-
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={handleCreateNewClient}
-                      className={`mt-2 flex w-full items-center gap-3 border-t px-4 py-4 text-left transition-colors ${
-                        isDark
-                          ? "border-white/10 text-[#E8D1AB] hover:bg-[#E8D1AB]/5"
-                          : "border-black/10 text-black hover:bg-black/5"
-                      }`}
-                    >
-                      <div className={`flex h-6 w-6 items-center justify-center rounded border ${
-                        isDark
-                          ? "border-[#E8D1AB]/40 bg-[#E8D1AB] text-black"
-                          : "border-black/20 bg-black text-white"
-                      }`}>
-                        <Plus size={14} />
-                      </div>
-                      <span className="text-sm font-semibold">Create New Client</span>
-                    </button>
                   </div>
                 </div>
               )}
