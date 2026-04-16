@@ -58,13 +58,37 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
     const trimmed = String(value).trim();
     if (!trimmed) return "";
 
-    if (!trimmed.includes("T")) {
-      const [hours, minutes = "0", seconds = "0"] = trimmed.split(":");
-      const date = new Date(2000, 0, 1, Number(hours), Number(minutes), Number(seconds));
+    const meridiemMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?:\s)?([AaPp][Mm])$/);
+    if (meridiemMatch) {
+      const hours = Number(meridiemMatch[1]);
+      const minutes = Number(meridiemMatch[2]);
+      const suffix = meridiemMatch[3].toUpperCase();
+
+      if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+        const normalizedHours = suffix === "PM" ? (hours % 12) + 12 : hours % 12;
+        const date = new Date(2000, 0, 1, normalizedHours, minutes, 0);
+        return date.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        });
+      }
+    }
+
+    const timeMatch =
+      trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/) ||
+      trimmed.match(/(?:T|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z)?$/);
+
+    if (timeMatch) {
+      const hours = Number(timeMatch[1]);
+      const minutes = Number(timeMatch[2]);
+      const seconds = Number(timeMatch[3] || 0);
+      const date = new Date(2000, 0, 1, hours, minutes, Number.isNaN(seconds) ? 0 : seconds);
       if (!Number.isNaN(date.getTime())) {
         return date.toLocaleTimeString("en-US", {
           hour: "numeric",
           minute: "2-digit",
+          hour12: true,
         });
       }
     }
@@ -74,6 +98,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
     return parsed.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
+      hour12: true,
     });
   };
 
@@ -89,6 +114,9 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
       count,
     }));
   };
+
+  const bookingDays = Array.isArray(data?.booking_days) ? data.booking_days : [];
+  const hasMultipleBookingDays = bookingDays.length > 1;
 
   return (
     <div 
@@ -234,12 +262,35 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                 <div className="flex items-start gap-4">
                   <div className="bg-white/5 p-3 rounded-2xl text-[#E8D1AB] no-print"><Calendar size={18} /></div>
                   <div>
-                    <p className="text-white font-medium print:text-black">
-                        {formatShortDate(data.date)}
-                    </p>
-                    <p className="text-white/50 text-sm print:text-gray-600">
-                      {formatTime(data.start_time)} - {formatTime(data.end_time)}
-                    </p>
+                    {hasMultipleBookingDays ? (
+                      <div className="space-y-2">
+                        {bookingDays.map((day: any, index: number) => {
+                          const dateValue = day?.event_date || day?.date || "";
+                          const startValue = day?.start_time || day?.startTime || "";
+                          const endValue = day?.end_time || day?.endTime || "";
+
+                          return (
+                            <div key={`${dateValue}-${startValue}-${endValue}-${index}`}>
+                              <p className="text-white font-medium print:text-black">
+                                {formatShortDate(dateValue)}
+                              </p>
+                              <p className="text-white/50 text-sm print:text-gray-600">
+                                {formatTime(startValue)} - {formatTime(endValue)}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-white font-medium print:text-black">
+                          {formatShortDate(data.date)}
+                        </p>
+                        <p className="text-white/50 text-sm print:text-gray-600">
+                          {formatTime(data.start_time)} - {formatTime(data.end_time)}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 

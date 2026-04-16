@@ -188,6 +188,7 @@ type ShootTypeKind = "video" | "photo";
 
 type ClientDropdownItem = {
   client_id?: string | number | null;
+  user_id?: string | number | null;
   id?: string | number | null;
   name?: string | number | null;
   client_name?: string | number | null;
@@ -341,6 +342,52 @@ const getClientAddress = (client: ClientDropdownItem | null | undefined) =>
 
 const getClientIdentifier = (client: ClientDropdownItem | null | undefined) =>
   pickFirstClientValue(client?.client_id, client?.id, getClientDisplayName(client), getClientEmail(client));
+
+const buildCreatedClientDraft = ({
+  name,
+  email,
+  phoneNumber,
+  address,
+}: {
+  name: string;
+  email: string;
+  phoneNumber: string;
+  address: string;
+}): ClientDropdownItem => ({
+  name,
+  email,
+  phone_number: phoneNumber,
+  address,
+});
+
+const findMatchingClient = (
+  clients: ClientDropdownItem[],
+  {
+    name,
+    email,
+    phoneNumber,
+  }: {
+    name: string;
+    email: string;
+    phoneNumber: string;
+  }
+) => {
+  const normalizedName = name.trim().toLowerCase();
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPhone = phoneNumber.trim();
+
+  return clients.find((client) => {
+    const clientName = getClientDisplayName(client).trim().toLowerCase();
+    const clientEmail = getClientEmail(client).trim().toLowerCase();
+    const clientPhone = getClientPhone(client).trim();
+
+    return (
+      clientName === normalizedName &&
+      clientEmail === normalizedEmail &&
+      clientPhone === normalizedPhone
+    );
+  }) || null;
+};
 
 const resolveShootTypeApiId = (item: ShootTypeApiItem) => {
   const preferredId = item.sales_shoot_type_id
@@ -818,6 +865,8 @@ export default function CreateQuotePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [clients, setClients] = useState<ClientDropdownItem[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
+  const [isCreateNewClientFlow, setIsCreateNewClientFlow] = useState(false);
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
 
   // Form State
   const [clientName, setClientName] = useState("");
@@ -961,6 +1010,18 @@ export default function CreateQuotePage() {
     setPhoneNumber(getClientPhone(client));
     setAddress(getClientAddress(client));
   }, []);
+
+  const startCreateNewClientFlow = React.useCallback((advanceToDetails: boolean) => {
+    setIsCreateNewClientFlow(true);
+    applyClientSelection(null);
+    setIsDropdownOpen(false);
+    setIsDetailsClientDropdownOpen(false);
+    setSearchQuery("");
+
+    if (advanceToDetails) {
+      setView('details');
+    }
+  }, [applyClientSelection]);
 
   React.useEffect(() => {
     if (!selectedClient) {
@@ -1786,6 +1847,17 @@ export default function CreateQuotePage() {
       </div>
 
       <div className="max-h-72 overflow-y-auto custom-scrollbar p-3">
+        <button
+          onClick={() => startCreateNewClientFlow(advanceToDetails)}
+          className={`w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mb-2 ${isDark ? "border-b border-[#FFFFFF80]/50" : "border-b border-[#E5E5E5]"
+            }`}
+        >
+          <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
+            <Plus size={16} className="text-[#171717]" />
+          </div>
+          <span className="font-semibold text-lg">Create New Client</span>
+        </button>
+
         {loadingClients ? (
           <div className="py-8 flex justify-center items-center">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#E8D1AB]"></div>
@@ -1800,6 +1872,7 @@ export default function CreateQuotePage() {
             <div
               key={clientId}
               onClick={() => {
+                setIsCreateNewClientFlow(false);
                 applyClientSelection(client);
                 onClose();
                 setSearchQuery("");
@@ -1828,24 +1901,6 @@ export default function CreateQuotePage() {
             </div>
           );
         })}
-
-        <button
-          onClick={() => {
-            applyClientSelection(null);
-            onClose();
-            setSearchQuery("");
-            if (advanceToDetails) {
-              setView('details');
-            }
-          }}
-          className={`w-full flex items-center gap-4 px-5 py-4 text-[#E8D1AB] hover:bg-[#E8D1AB]/5 transition-all rounded-xl mt-2 pt-6 ${isDark ? "border-t border-[#FFFFFF80]/50" : "border-t border-[#E5E5E5]"
-            }`}
-        >
-          <div className="w-6 h-6 rounded border border-[#E8D1AB]/40 flex items-center justify-center bg-[#E8D1AB]">
-            <Plus size={16} className="text-[#171717]" />
-          </div>
-          <span className="font-semibold text-lg">Create New Client</span>
-        </button>
       </div>
     </motion.div>
   );
@@ -2081,8 +2136,88 @@ export default function CreateQuotePage() {
 
     if (view === 'selection' && selectedClient) {
       applyClientSelection(selectedClient);
+      setIsCreateNewClientFlow(false);
       setView('details');
     } else if (view === 'details') {
+      if (isCreateNewClientFlow) {
+        setIsCreatingClient(true);
+
+        try {
+          const trimmedName = clientName.trim();
+          const trimmedEmail = emailId.trim();
+          const trimmedPhone = phoneNumber.trim();
+          const trimmedAddress = address.trim();
+
+          const response = await salesApi.createClient({
+            name: trimmedName,
+            email: trimmedEmail,
+            phone_number: trimmedPhone,
+          });
+
+          if (response?.error || response?.success === false) {
+            throw new Error(
+              typeof response?.error === "string"
+                ? response.error
+                : "Failed to create client"
+            );
+          }
+
+          const localCreatedClient = buildCreatedClientDraft({
+            name: trimmedName,
+            email: trimmedEmail,
+            phoneNumber: trimmedPhone,
+            address: trimmedAddress,
+          });
+
+          const dropdownResponse = await salesApi.getClientDropdown();
+          const refreshedClients = Array.isArray(dropdownResponse?.data)
+            ? (dropdownResponse.data as ClientDropdownItem[])
+            : [];
+          const matchedClient = findMatchingClient(refreshedClients, {
+            name: trimmedName,
+            email: trimmedEmail,
+            phoneNumber: trimmedPhone,
+          });
+          const resolvedClient = matchedClient
+            ? { ...matchedClient, address: getClientAddress(matchedClient) || trimmedAddress }
+            : localCreatedClient;
+
+          if (refreshedClients.length > 0) {
+            setClients(refreshedClients);
+          } else {
+            setClients((prev) => {
+              const next = [localCreatedClient, ...prev];
+              const seen = new Set<string>();
+
+              return next.filter((client) => {
+                const key = `${getClientDisplayName(client)}|${getClientEmail(client)}|${getClientPhone(client)}`;
+                if (seen.has(key)) {
+                  return false;
+                }
+
+                seen.add(key);
+                return true;
+              });
+            });
+          }
+
+          setSelectedClient(resolvedClient);
+          setClientName(trimmedName);
+          setEmailId(trimmedEmail);
+          setPhoneNumber(trimmedPhone);
+          setAddress(trimmedAddress);
+          setIsCreateNewClientFlow(false);
+        } catch (error) {
+          console.error("Failed to create client", error);
+          toast.error(
+            error instanceof Error ? error.message : "Failed to create client"
+          );
+          return;
+        } finally {
+          setIsCreatingClient(false);
+        }
+      }
+
       setView('services');
     } else if (view === 'services') {
       setView('addons');
@@ -2754,7 +2889,9 @@ export default function CreateQuotePage() {
           : isQuoteSaved
             ? "Saved"
             : "Save Quote"
-        : "Continue"
+        : view === "details" && isCreatingClient
+          ? "Creating Client..."
+          : "Continue"
       : isCreatingQuoteDraft && activeQuoteAction === "save"
         ? "Saving..."
         : "Save"
@@ -2764,7 +2901,9 @@ export default function CreateQuotePage() {
         : isQuoteSaved
           ? "Saved"
           : "Save Quote"
-      : "Continue";
+      : view === "details" && isCreatingClient
+        ? "Creating Client..."
+        : "Continue";
 
   const handleSaveAsDraft = async () => {
     await saveQuoteDraft("draft");
@@ -5691,7 +5830,7 @@ export default function CreateQuotePage() {
                       ? 'bg-[#2A2B2D] text-zinc-600'
                       : 'bg-[#A4A5A6] text-white'
                   } h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
-                disabled={!canPrimaryAction || isCreatingQuoteDraft}
+                disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
                 onClick={handlePrimaryAction}
               >
                 {primaryActionLabel}
@@ -5837,7 +5976,7 @@ export default function CreateQuotePage() {
               ) : isDark
                 ? 'bg-[#2A2B2D] text-zinc-600'
                 : 'bg-[#A4A5A6] text-white'} hover:opacity-90 h-14 min-w-[166px] rounded-xl text-sm font-bold transition-all shadow-md`}
-              disabled={!canPrimaryAction || isCreatingQuoteDraft}
+              disabled={!canPrimaryAction || isCreatingQuoteDraft || isCreatingClient}
               onClick={handlePrimaryAction}
             >
               {primaryActionLabel}

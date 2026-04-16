@@ -19,6 +19,13 @@ export interface User {
   email_verified?: number;
   crew_member_id?: number | null;
   created_at?: string;
+  temp_event_popup?: {
+    show?: boolean;
+    current_location?: {
+      address?: string;
+    };
+  };
+  user_type_id?: number;
 }
 
 export interface AuthTokens {

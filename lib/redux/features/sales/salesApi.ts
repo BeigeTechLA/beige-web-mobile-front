@@ -52,7 +52,26 @@ export const salesApi = createApi({
 
     trackEarlyInterest: builder.mutation<
       ApiResponse<{ lead_id: number; booking_id: number; is_new: boolean }>,
-      { guest_email: string; user_id?: number; content_type?: string; shoot_type?: string; client_name?: string }
+      {
+        booking_id?: number | null;
+        guest_email: string;
+        user_id?: number;
+        content_type?: string;
+        shoot_type?: string;
+        client_name?: string;
+        start_date?: string | null;
+        start_time?: string | null;
+        end_time?: string | null;
+        time_zone?: string;
+        startDate?: string;
+        endDate?: string;
+        booking_type?: "single_day" | "multi_day";
+        booking_days?: Array<Record<string, any>>;
+        edits_needed?: boolean;
+        video_edit_types?: string[];
+        photo_edit_types?: string[];
+        estimated_delivery_date?: string | null;
+      }
     >({
       query: (data) => ({
         url: 'sales/leads/track-early-interest',
@@ -447,6 +466,35 @@ export const salesApi = createApi({
       transformResponse: (response: ApiResponse<any>) => response.data!,
       providesTags: (result, error, id) => [{ type: 'Lead', id }],
     }),
+
+    // =====================================================
+    // Availability Endpoints
+    // =====================================================
+
+    addAvailability: builder.mutation<ApiResponse<void>, {
+      date: string;
+      availability_status: number;
+      is_full_day: number;
+      notes?: string;
+    }>({
+      query: (data) => ({
+        url: 'sales/add-availability',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
+    getAvailability: builder.mutation<ApiResponse<any>, {
+      sales_rep_id?: number;
+      year: string;
+      month: string;
+    }>({
+      query: (data) => ({
+        url: 'sales/availability',
+        method: 'POST',
+        body: data,
+      }),
+    }),
   }),
 });
 
@@ -501,5 +549,7 @@ export const {
   useSendInvoiceMutation,
   useUpdateLeadIntentMutation,
   useUpdateClientLeadIntentMutation,
-  useGenerateClientDiscountCodeMutation
+  useGenerateClientDiscountCodeMutation,
+  useAddAvailabilityMutation,
+  useGetAvailabilityMutation
 } = salesApi;

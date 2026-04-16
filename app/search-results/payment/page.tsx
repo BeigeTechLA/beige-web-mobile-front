@@ -142,22 +142,49 @@ const formatTime12 = (value?: string | null) => {
   const raw = String(value).trim();
   if (!raw) return "";
 
-  let date: Date | null = null;
-  if (raw.includes("T")) {
-    const parsed = parseDateValue(raw);
-    if (parsed) date = parsed;
-  } else {
-    const [hStr, mStr = "0", sStr = "0"] = raw.split(":");
-    const h = Number(hStr);
-    const m = Number(mStr);
-    const s = Number(sStr);
-    if (Number.isFinite(h) && Number.isFinite(m)) {
-      date = new Date(2000, 0, 1, h, m, Number.isFinite(s) ? s : 0);
+  const meridiemMatch = raw.match(/^(\d{1,2}):(\d{2})(?:\s)?([AaPp][Mm])$/);
+  if (meridiemMatch) {
+    const hours = Number(meridiemMatch[1]);
+    const minutes = Number(meridiemMatch[2]);
+    const suffix = meridiemMatch[3].toUpperCase();
+
+    if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+      const normalizedHours = suffix === "PM" ? (hours % 12) + 12 : hours % 12;
+      const date = new Date(2000, 0, 1, normalizedHours, minutes, 0);
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
     }
   }
 
-  if (!date) return "";
-  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const timeMatch =
+    raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/) ||
+    raw.match(/(?:T|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z)?$/);
+
+  if (timeMatch) {
+    const hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    const seconds = Number(timeMatch[3] || 0);
+
+    if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+      const date = new Date(2000, 0, 1, hours, minutes, Number.isFinite(seconds) ? seconds : 0);
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
+  }
+
+  const parsed = parseDateValue(raw);
+  if (!parsed) return raw;
+  return parsed.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 };
 
 const getTimeRange = (booking?: any) => {
@@ -319,7 +346,7 @@ function StripePaymentFormMulti({
 
   const isFree = amount === 0;
   const isReferralLocked =
-    isFree && parseFloat(quote?.discount_total || 0) > 0;
+    isFree && parseFloat(quote?.discount_total || quote?.discount_amount || 0) > 0;
 
   useEffect(() => {
     if (!isReferralLocked) return;
@@ -332,8 +359,8 @@ function StripePaymentFormMulti({
 
   // AUTO-APPLY & REFRESH FIX LOGIC - UPDATED TO HANDLE OVERRIDE
   useEffect(() => {
-    const existingDiscountTotal = parseFloat(quote?.discount_total || 0);
-    const savedCode = quote?.applied_discount_code?.toUpperCase();
+    const existingDiscountTotal = parseFloat(quote?.discount_total || quote?.discount_amount || 0);
+    const savedCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
     const urlCode = urlDiscount?.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
     // Logic: If URL code is different from saved code, prioritize the URL code
@@ -348,23 +375,23 @@ function StripePaymentFormMulti({
         setDiscountCode(savedCode);
       }
     }
-  }, [urlDiscount, quote?.applied_discount_code, quote?.discount_total]);
+  }, [urlDiscount, quote?.applied_discount_code, quote?.discount_code, quote?.discount_total, quote?.discount_amount]);
 
   // TRIGGER APPLICATION: Trigger when discount is valid and differs from what is active
   useEffect(() => {
     const urlCode = urlDiscount?.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const savedCode = quote?.applied_discount_code?.toUpperCase();
+    const savedCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
 
     // Condition to apply: It's valid AND (nothing is applied OR it's a different code than what's saved)
     if (urlCode && discountValid === true && !isValidatingDiscount) {
-      if (parseFloat(quote?.discount_total || 0) === 0 || urlCode !== savedCode) {
+      if (parseFloat(quote?.discount_total || quote?.discount_amount || 0) === 0 || urlCode !== savedCode) {
         // Prevent infinite loop: Only apply if the current input matches the urlCode
         if (discountCode === urlCode) {
           applyDiscountCode();
         }
       }
     }
-  }, [discountValid, urlDiscount, quote?.applied_discount_code]);
+  }, [discountValid, urlDiscount, quote?.applied_discount_code, quote?.discount_code]);
 
   // Debounced referral code validation
   const validateReferralCode = React.useCallback(
@@ -471,7 +498,8 @@ function StripePaymentFormMulti({
       }
 
       // If typed matches active exactly, it's valid
-      if (quote?.applied_discount_code?.toUpperCase() === code.toUpperCase()) {
+      const activeCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+      if (activeCode === code.toUpperCase()) {
         setDiscountValid(true);
         return;
       }
@@ -499,7 +527,7 @@ function StripePaymentFormMulti({
           setDiscountData(null);
         }
       } catch (error: any) {
-        if (quote?.applied_discount_code?.toUpperCase() === code.toUpperCase()) {
+        if (activeCode === code.toUpperCase()) {
           setDiscountValid(true);
         } else {
           setDiscountValid(false);
@@ -509,7 +537,7 @@ function StripePaymentFormMulti({
         setIsValidatingDiscount(false);
       }
     }, 500),
-    [shootId, quote?.applied_discount_code],
+    [shootId, quote?.applied_discount_code, quote?.discount_code],
   );
 
   // Immediate discount validation (used on submit)
@@ -518,6 +546,11 @@ function StripePaymentFormMulti({
       setDiscountValid(null);
       setDiscountData(null);
       return false;
+    }
+
+    const activeCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+    if (activeCode === code.toUpperCase()) {
+      return true;
     }
 
     setIsValidatingDiscount(true);
@@ -601,16 +634,18 @@ function StripePaymentFormMulti({
     const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setDiscountCode(upperCode);
     validateDiscountCode(upperCode);
-    if (!upperCode && quote?.applied_discount_code) {
+    if (!upperCode && (quote?.applied_discount_code || quote?.discount_code)) {
       clearDiscountCode();
     }
   };
 
   const applyDiscountCode = async () => {
-    if (!discountCode || !discountValid || !quote?.quote_id) return;
+    const quoteId = quote?.quote_id || quote?.id;
+    if (!discountCode || !discountValid || !quoteId) return;
 
     // Check if it is already applied
-    if (quote?.applied_discount_code?.toUpperCase() === discountCode.toUpperCase()) return;
+    const activeCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+    if (activeCode === discountCode.toUpperCase()) return;
 
     setIsValidatingDiscount(true);
     try {
@@ -623,7 +658,7 @@ function StripePaymentFormMulti({
       const response = await axios.post(
         `${API_BASE_URL}sales/discount-codes/${discountCode}/apply`,
         {
-          quote_id: quote.quote_id,
+          quote_id: quoteId,
           booking_id: shootId,
           guest_email: resolveGuestEmail(booking),
         },
@@ -662,7 +697,9 @@ function StripePaymentFormMulti({
   };
 
   const clearDiscountCode = async () => {
-    if (!quote?.applied_discount_code || !quote?.quote_id || !shootId) {
+    const quoteId = quote?.quote_id || quote?.id;
+    const activeCode = quote?.applied_discount_code || quote?.discount_code;
+    if (!activeCode || !quoteId || !shootId) {
       setDiscountCode("");
       setDiscountValid(null);
       setDiscountData(null);
@@ -678,9 +715,9 @@ function StripePaymentFormMulti({
         ).replace(/\/$/, "") + "/";
 
       const response = await axios.post(
-        `${API_BASE_URL}sales/discount-codes/${quote.applied_discount_code}/clear`,
+        `${API_BASE_URL}sales/discount-codes/${activeCode}/clear`,
         {
-          quote_id: quote.quote_id,
+          quote_id: quoteId,
           booking_id: shootId,
         },
         {
@@ -1017,7 +1054,7 @@ function StripePaymentFormMulti({
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isValidatingDiscount ? (
                 <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
-              ) : discountValid === true && discountCode.toUpperCase() !== quote?.applied_discount_code?.toUpperCase() ? (
+              ) : discountValid === true && discountCode.toUpperCase() !== (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() ? (
                 <button
                   type="button"
                   onClick={applyDiscountCode}
@@ -1025,7 +1062,7 @@ function StripePaymentFormMulti({
                 >
                   Apply
                 </button>
-              ) : discountValid === true && discountCode.toUpperCase() === quote?.applied_discount_code?.toUpperCase() ? (
+              ) : discountValid === true && discountCode.toUpperCase() === (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() ? (
                 <button
                   type="button"
                   onClick={clearDiscountCode}
@@ -1038,17 +1075,18 @@ function StripePaymentFormMulti({
               ) : null}
             </div>
           </div>
-          {discountValid === true && discountCode.toUpperCase() === quote?.applied_discount_code?.toUpperCase() && (
+          {discountValid === true && discountCode.toUpperCase() === (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() && (
             <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
               <Check className="w-4 h-4" />
-              Discount applied: You Save {formatCurrency(quote.discount_total)}
+              Discount applied: You Save {formatCurrency(quote.discount_total || quote.discount_amount)}
             </p>
           )}
-          {discountValid === true && discountData && discountCode.toUpperCase() !== quote?.applied_discount_code?.toUpperCase() && (
+          {discountValid === true && discountData && discountCode.toUpperCase() !== (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() && (
             <p className="text-blue-400 text-sm mt-2">
               Click &apos;Apply&apos; to update your total with this code.
             </p>
           )}
+
           {discountValid === false && discountCode.length >= 4 && (
             <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
               <X className="w-4 h-4" />
@@ -1773,15 +1811,16 @@ function MultiCreatorPaymentContent() {
                           <span className="font-medium text-[#389903]">{formatCurrency(quote.subtotal || 0)}</span>
                         </div>
 
-                        {parseFloat(quote.discount_total || 0) > 0 && (
+                        {parseFloat(quote.discount_total || quote.discount_amount || 0) > 0 && (
                           <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
                             <div className="flex flex-col">
                               <span className="text-green-600 font-bold flex items-center gap-1">
                                 <Tag className="w-3 h-3" /> Discount
                               </span>
                               {quote.discount_percentage && <span className="text-[10px] text-green-600/80">({quote.discount_percentage}% off)</span>}
+                              {quote.discount_percent && <span className="text-[10px] text-green-600/80">({quote.discount_percent}% off)</span>}
                             </div>
-                            <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total)}</span>
+                            <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total || quote.discount_amount)}</span>
                           </div>
                         )}
 

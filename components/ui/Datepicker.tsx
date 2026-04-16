@@ -7,6 +7,7 @@ import {
 } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { Box, Typography } from "@mui/material";
+import type { SxProps, Theme } from "@mui/material/styles";
 
 export const datePickerColours = {
   inputBackground: "#101010",
@@ -98,37 +99,18 @@ export interface DatePickerColors {
   mutedText: string;
 }
 
-const defaultColors: DatePickerColors = {
-  inputBackground: "#000000",
-  inputText: "#FFFFFF",
-  inputBorder: "rgba(255, 255, 255, 0.1)",
-  inputBorderHover: "rgba(255, 255, 255, 0.2)",
-  inputBorderFocus: "#E8D1AB",
-  labelText: "rgba(255, 255, 255, 0.4)",
-  iconColor: "#FFFFFF",
-  inputDisabled: "rgba(255, 255, 255, 0.3)",
-  accent: "#E8D1AB",
-  accentText: "#101010",
-  hoverAccent: "#F2E2C6",
-  paperBackground: "#1A1A1A",
-  calendarHeaderText: "#FFFFFF",
-  weekdayLabelText: "rgba(255, 255, 255, 0.6)",
-  dayNumberText: "#FFFFFF",
-  navigationIconColor: "#FFFFFF",
-  mutedText: "rgba(255, 255, 255, 0.4)",
-};
-
 interface Props {
   label: string;
   value: Date | null;
   onChange: (date: Date | null) => void;
   minDate?: Date;
+  maxDate?: Date;
   colors?: Partial<DatePickerColors>;
   disabled?: boolean;
   format?: string;
-  sx?: any;
+  sx?: SxProps<Theme>;
   floating?: boolean;
-  labelSx?: any;
+  labelSx?: SxProps<Theme>;
   isDark?: boolean;
 }
 
@@ -137,6 +119,7 @@ export const DatePicker: React.FC<Props> = ({
   value,
   onChange,
   minDate,
+  maxDate,
   colors: customColors,
   disabled = false,
   format = "MM/dd/yyyy",
@@ -147,7 +130,6 @@ export const DatePicker: React.FC<Props> = ({
 }) => {
   const activeTheme = isDark ? darkTheme : lightTheme;
   const colors = { ...activeTheme, ...customColors };
-  // const colors = { ...defaultColors, ...customColors };
   const [open, setOpen] = useState(false);
 
   const interiorStyles = {
@@ -224,6 +206,7 @@ export const DatePicker: React.FC<Props> = ({
           onClose={() => setOpen(false)}
           disabled={disabled}
           minDate={minDate}
+          maxDate={maxDate}
           slotProps={{
             textField: {
               fullWidth: true,

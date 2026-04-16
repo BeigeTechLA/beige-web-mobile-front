@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { cn, getInitials } from "@/lib/utils";
-import { getPaymentStatusMeta, getProjectTimeText } from "@/lib/utils/shootDetails";
+import { getPaymentStatusMeta, getProjectDateText, getProjectScheduleTimeText } from "@/lib/utils/shootDetails";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 import { resolveTimelineStage, timelineStageToHeaderLabel } from "@/lib/utils/projectTimeline";
 
@@ -25,7 +25,8 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const folderLink = workspaceFolderLink;
   const isDark = !mounted || theme === "dark";
-  const projectTimeText = getProjectTimeText(project);
+  const projectDateText = getProjectDateText(project);
+  const projectTimeText = getProjectScheduleTimeText(project);
   const shootFilesText =
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
@@ -65,17 +66,6 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
       isMounted = false;
     };
   }, [projectId]);
-
-  const formatShootDate = (dateValue?: string) => {
-    if (!dateValue) return "N/A";
-    const date = new Date(dateValue);
-    if (Number.isNaN(date.getTime())) return "N/A";
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
 
   const formatTotalValue = () => {
     const amount =
@@ -174,7 +164,7 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
               <div className="flex gap-2">
                 <span>Shoot Date :</span>
                 <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  {formatShootDate(project?.event_date)}
+                  {projectDateText}
                 </span>
               </div>
               <div className={`hidden lg:block w-px h-5 ${isDark ? "bg-[#333333]" : "bg-[#E5E5E5]"}`} />

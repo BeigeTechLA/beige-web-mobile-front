@@ -1938,6 +1938,24 @@ export const CheckCPStatus = async () => {
   }
 };
 
+export const ConfirmCPEventLocation = async () => {
+  try {
+    const response = await api.post("auth/cp-event-location/confirm", {}, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error: any) {
+    console.error('Confirm CP Event Location Error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error.response?.data?.message || 'Failed to confirm event location',
+    };
+  }
+};
+
 export const salesApi = {
   getLeadStats: async (leadId: number | string) => {
     try {
@@ -2088,7 +2106,7 @@ export const salesApi = {
       };
     }
   },
-  getInvoiceHistory: async (params: {page?: number;limit?: number; } = {}) => {
+  getInvoiceHistory: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
     try {
       const response = await api.get('/sales/dashboard/invoice-history', { params });
       return response.data;
@@ -2353,9 +2371,25 @@ export const salesApi = {
       };
     }
   },
-  getSalesReps: async () => {
+  createClient: async (data: { name: string; email: string; phone_number: string }) => {
     try {
-      const response = await api.get('/sales/sales-reps');
+      const response = await api.post('/sales/create-client', data);
+      return response.data;
+    } catch (error: unknown) {
+      const apiError = error as { response?: { data?: { message?: string } } };
+      console.error('Create Client Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: apiError.response?.data?.message || 'Failed to create client',
+      };
+    }
+  },
+  getSalesReps: async (options?: { includeInactive?: boolean }) => {
+    try {
+      const response = await api.get('/sales/sales-reps', {
+        params: options?.includeInactive ? { include_inactive: true } : undefined,
+      });
       return response.data;
     } catch (error: any) {
       console.error('Get Sales Reps Error:', error.response?.data || error.message);
@@ -2363,6 +2397,29 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch sales representatives',
+      };
+    }
+  },
+  getSalesRepStatusDetails: async (
+    params: {
+      sales_rep_id: number | string;
+      date?: string;
+      start_date?: string;
+      end_date?: string;
+      search?: string;
+      lead_status?: string;
+      lead_type?: string;
+    }
+  ) => {
+    try {
+      const response = await api.get('/sales/status-details', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Sales Rep Status Details Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch sales representative status details',
       };
     }
   },
@@ -2432,6 +2489,19 @@ export const salesApi = {
       };
     }
   },
+  assignLeadToSelf: async (leadId: number | string) => {
+    try {
+      const response = await api.put(`/sales/leads/${leadId}/assign-self`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Assign Lead To Self Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to assign lead to yourself',
+      };
+    }
+  },
   changeClientLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
     try {
       const response = await api.put(`/sales/client-leads/${leadId}/change-sales-rep`, {
@@ -2444,6 +2514,19 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to update assigned sales representative',
+      };
+    }
+  },
+  assignClientLeadToSelf: async (leadId: number | string) => {
+    try {
+      const response = await api.put(`/sales/client-leads/${leadId}/assign-self`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Assign Client Lead To Self Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to assign client lead to yourself',
       };
     }
   },

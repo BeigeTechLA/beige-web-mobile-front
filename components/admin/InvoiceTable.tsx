@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Search } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 import { salesApi } from "@/lib/api";
 import apiClient from "@/lib/apiClient";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
+import { BasicDropdown } from "@/components/admin/BasicDropdown";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface InvoiceHistoryItem {
   invoice_send_history_id: number;
@@ -33,7 +35,7 @@ interface InvoiceHistoryItem {
 
 interface InvoiceTableRow {
   id: number;
-  invoiceSendHistory: string;
+  invoiceHistoryId: string;
   bookingId: string;
   detailHref: string | null;
   clientName: string;
@@ -124,7 +126,14 @@ export const InvoiceTable = () => {
   const [rows, setRows] = useState<InvoiceTableRow[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("All Payments");
   const itemsPerPage = 20;
+  const debouncedSearch = useDebounce(searchQuery, 400);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, paymentFilter]);
 
   useEffect(() => {
     setMounted(true);
@@ -138,6 +147,13 @@ export const InvoiceTable = () => {
         const response = await salesApi.getInvoiceHistory({
           page: currentPage,
           limit: itemsPerPage,
+          search: debouncedSearch || undefined,
+          status:
+            paymentFilter === "Paid"
+              ? "paid"
+              : paymentFilter === "Unpaid"
+                ? "pending"
+                : undefined,
         });
 
         const items: InvoiceHistoryItem[] = response?.data?.items || [];
@@ -165,7 +181,7 @@ export const InvoiceTable = () => {
 
           return {
             id: item.invoice_send_history_id,
-            invoiceSendHistory: String(item.invoice_send_history_id ?? "N/A"),
+            invoiceHistoryId: item.invoice_send_history_id ? `#${item.invoice_send_history_id}` : "N/A",
             bookingId: item.booking_id ? `#${item.booking_id}` : "N/A",
             detailHref,
             clientName: item.client_name || "N/A",
@@ -191,8 +207,8 @@ export const InvoiceTable = () => {
       }
     };
 
-    fetchInvoiceHistory();
-  }, [currentPage, pathname]);
+    void fetchInvoiceHistory();
+  }, [currentPage, debouncedSearch, pathname, paymentFilter]);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
@@ -236,6 +252,34 @@ export const InvoiceTable = () => {
       className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`}
       style={{ fontFamily: "var(--font-instrument-sans)" }}
     >
+      <div className={`border-b p-4 lg:p-6 ${isDark ? "border-[#222222]" : "border-[#F2F2F2]"}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full lg:max-w-md">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDark ? "text-white/35" : "text-black/35"}`} />
+            <input
+              type="text"
+              placeholder="Search invoice ID..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className={`h-10 w-full rounded-lg border pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+                ? "border-white/10 bg-[#18181b] text-white placeholder:text-white/35 focus:ring-[#E8D1AB]"
+                : "border-black/10 bg-white text-black placeholder:text-black/35 focus:ring-[#E8D1AB]"
+                }`}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <BasicDropdown
+              label="Payment"
+              value={paymentFilter}
+              options={["All Payments", "Paid", "Unpaid"]}
+              onChange={setPaymentFilter}
+              openAlign="right"
+            />
+          </div>
+        </div>
+      </div>
+
       {loading ? (
         <div className="text-center py-20">
           <div className="flex justify-center items-center">
@@ -259,7 +303,7 @@ export const InvoiceTable = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                      Send History #{row.invoiceSendHistory}
+                      Invoice ID {row.invoiceHistoryId}
                     </p>
                     <p className={`text-sm mt-1 ${isDark ? "text-white/70" : "text-[#555]"}`}>{row.sendDateLabel}</p>
                   </div>
@@ -306,7 +350,7 @@ export const InvoiceTable = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className={`text-base font-medium border-b leading-none tracking-normal transition-colors duration-300 ${isDark ? "text-[#E8D1AB] border-[#333333]" : "text-[#000000] border-[#E5E5E5] bg-[#FFFCF6]"}`}>
-                  <th className="py-5 px-6 font-medium">Send History</th>
+                  <th className="py-5 px-6 font-medium">Invoice ID</th>
                   <th className="py-5 px-6 font-medium">Booking ID</th>
                   <th className="py-5 px-6 font-medium">Client Name</th>
                   <th className="py-5 px-6 font-medium">Email</th>
@@ -326,9 +370,7 @@ export const InvoiceTable = () => {
                     tabIndex={row.detailHref ? 0 : undefined}
                   >
                     <td className="py-5 px-6">
-                      <div>
-                        <p className={`text-base ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.invoiceSendHistory}</p>
-                      </div>
+                      <p className={`text-base font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.invoiceHistoryId}</p>
                     </td>
                     <td className={`py-5 px-6 text-base ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.bookingId}</td>
                     <td className={`py-5 px-6 text-base ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.clientName}</td>

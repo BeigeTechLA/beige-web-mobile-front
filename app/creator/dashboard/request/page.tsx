@@ -227,6 +227,19 @@ export default function RequestsShootsPage() {
     return addressStr;
   };
 
+    const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "TBD";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).replace(/ /g, ' ').replace(/(\w{3}) (\d{4})/, '$1, $2');
+  };
+
+
   const isUpcomingDate = (dateStr?: string) => {
     if (!dateStr) return true;
     const today = new Date();
@@ -510,7 +523,7 @@ export default function RequestsShootsPage() {
                   <div className="space-y-3 mb-4 lg:mb-6">
                     <div className="flex items-center gap-3 text-white/60 text-sm">
                       <CalendarIcon size={16} className="text-[#E8D1AB]" />
-                      <span>{item.event_date || item.shoot_date || "TBD"}</span>
+                      <span>{formatDate(item.event_date || item.shoot_date || "TBD")}</span>
                     </div>
                     <div className="flex items-center gap-3 text-white/60 text-sm">
                       <MapPin size={16} className="text-[#E8D1AB]" />

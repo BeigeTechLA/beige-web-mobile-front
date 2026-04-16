@@ -7,6 +7,7 @@ import {
   History,
   Link,
   List,
+  Loader2,
   MoreVertical,
   Search,
 } from "lucide-react";
@@ -312,9 +313,10 @@ export default function CreatorFileManagerPage() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="text-sm text-white/70">Loading projects...</div>
-        ) : error ? (
+        {loading ? <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+                }`}>
+                <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+              </div> : error ? (
           
           <div className="text-sm text-red-300">{error}</div>
         ) : filteredFolders.length === 0 ? (
