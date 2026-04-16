@@ -91,6 +91,7 @@ export const pricingApi = createApi({
         bookingId?: number;
         notes?: string;
         shoot_start_date?: string;
+        studio_total?: number;
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
       }
@@ -165,6 +166,7 @@ export const pricingApi = createApi({
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
         add_on_items?: SelectedItem[];
+        studio_total?: number;
         skip_discount?: boolean;
         skip_margin?: boolean;
       }

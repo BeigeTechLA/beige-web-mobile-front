@@ -23,12 +23,14 @@ import {
   V3Step3CrewMatching,
   V3LoadingFindingCreative,
   V3SelectDreamTeam,
+  V3Step5Studios,
   V3Step4BookConfirm,
 } from "./index";
 import { pushToDataLayer } from "@/lib/gtm";
 import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { buildEditTypeCounts } from "./utils";
+import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
 
 const V3_STEPS = [
   { label: "Choose Service" },
@@ -78,6 +80,7 @@ export const BookAShootV3 = () => {
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
 
   const isSubmitting = isBookingLoading || isQuoteLoading || isUpdatingBooking;
+  const shouldShowStudiosStep = formData.shootType === "coachella";
 
   // const updateData = (newData: Partial<BookingDataV3>) => {
   //   setFormData((prev) => ({ ...prev, ...newData }));
@@ -287,7 +290,9 @@ export const BookAShootV3 = () => {
       setInternalStep(next);
 
       if (next === 2) setActiveStep(2);
-      if (next === 6) setActiveStep(3);
+      if ((!shouldShowStudiosStep && next === 6) || (shouldShowStudiosStep && next === 7)) {
+        setActiveStep(3);
+      }
     }
   };
 
@@ -309,8 +314,20 @@ export const BookAShootV3 = () => {
     }
 
     // From Book & Confirm, go back to Dream Team selection
-    if (internalStep === 6) {
+    if (internalStep === 6 && !shouldShowStudiosStep) {
       setInternalStep(5);
+      setActiveStep(2);
+      return;
+    }
+    // From studios step, go back to Dream Team
+    if (internalStep === 6 && shouldShowStudiosStep) {
+      setInternalStep(5);
+      setActiveStep(2);
+      return;
+    }
+    // From Book & Confirm (with studios), go back to studios
+    if (internalStep === 7 && shouldShowStudiosStep) {
+      setInternalStep(6);
       setActiveStep(2);
       return;
     }
@@ -410,6 +427,8 @@ export const BookAShootV3 = () => {
       // 5. SAVE QUOTE (API Call)
       // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
       let savedQuoteId: number | null = null;
+      const selectedStudios = normalizeSelectedStudios(formData);
+      const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
 
       const firstBookingDate = formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0
         ? formData.bookingDays
@@ -443,6 +462,7 @@ export const BookAShootV3 = () => {
               ? `${firstBookingDate}T00:00:00.000Z`
               : toIsoIfValid(formData.startDate);
             quotePayload.notes = formData.specialInstructions || undefined;
+            quotePayload.studio_total = selectedStudiosTotal || 0;
           }
 
           const savedQuote = await saveQuote(quotePayload).unwrap();
@@ -502,7 +522,7 @@ export const BookAShootV3 = () => {
         selected_crew_ids: formData.selectedCrewIds || [],
 
         // Project Scope
-        // special_instructions: formData.specialInstructions,
+        special_instructions: formData.specialInstructions || undefined,
         reference_links: formData.referenceLinks,
         is_draft: false, // Marking as final booking
       };
@@ -583,6 +603,9 @@ export const BookAShootV3 = () => {
           />
         );
       case 6:
+        if (shouldShowStudiosStep) {
+          return <V3Step5Studios {...props} />;
+        }
         return (
           <V3Step4BookConfirm
             {...props}
@@ -590,6 +613,14 @@ export const BookAShootV3 = () => {
             isSubmitting={isSubmitting}
           />
         );
+      case 7:
+        return shouldShowStudiosStep ? (
+          <V3Step4BookConfirm
+            {...props}
+            onConfirm={handleBookingSubmission}
+            isSubmitting={isSubmitting}
+          />
+        ) : null;
       default:
         return null;
     }
