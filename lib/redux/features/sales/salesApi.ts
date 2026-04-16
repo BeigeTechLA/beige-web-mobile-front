@@ -52,7 +52,26 @@ export const salesApi = createApi({
 
     trackEarlyInterest: builder.mutation<
       ApiResponse<{ lead_id: number; booking_id: number; is_new: boolean }>,
-      { guest_email: string; user_id?: number; content_type?: string; shoot_type?: string; client_name?: string }
+      {
+        booking_id?: number | null;
+        guest_email: string;
+        user_id?: number;
+        content_type?: string;
+        shoot_type?: string;
+        client_name?: string;
+        start_date?: string | null;
+        start_time?: string | null;
+        end_time?: string | null;
+        time_zone?: string;
+        startDate?: string;
+        endDate?: string;
+        booking_type?: "single_day" | "multi_day";
+        booking_days?: Array<Record<string, any>>;
+        edits_needed?: boolean;
+        video_edit_types?: string[];
+        photo_edit_types?: string[];
+        estimated_delivery_date?: string | null;
+      }
     >({
       query: (data) => ({
         url: 'sales/leads/track-early-interest',

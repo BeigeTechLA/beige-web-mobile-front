@@ -29,6 +29,7 @@ interface UserData {
     phoneNumber?: string;
     role?: string;
     imageUrl?: string | null;
+    referralCode?: string | null;
 }
 
 type SortConfig = {
@@ -181,6 +182,7 @@ export const UserManagementTabbed = () => {
                         initials: (client.name || "U").split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
                         phoneNumber: client.phone_number || "N/A",
                         imageUrl: client.profile_image || null,
+                        referralCode: client.referral_code || null,
                     }));
                     allUsers = [...allUsers, ...mapped];
                     paginationData = clientsRes.pagination;
@@ -209,6 +211,7 @@ export const UserManagementTabbed = () => {
                             initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
                             role: member.role?.role_name || "N/A",
                             imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
+                            referralCode: member.referral_code || null,
                         };
                     });
                     allUsers = [...allUsers, ...mapped];
@@ -320,17 +323,18 @@ export const UserManagementTabbed = () => {
                                 <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('status')}>
                                     <div className="flex items-center">Status {getSortIcon('status', isDark)}</div>
                                 </th>
+                                <th className="py-5 px-6 font-medium">Referral Code</th>
                                 <th className="py-5 px-6 font-medium text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-20 text-center">
+                  <td colSpan={7} className="py-20 text-center">
                     <Loader2 className={`animate-spin inline ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`} />
                   </td>
                 </tr>                            ) : sortedUsers.length === 0 ? (
-                                <tr><td colSpan={6} className="py-10 text-center text-[#888]">No users found.</td></tr>
+                                <tr><td colSpan={7} className="py-10 text-center text-[#888]">No users found.</td></tr>
                             ) : (
                                 sortedUsers.map((user, idx) => (
                                     <tr
@@ -362,6 +366,13 @@ export const UserManagementTabbed = () => {
                                             {user.type === "Client" ? user.phoneNumber : <span className={`px-2 py-0.5 rounded text-xs ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]": "bg-transparent text-[#000]"}`}>{user.role}</span>}
                                         </td>
                                         <td className="py-5 px-6"><StatusBadge status={user.status} /></td>
+                                        <td className={`py-5 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
+                                            {user.referralCode ? (
+                                                <span className={`px-3 py-1 rounded-md text-xs font-mono font-medium ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]" : "bg-[#F5F0E8] text-[#8B7E66]"}`}>{user.referralCode}</span>
+                                            ) : (
+                                                <span className="opacity-40">—</span>
+                                            )}
+                                        </td>
                                         <td className="py-5 px-6 text-right"><ChevronRight size={20} className={isDark ? "text-[#666]" : "text-[#999]"} /></td>
                                     </tr>
                                 ))

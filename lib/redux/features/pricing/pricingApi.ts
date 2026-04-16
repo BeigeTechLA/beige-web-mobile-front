@@ -90,6 +90,9 @@ export const pricingApi = createApi({
         guestEmail?: string;
         bookingId?: number;
         notes?: string;
+        shoot_start_date?: string;
+        video_edit_types?: Array<{ slug: string; quantity: number }>;
+        photo_edit_types?: Array<{ slug: string; quantity: number }>;
       }
     >({
       query: (body) => ({
@@ -149,13 +152,18 @@ export const pricingApi = createApi({
       QuoteCalculation & { creators: any[] },
       {
         creator_ids: number[];
-        shoot_hours: number;
+        shoot_hours?: number;
+        content_type?: string;
         role_counts?: {
           videographer?: number;
           photographer?: number;
           cinematographer?: number;
+          editor?: number;
         };
         event_type?: string;
+        shoot_start_date?: string;
+        video_edit_types?: Array<{ slug: string; quantity: number }>;
+        photo_edit_types?: Array<{ slug: string; quantity: number }>;
         add_on_items?: SelectedItem[];
         skip_discount?: boolean;
         skip_margin?: boolean;

@@ -182,34 +182,45 @@ export const BookAShootV3 = () => {
 
     if (internalStep === 1) {
       try {
+        const isEditingOnly =
+          formData.contentType.length === 1 &&
+          formData.contentType.includes("editing");
         const browserTimeZone = getBrowserTimeZone();
         const startDate = getLocalDatePart(formData.startDate);
         const startTime = getLocalTimePart(formData.startDate);
         const endTime = getLocalTimePart(formData.endDate);
+        const estimatedDeliveryDate = getLocalDatePart(formData.expectedDeliveryDate);
 
-        const result = await trackEarlyInterest({
+        const earlyInterestPayload: any = {
           booking_id: draftBookingId,
           guest_email: formData.email,
           user_id: user?.id,
-          content_type: formData.contentType.join(","),
           shoot_type: formData.shootType,
           client_name: user?.name || formData.fullName,
-          start_date: startDate,
-          start_time: startTime,
-          end_time: endTime,
-          time_zone: browserTimeZone,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          booking_type: formData.bookingType,
-          booking_days: (formData.bookingDays || []).map((d) => ({
-            ...d,
-            time_zone: d.time_zone || d.timeZone || browserTimeZone
-          })),
-
           edits_needed: formData.editsNeeded,
           video_edit_types: formData.videoEditTypes,
-          photo_edit_types: formData.photoEditTypes
-        }).unwrap();
+          photo_edit_types: formData.photoEditTypes,
+        };
+
+        if (isEditingOnly) {
+          earlyInterestPayload.content_type = "ai editing";
+          earlyInterestPayload.estimated_delivery_date = estimatedDeliveryDate;
+        } else {
+          earlyInterestPayload.content_type = formData.contentType.join(",");
+          earlyInterestPayload.start_date = startDate;
+          earlyInterestPayload.start_time = startTime;
+          earlyInterestPayload.end_time = endTime;
+          earlyInterestPayload.time_zone = browserTimeZone;
+          earlyInterestPayload.startDate = formData.startDate;
+          earlyInterestPayload.endDate = formData.endDate;
+          earlyInterestPayload.booking_type = formData.bookingType;
+          earlyInterestPayload.booking_days = (formData.bookingDays || []).map((d: any) => ({
+            ...d,
+            time_zone: d.time_zone || d.timeZone || browserTimeZone
+          }));
+        }
+
+        const result = await trackEarlyInterest(earlyInterestPayload).unwrap();
 
         setDraftBookingId(result?.data?.booking_id);
         updateData({ bookingId: result?.data?.booking_id });
@@ -377,7 +388,10 @@ export const BookAShootV3 = () => {
         return Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
       };
 
-      const shootHours = calculateDurationHours();
+      const isEditingOnly =
+        formData.contentType.length === 1 &&
+        formData.contentType.includes("editing");
+      const shootHours = isEditingOnly ? 0 : calculateDurationHours();
 
       // 2. Map Database Item IDs based on your SQL structure
       const ITEM_IDS = {
@@ -438,7 +452,7 @@ export const BookAShootV3 = () => {
           .sort((a, b) => a.date.localeCompare(b.date))[0]?.date
         : null;
 
-      if (quoteItems.length > 0) {
+      if (quoteItems.length > 0 || isEditingOnly) {
         try {
           const toIsoIfValid = (value?: string | null) => {
             if (!value) return value;
@@ -446,13 +460,11 @@ export const BookAShootV3 = () => {
             return d && !isNaN(d.getTime()) ? d.toISOString() : value;
           };
 
-          const quotePayload = {
+          const quotePayload: any = {
             items: quoteItems,
             shootHours: shootHours,
             eventType: formData.shootType || "general",
             guestEmail: formData.email,
-            shoot_start_date: firstBookingDate ? `${firstBookingDate}T00:00:00.000Z` : toIsoIfValid(formData.startDate),
-            notes: formData.specialInstructions || undefined,
             video_edit_types: formData.editsNeeded
               ? buildEditTypeCounts(formData.videoEditTypes)
               : [],
@@ -460,6 +472,13 @@ export const BookAShootV3 = () => {
               ? buildEditTypeCounts(formData.photoEditTypes)
               : [],
           };
+
+          if (!isEditingOnly) {
+            quotePayload.shoot_start_date = firstBookingDate
+              ? `${firstBookingDate}T00:00:00.000Z`
+              : toIsoIfValid(formData.startDate);
+            quotePayload.notes = formData.specialInstructions || undefined;
+          }
 
           const savedQuote = await saveQuote(quotePayload).unwrap();
           savedQuoteId = savedQuote.quote_id;
@@ -483,11 +502,12 @@ export const BookAShootV3 = () => {
       const startDate = getLocalDatePart(formData.startDate);
       const startTime = getLocalTimePart(formData.startDate);
       const endTime = getLocalTimePart(formData.endDate);
+      const estimatedDeliveryDate = getLocalDatePart(formData.expectedDeliveryDate);
 
       const finalBookingData: any = {
         order_name: `${formData.shootType.toUpperCase()} Shoot - ${formData.fullName}`,
         guest_email: formData.email,
-        content_type: formData.contentType.join(","),
+        content_type: isEditingOnly ? "ai editing" : formData.contentType.join(","),
         shoot_type: formData.shootType,
         booking_type: formData.bookingType,
         booking_days: bookingDaysPayload,
@@ -495,6 +515,7 @@ export const BookAShootV3 = () => {
         start_time: startTime,
         end_time: endTime,
         time_zone: browserTimeZone,
+        estimated_delivery_date: isEditingOnly ? estimatedDeliveryDate : undefined,
         // start_date_time: formData.startDate,
         // end_time: formData.endDate,
         duration_hours: shootHours,

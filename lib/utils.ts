@@ -240,14 +240,35 @@ const formatBookingDisplayTime = (value?: string) => {
   if (!value) return "";
 
   const trimmed = value.trim();
-  const timeMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  const meridiemMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?:\s)?([AaPp][Mm])$/);
+  if (meridiemMatch) {
+    const hours = Number(meridiemMatch[1]);
+    const minutes = Number(meridiemMatch[2]);
+    const suffix = meridiemMatch[3].toUpperCase();
+
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+      const normalizedHours =
+        suffix === "PM" ? (hours % 12) + 12 : hours % 12;
+      const date = new Date(2000, 0, 1, normalizedHours, minutes, 0, 0);
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
+  }
+
+  const timeMatch =
+    trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/) ||
+    trimmed.match(/(?:T|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z)?$/);
 
   if (timeMatch) {
     const hours = Number(timeMatch[1]);
     const minutes = Number(timeMatch[2]);
+    const seconds = Number(timeMatch[3] || 0);
 
     if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
-      const date = new Date(2000, 0, 1, hours, minutes, 0, 0);
+      const date = new Date(2000, 0, 1, hours, minutes, Number.isNaN(seconds) ? 0 : seconds, 0);
       return date.toLocaleTimeString("en-US", {
         hour: "numeric",
         minute: "2-digit",
