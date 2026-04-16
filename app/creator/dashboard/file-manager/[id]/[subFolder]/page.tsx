@@ -2,11 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, Grid3X3, List, Loader2, Search, Upload } from "lucide-react";
+import { ArrowLeft, CalendarClock, FolderPlus, Grid3X3, List, Loader2, Search, Upload } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
+import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
@@ -44,6 +45,7 @@ export default function CreatorFileManagerPhasePage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [status, setStatus] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
@@ -117,7 +119,9 @@ export default function CreatorFileManagerPhasePage() {
         folders: mapExternalFoldersToUi(
           workspaceFolders as never[],
           (folder) =>
-            `/creator/dashboard/file-manager/${projectId}/post-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
+            `/creator/dashboard/file-manager/${projectId}/post-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
+              folder.name
+            )}`
         ),
         files: [],
       };
@@ -129,7 +133,9 @@ export default function CreatorFileManagerPhasePage() {
       folders: mapExternalFoldersToUi(
         workspaceFolders as never[],
         (folder) =>
-          `/creator/dashboard/file-manager/${projectId}/${phaseSlug}/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
+          `/creator/dashboard/file-manager/${projectId}/${phaseSlug}/${folder.name.toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
+            folder.name
+          )}`
       ),
       files: mapExternalFilesToUi(workspaceFiles as never[]),
     };
@@ -214,7 +220,6 @@ export default function CreatorFileManagerPhasePage() {
       await fileManagerApi.deleteExternalEntry(selectedFolder.resourcePath);
       toast.success("Folder deleted");
       setIsDeleteModalOpen(false);
-      setMenuAnchor(null);
       setSelectedFolder(null);
       await loadPhase();
     } catch (err: unknown) {
@@ -270,6 +275,19 @@ export default function CreatorFileManagerPhasePage() {
   const canUpload = isCommonEventWorkspace || (phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate));
   const showUploadLockBanner = !isCommonEventWorkspace && phaseSlug === "post-production" && !canUpload;
 
+  const handleCreateFolder = async ({ name }: { name: string }) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      await fileManagerApi.createExternalFolder(projectId, trimmed, { phase: currentPhase });
+      toast.success("Folder created");
+      await loadPhase();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to create folder");
+      throw err;
+    }
+  };
+
   return (
     <div className="overflow-hidden">
       <div className="mb-5 flex items-center justify-between">
@@ -279,9 +297,16 @@ export default function CreatorFileManagerPhasePage() {
         </Button>
 
         {canUpload ? (
-          <Button onClick={() => setIsUploadModalOpen(true)} className="border border-white/20 bg-[#202020] text-white hover:bg-white/10">
-            <Upload /> Upload Files
-          </Button>
+          <div className="flex items-center gap-2">
+            {isCommonEventWorkspace ? (
+              <Button onClick={() => setIsCreateFolderModalOpen(true)} className="border border-white/20 bg-[#202020] text-white hover:bg-white/10">
+                <FolderPlus /> Create Folder
+              </Button>
+            ) : null}
+            <Button onClick={() => setIsUploadModalOpen(true)} className="border border-white/20 bg-[#202020] text-white hover:bg-white/10">
+              <Upload /> Upload Files
+            </Button>
+          </div>
         ) : null}
       </div>
 
@@ -516,6 +541,14 @@ export default function CreatorFileManagerPhasePage() {
         folderName={workspaceName || ""}
         uploadPath={canUpload ? defaultUploadPath : undefined}
         onUploadComplete={loadPhase}
+      />
+
+      <CreateFolderModal
+        isOpen={isCreateFolderModalOpen}
+        onClose={() => setIsCreateFolderModalOpen(false)}
+        onCreate={handleCreateFolder}
+        title="Create Folder"
+        description={`Create folder inside ${viewState.title}`}
       />
 
       <DeleteConfirmModal
