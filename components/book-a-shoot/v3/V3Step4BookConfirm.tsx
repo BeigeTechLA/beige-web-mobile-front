@@ -664,7 +664,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     </div>
                   </div>
                 </div>
-
+              {!isEditingOnly && (
                 <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
@@ -678,8 +678,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     </div>
                   </div>
                 </div>
+                 )}
               </div>
-
+             
+              {!isEditingOnly && (
               <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
@@ -693,6 +695,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   </div>
                 </div>
               </div>
+            )}
+
 
               {/* Editing Services */}
               <div className="rounded-[16px] border border-white/5 bg-[#171717]">
@@ -728,8 +732,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       <span className="text-white">Photo Edit</span>
                       <div className="flex flex-wrap gap-2">
                         <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
-                          Edited Photos {photoEditSummary.includedCount} Included
-                          {photoEditSummary.extraCount > 0 ? ` + ${photoEditSummary.extraCount} Added` : ""}
+                          {isEditingOnly && photoEditSummary.includedCount === 0 
+                            ? `${photoEditSummary.extraCount} Photos Added` 
+                            : `Edited Photos ${photoEditSummary.includedCount} Included ${photoEditSummary.extraCount > 0 ? ` + ${photoEditSummary.extraCount} Added` : ""}`
+                          }
                         </span>
                       </div>
                     </div>
@@ -955,6 +961,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   <div className="space-y-4">
                     {/* Duration & Crew Info */}
                     <div className="bg-[#101010] rounded-lg p-4 border border-white/5 space-y-3">
+                      {!isEditingOnly && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/60">Project Duration</span>
                         <span className="font-medium text-white">
@@ -962,6 +969,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           {durationHours === 1 ? "hour" : "hours"}
                         </span>
                       </div>
+                        )}
+
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/60">
                           Crew Members Selected
@@ -1016,6 +1025,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       </div>
 
                       {/* 1. SHOOT COST */}
+                      {!isEditingOnly && (
                       <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
                         <div className="flex justify-between items-start mb-1">
                           <div className="text-white font-medium">Shoot Cost</div>
@@ -1024,6 +1034,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           </div>
                         </div>
                       </div>
+                      )}
 
                       {/* NEW: 2. EDITING SERVICES */}
                       {pricingGroups.editingFees > 0 && (
