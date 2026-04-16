@@ -954,7 +954,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       setErrors((prev) => [...prev, "contentError"]);
       return false;
     }
-    if (!data.shootType) {
+    // if (!data.shootType) {
+    if ((data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === "") {
       toast.error("Please select a video/photo shoot type");
       setErrors((prev) => [...prev, "shootTypeError"]);
 
@@ -989,7 +990,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         return false;
       }
     }
-    if (data.editsNeeded) {
+    if ((data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.editsNeeded) {
       const needsVideoEdit = data.contentType.includes("videographer")
       // || data.contentType.includes("cinematographer");  Commented cinematographer as it is not being mentioned anywhere in UI
       const needsPhotoEdit = data.contentType.includes("photographer");
@@ -1392,6 +1393,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       bgColour="bg-[#101010]"
                     />
                   </div>
+                </div>
+                <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                  <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Duration: {calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours</p>
                 </div>
               </>
             ) : (

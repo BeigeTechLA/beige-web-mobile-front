@@ -57,7 +57,7 @@ export default function DropdownSelect({
     <div className="relative w-full" ref={dropdownRef}>
       {/* Label (External) */}
       <div className={`text-sm font-medium font-bold capitalize tracking-wider absolute -top-3 left-4 z-20 px-2 ${
-        isDark ? "bg-[#101010] text-white/60" : "text-black/40"
+        isDark ? `${bgColour} text-white/60` : "text-black/40"
       }`}>
         {title}
       </div>

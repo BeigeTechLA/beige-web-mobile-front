@@ -29,6 +29,7 @@ import { pushToDataLayer } from "@/lib/gtm";
 import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { buildEditTypeCounts } from "./utils";
+import { V3BrowseStudios } from "./V3BrowseStudios";
 
 const V3_STEPS = [
   { label: "Choose Service" },
@@ -56,6 +57,19 @@ interface FormFields {
   photo_edit_types?: string;
 }
 
+// Helper to get dynamic steps for the progress tracker
+const getDynamicSteps = (contentType: string[]) => {
+  if (contentType.length === 1 && contentType.includes("studio")) {
+    return [
+      { label: "Choose Service" },
+      { label: "Browse Studios" },
+      { label: "Customized Details" },
+      { label: "Book & Confirm" },
+    ];
+  }
+  return V3_STEPS;
+};
+
 export const BookAShootV3 = () => {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
@@ -69,6 +83,7 @@ export const BookAShootV3 = () => {
   const [userTypeName, setUserTypeName] = useState("Unknown");
 
   const allowNavigation = useRef(false)
+  const isStudioFlow = formData.contentType.length === 1 && formData.contentType.includes("studio"); //For studio: journey 2 where only studio is selected
 
   const [createGuestBooking, { isLoading: isBookingLoading }] =
     useCreateGuestBookingMutation();
@@ -133,7 +148,6 @@ export const BookAShootV3 = () => {
     //       content_type: formData.contentType.join(","),
     //       shoot_type: formData.shootType,
     //     }).unwrap();
-
     //     setDraftBookingId(result.data.booking_id);
     //     setLeadId(result.data.lead_id);
     //     setLeadTracked(true);
@@ -143,7 +157,6 @@ export const BookAShootV3 = () => {
     //     // Non-blocking error, continue with booking flow
     //   }
     // }
-
     //    if (internalStep === 1 && !leadTracked && formData.email) {
     //   try {
     //     // Show a loading toast if you want
@@ -160,14 +173,13 @@ export const BookAShootV3 = () => {
     //     setDraftBookingId(bId);
     //     setLeadId(result.data.lead_id);
     //     setLeadTracked(true);
-
     //     updateData({ bookingId: bId });
-
     //     console.log("Lead tracked successfully:", result.data);
     //   } catch (error) {
     //     console.error("Failed to track lead:", error);
     //   }
     // }
+
     if (internalStep === 1) {
       try {
         const browserTimeZone = getBrowserTimeZone();
@@ -229,10 +241,22 @@ export const BookAShootV3 = () => {
         });
 
         setLeadTracked(true);
+        if (isStudioFlow) {
+          setInternalStep(1.5); // Move to Browse Studios
+          setActiveStep(2);
+          return;
+        }
+        // Standard flow continues to step 2
+        setInternalStep(2);
+        setActiveStep(2);
       } catch (error) {
         console.error("Failed to save Step 1:", error);
         toast.error("Progress not saved, but you can continue.");
       }
+    }
+    if (internalStep === 1.5) {
+      setInternalStep(2); // From Browse Studios to More Details
+      setActiveStep(2);
     }
     if (internalStep === 3) {
       // add GA event on initial load
@@ -275,12 +299,23 @@ export const BookAShootV3 = () => {
       const next = internalStep + 1;
       setInternalStep(next);
 
-      if (next === 2) setActiveStep(2);
+      // if (next === 2) setActiveStep(2);
       if (next === 6) setActiveStep(3);
     }
   };
 
   const prevStep = () => {
+    // StudioJourney 2 accomodation
+    if (internalStep === 2 && isStudioFlow) {
+      setInternalStep(1.5);
+      return;
+    }
+    if (internalStep === 1.5) {
+      setInternalStep(1);
+      setActiveStep(1);
+      return;
+    }
+
     if (internalStep === 1) {
       if (isFormDirty()) {
         setShowLeaveModal(true);
@@ -548,6 +583,8 @@ export const BookAShootV3 = () => {
     switch (internalStep) {
       case 1:
         return <V3Step1ChooseService {...props} />;
+      case 1.5: // New Studio Browse Step
+        return <V3BrowseStudios {...props} />;
       case 2:
         return <V3Step2MoreDetails {...props} />;
       case 3:
@@ -632,8 +669,14 @@ export const BookAShootV3 = () => {
         )}
 
         <div className="container relative z-10 mx-auto px-4 md:px-6 flex flex-col items-center">
-          {internalStep !== 4 && (
+          {/* {internalStep !== 4 && (
             <StepProgressTracker steps={V3_STEPS} currentStep={activeStep} />
+          )} */}
+          {internalStep !== 4 && (
+            <StepProgressTracker
+              steps={getDynamicSteps(formData.contentType)}
+              currentStep={activeStep}
+            />
           )}
 
           <div className="w-full max-w-4xl lg:max-w-5xl xl:max-w-7xl min-h-[400px] mt-5 lg:mt-8">
