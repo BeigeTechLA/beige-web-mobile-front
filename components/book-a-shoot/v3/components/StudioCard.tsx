@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Star, MapPin, ArrowUpRight, X, Check } from "lucide-react";
+import Link from "next/link";
 
 interface StudioCardProps {
   image: string;
@@ -135,13 +136,17 @@ export default function StudioCard({
                 </button>
               )
             }
-            <button className={`flex aspect-square h-[48px] items-center justify-center rounded-full transition-colors ${isDark ? "bg-[#FFFFFF33] text-white hover:bg-[#ffffff2a]" : "bg-neutral-100 text-black"
-              }`}>
+            {/* Make url dynamic */}
+            <Link
+              href={`/studios/1`}
+              className={`flex aspect-square h-[48px] items-center justify-center rounded-full transition-colors ${isDark ? "bg-[#FFFFFF33] text-white hover:bg-[#ffffff2a]" : "bg-neutral-100 text-black"}`}
+              target="_blank"
+            >
               <ArrowUpRight size={20} />
-            </button>
+            </Link>
           </div>
         </div>
       </motion.div >
-    </div >
+    </div>
   );
 }

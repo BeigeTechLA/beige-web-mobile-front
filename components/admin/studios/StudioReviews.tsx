@@ -70,7 +70,7 @@ export const ReviewsComponent = ({ isDark = true }: { isDark?: boolean }) => {
             <div className="flex items-center gap-3 min-w-[140px]">
               <div className={`h-[3px] flex-1 rounded-full ${isDark ? 'bg-[#6B7280]' : 'bg-zinc-200'}`}>
                 <div
-                  className={`h-full rounded-full ${isDark ? 'bg-white' : 'bg-black'}`}
+                  className={`h-full rounded-full ${isDark ? 'bg-[#E8D1AB]' : 'bg-black'}`}
                   style={{ width: `${(rating.score / 5) * 100}%` }}
                 />
               </div>

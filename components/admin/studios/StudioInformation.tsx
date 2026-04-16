@@ -145,35 +145,36 @@ export const StudioInformation = ({ isDark = false }: StudioInformationProps) =>
         </div>
       </div>
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
-      {/* Features */}
-        <div className={`space-y-2 lg:space-y-4 ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-          <FeatureItem
-            icon={Home}
-            title="Entire home"
-            description="You’ll have the apartment to yourself"
-            isDark={isDark}
-          />
-          <FeatureItem
-            icon={Sparkles}
-            title="Enhanced Clean"
-            description="This Host committed to Airbnb’s 5-step enhanced cleaning process."
-            showMore={true}
-            isDark={isDark}
-          />
-          <FeatureItem
-            icon={DoorClosed}
-            title="Self check-in"
-            description="Check yourself in with the keypad."
-            isDark={isDark}
-          />
-          <FeatureItem
-            icon={Calendar}
-            title="Free cancellation before Feb 14"
-            isDark={isDark}
-          />
-        </div>
 
+      {/* Features */}
+      <div className={`space-y-2 lg:space-y-4 ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+        <FeatureItem
+          icon={Home}
+          title="Entire home"
+          description="You’ll have the apartment to yourself"
+          isDark={isDark}
+        />
+        <FeatureItem
+          icon={Sparkles}
+          title="Enhanced Clean"
+          description="This Host committed to Airbnb’s 5-step enhanced cleaning process."
+          showMore={true}
+          isDark={isDark}
+        />
+        <FeatureItem
+          icon={DoorClosed}
+          title="Self check-in"
+          description="Check yourself in with the keypad."
+          isDark={isDark}
+        />
+        <FeatureItem
+          icon={Calendar}
+          title="Free cancellation before Feb 14"
+          isDark={isDark}
+        />
+      </div>
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+
       {/* Description */}
       <div className={`max-w-4xl space-y-4 lg:space-y-7`}>
         <p className={`text-sm lg:text-base leading-relaxed ${!isDescriptionExpanded && isLongComment ? 'line-clamp-4' : ''}`}>
@@ -189,8 +190,8 @@ export const StudioInformation = ({ isDark = false }: StudioInformationProps) =>
           </button>
         )}
       </div>
-
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+
       {/* What this place offers */}
       <div className={`space-y-4 lg:space-y-8`}>
         <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
@@ -218,8 +219,8 @@ export const StudioInformation = ({ isDark = false }: StudioInformationProps) =>
           {isAmenitiesExpanded ? "Show less" : `Show all ${amenities.length} amenities`}
         </button>
       </div>
-
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+
       {/* Operating Hours */}
       <div className={`space-y-4 lg:space-y-8`}>
         <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
@@ -255,8 +256,8 @@ export const StudioInformation = ({ isDark = false }: StudioInformationProps) =>
           </div>
         </div>
       </div>
-
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+
       {/* Where you'll be */}
       <div className={`space-y-4 lg:space-y-6`}>
         <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
