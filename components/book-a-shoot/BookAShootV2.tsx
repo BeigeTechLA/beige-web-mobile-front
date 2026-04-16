@@ -184,6 +184,11 @@ export const BookAShootV2 = () => {
             eventType: formData.shootType,
             guestEmail: formData.guestEmail,
             notes: formData.specialNote || undefined,
+            role_counts: {
+              videographer: formData.crewBreakdown.videographer || 0,
+              photographer: formData.crewBreakdown.photographer || 0,
+              cinematographer: formData.crewBreakdown.cinematographer || 0,
+            },
           }).unwrap();
 
           savedQuoteId = savedQuote.quote_id;

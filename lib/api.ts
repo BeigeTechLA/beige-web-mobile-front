@@ -2498,4 +2498,89 @@ export const salesApi = {
       };
     }
   },
+
+};
+
+// ─── Booking Pricing API ───────────────────────────────────────────────────────
+export const bookingPricingApi = {
+
+  // ✅ Saare pricing items fetch karo (Admin view)
+  getAll: async () => {
+    try {
+      const response = await api.get('/pricing/items');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Booking Pricing Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch booking pricing',
+      };
+    }
+  },
+
+  // ✅ Category wise catalog fetch karo
+  getCatalog: async () => {
+    try {
+      const response = await api.get('/pricing/catalog');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Catalog Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch catalog',
+      };
+    }
+  },
+
+  // ✅ Single item update
+  update: async (id: string | number, data: { name: string; unit_price: number }) => {
+    try {
+      const response = await api.put(`/pricing/items/${id}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Booking Pricing Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update pricing item',
+      };
+    }
+  },
+
+  // ✅ Naya item create
+  create: async (data: {
+    name: string;
+    unit_price: number;
+    category_slug: string;
+    section_key: string;
+  }) => {
+    try {
+      const response = await api.post('/pricing/items', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Booking Pricing Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create pricing item',
+      };
+    }
+  },
+
+  // ✅ Item delete
+  delete: async (id: string | number) => {
+    try {
+      const response = await api.delete(`/pricing/items/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Booking Pricing Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete pricing item',
+      };
+    }
+  },
 };

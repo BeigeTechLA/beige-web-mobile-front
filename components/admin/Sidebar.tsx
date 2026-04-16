@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon, Receipt } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon, Receipt, BookMarked } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -58,6 +58,8 @@ const menuItems = [
     ],
   },
   { name: 'Invoices', icon: Receipt, link: '/admin/invoice' },
+  { name: 'Master Booking ', icon: BookMarked, link: '/admin/master-booking-pricing' },
+  
 ];
 
 type MenuItem = {
