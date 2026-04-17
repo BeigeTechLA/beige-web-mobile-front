@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
 import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam";
@@ -23,14 +23,21 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const { id } = use(params);
-  const [activeTab, setActiveTab] = useState("Overview");
+  const activeTab = searchParams.get("tab") || "Overview";
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
-  const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
+const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
   const effectiveRole = userRole === "sales_admin" ? "admin" : "sales";
 
+
+  const handleTabChange = (tabName: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tabName);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
       try {
@@ -125,7 +132,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
             View Project Timeline
           </Button>
 
-          <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <ShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
           {activeTab === "Overview" && (
             <>

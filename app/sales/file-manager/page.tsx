@@ -261,7 +261,7 @@ export default function SalesFolderManagerPage() {
               />
             </div>
             <div className="flex gap-2 ">
-              <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} />
+              {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
 
               <div className="md:hidden relative">
                 <Button

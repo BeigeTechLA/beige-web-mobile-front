@@ -281,7 +281,7 @@ export default function SubFolderDetailsPage() {
                   />
                 </div>
                 <div className="flex gap-2 ">
-                  <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} />
+                  {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
                   <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
                     <Button
                       onClick={() => setViewMode("grid")}

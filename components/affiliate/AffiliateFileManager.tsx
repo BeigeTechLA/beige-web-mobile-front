@@ -1253,12 +1253,12 @@ export default function AffiliateFileManager() {
               />
             </div>
             <div className="flex gap-2">
-              <BasicDropdown
+              {/* <BasicDropdown
                 label="Status"
                 value={status}
                 onChange={setStatus}
                 options={["Linked", "Unlinked"]}
-              />
+              /> */}
 
               <div className="md:hidden relative">
                 <Button

@@ -152,12 +152,12 @@ return (
             />
           </div>
           <div className="flex gap-2 ">
-            <BasicDropdown
+            {/* <BasicDropdown
               label="Status"
               value={status}
               onChange={(val) => setStatus(val)}
               options={STATUSES}
-            />
+            /> */}
 
             <div className="md:hidden relative">
               <Button
