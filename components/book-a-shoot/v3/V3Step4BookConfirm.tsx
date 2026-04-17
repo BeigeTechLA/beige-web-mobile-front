@@ -51,6 +51,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { buildEditTypeCounts, getPhotoEditSummary, getTotalDurationHours } from "./utils";
+import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -115,18 +116,21 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const hasEditing = data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0;
   const isEditingOnly =
     data.contentType.length === 1 && data.contentType.includes("editing");
+  const isCoachellaEvent = data.shootType === "coachella";
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
     shootCost: number;
     additionalCP: { totalCost: number; videoCount: number; photoCount: number };
     mandatoryAddons: Array<{ role: string; cost: number }>;
-    editingFees: number; // ADDED
+    editingFees: number;
+    studioCost: number;
   }>({
     shootCost: 0,
     additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
     mandatoryAddons: [],
-    editingFees: 0, // INITIALIZED
+    editingFees: 0,
+    studioCost: 0,
   });
 
   const bookingDays = data.bookingDays || [];
@@ -165,6 +169,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(true);
   const [showSalesPopup, setShowSalesPopup] = useState(false);
+  const selectedStudios = normalizeSelectedStudios(data);
+  const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
+  const useContentHouseInclusivePricing =
+    isCoachellaEvent && selectedStudios.length > 0;
   const photoEditCounts = buildEditTypeCounts(data.photoEditTypes);
   const photoEditSetCount = photoEditCounts.find((item) => item.slug === "edited_photos")?.quantity || 0;
   const photoEditSummary = getPhotoEditSummary({
@@ -174,7 +182,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   });
   const totalVideoEditsSelected = data.videoEditTypes.length;
   const editingSidebarRows = [
-    (data.contentType.includes("photographer") || isEditingOnly)
+    (data.contentType.includes("photographer") || isEditingOnly) && photoEditSummary.includedCount > 0
       ? {
         label: "Photos Included",
         value: `${photoEditSummary.includedCount} Photos`,
@@ -317,7 +325,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   useEffect(() => {
     const fetchQuote = async () => {
       // Check if we have duration
-      if (!isEditingOnly && durationHours === 0) {
+      if (!isEditingOnly && !useContentHouseInclusivePricing && durationHours === 0) {
         setQuoteTotal(null);
         setCrewBreakdown([]);
         return;
@@ -355,22 +363,33 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           : null;
 
         const quotePayload: any = {
-          creator_ids: data.selectedCrewIds,
-          role_counts: isEditingOnly ? { editor: 1 } : data.roleCounts,
+          creator_ids: useContentHouseInclusivePricing ? [] : data.selectedCrewIds,
+          role_counts: isEditingOnly
+            ? { editor: 1 }
+            : useContentHouseInclusivePricing
+              ? {}
+              : data.roleCounts,
           event_type: data.shootType || "general",
           video_edit_types: buildEditTypeCounts(data.videoEditTypes),
           photo_edit_types: buildEditTypeCounts(data.photoEditTypes),
           skip_discount: true,
           skip_margin: true,
+          studio_total: selectedStudiosTotal || 0,
         };
 
         if (isEditingOnly) {
           quotePayload.content_type = "ai editing";
         } else {
-          quotePayload.shoot_hours = durationHours;
-          quotePayload.shoot_start_date = firstBookingDate
-            ? `${firstBookingDate}T00:00:00.000Z`
-            : toIsoIfValid(data.startDate);
+          if (useContentHouseInclusivePricing) {
+            // Backend validation requires shoot_hours > 0 for non-AI-editing flows.
+            // Keep it at minimum valid value while excluding creator/role items.
+            quotePayload.shoot_hours = 1;
+          } else {
+            quotePayload.shoot_hours = durationHours;
+            quotePayload.shoot_start_date = firstBookingDate
+              ? `${firstBookingDate}T00:00:00.000Z`
+              : toIsoIfValid(data.startDate);
+          }
         }
 
         const result = await calculateQuoteFromCreators(quotePayload).unwrap();
@@ -383,15 +402,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           durationHours,
         });
 
-        // result.total now includes Pre-Production and Rush Fees from backend logic
-        setQuoteTotal(result.total);
-
         // --- START CATEGORIZATION LOGIC ---
         let shootCostTotal = 0;
         let editFeesTotal = 0;
         let addVideoCount = 0;
         let addPhotoCount = 0;
         let addCPTotalCost = 0;
+        let studioCostTotal = 0;
         const mandatoryAddonsList: Array<{ role: string; cost: number }> = [];
 
         if (result.lineItems && result.lineItems.length > 0) {
@@ -400,6 +417,23 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
             const quantity = parseInt(item.quantity || 1);
             const lineTotal = parseFloat(item.line_total || 0);
             const unitPrice = lineTotal / quantity;
+            const lowerName = String(name || "").toLowerCase();
+            const isStudioItem =
+              lowerName.includes("studio") ||
+              lowerName.includes("resort") ||
+              lowerName.includes("location platform");
+
+            if (useContentHouseInclusivePricing) {
+              if (item.category_slug === "editing") {
+                editFeesTotal += lineTotal;
+                return;
+              }
+
+              if (isStudioItem) {
+                studioCostTotal += lineTotal;
+              }
+              return;
+            }
 
             // 1. Shoot Cost: Includes Pre-production, Rush Fees, and 1 unit of Video/Photo
             if (name.includes("Pre-Production") || name.toLowerCase().includes("rush")) {
@@ -421,6 +455,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 if (name === "Photographer") addPhotoCount += extraQty;
               }
             }
+            else if (isStudioItem) {
+              studioCostTotal += lineTotal;
+            }
             // 2. Mandatory Add-ons: PA, Sound, Director, Gaffer or Equipment
             else if (item.is_mandatory) {
               mandatoryAddonsList.push({
@@ -436,15 +473,19 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           });
         }
 
+        const finalStudioCost = studioCostTotal > 0 ? studioCostTotal : selectedStudiosTotal;
+        setQuoteTotal(result.total);
+
         setPricingGroups({
           shootCost: shootCostTotal,
-          editingFees: editFeesTotal, // UPDATE THIS
+          editingFees: editFeesTotal,
           additionalCP: {
             totalCost: addCPTotalCost,
             videoCount: addVideoCount,
             photoCount: addPhotoCount
           },
-          mandatoryAddons: mandatoryAddonsList
+          mandatoryAddons: mandatoryAddonsList,
+          studioCost: finalStudioCost,
         });
         // --- END CATEGORIZATION LOGIC ---
 
@@ -484,9 +525,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     data.videoEditTypes,
     data.photoEditTypes,
     data.roleCounts,
+    data.selectedStudios,
+    data.selectedStudioIds,
     durationHours,
     isEditingOnly,
+    useContentHouseInclusivePricing,
     calculateQuoteFromCreators,
+    selectedStudiosTotal,
   ]);
 
   // Automatically clear the location error once data.location is truthy
@@ -645,7 +690,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     </div>
                   </div>
                 </div>
-
+              {!isEditingOnly && (
                 <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
@@ -659,8 +704,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     </div>
                   </div>
                 </div>
+                 )}
               </div>
-
+             
+              {!isEditingOnly && (
               <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
@@ -674,6 +721,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   </div>
                 </div>
               </div>
+            )}
+
 
               {/* Editing Services */}
               <div className="rounded-[16px] border border-white/5 bg-[#171717]">
@@ -709,8 +758,10 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       <span className="text-white">Photo Edit</span>
                       <div className="flex flex-wrap gap-2">
                         <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
-                          Edited Photos {photoEditSummary.includedCount} Included
-                          {photoEditSummary.extraCount > 0 ? ` + ${photoEditSummary.extraCount} Added` : ""}
+                          {isEditingOnly && photoEditSummary.includedCount === 0 
+                            ? `${photoEditSummary.extraCount} Photos Added` 
+                            : `Edited Photos ${photoEditSummary.includedCount} Included ${photoEditSummary.extraCount > 0 ? ` + ${photoEditSummary.extraCount} Added` : ""}`
+                          }
                         </span>
                       </div>
                     </div>
@@ -723,6 +774,70 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
                 </div>
               </div>
+
+              {selectedStudios.length > 0 && (
+                <div className="rounded-[16px] border border-white/5 bg-[#171717]">
+                  <div className="p-4 lg:p-[30px] border-b border-b-white/5">
+                    <h4 className="text-white text-base lg:text-xl font-medium tracking-wide">
+                      BEIGE Content House
+                    </h4>
+                  </div>
+                  <div className="p-4 lg:p-[30px] space-y-3">
+                    {selectedStudios.map((studio) => (
+                      <div key={studio.studioId} className="rounded-xl border border-white/10 bg-[#101010] p-4">
+                        <div className="flex flex-col md:flex-row gap-4 md:items-start">
+                          <div className="relative w-full md:w-[180px] h-[120px] rounded-xl overflow-hidden border border-white/10 bg-black/30 shrink-0">
+                            <Image
+                              src={studio.image}
+                              alt={studio.name}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="text-white font-medium truncate">{studio.name}</div>
+                                <div className="text-xs text-[#A9A9A9] flex items-center gap-1 mt-1">
+                                  <MapPin size={12} />
+                                  <span className="truncate">{studio.location}</span>
+                                </div>
+                              </div>
+                              <div className="text-sm font-semibold text-[#E8D1AB] shrink-0">
+                                {formatCurrency(studio.totalPrice || 0)}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 mt-3 flex-wrap">
+                              <span className="px-2 py-1 border border-white/10 rounded-md text-[10px] text-white/60">
+                                Natural light
+                              </span>
+                              <span className="px-2 py-1 border border-white/10 rounded-md text-[10px] text-white/60">
+                                Product-friendly
+                              </span>
+                              <span className="px-2 py-1 rounded-md text-[10px] bg-[#E8D1AB1F] text-[#E8D1AB]">
+                                {studio.pricingMode === "hourly"
+                                  ? `${studio.quantity} hour${studio.quantity > 1 ? "s" : ""}`
+                                  : `Duration: ${studio.nights || studio.quantity} Night${(studio.nights || studio.quantity) > 1 ? "s" : ""}`}
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-[#A9A9A9] mt-3 flex items-center gap-2">
+                              <Calendar size={13} />
+                              <span>
+                                {studio.pricingMode === "hourly"
+                                  ? `${studio.selectedDate || ""} | ${studio.startTime || ""} - ${studio.endTime || ""}`
+                                  : "Fri, 17 Jan - Mon, 20 Jan"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -872,6 +987,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                   <div className="space-y-4">
                     {/* Duration & Crew Info */}
                     <div className="bg-[#101010] rounded-lg p-4 border border-white/5 space-y-3">
+                      {!isEditingOnly && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/60">Project Duration</span>
                         <span className="font-medium text-white">
@@ -879,6 +995,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           {durationHours === 1 ? "hour" : "hours"}
                         </span>
                       </div>
+                        )}
+
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/60">
                           Crew Members Selected
@@ -933,6 +1051,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       </div>
 
                       {/* 1. SHOOT COST */}
+                      {!isEditingOnly && !useContentHouseInclusivePricing && (
                       <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
                         <div className="flex justify-between items-start mb-1">
                           <div className="text-white font-medium">Shoot Cost</div>
@@ -941,6 +1060,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           </div>
                         </div>
                       </div>
+                      )}
 
                       {/* NEW: 2. EDITING SERVICES */}
                       {pricingGroups.editingFees > 0 && (
@@ -954,6 +1074,20 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           <div className="text-[11px] text-[#A9A9A9] flex flex-wrap gap-x-2">
                             {data.videoEditTypes.length > 0 && <span>• Video Editing</span>}
                             {data.photoEditTypes.length > 0 && <span>• Photo Editing</span>}
+                          </div>
+                        </div>
+                      )}
+
+                      {pricingGroups.studioCost > 0 && (
+                        <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="text-white font-medium text-sm">BEIGE Content House</div>
+                            <div className="font-bold text-white text-sm">
+                              {formatCurrency(pricingGroups.studioCost)}
+                            </div>
+                          </div>
+                          <div className="text-[11px] text-[#A9A9A9]">
+                            {selectedStudios.length} selected
                           </div>
                         </div>
                       )}
@@ -1090,4 +1224,3 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     </div>
   );
 };
-

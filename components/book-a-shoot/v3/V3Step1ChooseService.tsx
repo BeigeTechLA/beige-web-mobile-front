@@ -92,6 +92,25 @@ const datePickerColours = {
 
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
+const COACHELLA_SHOOT_TYPE_KEY = "coachella";
+const COACHELLA_EVENT_MESSAGE =
+  "Coachella event coverage is scheduled for April 17, 18, and 19, 2026. Date and time are pre-fixed for this event, so you do not need to select them.";
+const COACHELLA_EVENT_DATES = ["2026-04-17", "2026-04-18", "2026-04-19"];
+const COACHELLA_START_TIME = "09:00";
+const COACHELLA_END_TIME = "17:00";
+type ShootTypeOption = (typeof newshootTypes)[number];
+const COACHELLA_SHOOT_TYPE_OPTION: ShootTypeOption = {
+  key: COACHELLA_SHOOT_TYPE_KEY,
+  title: "Coachella",
+  details: "Video podcasts, livestreams",
+  image: "https://d1pgtgqp0jru64.cloudfront.net/Rectangle-3851.png",
+  stats: [],
+};
+
+const withCoachellaOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
+  const nonCoachellaTypes = types.filter((type) => type.key !== COACHELLA_SHOOT_TYPE_KEY);
+  return [COACHELLA_SHOOT_TYPE_OPTION, ...nonCoachellaTypes];
+};
 
 export const V3Step1ChooseService: React.FC<Props> = ({
   data,
@@ -113,7 +132,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
 
-  const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
+  const [availableShootTypes, setAvailableShootTypes] = useState<ShootTypeOption[]>(
+    withCoachellaOption(newshootTypes)
+  );
 
   const [timeOptions, setTimeOptions] = useState<
     { key: string; value: string }[]
@@ -207,6 +228,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     [photoEditCounts, photoEditTypeOptions]
   );
   const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
+  const isCoachellaSelected = data.shootType === COACHELLA_SHOOT_TYPE_KEY;
+  const shouldBypassDateTime = !isEditingOnly && isCoachellaSelected;
   const expectedDeliveryDate = React.useMemo(
     () => (data.expectedDeliveryDate ? parseDate(data.expectedDeliveryDate) : null),
     [data.expectedDeliveryDate]
@@ -371,23 +394,23 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   };
 
   // Determine available shoot types based on content type selection
-useEffect(() => {
-  const isVideo = data.contentType.includes("videographer");
-  const isPhoto = data.contentType.includes("photographer");
-  const isEditing = data.contentType.includes("editing");
+  useEffect(() => {
+    const isVideo = data.contentType.includes("videographer");
+    const isPhoto = data.contentType.includes("photographer");
+    const isEditing = data.contentType.includes("editing");
 
-  if (isVideo && isPhoto) {
-    setAvailableShootTypes(hybridShootTypes);         // video + photo (with or without editing)
-  } else if (isPhoto) {
-    setAvailableShootTypes(photoShootTypes);           // photo only OR editing + photo
-  } else if (isVideo) {
-    setAvailableShootTypes(videoShootTypes);           // video only OR editing + video
-  } else if (isEditing) {
-    setAvailableShootTypes(hybridShootTypes);          // editing only
-  } else {
-    setAvailableShootTypes([]);
-  }
-}, [data.contentType]);
+    if (isVideo && isPhoto) {
+      setAvailableShootTypes(withCoachellaOption(hybridShootTypes)); // video + photo (with or without editing)
+    } else if (isPhoto) {
+      setAvailableShootTypes(withCoachellaOption(photoShootTypes)); // photo only OR editing + photo
+    } else if (isVideo) {
+      setAvailableShootTypes(withCoachellaOption(videoShootTypes)); // video only OR editing + video
+    } else if (isEditing) {
+      setAvailableShootTypes(withCoachellaOption(hybridShootTypes)); // editing only
+    } else {
+      setAvailableShootTypes([]);
+    }
+  }, [data.contentType]);
 
   // Generate time options
   useEffect(() => {
@@ -858,6 +881,11 @@ useEffect(() => {
         nextPhotoOptions = behindScenesPhotoEditTypes;
         nextPhotoNote = "25 edited photos per hour";
         break;
+      case COACHELLA_SHOOT_TYPE_KEY:
+        nextVideoOptions = corporateEventEditTypes;
+        nextPhotoOptions = corporateEventPhotoEditTypes;
+        nextPhotoNote = "No free photo edits included for Coachella event.";
+        break;
       default:
         break;
     }
@@ -877,6 +905,18 @@ useEffect(() => {
     setEditTypeOptions(nextVideoOptions);
     setPhotoEditTypeOptions(nextPhotoOptions);
     setPhotoEditNote(nextPhotoNote);
+    const validVideoKeys = nextVideoOptions.map((o) => o.key);
+    const validPhotoKeys = nextPhotoOptions.map((o) => o.key);
+
+    const filteredVideo = data.videoEditTypes.filter((k) => validVideoKeys.includes(k));
+    const filteredPhoto = data.photoEditTypes.filter((k) => validPhotoKeys.includes(k));
+
+    if (filteredVideo.length !== data.videoEditTypes.length || filteredPhoto.length !== data.photoEditTypes.length) {
+      updateData({
+        videoEditTypes: filteredVideo,
+        photoEditTypes: filteredPhoto,
+      });
+    }
   }, [data.shootType, data.contentType]);
 
   // Clear errors when data changes
@@ -892,6 +932,7 @@ useEffect(() => {
       const hasMultiDayTimes = Array.isArray(data.bookingDays) && data.bookingDays.length > 0 && data.bookingDays.every(d => d.startTime && d.endTime);
       if (
         (isEditingOnly ||
+          shouldBypassDateTime ||
           (data.bookingType !== "multi_day" && data.startDate && data.endDate) ||
           (data.bookingType === "multi_day" && hasMultiDayTimes)) &&
         newErrors.includes("timeError")
@@ -902,7 +943,7 @@ useEffect(() => {
       if (data.photoEditTypes.length > 0 && newErrors.includes("photoEditError")) return newErrors.filter(e => e !== "photoEditError");
       return prev;
     });
-  }, [data, isEditingOnly]);
+  }, [data, isEditingOnly, shouldBypassDateTime]);
 
       const toggleContentType = (type: "videographer" | "photographer" | "editing") => {
       const current = [...data.contentType];
@@ -980,7 +1021,7 @@ useEffect(() => {
         setErrors((prev) => [...prev, "deliveryDateError"]);
         return false;
       }
-    } else {
+    } else if (!shouldBypassDateTime) {
       if (bookingType === "single_day") {
         if (!data.startDate) {
           toast.error("Please select a start date and time");
@@ -1219,7 +1260,52 @@ useEffect(() => {
                     // stats={type.stats}
                     selected={data.shootType === type.key}
                     onClick={() => {
-                      updateData({ shootType: type.key });
+                      if (type.key === COACHELLA_SHOOT_TYPE_KEY) {
+                        if (!isEditingOnly) {
+                          setBookingType("multi_day");
+                          setSelectedDates(
+                            COACHELLA_EVENT_DATES.map((date) => new Date(`${date}T00:00:00`))
+                          );
+                          setSameTimingsMulti(true);
+                          setMultiDayTimes({});
+                          setExpandedDateKey(null);
+                          setSelectedShootDate(new Date(`${COACHELLA_EVENT_DATES[0]}T00:00:00`));
+                          setCurrentCalendarMonth(new Date(`${COACHELLA_EVENT_DATES[0]}T00:00:00`));
+                          updateData({
+                            shootType: type.key,
+                            bookingType: "multi_day",
+                            startDate: `${COACHELLA_EVENT_DATES[0]}T${COACHELLA_START_TIME}:00`,
+                            endDate: `${COACHELLA_EVENT_DATES[0]}T${COACHELLA_END_TIME}:00`,
+                            bookingDays: COACHELLA_EVENT_DATES.map((date) => ({
+                              date,
+                              startTime: COACHELLA_START_TIME,
+                              endTime: COACHELLA_END_TIME,
+                            })),
+                          });
+                        } else {
+                          updateData({ shootType: type.key });
+                        }
+                        scrollToRef(isEditingOnly ? deliveryDateRef : editsRef);
+                        return;
+                      }
+
+                      const switchedFromCoachella = data.shootType === COACHELLA_SHOOT_TYPE_KEY;
+                      if (switchedFromCoachella && !isEditingOnly) {
+                        setBookingType("single_day");
+                        setSelectedDates([]);
+                        setSameTimingsMulti(true);
+                        setMultiDayTimes({});
+                        setExpandedDateKey(null);
+                        updateData({
+                          shootType: type.key,
+                          bookingType: "single_day",
+                          startDate: "",
+                          endDate: "",
+                          bookingDays: [],
+                        });
+                      } else {
+                        updateData({ shootType: type.key });
+                      }
                       scrollToRef(isEditingOnly ? deliveryDateRef : bookingTypeRef);
                     }}
                   />
@@ -1235,6 +1321,16 @@ useEffect(() => {
               </Button>
             </div>
           </div>
+
+          {isCoachellaSelected && (
+            <div className="pt-6 lg:pt-15 border-t border-white/10">
+              <div className="rounded-2xl border border-[#E8D1AB]/40 bg-[#171717] px-4 py-4 lg:px-6 lg:py-5">
+                <p className="text-sm lg:text-base text-[#E8D1AB] leading-relaxed">
+                  {COACHELLA_EVENT_MESSAGE}
+                </p>
+              </div>
+            </div>
+          )}
 
           {isEditingOnly && (
             <div ref={deliveryDateRef} className="pt-6 lg:pt-15 border-t border-white/10">
@@ -1265,7 +1361,7 @@ useEffect(() => {
 
           {/* Booking Type */}
 
-        {!isEditingOnly && (
+        {!isEditingOnly && !shouldBypassDateTime && (
           <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
             <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
               }`}>
@@ -1318,7 +1414,7 @@ useEffect(() => {
 )}
 
           {/* Date & Time */}
-        {!isEditingOnly && (
+        {!isEditingOnly && !shouldBypassDateTime && (
 
           <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
             {bookingType === "single_day" ? (
@@ -1763,7 +1859,7 @@ useEffect(() => {
                             );
                           })}
                           <div className="flex flex-wrap gap-3 pt-4">
-                            {!isEditingOnly && (
+                            {!isEditingOnly && photoEditSummary.includedCount > 0 && (
                               <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
                                 Includes {photoEditSummary.includedCount} free photo edits
                               </div>
