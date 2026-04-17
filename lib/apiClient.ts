@@ -9,6 +9,11 @@ interface ApiError {
   details?: unknown;
 }
 
+type ApiClientError = Error & {
+  status?: number;
+  details?: unknown;
+};
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -69,23 +74,20 @@ class ApiClient {
               console.error('API Error:', data?.message || 'Unknown error');
           }
 
-          return Promise.reject({
-            status,
-            message: data?.message || 'An error occurred',
-            details: data?.details,
-          });
+          const apiError: ApiClientError = new Error(data?.message || 'An error occurred');
+          apiError.status = status;
+          apiError.details = data?.details;
+          return Promise.reject(apiError);
         } else if (error.request) {
           console.error('Network error: No response received');
-          return Promise.reject({
-            status: 0,
-            message: 'Network error: Unable to reach server',
-          });
+          const networkError: ApiClientError = new Error('Network error: Unable to reach server');
+          networkError.status = 0;
+          return Promise.reject(networkError);
         } else {
           console.error('Request error:', error.message);
-          return Promise.reject({
-            status: 0,
-            message: error.message,
-          });
+          const requestError: ApiClientError = new Error(error.message);
+          requestError.status = 0;
+          return Promise.reject(requestError);
         }
       }
     );

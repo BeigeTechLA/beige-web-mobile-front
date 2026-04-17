@@ -121,8 +121,8 @@ export default function AffiliateFindYourselfPage() {
           const response = await fileManagerApi.searchFaceMatches({
             externalId: workspace.externalId,
             scanImageBase64,
-            threshold: 0.85,
-            maxResults: 150,
+            threshold: 0.80,
+            maxResults: 200,
           });
 
           const matches = response?.matches || [];

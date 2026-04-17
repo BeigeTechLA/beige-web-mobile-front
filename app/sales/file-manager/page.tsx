@@ -23,6 +23,7 @@ import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import Topbar from "@/components/admin/Topbar";
 import { apiClient } from "@/lib/apiClient";
+import { useAuth } from "@/lib/hooks/useAuth";
 import {
   fileManagerApi,
   isCommonEventWorkspaceId,
@@ -53,6 +54,9 @@ interface SalesLeadsResponse {
 export default function SalesFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
+  const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
+  const isSalesAdmin = userRole === "sales_admin";
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -92,10 +96,12 @@ export default function SalesFolderManagerPage() {
           .map((value) => String(value))
       );
 
-      const filteredWorkspaces = workspaceData.filter((workspace) =>
-        isCommonEventWorkspaceId(workspace.externalId) ||
-        assignedBookingIds.has(String(workspace.externalId))
-      );
+      const filteredWorkspaces = isSalesAdmin
+        ? workspaceData
+        : workspaceData.filter((workspace) =>
+            isCommonEventWorkspaceId(workspace.externalId) ||
+            assignedBookingIds.has(String(workspace.externalId))
+          );
 
       setProjects(
         filteredWorkspaces.map((workspace) =>

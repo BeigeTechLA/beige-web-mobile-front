@@ -211,6 +211,9 @@ export default function CreatorFileManagerPhasePage() {
   const defaultUploadPath = workspaceName
     ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
     : undefined;
+  const isCommonEventPreProductionRoot =
+    isCommonEventWorkspace && phaseSlug === "pre-production";
+  const canCreateFolder = isCommonEventWorkspace && !isCommonEventPreProductionRoot;
 
   const handleDeleteSelectedFolder = async () => {
     if (!selectedFolder?.resourcePath) return;
@@ -272,7 +275,10 @@ export default function CreatorFileManagerPhasePage() {
     }
   };
 
-  const canUpload = isCommonEventWorkspace || (phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate));
+  const canUpload =
+    !isCommonEventPreProductionRoot &&
+    (isCommonEventWorkspace ||
+      (phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate)));
   const showUploadLockBanner = !isCommonEventWorkspace && phaseSlug === "post-production" && !canUpload;
 
   const handleCreateFolder = async ({ name }: { name: string }) => {
@@ -296,16 +302,18 @@ export default function CreatorFileManagerPhasePage() {
           <span className="text-sm font-medium">Back</span>
         </Button>
 
-        {canUpload ? (
+        {canUpload || canCreateFolder ? (
           <div className="flex items-center gap-2">
-            {isCommonEventWorkspace ? (
+            {canCreateFolder ? (
               <Button onClick={() => setIsCreateFolderModalOpen(true)} className="border border-white/20 bg-[#202020] text-white hover:bg-white/10">
                 <FolderPlus /> Create Folder
               </Button>
             ) : null}
-            <Button onClick={() => setIsUploadModalOpen(true)} className="border border-white/20 bg-[#202020] text-white hover:bg-white/10">
-              <Upload /> Upload Files
-            </Button>
+            {canUpload ? (
+              <Button onClick={() => setIsUploadModalOpen(true)} className="border border-white/20 bg-[#202020] text-white hover:bg-white/10">
+                <Upload /> Upload Files
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>

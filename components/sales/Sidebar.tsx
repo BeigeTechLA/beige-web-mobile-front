@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, Calendar, X, ChevronDown, type LucideIcon, Receipt } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, Calendar, X, ChevronDown, type LucideIcon, Receipt, FolderOpen, CalendarClock, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useSalesStatus } from "@/context/SalesStatusContext";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -37,9 +37,9 @@ const salesMenuItems: SalesMenuItem[] = [
   },
   { name: 'Availability', icon: Calendar, link: '/sales/availability', visibleForUserTypes: [5] },
   { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
-  // { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
-  // { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
-  // { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
+  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
+  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
+  { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,

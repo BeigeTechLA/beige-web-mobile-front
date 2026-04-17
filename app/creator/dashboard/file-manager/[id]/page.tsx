@@ -121,6 +121,27 @@ export default function CreatorFolderDetailsPage() {
     return folder.title.toLowerCase().includes("post") ? "post" : "pre";
   };
 
+  const openFolderWithAccessCheck = async (folder: UiFolderItem) => {
+    const targetHref = folder.href || `/creator/dashboard/file-manager/${projectId}`;
+    const phase = getFolderPhase(folder);
+
+    if (!isCommonEventWorkspace || phase !== "pre") {
+      router.push(targetHref);
+      return;
+    }
+
+    try {
+      await fileManagerApi.getExternalWorkspaceFiles(projectId, "pre");
+      router.push(targetHref);
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Please create your own folder first, then access Pre-Production in this common event"
+      );
+    }
+  };
+
   const handleDownloadSelectedFolder = async (folder?: UiFolderItem | null) => {
     const targetFolder = folder || selectedFolder;
     if (!targetFolder) return;
@@ -319,6 +340,9 @@ export default function CreatorFolderDetailsPage() {
                       setSelectedFolder(folder);
                       setIsLinkModalOpen(true);
                     }}
+                    onOpen={() => {
+                      void openFolderWithAccessCheck(folder);
+                    }}
                     href={folder.href}
                     onDownload={async () => {
                       await handleDownloadSelectedFolder(folder);
@@ -360,7 +384,7 @@ export default function CreatorFolderDetailsPage() {
                           className="cursor-pointer transition-colors hover:bg-white/[0.02]"
                           onClick={(e) => {
                             if ((e.target as HTMLElement).closest("button")) return;
-                            router.push(item.href || `/creator/dashboard/file-manager/${projectId}`);
+                            void openFolderWithAccessCheck(item);
                           }}
                         >
                           <td className="px-6 py-5">
@@ -403,6 +427,11 @@ export default function CreatorFolderDetailsPage() {
           onOpenLinkModal={() => setIsLinkModalOpen(true)}
           anchor={menuAnchor}
           href={selectedFolder?.href}
+          onOpen={() => {
+            if (selectedFolder) {
+              void openFolderWithAccessCheck(selectedFolder);
+            }
+          }}
           onDownload={handleDownloadSelectedFolder}
           onDelete={() => setIsDeleteModalOpen(true)}
           onRename={() => toast.info("Folder rename is the next safe step.")}
