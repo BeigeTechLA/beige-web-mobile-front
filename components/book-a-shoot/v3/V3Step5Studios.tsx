@@ -30,6 +30,34 @@ interface Props {
   onBack: () => void;
 }
 
+const parseValidDate = (value?: string) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDisplayDate = (value?: string) => {
+  const parsed = parseValidDate(value);
+  return parsed ? format(parsed, "d MMMM, yyyy") : "";
+};
+
+const formatDisplayTime = (value?: string) => {
+  if (!value) return "";
+  const timeMatch = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (timeMatch) {
+    const hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+      const parsed = new Date();
+      parsed.setHours(hours, minutes, 0, 0);
+      return format(parsed, "h:mm a").toUpperCase();
+    }
+  }
+
+  const parsed = parseValidDate(value);
+  return parsed ? format(parsed, "h:mm a").toUpperCase() : value;
+};
+
 const ImageCarouselModal = ({
   isOpen,
   onClose,
@@ -163,11 +191,13 @@ const StudioCard = ({
   isSelected,
   onToggle,
   onShowDetails,
+  weekendDateText,
 }: {
   studio: StudioCatalogItem;
   isSelected: boolean;
   onToggle: () => void;
   onShowDetails: () => void;
+  weekendDateText: string;
 }) => {
   return (
     <div className={`group relative rounded-[32px] border transition-all duration-300 overflow-hidden bg-[#111111] ${isSelected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10"}`}>
@@ -208,7 +238,7 @@ const StudioCard = ({
         <div className="flex items-center justify-between bg-white/[0.03] border border-white/5 rounded-2xl p-3">
           <div className="flex items-center gap-3">
             <Calendar size={18} className="text-white/40" />
-            <span className="text-white/70 text-[13px] font-medium">{studio.dates}</span>
+            <span className="text-white/70 text-[13px] font-medium">{weekendDateText}</span>
           </div>
           <div className="bg-[#2A2A2A] px-3 py-1.5 rounded-full text-[11px] text-white/50 font-medium tracking-wide">
             {studio.nights} Nights
@@ -389,7 +419,7 @@ const HourlyStudioCard = ({
 
             {(currentSelection?.selectedDate && currentSelection?.startTime && currentSelection?.endTime) && (
               <div className="mb-6 rounded-xl border border-[#E8D1AB33] bg-[#E8D1AB14] px-4 py-3 text-sm text-[#E8D1AB]">
-                {format(new Date(currentSelection.selectedDate), "EEE, dd MMM yyyy")} | {currentSelection.startTime} - {currentSelection.endTime}
+                {formatDisplayDate(currentSelection.selectedDate)} | {formatDisplayTime(currentSelection.startTime)} - {formatDisplayTime(currentSelection.endTime)}
               </div>
             )}
 
@@ -554,6 +584,22 @@ export const V3Step5Studios: React.FC<Props> = ({
     return HOURLY_STUDIO_LIST.filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [searchQuery]);
 
+  const weekendDateText = useMemo(() => {
+    const sortedBookingDays = (data.bookingDays || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+    const firstDay = sortedBookingDays[0];
+    const lastDay = sortedBookingDays[sortedBookingDays.length - 1];
+
+    if (firstDay?.date && lastDay?.date) {
+      return `${formatDisplayDate(firstDay.date)} - ${formatDisplayDate(lastDay.date)}`;
+    }
+
+    if (data.startDate && data.endDate) {
+      return `${formatDisplayDate(data.startDate)} - ${formatDisplayDate(data.endDate)}`;
+    }
+
+    return "Date not set";
+  }, [data.bookingDays, data.startDate, data.endDate]);
+
   const toggleWeekendStudio = (studio: StudioCatalogItem) => {
     if (selectedStudioSet.has(studio.id)) {
       syncStudios(removeSelectedStudio(selectedStudios, studio.id));
@@ -680,6 +726,7 @@ export const V3Step5Studios: React.FC<Props> = ({
             <StudioCard
               key={studio.id}
               studio={studio}
+              weekendDateText={weekendDateText}
               isSelected={selectedStudioSet.has(studio.id)}
               onToggle={() => toggleWeekendStudio(studio)}
               onShowDetails={() => setSelectedDetailsStudio(studio)}

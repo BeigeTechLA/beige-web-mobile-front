@@ -150,12 +150,12 @@ export default function AffiliateFolderDetailsView({ folderId, onBack, onNavigat
           </div>
           <div className="flex gap-2 ">
             {/* Status dropdown to be added */}
-            <BasicDropdown
+            {/* <BasicDropdown
               label="Status"
               value={status}
               onChange={(val) => setStatus(val)}
               options={STATUSES}
-            />
+            /> */}
 
             {/* MOBILE VIEW: Dropdown Button */}
             <div className="md:hidden relative">

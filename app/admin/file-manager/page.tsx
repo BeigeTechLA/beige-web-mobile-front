@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Calendar,
   Grid3X3,
   History,
   Link,
@@ -77,6 +78,7 @@ export default function AdminFolderManagerPage() {
 
   const tabs = [
     { name: "All Files", icon: FolderOpen },
+    { name: "Common Event", icon: Calendar },
     { name: "Linked to folders", icon: Link },
     { name: "Recent", icon: History },
     // { name: "Shared", icon: Share2 },
@@ -117,6 +119,8 @@ export default function AdminFolderManagerPage() {
       items = items.filter((item) => item.isLinked);
     } else if (selectedTab === "Recent") {
       items = items.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5));
+    } else if (selectedTab === "Common Event") {
+      items = items.filter((item) => item.category === "Common Event");
     }
     // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
     //   items = [];
@@ -276,7 +280,7 @@ export default function AdminFolderManagerPage() {
               />
             </div>
             <div className="flex gap-2 ">
-              <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} />
+              {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
 
               <div className="md:hidden relative">
                 <Button

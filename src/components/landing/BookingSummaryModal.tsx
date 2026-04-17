@@ -378,7 +378,7 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                    )}
                    {data.pricing.discount_code_discount > 0 && (
                      <div className="flex justify-between text-sm text-green-500 font-medium">
-                        <span>Discount Code Discount</span>
+                        <span>Discount</span>
                         <span>-{formatCurrency(data.pricing.discount_code_discount)}</span>
                      </div>
                    )}

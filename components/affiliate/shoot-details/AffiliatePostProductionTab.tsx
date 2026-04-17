@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronDown, ExternalLink, FileText, Folder, FolderSearch, Grid3X3, LayoutGrid, List, Loader2 } from "lucide-react";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
@@ -20,8 +21,11 @@ const prettifyFolderName = (name?: string) => {
 };
 
 export default function AffiliatePostProductionTab({ projectId }: AffiliatePostProductionTabProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [currentPath, setCurrentPath] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const viewMode = (searchParams.get("view") as "grid" | "list") || "grid";
   const [isOpen, setIsOpen] = useState(false);
   const [folders, setFolders] = useState<any[]>([]);
   const [files, setFiles] = useState<any[]>([]);
@@ -73,8 +77,10 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
     }
   };
 
-  const handleSelect = (mode: "grid" | "list") => {
-    setViewMode(mode);
+  const handleViewChange = (mode: "grid" | "list") => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", mode);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     setIsOpen(false);
   };
 
@@ -105,14 +111,14 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
             {isOpen && (
               <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
                 <button
-                  onClick={() => handleSelect("grid")}
+                  onClick={() => handleViewChange("grid")}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"}`}
                 >
                   <Grid3X3 size={18} />
                   Grid View
                 </button>
                 <button
-                  onClick={() => handleSelect("list")}
+                  onClick={() => handleViewChange("list")}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"}`}
                 >
                   <List size={18} />
@@ -124,7 +130,7 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
 
           <div className="hidden lg:flex bg-[#1A1A1A] border border-[#222222] rounded-lg p-1">
             <button
-              onClick={() => setViewMode("grid")}
+              onClick={() => handleViewChange("grid")}
               className={cn(
                 "p-2 rounded-md transition-all",
                 viewMode === "grid" ? "bg-[#E5D5B8] text-black" : "text-[#666666] hover:text-[#E0E0E0]"
@@ -133,7 +139,7 @@ export default function AffiliatePostProductionTab({ projectId }: AffiliatePostP
               <LayoutGrid size={18} />
             </button>
             <button
-              onClick={() => setViewMode("list")}
+              onClick={() => handleViewChange("list")}
               className={cn(
                 "p-2 rounded-md transition-all",
                 viewMode === "list" ? "bg-[#E5D5B8] text-black" : "text-[#666666] hover:text-[#E0E0E0]"

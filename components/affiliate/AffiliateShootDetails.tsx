@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import AffiliateShootHeader from "./shoot-details/AffiliateShootHeader";
 import AffiliateProjectTeam from "./shoot-details/AffiliateProjectTeam";
 import AffiliateAssignedCP from "./shoot-details/AffiliateAssignedCP";
@@ -28,9 +28,10 @@ interface AffiliateShootDetailsProps {
 export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShootDetailsProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState("Overview");
+  const activeTab = searchParams.get("tab") || "Overview";
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +44,12 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const shootBasePath = "/affiliate/shoots";
+
+  const handleTabChange = (tabName: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tabName);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
@@ -146,7 +153,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
         </Button>
 
         <div className={`rounded-lg lg:rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
-          <AffiliateShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <AffiliateShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
           <div className="px-5 py-6 lg:py-9">
             {activeTab === "Overview" && (

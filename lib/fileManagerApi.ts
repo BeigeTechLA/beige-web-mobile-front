@@ -675,7 +675,7 @@ export const mapExternalWorkspaceToFolderCard = (
   id: workspace.externalId,
   title: workspace.folderName,
   fileCount: workspace.fileCount || 0,
-  category: inferWorkspaceCategory(workspace.folderName),
+  category: workspace.isCommonEvent ? "Common Event" : inferWorkspaceCategory(workspace.folderName),
   isLinked: true,
   lastOpened: formatRelativeTime(workspace.updatedAt || workspace.createdAt),
   userInitials: getDisplayInitials(workspace.folderName),

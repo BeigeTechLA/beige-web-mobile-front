@@ -86,6 +86,7 @@ import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
+import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
 import { cn } from "@/lib/utils";
 
 const clients = [
@@ -207,6 +208,7 @@ type ClientDropdownItem = {
   client_location?: string | number | null;
   street_address?: string | number | null;
   full_address?: string | number | null;
+  client_type?: string | number | null;
 };
 
 const PROTECTED_SERVICE_ORDER = [
@@ -1897,7 +1899,15 @@ export default function CreateQuotePage() {
                   <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
                 )}
               </div>
-              <span className="font-semibold text-lg">{getClientDisplayName(client)}</span>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-semibold text-lg">{getClientDisplayName(client)}</span>
+                <ClientTypeBadge
+                  clientType={client.client_type}
+                  userId={client.user_id}
+                  isDark={isDark}
+                  isSelected={isSelectedClient}
+                />
+              </div>
             </div>
           );
         })}
@@ -5068,9 +5078,18 @@ export default function CreateQuotePage() {
                       }}
                       className={`w-full group bg-transparent rounded-xl px-6 py-6 flex justify-between items-center transition-all ${isDropdownOpen ? 'ring-1 ring-[#8E826A]/30' : ''}`}
                     >
-                      <span className={selectedClient ? "text-white text-[16px] font-normal" : "text-[#6B6B6B] text-[16px] font-normal"}>
-                        {selectedClient ? getClientDisplayName(selectedClient) : "Choose a Client..."}
-                      </span>
+                      {selectedClient ? (
+                        <span className="flex min-w-0 items-center gap-2 text-white text-[16px] font-normal">
+                          <span className="truncate">{getClientDisplayName(selectedClient)}</span>
+                          <ClientTypeBadge
+                            clientType={selectedClient.client_type}
+                            userId={selectedClient.user_id}
+                            isDark
+                          />
+                        </span>
+                      ) : (
+                        <span className="text-[#6B6B6B] text-[16px] font-normal">Choose a Client...</span>
+                      )}
                       <ChevronDown size={20} className={`text-[#E5E5E5] transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
 

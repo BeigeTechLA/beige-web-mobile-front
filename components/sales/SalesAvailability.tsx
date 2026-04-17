@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   Info,
   X,
-  CheckCircle2,
   Calendar,
-  MapPin,
   Clock,
   Video,
   Plus,
@@ -23,33 +21,29 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import DatePicker from "@/components/ui/Datepicker";
+import TimePicker from "@/components/ui/Timepicker";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { StatCard } from "@/components/admin/StatCard";
 import { useAddAvailabilityMutation, useGetAvailabilityMutation } from "@/lib/redux/features/sales/salesApi";
 
-// --- HELPERS ---
-const formatLocation = (locationInput: any) => {
-  if (!locationInput) return "Location TBD";
-  let addressStr = locationInput;
+type AvailabilityStatus = {
+  available?: boolean;
+  customAvailabilityStatus?: number;
+  assigned_leads_count?: number;
+  assigned_sales_leads_count?: number;
+  assigned_client_leads_count?: number;
+};
 
-  try {
-    const parsed = JSON.parse(locationInput);
-    if (parsed && parsed.address) addressStr = parsed.address;
-  } catch (e) {
-    /* Not JSON */
-  }
-
-  const parts = addressStr.split(",").map((p: string) => p.trim());
-  if (parts.length >= 3) {
-    const country = parts[parts.length - 1];
-    const stateZip = parts[parts.length - 2];
-    const city = parts[parts.length - 3];
-    const state = stateZip.replace(/\d+/g, "").trim();
-    return `${city}, ${state}, ${country}`;
-  }
-  return addressStr;
+type HoveredProject = {
+  date: string;
+  project_name: string;
+  leadsCount: number;
+  salesLeadsCount: number;
+  clientLeadsCount: number;
 };
 
 export default function SalesAvailability() {
@@ -60,10 +54,17 @@ export default function SalesAvailability() {
   
   const [formData, setFormData] = useState({
     type: "1",
+    recurrence: "1",
+    includeWeekends: false,
+    repeatOn: [] as string[],
+    monthlyDay: "",
+    untilDate: null as Date | null,
+    startTime: "",
+    endTime: "",
     notes: "",
   });
 
-  const [availability, setAvailability] = useState<any>({});
+  const [availability, setAvailability] = useState<Record<string, AvailabilityStatus>>({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [summaryData, setSummaryData] = useState({
@@ -71,17 +72,17 @@ export default function SalesAvailability() {
     bookedShoots: 0,
     timeOff: 0,
   });
-  const [hoveredProject, setHoveredProject] = useState<any>(null);
+  const [hoveredProject, setHoveredProject] = useState<HoveredProject | null>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
 
-  const [getAvailability, { isLoading: isFetchingAvailability }] = useGetAvailabilityMutation();
+  const [getAvailability] = useGetAvailabilityMutation();
   const [addAvailability, { isLoading: isAddingAvailability }] = useAddAvailabilityMutation();
 
-  const fetchAvailability = async () => {
+  const fetchAvailability = useCallback(async () => {
     try {
       const response = await getAvailability({
-        month: currentMonth < 10 ? `0${currentMonth}` : `${currentMonth}`,
-        year: `${currentYear}`,
+        month: currentMonth,
+        year: currentYear,
         // sales_rep_id is not passed for logged-in user as per instructions
       }).unwrap();
 
@@ -91,11 +92,11 @@ export default function SalesAvailability() {
     } catch (error) {
       console.error("Failed to fetch availability:", error);
     }
-  };
+  }, [currentMonth, currentYear, getAvailability]);
 
   useEffect(() => {
     fetchAvailability();
-  }, [currentMonth, currentYear]);
+  }, [fetchAvailability]);
 
   useEffect(() => {
     const getSummaryData = () => {
@@ -148,8 +149,35 @@ export default function SalesAvailability() {
       date: formattedDate,
       availability_status: Number(formData.type),
       is_full_day: isAllDay ? 1 : 0,
+      start_time: isAllDay ? null : formData.startTime,
+      end_time: isAllDay ? null : formData.endTime,
+      recurrence: Number(formData.recurrence),
       notes: formData.notes || "",
     };
+
+    if (formData.recurrence !== "1") {
+      if (formData.untilDate) {
+        Object.assign(payload, {
+          recurrence_until: format(new Date(formData.untilDate), "yyyy-MM-dd"),
+        });
+      }
+
+      if (formData.recurrence === "2") {
+        if (!formData.includeWeekends) {
+          Object.assign(payload, {
+            recurrence_days: ["mon", "tue", "wed", "thu", "fri"],
+          });
+        }
+      } else if (formData.recurrence === "3") {
+        Object.assign(payload, {
+          recurrence_days: (formData.repeatOn || []).map((day) => day.toLowerCase()),
+        });
+      } else if (formData.recurrence === "4" && formData.monthlyDay) {
+        Object.assign(payload, {
+          recurrence_day_of_month: Number(formData.monthlyDay),
+        });
+      }
+    }
 
     try {
       const response = await addAvailability(payload).unwrap();
@@ -164,9 +192,16 @@ export default function SalesAvailability() {
         toast.success("Availability Updated");
         fetchAvailability();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error adding availability:", error);
-      toast.error(error?.data?.message || "Update Failed");
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof (error as { data?: { message?: string } }).data?.message === "string"
+          ? (error as { data?: { message?: string } }).data?.message
+          : "Update Failed";
+      toast.error(message);
     }
   };
 
@@ -186,6 +221,24 @@ export default function SalesAvailability() {
     setFormData((prevData) => ({
       ...prevData,
       [name]: value,
+    }));
+  };
+
+  const handleAllDayChange = () => {
+    setIsAllDay(!isAllDay);
+    if (!isAllDay) {
+      setFormData((prevData) => ({
+        ...prevData,
+        startTime: "",
+        endTime: "",
+      }));
+    }
+  };
+
+  const handleTimeChange = (time: string, field: "startTime" | "endTime") => {
+    setFormData((prevData) => ({
+      ...prevData,
+      [field]: time,
     }));
   };
 
@@ -498,19 +551,147 @@ export default function SalesAvailability() {
                   id="date"
                   onChange={(d) => {
                     setSelectedDate(d);
+                    if (formData.recurrence === "4") {
+                      handleFormChange(d?.getDate().toString() || "", "monthlyDay");
+                    }
                   }}
                 />
               </div>
+
+              {!isAllDay && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Start Time</label>
+                    <TimePicker setTime={(time) => handleTimeChange(time, "startTime")} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">End Time</label>
+                    <TimePicker setTime={(time) => handleTimeChange(time, "endTime")} />
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-3 py-2">
                 <input
                   type="checkbox"
                   id="allDay"
                   checked={isAllDay}
-                  onChange={() => setIsAllDay(!isAllDay)}
+                  onChange={handleAllDayChange}
                   className="w-4 h-4 rounded border-white/10 bg-black text-[#E8D1AB] focus:ring-[#E8D1AB]"
                 />
                 <label htmlFor="allDay" className="text-sm font-medium text-white/80 cursor-pointer">All day availability</label>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Recurrence</label>
+                <Select
+                  value={formData.recurrence}
+                  onValueChange={(value) => handleFormChange(value, "recurrence")}
+                >
+                  <SelectTrigger className="w-full bg-black border-white/10 text-white h-12">
+                    <SelectValue placeholder="Does not repeat" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
+                    <SelectItem value="1">Does Not Repeat</SelectItem>
+                    <SelectItem value="2">Daily</SelectItem>
+                    <SelectItem value="3">Weekly</SelectItem>
+                    <SelectItem value="4">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formData.recurrence !== "1" && (
+                <div className="space-y-4 p-4 bg-white/5 rounded-xl border border-white/5">
+                  {formData.recurrence === "2" && (
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="incWeekends"
+                        checked={formData.includeWeekends}
+                        onChange={(e) =>
+                          setFormData((prevData) => ({
+                            ...prevData,
+                            includeWeekends: e.target.checked,
+                          }))
+                        }
+                        className="rounded border-white/10 bg-black"
+                      />
+                      <label htmlFor="incWeekends" className="text-sm text-white/60">Include Weekends</label>
+                    </div>
+                  )}
+
+                  {formData.recurrence === "3" && (
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-white/40">Repeat on</label>
+                      <div className="flex flex-wrap gap-2">
+                        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => {
+                              const current = formData.repeatOn || [];
+                              const updated = current.includes(day)
+                                ? current.filter((currentDay) => currentDay !== day)
+                                : [...current, day];
+                              setFormData((prevData) => ({
+                                ...prevData,
+                                repeatOn: updated,
+                              }));
+                            }}
+                            className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${
+                              formData.repeatOn.includes(day)
+                                ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
+                                : "bg-black text-white/60 border-white/10 hover:border-white/30"
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.recurrence === "4" && (
+                    <div className="flex items-center gap-2 text-sm text-white/70">
+                      <span>Repeat on Day</span>
+                      <Input
+                        type="text"
+                        value={formData.monthlyDay ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9]/g, "");
+                          if (value === "" || (Number(value) >= 1 && Number(value) <= 31)) {
+                            handleFormChange(value, "monthlyDay");
+                          }
+                        }}
+                        className="w-14 h-9 rounded-lg bg-black border-white/10 text-white text-center"
+                      />
+                      <span>of each month</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Until Date</label>
+                    <DatePicker
+                      id="untilDate"
+                      onChange={(date) =>
+                        setFormData((prevData) => ({
+                          ...prevData,
+                          untilDate: date,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Notes</label>
+                <Textarea
+                  value={formData.notes}
+                  onChange={(e) => handleFormChange(e.target.value, "notes")}
+                  placeholder="Add notes"
+                  className="min-h-24 bg-black border-white/10 text-white placeholder:text-white/30"
+                />
               </div>
 
               <div className="flex justify-end gap-3 pt-4">

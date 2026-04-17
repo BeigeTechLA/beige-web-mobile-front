@@ -475,6 +475,12 @@ export const salesApi = createApi({
       date: string;
       availability_status: number;
       is_full_day: number;
+      start_time?: string | null;
+      end_time?: string | null;
+      recurrence?: number;
+      recurrence_until?: string;
+      recurrence_days?: string[];
+      recurrence_day_of_month?: number;
       notes?: string;
     }>({
       query: (data) => ({
@@ -486,8 +492,8 @@ export const salesApi = createApi({
 
     getAvailability: builder.mutation<ApiResponse<any>, {
       sales_rep_id?: number;
-      year: string;
-      month: string;
+      year: string | number;
+      month: string | number;
     }>({
       query: (data) => ({
         url: 'sales/availability',
