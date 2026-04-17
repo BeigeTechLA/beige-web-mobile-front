@@ -293,6 +293,14 @@ const resolveGuestEmail = (booking?: any, fallbackEmail?: string | null) => {
   );
 };
 
+const normalizeDiscountCodeValue = (value?: string | null) => {
+  const normalized = String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+  return normalized || null;
+};
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
   clientSecret,
@@ -346,6 +354,9 @@ function StripePaymentFormMulti({
   const isFree = amount === 0;
   const isReferralLocked =
     isFree && parseFloat(quote?.discount_total || quote?.discount_amount || 0) > 0;
+  const activeDiscountCode = normalizeDiscountCodeValue(
+    quote?.applied_discount_code || quote?.discount_code
+  );
 
   useEffect(() => {
     if (!isReferralLocked) return;
@@ -356,41 +367,20 @@ function StripePaymentFormMulti({
     });
   }, [isReferralLocked]);
 
-  // AUTO-APPLY & REFRESH FIX LOGIC - UPDATED TO HANDLE OVERRIDE
-  useEffect(() => {
-    const existingDiscountTotal = parseFloat(quote?.discount_total || quote?.discount_amount || 0);
-    const savedCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
-    const urlCode = urlDiscount?.toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-    // Logic: If URL code is different from saved code, prioritize the URL code
-    if (urlCode && urlCode !== savedCode && !discountCode) {
-      setDiscountCode(urlCode);
-      validateDiscountCode(urlCode);
-    }
-    // Otherwise, fallback to the saved code if it exists
-    else if (existingDiscountTotal > 0 && !discountCode) {
-      setDiscountValid(true);
-      if (savedCode) {
-        setDiscountCode(savedCode);
-      }
-    }
-  }, [urlDiscount, quote?.applied_discount_code, quote?.discount_code, quote?.discount_total, quote?.discount_amount]);
-
   // TRIGGER APPLICATION: Trigger when discount is valid and differs from what is active
   useEffect(() => {
-    const urlCode = urlDiscount?.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const savedCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+    const urlCode = normalizeDiscountCodeValue(urlDiscount);
 
     // Condition to apply: It's valid AND (nothing is applied OR it's a different code than what's saved)
     if (urlCode && discountValid === true && !isValidatingDiscount) {
-      if (parseFloat(quote?.discount_total || quote?.discount_amount || 0) === 0 || urlCode !== savedCode) {
+      if (urlCode !== activeDiscountCode) {
         // Prevent infinite loop: Only apply if the current input matches the urlCode
         if (discountCode === urlCode) {
           applyDiscountCode();
         }
       }
     }
-  }, [discountValid, urlDiscount, quote?.applied_discount_code, quote?.discount_code]);
+  }, [discountValid, urlDiscount, activeDiscountCode, isValidatingDiscount, discountCode]);
 
   // Debounced referral code validation
   const validateReferralCode = React.useCallback(
@@ -497,7 +487,7 @@ function StripePaymentFormMulti({
       }
 
       // If typed matches active exactly, it's valid
-      const activeCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+      const activeCode = activeDiscountCode;
       if (activeCode === code.toUpperCase()) {
         setDiscountValid(true);
         return;
@@ -536,8 +526,24 @@ function StripePaymentFormMulti({
         setIsValidatingDiscount(false);
       }
     }, 500),
-    [shootId, quote?.applied_discount_code, quote?.discount_code],
+    [shootId, activeDiscountCode],
   );
+
+  // AUTO-APPLY & REFRESH FIX LOGIC - UPDATED TO HANDLE OVERRIDE
+  useEffect(() => {
+    const urlCode = normalizeDiscountCodeValue(urlDiscount);
+
+    // Logic: If URL code is different from saved code, prioritize the URL code
+    if (urlCode && urlCode !== activeDiscountCode && !discountCode) {
+      setDiscountCode(urlCode);
+      validateDiscountCode(urlCode);
+    }
+    // Otherwise, hydrate only an actual saved discount code.
+    else if (activeDiscountCode && !discountCode) {
+      setDiscountValid(true);
+      setDiscountCode(activeDiscountCode);
+    }
+  }, [urlDiscount, activeDiscountCode, discountCode, validateDiscountCode]);
 
   // Immediate discount validation (used on submit)
   const validateDiscountCodeNow = async (code: string) => {
@@ -547,7 +553,7 @@ function StripePaymentFormMulti({
       return false;
     }
 
-    const activeCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+    const activeCode = activeDiscountCode;
     if (activeCode === code.toUpperCase()) {
       return true;
     }
@@ -633,7 +639,7 @@ function StripePaymentFormMulti({
     const upperCode = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setDiscountCode(upperCode);
     validateDiscountCode(upperCode);
-    if (!upperCode && (quote?.applied_discount_code || quote?.discount_code)) {
+    if (!upperCode && activeDiscountCode) {
       clearDiscountCode();
     }
   };
@@ -643,7 +649,7 @@ function StripePaymentFormMulti({
     if (!discountCode || !discountValid || !quoteId) return;
 
     // Check if it is already applied
-    const activeCode = (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase();
+    const activeCode = activeDiscountCode;
     if (activeCode === discountCode.toUpperCase()) return;
 
     setIsValidatingDiscount(true);
@@ -697,7 +703,7 @@ function StripePaymentFormMulti({
 
   const clearDiscountCode = async () => {
     const quoteId = quote?.quote_id || quote?.id;
-    const activeCode = quote?.applied_discount_code || quote?.discount_code;
+    const activeCode = activeDiscountCode;
     if (!activeCode || !quoteId || !shootId) {
       setDiscountCode("");
       setDiscountValid(null);
@@ -1053,7 +1059,7 @@ function StripePaymentFormMulti({
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isValidatingDiscount ? (
                 <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
-              ) : discountValid === true && discountCode.toUpperCase() !== (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() ? (
+              ) : discountValid === true && discountCode.toUpperCase() !== activeDiscountCode ? (
                 <button
                   type="button"
                   onClick={applyDiscountCode}
@@ -1061,7 +1067,7 @@ function StripePaymentFormMulti({
                 >
                   Apply
                 </button>
-              ) : discountValid === true && discountCode.toUpperCase() === (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() ? (
+              ) : discountValid === true && discountCode.toUpperCase() === activeDiscountCode ? (
                 <button
                   type="button"
                   onClick={clearDiscountCode}
@@ -1074,13 +1080,13 @@ function StripePaymentFormMulti({
               ) : null}
             </div>
           </div>
-          {discountValid === true && discountCode.toUpperCase() === (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() && (
+          {discountValid === true && discountCode.toUpperCase() === activeDiscountCode && (
             <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
               <Check className="w-4 h-4" />
               Discount applied: You Save {formatCurrency(quote.discount_total || quote.discount_amount)}
             </p>
           )}
-          {discountValid === true && discountData && discountCode.toUpperCase() !== (quote?.applied_discount_code || quote?.discount_code)?.toUpperCase() && (
+          {discountValid === true && discountData && discountCode.toUpperCase() !== activeDiscountCode && (
             <p className="text-blue-400 text-sm mt-2">
               Click &apos;Apply&apos; to update your total with this code.
             </p>
