@@ -304,7 +304,7 @@ const GeneratePaymentLink = ({
               {isGenerating ? "Generating..." : "Generate Payment Link"}
             </Button>
           </div>
-        ) : paymentData ? (
+        ) : paymentData && !isPaidBooking ? (
           /* Active / Expired Link UI */
           <div className="space-y-4 mt-6">
             <div className={`border rounded-xl p-4 space-y-4 transition-colors ${paymentData.isExpired
