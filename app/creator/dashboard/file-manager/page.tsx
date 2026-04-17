@@ -10,8 +10,6 @@ import {
   Loader2,
   MoreVertical,
   Search,
-  Share2,
-  Trash2,
 } from "lucide-react";
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
@@ -24,6 +22,7 @@ import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import {
   fileManagerApi,
+  isCommonEventWorkspaceId,
   isRecentWithinHours,
   mapExternalWorkspaceToFolderCard,
   type UiFolderItem,
@@ -95,7 +94,10 @@ export default function CreatorFileManagerPage() {
 
       setProjects(
         data
-          .filter((workspace) => acceptedProjectIds.has(String(workspace.externalId)))
+          .filter((workspace) =>
+            isCommonEventWorkspaceId(workspace.externalId) ||
+            acceptedProjectIds.has(String(workspace.externalId))
+          )
           .map((workspace) =>
           mapExternalWorkspaceToFolderCard(workspace, "/creator/dashboard/file-manager")
           )
@@ -201,7 +203,7 @@ export default function CreatorFileManagerPage() {
         <div className="text-white">
           <h1 className="lg:text-2xl lg:leading-[32px] font-semibold mb-1">File Manager</h1>
           <p className="text-xs lg:text-sm text-white/70">
-            Accepted project folders only. Uploads are available inside post-production folders.
+            Accepted project folders and common event folders. Uploads are available inside post-production folders.
           </p>
         </div>
 

@@ -10,10 +10,12 @@ import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
+import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import {
   fileManagerApi,
   getDisplayInitials,
+  isCommonEventWorkspaceId,
   mapExternalFoldersToUi,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
@@ -25,6 +27,7 @@ export default function CreatorFolderDetailsPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const projectId = params.id;
+  const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -37,6 +40,9 @@ export default function CreatorFolderDetailsPage() {
   const [status, setStatus] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreatingMyFolder, setIsCreatingMyFolder] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [createdCpFolderName, setCreatedCpFolderName] = useState<string>("");
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
@@ -148,12 +154,61 @@ export default function CreatorFolderDetailsPage() {
     }
   };
 
+  const handleCreateMyEventFolder = async () => {
+    if (!isCommonEventWorkspace) return;
+    try {
+      setIsCreatingMyFolder(true);
+      const results = await Promise.allSettled([
+        fileManagerApi.createCreatorEventFolder(String(projectId), undefined, { phase: "pre" }),
+        fileManagerApi.createCreatorEventFolder(String(projectId), undefined, { phase: "post" }),
+      ]);
+      const fulfilled = results
+        .filter((entry): entry is PromiseFulfilledResult<{ folderName?: string }> => entry.status === "fulfilled")
+        .map((entry) => entry.value);
+
+      if (!fulfilled.length) {
+        throw new Error("Failed to create Creative Partner folder");
+      }
+
+      const folderName = fulfilled[0]?.folderName || "My Folder";
+      setCreatedCpFolderName(folderName);
+      toast.success("Your Creative Partner folder is ready in Pre and Post Production");
+      await loadWorkspace();
+      setIsUploadModalOpen(true);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to create your folder");
+    } finally {
+      setIsCreatingMyFolder(false);
+    }
+  };
+
   return (
     <div className="overflow-hidden">
-      <Button onClick={() => router.back()} className="mb-5 flex items-center gap-2 p-0 text-white transition-colors hover:text-white/80">
-        <ArrowLeft size={24} />
-        <span className="text-sm font-medium">Back</span>
-      </Button>
+      <div className="mb-5 flex items-center justify-between gap-2">
+        <Button onClick={() => router.back()} className="flex items-center gap-2 p-0 text-white transition-colors hover:text-white/80">
+          <ArrowLeft size={24} />
+          <span className="text-sm font-medium">Back</span>
+        </Button>
+        {isCommonEventWorkspace ? (
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleCreateMyEventFolder}
+              disabled={isCreatingMyFolder}
+              className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+            >
+              {isCreatingMyFolder ? "Creating..." : "Create My CP Folder"}
+            </Button>
+            {createdCpFolderName ? (
+              <Button
+                onClick={() => setIsUploadModalOpen(true)}
+                className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+              >
+                Upload Now
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
 
       {loading ? (
         <div className="text-sm text-white/70">Loading project...</div>
@@ -367,6 +422,18 @@ export default function CreatorFolderDetailsPage() {
         itemName={selectedFolder?.title || "this folder"}
         itemType="folder"
         isDeleting={isDeleting}
+      />
+
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        folderName={createdCpFolderName || workspaceName || "My CP Folder"}
+        uploadPath={
+          workspaceName && createdCpFolderName
+            ? `${workspaceName}/Pre-Production/${createdCpFolderName}`
+            : undefined
+        }
+        onUploadComplete={loadWorkspace}
       />
     </div>
   );

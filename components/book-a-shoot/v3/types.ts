@@ -1,3 +1,5 @@
+import type { SelectedStudio } from "./studioData";
+
 export type BookingDataV3 = {
   bookingId?: number;
   bookingType?: 'single_day' | 'multi_day';
@@ -35,6 +37,8 @@ export type BookingDataV3 = {
   // Step 3 & 4
   matchingMethod: 'ai_matchmaker' | 'manual';
   selectedCrewIds: number[];
+  selectedStudioIds?: string[];
+  selectedStudios?: SelectedStudio[];
 
   roleCounts?: {
     videographer?: number;
@@ -75,6 +79,8 @@ export const initialDataV3: BookingDataV3 = {
   referenceLinks: "",
   matchingMethod: 'ai_matchmaker',
   selectedCrewIds: [],
+  selectedStudioIds: [],
+  selectedStudios: [],
   fullName: "",
   email: "",
   phone: "",
