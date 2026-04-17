@@ -796,6 +796,15 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
   };
 };
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function QuotesDashboardPage({
   createHref,
   TopbarComponent,
@@ -813,7 +822,7 @@ export default function QuotesDashboardPage({
   const [quotes, setQuotes] = useState<SalesQuoteListItem[]>([]);
   const [quoteSummary, setQuoteSummary] = useState<Record<string, number>>({});
   const [quotePagination, setQuotePagination] = useState<QuoteListPaginationState>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  // const [searchTerm, setSearchTerm] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
   const [salespersonOptions, setSalespersonOptions] = useState<SalesRepOption[]>([]);
@@ -821,6 +830,9 @@ export default function QuotesDashboardPage({
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 500);
 
   useEffect(() => {
     if (selectedDate) {
@@ -854,7 +866,10 @@ export default function QuotesDashboardPage({
 
   useEffect(() => {
     const fetchQuotesData = async () => {
-      setLoading(true);
+      const isFirstLoad = loading;
+      if (!isFirstLoad) {
+        setIsRefreshing(true);
+      }
 
       try {
         const effectiveRange = selectedDate ? "custom" : chartRange;
@@ -875,7 +890,7 @@ export default function QuotesDashboardPage({
           salesApi.getQuotesList({
             page: currentPage,
             limit: QUOTES_PER_PAGE,
-            ...(searchTerm.trim() ? { search: searchTerm.trim() } : {}),
+            ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
             ...(selectedStatusFilter !== "all"
               ? { status: selectedStatusFilter }
               : {}),
@@ -903,6 +918,7 @@ export default function QuotesDashboardPage({
         setQuotePagination(null);
       } finally {
         setLoading(false);
+        setIsRefreshing(false);
       }
     };
 
@@ -910,7 +926,7 @@ export default function QuotesDashboardPage({
   }, [
     chartRange,
     currentPage,
-    searchTerm,
+    debouncedSearch,
     selectedDate,
     selectedSalesperson,
     selectedStatusFilter,
@@ -1151,7 +1167,7 @@ export default function QuotesDashboardPage({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [chartRange, searchTerm, selectedDate, selectedSalesperson, selectedStatusFilter]);
+  }, [chartRange, debouncedSearch, selectedDate, selectedSalesperson, selectedStatusFilter]);
 
   const totalFilteredQuotes = quotePagination?.total ?? filteredQuotesData.length;
   const totalListPages = Math.max(1, quotePagination?.totalPages ?? 1);
@@ -1407,7 +1423,7 @@ export default function QuotesDashboardPage({
           </div>
         ) : showEmptyState ? (
           <QuotesEmptyState createHref={createHref} />
-        ) : displayQuotesData.length > 0 ? (
+        ) : (
           <>
             <div className="mb-6 mt-8 flex flex-col gap-4 md:flex-row">
               <div className="relative flex-1">
@@ -1416,16 +1432,15 @@ export default function QuotesDashboardPage({
                   size={18}
                 />
                 <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search by client name, quote number or project..."
-                  className={`w-full rounded-xl border py-3 pl-12 pr-4 text-sm transition-colors focus:outline-none ${
-                    isDark
-                      ? "border-[#FFFFFF33] bg-[#202020] focus:border-[#E5D5B8]/50"
-                      : "border-[#E3E3E3] bg-white focus:border-[#A4A5A6]"
-                  }`}
-                />
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by client name, quote number..."
+                className={`w-full rounded-xl border py-3 pl-12 pr-4 text-sm transition-colors focus:outline-none ${
+                  isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E3E3E3] bg-white"
+                }`}
+              />
+	              {isRefreshing && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-[#E5D5B8]" size={18} />}
               </div>
               <div className="flex flex-col gap-4 sm:flex-row">
                 <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
@@ -1675,7 +1690,7 @@ export default function QuotesDashboardPage({
               </div>
             )}
           </>
-        ) : null}
+        )}
       </div>
 
       {!loading && !showEmptyState && (
