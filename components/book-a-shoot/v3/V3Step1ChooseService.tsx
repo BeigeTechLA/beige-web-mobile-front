@@ -99,6 +99,25 @@ const STUDIO_BOOKING_TYPES = [
 
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
+const COACHELLA_SHOOT_TYPE_KEY = "coachella";
+const COACHELLA_EVENT_MESSAGE =
+  "Coachella event coverage is scheduled for April 17, 18, and 19, 2026. Date and time are pre-fixed for this event, so you do not need to select them.";
+const COACHELLA_EVENT_DATES = ["2026-04-17", "2026-04-18", "2026-04-19"];
+const COACHELLA_START_TIME = "09:00";
+const COACHELLA_END_TIME = "17:00";
+type ShootTypeOption = (typeof newshootTypes)[number];
+const COACHELLA_SHOOT_TYPE_OPTION: ShootTypeOption = {
+  key: COACHELLA_SHOOT_TYPE_KEY,
+  title: "Coachella",
+  details: "Video podcasts, livestreams",
+  image: "https://d1pgtgqp0jru64.cloudfront.net/Rectangle-3851.png",
+  stats: [],
+};
+
+const withCoachellaOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
+  const nonCoachellaTypes = types.filter((type) => type.key !== COACHELLA_SHOOT_TYPE_KEY);
+  return [COACHELLA_SHOOT_TYPE_OPTION, ...nonCoachellaTypes];
+};
 
 export const V3Step1ChooseService: React.FC<Props> = ({
   data,
@@ -120,7 +139,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
 
-  const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
+  const [availableShootTypes, setAvailableShootTypes] = useState<ShootTypeOption[]>(
+    withCoachellaOption(newshootTypes)
+  );
 
   const [timeOptions, setTimeOptions] = useState<
     { key: string; value: string }[]
@@ -217,6 +238,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     [photoEditCounts, photoEditTypeOptions]
   );
   const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
+  const isCoachellaSelected = data.shootType === COACHELLA_SHOOT_TYPE_KEY;
+  const shouldBypassDateTime = !isEditingOnly && isCoachellaSelected;
   const expectedDeliveryDate = React.useMemo(
     () => (data.expectedDeliveryDate ? parseDate(data.expectedDeliveryDate) : null),
     [data.expectedDeliveryDate]
@@ -387,13 +410,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     const isEditing = data.contentType.includes("editing");
 
     if (isVideo && isPhoto) {
-      setAvailableShootTypes(hybridShootTypes);         // video + photo (with or without editing)
+      setAvailableShootTypes(withCoachellaOption(hybridShootTypes)); // video + photo (with or without editing)
     } else if (isPhoto) {
-      setAvailableShootTypes(photoShootTypes);           // photo only OR editing + photo
+      setAvailableShootTypes(withCoachellaOption(photoShootTypes)); // photo only OR editing + photo
     } else if (isVideo) {
-      setAvailableShootTypes(videoShootTypes);           // video only OR editing + video
+      setAvailableShootTypes(withCoachellaOption(videoShootTypes)); // video only OR editing + video
     } else if (isEditing) {
-      setAvailableShootTypes(hybridShootTypes);          // editing only
+      setAvailableShootTypes(withCoachellaOption(hybridShootTypes)); // editing only
     } else {
       setAvailableShootTypes([]);
     }
@@ -868,6 +891,11 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         nextPhotoOptions = behindScenesPhotoEditTypes;
         nextPhotoNote = "25 edited photos per hour";
         break;
+      case COACHELLA_SHOOT_TYPE_KEY:
+        nextVideoOptions = corporateEventEditTypes;
+        nextPhotoOptions = corporateEventPhotoEditTypes;
+        nextPhotoNote = "No free photo edits included for Coachella event.";
+        break;
       default:
         break;
     }
@@ -887,6 +915,18 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     setEditTypeOptions(nextVideoOptions);
     setPhotoEditTypeOptions(nextPhotoOptions);
     setPhotoEditNote(nextPhotoNote);
+    const validVideoKeys = nextVideoOptions.map((o) => o.key);
+    const validPhotoKeys = nextPhotoOptions.map((o) => o.key);
+
+    const filteredVideo = data.videoEditTypes.filter((k) => validVideoKeys.includes(k));
+    const filteredPhoto = data.photoEditTypes.filter((k) => validPhotoKeys.includes(k));
+
+    if (filteredVideo.length !== data.videoEditTypes.length || filteredPhoto.length !== data.photoEditTypes.length) {
+      updateData({
+        videoEditTypes: filteredVideo,
+        photoEditTypes: filteredPhoto,
+      });
+    }
   }, [data.shootType, data.contentType]);
 
   // Clear errors when data changes
@@ -902,6 +942,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       const hasMultiDayTimes = Array.isArray(data.bookingDays) && data.bookingDays.length > 0 && data.bookingDays.every(d => d.startTime && d.endTime);
       if (
         (isEditingOnly ||
+          shouldBypassDateTime ||
           (data.bookingType !== "multi_day" && data.startDate && data.endDate) ||
           (data.bookingType === "multi_day" && hasMultiDayTimes)) &&
         newErrors.includes("timeError")
@@ -912,7 +953,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       if (data.photoEditTypes.length > 0 && newErrors.includes("photoEditError")) return newErrors.filter(e => e !== "photoEditError");
       return prev;
     });
-  }, [data, isEditingOnly]);
+  }, [data, isEditingOnly, shouldBypassDateTime]);
 
   const toggleContentType = (type: "videographer" | "photographer" | "editing" | "studio") => {
     const current = [...data.contentType];
@@ -993,7 +1034,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         setErrors((prev) => [...prev, "deliveryDateError"]);
         return false;
       }
-    } else {
+    } else if (!shouldBypassDateTime) {
       if (bookingType === "single_day") {
         if (!data.startDate) {
           toast.error("Please select a start date and time");
@@ -1224,7 +1265,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     key={type.key}
                     className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start"
                   >
-                    <ShootTypeCard
+                    {/* <ShootTypeCard
                       title={type.title} // Assuming your shootTypes array has label
                       details={type.details} // and details
                       image={type.image}
@@ -1242,9 +1283,83 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                 <Button
                   onClick={handleViewToggle}
                   className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 rounded-lg  text-sm md:text-lg font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)]"
+                > */}
+                    <ShootTypeCard
+                      title={type.title} // Assuming your shootTypes array has label
+                      details={type.details} // and details
+                      image={type.image}
+                      // stats={type.stats}
+                      selected={data.shootType === type.key}
+                      onClick={() => {
+                        if (type.key === COACHELLA_SHOOT_TYPE_KEY) {
+                          if (!isEditingOnly) {
+                            setBookingType("multi_day");
+                            setSelectedDates(
+                              COACHELLA_EVENT_DATES.map((date) => new Date(`${date}T00:00:00`))
+                            );
+                            setSameTimingsMulti(true);
+                            setMultiDayTimes({});
+                            setExpandedDateKey(null);
+                            setSelectedShootDate(new Date(`${COACHELLA_EVENT_DATES[0]}T00:00:00`));
+                            setCurrentCalendarMonth(new Date(`${COACHELLA_EVENT_DATES[0]}T00:00:00`));
+                            updateData({
+                              shootType: type.key,
+                              bookingType: "multi_day",
+                              startDate: `${COACHELLA_EVENT_DATES[0]}T${COACHELLA_START_TIME}:00`,
+                              endDate: `${COACHELLA_EVENT_DATES[0]}T${COACHELLA_END_TIME}:00`,
+                              bookingDays: COACHELLA_EVENT_DATES.map((date) => ({
+                                date,
+                                startTime: COACHELLA_START_TIME,
+                                endTime: COACHELLA_END_TIME,
+                              })),
+                            });
+                          } else {
+                            updateData({ shootType: type.key });
+                          }
+                          scrollToRef(isEditingOnly ? deliveryDateRef : editsRef);
+                          return;
+                        }
+
+                        const switchedFromCoachella = data.shootType === COACHELLA_SHOOT_TYPE_KEY;
+                        if (switchedFromCoachella && !isEditingOnly) {
+                          setBookingType("single_day");
+                          setSelectedDates([]);
+                          setSameTimingsMulti(true);
+                          setMultiDayTimes({});
+                          setExpandedDateKey(null);
+                          updateData({
+                            shootType: type.key,
+                            bookingType: "single_day",
+                            startDate: "",
+                            endDate: "",
+                            bookingDays: [],
+                          });
+                        } else {
+                          updateData({ shootType: type.key });
+                        }
+                        scrollToRef(isEditingOnly ? deliveryDateRef : bookingTypeRef);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleViewToggle}
+                  className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 rounded-lg  text-sm md:text-lg font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)]"
                 >
                   <span className="">{isAllVisible ? "View Less" : "View More"}</span>
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {isCoachellaSelected && (
+            <div className="pt-6 lg:pt-15 border-t border-white/10">
+              <div className="rounded-2xl border border-[#E8D1AB]/40 bg-[#171717] px-4 py-4 lg:px-6 lg:py-5">
+                <p className="text-sm lg:text-base text-[#E8D1AB] leading-relaxed">
+                  {COACHELLA_EVENT_MESSAGE}
+                </p>
               </div>
             </div>
           )}
@@ -1267,7 +1382,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       height: { xs: "56px", lg: "82px" },
                       borderRadius: "16px",
                     }}
-                    floating= {true}
+                    floating={true}
                   />
                 </div>
               </div>
@@ -1361,7 +1476,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           )}
 
           {/* Booking Type */}
-          {!isEditingOnly && (
+          {!isEditingOnly && !shouldBypassDateTime && (
             <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
               <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"
                 }`}>
@@ -1377,7 +1492,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     updateData({ bookingType: "single_day", bookingDays: [] });
                     scrollToRef(dateTimeRef);
                   }}
-                  disabled={(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === ""}
+                  disabled={data.shootType === ""}
                   className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                 >
                   <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
@@ -1396,7 +1511,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     updateData({ bookingType: "multi_day" });
                     scrollToRef(dateTimeRef);
                   }}
-                  disabled={(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === ""}
+                  disabled={data.shootType === ""}
                   className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day" ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                 >
                   <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
@@ -1414,7 +1529,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           )}
 
           {/* Date & Time */}
-          {!isEditingOnly && (
+          {!isEditingOnly && !shouldBypassDateTime && (
 
             <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10">
               {bookingType === "single_day" ? (
@@ -1457,9 +1572,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         bgColour="bg-[#101010]"
                       />
                     </div>
-                  </div>
-                  <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                    <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Duration: {calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours</p>
                   </div>
                 </>
               ) : (
@@ -1589,7 +1701,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         <button
                           type="button"
                           onClick={() => handleSameTimingsModeChange(true)}
-                          disabled={(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === ""}
+                          disabled={data.shootType === ""}
                           className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                         >
                           <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
@@ -1605,7 +1717,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         <button
                           type="button"
                           onClick={() => handleSameTimingsModeChange(false)}
-                          disabled={(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === ""}
+                          disabled={data.shootType === ""}
                           className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                         >
                           <span className="font-medium text-sm lg:text-lg pr-2">No</span>
@@ -1721,238 +1833,240 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           )}
 
           {/* Edits Needed */}
-          {!data.contentType.includes("studio") && (
-            <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
-              {!data.contentType.includes("editing") && (
-                <>
-                  <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
-                    }`}>
-                    Edits Needed?
-                  </h3>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => {
-                        updateData({ editsNeeded: true });
-                        scrollToRef(navigationRef);
-                      }}
-                      disabled={data.shootType === ""}
-                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                    >
-                      <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-                      <div
-                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
-                          }`}
+          {
+            !data.contentType.includes("studio") && (
+              <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
+                {!data.contentType.includes("editing") && (
+                  <>
+                    <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
+                      }`}>
+                      Edits Needed?
+                    </h3>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => {
+                          updateData({ editsNeeded: true });
+                          scrollToRef(navigationRef);
+                        }}
+                        disabled={data.shootType === ""}
+                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                       >
-                        {data.editsNeeded && (
-                          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                        )}
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setOpenEditPanel(null);
-                        updateData({
-                          editsNeeded: false,
-                          videoEditTypes: [],
-                          photoEditTypes: [],
-                        });
-                        scrollToRef(navigationRef);
-                      }}
-                      disabled={data.shootType === ""}
-                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                    >
-                      <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-                      <div
-                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
-                          }`}
-                      >
-                        {!data.editsNeeded && (
-                          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                        )}
-                      </div>
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {/* Edit Dropdowns — show when editsNeeded OR editing only */}
-              {(data.editsNeeded || isEditingOnly) && (
-                <div className={`animate-in slide-in-from-top-4 duration-300 ${!isEditingOnly ? "mt-4 lg:mt-8" : ""}`}>
-                  <h4 className={` ${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
-                    <Info size={24} className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"}`} />
-                    Editing includes
-                  </h4>
-                  <p className="text-white/60 text-sm mb-11">
-                    Professional editing includes color grading, sound mixing, and
-                    basic revisions.
-                  </p>
-
-                  <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
-                    {(data.contentType.includes("videographer") || isEditingOnly) && editTypeOptions.length > 0 && (
-                      <div ref={videoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
-                        <button
-                          type="button"
-                          className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
-                          onClick={handleVideoEditToggle}
+                        <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                        <div
+                          className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                            }`}
                         >
-                          <div className="min-w-0 flex flex-1 items-center gap-3">
-                            <div className="shrink-0 text-base lg:text-lg font-medium text-white">Video Edits</div>
-                            {videoEditSummaryItems.length > 0 && (
-                              <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
-                                {videoEditSummaryItems.map((item) => (
-                                  <span
-                                    key={item.key}
-                                    className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
-                                  >
-                                    <span className="truncate max-w-[180px]">{item.label}</span>
-                                    <span className="shrink-0 text-white/50">x{item.count}</span>
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          {isVideoEditOpen ? (
-                            <ChevronUp className="text-white flex-shrink-0" />
-                          ) : (
-                            <ChevronDown className="text-white flex-shrink-0" />
+                          {data.editsNeeded && (
+                            <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
                           )}
-                        </button>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOpenEditPanel(null);
+                          updateData({
+                            editsNeeded: false,
+                            videoEditTypes: [],
+                            photoEditTypes: [],
+                          });
+                          scrollToRef(navigationRef);
+                        }}
+                        disabled={data.shootType === ""}
+                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                      >
+                        <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                        <div
+                          className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                            }`}
+                        >
+                          {!data.editsNeeded && (
+                            <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                          )}
+                        </div>
+                      </button>
+                    </div>
+                  </>
+                )}
 
-                        {isVideoEditOpen && (
-                          <div className="border-t border-white/10 px-5 py-3">
-                            {editTypeOptions.map((option) => {
-                              const count = videoEditCounts[option.key] || 0;
-                              return (
-                                <div
-                                  key={option.key}
-                                  className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
-                                >
-                                  <span className="text-sm lg:text-base text-white">{option.value}</span>
-                                  <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-                                    <QuantityControl
-                                      value={count}
-                                      onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
-                                      onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
-                                      className="h-[52px] min-w-[110px] rounded-[16px] px-5"
-                                      buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
-                                      valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
-                                    />
-                                  </div>
+                {/* Edit Dropdowns — show when editsNeeded OR editing only */}
+                {(data.editsNeeded || isEditingOnly) && (
+                  <div className={`animate-in slide-in-from-top-4 duration-300 ${!isEditingOnly ? "mt-4 lg:mt-8" : ""}`}>
+                    <h4 className={` ${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
+                      <Info size={24} className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"}`} />
+                      Editing includes
+                    </h4>
+                    <p className="text-white/60 text-sm mb-11">
+                      Professional editing includes color grading, sound mixing, and
+                      basic revisions.
+                    </p>
+
+                    <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
+                      {(data.contentType.includes("videographer") || isEditingOnly) && editTypeOptions.length > 0 && (
+                        <div ref={videoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+                          <button
+                            type="button"
+                            className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                            onClick={handleVideoEditToggle}
+                          >
+                            <div className="min-w-0 flex flex-1 items-center gap-3">
+                              <div className="shrink-0 text-base lg:text-lg font-medium text-white">Video Edits</div>
+                              {videoEditSummaryItems.length > 0 && (
+                                <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                                  {videoEditSummaryItems.map((item) => (
+                                    <span
+                                      key={item.key}
+                                      className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                                    >
+                                      <span className="truncate max-w-[180px]">{item.label}</span>
+                                      <span className="shrink-0 text-white/50">x{item.count}</span>
+                                    </span>
+                                  ))}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {(data.contentType.includes("photographer") || isEditingOnly) && photoEditTypeOptions.length > 0 && (
-                      <div ref={photoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
-                        <button
-                          type="button"
-                          className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
-                          onClick={handlePhotoEditToggle}
-                        >
-                          <div className="min-w-0 flex flex-1 items-center gap-3">
-                            <div className="shrink-0 text-base lg:text-lg font-medium text-white">Photo Edits</div>
-                            {photoEditSummaryItems.length > 0 && (
-                              <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
-                                {photoEditSummaryItems.map((item) => (
-                                  <span
-                                    key={item.key}
-                                    className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
-                                  >
-                                    <span className="truncate max-w-[180px]">{item.label}</span>
-                                    <span className="shrink-0 text-white/50">x{item.count}</span>
-                                  </span>
-                                ))}
-                              </div>
+                              )}
+                            </div>
+                            {isVideoEditOpen ? (
+                              <ChevronUp className="text-white flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="text-white flex-shrink-0" />
                             )}
-                          </div>
-                          {isPhotoEditOpen ? (
-                            <ChevronUp className="text-white flex-shrink-0" />
-                          ) : (
-                            <ChevronDown className="text-white flex-shrink-0" />
-                          )}
-                        </button>
+                          </button>
 
-                        {isPhotoEditOpen && (
-                          <div className="border-t border-white/10 px-5 py-3">
-                            {photoEditTypeOptions.map((option) => {
-                              const count = photoEditCounts[option.key] || 0;
-                              return (
-                                <div
-                                  key={option.key}
-                                  className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
-                                >
-                                  <div>
-                                    <div className="text-sm lg:text-base text-white">{option.value}</div>
-                                    <div className="text-xs text-white/40 mt-1">
-                                      +{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set
+                          {isVideoEditOpen && (
+                            <div className="border-t border-white/10 px-5 py-3">
+                              {editTypeOptions.map((option) => {
+                                const count = videoEditCounts[option.key] || 0;
+                                return (
+                                  <div
+                                    key={option.key}
+                                    className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                                  >
+                                    <span className="text-sm lg:text-base text-white">{option.value}</span>
+                                    <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                      <QuantityControl
+                                        value={count}
+                                        onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                                        onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
+                                        className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                                        buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                                        valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                                      />
                                     </div>
                                   </div>
-                                  <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-                                    <QuantityControl
-                                      value={count}
-                                      onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
-                                      onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
-                                      className="h-[52px] min-w-[110px] rounded-[16px] px-5"
-                                      buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
-                                      valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })}
-
-                            <div className="flex flex-wrap gap-3 pt-4">
-                              {!isEditingOnly && (
-                                <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
-                                  Includes {photoEditSummary.includedCount} free photo edits
-                                </div>
-                              )}
-                              {!isEditingOnly && (
-                                <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
-                                  {durationHours} Hour Duration
-                                </div>
-                              )}
-                              <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
-                                + {photoEditSummary.extraCount} Added Extra
-                              </div>
+                                );
+                              })}
                             </div>
+                          )}
+                        </div>
+                      )}
 
-                            {!isEditingOnly && photoEditNote && (
-                              <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
-                                <Info size={16} className="mt-0.5 flex-shrink-0" />
-                                <span>{photoEditNote}</span>
-                              </div>
+                      {(data.contentType.includes("photographer") || isEditingOnly) && photoEditTypeOptions.length > 0 && (
+                        <div ref={photoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+                          <button
+                            type="button"
+                            className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                            onClick={handlePhotoEditToggle}
+                          >
+                            <div className="min-w-0 flex flex-1 items-center gap-3">
+                              <div className="shrink-0 text-base lg:text-lg font-medium text-white">Photo Edits</div>
+                              {photoEditSummaryItems.length > 0 && (
+                                <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                                  {photoEditSummaryItems.map((item) => (
+                                    <span
+                                      key={item.key}
+                                      className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                                    >
+                                      <span className="truncate max-w-[180px]">{item.label}</span>
+                                      <span className="shrink-0 text-white/50">x{item.count}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {isPhotoEditOpen ? (
+                              <ChevronUp className="text-white flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="text-white flex-shrink-0" />
                             )}
-                          </div>
-                        )}
+                          </button>
+
+                          {isPhotoEditOpen && (
+                            <div className="border-t border-white/10 px-5 py-3">
+                              {photoEditTypeOptions.map((option) => {
+                                const count = photoEditCounts[option.key] || 0;
+                                return (
+                                  <div
+                                    key={option.key}
+                                    className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                                  >
+                                    <div>
+                                      <div className="text-sm lg:text-base text-white">{option.value}</div>
+                                      <div className="text-xs text-white/40 mt-1">
+                                        +{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set
+                                      </div>
+                                    </div>
+                                    <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                      <QuantityControl
+                                        value={count}
+                                        onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                                        onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
+                                        className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                                        buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                                        valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+
+                              <div className="flex flex-wrap gap-3 pt-4">
+                                {!isEditingOnly && (
+                                  <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                                    Includes {photoEditSummary.includedCount} free photo edits
+                                  </div>
+                                )}
+                                {!isEditingOnly && (
+                                  <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
+                                    {durationHours} Hour Duration
+                                  </div>
+                                )}
+                                <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                                  + {photoEditSummary.extraCount} Added Extra
+                                </div>
+                              </div>
+
+                              {!isEditingOnly && photoEditNote && (
+                                <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                                  <Info size={16} className="mt-0.5 flex-shrink-0" />
+                                  <span>{photoEditNote}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {receiveSummaryText && (
+                      <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black">
+                        <div className="grid h-10 w-10 place-items-center rounded-full bg-black text-[#E8D1AB]">
+                          <Image
+                            src="/images/misc/booking-sparkle.png"
+                            alt=""
+                            width={18}
+                            height={18}
+                            className="h-[18px] w-[18px]"
+                          />
+                        </div>
+                        <p className="text-sm lg:text-base font-semibold">
+                          You&apos;ll Receive {receiveSummaryText}
+                        </p>
                       </div>
                     )}
                   </div>
-
-                  {receiveSummaryText && (
-                    <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black">
-                      <div className="grid h-10 w-10 place-items-center rounded-full bg-black text-[#E8D1AB]">
-                        <Image
-                          src="/images/misc/booking-sparkle.png"
-                          alt=""
-                          width={18}
-                          height={18}
-                          className="h-[18px] w-[18px]"
-                        />
-                      </div>
-                      <p className="text-sm lg:text-base font-semibold">
-                        You&apos;ll Receive {receiveSummaryText}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )
+          }
         </>
       )}
 
@@ -1972,6 +2086,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
           Continue
         </Button>
       </div>
-    </div>
+    </div >
   );
 };

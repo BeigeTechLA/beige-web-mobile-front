@@ -34,6 +34,8 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
+const eventImgUrl = "https://d1pgtgqp0jru64.cloudfront.net/Frame-2147226676.png"
+
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false)
   const { login, isLoginLoading } = useAuth()
@@ -116,7 +118,19 @@ export function LoginForm() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 overflow-x-hidden">
+      <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden lg:hidden">
+        <div className="relative h-[420px] w-full">
+          <Image
+            src={eventImgUrl}
+            alt="Coachella x Neon Carnival"
+            fill
+            priority
+            className="object-fill object-top"
+          />
+        </div>
+      </div>
+
       <div className="space-y-2 text-center lg:mt-15">
         <h1 className="text-xl lg:text-4xl font-semibold tracking-tight text-[#E8D1AB]">
           Welcome Back
