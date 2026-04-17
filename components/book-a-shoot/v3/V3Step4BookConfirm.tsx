@@ -116,6 +116,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const hasEditing = data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0;
   const isEditingOnly =
     data.contentType.length === 1 && data.contentType.includes("editing");
+  const isCoachellaEvent = data.shootType === "coachella";
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -170,6 +171,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const [showSalesPopup, setShowSalesPopup] = useState(false);
   const selectedStudios = normalizeSelectedStudios(data);
   const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
+  const useContentHouseInclusivePricing =
+    isCoachellaEvent && selectedStudios.length > 0;
   const photoEditCounts = buildEditTypeCounts(data.photoEditTypes);
   const photoEditSetCount = photoEditCounts.find((item) => item.slug === "edited_photos")?.quantity || 0;
   const photoEditSummary = getPhotoEditSummary({
@@ -322,7 +325,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   useEffect(() => {
     const fetchQuote = async () => {
       // Check if we have duration
-      if (!isEditingOnly && durationHours === 0) {
+      if (!isEditingOnly && !useContentHouseInclusivePricing && durationHours === 0) {
         setQuoteTotal(null);
         setCrewBreakdown([]);
         return;
@@ -360,8 +363,12 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           : null;
 
         const quotePayload: any = {
-          creator_ids: data.selectedCrewIds,
-          role_counts: isEditingOnly ? { editor: 1 } : data.roleCounts,
+          creator_ids: useContentHouseInclusivePricing ? [] : data.selectedCrewIds,
+          role_counts: isEditingOnly
+            ? { editor: 1 }
+            : useContentHouseInclusivePricing
+              ? {}
+              : data.roleCounts,
           event_type: data.shootType || "general",
           video_edit_types: buildEditTypeCounts(data.videoEditTypes),
           photo_edit_types: buildEditTypeCounts(data.photoEditTypes),
@@ -373,10 +380,16 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         if (isEditingOnly) {
           quotePayload.content_type = "ai editing";
         } else {
-          quotePayload.shoot_hours = durationHours;
-          quotePayload.shoot_start_date = firstBookingDate
-            ? `${firstBookingDate}T00:00:00.000Z`
-            : toIsoIfValid(data.startDate);
+          if (useContentHouseInclusivePricing) {
+            // Backend validation requires shoot_hours > 0 for non-AI-editing flows.
+            // Keep it at minimum valid value while excluding creator/role items.
+            quotePayload.shoot_hours = 1;
+          } else {
+            quotePayload.shoot_hours = durationHours;
+            quotePayload.shoot_start_date = firstBookingDate
+              ? `${firstBookingDate}T00:00:00.000Z`
+              : toIsoIfValid(data.startDate);
+          }
         }
 
         const result = await calculateQuoteFromCreators(quotePayload).unwrap();
@@ -409,6 +422,18 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
               lowerName.includes("studio") ||
               lowerName.includes("resort") ||
               lowerName.includes("location platform");
+
+            if (useContentHouseInclusivePricing) {
+              if (item.category_slug === "editing") {
+                editFeesTotal += lineTotal;
+                return;
+              }
+
+              if (isStudioItem) {
+                studioCostTotal += lineTotal;
+              }
+              return;
+            }
 
             // 1. Shoot Cost: Includes Pre-production, Rush Fees, and 1 unit of Video/Photo
             if (name.includes("Pre-Production") || name.toLowerCase().includes("rush")) {
@@ -504,6 +529,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     data.selectedStudioIds,
     durationHours,
     isEditingOnly,
+    useContentHouseInclusivePricing,
     calculateQuoteFromCreators,
     selectedStudiosTotal,
   ]);
@@ -753,7 +779,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 <div className="rounded-[16px] border border-white/5 bg-[#171717]">
                   <div className="p-4 lg:p-[30px] border-b border-b-white/5">
                     <h4 className="text-white text-base lg:text-xl font-medium tracking-wide">
-                      Studio / Resort
+                      BEIGE Content House
                     </h4>
                   </div>
                   <div className="p-4 lg:p-[30px] space-y-3">
@@ -1025,7 +1051,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       </div>
 
                       {/* 1. SHOOT COST */}
-                      {!isEditingOnly && (
+                      {!isEditingOnly && !useContentHouseInclusivePricing && (
                       <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
                         <div className="flex justify-between items-start mb-1">
                           <div className="text-white font-medium">Shoot Cost</div>
@@ -1055,7 +1081,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       {pricingGroups.studioCost > 0 && (
                         <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
                           <div className="flex justify-between items-start mb-1">
-                            <div className="text-white font-medium text-sm">Studio / Resort</div>
+                            <div className="text-white font-medium text-sm">BEIGE Content House</div>
                             <div className="font-bold text-white text-sm">
                               {formatCurrency(pricingGroups.studioCost)}
                             </div>
@@ -1198,4 +1224,3 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     </div>
   );
 };
-

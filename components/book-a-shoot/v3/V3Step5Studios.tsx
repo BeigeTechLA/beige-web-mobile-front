@@ -4,7 +4,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingDataV3 } from "./types";
-import { MapPin, Calendar, MoveUpRight, Star, Search, ChevronDown, X } from "lucide-react";
+import { MapPin, Calendar, MoveUpRight, Star, Search, ChevronDown, X, ChevronLeft, ChevronRight } from "lucide-react";
 import DatePicker from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { format } from "date-fns";
@@ -29,6 +29,95 @@ interface Props {
   onBack: () => void;
 }
 
+const ImageCarouselModal = ({
+  isOpen,
+  onClose,
+  images,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  images: string[];
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentIndex(0);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+    return () => { document.body.style.overflow = "auto"; };
+  }, [isOpen]);
+
+  if (!isOpen || !images.length) return null;
+
+  const nextSlide = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const prevSlide = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 backdrop-blur-sm" onClick={onClose}>
+      <button
+        onClick={onClose}
+        className="absolute top-5 right-5 z-10 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+      >
+        <X size={24} />
+      </button>
+
+      <div className="relative w-full max-w-5xl h-[70vh] md:h-[85vh] flex items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
+        {images.length > 1 && (
+          <button
+            onClick={prevSlide}
+            className="absolute left-4 md:left-8 z-10 p-3 bg-black/50 hover:bg-black/80 rounded-full text-white backdrop-blur-md transition-all"
+          >
+            <ChevronLeft size={32} />
+          </button>
+        )}
+
+        <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl">
+          <Image
+            src={images[currentIndex]}
+            alt={`Slide ${currentIndex + 1}`}
+            fill
+            className="object-contain"
+          />
+        </div>
+
+        {images.length > 1 && (
+          <button
+            onClick={nextSlide}
+            className="absolute right-4 md:right-8 z-10 p-3 bg-black/50 hover:bg-black/80 rounded-full text-white backdrop-blur-md transition-all"
+          >
+            <ChevronRight size={32} />
+          </button>
+        )}
+        
+        {images.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10 bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
+            {images.map((_, i) => (
+              <div
+                key={i}
+                className={`w-2 h-2 rounded-full transition-all cursor-pointer ${i === currentIndex ? "bg-white scale-125" : "bg-white/40 hover:bg-white/60"}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentIndex(i);
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const StudioCard = ({
   studio,
   isSelected,
@@ -43,21 +132,21 @@ const StudioCard = ({
   return (
     <div className={`group relative rounded-[32px] border transition-all duration-300 overflow-hidden bg-[#111111] ${isSelected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10"}`}>
       <div className="relative h-[240px] w-full p-2">
-        <div className="relative h-full w-full overflow-hidden rounded-[24px]">
+        <div className="relative h-full w-full overflow-hidden rounded-[24px] cursor-pointer" onClick={onShowDetails}>
           <Image
             src={studio.image}
             alt={studio.name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+          {/* <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
             <div className="w-2 h-2 rounded-full bg-[#34C759]" />
             <span className="text-[11px] font-medium text-white">Available</span>
           </div>
           <div className="absolute top-3 right-3 flex items-center gap-1 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-white">
             <Star size={12} className="fill-[#E8D1AB] text-[#E8D1AB]" />
             <span className="text-[11px] font-bold">{studio.rating} ({studio.reviews || 0})</span>
-          </div>
+          </div> */}
 
           <div className="absolute bottom-3 left-3 bg-white px-4 py-1.5 rounded-full shadow-lg">
             <span className="text-black font-bold text-[13px] tracking-tight">{studio.priceLabel}</span>
@@ -213,7 +302,7 @@ const HourlyStudioCard = ({
 
   const handleAddClick = () => {
     if (!isSelected && !hasCompleteTimeSelection) {
-      toast.error("Please select date and time first for hourly resort.");
+      toast.error("Please select date and time first for hourly content house.");
       return;
     }
     onToggle();
@@ -224,7 +313,7 @@ const HourlyStudioCard = ({
       <div className={`group relative flex flex-col p-2 rounded-[32px] border transition-all duration-300 bg-[#111111] ${isSelected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10"}`}>
         <div className="flex flex-col md:flex-row gap-6">
           <div className="relative h-[240px] md:h-auto md:w-[45%] lg:w-[45%] flex-shrink-0">
-            <div className="relative h-full w-full overflow-hidden rounded-[24px]">
+            <div className="relative h-full w-full overflow-hidden rounded-[24px] cursor-pointer" onClick={onShowDetails}>
               <Image
                 src={studio.image}
                 alt={studio.name}
@@ -236,14 +325,14 @@ const HourlyStudioCard = ({
 
           <div className="flex flex-col flex-grow py-4 pr-6">
             <div className="flex justify-between items-start mb-6">
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#34C759]" />
                 <span className="text-[13px] font-medium text-[#34C759]">Available</span>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 text-white">
                 <Star size={12} className="fill-[#E8D1AB] text-[#E8D1AB]" />
                 <span className="text-[13px] font-bold text-white/90">{studio.rating}</span>
-              </div>
+              </div> */}
             </div>
 
             <div className="flex justify-between items-start gap-4 mb-2">
@@ -398,6 +487,21 @@ export const V3Step5Studios: React.FC<Props> = ({
   const selectedStudioIds = useMemo(() => selectedStudios.map((studio) => studio.studioId), [selectedStudios]);
   const selectedStudioSet = useMemo(() => new Set(selectedStudioIds), [selectedStudioIds]);
 
+  useEffect(() => {
+    const allImages = new Set<string>();
+    [...WEEKEND_STUDIO_LIST, ...HOURLY_STUDIO_LIST].forEach((studio) => {
+      if (studio.image) allImages.add(studio.image);
+      if (studio.images) {
+        studio.images.forEach((img) => allImages.add(img));
+      }
+    });
+
+    allImages.forEach((imgSrc) => {
+      const img = new window.Image();
+      img.src = imgSrc;
+    });
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState<"Price (Low to High)" | "Price (High to Low)" | "Name">("Name");
@@ -460,17 +564,17 @@ export const V3Step5Studios: React.FC<Props> = ({
       return;
     }
 
-    toast.error("Please pick date and time first for hourly resort.");
+    toast.error("Please pick date and time first for hourly content house.");
   };
 
   return (
     <div className="flex flex-col w-full max-w-6xl mx-auto px-4 py-6">
       <div className="text-center mb-8">
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2 lg:mb-5">
-          Browse available studios
+          BEIGE Content House
         </h2>
         <p className="text-white/60 mb-8 max-w-2xl mx-auto text-sm lg:text-lg">
-          Discover studios that match your needs with complete details and availability.
+          Discover available content houses with complete details and availability.
         </p>
       </div>
 
@@ -514,13 +618,13 @@ export const V3Step5Studios: React.FC<Props> = ({
 
       <div className="mb-6 pl-1">
         <h3 className="text-white text-[15px] font-bold tracking-wide">
-          Hourly Studio Packages <span className="text-[#E8D1AB] font-normal">({filteredHourlyStudios.length < 10 ? `0${filteredHourlyStudios.length}` : filteredHourlyStudios.length})</span>
+          Hourly Content House Packages <span className="text-[#E8D1AB] font-normal">({filteredHourlyStudios.length < 10 ? `0${filteredHourlyStudios.length}` : filteredHourlyStudios.length})</span>
         </h3>
       </div>
 
       <div className="flex flex-col gap-6 mb-14">
         {filteredHourlyStudios.length === 0 ? (
-          <div className="text-white/50 text-sm py-4 pl-1">No hourly studios match your search.</div>
+          <div className="text-white/50 text-sm py-4 pl-1">No hourly content houses match your search.</div>
         ) : (
           filteredHourlyStudios.map((studio) => (
             <HourlyStudioCard
@@ -539,13 +643,13 @@ export const V3Step5Studios: React.FC<Props> = ({
 
       <div className="mb-6 pl-1">
         <h3 className="text-white text-[15px] font-bold tracking-wide">
-          Weekend-Only Studios <span className="text-[#E8D1AB] font-normal">({filteredWeekendStudios.length < 10 ? `0${filteredWeekendStudios.length}` : filteredWeekendStudios.length})</span>
+          Weekend-Only Content Houses <span className="text-[#E8D1AB] font-normal">({filteredWeekendStudios.length < 10 ? `0${filteredWeekendStudios.length}` : filteredWeekendStudios.length})</span>
         </h3>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredWeekendStudios.length === 0 ? (
-          <div className="col-span-full text-white/50 text-sm py-4 pl-1">No weekend studios match your search.</div>
+          <div className="col-span-full text-white/50 text-sm py-4 pl-1">No weekend content houses match your search.</div>
         ) : (
           filteredWeekendStudios.map((studio) => (
             <StudioCard
@@ -573,11 +677,16 @@ export const V3Step5Studios: React.FC<Props> = ({
         </Button>
       </div>
 
-      <StudioDetailsDrawer
+      <ImageCarouselModal
+        isOpen={!!selectedDetailsStudio}
+        onClose={() => setSelectedDetailsStudio(null)}
+        images={selectedDetailsStudio?.images && selectedDetailsStudio.images.length > 0 ? selectedDetailsStudio.images : (selectedDetailsStudio?.image ? [selectedDetailsStudio.image] : [])}
+      />
+      {/* <StudioDetailsDrawer
         isOpen={!!selectedDetailsStudio}
         onClose={() => setSelectedDetailsStudio(null)}
         studio={selectedDetailsStudio}
-      />
+      /> */}
     </div>
   );
 };

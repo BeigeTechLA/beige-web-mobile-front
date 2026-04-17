@@ -59,6 +59,7 @@ interface FormFields {
 }
 
 export const BookAShootV3 = () => {
+  const COACHELLA_DEFAULT_LOCATION = "Indio, California, United States";
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const [activeStep, setActiveStep] = useState(1);
@@ -125,6 +126,18 @@ export const BookAShootV3 = () => {
     leadTracked,
     trackEarlyInterest,
   ]);
+
+  useEffect(() => {
+    if (
+      formData.shootType === "coachella" &&
+      formData.location !== COACHELLA_DEFAULT_LOCATION
+    ) {
+      updateData({
+        location: COACHELLA_DEFAULT_LOCATION,
+        locationDetails: null,
+      });
+    }
+  }, [formData.shootType, formData.location, updateData]);
 
   const nextStep = async () => {
     // Track lead when moving from step 1 to 2 (if not already tracked)
@@ -374,6 +387,12 @@ export const BookAShootV3 = () => {
         formData.contentType.length === 1 &&
         formData.contentType.includes("editing");
       const shootHours = isEditingOnly ? 0 : calculateDurationHours();
+      const selectedStudios = normalizeSelectedStudios(formData);
+      const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
+      const isCoachellaEvent = formData.shootType === "coachella";
+      const useContentHouseInclusivePricing =
+        isCoachellaEvent && selectedStudios.length > 0;
+      const pricingShootHours = useContentHouseInclusivePricing ? 0 : shootHours;
 
       // 2. Map Database Item IDs based on your SQL structure
       const ITEM_IDS = {
@@ -390,7 +409,7 @@ export const BookAShootV3 = () => {
       let quoteItems: Array<{ item_id: number; quantity: number }> = [];
 
       // 3. Add Base Crew (Calculated in Step 2 from roleCounts)
-      if (formData.roleCounts) {
+      if (!useContentHouseInclusivePricing && formData.roleCounts) {
         Object.entries(formData.roleCounts).forEach(([role, count]) => {
           // Map "videographer" string to ID 11, etc.
           const itemId = ITEM_IDS[role as keyof typeof ITEM_IDS];
@@ -408,7 +427,7 @@ export const BookAShootV3 = () => {
       // 4. INJECT MANDATORY ADD-ONS BASED ON SHOOT TYPE
 
       // Rule: Podcast & Shows -> Additional 2 Cameras
-      if (formData.shootType === "podcast") {
+      if (!useContentHouseInclusivePricing && formData.shootType === "podcast") {
         quoteItems.push({
           item_id: ITEM_IDS.additionalCamera,
           quantity: 2,
@@ -417,7 +436,10 @@ export const BookAShootV3 = () => {
 
       // Rule: Short Films & Narratives -> Mandatory Crew Stack
       // Includes PA, Sound Engineer, Director, and Gaffer
-      if (formData.shootType === "short_film" || formData.shootType === "movie") {
+      if (
+        !useContentHouseInclusivePricing &&
+        (formData.shootType === "short_film" || formData.shootType === "movie")
+      ) {
         quoteItems.push({ item_id: ITEM_IDS.productionAssistant, quantity: 1 });
         quoteItems.push({ item_id: ITEM_IDS.soundEngineer, quantity: 1 });
         quoteItems.push({ item_id: ITEM_IDS.director, quantity: 1 });
@@ -427,8 +449,6 @@ export const BookAShootV3 = () => {
       // 5. SAVE QUOTE (API Call)
       // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
       let savedQuoteId: number | null = null;
-      const selectedStudios = normalizeSelectedStudios(formData);
-      const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
 
       const firstBookingDate = formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0
         ? formData.bookingDays
@@ -436,7 +456,7 @@ export const BookAShootV3 = () => {
           .sort((a, b) => a.date.localeCompare(b.date))[0]?.date
         : null;
 
-      if (quoteItems.length > 0 || isEditingOnly) {
+      if (quoteItems.length > 0 || isEditingOnly || useContentHouseInclusivePricing) {
         try {
           const toIsoIfValid = (value?: string | null) => {
             if (!value) return value;
@@ -446,7 +466,7 @@ export const BookAShootV3 = () => {
 
           const quotePayload: any = {
             items: quoteItems,
-            shootHours: shootHours,
+            shootHours: pricingShootHours,
             eventType: formData.shootType || "general",
             guestEmail: formData.email,
             video_edit_types: formData.editsNeeded
@@ -458,9 +478,11 @@ export const BookAShootV3 = () => {
           };
 
           if (!isEditingOnly) {
-            quotePayload.shoot_start_date = firstBookingDate
-              ? `${firstBookingDate}T00:00:00.000Z`
-              : toIsoIfValid(formData.startDate);
+            if (!useContentHouseInclusivePricing) {
+              quotePayload.shoot_start_date = firstBookingDate
+                ? `${firstBookingDate}T00:00:00.000Z`
+                : toIsoIfValid(formData.startDate);
+            }
             quotePayload.notes = formData.specialInstructions || undefined;
             quotePayload.studio_total = selectedStudiosTotal || 0;
           }

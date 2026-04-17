@@ -98,6 +98,7 @@ interface LocationPickerProps {
   label?: string;
   colors?: Partial<LocationPickerColors>;
   hasError?: boolean;
+  disabled?: boolean;
 }
 
 export const LocationPicker: React.FC<LocationPickerProps> = ({
@@ -106,7 +107,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   placeholder = "Select location on map",
   label = "Select Location",
   colors: customColors,
-  hasError = false
+  hasError = false,
+  disabled = false
 }) => {
 
   const colors = { ...defaultColors, ...customColors };
@@ -243,10 +245,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   }, []);
 
   const clearSelection = useCallback(() => {
+    if (disabled) return;
     setMarker(null);
     setSearchQuery('');
     onChange('');
-  }, [onChange]);
+  }, [onChange, disabled]);
 
   // Store the selected feature for passing details
   const [selectedFeature, setSelectedFeature] = useState<any>(null);
@@ -261,14 +264,16 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   if (!isExpanded) {
     return (
       <div
-        onClick={() => setIsExpanded(true)}
+        onClick={() => !disabled && setIsExpanded(true)}
         style={{
           backgroundColor: colors.inputBg,
-          borderColor: colors.inputBorder
+          borderColor: colors.inputBorder,
+          opacity: disabled ? 0.7 : 1,
+          cursor: disabled ? 'not-allowed' : 'pointer'
         }}
-        className="relative w-full h-[82px] rounded-[12px] border cursor-pointer transition-all group"
-        onMouseEnter={(e) => e.currentTarget.style.borderColor = colors.inputBorderHover}
-        onMouseLeave={(e) => e.currentTarget.style.borderColor = colors.inputBorder}
+        className={`relative w-full h-[82px] rounded-[12px] border transition-all ${disabled ? '' : 'group'}`}
+        onMouseEnter={(e) => !disabled && (e.currentTarget.style.borderColor = colors.inputBorderHover)}
+        onMouseLeave={(e) => !disabled && (e.currentTarget.style.borderColor = colors.inputBorder)}
       >
         <label
           style={{ backgroundColor: colors.inputBg, color: hasError ? colors.errorText : colors.labelText }}
@@ -299,7 +304,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             {value ? (
               <>
                 <p style={{ color: colors.primaryText }} className="text-sm font-medium truncate">{value}</p>
-                <p style={{ color: colors.secondaryText }} className="text-xs">Click to change location</p>
+                {!disabled && <p style={{ color: colors.secondaryText }} className="text-xs">Click to change location</p>}
               </>
             ) : (
               <>
@@ -308,7 +313,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
               </>
             )}
           </div>
-          {value && (
+          {value && !disabled && (
             <button
               onClick={(e) => { e.stopPropagation(); clearSelection(); }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.buttonSecondaryBgHover}

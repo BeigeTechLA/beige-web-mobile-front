@@ -6,7 +6,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { toast } from "sonner";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
-import { Video, Camera, Scissors } from "lucide-react";
+import { Video, Camera, Scissors, MapPin } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { isValidUrl } from "@/lib/utils";
 import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
@@ -47,6 +47,7 @@ interface FormFields {
 }
 
 export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
+  const COACHELLA_DEFAULT_LOCATION = "Indio, California, United States";
   const { user, isAuthenticated } = useAuth()
 
   // Local state for team members if not stored in main data yet
@@ -64,6 +65,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   const navigationRef = useRef<HTMLDivElement>(null);
 
   const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
+  const isCoachella = data.shootType === "coachella";
 
   const includedRoles = data.contentType.map((type) => {
     if (type === "editing") {
@@ -157,10 +159,16 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   // Automatically clear the location error once data.location is truthy
   useEffect(() => {
-    if (data.location && errors.includes("locationError")) {
+    if ((data.location || isCoachella) && errors.includes("locationError")) {
       setErrors(prev => prev.filter(err => err !== "locationError"));
     }
-  }, [data.location, errors]);
+  }, [data.location, isCoachella, errors]);
+
+  useEffect(() => {
+    if (isCoachella && data.location !== COACHELLA_DEFAULT_LOCATION) {
+      updateData({ location: COACHELLA_DEFAULT_LOCATION, locationDetails: null });
+    }
+  }, [isCoachella, data.location, updateData]);
   // const handleNext = async () => {
   //   if (!data.location) {
   //     toast.error("Please select a location");
@@ -216,7 +224,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   // Inside V3Step2MoreDetails.tsx
 
   const handleNext = async () => {
-    if (!isEditingOnly && !data.location) {
+    if (!isEditingOnly && !isCoachella && !data.location) {
       toast.error("Please select a location");
       setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
       return;
@@ -286,7 +294,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
       const formFields: FormFields = {
         additional_creative: data.addTeamMembers,
-        shoot_location: data.location,
+        shoot_location: data.location || (isCoachella ? COACHELLA_DEFAULT_LOCATION : ""),
         additional_details: data.specialInstructions,
         supporting_url: data.referenceLinks
       }
@@ -452,7 +460,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       {/* Location */}
       {!isEditingOnly && (
       <div ref={locationRef} className="pt-6 lg:pt-15 border-t border-white/10">
-        {/* <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3> */}
+        <h3 className="text-xl font-medium text-white/90 mb-6">Shoot Location</h3>
         <LocationPicker
           value={data.location}
           onChange={(address, details) => {
@@ -463,7 +471,14 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           colors={darkThemeColors}
           // error
           hasError={errors.includes("locationError")}
+          disabled={isCoachella}
         />
+        {isCoachella && (
+          <p className="mt-3 text-sm text-[#E8D1AB] flex items-center gap-2">
+            <MapPin size={16} />
+            Location is locked for Coachella events as they are exclusively held here.
+          </p>
+        )}
       </div>
       )}
 
