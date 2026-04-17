@@ -39,10 +39,12 @@ const ImageCarouselModal = ({
   images: string[];
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loadedSet, setLoadedSet] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (isOpen) {
       setCurrentIndex(0);
+      setLoadedSet(new Set());
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "auto";
@@ -51,6 +53,14 @@ const ImageCarouselModal = ({
   }, [isOpen]);
 
   if (!isOpen || !images.length) return null;
+
+  const handleImageLoaded = (index: number) => {
+    setLoadedSet((prev) => {
+      const next = new Set(prev);
+      next.add(index);
+      return next;
+    });
+  };
 
   const nextSlide = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -63,12 +73,14 @@ const ImageCarouselModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/95 backdrop-blur-md" onClick={onClose}>
+      {/* Close button - always on top */}
       <button
-        onClick={onClose}
-        className="absolute top-5 right-5 z-10 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        className="fixed top-4 right-4 md:top-6 md:right-6 z-[999999] flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 rounded-full text-white transition-all border border-white/20 backdrop-blur-md"
       >
-        <X size={24} />
+        <X size={20} />
+        <span className="text-sm font-medium hidden sm:inline">Close</span>
       </button>
 
       <div className="relative w-full max-w-5xl h-[70vh] md:h-[85vh] flex items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
@@ -82,6 +94,14 @@ const ImageCarouselModal = ({
         )}
 
         <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl">
+          {/* Loading spinner – shown while current image is loading */}
+          {!loadedSet.has(currentIndex) && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center">
+              <div className="w-10 h-10 border-3 border-white/20 border-t-[#E8D1AB] rounded-full animate-spin" />
+            </div>
+          )}
+
+          {/* Render ALL images as native <img> for direct CDN loading (no Next.js proxy) */}
           {images.map((imgSrc, i) => (
             <div
               key={i}
@@ -89,12 +109,14 @@ const ImageCarouselModal = ({
                 i === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
               }`}
             >
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={imgSrc}
                 alt={`Slide ${i + 1}`}
-                fill
-                className="object-contain"
-                priority={i === 0}
+                loading="eager"
+                decoding="async"
+                onLoad={() => handleImageLoaded(i)}
+                className="w-full h-full object-contain"
               />
             </div>
           ))}
