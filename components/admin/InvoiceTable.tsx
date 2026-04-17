@@ -161,10 +161,15 @@ export const InvoiceTable = () => {
         const isSalesRoute = pathname?.startsWith("/sales");
 
         const itemsWithLiveStatus = await Promise.all(
-          items.map(async (item) => ({
-            item,
-            livePaymentStatus: await resolveLivePaymentStatus(item),
-          }))
+          items.map(async (item) => {
+            const shouldResolveLiveStatus = paymentFilter !== "Unpaid";
+            return {
+              item,
+              livePaymentStatus: shouldResolveLiveStatus
+                ? await resolveLivePaymentStatus(item)
+                : item.payment_status,
+            };
+          })
         );
 
         const mappedRows = itemsWithLiveStatus.map(({ item, livePaymentStatus }) => {
@@ -194,9 +199,16 @@ export const InvoiceTable = () => {
           };
         });
 
-        setRows(mappedRows);
+        const filteredRows = mappedRows.filter((row) => {
+          const normalized = String(row.paymentStatus || "").trim().toLowerCase();
+          if (paymentFilter === "Paid") return normalized === "paid";
+          if (paymentFilter === "Unpaid") return normalized !== "paid";
+          return true;
+        });
+
+        setRows(filteredRows);
         setTotalPages(pagination?.total_pages || 1);
-        setTotalItems(pagination?.total || mappedRows.length);
+        setTotalItems(pagination?.total || filteredRows.length);
       } catch (error) {
         console.error("Failed to fetch invoice history:", error);
         setRows([]);
