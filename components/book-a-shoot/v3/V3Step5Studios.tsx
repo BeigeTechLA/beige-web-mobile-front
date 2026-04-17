@@ -82,12 +82,22 @@ const ImageCarouselModal = ({
         )}
 
         <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl">
-          <Image
-            src={images[currentIndex]}
-            alt={`Slide ${currentIndex + 1}`}
-            fill
-            className="object-contain"
-          />
+          {images.map((imgSrc, i) => (
+            <div
+              key={i}
+              className={`absolute inset-0 transition-opacity duration-300 ${
+                i === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+              }`}
+            >
+              <Image
+                src={imgSrc}
+                alt={`Slide ${i + 1}`}
+                fill
+                className="object-contain"
+                priority={i === 0}
+              />
+            </div>
+          ))}
         </div>
 
         {images.length > 1 && (
@@ -486,21 +496,6 @@ export const V3Step5Studios: React.FC<Props> = ({
   );
   const selectedStudioIds = useMemo(() => selectedStudios.map((studio) => studio.studioId), [selectedStudios]);
   const selectedStudioSet = useMemo(() => new Set(selectedStudioIds), [selectedStudioIds]);
-
-  useEffect(() => {
-    const allImages = new Set<string>();
-    [...WEEKEND_STUDIO_LIST, ...HOURLY_STUDIO_LIST].forEach((studio) => {
-      if (studio.image) allImages.add(studio.image);
-      if (studio.images) {
-        studio.images.forEach((img) => allImages.add(img));
-      }
-    });
-
-    allImages.forEach((imgSrc) => {
-      const img = new window.Image();
-      img.src = imgSrc;
-    });
-  }, []);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isSortOpen, setIsSortOpen] = useState(false);
