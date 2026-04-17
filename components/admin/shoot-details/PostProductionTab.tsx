@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter,usePathname,useSearchParams } from "next/navigation";
 import { ChevronDown, FolderSearch, Grid3X3, LayoutGrid, List, Loader2, Folder, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,11 @@ import {
 
 export default function PostProductionTab({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
   const { theme, resolvedTheme } = useTheme();
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const viewMode = (searchParams.get("view") as "grid" | "list") || "grid";
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [folders, setFolders] = useState<any[]>([]);
@@ -26,6 +29,13 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleViewChange = (mode: "grid" | "list") => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", mode);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    setIsOpen(false);
+  };
 
   const loadPostProduction = async () => {
     try {
@@ -89,14 +99,14 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
               <div className={`absolute top-full right-0 mt-2 w-48 border rounded-xl shadow-2xl z-[50] overflow-hidden ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-[#E3E3E3]"
                 }`}>
                 <button
-                  onClick={() => handleSelect("grid")}
+                  onClick={() => handleViewChange("grid")}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"}`}
                 >
                   <Grid3X3 size={18} />
                   Grid View
                 </button>
                 <button
-                  onClick={() => handleSelect("list")}
+                  onClick={() => handleViewChange("list")}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"}`}
                 >
                   <List size={18} />
@@ -108,7 +118,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
 
           <div className="hidden lg:flex bg-[#1A1A1A] border border-[#222222] rounded-lg p-1">
             <button
-              onClick={() => setViewMode("grid")}
+              onClick={() => handleViewChange("grid")}
               className={cn(
                 "p-2 rounded-md transition-all",
                 viewMode === "grid" ? "bg-[#E5D5B8] text-black" : "text-[#666666] hover:text-[#E0E0E0]"
@@ -117,7 +127,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
               <LayoutGrid size={18} />
             </button>
             <button
-              onClick={() => setViewMode("list")}
+              onClick={() => handleViewChange("list")}
               className={cn(
                 "p-2 rounded-md transition-all",
                 viewMode === "list" ? "bg-[#E5D5B8] text-black" : "text-[#666666] hover:text-[#E0E0E0]"

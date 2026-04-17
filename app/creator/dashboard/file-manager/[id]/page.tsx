@@ -280,7 +280,7 @@ export default function CreatorFolderDetailsPage() {
                 />
               </div>
               <div className="flex gap-2">
-                <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} />
+                {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
                 <div className="hidden w-full flex-wrap items-center rounded-lg border border-white/5 bg-[#202020] md:w-fit lg:flex">
                   <Button
                     onClick={() => setViewMode("grid")}

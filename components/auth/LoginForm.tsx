@@ -147,7 +147,7 @@ export function LoginForm() {
             type="email"
             disabled={isLoginLoading}
             {...form.register("email")}
-            className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 p-4 text-white outline-none focus:border-[#1A1A1A] resize-none bg-[#101010] text-sm lg:text-base"
+            className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 bg-[#101010] p-4 text-sm text-white outline-none transition-colors focus:border-[#E8D1AB] focus-visible:ring-0 lg:text-base"
           />
           {form.formState.errors.email && (
             <p className="text-xs text-red-500">{form.formState.errors.email.message}</p>
@@ -167,7 +167,7 @@ export function LoginForm() {
               type={showPassword ? "text" : "password"}
               disabled={isLoginLoading}
               {...form.register("password")}
-              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
+              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 bg-[#101010] px-4 text-sm text-white outline-none transition-colors focus:border-[#E8D1AB] focus-visible:ring-0 lg:text-base"
             />
 
             <button

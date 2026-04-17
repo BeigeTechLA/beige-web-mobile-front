@@ -1,7 +1,21 @@
 "use client"
 
 import React, { useState } from "react";
-import { ArrowLeft, FileText, FolderOpen, Grid3X3, List, MoreVertical, Search, Upload } from "lucide-react";
+import {
+  ArrowLeft,
+  FileArchive,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  FileVideo,
+  FolderOpen,
+  Grid3X3,
+  List,
+  MoreVertical,
+  Presentation,
+  Search,
+  Upload
+} from "lucide-react";
 import { AffiliateFolderCard } from "./AffiliateFolderCard";
 import { AffiliateFileCard } from "./AffiliateFileCard";
 import { Button } from "@/components/ui/button";
@@ -42,6 +56,45 @@ const data = {
 
 const STATUSES = ["Linked", "Unlinked"]
 
+const getFileExtension = (title?: string) => {
+  const parts = (title || "").toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() || "" : "";
+};
+
+const getFileMeta = (file: any) => {
+  const extension = getFileExtension(file?.title);
+
+  if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif"].includes(extension)) {
+    return { icon: FileImage, label: "image", accentClass: "text-[#22C55E]", badgeClass: "bg-[#22C55E]/15" };
+  }
+
+  if (["mp4", "mov", "avi", "mkv", "webm"].includes(extension)) {
+    return { icon: FileVideo, label: "video", accentClass: "text-[#E8D1AB]", badgeClass: "bg-[#E8D1AB]/15" };
+  }
+
+  if (extension === "pdf") {
+    return { icon: FileText, label: "pdf", accentClass: "text-[#F04438]", badgeClass: "bg-[#F04438]/15" };
+  }
+
+  if (["doc", "docx", "txt", "rtf"].includes(extension)) {
+    return { icon: FileText, label: extension || "doc", accentClass: "text-[#3B82F6]", badgeClass: "bg-[#3B82F6]/15" };
+  }
+
+  if (["ppt", "pptx", "key"].includes(extension)) {
+    return { icon: Presentation, label: extension || "ppt", accentClass: "text-[#F97316]", badgeClass: "bg-[#F97316]/15" };
+  }
+
+  if (["xls", "xlsx", "csv"].includes(extension)) {
+    return { icon: FileSpreadsheet, label: extension || "sheet", accentClass: "text-[#10B981]", badgeClass: "bg-[#10B981]/15" };
+  }
+
+  if (["zip", "rar", "7z", "tar", "gz"].includes(extension)) {
+    return { icon: FileArchive, label: extension || "zip", accentClass: "text-[#A855F7]", badgeClass: "bg-[#A855F7]/15" };
+  }
+
+  return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
+};
+
 interface AffiliateFileDetailsViewProps {
   folderId: string;
   subFolderId: string;
@@ -50,7 +103,12 @@ interface AffiliateFileDetailsViewProps {
 
 export default function AffiliateFileDetailsView({ folderId, subFolderId, onBack }: AffiliateFileDetailsViewProps) {
   const isPostProduction = subFolderId === "2"; // Mock logic based on subfolder index
-  const displayData = isPostProduction ? data.folders : data.files;
+  const displayData = isPostProduction
+    ? data.folders
+    : data.files.map((file) => ({
+        ...file,
+        ...getFileMeta(file),
+      }));
 
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [filteredData, setFilteredData] = useState<any[]>(displayData);
@@ -151,12 +209,12 @@ export default function AffiliateFileDetailsView({ folderId, subFolderId, onBack
           </div>
           <div className="flex gap-2 ">
             {/* Status dropdown to be added */}
-            <BasicDropdown
+            {/* <BasicDropdown
               label="Status"
               value={status}
               onChange={(val) => setStatus(val)}
               options={STATUSES}
-            />
+            /> */}
 
             {/* MOBILE VIEW: Dropdown Button */}
             <div className="md:hidden relative">
@@ -263,14 +321,14 @@ export default function AffiliateFileDetailsView({ folderId, subFolderId, onBack
                     <tr key={item.id} className="hover:bg-white/5 transition-colors">
                       <td className="py-5 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-white/5 rounded-lg border border-white/5">
-                            {isPostProduction ? <FolderOpen className="text-[#E8D1AB]" size={20} /> : <FileText className="text-[#F04438]" size={20} />}
+                          <div className={`p-2 rounded-lg border border-white/5 ${isPostProduction ? "bg-white/5" : item.badgeClass}`}>
+                            {isPostProduction ? <FolderOpen className="text-[#E8D1AB]" size={20} /> : <item.icon className={item.accentClass} size={20} />}
                           </div>
                           <span className="text-white text-sm font-medium">{item.title}</span>
                         </div>
                       </td>
                       <td className="py-5 px-6 text-center text-white/60 text-sm">
-                        {isPostProduction ? item.fileCount.toString().padStart(2, '0') : "PDF"}
+                        {isPostProduction ? item.fileCount.toString().padStart(2, '0') : item.label}
                       </td>
                       <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
                       <td className="py-5 px-6 text-right">

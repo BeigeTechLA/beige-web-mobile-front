@@ -922,33 +922,33 @@ export default function CreatorDashboardPage() {
       {/* --- MODALS --- */}
 
       <Dialog open={showTempEventPopup} onOpenChange={setShowTempEventPopup}>
-        <DialogContent className="bg-[#111] border-white/10 text-white max-w-sm text-center">
-          <DialogTitle className="sr-only">Are you in this event?</DialogTitle>
-          <div className="py-6">
-            <div className="w-16 h-16 bg-[#E8D1AB]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+        <DialogContent className="max-w-md overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-center text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
+          <DialogTitle className="sr-only">Switch to this event location?</DialogTitle>
+          <div className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] px-7 py-7">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               <CalendarIcon size={30} className="text-[#E8D1AB]" />
             </div>
-            <h2 className="text-xl font-bold mb-2">Are you in this event?</h2>
-            <p className="text-white/40 text-sm mb-8 px-4">
+            <h2 className="text-xl font-bold mb-2">Switch to this event location?</h2>
+            <p className="mx-auto mb-8 max-w-sm px-4 text-sm text-white/50">
               {tempEventLocation
-                ? `Do you want to continue with this event at ${tempEventLocation}?`
+                ? `"We’ll temporarily set your location to ${tempEventLocation} to match this event for a better experience."`
                 : "Do you want to continue with this event?"}
             </p>
             <div className="flex gap-3">
               <Button
                 variant="ghost"
-                className="flex-1 hover:bg-white/5"
+                className="h-12 flex-1 rounded-2xl border border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
                 disabled={isConfirmingTempEvent}
                 onClick={() => setShowTempEventPopup(false)}
               >
-                No
+                Not now
               </Button>
               <Button
-                className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-bold"
+                className="h-12 flex-1 rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold"
                 disabled={isConfirmingTempEvent}
                 onClick={handleConfirmTempEvent}
               >
-                {isConfirmingTempEvent ? "Please wait..." : "Yes"}
+                {isConfirmingTempEvent ? "Please wait..." : "Yes, update location"}
               </Button>
             </div>
           </div>
@@ -957,18 +957,18 @@ export default function CreatorDashboardPage() {
 
       {/* Accept Shoot Modal */}
       <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
-        <DialogContent className="bg-[#111] border-white/10 text-white max-w-sm text-center">
-          <div className="py-6">
-            <div className="w-16 h-16 bg-[#E8D1AB]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+        <DialogContent className="max-w-md overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-center text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
+          <div className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] px-7 py-7">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
               <CheckCircle2 size={32} className="text-[#E8D1AB]" />
             </div>
             <h2 className="text-xl font-bold mb-2">Accept Request?</h2>
-            <p className="text-white/40 text-sm mb-8 px-4">
+            <p className="mx-auto mb-8 max-w-sm px-4 text-sm text-white/50">
               Confirming will add <span className="text-white font-medium">{acceptShootEvent?.project_name}</span> to your production schedule.
             </p>
             <div className="flex gap-3">
-              <Button variant="ghost" className="flex-1 hover:bg-white/5" onClick={() => setAcceptShootEvent(null)}>Cancel</Button>
-              <Button className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-bold" onClick={() => handleAcceptProject(acceptShootEvent.project_id, 1)}>Confirm</Button>
+              <Button variant="ghost" className="h-12 flex-1 rounded-2xl border border-white/10 bg-[#111111] text-white/85 hover:bg-white/5" onClick={() => setAcceptShootEvent(null)}>Cancel</Button>
+              <Button className="h-12 flex-1 rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold" onClick={() => handleAcceptProject(acceptShootEvent.project_id, 1)}>Confirm</Button>
             </div>
           </div>
         </DialogContent>
@@ -976,26 +976,26 @@ export default function CreatorDashboardPage() {
 
       {/* Decline Equipment Modal */}
       <Dialog open={!!declineEquipmentItem} onOpenChange={() => setDeclineEquipmentItem(null)}>
-        <DialogContent className="bg-[#111] border-white/10 text-white">
-          <DialogHeader>
+        <DialogContent className="max-w-xl overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
+          <DialogHeader className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] px-7 py-6">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <AlertTriangle className="text-red-500" />
               Decline Request
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-5 px-7 py-6">
             <div className="space-y-3">
               <Label className="text-white/40 text-xs uppercase tracking-widest">Reason for declining</Label>
               {["Schedule conflict", "Equipment unavailable", "Location too far", "Other"].map((reason) => (
-                <div key={reason} className="flex items-center space-x-3 bg-[#0B0F14] p-3 rounded-lg border border-white/5 cursor-pointer hover:border-white/10 transition-all">
+                <div key={reason} className="flex items-center space-x-3 bg-[#111111] p-4 rounded-2xl border border-white/10 cursor-pointer hover:border-white/20 hover:bg-[#151515] transition-all">
                   <input type="radio" name="decline-reason" id={reason} className="accent-[#E8D1AB]" />
                   <Label htmlFor={reason} className="text-white/70 font-normal cursor-pointer flex-1">{reason}</Label>
                 </div>
               ))}
             </div>
             <div className="flex gap-3 pt-4">
-              <Button variant="ghost" className="flex-1" onClick={() => setDeclineEquipmentItem(null)}>Cancel</Button>
-              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold" onClick={() => { toast.error("Request declined"); setDeclineEquipmentItem(null); }}>Decline Request</Button>
+              <Button variant="ghost" className="h-12 flex-1 rounded-2xl border border-white/10 bg-[#111111] text-white/85 hover:bg-white/5" onClick={() => setDeclineEquipmentItem(null)}>Cancel</Button>
+              <Button className="h-12 flex-1 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold" onClick={() => { toast.error("Request declined"); setDeclineEquipmentItem(null); }}>Decline Request</Button>
             </div>
           </div>
         </DialogContent>
@@ -1003,8 +1003,8 @@ export default function CreatorDashboardPage() {
 
       {/* Project Details Modal */}
       <Dialog open={projectDetailsOpen} onOpenChange={setProjectDetailsOpen}>
-        <DialogContent className="bg-[#111] border-white/10 text-white max-w-lg p-0 overflow-hidden">
-          <div className="p-6 border-b border-white/5 bg-[#0B0F14]">
+        <DialogContent className="max-w-2xl overflow-hidden rounded-[32px] border border-white/10 bg-[#0A0A0A] p-0 text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]">
+          <div className="border-b border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)] p-6">
             <DialogTitle className="text-xl font-bold text-[#E8D1AB]">Project Overview</DialogTitle>
           </div>
           <div className="p-8 space-y-6">
@@ -1038,7 +1038,7 @@ export default function CreatorDashboardPage() {
             </div>
 
             <div className="flex justify-end pt-6">
-              <Button onClick={() => setProjectDetailsOpen(false)} className="bg-transparent border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-8 transition-all">
+              <Button onClick={() => setProjectDetailsOpen(false)} className="h-12 rounded-2xl bg-[#111111] border border-white/10 hover:border-[#E8D1AB] hover:text-[#E8D1AB] text-white px-8 transition-all">
                 Close Details
               </Button>
             </div>

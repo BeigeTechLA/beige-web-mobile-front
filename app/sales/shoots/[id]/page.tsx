@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
 import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam";
@@ -21,11 +21,18 @@ import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 export default function SalesShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { id } = use(params);
-  const [activeTab, setActiveTab] = useState("Overview");
+  const activeTab = searchParams.get("tab") || "Overview";
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+
+  const handleTabChange = (tabName: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tabName);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
@@ -121,7 +128,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
             View Project Timeline
           </Button>
 
-          <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <ShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
           {activeTab === "Overview" && (
             <>
