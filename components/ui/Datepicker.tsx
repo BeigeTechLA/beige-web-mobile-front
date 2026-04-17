@@ -125,7 +125,7 @@ export const DatePicker: React.FC<Props> = ({
   format = "MM/dd/yyyy",
   sx,
   labelSx,
-  floating = false, // Default to your original top-label style
+  floating = false,
   isDark = true,
 }) => {
   const activeTheme = isDark ? darkTheme : lightTheme;
@@ -210,15 +210,17 @@ export const DatePicker: React.FC<Props> = ({
           slotProps={{
             textField: {
               fullWidth: true,
-              placeholder: floating ? "" : format.toUpperCase(),
+              // 2. Placeholder text is visible
+              placeholder: floating ? format.toUpperCase() : format.toUpperCase(),
               onClick: () => setOpen(true),
               // Force label to stay floating even without value if desired, 
               // or let it animate naturally.
               InputLabelProps: {
-                shrink: floating ? (open || !!value) : undefined,
+                // shrink: floating ? (open || !!value) : undefined,
+                shrink: floating ? true : (open || !!value),
                 sx: {
                   color: colors.labelText,
-                  fontSize: "14px",
+                  fontSize: "16px",
                   "&.Mui-focused": { color: colors.accent },
                   // Adjusting position for the notched look
                   "&.MuiInputLabel-shrink": {
@@ -236,10 +238,15 @@ export const DatePicker: React.FC<Props> = ({
                   height: "100%",
                   ...sx,
                   backgroundColor: colors.inputBackground,
-                  borderRadius: "8px",
+                  borderRadius: "16px",
                   "& fieldset": { borderColor: colors.inputBorder, borderWidth: "1px" },
                   "&:hover fieldset": { borderColor: colors.inputBorderHover },
                   "&.Mui-focused fieldset": { borderColor: colors.inputBorderFocus, borderWidth: "1.5px" },
+                  // Ensure the placeholder is visible even when not focused
+                  "& input::placeholder": {
+                    color: colors.mutedText,
+                    opacity: 1,
+                  },
                 },
                 "& .MuiInputBase-input": {
                   color: colors.inputText,

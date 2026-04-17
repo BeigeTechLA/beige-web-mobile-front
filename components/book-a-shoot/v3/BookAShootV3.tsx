@@ -30,6 +30,7 @@ import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/ti
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { buildEditTypeCounts } from "./utils";
 import { V3BrowseStudios } from "./V3BrowseStudios";
+import { V3StudioChooseCreators } from "./V3StudiosChooseCreators";
 
 const V3_STEPS = [
   { label: "Choose Service" },
@@ -58,14 +59,25 @@ interface FormFields {
 }
 
 // Helper to get dynamic steps for the progress tracker
-const getDynamicSteps = (contentType: string[]) => {
+const getDynamicSteps = (contentType: string[], isBrowsing: boolean) => {
   if (contentType.length === 1 && contentType.includes("studio")) {
-    return [
+    const steps = [
       { label: "Choose Service" },
-      { label: "Browse Studios" },
-      { label: "Customized Details" },
+      { label: "Customized Details" }, // Used for 1.5 and the new Creator step
       { label: "Book & Confirm" },
     ];
+
+    // If browsing, we add another "Customized Details" to the tracker 
+    // or keep it at 3 steps but handle the internal logic
+    if (isBrowsing) {
+      return [
+        { label: "Choose Service" },
+        { label: "Customized Details" },
+        { label: "Customized Details" },
+        { label: "Book & Confirm" },
+      ];
+    }
+    return steps;
   }
   return V3_STEPS;
 };
@@ -138,7 +150,7 @@ export const BookAShootV3 = () => {
     trackEarlyInterest,
   ]);
 
-  const nextStep = async () => {
+  const nextStep = async (forceBrowseCreators?: boolean) => {
     // Track lead when moving from step 1 to 2 (if not already tracked)
     // if (internalStep === 1 && !leadTracked && formData.email) {
     //   try {
@@ -253,11 +265,10 @@ export const BookAShootV3 = () => {
 
         setLeadTracked(true);
         if (isStudioFlow) {
-          setInternalStep(1.5); // Move to Browse Studios
+          setInternalStep(1.5); // Move to Browse Studios (Customized Details label)
           setActiveStep(2);
           return;
         }
-        // Standard flow continues to step 2
         setInternalStep(2);
         setActiveStep(2);
       } catch (error) {
@@ -265,10 +276,26 @@ export const BookAShootV3 = () => {
         toast.error("Progress not saved, but you can continue.");
       }
     }
-    if (internalStep === 1.5) {
-      setInternalStep(2); // From Browse Studios to More Details
-      setActiveStep(2);
+
+    // --- Journey 2 specific: Next from 1.5 (Browse Studios) goes straight to Book & Confirm ---
+    if (internalStep === 1.5 && isStudioFlow) {
+      const shouldBrowse = forceBrowseCreators ?? formData.isBrowsingCreators;
+
+      if (shouldBrowse) {
+        setInternalStep(1.7);
+        setActiveStep(3);
+      } else {
+        setInternalStep(6);
+        setActiveStep(3);
+      }
+      return;
     }
+    if (internalStep === 1.7) {
+      setInternalStep(6);
+      setActiveStep(4); // Adjust based on dynamic steps length
+      return;
+    }
+
     if (internalStep === 3) {
       // add GA event on initial load
 
@@ -321,6 +348,25 @@ export const BookAShootV3 = () => {
       setInternalStep(1.5);
       return;
     }
+    // Back from Book & Confirm in Studio Flow goes back to Browse Studios
+    if (internalStep === 6 && isStudioFlow) {
+      if (formData.isBrowsingCreators) {
+        setInternalStep(1.7);
+        setActiveStep(3);
+      } else {
+        setInternalStep(1.5);
+        setActiveStep(2);
+      }
+      return;
+    }
+
+    if (internalStep === 1.7) {
+      setInternalStep(1.5);
+      setActiveStep(1);
+      return;
+    }
+
+    // Back from Browse Studios goes to Choose Service
     if (internalStep === 1.5) {
       setInternalStep(1);
       setActiveStep(1);
@@ -590,6 +636,7 @@ export const BookAShootV3 = () => {
   };
 
   useEffect(() => {
+    console.log(internalStep);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [internalStep]);
 
@@ -597,7 +644,7 @@ export const BookAShootV3 = () => {
     const props = {
       data: formData,
       updateData,
-      onNext: nextStep,
+      onNext: (forceBrowse?: boolean) => nextStep(forceBrowse),
       onBack: prevStep,
     };
 
@@ -606,6 +653,8 @@ export const BookAShootV3 = () => {
         return <V3Step1ChooseService {...props} />;
       case 1.5: // New Studio Browse Step
         return <V3BrowseStudios {...props} />;
+      case 1.7:
+        return <V3StudioChooseCreators {...props} />; //  new component
       case 2:
         return <V3Step2MoreDetails {...props} />;
       case 3:

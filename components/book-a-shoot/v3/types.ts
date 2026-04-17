@@ -16,7 +16,8 @@ export type BookingDataV3 = {
   bookingFor: "production" | "audio" | "event" | string;
   projectName: string;
   description: string;
-  
+  isBrowsingCreators?: boolean;
+
   // Date & Time
   startDate: string;
   endDate: string;
@@ -87,4 +88,5 @@ export const initialDataV3: BookingDataV3 = {
   extraRoleSelections: {},
   budgetMin: 100,
   budgetMax: 20000,
+  isBrowsingCreators: false,
 };

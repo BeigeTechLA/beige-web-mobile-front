@@ -1267,6 +1267,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       height: { xs: "56px", lg: "82px" },
                       borderRadius: "16px",
                     }}
+                    floating= {true}
                   />
                 </div>
               </div>
@@ -1339,7 +1340,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       <span className={`text-sm font-medium `}>Project Name</span>
                     </div>
                     <Input
-                      value={data.projectName}
+                      value={data.projectName || ""}
                       onChange={(e) => updateData({ projectName: e.target.value })}
                       className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
                     />
@@ -1351,7 +1352,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     <textarea
                       value={data.description}
                       onChange={(e) => updateData({ description: e.target.value })}
-                      className={`w-full h-[82px] lg:h-[262px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                      className={`w-full h-[82px] lg:h-[262px] bg-transparent border border-[#FFFFFF4D] rounded-xl p-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
                     />
                   </div>
                 </div>
@@ -1435,6 +1436,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                           height: { xs: "56px", md: "82px" },
                           borderRadius: "16px",
                         }}
+                        floating={true}
                       />
                     </div>
                     <div className="flex-1">

@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import Image from "next/image";
 import { BookingDataV3 } from "./types";
-import { Search, ChevronDown, Calendar, Check, ChevronRight, ChevronLeft, X } from "lucide-react";
+import { Info, ChevronDown, Calendar, Check, ChevronRight, ChevronLeft, X, ChevronUp, Video, Camera, Scissors } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 
 import { parseDate } from "@/src/components/landing/lib/utils";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { getFormattedDateString } from "@/lib/utils";
+import { getPhotoEditSummary, getTotalDurationHours, PHOTO_EDIT_ADDON_SET_SIZE } from "./utils";
 
 import {
   Select,
@@ -24,6 +25,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { QuantityControl } from "../QuantityControl";
 
 const datePickerColours = {
   inputBackground: "#171717",
@@ -57,97 +59,45 @@ const datePickerColours = {
 interface Props {
   data: BookingDataV3;
   updateData: (data: Partial<BookingDataV3>) => void;
-  onNext: (forceBrowseCreators?: boolean) => void;
+  onNext: () => void;
   onBack: () => void;
 }
 
-const studioData = [
-  {
-    image: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000&auto=format&fit=crop",
-    name: "Beige Media",
-    description: "(Modern Resort Villa with Jacuzzi)",
-    location: "Woodland Hills, Los Angeles",
-    price: 150,
-    rating: 4.5,
-    reviews: 120,
-    tags: ["Natural light", "Product-friendly"],
-    isSelected: true
-  },
-  {
-    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1000&auto=format&fit=crop",
-    name: "The Industrial Loft",
-    description: "(Raw Concrete & Exposed Brick)",
-    location: "Brooklyn, New York",
-    price: 85,
-    rating: 4.8,
-    reviews: 89,
-    tags: ["High Ceilings", "Industrial", "Music Videos"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?q=80&w=1000&auto=format&fit=crop",
-    name: "Neon Horizon",
-    description: "(Cyberpunk Aesthetic & LED Walls)",
-    location: "Downtown Tokyo, JP",
-    price: 210,
-    rating: 4.9,
-    reviews: 45,
-    tags: ["RGB Lighting", "Podcasts", "Futuristic"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=1000&auto=format&fit=crop",
-    name: "Aetheria Penthouse",
-    description: "(Minimalist Luxury with Skyline Views)",
-    location: "Gold Coast, Chicago",
-    price: 320,
-    rating: 5.0,
-    reviews: 12,
-    tags: ["Luxury", "Fashion Shoots", "Air-Conditioned"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=1000&auto=format&fit=crop",
-    name: "Vintage Vinyl Hub",
-    description: "(70s Retro Lounge & Recording Booth)",
-    location: "Nashville, Tennessee",
-    price: 110,
-    rating: 4.7,
-    reviews: 210,
-    tags: ["Retro", "Analog Gear", "Soundproof"],
-    isSelected: true
-  },
-  {
-    image: "https://images.unsplash.com/photo-1492691523567-6170c2298bda?q=80&w=1000&auto=format&fit=crop",
-    name: "Secret Garden Studio",
-    description: "(Indoor Greenhouse & Tropical Plants)",
-    location: "Silver Lake, Los Angeles",
-    price: 140,
-    rating: 4.6,
-    reviews: 74,
-    tags: ["Bohemian", "Outdoor Space", "Greenery"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=1000&auto=format&fit=crop",
-    name: "Aetheria Penthouse",
-    description: "(Minimalist Luxury with Skyline Views)",
-    location: "Gold Coast, Chicago",
-    price: 320,
-    rating: 5.0,
-    reviews: 12,
-    tags: ["Luxury", "Fashion Shoots", "Air-Conditioned"],
-  },
-  {
-    image: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=1000&auto=format&fit=crop",
-    name: "Vintage Vinyl Hub",
-    description: "(70s Retro Lounge & Recording Booth)",
-    location: "Nashville, Tennessee",
-    price: 110,
-    rating: 4.7,
-    reviews: 210,
-    tags: ["Retro", "Analog Gear", "Soundproof"],
-    isSelected: true
-  },
+const TEAM_ROLES = [
+  { id: "videographer", label: "Videographer", price: 250, icon: <Video size={28} /> }, // Changed from 275 to 250
+  { id: "photographer", label: "Photographer", price: 250, icon: <Camera size={28} /> }, // Changed from 275 to 250
 ];
 
-export const V3BrowseStudios: React.FC<Props> = ({
+
+// dummy data until integration
+const VIDEO_EDIT = [
+  {
+    "key": "social_reel_15_30",
+    "value": "Social Media Reel (15 sec-30 sec)"
+  },
+  {
+    "key": "social_reel_30_90",
+    "value": "Social Media Reel (30 sec-90 sec)"
+  },
+  {
+    "key": "music_video_2_3",
+    "value": "Edited Music Video (2-3 min)"
+  },
+  {
+    "key": "music_video_vfx_2_3",
+    "value": "Edited Music Video with VFX (2-3 min)"
+  }
+]
+
+const PHOTO_EDIT = [
+  {
+    "key": "edited_photos",
+    "value": "Edited Photos",
+    "note": "25 edited photos per hour"
+  }
+]
+
+export const V3StudioChooseCreators: React.FC<Props> = ({
   data,
   updateData,
   onNext,
@@ -170,6 +120,12 @@ export const V3BrowseStudios: React.FC<Props> = ({
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(data.bookingType || "single_day");
   const [visibleCount, setVisibleCount] = useState(6);
+  const [extraTeam, setExtraTeam] = useState<Record<string, number>>(data.extraRoleSelections || {});
+
+  const [photoEditNote, setPhotoEditNote] = useState<string>('25 edited photos per hour'); // Update later
+  const [editTypeOptions, setEditTypeOptions] = useState<{ key: string; value: string }[]>(VIDEO_EDIT); // Update later
+  const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>(PHOTO_EDIT); // Update later
+  const [openEditPanel, setOpenEditPanel] = useState<"video" | "photo" | null>(null);
 
   // Ref Varibales
   const studiosRef = useRef<HTMLDivElement>(null);
@@ -178,6 +134,9 @@ export const V3BrowseStudios: React.FC<Props> = ({
   const calendarRef = useRef<HTMLDivElement>(null);
   const crewCountRef = useRef<HTMLDivElement>(null);
   const bookingRef = useRef<HTMLDivElement>(null);
+  const editsRef = useRef<HTMLDivElement>(null);
+  const videoEditDropdownRef = useRef<HTMLDivElement>(null);
+  const photoEditDropdownRef = useRef<HTMLDivElement>(null);
 
   const dragStartX = useRef(0);
   const dragStartScrollLeft = useRef(0);
@@ -186,16 +145,7 @@ export const V3BrowseStudios: React.FC<Props> = ({
 
   const handleNext = async () => {
     // if (!validate()) return;
-    updateData({ isBrowsingCreators: false });
-    onNext(false);
-  };
-
-  const handleBrowseCreators = async () => {
-    // Update state so it's saved for back-navigation later
-    updateData({ isBrowsingCreators: true });
-
-    // Pass true directly to ensure the parent acts on it immediately
-    onNext(true);
+    onNext();
   };
 
   const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
@@ -215,6 +165,137 @@ export const V3BrowseStudios: React.FC<Props> = ({
     }, 100);
   };
 
+  const availableRolesToAdd = TEAM_ROLES.filter(role => {
+    // if (data.contentType.includes(role?.id)) return true;
+    if (["videographer", "photographer"].includes(role?.id)) return true;
+
+    return false;
+  });
+
+  const includedRoles = data.contentType.map((type) => {
+    if (type === "editing") {
+      return {
+        id: "editing",
+        label: "Editing",
+        icon: <Scissors size={28} />,
+        count: 1,
+      };
+    }
+
+    const role = TEAM_ROLES.find((r) => r.id === type);
+    return role ? { ...role, count: 1 } : null;
+  }).filter(Boolean);
+
+  const handleExtraTeamChange = (id: string, delta: number) => {
+    const nextExtra = { ...extraTeam };
+    const current = nextExtra[id] || 0;
+    const next = Math.max(0, current + delta);
+    nextExtra[id] = next;
+    setExtraTeam(nextExtra);
+
+    // Also save this as string description to data so it's not lost
+    // Ideally we should use a proper structure, but string array is what we have in types for now
+    const summary = Object.entries(nextExtra)
+      .filter(([_, count]) => count > 0)
+      .map(([roleId, count]) => `${TEAM_ROLES.find(r => r.id === roleId)?.label || roleId} x${count}`);
+
+    // Calculate total crew count (base + extra)
+    const baseCount = includedRoles.length;
+    const extraCount = Object.values(nextExtra).reduce((a, b) => a + b, 0);
+
+    updateData({
+      extraRoleSelections: nextExtra,
+      teamIncluded: summary,
+      crewCount: baseCount + extraCount
+    });
+  };
+
+
+  const handleVideoEditToggle = () => {
+    setOpenEditPanel((prev) => (prev === "video" ? null : "video"));
+  };
+
+  const handlePhotoEditToggle = () => {
+    setOpenEditPanel((prev) => (prev === "photo" ? null : "photo"));
+  };
+
+  const buildEditCounts = (keys: string[]) =>
+    keys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+  const getEditSummaryItems = (
+    counts: Record<string, number>,
+    options: { key: string; value: string }[]
+  ) =>
+    Object.entries(counts).map(([key, count]) => ({
+      key,
+      count,
+      label: options.find((option) => option.key === key)?.value || key,
+    }));
+  const videoEditCounts = useMemo(
+    () => buildEditCounts(data.videoEditTypes),
+    [data.videoEditTypes]
+  );
+
+  const photoEditCounts = useMemo(
+    () => buildEditCounts(data.photoEditTypes),
+    [data.photoEditTypes]
+  );
+
+  const durationHours = React.useMemo(
+    () => getTotalDurationHours(data.bookingType, data.startDate, data.endDate, data.bookingDays),
+    [data.bookingType, data.startDate, data.endDate, data.bookingDays]
+  );
+
+  const photoEditSetCount = photoEditCounts.edited_photos || 0;
+  const photoEditSummary = useMemo(
+    () =>
+      getPhotoEditSummary({
+        shootType: data.shootType,
+        durationHours,
+        selectedAddOnSets: photoEditSetCount,
+      }),
+    [data.shootType, durationHours, photoEditSetCount]
+  );
+
+  const totalVideoEditsSelected = data.videoEditTypes.length;
+  const totalPhotoEditsSelected = data.photoEditTypes.length;
+  const videoEditSummaryItems = useMemo(
+    () => getEditSummaryItems(videoEditCounts, editTypeOptions),
+    [videoEditCounts, editTypeOptions]
+  );
+  const photoEditSummaryItems = useMemo(
+    () => getEditSummaryItems(photoEditCounts, photoEditTypeOptions),
+    [photoEditCounts, photoEditTypeOptions]
+  );
+  const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
+  const expectedDeliveryDate = useMemo(
+    () => (data.expectedDeliveryDate ? parseDate(data.expectedDeliveryDate) : null),
+    [data.expectedDeliveryDate]
+  );
+  const receiveSummaryText = [
+    (data.contentType.includes("photographer") || isEditingOnly)
+      ? `${photoEditSummary.totalCount} Photos`
+      : null,
+    totalVideoEditsSelected > 0 ? `${totalVideoEditsSelected} Videos` : null,
+  ].filter(Boolean).join(" + ");
+
+  const isVideoEditOpen = openEditPanel === "video";
+  const isPhotoEditOpen = openEditPanel === "photo";
+
+
+  const updateEditQuantity = (type: "video" | "photo", key: string, nextQty: number) => {
+    const base = type === "video" ? data.videoEditTypes : data.photoEditTypes;
+    const cleaned = base.filter((k) => k !== key);
+    const next = nextQty > 0 ? [...cleaned, ...Array.from({ length: nextQty }, () => key)] : cleaned;
+    if (type === "video") {
+      updateData({ videoEditTypes: next });
+    } else {
+      updateData({ photoEditTypes: next });
+    }
+  };
   // Please move the repetitive and commion date functions to a utils file for easier reuse
   const formatLocalDateTime = (date: Date) => {
     return format(date, "yyyy-MM-dd'T'HH:mm:ss");
@@ -464,7 +545,7 @@ export const V3BrowseStudios: React.FC<Props> = ({
   };
 
   // --- Now the useMemos can safely use them ---
-  const filteredStartTimeOptions = React.useMemo(() => {
+  const filteredStartTimeOptions = useMemo(() => {
     const selectedDate = data.startDate
       ? parseDate(data.startDate)
       : selectedShootDate;
@@ -485,7 +566,7 @@ export const V3BrowseStudios: React.FC<Props> = ({
     return timeOptions.filter((opt) => opt.key >= minKey);
   }, [data.startDate, selectedShootDate, timeOptions]);
 
-  const filteredEndTimeOptions = React.useMemo(() => {
+  const filteredEndTimeOptions = useMemo(() => {
     // If no start date/time is selected, show all
     if (!data.startDate) return timeOptions;
 
@@ -495,7 +576,7 @@ export const V3BrowseStudios: React.FC<Props> = ({
     return timeOptions.filter((opt) => opt.key > startTimeKey);
   }, [data.startDate, timeOptions]);
 
-  const reelDays = React.useMemo(() => {
+  const reelDays = useMemo(() => {
     const now = new Date();
     const monthStart = startOfMonth(currentCalendarMonth);
     const monthEnd = endOfMonth(currentCalendarMonth);
@@ -507,95 +588,86 @@ export const V3BrowseStudios: React.FC<Props> = ({
     return eachDayOfInterval({ start, end: monthEnd });
   }, [currentCalendarMonth]);
 
-  const calendarDays = React.useMemo(() => {
+  const calendarDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(currentCalendarMonth));
     const end = endOfWeek(endOfMonth(currentCalendarMonth));
     return eachDayOfInterval({ start, end });
   }, [currentCalendarMonth]);
+
+  // 1. Function to toggle the role via the checkbox
+  const toggleRole = (roleId: string) => {
+    const isCurrentlySelected = (extraTeam[roleId] || 0) > 0;
+
+    if (isCurrentlySelected) {
+      // If already selected, remove it (set to 0)
+      handleExtraTeamChange(roleId, -(extraTeam[roleId] || 0));
+    } else {
+      // If not selected, add 1
+      handleExtraTeamChange(roleId, 1);
+    }
+  };
+
+  // 2. Helper to check if a role is active
+  const isRoleSelected = (roleId: string) => (extraTeam[roleId] || 0) > 0;
 
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
       {/* Header */}
       <div className="text-center">
         <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">
-          Browse available studios
+          Choose Creators
         </h2>
-        <p className="text-white/60">Discover studios that match your needs with complete details and availability.</p>
+        <p className="text-white/60">Let us know if you need a photographer or videographer for your studio.</p>
       </div>
 
-      {/* Studio Listings */}
-      <div ref={studiosRef} className="pt-6 lg:pt-15 border-t border-white/10">
-        <p className="text-lg lg:text-xl fotn-medium mb-3 lg:mb-5">5 Studio Available Based on Categories</p>
-        <div className="flex gap-2 lg:gap-4 mb-5 lg:mb-10">
-          {/* Search field */}
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 text-[#BEBEBE]`} size={24} />
-            <input
-              type="text"
-              placeholder="Search ..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors bg-[#202020] border-[#FFFFFF33] text-[#BEBEBE]}`} />
-          </div>
-          <Select
-            value={sortBy}
-            onValueChange={(v) => setSortBy(v)}>
-            <SelectTrigger className={`w-[130px] rounded-lg h-12 text-sm focus:ring-0 capitalize bg-[#202020] border-[#FFFFFF33] text-white`}>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent className={`bg-[#202020] border-[#FFFFFF33]`}>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="production">Production</SelectItem>
-              <SelectItem value="events">Events</SelectItem>
-              <SelectItem value="audios">Audios</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Select professionals */}
+      <div ref={bookingRef} className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
+        <h3 className={`text-lg lg:text-xl font-medium mb-3 lg:mb-6 transition-colors`}>Select professionals for your location.</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-12 mb-5 lg:mb-10">
-          {studioData.slice(0, visibleCount).map((studio, index) => (
-            <StudioCard key={index} {...studio} />
-          ))}
-        </div>
-        <button
-          onClick={() => setVisibleCount((prev) => prev + 6)}
-          className="bg-[#171717] flex gap-8 h-14 lg:h-18 p-1 items-center rounded-lg"
-        >
-          <span className="text-lg lg:text-xl pl-7">View More</span>
-          <div className="bg-[#E8D1AB] h-16 w-16 p-4 rounded-md">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="26"
-              height="32"
-              viewBox="0 0 32 26"
-              fill="none"
-            >
-              <path
-                d="M0.801232 1.6025L2.40373 0L31.2487 12.82L2.40373 25.64L0.801231 24.0375L5.60873 12.82L0.801232 1.6025Z"
-                fill="#1D1D1B"
-              />
-            </svg>
+        <div className="bg-[#171717] rounded-[20px] p-3 lg:p-6 border border-white/5 animate-in slide-in-from-top-4 mt-4 md:mt-6">
+          <div className="flex flex-col gap-4">
+            {availableRolesToAdd.length > 0 ? (
+              availableRolesToAdd.map((role) => {
+                const selected = isRoleSelected(role.id);
+                return (
+                <div key={role.id} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
+                  <div className="flex items-center gap-3">
+                    {/* Custom Checkbox */}
+                    <button
+                      onClick={() => toggleRole(role.id)}
+                      className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all duration-200 ${selected
+                          ? "bg-[#E8D1AB] border-[#E8D1AB]"
+                          : "bg-transparent border-white/20 hover:border-white/40"
+                        }`}
+                    >
+                      {selected && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                    <div>
+                      <div className="lg:text-lg font-light text-white">{role.label}</div>
+                      <div className="text-lg lg:text-xl text-[#E8D1AB] font-medium">${role.price.toFixed(2)}</div>
+                    </div>
+                  </div>
+                  <QuantityControl
+                    value={extraTeam[role.id] || 0}
+                    onIncrease={() => handleExtraTeamChange(role.id, 1)}
+                    onDecrease={() => handleExtraTeamChange(role.id, -1)}
+                  />
+                </div>
+              )})
+            ) : (
+              <p className="text-white/40 italic">No eligible roles to add based on your selection.</p>
+            )}
           </div>
-        </button>
-      </div>
-
-      {/* Crew Coutn */}
-      <div ref={crewCountRef} className="pt-6 lg:pt-15 border-t border-white/10">
-        <div className="relative">
-          <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
-            <span className={`text-sm font-medium `}>No of Cast & Crew</span>
-          </div>
-          <Input
-            value={data.crewCount}
-            onChange={(e) => updateData({ crewCount: parseInt(e.target.value) })}
-            className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
-          />
         </div>
       </div>
 
       {/* Update Booking DateTime */}
-      <div ref={bookingRef} className="py-6 lg:py-15 border-y border-white/10 space-y-6">
-        <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
+      <div ref={bookingRef} className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
+        <h3 className={`text-lg lg:text-xl font-medium mb-3 lg:mb-6 transition-colors`}>Do you want to update your booking day and time?</h3>
 
         <div className="flex gap-4">
           <button
@@ -988,32 +1060,236 @@ export const V3BrowseStudios: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Browser Creators */}
-      <div className="bg-[#101010] border border-[#FFFFFF4D] rounded-xl p-3 lg:p-5 flex justify-between items-center">
-        <div className="flex gap-4 items-center ">
-          <div className="bg-[#171717] rounded-xl p-4.5">
-            <svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42" fill="none">
-              <circle cx="21" cy="22.75" r="5.25" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M17.4999 34.9998H24.4999C29.4155 34.9998 31.8734 34.9998 33.6389 33.8201C34.4033 33.3094 35.0595 32.6531 35.5702 31.8888C36.7499 30.1232 36.7499 27.6654 36.7499 22.7498C36.7499 17.8342 36.7497 15.3768 35.57 13.6112C35.0592 12.8469 34.403 12.1906 33.6387 11.6799C31.8731 10.5002 29.4153 10.5002 24.4997 10.5002H17.4997C12.5841 10.5002 10.1262 10.5002 8.36068 11.6799C7.59635 12.1906 6.94009 12.8469 6.42938 13.6112C5.24993 15.3764 5.24993 17.8331 5.24993 22.7466L5.24993 22.7498C5.24993 27.6654 5.24993 30.1232 6.42964 31.8888C6.94035 32.6531 7.59661 33.3094 8.36094 33.8201C10.1265 34.9998 12.5843 34.9998 17.4999 34.9998Z" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M31.5 17.5H30.625" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M26.25 5.25H15.75" stroke="#E8D1AB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+      {/* Edits Needed */}
+      <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
+        {!data.contentType.includes("editing") && (
+          <>
+            <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
+              }`}>
+              Edits Needed?
+            </h3>
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  updateData({ editsNeeded: true });
+                  scrollToRef(navigationRef);
+                }}
+                disabled={data.shootType === ""}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              >
+                <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                <div
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                    }`}
+                >
+                  {data.editsNeeded && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setOpenEditPanel(null);
+                  updateData({
+                    editsNeeded: false,
+                    videoEditTypes: [],
+                    photoEditTypes: [],
+                  });
+                  scrollToRef(navigationRef);
+                }}
+                disabled={data.shootType === ""}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              >
+                <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                <div
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                    }`}
+                >
+                  {!data.editsNeeded && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Edit Dropdowns — show when editsNeeded OR editing only */}
+        {/* {(data.editsNeeded || isEditingOnly) && ( */}
+        <div className={`animate-in slide-in-from-top-4 duration-300 ${!isEditingOnly ? "mt-4 lg:mt-8" : ""}`}>
+          <h4 className={` ${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
+            <Info size={24} className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"}`} />
+            Editing includes
+          </h4>
+          <p className="text-white/60 text-sm mb-11">
+            Professional editing includes color grading, sound mixing, and
+            basic revisions.
+          </p>
+
+          <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
+            {/* {(data.contentType.includes("videographer") || isEditingOnly) && editTypeOptions.length > 0 && ( */}
+            <div ref={videoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+              <button
+                type="button"
+                className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                onClick={handleVideoEditToggle}
+              >
+                <div className="min-w-0 flex flex-1 items-center gap-3">
+                  <div className="shrink-0 text-base lg:text-lg font-medium text-white">Video Edits</div>
+                  {videoEditSummaryItems.length > 0 && (
+                    <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                      {videoEditSummaryItems.map((item) => (
+                        <span
+                          key={item.key}
+                          className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                        >
+                          <span className="truncate max-w-[180px]">{item.label}</span>
+                          <span className="shrink-0 text-white/50">x{item.count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {isVideoEditOpen ? (
+                  <ChevronUp className="text-white flex-shrink-0" />
+                ) : (
+                  <ChevronDown className="text-white flex-shrink-0" />
+                )}
+              </button>
+
+              {isVideoEditOpen && (
+                <div className="border-t border-white/10 px-5 py-3">
+                  {editTypeOptions.map((option) => {
+                    const count = videoEditCounts[option.key] || 0;
+                    return (
+                      <div
+                        key={option.key}
+                        className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                      >
+                        <span className="text-sm lg:text-base text-white">{option.value}</span>
+                        <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                          <QuantityControl
+                            value={count}
+                            onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                            onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
+                            className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                            buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                            valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {/* )} */}
+
+            {/* {(data.contentType.includes("photographer") || isEditingOnly) && photoEditTypeOptions.length > 0 && ( */}
+            <div ref={photoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+              <button
+                type="button"
+                className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                onClick={handlePhotoEditToggle}
+              >
+                <div className="min-w-0 flex flex-1 items-center gap-3">
+                  <div className="shrink-0 text-base lg:text-lg font-medium text-white">Photo Edits</div>
+                  {photoEditSummaryItems.length > 0 && (
+                    <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                      {photoEditSummaryItems.map((item) => (
+                        <span
+                          key={item.key}
+                          className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                        >
+                          <span className="truncate max-w-[180px]">{item.label}</span>
+                          <span className="shrink-0 text-white/50">x{item.count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {isPhotoEditOpen ? (
+                  <ChevronUp className="text-white flex-shrink-0" />
+                ) : (
+                  <ChevronDown className="text-white flex-shrink-0" />
+                )}
+              </button>
+
+              {isPhotoEditOpen && (
+                <div className="border-t border-white/10 px-5 py-3">
+                  {photoEditTypeOptions.map((option) => {
+                    const count = photoEditCounts[option.key] || 0;
+                    return (
+                      <div
+                        key={option.key}
+                        className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                      >
+                        <div>
+                          <div className="text-sm lg:text-base text-white">{option.value}</div>
+                          <div className="text-xs text-white/40 mt-1">
+                            +{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set
+                          </div>
+                        </div>
+                        <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                          <QuantityControl
+                            value={count}
+                            onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                            onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
+                            className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                            buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                            valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <div className="flex flex-wrap gap-3 pt-4">
+                    {!isEditingOnly && (
+                      <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                        Includes {photoEditSummary.includedCount} free photo edits
+                      </div>
+                    )}
+                    {!isEditingOnly && (
+                      <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
+                        {durationHours} Hour Duration
+                      </div>
+                    )}
+                    <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                      + {photoEditSummary.extraCount} Added Extra
+                    </div>
+                  </div>
+
+                  {!isEditingOnly && photoEditNote && (
+                    <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                      <Info size={16} className="mt-0.5 flex-shrink-0" />
+                      <span>{photoEditNote}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* )} */}
           </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-lg lg:text-xl text-white font-medium">
-              Need a Photographer or Videographer for your Studio?
-            </p>
-            <p className="text-[#A9A9A9] text-xs lg:text-sm">
-              Bring your shoot to life with top photographers/videographers at your studio.
-            </p>
-          </div>
+
+          {receiveSummaryText && (
+            <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black">
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-black text-[#E8D1AB]">
+                <Image
+                  src="/images/misc/booking-sparkle.png"
+                  alt=""
+                  width={18}
+                  height={18}
+                  className="h-[18px] w-[18px]"
+                />
+              </div>
+              <p className="text-sm lg:text-base font-semibold">
+                You&apos;ll Receive {receiveSummaryText}
+              </p>
+            </div>
+          )}
         </div>
-        <Button
-          onClick={handleBrowseCreators}
-          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] flex items-center justify-center text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
-        >
-          Browse Creators
-        </Button>
+        {/* )} */}
       </div>
 
       {/* Navigation */}
