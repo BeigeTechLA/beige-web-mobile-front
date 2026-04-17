@@ -118,12 +118,12 @@ export default function AffiliateFindYourselfPage() {
     try {
       const scanResults = await Promise.allSettled(
         workspaces.map(async (workspace) => {
-          const response = await fileManagerApi.searchFaceMatches({
-            externalId: workspace.externalId,
-            scanImageBase64,
-            threshold: 0.80,
-            maxResults: 200,
-          });
+            const response = await fileManagerApi.searchFaceMatches({
+              externalId: workspace.externalId,
+              scanImageBase64,
+              threshold: 0.78,
+              maxResults: 200,
+            });
 
           const matches = response?.matches || [];
           return matches.map((match) => ({
