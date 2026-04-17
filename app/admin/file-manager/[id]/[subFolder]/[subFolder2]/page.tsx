@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   ArrowLeft,
@@ -34,14 +34,34 @@ import { toast } from "sonner";
 const defaultImgSrc = "/images/misc/Data.png";
 const STATUSES = ["Linked", "Unlinked"];
 
+const tryDecodeURIComponent = (value: string) => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
 export default function SubFolderDetailsPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const params = useParams<{ id: string; subFolder: string; subFolder2: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const nestedSlug = params.subFolder2;
   const canUpload = phaseSlug !== "post-production";
+  const folderPath = useMemo(() => {
+    const queryPath = searchParams.get("path");
+    if (queryPath) return tryDecodeURIComponent(queryPath).trim();
+    return slugToWorkspaceName(nestedSlug);
+  }, [nestedSlug, searchParams]);
+  const folderName = useMemo(() => {
+    const queryName = searchParams.get("name");
+    if (queryName) return tryDecodeURIComponent(queryName).trim();
+    const fallbackFromPath = folderPath.split("/").filter(Boolean).pop();
+    return fallbackFromPath || slugToWorkspaceName(nestedSlug);
+  }, [folderPath, nestedSlug, searchParams]);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -65,11 +85,10 @@ export default function SubFolderDetailsPage() {
     try {
       setLoading(true);
       setError(null);
-      const folderName = slugToWorkspaceName(nestedSlug);
       const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
         projectId,
         phaseSlug === "post-production" ? "post" : "pre",
-        folderName
+        folderPath
       );
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
@@ -94,14 +113,14 @@ export default function SubFolderDetailsPage() {
     return () => {
       mounted = false;
     };
-  }, [nestedSlug, phaseSlug, projectId]);
+  }, [folderPath, phaseSlug, projectId]);
 
   const folderTitle = useMemo(() => {
     if (nestedSlug === "raw-footage") return "Raw Footages";
     if (nestedSlug === "edited-footage") return "Edited Footages";
     if (nestedSlug === "final-deliverables") return "Final Deliverables";
-    return "Files";
-  }, [nestedSlug]);
+    return folderName || "Files";
+  }, [folderName, nestedSlug]);
 
   const folderFiles = useMemo(() => {
     return mapExternalFilesToUi(files).map((file) => ({
@@ -453,7 +472,7 @@ export default function SubFolderDetailsPage() {
           folderName={folderTitle}
           uploadPath={
             canUpload && workspaceName
-              ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${slugToWorkspaceName(nestedSlug)}`
+              ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${folderPath}`
               : undefined
           }
           onUploadComplete={loadFiles}
