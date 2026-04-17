@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { Button } from "@/src/components/landing/ui/button";
 import { BookingDataV3 } from "./types";
@@ -40,6 +41,11 @@ const ImageCarouselModal = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loadedSet, setLoadedSet] = useState<Set<number>>(new Set());
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -52,7 +58,7 @@ const ImageCarouselModal = ({
     return () => { document.body.style.overflow = "auto"; };
   }, [isOpen]);
 
-  if (!isOpen || !images.length) return null;
+  if (!isOpen || !images.length || !mounted) return null;
 
   const handleImageLoaded = (index: number) => {
     setLoadedSet((prev) => {
@@ -72,12 +78,12 @@ const ImageCarouselModal = ({
     setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   };
 
-  return (
-    <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/95 backdrop-blur-md" onClick={onClose}>
+  const modalContent = (
+    <div className="fixed inset-0 z-[99999999] flex items-center justify-center bg-black/95 backdrop-blur-md" onClick={onClose}>
       {/* Close button - always on top */}
       <button
         onClick={(e) => { e.stopPropagation(); onClose(); }}
-        className="fixed top-4 right-4 md:top-6 md:right-6 z-[999999] flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 rounded-full text-white transition-all border border-white/20 backdrop-blur-md"
+        className="fixed top-4 right-4 md:top-6 md:right-6 z-[99999999] flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 rounded-full text-white transition-all border border-white/20 backdrop-blur-md"
       >
         <X size={20} />
         <span className="text-sm font-medium hidden sm:inline">Close</span>
@@ -87,13 +93,13 @@ const ImageCarouselModal = ({
         {images.length > 1 && (
           <button
             onClick={prevSlide}
-            className="absolute left-4 md:left-8 z-10 p-3 bg-black/50 hover:bg-black/80 rounded-full text-white backdrop-blur-md transition-all"
+            className="absolute left-4 md:left-8 z-50 p-3 bg-black/50 hover:bg-black/80 rounded-full text-white backdrop-blur-md transition-all shadow-lg"
           >
             <ChevronLeft size={32} />
           </button>
         )}
 
-        <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl">
+        <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl bg-black/20">
           {/* Loading spinner – shown while current image is loading */}
           {!loadedSet.has(currentIndex) && (
             <div className="absolute inset-0 z-20 flex items-center justify-center">
@@ -125,14 +131,14 @@ const ImageCarouselModal = ({
         {images.length > 1 && (
           <button
             onClick={nextSlide}
-            className="absolute right-4 md:right-8 z-10 p-3 bg-black/50 hover:bg-black/80 rounded-full text-white backdrop-blur-md transition-all"
+            className="absolute right-4 md:right-8 z-50 p-3 bg-black/50 hover:bg-black/80 rounded-full text-white backdrop-blur-md transition-all shadow-lg"
           >
             <ChevronRight size={32} />
           </button>
         )}
         
         {images.length > 1 && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10 bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-50 bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
             {images.map((_, i) => (
               <div
                 key={i}
@@ -148,6 +154,8 @@ const ImageCarouselModal = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 const StudioCard = ({
