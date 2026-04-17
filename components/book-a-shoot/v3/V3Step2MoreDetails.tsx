@@ -476,7 +476,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         {isCoachella && (
           <p className="mt-3 text-sm text-[#E8D1AB] flex items-center gap-2">
             <MapPin size={16} />
-            Location is locked for Coachella events as they are exclusively held here.
+            Location is locked for Coachella events.
+            {/* as they are exclusively held here */}
           </p>
         )}
       </div>

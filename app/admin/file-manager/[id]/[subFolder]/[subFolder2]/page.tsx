@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   ArrowLeft,
@@ -34,14 +34,52 @@ import { toast } from "sonner";
 const defaultImgSrc = "/images/misc/Data.png";
 const STATUSES = ["Linked", "Unlinked"];
 
+const tryDecodeURIComponent = (value: string) => {
+  const normalizedValue = String(value || "").replace(/\+/g, " ");
+  try {
+    return decodeURIComponent(normalizedValue);
+  } catch {
+    return normalizedValue;
+  }
+};
+
+const normalizeRelativeFolderPath = (value: string, phaseSlug: string) => {
+  const normalized = String(value || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .trim();
+  if (!normalized) return "";
+
+  const segments = normalized.split("/").filter(Boolean);
+  const phaseSegment = phaseSlug === "post-production" ? "post-production" : "pre-production";
+  const phaseIndex = segments.findIndex((segment) => String(segment || "").trim().toLowerCase() === phaseSegment);
+  if (phaseIndex >= 0) {
+    return segments.slice(phaseIndex + 1).join("/");
+  }
+
+  return normalized;
+};
+
 export default function SubFolderDetailsPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const params = useParams<{ id: string; subFolder: string; subFolder2: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const nestedSlug = params.subFolder2;
   const canUpload = phaseSlug !== "post-production";
+  const folderPath = useMemo(() => {
+    const queryPath = searchParams.get("path");
+    const rawPath = queryPath ? tryDecodeURIComponent(queryPath).trim() : slugToWorkspaceName(nestedSlug);
+    return normalizeRelativeFolderPath(rawPath, phaseSlug);
+  }, [nestedSlug, phaseSlug, searchParams]);
+  const folderName = useMemo(() => {
+    const queryName = searchParams.get("name");
+    if (queryName) return tryDecodeURIComponent(queryName).trim();
+    const fallbackFromPath = folderPath.split("/").filter(Boolean).pop();
+    return fallbackFromPath || slugToWorkspaceName(nestedSlug);
+  }, [folderPath, nestedSlug, searchParams]);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -65,11 +103,10 @@ export default function SubFolderDetailsPage() {
     try {
       setLoading(true);
       setError(null);
-      const folderName = slugToWorkspaceName(nestedSlug);
       const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(
         projectId,
         phaseSlug === "post-production" ? "post" : "pre",
-        folderName
+        folderPath
       );
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
@@ -94,14 +131,14 @@ export default function SubFolderDetailsPage() {
     return () => {
       mounted = false;
     };
-  }, [nestedSlug, phaseSlug, projectId]);
+  }, [folderPath, phaseSlug, projectId]);
 
   const folderTitle = useMemo(() => {
     if (nestedSlug === "raw-footage") return "Raw Footages";
     if (nestedSlug === "edited-footage") return "Edited Footages";
     if (nestedSlug === "final-deliverables") return "Final Deliverables";
-    return "Files";
-  }, [nestedSlug]);
+    return folderName || "Files";
+  }, [folderName, nestedSlug]);
 
   const folderFiles = useMemo(() => {
     return mapExternalFilesToUi(files).map((file) => ({
@@ -453,7 +490,7 @@ export default function SubFolderDetailsPage() {
           folderName={folderTitle}
           uploadPath={
             canUpload && workspaceName
-              ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${slugToWorkspaceName(nestedSlug)}`
+              ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}/${folderPath}`
               : undefined
           }
           onUploadComplete={loadFiles}

@@ -83,6 +83,37 @@ const getFileMeta = (file: any) => {
   return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
 };
 
+const tryDecodeURIComponent = (value: string) => {
+  const normalizedValue = String(value || "").replace(/\+/g, " ");
+  try {
+    return decodeURIComponent(normalizedValue);
+  } catch {
+    return normalizedValue;
+  }
+};
+
+const getPhaseRelativePath = (resourcePath?: string, fallbackName?: string) => {
+  const normalized = String(resourcePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .trim();
+
+  if (!normalized) return fallbackName;
+
+  const segments = normalized.split("/").filter(Boolean);
+  const phaseIndex = segments.findIndex((segment) => {
+    const lower = String(segment || "").trim().toLowerCase();
+    return lower === "pre-production" || lower === "post-production";
+  });
+
+  if (phaseIndex >= 0) {
+    const relativePath = segments.slice(phaseIndex + 1).join("/");
+    if (relativePath) return relativePath;
+  }
+
+  return segments[segments.length - 1] || fallbackName;
+};
+
 export default function AdminFileManagerPhasePage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -159,8 +190,14 @@ export default function AdminFileManagerPhasePage() {
         kind: "folders" as const,
         folders: mapExternalFoldersToUi(
           workspaceFolders,
-          (folder) =>
-            `/admin/file-manager/${projectId}/post-production/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
+          (folder) => {
+            const slug = folder.name.toLowerCase().replace(/\s+/g, "-");
+            const query = new URLSearchParams();
+            if (folder.name) query.set("path", tryDecodeURIComponent(String(folder.name)));
+            if (folder.name) query.set("name", String(folder.name));
+            const queryString = query.toString();
+            return `/admin/file-manager/${projectId}/post-production/${slug}${queryString ? `?${queryString}` : ""}`;
+          }
         ),
         files: [],
       };
@@ -171,8 +208,14 @@ export default function AdminFileManagerPhasePage() {
       kind: workspaceFolders.length > 0 ? "mixed" as const : "files" as const,
       folders: mapExternalFoldersToUi(
         workspaceFolders,
-        (folder) =>
-          `/admin/file-manager/${projectId}/${phaseSlug}/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
+        (folder) => {
+          const slug = folder.name.toLowerCase().replace(/\s+/g, "-");
+          const query = new URLSearchParams();
+          if (folder.name) query.set("path", tryDecodeURIComponent(String(folder.name)));
+          if (folder.name) query.set("name", String(folder.name));
+          const queryString = query.toString();
+          return `/admin/file-manager/${projectId}/${phaseSlug}/${slug}${queryString ? `?${queryString}` : ""}`;
+        }
       ),
       files: mapExternalFilesToUi(workspaceFiles),
     };
@@ -258,9 +301,8 @@ export default function AdminFileManagerPhasePage() {
     : undefined;
 
   const getSelectedFolderPath = () => {
-    if (!selectedFolder?.href) return undefined;
-    const slug = selectedFolder.href.split("/").filter(Boolean).pop();
-    return slug ? slugToWorkspaceName(slug) : undefined;
+    if (!selectedFolder) return undefined;
+    return getPhaseRelativePath(selectedFolder.resourcePath, selectedFolder.title);
   };
 
   const handleDownloadSelectedFolder = async () => {
@@ -268,7 +310,7 @@ export default function AdminFileManagerPhasePage() {
     try {
       const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
         phase: currentPhase,
-        path: currentPhase === "post" ? getSelectedFolderPath() : undefined,
+        path: getSelectedFolderPath(),
       });
       if (result?.url) {
         window.open(result.url, "_blank", "noopener,noreferrer");
@@ -505,10 +547,9 @@ export default function AdminFileManagerPhasePage() {
                         onDownload={async () => {
                           setSelectedFolder(folder);
                           try {
-                            const slug = folder.href?.split("/").filter(Boolean).pop();
                             const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
                               phase: currentPhase,
-                              path: currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined,
+                              path: getPhaseRelativePath(folder.resourcePath, folder.title),
                             });
                             if (result?.url) {
                               window.open(result.url, "_blank", "noopener,noreferrer");
@@ -608,10 +649,9 @@ export default function AdminFileManagerPhasePage() {
                             onDownload={async () => {
                               setSelectedFolder(folder);
                               try {
-                                const slug = folder.href?.split("/").filter(Boolean).pop();
                                 const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
                                   phase: currentPhase,
-                                  path: slug ? slugToWorkspaceName(slug) : undefined,
+                                  path: getPhaseRelativePath(folder.resourcePath, folder.title),
                                 });
                                 if (result?.url) {
                                   window.open(result.url, "_blank", "noopener,noreferrer");

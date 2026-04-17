@@ -47,6 +47,22 @@ interface InvoiceTableRow {
   invoicePdf: string | null;
 }
 
+interface InvoiceHistoryResponse {
+  success: boolean;
+  data?: {
+    items?: InvoiceHistoryItem[];
+    pagination?: {
+      page?: number;
+      limit?: number;
+      total?: number;
+      total_pages?: number;
+    };
+  } | null;
+  error?: string;
+}
+
+const INVOICE_FILTER_BATCH_SIZE = 200;
+
 const normalizeStatus = (status: string | null) => {
   if (!status) return "Unknown";
 
@@ -89,6 +105,32 @@ const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
   return "N/A";
 };
 
+const getStatusLookupKey = (item: InvoiceHistoryItem) => {
+  if (item.client_lead_id) {
+    return `client:${item.client_lead_id}`;
+  }
+
+  if (item.lead_id) {
+    return `lead:${item.lead_id}`;
+  }
+
+  return null;
+};
+
+const matchesPaymentFilter = (paymentStatus: string, paymentFilter: string) => {
+  const normalizedStatus = String(paymentStatus || "").trim().toLowerCase();
+
+  if (paymentFilter === "Paid") {
+    return normalizedStatus === "paid";
+  }
+
+  if (paymentFilter === "Unpaid") {
+    return normalizedStatus !== "paid";
+  }
+
+  return true;
+};
+
 const resolveLivePaymentStatus = async (item: InvoiceHistoryItem) => {
   const currentStatus = String(item.payment_status || "").trim().toLowerCase();
   if (currentStatus === "paid") {
@@ -116,6 +158,91 @@ const resolveLivePaymentStatus = async (item: InvoiceHistoryItem) => {
   return item.payment_status;
 };
 
+const resolveItemsWithLivePaymentStatus = async (items: InvoiceHistoryItem[]) => {
+  const requestCache = new Map<string, Promise<string | null>>();
+
+  return Promise.all(
+    items.map(async (item) => {
+      const lookupKey = getStatusLookupKey(item);
+
+      if (!lookupKey) {
+        return {
+          item,
+          livePaymentStatus: item.payment_status,
+        };
+      }
+
+      if (!requestCache.has(lookupKey)) {
+        requestCache.set(lookupKey, resolveLivePaymentStatus(item));
+      }
+
+      return {
+        item,
+        livePaymentStatus: (await requestCache.get(lookupKey)) || item.payment_status,
+      };
+    })
+  );
+};
+
+const mapInvoiceHistoryItemsToRows = (
+  items: Awaited<ReturnType<typeof resolveItemsWithLivePaymentStatus>>,
+  isSalesRoute: boolean
+): InvoiceTableRow[] =>
+  items.map(({ item, livePaymentStatus }) => {
+    const sendDate = item.send_date_time || item.created_at;
+    const detailHref = item.client_lead_id
+      ? isSalesRoute
+        ? `/sales/client/${item.client_lead_id}`
+        : `/admin/sales-representative/client/${item.client_lead_id}`
+      : item.lead_id
+        ? isSalesRoute
+          ? `/sales/leads/${item.lead_id}`
+          : `/admin/sales-representative/${item.lead_id}`
+        : null;
+
+    return {
+      id: item.invoice_send_history_id,
+      invoiceHistoryId: item.invoice_send_history_id ? `#${item.invoice_send_history_id}` : "N/A",
+      bookingId: item.booking_id ? `#${item.booking_id}` : "N/A",
+      detailHref,
+      clientName: item.client_name || "N/A",
+      clientEmail: item.client_email || "N/A",
+      leadOrQuoteId: getLeadOrQuoteValue(item),
+      paymentStatus: normalizeStatus(livePaymentStatus),
+      sendDateLabel: formatDateLabel(sendDate),
+      sendDateRaw: getDateValue(sendDate),
+      invoicePdf: item.invoice_pdf,
+    };
+  });
+
+const getInvoiceHistoryPage = async (page: number, limit: number, search?: string) => {
+  const response = await salesApi.getInvoiceHistory({
+    page,
+    limit,
+    search: search || undefined,
+  });
+
+  return response as InvoiceHistoryResponse;
+};
+
+const getAllInvoiceHistoryItems = async (search?: string) => {
+  let currentPage = 1;
+  let totalPages = 1;
+  const items: InvoiceHistoryItem[] = [];
+
+  do {
+    const response = await getInvoiceHistoryPage(currentPage, INVOICE_FILTER_BATCH_SIZE, search);
+    const responseItems = response?.data?.items || [];
+    const pagination = response?.data?.pagination;
+
+    items.push(...responseItems);
+    totalPages = Math.max(pagination?.total_pages || 1, 1);
+    currentPage += 1;
+  } while (currentPage <= totalPages);
+
+  return items;
+};
+
 export const InvoiceTable = () => {
   const { theme, resolvedTheme } = useTheme();
   const pathname = usePathname();
@@ -140,86 +267,72 @@ export const InvoiceTable = () => {
   }, []);
 
   useEffect(() => {
+    let isCancelled = false;
+
     const fetchInvoiceHistory = async () => {
       setLoading(true);
 
       try {
-        const response = await salesApi.getInvoiceHistory({
-          page: currentPage,
-          limit: itemsPerPage,
-          search: debouncedSearch || undefined,
-          status:
-            paymentFilter === "Paid"
-              ? "paid"
-              : paymentFilter === "Unpaid"
-                ? "pending"
-                : undefined,
-        });
-
-        const items: InvoiceHistoryItem[] = response?.data?.items || [];
-        const pagination = response?.data?.pagination;
         const isSalesRoute = pathname?.startsWith("/sales");
+        if (paymentFilter === "All Payments") {
+          const response = await getInvoiceHistoryPage(currentPage, itemsPerPage, debouncedSearch);
+          const items = response?.data?.items || [];
+          const pagination = response?.data?.pagination;
+          const rowsWithLiveStatus = mapInvoiceHistoryItemsToRows(
+            await resolveItemsWithLivePaymentStatus(items),
+            Boolean(isSalesRoute)
+          );
 
-        const itemsWithLiveStatus = await Promise.all(
-          items.map(async (item) => {
-            const shouldResolveLiveStatus = paymentFilter !== "Unpaid";
-            return {
-              item,
-              livePaymentStatus: shouldResolveLiveStatus
-                ? await resolveLivePaymentStatus(item)
-                : item.payment_status,
-            };
-          })
+          if (isCancelled) return;
+
+          setRows(rowsWithLiveStatus);
+          setTotalPages(Math.max(pagination?.total_pages || 1, 1));
+          setTotalItems(pagination?.total || rowsWithLiveStatus.length);
+          return;
+        }
+
+        const allItems = await getAllInvoiceHistoryItems(debouncedSearch);
+        const rowsWithLiveStatus = mapInvoiceHistoryItemsToRows(
+          await resolveItemsWithLivePaymentStatus(allItems),
+          Boolean(isSalesRoute)
+        );
+        const filteredRows = rowsWithLiveStatus.filter((row) =>
+          matchesPaymentFilter(row.paymentStatus, paymentFilter)
+        );
+        const nextTotalPages = Math.max(Math.ceil(filteredRows.length / itemsPerPage), 1);
+        const safePage = Math.min(currentPage, nextTotalPages);
+        const paginatedRows = filteredRows.slice(
+          (safePage - 1) * itemsPerPage,
+          safePage * itemsPerPage
         );
 
-        const mappedRows = itemsWithLiveStatus.map(({ item, livePaymentStatus }) => {
-          const sendDate = item.send_date_time || item.created_at;
-          const detailHref = item.client_lead_id
-            ? isSalesRoute
-              ? `/sales/client/${item.client_lead_id}`
-              : `/admin/sales-representative/client/${item.client_lead_id}`
-            : item.lead_id
-              ? isSalesRoute
-                ? `/sales/leads/${item.lead_id}`
-                : `/admin/sales-representative/${item.lead_id}`
-              : null;
+        if (isCancelled) return;
 
-          return {
-            id: item.invoice_send_history_id,
-            invoiceHistoryId: item.invoice_send_history_id ? `#${item.invoice_send_history_id}` : "N/A",
-            bookingId: item.booking_id ? `#${item.booking_id}` : "N/A",
-            detailHref,
-            clientName: item.client_name || "N/A",
-            clientEmail: item.client_email || "N/A",
-            leadOrQuoteId: getLeadOrQuoteValue(item),
-            paymentStatus: normalizeStatus(livePaymentStatus),
-            sendDateLabel: formatDateLabel(sendDate),
-            sendDateRaw: getDateValue(sendDate),
-            invoicePdf: item.invoice_pdf,
-          };
-        });
+        setRows(paginatedRows);
+        setTotalPages(nextTotalPages);
+        setTotalItems(filteredRows.length);
 
-        const filteredRows = mappedRows.filter((row) => {
-          const normalized = String(row.paymentStatus || "").trim().toLowerCase();
-          if (paymentFilter === "Paid") return normalized === "paid";
-          if (paymentFilter === "Unpaid") return normalized !== "paid";
-          return true;
-        });
-
-        setRows(filteredRows);
-        setTotalPages(pagination?.total_pages || 1);
-        setTotalItems(pagination?.total || filteredRows.length);
+        if (safePage !== currentPage) {
+          setCurrentPage(safePage);
+        }
       } catch (error) {
         console.error("Failed to fetch invoice history:", error);
+        if (isCancelled) return;
         setRows([]);
         setTotalPages(1);
         setTotalItems(0);
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
     void fetchInvoiceHistory();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [currentPage, debouncedSearch, pathname, paymentFilter]);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
@@ -367,7 +480,7 @@ export const InvoiceTable = () => {
                   <th className="py-5 px-6 font-medium">Client Name</th>
                   <th className="py-5 px-6 font-medium">Email</th>
                   <th className="py-5 px-6 font-medium">Lead ID/Quote ID</th>
-                  <th className="py-5 px-6 font-medium">Status</th>
+                  <th className="py-5 px-6 font-medium">Payment Status</th>
                   <th className="py-5 px-6 font-medium text-right">Action</th>
                 </tr>
               </thead>
