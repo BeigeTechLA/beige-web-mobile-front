@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutGrid,
   List,
@@ -32,7 +33,10 @@ interface FolderData {
 const folders: FolderData[] = [];
 
 export default function PostProductionTab({ isDark = true }: { isDark?: boolean }) {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const viewMode = (searchParams.get("view") as "grid" | "list") || "grid";
   const [selectedFolder, setSelectedFolder] = useState<FolderData | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -68,8 +72,10 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
 
   const toggleDropdown = () => setIsOpen(!isOpen);
 
-  const handleSelect = (mode: 'grid' | 'list') => {
-    setViewMode(mode);
+  const handleViewChange = (mode: 'grid' | 'list') => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", mode);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     setIsOpen(false);
   };
 
@@ -109,7 +115,7 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
               <div className={`absolute top-full right-0 mt-2 w-48 border rounded-xl shadow-2xl z-[50] overflow-hidden ${isDark ? "bg-[#171717] border-white/10" : "bg-white border-[#E3E3E3]"
                 }`}>
                 <button
-                  onClick={() => handleSelect('grid')}
+                  onClick={() => handleViewChange('grid')}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'grid'
                       ? (isDark ? "bg-white/10 text-white" : "bg-[#F3F3F3] text-black")
                       : (isDark ? "text-white/60 hover:bg-white/5" : "text-zinc-500 hover:bg-zinc-50")
@@ -119,7 +125,7 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
                   Grid View
                 </button>
                 <button
-                  onClick={() => handleSelect('list')}
+                  onClick={() => handleViewChange('list')}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${viewMode === 'list'
                       ? (isDark ? "bg-white/10 text-white" : "bg-[#F3F3F3] text-black")
                       : (isDark ? "text-white/60 hover:bg-white/5" : "text-zinc-500 hover:bg-zinc-50")
@@ -136,7 +142,7 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
           <div className={`hidden lg:flex border rounded-lg p-1 transition-colors ${isDark ? "bg-[#1A1A1A] border-[#222222]" : "bg-[#F3F3F3] border-[#E3E3E3]"
             }`}>
             <button
-              onClick={() => setViewMode("grid")}
+              onClick={() => handleViewChange("grid")}
               className={`p-2 rounded-md transition-all ${viewMode === "grid"
                   ? "bg-[#E5D5B8] text-black shadow-sm"
                   : (isDark ? "text-[#666666] hover:text-[#E0E0E0]" : "text-zinc-400 hover:text-zinc-600")
@@ -145,7 +151,7 @@ export default function PostProductionTab({ isDark = true }: { isDark?: boolean 
               <LayoutGrid size={18} />
             </button>
             <button
-              onClick={() => setViewMode("list")}
+              onClick={() => handleViewChange("list")}
               className={`p-2 rounded-md transition-all ${viewMode === "list"
                   ? "bg-[#E5D5B8] text-black shadow-sm"
                   : (isDark ? "text-[#666666] hover:text-[#E0E0E0]" : "text-zinc-400 hover:text-zinc-600")

@@ -143,6 +143,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
           onOpenLinkModal={onOpenLinkModal}
           anchor={menuAnchor}
           href={href}
+          onOpen={onOpen}
           onDownload={onDownload}
           onDelete={onDelete}
           onRename={onRename}

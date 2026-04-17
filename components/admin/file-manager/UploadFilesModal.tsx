@@ -83,7 +83,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
       }
 
       setSelectedFiles([]);
-      setStatusMessage("Files uploaded successfully.");
+      setStatusMessage(null);
       await onUploadComplete?.();
       onClose();
     } catch (error: any) {

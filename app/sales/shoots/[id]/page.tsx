@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
 import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam";
@@ -14,6 +14,7 @@ import SalesPostProductionTab from "@/components/sales/shoot-details/PostProduct
 import MeetingOverviewChart from "@/components/admin/shoot-details/MeetingOverviewChart";
 import MessagesTab from "@/components/admin/shoot-details/MessagesTab";
 import { adminApi } from "@/lib/api";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
@@ -21,12 +22,22 @@ import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 export default function SalesShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
   const { id } = use(params);
-  const [activeTab, setActiveTab] = useState("Overview");
+  const activeTab = searchParams.get("tab") || "Overview";
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
+  const effectiveRole = userRole === "sales_admin" ? "admin" : "sales";
 
+
+  const handleTabChange = (tabName: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tabName);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
       try {
@@ -121,7 +132,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
             View Project Timeline
           </Button>
 
-          <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <ShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
           {activeTab === "Overview" && (
             <>
@@ -129,7 +140,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
                 <ProjectTeam projectId={id} assignedMembers={project?.assigned_post_production_members} />
                 <AssignedCP projectId={id} leadId={project?.lead_id} assignedCrew={project?.assignedCrew || project?.assigned_crews || []} />
               </div>
-              <MeetingSchedule role="sales" orderId={id} />
+              <MeetingSchedule role={effectiveRole} orderId={id} />
             </>
           )}
 
@@ -143,14 +154,14 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
 
           {activeTab === "Meetings" && (
             <>
-              <MeetingSchedule role="sales" orderId={id} />
+              <MeetingSchedule role={effectiveRole} orderId={id} />
               <MeetingOverviewChart />
             </>
           )}
 
           {activeTab === "Messages" && (
             <MessagesTab
-              role="sales"
+              role={effectiveRole}
               bookingId={project?.booking_id || project?.stream_project_booking_id || id}
               projectName={project?.project_name}
             />

@@ -1,5 +1,16 @@
 import React from 'react';
-import { Download, FileText, MoreVertical, Play, Trash2 } from 'lucide-react';
+import {
+  Download,
+  FileArchive,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  FileVideo,
+  MoreVertical,
+  Play,
+  Presentation,
+  Trash2
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const isImageFile = (contentType?: string, title?: string) => {
@@ -10,6 +21,45 @@ const isImageFile = (contentType?: string, title?: string) => {
 const isVideoFile = (contentType?: string, title?: string) => {
   if (contentType?.startsWith("video/")) return true;
   return /\.(mp4|mov|avi|mkv|webm)$/i.test(title || "");
+};
+
+const getFileExtension = (title?: string) => {
+  const parts = (title || "").toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() || "" : "";
+};
+
+const getFileMeta = (contentType?: string, title?: string) => {
+  const extension = getFileExtension(title);
+
+  if (isImageFile(contentType, title)) {
+    return { icon: FileImage, label: "image", accentClass: "text-[#22C55E]", badgeClass: "bg-[#22C55E]/15" };
+  }
+
+  if (isVideoFile(contentType, title)) {
+    return { icon: FileVideo, label: "video", accentClass: "text-[#E8D1AB]", badgeClass: "bg-[#E8D1AB]/15" };
+  }
+
+  if (contentType === "application/pdf" || extension === "pdf") {
+    return { icon: FileText, label: "pdf", accentClass: "text-[#F04438]", badgeClass: "bg-[#F04438]/15" };
+  }
+
+  if (["doc", "docx", "txt", "rtf"].includes(extension)) {
+    return { icon: FileText, label: extension || "doc", accentClass: "text-[#3B82F6]", badgeClass: "bg-[#3B82F6]/15" };
+  }
+
+  if (["ppt", "pptx", "key"].includes(extension)) {
+    return { icon: Presentation, label: extension || "ppt", accentClass: "text-[#F97316]", badgeClass: "bg-[#F97316]/15" };
+  }
+
+  if (["xls", "xlsx", "csv"].includes(extension)) {
+    return { icon: FileSpreadsheet, label: extension || "sheet", accentClass: "text-[#10B981]", badgeClass: "bg-[#10B981]/15" };
+  }
+
+  if (["zip", "rar", "7z", "tar", "gz"].includes(extension)) {
+    return { icon: FileArchive, label: extension || "zip", accentClass: "text-[#A855F7]", badgeClass: "bg-[#A855F7]/15" };
+  }
+
+  return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
 };
 
 export const FileCard = ({
@@ -25,6 +75,8 @@ export const FileCard = ({
   onDownload?: () => void,
   onDelete?: () => void
 }) => {
+  const meta = getFileMeta(file.contentType, file.title);
+  const FileIcon = meta.icon;
 
   return (
     <div
@@ -34,8 +86,8 @@ export const FileCard = ({
       <div className="p-5 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="bg-[#F04438] p-1.5 rounded-md">
-              <FileText className="text-white" size={16} />
+            <div className={`${meta.badgeClass} p-1.5 rounded-md`}>
+              <FileIcon className={meta.accentClass} size={16} />
             </div>
             <span className="text-white font-medium text-sm truncate max-w-[180px]">{file.title}</span>
           </div>
@@ -101,9 +153,10 @@ export const FileCard = ({
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">
-              <div className="relative">
-                <FileText size={64} className="text-[#F04438] fill-[#F04438]/10" />
+              <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${meta.badgeClass}`}>
+                <FileIcon size={34} className={meta.accentClass} />
               </div>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] uppercase tracking-wide text-white/70">{meta.label}</span>
             </div>
           )}
         </div>

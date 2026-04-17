@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Topbar from "@/components/production-manager/Topbar";
 import ShootHeader from "@/components/production-manager/shoot-details/ShootHeader";
 import ProjectTeam from "@/components/production-manager/shoot-details/ProjectTeam";
@@ -23,10 +23,11 @@ import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 export default function ShootDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { id } = use(params);
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState("Overview");
+  const activeTab = searchParams.get("tab") || "Overview";
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,6 +40,12 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   const isDark = !mounted || theme === "dark";
   const shootBasePath = "/production-manager/shoots";
+  const handleTabChange = (tabName: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tabName);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   useEffect(() => {
     const fetchProjectAndSkills = async () => {
       try {
@@ -180,7 +187,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           </Button>
 
           <div className={`rounded-lg lg:rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"} `}>
-            <ShootTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            <ShootTabs activeTab={activeTab} onTabChange={handleTabChange} />
             <div className="px-5 py-6 lg:py-9">
               {activeTab === "Overview" && (
                 <>

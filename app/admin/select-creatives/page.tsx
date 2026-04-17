@@ -12,6 +12,75 @@ import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfir
 import { salesApi } from "@/lib/api";
 import { useTheme } from "next-themes";
 
+const pluralizeRole = (role: string, count: number) => {
+  if (count === 1) return role;
+  if (role.endsWith("y")) return `${role.slice(0, -1)}ies`;
+  return `${role}s`;
+};
+
+const formatAssignmentErrors = (errors?: string[], fallback = "Failed to assign crew") => {
+  if (!Array.isArray(errors) || errors.length === 0) {
+    return fallback;
+  }
+
+  const grouped = new Map<string, { count: number; role: string; reason: string; original: string }>();
+  const orderedMessages: string[] = [];
+  const seenRawMessages = new Set<string>();
+  const seenGroups = new Set<string>();
+
+  errors
+    .map((error) => String(error || "").trim())
+    .filter(Boolean)
+    .forEach((message) => {
+      const match = message.match(/^Cannot add\s+(.+?)\s+\(([^)]+)\)\.\s+(.+)$/i);
+
+      if (!match) {
+        if (!seenRawMessages.has(message)) {
+          seenRawMessages.add(message);
+          orderedMessages.push(message);
+        }
+        return;
+      }
+
+      const role = match[2].trim().toLowerCase();
+      const reason = match[3].trim();
+      const key = `${role}::${reason.toLowerCase()}`;
+      const existing = grouped.get(key);
+
+      if (existing) {
+        existing.count += 1;
+      } else {
+        grouped.set(key, { count: 1, role, reason, original: message });
+      }
+
+      if (!seenGroups.has(key)) {
+        seenGroups.add(key);
+        orderedMessages.push(key);
+      }
+    });
+
+  return orderedMessages
+    .map((entry) => {
+      const group = grouped.get(entry);
+      if (!group) return entry;
+      if (group.count === 1) return group.original;
+      return `Cannot add ${group.count} ${pluralizeRole(group.role, group.count)}. ${group.reason}`;
+    })
+    .join(", ");
+};
+
+const getAssignmentErrorMessage = (error: unknown) => {
+  if (typeof error !== "object" || error === null || !("data" in error)) {
+    return "An error occurred while assigning crew";
+  }
+
+  const data = (error as { data?: { errors?: string[]; message?: string } }).data;
+  return formatAssignmentErrors(
+    data?.errors,
+    data?.message || "An error occurred while assigning crew"
+  );
+};
+
 export default function SelectCreativesPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -86,21 +155,11 @@ export default function SelectCreativesPage() {
         toast.success("Crew assigned successfully");
         router.back();
       } else {
-        if (response.errors && Array.isArray(response.errors)) {
-          toast.error(response.errors.join(", "));
-        } else {
-          toast.error(response.message || "Failed to assign crew");
-        }
+        toast.error(formatAssignmentErrors(response.errors, response.message || "Failed to assign crew"));
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to assign crew", error);
-      if (error?.data?.errors && Array.isArray(error.data.errors)) {
-        toast.error(error.data.errors.join(", "));
-      } else if (error?.data?.message) {
-        toast.error(error.data.message);
-      } else {
-        toast.error("An error occurred while assigning crew");
-      }
+      toast.error(getAssignmentErrorMessage(error));
     }
   };
 

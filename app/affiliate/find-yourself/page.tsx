@@ -7,7 +7,6 @@ import Cookies from "js-cookie";
 import { toast } from "sonner";
 import Topbar from "@/components/admin/Topbar";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
-import { affiliateApi } from "@/lib/api";
 import { fileManagerApi, isCommonEventWorkspaceId } from "@/lib/fileManagerApi";
 
 interface WorkspaceItem {
@@ -22,12 +21,6 @@ interface FaceMatchItem {
   workspaceTitle: string;
   workspaceId: string;
   url?: string;
-}
-
-interface ProjectLite {
-  project_name?: string;
-  stream_project_booking_id?: string | number;
-  booking_id?: string | number;
 }
 
 const fileToBase64 = (file: File) =>
@@ -83,44 +76,14 @@ export default function AffiliateFindYourselfPage() {
           return;
         }
 
-        const [shootsResponse, data] = await Promise.all([
-          affiliateApi.getMyShoots(token, { range: "all" }),
-          fileManagerApi.listExternalWorkspaces(),
-        ]);
-
-        const projects = Array.isArray(shootsResponse?.data?.projects)
-          ? shootsResponse.data.projects
-          : [];
-
-        const projectMap = new Map<string, ProjectLite>();
-        projects.forEach((item: unknown) => {
-          const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-          const nestedProject =
-            row.project && typeof row.project === "object"
-              ? (row.project as ProjectLite)
-              : null;
-          const project = nestedProject || (row as ProjectLite);
-          const bookingId = String(project?.stream_project_booking_id || project?.booking_id || "");
-          if (bookingId) {
-            projectMap.set(bookingId, project);
-          }
-        });
+        const data = await fileManagerApi.listExternalWorkspaces();
 
         setWorkspaces(
           (data || [])
-            .filter(
-              (item) =>
-                isCommonEventWorkspaceId(item.externalId) ||
-                projectMap.has(String(item.externalId))
-            )
+            .filter((item) => isCommonEventWorkspaceId(item.externalId))
             .map((item) => ({
               externalId: String(item.externalId || ""),
-              title: String(
-                item.folderName ||
-                  projectMap.get(String(item.externalId))?.project_name ||
-                  item.externalId ||
-                  "Workspace"
-              ),
+              title: String(item.folderName || item.externalId || "Common Event"),
             }))
             .filter((item) => item.externalId)
         );
@@ -143,9 +106,9 @@ export default function AffiliateFindYourselfPage() {
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
-  const runFaceScanAcrossAllFolders = async (scanImageBase64: string) => {
+  const runFaceScanInCommonEventFolders = async (scanImageBase64: string) => {
     if (!workspaces.length) {
-      toast.error("No folders available to scan.");
+      toast.error("No common event folders available to scan.");
       return;
     }
 
@@ -155,12 +118,12 @@ export default function AffiliateFindYourselfPage() {
     try {
       const scanResults = await Promise.allSettled(
         workspaces.map(async (workspace) => {
-          const response = await fileManagerApi.searchFaceMatches({
-            externalId: workspace.externalId,
-            scanImageBase64,
-            threshold: 0.85,
-            maxResults: 150,
-          });
+            const response = await fileManagerApi.searchFaceMatches({
+              externalId: workspace.externalId,
+              scanImageBase64,
+              threshold: 0.78,
+              maxResults: 200,
+            });
 
           const matches = response?.matches || [];
           return matches.map((match) => ({
@@ -182,7 +145,7 @@ export default function AffiliateFindYourselfPage() {
 
       if (!merged.length) {
         setFaceMatches([]);
-        toast.info("No matching photos found in your folders.");
+        toast.info("No matching photos found in common event folders.");
         return;
       }
 
@@ -210,7 +173,9 @@ export default function AffiliateFindYourselfPage() {
       );
 
       setFaceMatches(withPreview);
-      toast.success(`Found ${withPreview.length} matching photo${withPreview.length === 1 ? "" : "s"} across all folders`);
+      toast.success(
+        `Found ${withPreview.length} matching photo${withPreview.length === 1 ? "" : "s"} in common event folders`
+      );
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Face scan failed");
     } finally {
@@ -229,7 +194,7 @@ export default function AffiliateFindYourselfPage() {
     }
 
     const scanImageBase64 = await fileToBase64(file);
-    await runFaceScanAcrossAllFolders(scanImageBase64);
+    await runFaceScanInCommonEventFolders(scanImageBase64);
   };
 
   const handleOpenCamera = async () => {
@@ -296,7 +261,7 @@ export default function AffiliateFindYourselfPage() {
     setIsCameraProcessing(true);
     stopCamera();
     try {
-      await runFaceScanAcrossAllFolders(base64);
+      await runFaceScanInCommonEventFolders(base64);
       handleCloseCamera();
     } finally {
       setIsCameraProcessing(false);
@@ -334,10 +299,10 @@ export default function AffiliateFindYourselfPage() {
         <div className="space-y-2">
           <h1 className="text-white text-lg lg:text-2xl font-semibold">Find Yourself</h1>
           <p className="text-white/70 text-xs lg:text-sm">
-            Upload your photo or use camera, then we scan across all your folders.
+            Upload your photo or use camera, then we scan only common event folders.
           </p>
           <p className="text-[#E8D1AB] text-xs">
-            Folders available: {loading ? "Loading..." : workspaces.length}
+            Common event folders available: {loading ? "Loading..." : workspaces.length}
           </p>
         </div>
 
@@ -455,7 +420,7 @@ export default function AffiliateFindYourselfPage() {
                   <div className="flex h-full w-full items-center justify-center">
                     <div className="text-center">
                       <Loader2 className="mx-auto animate-spin text-white/70" size={28} />
-                      <p className="mt-2 text-xs text-white/65">Scanning your face across folders...</p>
+                      <p className="mt-2 text-xs text-white/65">Scanning your face in common event folders...</p>
                     </div>
                   </div>
                 ) : (
@@ -468,7 +433,7 @@ export default function AffiliateFindYourselfPage() {
                 <p className="mt-3 text-xs text-white/60">
                   {isCameraProcessing
                     ? "Processing capture. Please wait..."
-                    : "Keep your face centered, then capture to scan all folders."}
+                    : "Keep your face centered, then capture to scan common event folders."}
                 </p>
               )}
               <div className="mt-4 flex items-center justify-end gap-2">
