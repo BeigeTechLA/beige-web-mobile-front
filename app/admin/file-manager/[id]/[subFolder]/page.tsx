@@ -84,10 +84,11 @@ const getFileMeta = (file: any) => {
 };
 
 const tryDecodeURIComponent = (value: string) => {
+  const normalizedValue = String(value || "").replace(/\+/g, " ");
   try {
-    return decodeURIComponent(value);
+    return decodeURIComponent(normalizedValue);
   } catch {
-    return value;
+    return normalizedValue;
   }
 };
 
@@ -192,7 +193,7 @@ export default function AdminFileManagerPhasePage() {
           (folder) => {
             const slug = folder.name.toLowerCase().replace(/\s+/g, "-");
             const query = new URLSearchParams();
-            if (folder.path) query.set("path", tryDecodeURIComponent(String(folder.path)));
+            if (folder.name) query.set("path", tryDecodeURIComponent(String(folder.name)));
             if (folder.name) query.set("name", String(folder.name));
             const queryString = query.toString();
             return `/admin/file-manager/${projectId}/post-production/${slug}${queryString ? `?${queryString}` : ""}`;
@@ -210,7 +211,7 @@ export default function AdminFileManagerPhasePage() {
         (folder) => {
           const slug = folder.name.toLowerCase().replace(/\s+/g, "-");
           const query = new URLSearchParams();
-          if (folder.path) query.set("path", tryDecodeURIComponent(String(folder.path)));
+          if (folder.name) query.set("path", tryDecodeURIComponent(String(folder.name)));
           if (folder.name) query.set("name", String(folder.name));
           const queryString = query.toString();
           return `/admin/file-manager/${projectId}/${phaseSlug}/${slug}${queryString ? `?${queryString}` : ""}`;

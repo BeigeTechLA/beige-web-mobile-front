@@ -35,11 +35,29 @@ const defaultImgSrc = "/images/misc/Data.png";
 const STATUSES = ["Linked", "Unlinked"];
 
 const tryDecodeURIComponent = (value: string) => {
+  const normalizedValue = String(value || "").replace(/\+/g, " ");
   try {
-    return decodeURIComponent(value);
+    return decodeURIComponent(normalizedValue);
   } catch {
-    return value;
+    return normalizedValue;
   }
+};
+
+const normalizeRelativeFolderPath = (value: string, phaseSlug: string) => {
+  const normalized = String(value || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .trim();
+  if (!normalized) return "";
+
+  const segments = normalized.split("/").filter(Boolean);
+  const phaseSegment = phaseSlug === "post-production" ? "post-production" : "pre-production";
+  const phaseIndex = segments.findIndex((segment) => String(segment || "").trim().toLowerCase() === phaseSegment);
+  if (phaseIndex >= 0) {
+    return segments.slice(phaseIndex + 1).join("/");
+  }
+
+  return normalized;
 };
 
 export default function SubFolderDetailsPage() {
@@ -53,9 +71,9 @@ export default function SubFolderDetailsPage() {
   const canUpload = phaseSlug !== "post-production";
   const folderPath = useMemo(() => {
     const queryPath = searchParams.get("path");
-    if (queryPath) return tryDecodeURIComponent(queryPath).trim();
-    return slugToWorkspaceName(nestedSlug);
-  }, [nestedSlug, searchParams]);
+    const rawPath = queryPath ? tryDecodeURIComponent(queryPath).trim() : slugToWorkspaceName(nestedSlug);
+    return normalizeRelativeFolderPath(rawPath, phaseSlug);
+  }, [nestedSlug, phaseSlug, searchParams]);
   const folderName = useMemo(() => {
     const queryName = searchParams.get("name");
     if (queryName) return tryDecodeURIComponent(queryName).trim();
