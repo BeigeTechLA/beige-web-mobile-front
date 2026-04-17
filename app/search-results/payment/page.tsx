@@ -12,7 +12,6 @@ import {
   Check,
   X,
   BadgeCheckIcon,
-  User2,
   PencilLine,
 } from "lucide-react";
 import { Elements } from "@stripe/react-stripe-js";
@@ -1154,11 +1153,13 @@ function MultiCreatorPaymentContent() {
     };
     mandatoryAddons: Array<{ role: string; cost: number }>;
     editingFees: number;
+    studioCost: number;
   }>({
     shootCost: 0,
     additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
     mandatoryAddons: [],
     editingFees: 0,
+    studioCost: 0,
   });
 
   const handleBackClick = (e?: React.MouseEvent) => {
@@ -1208,14 +1209,13 @@ function MultiCreatorPaymentContent() {
 
   // CATEGORIZED PRICING CALCULATION
   useEffect(() => {
-    if (!paymentDetails?.quote?.lineItems) return;
-
-    const lineItems = paymentDetails.quote.lineItems;
+    const lineItems = paymentDetails?.quote?.lineItems || [];
     let shootCostSum = 0;
     let addVideoCount = 0;
     let addPhotoCount = 0;
     let addCPTotalCost = 0;
     let editingFeesSum = 0;
+    let studioCostSum = 0;
     const mandatoryAddonItems: Array<{ role: string; cost: number }> = [];
 
     lineItems.forEach((item: any) => {
@@ -1228,6 +1228,10 @@ function MultiCreatorPaymentContent() {
       const categorySlug = item.pricing_item?.category?.slug?.toLowerCase();
       const categoryName = item.pricing_item?.category?.name?.toLowerCase();
       const lowerName = name.toLowerCase();
+      const isStudioItem =
+        lowerName.includes("studio") ||
+        lowerName.includes("resort") ||
+        lowerName.includes("location platform");
 
       const isEditingItem =
         categorySlug === "editing" ||
@@ -1252,6 +1256,9 @@ function MultiCreatorPaymentContent() {
       else if (isEditingItem) {
         editingFeesSum += total;
       }
+      else if (isStudioItem) {
+        studioCostSum += total;
+      }
       else if (item.is_mandatory) {
         mandatoryAddonItems.push({
           role: name,
@@ -1272,6 +1279,7 @@ function MultiCreatorPaymentContent() {
       },
       mandatoryAddons: mandatoryAddonItems,
       editingFees: editingFeesSum,
+      studioCost: studioCostSum,
     });
   }, [paymentDetails]);
 
@@ -1285,7 +1293,7 @@ function MultiCreatorPaymentContent() {
         `${API_BASE_URL}payments/create-intent-multi`,
         {
           booking_id: shootId,
-          amount: parseFloat(quote.total),
+          amount: parseFloat(quote.total || 0),
           guest_email: resolveGuestEmail(booking, summaryData?.client_email),
         },
         {
@@ -1793,6 +1801,16 @@ function MultiCreatorPaymentContent() {
                             <span className=" text-[#787979]">Includes professional editing</span>
                           </div>
                           <span className="font-medium">{formatCurrency(pricingGroups.editingFees)}</span>
+                        </div>
+                      )}
+
+                      {pricingGroups.studioCost > 0 && (
+                        <div className="flex justify-between mb-3">
+                          <div className="flex flex-col gap-1">
+                            <span className="font-medium text-[#CCC6C6]">Studio / Resort</span>
+                            <span className=" text-[#787979]">Coachella studio selection</span>
+                          </div>
+                          <span className="font-medium">{formatCurrency(pricingGroups.studioCost)}</span>
                         </div>
                       )}
 

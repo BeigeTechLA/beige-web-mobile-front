@@ -31,7 +31,8 @@ export function AuthSplitLayout({
 }: AuthSplitLayoutProps) {
 
   // const [cardIndex, setCardIndex] = React.useState(0);
-  const videoUrl = "https://d2jhn32fsulyac.cloudfront.net/assets/videos/BeigeLogin.mp4"
+  // const videoUrl = "https://d2jhn32fsulyac.cloudfront.net/assets/videos/BeigeLogin.mp4";
+  const eventImgUrl = "https://d1pgtgqp0jru64.cloudfront.net/Frame-2147226676.png";
 
   // Switching logic for the 3rd cell
   // React.useEffect(() => {
@@ -84,13 +85,21 @@ export function AuthSplitLayout({
       {/* Right Column - Animation Grid Overlay */}
       <div className="hidden lg:block lg:flex lg:w-3/5 relative h-screen sticky top-0 overflow-hidden bg-[#101010] border-4 border-[#101010]">
         {/* Background Video */}
-        <video
+        {/* <video
           src={videoUrl}
           autoPlay
           loop
           muted
           playsInline
           className="absolute inset-0 h-full w-full object-cover opacity-90"
+        /> */}
+
+        <Image
+          src={eventImgUrl}
+          alt={imageAlt}
+          fill
+          priority
+          className="absolute inset-0 h-full w-full object-fill opacity-90"
         />
 
         {/* The Grid Overlay (4x4)
