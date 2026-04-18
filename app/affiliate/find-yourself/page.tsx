@@ -49,6 +49,7 @@ export default function AffiliateFindYourselfPage() {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isCameraProcessing, setIsCameraProcessing] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraFacingMode, setCameraFacingMode] = useState<"user" | "environment">("user");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -197,8 +198,24 @@ export default function AffiliateFindYourselfPage() {
     await runFaceScanInCommonEventFolders(scanImageBase64);
   };
 
+  const startCameraStream = async (facingMode: "user" | "environment") => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: facingMode } },
+      audio: false,
+    });
+
+    cameraStreamRef.current = stream;
+    setCameraFacingMode(facingMode);
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+    }
+  };
+
   const handleOpenCamera = async () => {
     setCameraError(null);
+    setCameraFacingMode("user");
     setIsCameraOpen(true);
 
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -207,15 +224,7 @@ export default function AffiliateFindYourselfPage() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-        audio: false,
-      });
-      cameraStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      await startCameraStream("user");
     } catch {
       setCameraError("Unable to access camera. Please allow camera permission.");
     }
@@ -226,6 +235,26 @@ export default function AffiliateFindYourselfPage() {
     setIsCameraProcessing(false);
     setCameraError(null);
     stopCamera();
+  };
+
+  const handleSwitchCamera = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || isCameraProcessing) return;
+
+    const nextFacingMode = cameraFacingMode === "user" ? "environment" : "user";
+    setCameraError(null);
+
+    stopCamera();
+
+    try {
+      await startCameraStream(nextFacingMode);
+    } catch {
+      try {
+        await startCameraStream(cameraFacingMode);
+        setCameraError("This device/browser does not support switching camera.");
+      } catch {
+        setCameraError("Unable to switch camera on this device.");
+      }
+    }
   };
 
   const handleCaptureFromCamera = async () => {
@@ -312,7 +341,6 @@ export default function AffiliateFindYourselfPage() {
               id="affiliate-find-yourself-upload"
               type="file"
               accept="image/*"
-              capture="user"
               className="hidden"
               onChange={handleFaceScanFile}
             />
@@ -436,29 +464,43 @@ export default function AffiliateFindYourselfPage() {
                     : "Keep your face centered, then capture to scan common event folders."}
                 </p>
               )}
-              <div className="mt-4 flex items-center justify-end gap-2">
+              <div className="mt-4 flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  onClick={handleCloseCamera}
-                  disabled={isCameraProcessing}
-                  className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 ${
-                    isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
-                  }`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCaptureFromCamera}
+                  onClick={handleSwitchCamera}
                   disabled={Boolean(cameraError) || isFaceScanning || isCameraProcessing}
-                  className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                  className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 ${
                     cameraError || isFaceScanning || isCameraProcessing
-                      ? "cursor-not-allowed bg-[#E5D5B8]/40 text-black/50"
-                      : "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                      ? "cursor-not-allowed opacity-50"
+                      : "hover:bg-white/10"
                   }`}
                 >
-                  {isCameraProcessing || isFaceScanning ? "Scanning..." : "Capture & Scan"}
+                  Switch to {cameraFacingMode === "user" ? "Back" : "Front"} Camera
                 </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCloseCamera}
+                    disabled={isCameraProcessing}
+                    className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 ${
+                      isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCaptureFromCamera}
+                    disabled={Boolean(cameraError) || isFaceScanning || isCameraProcessing}
+                    className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                      cameraError || isFaceScanning || isCameraProcessing
+                        ? "cursor-not-allowed bg-[#E5D5B8]/40 text-black/50"
+                        : "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                    }`}
+                  >
+                    {isCameraProcessing || isFaceScanning ? "Scanning..." : "Capture & Scan"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
