@@ -372,38 +372,40 @@ export const InvoiceTable = () => {
     return null;
   }
 
-  return (
-    <div
-      className={`w-full rounded-2xl border overflow-hidden transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`}
-      style={{ fontFamily: "var(--font-instrument-sans)" }}
-    >
-      <div className={`border-b p-4 lg:p-6 ${isDark ? "border-[#222222]" : "border-[#F2F2F2]"}`}>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative w-full lg:max-w-md">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDark ? "text-white/35" : "text-black/35"}`} />
-            <input
-              type="text"
-              placeholder="Search invoice ID..."
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              className={`h-10 w-full rounded-lg border pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-1 ${isDark
-                ? "border-white/10 bg-[#18181b] text-white placeholder:text-white/35 focus:ring-[#E8D1AB]"
-                : "border-black/10 bg-white text-black placeholder:text-black/35 focus:ring-[#E8D1AB]"
-                }`}
-            />
-          </div>
+ return (
+  <div
+    className={`w-full rounded-2xl border overflow-visible transition-all duration-300 ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`}
+    style={{ fontFamily: "var(--font-instrument-sans)" }}
+  >
+    <div className={`border-b p-4 lg:p-6 ${isDark ? "border-[#222222]" : "border-[#F2F2F2]"}`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        
+        {/* Search Input Section */}
+        <div className="relative w-full lg:max-w-md">
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDark ? "text-white/35" : "text-black/35"}`} />
+          <input
+            type="text"
+            placeholder="Search invoice ID..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className={`h-10 w-full rounded-lg border pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-1 ${isDark
+              ? "border-white/10 bg-[#18181b] text-white placeholder:text-white/35 focus:ring-[#E8D1AB]"
+              : "border-black/10 bg-white text-black placeholder:text-black/35 focus:ring-[#E8D1AB]"
+              }`}
+          />
+        </div>
 
-          <div className="flex flex-wrap gap-2 lg:justify-end">
-            <BasicDropdown
-              label="Payment"
-              value={paymentFilter}
-              options={["All Payments", "Paid", "Unpaid"]}
-              onChange={setPaymentFilter}
-              openAlign="right"
-            />
-          </div>
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <BasicDropdown
+            label="Payment"
+            value={paymentFilter}
+            options={["All Payments", "Paid", "Unpaid"]}
+            onChange={setPaymentFilter}
+            openAlign={typeof window !== 'undefined' && window.innerWidth < 1024 ? "left" : "right"}
+          />
         </div>
       </div>
+    </div>
 
       {loading ? (
         <div className="text-center py-20">

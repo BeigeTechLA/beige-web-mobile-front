@@ -35,6 +35,7 @@ const USER_TYPE: Record<number, string> = {
 }
 
 const eventImgUrl = "https://d1pgtgqp0jru64.cloudfront.net/Frame-2147226676.png"
+const mobileEventImgUrl = "https://beige-web-dev.s3.us-east-1.amazonaws.com/beige/assets/coachella+/image1.jpeg"
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false)
@@ -118,203 +119,230 @@ export function LoginForm() {
   }
 
   return (
-    <div className="space-y-8 overflow-x-hidden">
-      <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden lg:hidden">
-        <div className="relative h-[420px] w-full">
+    <div className="w-full">
+      <div className="absolute top-0 left-0 w-screen h-[380px] overflow-hidden lg:hidden -z-10 bg-[#101010]">
+        <div className="relative h-full w-full">
           <Image
-            src={eventImgUrl}
+            src={mobileEventImgUrl}
             alt="Coachella x Neon Carnival"
             fill
             priority
-            className="object-fill object-top"
+            className="object-cover object-[65%_0%] -translate-y-14"
           />
+          <div
+            className="absolute inset-x-0 bottom-0 h-20 backdrop-blur-[0.5px]"
+            style={{
+              maskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 10%)',
+              WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 40%)'
+            }}
+          />
+          <Image
+            src="/images/loginsignup/Group.png"
+            alt="Beige logo"
+            width={68}
+            height={14}
+            className="absolute left-4 bottom-[125px] z-10 lg:hidden"
+            priority
+          />
+          <div className="absolute inset-x-0 bottom-0 h-62 bg-gradient-to-t from-[#101010] via-[#101010]/50 to-transparent" />
         </div>
       </div>
 
-      <div className="space-y-2 text-center lg:mt-15">
-        <h1 className="text-xl lg:text-4xl font-semibold tracking-tight text-[#E8D1AB]">
-          Welcome Back
-        </h1>
-        <p className="lg:text-lg text-white/60">Log in to continue to your dashboard.</p>
-      </div>
-
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 lg:space-y-9">
-        <div className="relative space-y-2">
-          <Label htmlFor="email" className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60">Email</Label>
-          <Input
-            id="email"
-            placeholder="name@example.com"
-            type="email"
-            disabled={isLoginLoading}
-            {...form.register("email")}
-            className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 bg-[#101010] p-4 text-sm text-white outline-none transition-colors focus:border-[#E8D1AB] focus-visible:ring-0 lg:text-base"
-          />
-          {form.formState.errors.email && (
-            <p className="text-xs text-red-500">{form.formState.errors.email.message}</p>
-          )}
+      <div className="space-y-6 lg:space-y-8 overflow-x-hidden pt-[250px] lg:pt-0 relative z-10 w-full">
+        <div className="space-y-2 text-center lg:mt-15">
+          <h1 className="text-[28px] lg:text-4xl font-semibold tracking-tight text-[#E8D1AB] leading-tight">
+            Welcome Back
+          </h1>
+          <p className="text-[13px] lg:text-lg text-[#878787] lg:text-white/60">Log in to continue to your creative dashboard.</p>
         </div>
 
-        <div className="relative space-y-2">
-          <Label
-            htmlFor="password"
-            className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
-          >
-            Password
-          </Label>
-          <div className="relative">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 lg:space-y-9">
+          <div className="relative space-y-1 lg:space-y-2">
+            <Label htmlFor="email" className="block text-sm font-medium text-[#A4A0A0] lg:absolute lg:-top-3 lg:left-4 lg:px-2 lg:bg-[#101010] lg:text-white/60">Email Address</Label>
             <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
+              id="email"
+              placeholder="you@example.com"
+              type="email"
               disabled={isLoginLoading}
-              {...form.register("password")}
-              className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 bg-[#101010] px-4 text-sm text-white outline-none transition-colors focus:border-[#E8D1AB] focus-visible:ring-0 lg:text-base"
+              {...form.register("email")}
+              className="h-12 lg:h-[82px] w-full rounded-[8px] lg:rounded-[12px] border border-white/20 lg:border-white/30 bg-[#161616] lg:bg-[#101010] px-4 text-sm text-white outline-none transition-colors focus:border-[#E8D1AB] focus-visible:ring-0 lg:text-base"
             />
+            {form.formState.errors.email && (
+              <p className="text-xs text-red-500">{form.formState.errors.email.message}</p>
+            )}
+          </div>
 
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+          <div className="relative space-y-1 lg:space-y-2">
+            <div className="flex items-center justify-between">
+              <Label
+                htmlFor="password"
+                className="block text-sm font-medium text-[#A4A0A0] lg:absolute lg:-top-3 lg:left-4 lg:z-10 lg:px-2 lg:bg-[#101010] lg:text-white/60 lg:pointer-events-none"
+              >
+                Password
+              </Label>
+              <Link
+                href="/forgot-password"
+                onClick={() => {
+                  pushToDataLayer("forgot_password", {
+                    type: "Action Tracking",
+                    page_name: "Login Page",
+                    location_in_website: "login_page",
+                    duration_on_page: performance.now() / 1000,
+                  });
+                }}
+                className="text-xs font-medium text-[#E8D1AB] hover:text-white underline underline-offset-4 lg:hidden"
+              >
+                Forgot your password?
+              </Link>
+            </div>
+            <div className="relative">
+              <Input
+                id="password"
+                placeholder="Enter your password"
+                type={showPassword ? "text" : "password"}
+                disabled={isLoginLoading}
+                {...form.register("password")}
+                className="h-12 lg:h-[82px] w-full rounded-[8px] lg:rounded-[12px] border border-white/20 lg:border-white/30 bg-[#161616] lg:bg-[#101010] px-4 text-sm text-white outline-none transition-colors focus:border-[#E8D1AB] focus-visible:ring-0 lg:text-base"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+              >
+                {showPassword ? (
+                  <Eye className="h-4 w-4 lg:h-6 lg:w-6" />
+                ) : (
+                  <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
+                )}
+              </button>
+            </div>
+
+            {form.formState.errors.password && (
+              <p className="text-xs text-red-500">
+                {form.formState.errors.password.message}
+              </p>
+            )}
+          </div>
+
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="rememberMe"
+                checked={form.watch("rememberMe")}
+                onCheckedChange={(checked) => form.setValue("rememberMe", checked as boolean)}
+                className="border-neutral-600 rounded bg-[#404040]/30 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] w-4 h-4 lg:w-5 lg:h-5 data-[state=checked]:text-[#101010]"
+              />
+              <Label htmlFor="rememberMe" className="text-sm font-medium text-[#E5E5E5] lg:text-[#A4A0A0]">
+                Remember me
+              </Label>
+            </div>
+            <Link
+              href="/forgot-password"
+              onClick={() => {
+                pushToDataLayer("forgot_password", {
+                  type: "Action Tracking",
+                  page_name: "Login Page",
+                  location_in_website: "login_page",
+                  duration_on_page: performance.now() / 1000,
+                });
+              }}
+              className="hidden lg:block text-sm font-medium text-[#E8D1AB] hover:text-white underline underline-offset-4"
             >
-              {showPassword ? (
-                <Eye className="h-4 w-4 lg:h-6 lg:w-6" />
-              ) : (
-                <EyeOff className="h-4 w-4 lg:h-6 lg:w-6" />
-              )}
-            </button>
+              Forgot password?
+            </Link>
           </div>
 
-          {form.formState.errors.password && (
-            <p className="text-xs text-red-500">
-              {form.formState.errors.password.message}
+          <div>
+            <Button
+              type="submit"
+              className="w-full bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] rounded-md lg:rounded-[8px] h-11 lg:h-[76px] text-base lg:text-xl font-semibold"
+              disabled={isLoginLoading}
+            >
+              {isLoginLoading ? "Signing In..." : "Sign In"}
+            </Button>
+
+            {/* Mobile standard divider */}
+            <div className="flex items-center justify-center mt-6 lg:hidden">
+              <div className="h-[1px] w-12 bg-white/10 hidden sm:block"></div>
+              <p className="text-xs text-[#878787] px-4 flex items-center gap-4">
+                <span className="h-[1px] w-12 bg-[#878787]/30"></span>
+                Don't have an account?
+                <span className="h-[1px] w-12 bg-[#878787]/30"></span>
+              </p>
+            </div>
+
+            {/* Desktop original style */}
+            <p className="text-sm text-[#DDD] mt-6 hidden lg:block">
+              <b>Don't have an account yet?</b> Create your Beige account by
             </p>
-          )}
-        </div>
-
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="rememberMe"
-              checked={form.watch("rememberMe")}
-              onCheckedChange={(checked) => form.setValue("rememberMe", checked as boolean)}
-              className="border-neutral-600 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] lg:w-5 lg:h-5 data-[state=checked]:text-[#101010]"
-            />
-            <Label htmlFor="rememberMe" className="text-[#A4A0A0]">
-              Remember me
-            </Label>
           </div>
-          <Link
-            href="/forgot-password"
-            onClick={() => {
-              pushToDataLayer("forgot_password", {
-                type: "Action Tracking",
-                page_name: "Login Page",
-                location_in_website: "login_page",
-                duration_on_page: performance.now() / 1000,
-              });
-            }}
-            className="text-sm font-medium text-[#E8D1AB] hover:text-white underline underline-offset-4"
-          >
-            Forgot password?
-          </Link>
-        </div>
 
-        <div>
-          <Button
-            type="submit"
-            className="w-full bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-9 lg:h-[76px] text-sm md:text-xl font-medium"
-            disabled={isLoginLoading}
-          >
-            {isLoginLoading ? "Logging in..." : "Login"}
-          </Button>
-          <p className="text-sm text-[#DDD] mt-4 lg:mt-6">
-            <b>Don't have an account yet?</b> Create your Beige account by
-          </p>
-        </div>
+        </form>
 
-      </form>
+        {/* Signup Options */}
+        <div className="space-y-6 lg:pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
+            <Link
+              href="/signup/user"
+              onClick={() => {
+                pushToDataLayer("sign_up_started_user", {
+                  type: "Action Tracking",
+                  user_type: "client",
+                  location_in_website: "login_page",
+                  page_name: "Login Page",
+                  duration_on_page: performance.now() / 1000,
+                });
+              }}
+              className="relative w-full rounded-[8px] lg:rounded-[20px] bg-gradient-to-br from-[#2a2a2a] to-[#121212] lg:from-[#E9D3A2] lg:to-[#E4C48A] border border-white/5 lg:border-none flex items-center justify-between lg:justify-start p-4 lg:py-5 lg:px-6 transition-transform duration-300"
+            >
+              <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
+                <h2 className="text-[#E8E8E8] lg:text-black text-[13px] lg:text-sm font-medium lg:font-semibold leading-tight">
+                  Create New Account As Client
+                </h2>
 
-      {/* Signup Options */}
-      <div className="space-y-6 pt-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-4">
-          <Link
-            href="/signup/user"
-            onClick={() => {
-              pushToDataLayer("sign_up_started_user", {
-                type: "Action Tracking",
-                user_type: "client",
-                location_in_website: "login_page",
-                page_name: "Login Page",
-                duration_on_page: performance.now() / 1000,
-              });
-            }}
-            className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#E9D3A2] to-[#E4C48A] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300"
-          >
-            <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
-              <h2 className="text-black text-sm font-semibold leading-tight">
-                Create New account as Client
-              </h2>
-
-              <div className="w-5 h-5 lg:w-[30px] lg:h-[30px] rounded-full border border-black flex items-center justify-center shrink-0">
-                <ArrowUpRight className="w-3 h-3 text-black" />
+                <div className="w-6 h-6 lg:w-[30px] lg:h-[30px] rounded-full border border-white/20 lg:border-black flex items-center justify-center shrink-0">
+                  <ArrowUpRight className="w-3 h-3 text-white/60 lg:text-black" />
+                </div>
               </div>
-            </div>
+            </Link>
+            <Link
+              href="/creative-partner-signup"
+              onClick={() => {
+                pushToDataLayer("sign_up_started_cp", {
+                  type: "Action Tracking",
+                  user_type: "creative_partner",
+                  page_name: "Login Page",
+                  location_in_website: "login_page",
+                  duration_on_page: performance.now() / 1000,
+                });
+              }}
+              className="relative w-full rounded-[8px] lg:rounded-[20px] bg-gradient-to-br from-[#2a2a2a] to-[#121212] lg:from-[#101010] lg:to-[#474343] border border-white/5 lg:border-none flex items-center justify-between lg:justify-start p-4 lg:py-5 lg:px-6 transition-transform duration-300"
+            >
+              <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
+                <h2 className="text-[#E8E8E8] lg:text-white text-[13px] lg:text-sm font-medium lg:font-semibold leading-tight">
+                  Create New Account As Creative Partner
+                </h2>
 
-            {/* <div className="absolute right-0 bottom-0 h-20 lg:h-[190px] w-[45%] lg:w-[164px]">
-              <Image
-                src="/images/loginsignup/userSignup.png"
-                alt="Create account"
-                fill
-                className="object-contain object-bottom"
-                priority
-              />
-            </div> */}
-          </Link>
-          <Link
-            href="/creative-partner-signup"
-            onClick={() => {
-              pushToDataLayer("sign_up_started_cp", {
-                type: "Action Tracking",
-                user_type: "creative_partner",
-                page_name: "Login Page",
-                location_in_website: "login_page",
-                duration_on_page: performance.now() / 1000,
-              });
-            }}
-            className="relative w-full rounded-lg lg:rounded-[20px] bg-gradient-to-br from-[#101010] to-[#474343] flex items-center p-3 lg:py-5 lg:px-6 transition-transform duration-300"
-          >
-            <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
-              <h2 className="text-white text-sm font-semibold leading-tight">
-                Create New account as Creative Partner
-              </h2>
-
-              <div className="w-5 h-5 lg:w-[30px] lg:h-[30px] rounded-full border border-white flex items-center justify-center shrink-0">
-                <ArrowUpRight className="w-3 h-3 text-white" />
+                <div className="w-6 h-6 lg:w-[30px] lg:h-[30px] rounded-full border border-white/20 lg:border-white flex items-center justify-center shrink-0">
+                  <ArrowUpRight className="w-3 h-3 text-white/60 lg:text-white" />
+                </div>
               </div>
-            </div>
-
-            {/* <div className="absolute right-0 bottom-0 h-20 lg:h-[190px] w-[45%] lg:w-[164px]">
-              <Image
-                src="/images/loginsignup/creatorSignup.png"
-                alt="Create account"
-                fill
-                className="object-contain object-bottom"
-                priority
-              />
-            </div> */}
-          </Link>
+            </Link>
+          </div>
         </div>
-      </div>
 
-      <div className="pt-9">
-        <h4 className="text-sm lg:text-[22px] text-[#878787] mb-2 lg:mb-3">Trusted by creative professionals and clients worldwide</h4>
-        <div className="flex items-center justify-between">
-          {/* <div className="flex gap-1 lg:gap-1.5"> */}
-          {/* <Star className="h-4 w-4 fill-[#BEA784] text-[#BEA784]" /> */}
-          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">$10M+</span>in Content Produced</p>
-          {/* </div> */}
-          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">5K+</span> Vetted Creative Partners</p>
-          <p className="text-[10px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">4K+</span> Shoots Booked</p>
+        <div className="pt-8 pb-4 lg:py-0">
+          <h4 className="text-[11px] lg:text-[22px] text-[#A0A0A0] lg:text-[#878787] mb-3">Trusted by creative professionals and clients worldwide</h4>
+          <div className="flex items-center justify-between">
+            {/* <div className="flex gap-1 lg:gap-1.5"> */}
+            {/* <Star className="h-4 w-4 fill-[#BEA784] text-[#BEA784]" /> */}
+            <p className="text-[9px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">$10M+</span>in Content Produced</p>
+            {/* </div> */}
+            <p className="text-[9px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">5K+</span> Vetted Creative Partners</p>
+            <p className="text-[9px] lg:text-[13px] text-[#D9D9D9] flex flex-col"><span className="text-xs lg:text-sm font-semibold">4K+</span> Shoots Booked</p>
+          </div>
         </div>
       </div>
     </div>
