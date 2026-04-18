@@ -410,15 +410,15 @@ function PricingSection({
   return (
     <div className="overflow-hidden rounded-2xl border border-[#222220] bg-[#0D0D0C]">
       {/* Section Header */}
-      <div className="flex items-center justify-between border-b border-[#1E1E1C] bg-gradient-to-r from-[#111110] to-[#0D0D0C] px-6 py-4">
+      <div className="flex flex-col gap-3 border-b border-[#1E1E1C] bg-gradient-to-r from-[#111110] to-[#0D0D0C] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <button
           onClick={() => setExpanded((p) => !p)}
-          className="flex items-center gap-3 text-left"
+          className="flex min-w-0 items-center gap-3 text-left"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#2D2D2A] bg-[#1D1D1A] text-[#E8D1AB]">
             <Icon size={18} />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold tracking-tight text-[#E0E0DC]">
                 {meta.label}
@@ -437,7 +437,7 @@ function PricingSection({
           />
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
           {items.length > 0 && (
             <span className="text-xs text-[#555]">
               avg{" "}
@@ -451,7 +451,7 @@ function PricingSection({
               setExpanded(true);
               setShowAddForm((p) => !p);
             }}
-            className={`h-8 gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all ${
+            className={`h-8 shrink-0 whitespace-nowrap gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all ${
               showAddForm
               ? "border border-[#3D3930] bg-[#1D1A14] text-[#E8D1AB] hover:bg-[#E5D5B8]"
               : "border border-[#2D4020] bg-[#E5D5B8] text-black "
