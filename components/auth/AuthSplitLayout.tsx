@@ -16,6 +16,7 @@ interface AuthSplitLayoutProps {
   backLabel?: string;
   step?: number;
   totalSteps?: number;
+  hideMobileHeader?: boolean;
 }
 
 export function AuthSplitLayout({
@@ -28,6 +29,7 @@ export function AuthSplitLayout({
   backLabel = "Back",
   step,
   totalSteps,
+  hideMobileHeader,
 }: AuthSplitLayoutProps) {
 
   // const [cardIndex, setCardIndex] = React.useState(0);
@@ -45,10 +47,10 @@ export function AuthSplitLayout({
   return (
     <div className="flex min-h-screen w-full bg-[#101010] text-white">
       {/* Left Column - Content */}
-      <div className="flex w-full h-full flex-col pt-10 lg:pt-0 lg:justify-center px-8 lg:w-2/5 lg:px-15">
+      <div className="flex w-full h-full flex-col pt-10 lg:pt-0 lg:justify-center px-8 lg:w-2/5 lg:px-15 relative z-10">
         <div className="mx-auto my-auto w-full max-w-[520px] lg:py-12">
           {/* Header Navigation */}
-          <div className="mb-4 lg:mb-8 flex items-center justify-between">
+          <div className={`mb-4 lg:mb-8 flex items-center justify-between ${hideMobileHeader ? 'hidden lg:flex' : ''}`}>
             {backLink ? (
               <Link href={backLink} className="flex items-center text-sm text-neutral-400 hover:text-white transition-colors">
                 <ArrowLeft className="mr-2 h-4 w-4" /> {backLabel}

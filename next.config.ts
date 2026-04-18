@@ -41,6 +41,11 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
+        protocol: 'https',
+        hostname: 'beige-web-dev.s3.us-east-1.amazonaws.com',
+        pathname: '/**',
+      },
+      {
         protocol: "https",
         hostname: "ui-avatars.com",
         pathname: "/**",

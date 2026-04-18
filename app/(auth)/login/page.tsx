@@ -6,6 +6,7 @@ export default function LoginPage() {
     <AuthSplitLayout 
       video="/videos/LoginVideo.mp4"
       backLink="/"
+      hideMobileHeader={true}
     >
       <LoginForm />
     </AuthSplitLayout>
