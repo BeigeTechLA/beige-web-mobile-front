@@ -49,6 +49,8 @@ export default function AffiliateFindYourselfPage() {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isCameraProcessing, setIsCameraProcessing] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraFacingMode, setCameraFacingMode] = useState<"user" | "environment">("user");
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -105,6 +107,22 @@ export default function AffiliateFindYourselfPage() {
   }, [isCameraOpen]);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches);
+    updateViewport();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateViewport);
+      return () => mediaQuery.removeEventListener("change", updateViewport);
+    }
+
+    mediaQuery.addListener(updateViewport);
+    return () => mediaQuery.removeListener(updateViewport);
+  }, []);
 
   const runFaceScanInCommonEventFolders = async (scanImageBase64: string) => {
     if (!workspaces.length) {
@@ -197,8 +215,24 @@ export default function AffiliateFindYourselfPage() {
     await runFaceScanInCommonEventFolders(scanImageBase64);
   };
 
+  const startCameraStream = async (facingMode: "user" | "environment") => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: facingMode } },
+      audio: false,
+    });
+
+    cameraStreamRef.current = stream;
+    setCameraFacingMode(facingMode);
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+    }
+  };
+
   const handleOpenCamera = async () => {
     setCameraError(null);
+    setCameraFacingMode("user");
     setIsCameraOpen(true);
 
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -207,15 +241,7 @@ export default function AffiliateFindYourselfPage() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-        audio: false,
-      });
-      cameraStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      await startCameraStream("user");
     } catch {
       setCameraError("Unable to access camera. Please allow camera permission.");
     }
@@ -226,6 +252,26 @@ export default function AffiliateFindYourselfPage() {
     setIsCameraProcessing(false);
     setCameraError(null);
     stopCamera();
+  };
+
+  const handleSwitchCamera = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || isCameraProcessing) return;
+
+    const nextFacingMode = cameraFacingMode === "user" ? "environment" : "user";
+    setCameraError(null);
+
+    stopCamera();
+
+    try {
+      await startCameraStream(nextFacingMode);
+    } catch {
+      try {
+        await startCameraStream(cameraFacingMode);
+        setCameraError("This device/browser does not support switching camera.");
+      } catch {
+        setCameraError("Unable to switch camera on this device.");
+      }
+    }
   };
 
   const handleCaptureFromCamera = async () => {
@@ -312,7 +358,6 @@ export default function AffiliateFindYourselfPage() {
               id="affiliate-find-yourself-upload"
               type="file"
               accept="image/*"
-              capture="user"
               className="hidden"
               onChange={handleFaceScanFile}
             />
@@ -436,29 +481,61 @@ export default function AffiliateFindYourselfPage() {
                     : "Keep your face centered, then capture to scan common event folders."}
                 </p>
               )}
-              <div className="mt-4 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={handleCloseCamera}
-                  disabled={isCameraProcessing}
-                  className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 ${
-                    isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
-                  }`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCaptureFromCamera}
-                  disabled={Boolean(cameraError) || isFaceScanning || isCameraProcessing}
-                  className={`rounded-lg px-3 py-2 text-xs font-medium ${
-                    cameraError || isFaceScanning || isCameraProcessing
-                      ? "cursor-not-allowed bg-[#E5D5B8]/40 text-black/50"
-                      : "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                  }`}
-                >
-                  {isCameraProcessing || isFaceScanning ? "Scanning..." : "Capture & Scan"}
-                </button>
+              <div className="mt-4 space-y-2">
+                {isMobileViewport ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSwitchCamera}
+                      disabled={Boolean(cameraError) || isFaceScanning || isCameraProcessing}
+                      className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 ${
+                        cameraError || isFaceScanning || isCameraProcessing
+                          ? "cursor-not-allowed opacity-50"
+                          : "hover:bg-white/10"
+                      }`}
+                    >
+                      {cameraFacingMode === "user" ? "Back Camera" : "Front Camera"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCloseCamera}
+                      disabled={isCameraProcessing}
+                      className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 ${
+                        isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
+                      }`}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : null}
+                <div className={`flex items-center gap-2 ${isMobileViewport ? "justify-stretch" : "justify-end"}`}>
+                  <button
+                    type="button"
+                    onClick={handleCloseCamera}
+                    disabled={isCameraProcessing}
+                    className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 ${
+                      isMobileViewport ? "hidden" : "inline-flex"
+                    } ${
+                      isCameraProcessing ? "cursor-not-allowed opacity-50" : "hover:bg-white/10"
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCaptureFromCamera}
+                    disabled={Boolean(cameraError) || isFaceScanning || isCameraProcessing}
+                    className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                      isMobileViewport ? "w-full" : ""
+                    } ${
+                      cameraError || isFaceScanning || isCameraProcessing
+                        ? "cursor-not-allowed bg-[#E5D5B8]/40 text-black/50"
+                        : "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                    }`}
+                  >
+                    {isCameraProcessing || isFaceScanning ? "Scanning..." : "Capture & Scan"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

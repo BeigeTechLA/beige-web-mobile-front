@@ -33,8 +33,7 @@ const StatsLayout = ({
   isLoading = false,
   isDark = true,
   chartConfig = [
-    { key: "base_revenue", color: "#55BF61", stackId: "a", radius: [0, 0, 6, 6] },
-    { key: "margin_revenue", color: "#FF8484", stackId: "a", radius: [6, 6, 0, 0] }
+    { key: "total_revenue", color: "#55BF61", stackId: "a", radius: [6, 6, 6, 6] }
   ]
 }: any) => (
   <div className={`flex flex-col lg:flex-row gap-6 h-full items-stretch lg:items-center ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}`}>
@@ -166,13 +165,17 @@ export default function StackedDashboard() {
           const formattedMonthly = Array.isArray(monthlyRes.data)
             ? monthlyRes.data.map((item: any) => ({
               name: item.month || item.name,
-              base_revenue: item.base_revenue || item.base || 0,
-              margin_revenue: item.margin_revenue || item.margin || 0
+              total_revenue: parseFloat(
+                item.total_revenue ??
+                (Number(item.base_revenue || item.base || 0) + Number(item.margin_revenue || item.margin || 0))
+              ) || 0
             }))
             : Object.entries(monthlyRes.data).map(([month, values]: [string, any]) => ({
               name: month,
-              base_revenue: values.base_revenue || values.base || 0,
-              margin_revenue: values.margin_revenue || values.margin || 0
+              total_revenue: parseFloat(
+                values.total_revenue ??
+                (Number(values.base_revenue || values.base || 0) + Number(values.margin_revenue || values.margin || 0))
+              ) || 0
             }));
           setMonthlyData(formattedMonthly);
         }
@@ -263,6 +266,9 @@ export default function StackedDashboard() {
                 growth={weeklyData?.growth_percent || 0}
                 growthLabel="Last 7 Days"
                 chartData={monthlyData}
+                chartConfig={[
+                  { key: "total_revenue", color: "#55BF61", stackId: "a", radius: [6, 6, 6, 6] }
+                ]}
                 hasInfoCard={true}
                 isLoading={isLoading}
               />
