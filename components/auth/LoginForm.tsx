@@ -34,8 +34,10 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
-const eventImgUrl = "https://d1pgtgqp0jru64.cloudfront.net/Frame-2147226676.png"
-const mobileEventImgUrl = "https://beige-web-dev.s3.us-east-1.amazonaws.com/beige/assets/coachella+/image1.jpeg"
+// const eventImgUrl = "https://d1pgtgqp0jru64.cloudfront.net/Frame-2147226676.png"
+const eventImgUrl = "/images/login-event.jpeg"
+// const mobileEventImgUrl = "https://beige-web-dev.s3.us-east-1.amazonaws.com/beige/assets/coachella+/image1.jpeg"
+const mobileEventImgUrl = "/images/login-event-mobile-2.png"
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false)
@@ -127,7 +129,7 @@ export function LoginForm() {
             alt="Coachella x Neon Carnival"
             fill
             priority
-            className="object-cover object-[65%_0%] -translate-y-14"
+            className="object-cover object-[80%_0%] -translate-y-14"
           />
           <div
             className="absolute inset-x-0 bottom-0 h-20 backdrop-blur-[0.5px]"
