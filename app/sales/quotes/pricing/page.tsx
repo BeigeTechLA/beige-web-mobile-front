@@ -216,12 +216,12 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
             className="h-9 border-[#3D3D3A] bg-[#0F0F0E] text-sm text-white placeholder:text-[#444] focus:border-[#8E826A]"
           />
         ) : (
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium text-[#E0E0DC]">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#E0E0DC]">
               {item.label}
             </span>
             {isProtected && (
-              <span className="shrink-0 rounded-full border border-[#3D3930] bg-[#1D1C18] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#8E826A]">
+              <span className="hidden shrink-0 rounded-full border border-[#3D3930] bg-[#1D1C18] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#8E826A] sm:inline-flex">
                 Default
               </span>
             )}
@@ -233,7 +233,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
       </div>
 
       {/* Price */}
-      <div className={`shrink-0 ${editing ? "w-28" : "w-32 text-right"}`}>
+      <div className={`shrink-0 ${editing ? "w-24 sm:w-28" : "w-24 text-right sm:w-32"}`}>
         {editing ? (
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#666]">$</span>
@@ -253,7 +253,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
       </div>
 
       {/* Actions */}
-      <div className={`flex shrink-0 items-center justify-end gap-2 ${editing ? "w-20" : "w-16"}`}>
+      <div className={`flex shrink-0 items-center justify-end gap-2 ${editing ? "w-20" : "w-[4.5rem] sm:w-16"}`}>
         {editing ? (
           <>
             <button
@@ -274,7 +274,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
           <>
             <button
               onClick={() => setEditing(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-[#444] opacity-0 transition-all group-hover:border-[#2A2A28] group-hover:bg-[#1A1A18] group-hover:opacity-100 hover:text-[#E8D1AB]"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2A2A28] bg-[#1A1A18] text-[#8A8A84] opacity-100 transition-all hover:text-[#E8D1AB] sm:border-transparent sm:bg-transparent sm:text-[#444] sm:opacity-0 sm:group-hover:border-[#2A2A28] sm:group-hover:bg-[#1A1A18] sm:group-hover:opacity-100"
             >
               <Pencil size={14} />
             </button>
@@ -282,7 +282,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-[#444] opacity-0 transition-all group-hover:border-[#2A2A28] group-hover:bg-[#1A1A18] group-hover:opacity-100 hover:text-[#EF4444] disabled:opacity-50"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2A2A28] bg-[#1A1A18] text-[#8A8A84] opacity-100 transition-all hover:text-[#EF4444] disabled:opacity-50 sm:border-transparent sm:bg-transparent sm:text-[#444] sm:opacity-0 sm:group-hover:border-[#2A2A28] sm:group-hover:bg-[#1A1A18] sm:group-hover:opacity-100"
               >
                 {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
               </button>
@@ -412,15 +412,15 @@ function PricingSection({
   return (
     <div className="overflow-hidden rounded-2xl border border-[#222220] bg-[#0D0D0C]">
       {/* Section Header */}
-      <div className="flex items-center justify-between border-b border-[#1E1E1C] bg-gradient-to-r from-[#111110] to-[#0D0D0C] px-6 py-4">
+      <div className="flex flex-col gap-3 border-b border-[#1E1E1C] bg-gradient-to-r from-[#111110] to-[#0D0D0C] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <button
           onClick={() => setExpanded((p) => !p)}
-          className="flex items-center gap-3 text-left"
+          className="flex min-w-0 items-center gap-3 text-left"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#2D2D2A] bg-[#1D1D1A] text-[#E8D1AB]">
             <Icon size={18} />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold tracking-tight text-[#E0E0DC]">
                 {meta.label}
@@ -439,7 +439,7 @@ function PricingSection({
           />
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
           {items.length > 0 && (
             <span className="text-xs text-[#555]">
               avg{" "}
@@ -453,7 +453,7 @@ function PricingSection({
               setExpanded(true);
               setShowAddForm((p) => !p);
             }}
-            className={`h-8 gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all ${
+            className={`h-8 shrink-0 whitespace-nowrap gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all ${
               showAddForm
                 ? "border border-[#3D3930] bg-[#1D1A14] text-[#E8D1AB] hover:bg-[#E5D5B8]"
                 : "border border-[#2D4020] bg-[#E5D5B8] text-black "
