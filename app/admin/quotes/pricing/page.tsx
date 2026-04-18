@@ -214,12 +214,12 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
             className="h-9 border-[#3D3D3A] bg-[#0F0F0E] text-sm text-white placeholder:text-[#444] focus:border-[#8E826A]"
           />
         ) : (
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium text-[#E0E0DC]">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#E0E0DC]">
               {item.label}
             </span>
             {isProtected && (
-              <span className="shrink-0 rounded-full border border-[#3D3930] bg-[#1D1C18] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#8E826A]">
+              <span className="hidden shrink-0 rounded-full border border-[#3D3930] bg-[#1D1C18] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#8E826A] sm:inline-flex">
                 Default
               </span>
             )}
@@ -231,7 +231,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
       </div>
 
       {/* Price */}
-      <div className={`shrink-0 ${editing ? "w-28" : "w-32 text-right"}`}>
+      <div className={`shrink-0 ${editing ? "w-24 sm:w-28" : "w-24 text-right sm:w-32"}`}>
         {editing ? (
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#666]">$</span>
@@ -251,7 +251,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
       </div>
 
       {/* Actions */}
-      <div className={`flex shrink-0 items-center justify-end gap-2 ${editing ? "w-20" : "w-16"}`}>
+      <div className={`flex shrink-0 items-center justify-end gap-2 ${editing ? "w-20" : "w-[4.5rem] sm:w-16"}`}>
         {editing ? (
           <>
             <button
@@ -272,7 +272,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
           <>
             <button
               onClick={() => setEditing(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-[#444] opacity-0 transition-all group-hover:border-[#2A2A28] group-hover:bg-[#1A1A18] group-hover:opacity-100 hover:text-[#E8D1AB]"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2A2A28] bg-[#1A1A18] text-[#8A8A84] opacity-100 transition-all hover:text-[#E8D1AB] sm:border-transparent sm:bg-transparent sm:text-[#444] sm:opacity-0 sm:group-hover:border-[#2A2A28] sm:group-hover:bg-[#1A1A18] sm:group-hover:opacity-100"
             >
               <Pencil size={14} />
             </button>
@@ -280,7 +280,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected }: ItemRowProps)
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-[#444] opacity-0 transition-all group-hover:border-[#2A2A28] group-hover:bg-[#1A1A18] group-hover:opacity-100 hover:text-[#EF4444] disabled:opacity-50"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2A2A28] bg-[#1A1A18] text-[#8A8A84] opacity-100 transition-all hover:text-[#EF4444] disabled:opacity-50 sm:border-transparent sm:bg-transparent sm:text-[#444] sm:opacity-0 sm:group-hover:border-[#2A2A28] sm:group-hover:bg-[#1A1A18] sm:group-hover:opacity-100"
               >
                 {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
               </button>
