@@ -34,7 +34,8 @@ export function AuthSplitLayout({
 
   // const [cardIndex, setCardIndex] = React.useState(0);
   // const videoUrl = "https://d2jhn32fsulyac.cloudfront.net/assets/videos/BeigeLogin.mp4";
-  const eventImgUrl = "https://d1pgtgqp0jru64.cloudfront.net/Frame-2147226676.png";
+  // const eventImgUrl = "https://d1pgtgqp0jru64.cloudfront.net/Frame-2147226676.png";
+  const eventImgUrl = "/images/login-event.jpeg";
 
   // Switching logic for the 3rd cell
   // React.useEffect(() => {
