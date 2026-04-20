@@ -1101,9 +1101,10 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
         <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
           }`}>
           {shootsLoading ? (
-            <div className={`py-12 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>
-              Loading shoots...
-            </div>
+                    <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+                    }`}>
+                    <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+                  </div> 
           ) : assignedProjects.length === 0 ? (
             <div className={`py-12 px-6 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>
               No shoots assigned to this creative partner.
