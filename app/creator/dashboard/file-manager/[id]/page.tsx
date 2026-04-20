@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Grid3X3, List, MoreVertical, Search } from "lucide-react";
+import { ArrowLeft, Grid3X3, List, Loader2, MoreVertical, Search } from "lucide-react";
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
@@ -232,8 +232,11 @@ export default function CreatorFolderDetailsPage() {
       </div>
 
       {loading ? (
-        <div className="text-sm text-white/70">Loading project...</div>
-      ) : error ? (
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>      
+       ) : error ? (
         <div className="text-sm text-red-300">{error || "Workspace not found"}</div>
       ) : !workspaceName ? (
         <div className="rounded-2xl border border-dashed border-white/10 bg-[#111111] p-6 text-sm text-white/65">

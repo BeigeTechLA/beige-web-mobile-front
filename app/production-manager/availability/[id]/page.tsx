@@ -15,6 +15,7 @@ import {
   Copy,
   ArrowLeft,
   X,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Topbar from "@/components/production-manager/Topbar";
@@ -315,8 +316,11 @@ export default function AvailabilityDetailsPage() {
   }
 
   if (loading) {
-    return <div className="p-8 text-white text-center">Loading...</div>;
-  }
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>   
+      }
 
   const profilePhoto = member?.crew_member_files?.find(
     (file: any) => file.file_type === 'profile_photo'
