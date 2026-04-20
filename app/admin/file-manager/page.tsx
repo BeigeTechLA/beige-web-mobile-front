@@ -57,6 +57,8 @@ export default function AdminFolderManagerPage() {
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   const getUpdatedTimestamp = (value?: string) => {
     if (!value) return 0;
@@ -154,6 +156,10 @@ export default function AdminFolderManagerPage() {
     return items;
   }, [projects, searchTerm, selectedTab, status, selectedDate]);
 
+  const totalPages = Math.ceil(filteredFolders.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filteredFolders.slice(startIndex, startIndex + itemsPerPage);
+
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
     folder: UiFolderItem
@@ -239,7 +245,7 @@ export default function AdminFolderManagerPage() {
             </Button>
               <SortDateButton
                 selectedDate={selectedDate}
-                onDateChange={setSelectedDate}
+                onDateChange={(date) => { setSelectedDate(date); setCurrentPage(1); }}
                 width="w-full sm:w-fit"
               />
             </div>
@@ -251,7 +257,7 @@ export default function AdminFolderManagerPage() {
             {tabs.map((tab) => (
               <Button
                 key={tab.name}
-                onClick={() => setSelectedTab(tab.name)}
+                onClick={() => { setSelectedTab(tab.name); setCurrentPage(1); }}
                 className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${
                   selectedTab === tab.name
                     ? "bg-white text-black shadow-lg scale-[1.02]"
@@ -282,7 +288,7 @@ export default function AdminFolderManagerPage() {
                 placeholder="Search folder..."
                 value={searchTerm}
                 className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               />
             </div>
             <div className="flex gap-2 ">
@@ -362,7 +368,7 @@ export default function AdminFolderManagerPage() {
             <EmptyFolderState/>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-              {filteredFolders.map((folder) => (
+              {currentItems.map((folder) => (
                 <FolderCard
                   key={folder.id}
                   title={folder.title}
@@ -398,7 +404,7 @@ export default function AdminFolderManagerPage() {
           ) : (
             <div className="flex flex-col gap-3">
               <div className="lg:hidden">
-                {filteredFolders.map((folder) => (
+                {currentItems.map((folder) => (
                   <MobileFolderRow
                     key={folder.id}
                     folder={folder}
@@ -420,7 +426,7 @@ export default function AdminFolderManagerPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredFolders.map((folder) => (
+                    {currentItems.map((folder) => (
                       <tr
                         key={folder.id}
                         className="items-center cursor-pointer hover:bg-white/[0.02] transition-colors"
@@ -472,6 +478,65 @@ export default function AdminFolderManagerPage() {
               </div>
             </div>
           )}
+        {!loading && filteredFolders.length > 0 && (
+          <div className="flex justify-between items-center p-6 border-t border-white/10 mt-4">
+            <div className="hidden lg:block text-sm text-[#666666]">
+              Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredFolders.length)} of {filteredFolders.length} entries
+            </div>
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10"
+              >
+                Previous
+              </button>
+              <div className="flex gap-1">
+                {(() => {
+                  const rangeArr = [];
+                  const delta = 1;
+                  const left = currentPage - delta;
+                  const right = currentPage + delta + 1;
+
+                  for (let i = 1; i <= totalPages; i++) {
+                    if (i === 1 || i === totalPages || (i >= left && i < right)) {
+                      rangeArr.push(i);
+                    } else if (i === left - 1 || i === right) {
+                      rangeArr.push("...");
+                    }
+                  }
+
+                  return rangeArr
+                    .filter((val, index, arr) => val !== "..." || arr[index - 1] !== "...")
+                    .map((page, index) =>
+                      page === "..." ? (
+                        <span key={`dots-${index}`} className="px-2 py-1 text-xs text-white/30">...</span>
+                      ) : (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page as number)}
+                          className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${
+                            currentPage === page
+                              ? "bg-[#E5D5B8] text-black"
+                              : "text-white/60 hover:bg-white/5"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    );
+                })()}
+              </div>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
         </div>
 
         {menuAnchor && (
