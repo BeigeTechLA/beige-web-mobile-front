@@ -324,6 +324,8 @@ export default function CreatorFolderDetailsPage() {
             {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
               <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
                 First create your folder, then you can access your folders and upload files.
+                <br />
+                Once created, you can see your folder in Pre Production and Post Production as well.
               </div>
             ) : null}
 
