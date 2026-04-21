@@ -60,7 +60,6 @@ import {
 import {
   extractQuoteLineItems,
   formatQuoteItemDisplayName,
-  getQuoteText,
   getQuoteLineItemEditingTypeConfiguration,
   getQuoteLineItemEditingTypeLabel,
 } from "@/lib/quoteDetail";
@@ -926,8 +925,6 @@ export default function CreateQuotePage() {
   );
   const quoteEditReturnHref =
     returnToParam && returnToParam.startsWith("/") ? returnToParam : null;
-  const paidQuoteRedirectHref = quoteEditReturnHref ||
-    (editQuoteId ? `/admin/quotes/${encodeURIComponent(editQuoteId)}` : "/admin/quotes");
 
   // Using a Record so it works for multiple rows/items in a list
   const [inputValue, setInputValue] = useState<Record<string, string>>({});
@@ -1100,11 +1097,6 @@ export default function CreateQuotePage() {
   const [isLoadingQuoteToEdit, setIsLoadingQuoteToEdit] = React.useState(false);
   const [isHydratingQuoteToEdit, setIsHydratingQuoteToEdit] =
     React.useState(false);
-  const isPaidQuoteEdit =
-    isEditMode &&
-    ["paid"].includes(
-      getQuoteText(quoteToEdit?.quote_status, quoteToEdit?.status).trim().toLowerCase()
-    );
   const [isCatalogLoaded, setIsCatalogLoaded] = React.useState(false);
   const hydratedQuoteIdRef = React.useRef<string | null>(null);
   const hydratingQuoteIdRef = React.useRef<string | null>(null);
@@ -1422,17 +1414,6 @@ export default function CreateQuotePage() {
           return;
         }
 
-        const normalizedQuoteStatus = getQuoteText(
-          quoteDetail.quote_status,
-          quoteDetail.status,
-        ).trim().toLowerCase();
-
-        if (normalizedQuoteStatus === "paid") {
-          toast.error("Paid quotes cannot be edited.");
-          router.replace(paidQuoteRedirectHref);
-          return;
-        }
-
         setQuoteToEdit(quoteDetail);
       } catch (error) {
         console.error("Failed to load quote for edit", error);
@@ -1459,7 +1440,7 @@ export default function CreateQuotePage() {
     return () => {
       isMounted = false;
     };
-  }, [editQuoteId, paidQuoteRedirectHref, router]);
+  }, [editQuoteId, router]);
 
   React.useEffect(() => {
     if (!editQuoteId || !quoteToEdit || !isCatalogLoaded) {
@@ -2966,12 +2947,6 @@ export default function CreateQuotePage() {
     action: "preview" | "save" | "draft",
     options?: { suppressRedirect?: boolean; openPreview?: boolean },
   ) => {
-    if (isPaidQuoteEdit) {
-      toast.error("Paid quotes cannot be edited.");
-      router.replace(paidQuoteRedirectHref);
-      return;
-    }
-
     if (isCreatingQuoteDraft) return;
 
     const isUpdatingExistingQuote = Boolean(effectiveQuoteId);
@@ -3156,12 +3131,6 @@ export default function CreateQuotePage() {
 
   const handleSaveCurrentEditStep = async () => {
     if (!editQuoteId || isCreatingQuoteDraft) {
-      return;
-    }
-
-    if (isPaidQuoteEdit) {
-      toast.error("Paid quotes cannot be edited.");
-      router.replace(paidQuoteRedirectHref);
       return;
     }
 

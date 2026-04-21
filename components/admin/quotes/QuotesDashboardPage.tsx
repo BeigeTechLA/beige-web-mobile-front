@@ -53,6 +53,8 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { persistQuoteEditorNavigationCache } from "@/lib/quoteEdit";
+import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -829,6 +831,7 @@ export default function QuotesDashboardPage({
   const [currentPage, setCurrentPage] = useState(1);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [rejectingQuoteId, setRejectingQuoteId] = useState<string | null>(null);
+  const [duplicatingQuoteId, setDuplicatingQuoteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -879,7 +882,6 @@ export default function QuotesDashboardPage({
         const dashboardParams = {
           range: effectiveRange,
           ...(effectiveDateOn ? { date_on: effectiveDateOn } : {}),
-          ...(selectedStatusFilter !== "all" ? { status: selectedStatusFilter } : {}),
           ...(selectedSalesperson !== "all"
             ? { assigned_sales_rep_id: selectedSalesperson }
             : {}),
@@ -931,15 +933,6 @@ export default function QuotesDashboardPage({
     selectedSalesperson,
     selectedStatusFilter,
   ]);
-
-  const handleUnsupportedQuoteAction = (
-    actionLabel: "Duplicate" | "Edit" | "Reject Quote"
-  ) => {
-    setOpenActionMenuId(null);
-    toast(actionLabel === "Reject Quote"
-      ? "Reject quote action is not available yet."
-      : `${actionLabel} action is not available yet.`);
-  };
 
   const handleRejectQuote = async (quoteId: string, currentStatus?: string) => {
     setOpenActionMenuId(null);
@@ -993,6 +986,61 @@ export default function QuotesDashboardPage({
     }
   };
 
+  const handleDuplicateQuote = async (quoteId: string) => {
+    setOpenActionMenuId(null);
+
+    if (!quoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    if (duplicatingQuoteId === quoteId) {
+      return;
+    }
+
+    setDuplicatingQuoteId(quoteId);
+
+    try {
+      const response = await salesApi.duplicateQuote(quoteId);
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string" ? response.error : "Failed to duplicate quote"
+        );
+      }
+
+      const duplicatedQuote = unwrapSalesQuoteDetail(response?.data ?? null);
+      const duplicatedQuoteId =
+        extractQuoteIdFromResponse(response) ?? extractQuoteIdFromResponse(duplicatedQuote);
+
+      if (!duplicatedQuoteId) {
+        throw new Error("Duplicated quote id is missing.");
+      }
+
+      if (duplicatedQuote) {
+        persistQuoteEditorNavigationCache(duplicatedQuoteId, duplicatedQuote);
+      }
+
+      toast.success("Quote duplicated successfully");
+
+      const query = new URLSearchParams({
+        quoteId: duplicatedQuoteId,
+        view: "details",
+        editMode: "full",
+        returnTo: pathname,
+      });
+
+      window.setTimeout(() => {
+        router.push(`${createHref}?${query.toString()}`);
+      }, 450);
+    } catch (error) {
+      console.error("Failed to duplicate quote", error);
+      toast.error(error instanceof Error ? error.message : "Failed to duplicate quote");
+    } finally {
+      setDuplicatingQuoteId(null);
+    }
+  };
+
   const handleViewQuoteDetails = (quoteId: string) => {
     if (!quoteId) {
       toast.error("Quote id is missing.");
@@ -1005,16 +1053,10 @@ export default function QuotesDashboardPage({
 
   const handleEditQuote = (
     quoteId: string,
-    statusKey: string,
     targetView: string = "details"
   ) => {
     if (!quoteId) {
       toast.error("Quote id is missing.");
-      return;
-    }
-
-    if (statusKey.trim().toLowerCase() === "paid") {
-      toast.error("Paid quotes cannot be edited.");
       return;
     }
 
@@ -1594,12 +1636,14 @@ export default function QuotesDashboardPage({
                             onViewDetails={() => {
                               handleViewQuoteDetails(quote.id);
                             }}
-                            onDuplicate={() => handleUnsupportedQuoteAction("Duplicate")}
-                            onEdit={() => handleEditQuote(quote.id, quote.statusKey)}
+                            onDuplicate={() => {
+                              void handleDuplicateQuote(quote.id);
+                            }}
+                            onEdit={() => handleEditQuote(quote.id)}
                             onReject={() => {
                               void handleRejectQuote(quote.id, quote.statusKey);
                             }}
-                            allowEdit={quote.statusKey !== "paid"}
+                            allowEdit
                           />
                         </td>
                       </tr>
