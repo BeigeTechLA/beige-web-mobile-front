@@ -182,9 +182,22 @@ interface FaceScanResponse {
   success: boolean;
   data: {
     externalId: string;
-    scanMode: "full_face_scan";
+    scanMode: "full_face_scan" | "indexed_plus_fallback_scan";
     integrated: boolean;
     candidatesCount: number;
+    indexedCandidatesCount?: number;
+    scannedCandidatesCount?: number;
+    backgroundIndexQueued?: number;
+    noFaceDetectedInScanImage?: boolean;
+    minScore?: number;
+    indexStatus?: {
+      state: "ready" | "partial" | "not_indexed" | "indexing" | "empty";
+      totalCandidates: number;
+      readyCandidates: number;
+      skippedCandidates?: number;
+      pendingCandidates: number;
+      coverage: number;
+    };
     matches: Array<{
       path?: string;
       score?: number;
@@ -192,6 +205,21 @@ interface FaceScanResponse {
       [key: string]: unknown;
     }>;
     provider?: string | null;
+  };
+}
+
+interface FaceScanIndexStatusResponse {
+  success: boolean;
+  data: {
+    externalId: string;
+    state: "ready" | "partial" | "not_indexed" | "indexing" | "empty";
+    totalCandidates: number;
+    readyCandidates: number;
+    skippedCandidates?: number;
+    indexingCandidates: number;
+    failedCandidates: number;
+    pendingCandidates: number;
+    coverage: number;
   };
 }
 
@@ -416,11 +444,23 @@ export const fileManagerApi = {
     scanImageBase64?: string;
     scanImageUrl?: string;
     threshold?: number;
+    minScore?: number;
     maxResults?: number;
     candidateLimit?: number;
+    fallbackCandidateLimit?: number;
+    backgroundReindex?: boolean;
+    backgroundBatchLimit?: number;
+    backgroundConcurrency?: number;
     providerTimeoutMs?: number;
   }) {
     const response = await apiClient.post<FaceScanResponse>("external-file-manager/face-scan/search", payload);
+    return response.data;
+  },
+
+  async getFaceScanIndexStatus(externalId: string) {
+    const response = await apiClient.get<FaceScanIndexStatusResponse>(
+      `external-file-manager/face-scan/index-status/${encodeURIComponent(String(externalId || ""))}`
+    );
     return response.data;
   },
 
