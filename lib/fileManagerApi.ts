@@ -104,6 +104,14 @@ interface ExternalWorkspacesResponse {
   success: boolean;
   data: {
     workspaces: ExternalWorkspaceSummary[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+    };
   };
 }
 
@@ -343,6 +351,29 @@ export const fileManagerApi = {
   async listExternalWorkspaces() {
     const response = await apiClient.get<ExternalWorkspacesResponse>("external-file-manager/workspaces");
     return response.data.workspaces || [];
+  },
+
+  async listExternalWorkspacesPaginated(options?: { page?: number; limit?: number; search?: string }) {
+    const params: Record<string, string | number> = {};
+    if (options?.page) params.page = options.page;
+    if (options?.limit) params.limit = options.limit;
+    if (options?.search) params.search = options.search;
+
+    const response = await apiClient.get<ExternalWorkspacesResponse>(
+      "external-file-manager/workspaces",
+      params
+    );
+    return {
+      workspaces: response.data.workspaces || [],
+      pagination: response.data.pagination || {
+        page: options?.page || 1,
+        limit: options?.limit || (response.data.workspaces || []).length || 1,
+        total: (response.data.workspaces || []).length,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    };
   },
 
   async listCommonEvents() {
