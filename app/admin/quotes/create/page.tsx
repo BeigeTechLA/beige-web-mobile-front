@@ -10,7 +10,6 @@ import {
   Save,
   Check,
   MoreVertical,
-  Calendar,
   Minus,
   Trash2,
   Pencil,
@@ -40,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import DottedDivider from "@/components/admin/DottedDivider";
 import ConvertBookingModal, {
+  type ConvertBookingModalInitialData,
   type ConvertBookingModalSubmitData,
 } from "@/components/admin/quotes/ConvertBookingModal";
 import { motion, AnimatePresence } from "framer-motion";
@@ -90,6 +90,7 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { toast } from "sonner";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
+import { useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 
 const clients = [
   // Dynamic client fetching replaces hardcoded array
@@ -286,6 +287,81 @@ const parseCurrencyInput = (value: string) => {
   const sanitizedValue = sanitizeCurrencyInput(value);
   const parsedValue = Number.parseFloat(sanitizedValue);
   return Number.isFinite(parsedValue) ? parsedValue : 0;
+};
+
+const normalizeConvertModalTime = (value?: string | null) => {
+  if (!value) return "";
+  const trimmedValue = String(value).trim();
+  const match = trimmedValue.match(/^(\d{2}:\d{2})/);
+  return match?.[1] || "";
+};
+
+const buildConvertModalInitialData = (
+  booking?: {
+    event_location?: string;
+    event_date?: string;
+    start_time?: string;
+    end_time?: string;
+    booking_days?: Array<{
+      event_date: string;
+      start_time: string;
+      end_time: string;
+    }>;
+  } | null,
+): ConvertBookingModalInitialData | null => {
+  if (!booking) {
+    return null;
+  }
+
+  const bookingDays = Array.isArray(booking.booking_days)
+    ? booking.booking_days
+        .filter((day) => day?.event_date)
+        .map((day) => ({
+          date: day.event_date,
+          startTime: normalizeConvertModalTime(day.start_time),
+          endTime: normalizeConvertModalTime(day.end_time),
+        }))
+        .filter((day) => day.startTime && day.endTime)
+    : [];
+
+  if (bookingDays.length > 1) {
+    const [firstDay] = bookingDays;
+    const sameTimings = bookingDays.every(
+      (day) =>
+        day.startTime === firstDay.startTime && day.endTime === firstDay.endTime,
+    );
+
+    return {
+      bookingType: "multi_day",
+      location: booking.event_location || "",
+      multiDay: {
+        sameTimings,
+        sharedStartTime: sameTimings ? firstDay.startTime : undefined,
+        sharedEndTime: sameTimings ? firstDay.endTime : undefined,
+        days: bookingDays,
+      },
+    };
+  }
+
+  const singleDayDate = bookingDays[0]?.date || booking.event_date || "";
+  const singleDayStartTime =
+    bookingDays[0]?.startTime || normalizeConvertModalTime(booking.start_time);
+  const singleDayEndTime =
+    bookingDays[0]?.endTime || normalizeConvertModalTime(booking.end_time);
+
+  if (!singleDayDate || !singleDayStartTime || !singleDayEndTime) {
+    return null;
+  }
+
+  return {
+    bookingType: "single_day",
+    location: booking.event_location || "",
+    singleDay: {
+      date: singleDayDate,
+      startTime: singleDayStartTime,
+      endTime: singleDayEndTime,
+    },
+  };
 };
 
 const mergeCatalogItemsById = <T extends { id: string }>(
@@ -916,6 +992,9 @@ export default function CreateQuotePage() {
   const isEditMode = Boolean(editQuoteId);
   const editModeParam = searchParams.get("editMode");
   const isFullEditFlow = isEditMode && editModeParam === "full";
+  const isDuplicateFlow = ["1", "true"].includes(
+    String(searchParams.get("duplicate") || "").trim().toLowerCase(),
+  );
   const returnToParam = searchParams.get("returnTo");
   const [createdQuoteId, setCreatedQuoteId] = useState<string | null>(null);
   const effectiveQuoteId = editQuoteId || createdQuoteId;
@@ -924,7 +1003,9 @@ export default function CreateQuotePage() {
     isEditMode ? "details" : "selection",
   );
   const quoteEditReturnHref =
-    returnToParam && returnToParam.startsWith("/") ? returnToParam : null;
+    !isDuplicateFlow && returnToParam && returnToParam.startsWith("/")
+      ? returnToParam
+      : null;
 
   // Using a Record so it works for multiple rows/items in a list
   const [inputValue, setInputValue] = useState<Record<string, string>>({});
@@ -1086,6 +1167,8 @@ export default function CreateQuotePage() {
   const [isConverting, setIsConverting] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [convertIntent, setConvertIntent] = useState<"convert_only" | "send_invoice" | "view_invoice">("convert_only");
+  const [convertModalInitialDataOverride, setConvertModalInitialDataOverride] =
+    useState<ConvertBookingModalInitialData | null>(null);
   const [convertedBookingIdOverride, setConvertedBookingIdOverride] =
     useState<string | null>(null);
   const [isConvertedOverride, setIsConvertedOverride] = useState(false);
@@ -1106,6 +1189,22 @@ export default function CreateQuotePage() {
   const logisticsItemsRef = React.useRef(logisticsItems);
   const lineItemsRef = React.useRef(lineItems);
   const editingTypeOptionsRef = React.useRef(editingTypeOptions);
+  const quoteLeadId = React.useMemo(() => {
+    const leadIdValue = quoteToEdit?.["lead_id"] ?? previewQuote?.["lead_id"];
+    const normalizedLeadId = Number(leadIdValue);
+    return Number.isInteger(normalizedLeadId) && normalizedLeadId > 0
+      ? normalizedLeadId
+      : null;
+  }, [previewQuote, quoteToEdit]);
+  const { data: linkedLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
+    skip: !quoteLeadId,
+  });
+  const convertModalInitialData = React.useMemo(
+    () =>
+      convertModalInitialDataOverride ||
+      buildConvertModalInitialData(linkedLeadDetails?.booking),
+    [convertModalInitialDataOverride, linkedLeadDetails],
+  );
 
   const fetchClients = async (query?: string) => {
     setLoadingClients(true);
@@ -1183,6 +1282,10 @@ export default function CreateQuotePage() {
   React.useEffect(() => {
     fetchCatalog();
   }, []);
+
+  React.useEffect(() => {
+    setConvertModalInitialDataOverride(null);
+  }, [effectiveQuoteId]);
 
   React.useEffect(() => {
     servicesRef.current = services;
@@ -3020,7 +3123,7 @@ export default function CreateQuotePage() {
         await delayAfterSuccessToast();
         setIsQuoteSaved(true);
         if (!shouldOpenPreview) {
-          if (isEditMode && quoteEditReturnHref) {
+          if (isEditMode && quoteEditReturnHref && !isFullEditFlow) {
             router.push(quoteEditReturnHref);
             return;
           }
@@ -3158,6 +3261,10 @@ export default function CreateQuotePage() {
 
       toast.success("Quote updated successfully");
       await delayAfterSuccessToast();
+      if (isDuplicateFlow) {
+        return;
+      }
+
       router.push(quoteEditReturnHref || editQuoteDetailsHref);
     } catch (error) {
       console.error("Failed to save quote edit step", error);
@@ -3333,13 +3440,8 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (!isConvertedToBooking) {
-      setConvertIntent("send_invoice");
-      setIsConvertModalOpen(true);
-      return;
-    }
-
-    await sendQuoteInvoiceRequest();
+    setConvertIntent("send_invoice");
+    setIsConvertModalOpen(true);
   };
 
   const handleConvertBookingSubmit = async (
@@ -3352,6 +3454,7 @@ export default function CreateQuotePage() {
 
     setIsConverting(true);
     try {
+      const wasAlreadyConverted = isConvertedToBooking;
       const browserTimeZone = getBrowserTimeZone();
       let payload: SalesQuoteConvertToBookingPayload;
 
@@ -3406,6 +3509,7 @@ export default function CreateQuotePage() {
         setConvertedBookingIdOverride(nextBookingId);
       }
       setIsConvertedOverride(true);
+      setConvertModalInitialDataOverride(bookingData);
       setQuoteToEdit((current) =>
         current
           ? {
@@ -3416,7 +3520,9 @@ export default function CreateQuotePage() {
       );
 
       toast.success(
-        `Your quote has been converted into booking${nextBookingId ? ` #${nextBookingId}` : ""}. You can continue with invoice actions now.`,
+        wasAlreadyConverted
+          ? "Booking date and time updated. Continuing with invoice actions now."
+          : `Your quote has been converted into booking${nextBookingId ? ` #${nextBookingId}` : ""}. You can continue with invoice actions now.`,
       );
       setIsConvertModalOpen(false);
 
@@ -6913,7 +7019,7 @@ export default function CreateQuotePage() {
           </div>
 
           <div className="flex gap-4 self-start sm:self-auto">
-            {showInvoiceActions ? (
+              {showInvoiceActions ? (
               <>
                 <Button
                   type="button"
@@ -7163,23 +7269,34 @@ export default function CreateQuotePage() {
         }}
         isSubmitting={isConverting}
         isDark={isDark}
+        initialData={convertModalInitialData}
         showLocationField={false}
         maxDurationHours={selectedServicesMaxDurationHours}
         title={
           convertIntent === "send_invoice"
-            ? "Convert to Booking Before Sending Invoice"
+            ? isConvertedToBooking
+              ? "Confirm Date & Time Before Sending Invoice"
+              : "Convert to Booking Before Sending Invoice"
             : convertIntent === "view_invoice"
               ? "Convert to Booking Before Viewing Invoice"
             : "Convert to Booking"
         }
         description={
           convertIntent === "send_invoice"
-            ? "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
+            ? isConvertedToBooking
+              ? "Review or update the booking date and time below, then continue to send the invoice."
+              : "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
             : convertIntent === "view_invoice"
               ? "This quote must be converted to a booking before an invoice can be viewed. Complete the booking details below to continue."
             : "Select booking type, shoot date and time before continuing."
         }
-        submitLabel="Convert to Booking"
+        submitLabel={
+          convertIntent === "send_invoice"
+            ? isConvertedToBooking
+              ? "Save & Send Invoice"
+              : "Convert & Send Invoice"
+            : "Convert to Booking"
+        }
       />
       <QuoteSummaryModal
         open={isSummaryModalOpen}
