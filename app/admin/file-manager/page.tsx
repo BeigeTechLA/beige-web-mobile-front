@@ -95,8 +95,6 @@ export default function AdminFolderManagerPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
 
   const getUpdatedTimestamp = (value?: string) => {
     if (!value) return 0;
@@ -292,7 +290,7 @@ export default function AdminFolderManagerPage() {
             </Button>
               <SortDateButton
                 selectedDate={selectedDate}
-                onDateChange={(date) => { setSelectedDate(date); setCurrentPage(1); }}
+                onDateChange={setSelectedDate}
                 width="w-full sm:w-fit"
               />
             </div>
@@ -304,7 +302,7 @@ export default function AdminFolderManagerPage() {
             {tabs.map((tab) => (
               <Button
                 key={tab.name}
-                onClick={() => { setSelectedTab(tab.name); setCurrentPage(1); }}
+                onClick={() => setSelectedTab(tab.name)}
                 className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${
                   selectedTab === tab.name
                     ? "bg-white text-black shadow-lg scale-[1.02]"
@@ -335,7 +333,7 @@ export default function AdminFolderManagerPage() {
                 placeholder="Search folder..."
                 value={searchTerm}
                 className="w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 bg-[#18181b] border border-white/10 rounded-lg text-xs lg:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#E8D1AB] transition-all"
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <div className="flex gap-2 ">
@@ -415,7 +413,7 @@ export default function AdminFolderManagerPage() {
             <EmptyFolderState/>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-              {currentItems.map((folder) => (
+              {filteredFolders.map((folder) => (
                 <FolderCard
                   key={folder.id}
                   title={folder.title}
@@ -451,7 +449,7 @@ export default function AdminFolderManagerPage() {
           ) : (
             <div className="flex flex-col gap-3">
               <div className="lg:hidden">
-                {currentItems.map((folder) => (
+                {filteredFolders.map((folder) => (
                   <MobileFolderRow
                     key={folder.id}
                     folder={folder}
@@ -473,7 +471,7 @@ export default function AdminFolderManagerPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {currentItems.map((folder) => (
+                    {filteredFolders.map((folder) => (
                       <tr
                         key={folder.id}
                         className="items-center cursor-pointer hover:bg-white/[0.02] transition-colors"
