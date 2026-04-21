@@ -2543,4 +2543,44 @@ export const salesApi = {
       };
     }
   },
+
+  saveSignature: async (payload: {
+    quote_id: number | string;
+    signer_name: string;
+    signer_email?: string;
+    signature_base64: string;
+  }) => {
+    try {
+      const response = await api.post('/signatures/sign', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Save Signature Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to save signature',
+      };
+    }
+  },
+
+  getSignatureByQuote: async (quote_id: number | string) => {
+    try {
+      const response = await api.get(`/signatures/quote/${quote_id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Signature Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch signature',
+      };
+    }
+  },
+
+  downloadSignedPdf: (quote_id: number | string) => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
+    return `${baseUrl}signatures/download/${quote_id}`;
+  },
 };
+
+
