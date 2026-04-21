@@ -1027,6 +1027,7 @@ export default function QuotesDashboardPage({
         quoteId: duplicatedQuoteId,
         view: "details",
         editMode: "full",
+        duplicate: "1",
         returnTo: pathname,
       });
 
