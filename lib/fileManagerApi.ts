@@ -386,8 +386,29 @@ export const fileManagerApi = {
     scanImageUrl?: string;
     threshold?: number;
     maxResults?: number;
+    candidateLimit?: number;
+    providerTimeoutMs?: number;
   }) {
     const response = await apiClient.post<FaceScanResponse>("external-file-manager/face-scan/search", payload);
+    return response.data;
+  },
+
+  async reindexFaceEmbeddings(payload: {
+    externalId: string;
+    candidateLimit?: number;
+    concurrency?: number;
+  }) {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        externalId: string;
+        totalCandidates: number;
+        selectedCandidates: number;
+        indexed: number;
+        skipped: number;
+        failed: number;
+      };
+    }>("external-file-manager/face-scan/reindex", payload);
     return response.data;
   },
 

@@ -2022,6 +2022,22 @@ export const salesApi = {
       };
     }
   },
+  duplicateQuote: async (quoteId: number | string) => {
+    try {
+      const response = await api.post<SalesQuoteDetailResponse>(
+        `/sales/quotes/${quoteId}/duplicate`,
+        {}
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Duplicate Quote Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to duplicate quote',
+      };
+    }
+  },
   getQuotesDashboard: async (
     params: {
       range?: string;

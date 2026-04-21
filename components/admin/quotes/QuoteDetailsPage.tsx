@@ -485,7 +485,6 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
-  const isPaidQuote = normalizedQuoteStatus === "paid";
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -798,11 +797,6 @@ export default function QuoteDetailsPage({
   };
 
   const handleEditQuote = (targetView: QuoteEditorView) => {
-    if (isPaidQuote) {
-      toast.error("Paid quotes cannot be edited.");
-      return;
-    }
-
     if (quote) {
       persistQuoteEditorNavigationCache(quoteId, quote);
     }
@@ -909,8 +903,8 @@ export default function QuoteDetailsPage({
           <div className="space-y-6">
             <SectionShell
               title="Client Information"
-              actionLabel={isPaidQuote ? undefined : "Edit Details"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("details")}
+              actionLabel="Edit Details"
+              onAction={() => handleEditQuote("details")}
             >
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -983,8 +977,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
-              actionLabel={isPaidQuote ? undefined : "Edit Services"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("services")}
+              actionLabel="Edit Services"
+              onAction={() => handleEditQuote("services")}
             >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
@@ -1003,8 +997,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Add-On Includes"
-              actionLabel={isPaidQuote ? undefined : "Edit Add ons"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("addons")}
+              actionLabel="Edit Add ons"
+              onAction={() => handleEditQuote("addons")}
             >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1026,8 +1020,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Logistics"
-              actionLabel={isPaidQuote ? undefined : "Edit Logistics"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("logistics")}
+              actionLabel="Edit Logistics"
+              onAction={() => handleEditQuote("logistics")}
             >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1048,8 +1042,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Custom Line Item"
-              actionLabel={isPaidQuote ? undefined : "Edit Items"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("customlineitems")}
+              actionLabel="Edit Items"
+              onAction={() => handleEditQuote("customlineitems")}
             >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
@@ -1077,8 +1071,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Other Details"
-              actionLabel={isPaidQuote ? undefined : "Edit Tax & Discounts"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("discounts")}
+              actionLabel="Edit Tax & Discounts"
+              onAction={() => handleEditQuote("discounts")}
             >
               <div className="space-y-6">
                 <div className="inline-flex rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
