@@ -468,16 +468,20 @@ export const fileManagerApi = {
     externalId: string;
     candidateLimit?: number;
     concurrency?: number;
+    sync?: boolean;
+    providerTimeoutMs?: number;
   }) {
     const response = await apiClient.post<{
       success: boolean;
       data: {
         externalId: string;
+        mode?: "background" | "sync";
         totalCandidates: number;
         selectedCandidates: number;
-        indexed: number;
-        skipped: number;
-        failed: number;
+        queuedCandidates?: number;
+        indexed?: number;
+        skipped?: number;
+        failed?: number;
       };
     }>("external-file-manager/face-scan/reindex", payload);
     return response.data;
