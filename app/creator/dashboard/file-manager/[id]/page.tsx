@@ -365,7 +365,7 @@ export default function CreatorFolderDetailsPage() {
                       <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5D5B8]/50 bg-[#E5D5B8]/10">
                         <Plus size={22} />
                       </span>
-                      {isCreatingMyFolder ? "Creating..." : "Create My CP Folder"}
+                      {isCreatingMyFolder ? "Creating..." : "Create Your Folder"}
                     </span>
                   </button>
                 ) : null}
