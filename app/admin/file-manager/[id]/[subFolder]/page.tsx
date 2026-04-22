@@ -42,6 +42,7 @@ import {
 import { toast } from "sonner";
 
 const STATUSES = ["Linked", "Unlinked"];
+const FILES_PAGE_SIZE = 20;
 
 const getFileExtension = (title?: string) => {
   const parts = (title || "").toLowerCase().split(".");
@@ -146,6 +147,7 @@ export default function AdminFileManagerPhasePage() {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [viewerFile, setViewerFile] = useState<any | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
 
   const loadPhase = async () => {
     try {
@@ -242,9 +244,18 @@ export default function AdminFileManagerPhasePage() {
     const query = searchTerm.toLowerCase();
     return filesWithMeta.filter((item) => item.title.toLowerCase().includes(query));
   }, [searchTerm, viewState.files]);
+  const visibleFiles = useMemo(
+    () => filteredFiles.slice(0, visibleFileCount),
+    [filteredFiles, visibleFileCount]
+  );
+  const hasMoreFiles = filteredFiles.length > visibleFileCount;
 
   useEffect(() => {
-    const previewableFiles = viewState.files.filter(
+    setVisibleFileCount(FILES_PAGE_SIZE);
+  }, [projectId, phaseSlug, searchTerm, viewState.files.length, viewState.kind]);
+
+  useEffect(() => {
+    const previewableFiles = visibleFiles.filter(
       (file: any) =>
         file.filepath &&
         (file.contentType?.startsWith("image/") || file.contentType?.startsWith("video/"))
@@ -277,7 +288,7 @@ export default function AdminFileManagerPhasePage() {
     return () => {
       active = false;
     };
-  }, [viewState.files]);
+  }, [visibleFiles]);
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -679,21 +690,34 @@ export default function AdminFileManagerPhasePage() {
                       {filteredFiles.length === 0 ? (
                         <EmptyFileState onAction={isPreProduction ? () => setIsUploadModalOpen(true) : undefined} actionLabel={isPreProduction ? "Upload Files" : undefined} />
                       ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-                          {filteredFiles.map((file) => (
-                            <FileCard
-                              key={file.id}
-                              file={{ ...file, previewUrl: previewUrls[file.id] }}
-                              onOpen={() => handleOpenFile(file)}
-                              onDownload={() => handleDownloadFile(file)}
-                              onDelete={() => {
-                                if (!isPreProduction) return;
-                                setSelectedFile(file);
-                                setSelectedFolder(null);
-                                setIsDeleteModalOpen(true);
-                              }}
-                            />
-                          ))}
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                            {visibleFiles.map((file) => (
+                              <FileCard
+                                key={file.id}
+                                file={{ ...file, previewUrl: previewUrls[file.id] }}
+                                onOpen={() => handleOpenFile(file)}
+                                onDownload={() => handleDownloadFile(file)}
+                                onDelete={() => {
+                                  if (!isPreProduction) return;
+                                  setSelectedFile(file);
+                                  setSelectedFolder(null);
+                                  setIsDeleteModalOpen(true);
+                                }}
+                              />
+                            ))}
+                          </div>
+                          {hasMoreFiles ? (
+                            <div className="flex justify-center">
+                              <Button
+                                type="button"
+                                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                                onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                              >
+                                View More
+                              </Button>
+                            </div>
+                          ) : null}
                         </div>
                       )}
                     </div>
@@ -703,29 +727,43 @@ export default function AdminFileManagerPhasePage() {
                 filteredFiles.length === 0 ? (
                   <EmptyFileState onAction={isPreProduction ? () => setIsUploadModalOpen(true) : undefined} actionLabel={isPreProduction ? "Upload Files" : undefined} />
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-                    {filteredFiles.map((file) => (
-                      <FileCard
-                        key={file.id}
-                        file={{ ...file, previewUrl: previewUrls[file.id] }}
-                        onOpen={() => handleOpenFile(file)}
-                        onDownload={() => handleDownloadFile(file)}
-                        onDelete={() => {
-                          if (!isPreProduction) return;
-                          setSelectedFile(file);
-                          setSelectedFolder(null);
-                          setIsDeleteModalOpen(true);
-                        }}
-                      />
-                    ))}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                      {visibleFiles.map((file) => (
+                        <FileCard
+                          key={file.id}
+                          file={{ ...file, previewUrl: previewUrls[file.id] }}
+                          onOpen={() => handleOpenFile(file)}
+                          onDownload={() => handleDownloadFile(file)}
+                          onDelete={() => {
+                            if (!isPreProduction) return;
+                            setSelectedFile(file);
+                            setSelectedFolder(null);
+                            setIsDeleteModalOpen(true);
+                          }}
+                        />
+                      ))}
+                    </div>
+                    {hasMoreFiles ? (
+                      <div className="flex justify-center">
+                        <Button
+                          type="button"
+                          className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                          onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                        >
+                          View More
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 )
               ) : (
                 filteredFiles.length === 0 ? (
                   <EmptyFileState onAction={isPreProduction ? () => setIsUploadModalOpen(true) : undefined} actionLabel={isPreProduction ? "Upload Files" : undefined} />
                 ) : (
-                  <div className="hidden lg:block overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                  <div className="space-y-4">
+                    <div className="hidden lg:block overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
                           <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
@@ -735,7 +773,7 @@ export default function AdminFileManagerPhasePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredFiles.map((item) => (
+                        {visibleFiles.map((item) => (
                           <tr
                             key={item.id}
                             className="hover:bg-white/[0.02] transition-colors cursor-pointer"
@@ -784,6 +822,18 @@ export default function AdminFileManagerPhasePage() {
                         ))}
                       </tbody>
                     </table>
+                    </div>
+                    {hasMoreFiles ? (
+                      <div className="flex justify-center">
+                        <Button
+                          type="button"
+                          className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                          onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                        >
+                          View More
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 )
               )}

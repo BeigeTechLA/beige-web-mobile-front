@@ -261,6 +261,9 @@ interface FaceScanIndexStatusResponse {
   };
 }
 
+type ExternalFileUrlData = { url: string; duration: number };
+type ExternalFileUrlResponse = { success: boolean; data: ExternalFileUrlData };
+
 export interface UiFolderItem {
   id: string;
   title: string;
@@ -316,6 +319,61 @@ const PRE_PRODUCTION_CATEGORIES = ["REFERENCE_MATERIAL", "THUMBNAIL"];
 const RAW_FOOTAGE_CATEGORIES = ["RAW_FOOTAGE", "RAW_AUDIO"];
 const EDITED_FOOTAGE_CATEGORIES = ["EDIT_DRAFT", "EDIT_REVISION"];
 const FINAL_DELIVERABLE_CATEGORIES = ["EDIT_FINAL", "CLIENT_DELIVERABLE"];
+const FILE_VIEW_URL_CACHE_TTL_MS = Math.max(
+  30_000,
+  Number(process.env.NEXT_PUBLIC_FILE_VIEW_URL_CACHE_TTL_MS || 10 * 60 * 1000)
+);
+const FILE_VIEW_URL_CONCURRENCY = Math.max(
+  1,
+  Number(process.env.NEXT_PUBLIC_FILE_VIEW_URL_CONCURRENCY || 6)
+);
+const FILE_VIEW_URL_EXPIRY_BUFFER_MS = 30_000;
+const FILE_VIEW_URL_CACHE_MAX_ENTRIES = Math.max(
+  200,
+  Number(process.env.NEXT_PUBLIC_FILE_VIEW_URL_CACHE_MAX_ENTRIES || 2000)
+);
+const fileViewUrlCache = new Map<string, { value: ExternalFileUrlData; expiresAt: number }>();
+const fileViewUrlInFlight = new Map<string, Promise<ExternalFileUrlData>>();
+let activeFileViewUrlRequests = 0;
+const fileViewUrlQueue: Array<() => void> = [];
+
+const runFileViewUrlTask = async <T,>(task: () => Promise<T>): Promise<T> => {
+  await new Promise<void>((resolve) => {
+    const execute = () => {
+      activeFileViewUrlRequests += 1;
+      resolve();
+    };
+
+    if (activeFileViewUrlRequests < FILE_VIEW_URL_CONCURRENCY) {
+      execute();
+      return;
+    }
+
+    fileViewUrlQueue.push(execute);
+  });
+
+  try {
+    return await task();
+  } finally {
+    activeFileViewUrlRequests = Math.max(0, activeFileViewUrlRequests - 1);
+    const next = fileViewUrlQueue.shift();
+    if (next) next();
+  }
+};
+
+const setCachedFileViewUrl = (filepath: string, value: ExternalFileUrlData) => {
+  const rawDurationMs = Number(value?.duration || 0) * 1000;
+  const durationMs = rawDurationMs > 0 ? rawDurationMs : FILE_VIEW_URL_CACHE_TTL_MS;
+  const safeDurationMs = Math.max(30_000, durationMs - FILE_VIEW_URL_EXPIRY_BUFFER_MS);
+  const expiresAt = Date.now() + safeDurationMs;
+  fileViewUrlCache.set(filepath, { value, expiresAt });
+
+  while (fileViewUrlCache.size > FILE_VIEW_URL_CACHE_MAX_ENTRIES) {
+    const oldestKey = fileViewUrlCache.keys().next().value;
+    if (!oldestKey) break;
+    fileViewUrlCache.delete(oldestKey);
+  }
+};
 
 const prettifyExternalFolderName = (name?: string) => {
   const normalized = String(name || "").trim();
@@ -611,11 +669,34 @@ export const fileManagerApi = {
   },
 
   async getExternalFileViewUrl(filepath: string) {
-    const response = await apiClient.post<{ success: boolean; data: { url: string; duration: number } }>(
-      "external-file-manager/file-view-url",
-      { filepath }
-    );
-    return response.data;
+    const normalizedPath = String(filepath || "").trim();
+    if (!normalizedPath) {
+      throw new Error("filepath is required");
+    }
+
+    const cached = fileViewUrlCache.get(normalizedPath);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
+    const existingRequest = fileViewUrlInFlight.get(normalizedPath);
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    const request = runFileViewUrlTask(async () => {
+      const response = await apiClient.post<ExternalFileUrlResponse>(
+        "external-file-manager/file-view-url",
+        { filepath: normalizedPath }
+      );
+      setCachedFileViewUrl(normalizedPath, response.data);
+      return response.data;
+    }).finally(() => {
+      fileViewUrlInFlight.delete(normalizedPath);
+    });
+
+    fileViewUrlInFlight.set(normalizedPath, request);
+    return request;
   },
 
   async getExternalFileDownloadUrl(filepath: string) {

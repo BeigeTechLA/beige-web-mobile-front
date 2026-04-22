@@ -26,6 +26,7 @@ import { getProject } from "@/lib/api";
 import { toast } from "sonner";
 
 const STATUSES = ["Linked", "Unlinked"];
+const FILES_PAGE_SIZE = 20;
 
 export default function CreatorFileManagerPhasePage() {
   const router = useRouter();
@@ -54,6 +55,7 @@ export default function CreatorFileManagerPhasePage() {
   const [viewerFile, setViewerFile] = useState<Record<string, unknown> | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [shootDate, setShootDate] = useState<string | null>(null);
+  const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
 
   const isOnOrAfterShootDay = useCallback((date?: string | null) => {
     if (!date) return false;
@@ -158,6 +160,11 @@ export default function CreatorFileManagerPhasePage() {
     const query = searchTerm.toLowerCase();
     return viewState.files.filter((item) => item.title.toLowerCase().includes(query));
   }, [searchTerm, viewState.files]);
+  const visibleFiles = useMemo(
+    () => filteredFiles.slice(0, visibleFileCount),
+    [filteredFiles, visibleFileCount]
+  );
+  const hasMoreFiles = filteredFiles.length > visibleFileCount;
 
   const formattedShootDate = useMemo(() => {
     if (!shootDate) return "your shoot day";
@@ -172,7 +179,11 @@ export default function CreatorFileManagerPhasePage() {
   }, [shootDate]);
 
   useEffect(() => {
-    const previewableFiles = viewState.files.filter(
+    setVisibleFileCount(FILES_PAGE_SIZE);
+  }, [projectId, phaseSlug, searchTerm, viewState.files.length, viewState.kind]);
+
+  useEffect(() => {
+    const previewableFiles = visibleFiles.filter(
       (file) =>
         file.filepath &&
         (file.contentType?.startsWith("image/") || file.contentType?.startsWith("video/"))
@@ -205,7 +216,7 @@ export default function CreatorFileManagerPhasePage() {
     return () => {
       active = false;
     };
-  }, [viewState.files]);
+  }, [visibleFiles]);
 
   const currentPhase = phaseSlug === "post-production" ? "post" : "pre";
   const defaultUploadPath = workspaceName
@@ -497,48 +508,74 @@ export default function CreatorFileManagerPhasePage() {
                   )}
                 </div>
 
-                <div>
-                  <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
-                  {filteredFiles.length === 0 ? (
-                    <EmptyFileState />
-                  ) : (
-                    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                      {filteredFiles.map((file) => (
-                        <FileCard
-                          key={file.id}
-                          file={{ ...file, previewUrl: previewUrls[file.id] }}
-                          onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
-                          onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
+	                <div>
+	                  <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
+	                  {filteredFiles.length === 0 ? (
+	                    <EmptyFileState />
+	                  ) : (
+	                    <div className="space-y-4">
+	                      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+	                        {visibleFiles.map((file) => (
+	                        <FileCard
+	                          key={file.id}
+	                          file={{ ...file, previewUrl: previewUrls[file.id] }}
+	                          onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+	                          onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
                           onDelete={() => {
                             setSelectedFile(file as unknown as Record<string, unknown>);
-                            setIsDeleteModalOpen(true);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : viewMode === "grid" ? (
+	                            setIsDeleteModalOpen(true);
+	                          }}
+	                        />
+	                        ))}
+	                      </div>
+	                      {hasMoreFiles ? (
+	                        <div className="flex justify-center">
+	                          <Button
+	                            type="button"
+	                            className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+	                            onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+	                          >
+	                            View More
+	                          </Button>
+	                        </div>
+	                      ) : null}
+	                    </div>
+	                  )}
+	                </div>
+	              </div>
+	            ) : viewMode === "grid" ? (
               filteredFiles.length === 0 ? (
                 <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
               ) : (
-                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                  {filteredFiles.map((file) => (
-                    <FileCard
-                      key={file.id}
-                      file={{ ...file, previewUrl: previewUrls[file.id] }}
-                      onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
-                      onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
+	                <div className="space-y-4">
+	                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+	                    {visibleFiles.map((file) => (
+	                    <FileCard
+	                      key={file.id}
+	                      file={{ ...file, previewUrl: previewUrls[file.id] }}
+	                      onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+	                      onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
                       onDelete={() => {
                         setSelectedFile(file as unknown as Record<string, unknown>);
-                        setIsDeleteModalOpen(true);
-                      }}
-                    />
-                  ))}
-                </div>
-              )
-            ) : null}
+	                        setIsDeleteModalOpen(true);
+	                      }}
+	                    />
+	                    ))}
+	                  </div>
+	                  {hasMoreFiles ? (
+	                    <div className="flex justify-center">
+	                      <Button
+	                        type="button"
+	                        className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+	                        onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+	                      >
+	                        View More
+	                      </Button>
+	                    </div>
+	                  ) : null}
+	                </div>
+	              )
+	            ) : null}
           </div>
         </>
       )}
