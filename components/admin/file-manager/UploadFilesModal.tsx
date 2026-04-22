@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { X, UploadCloud, Trash2, File } from "lucide-react";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 
@@ -12,6 +12,20 @@ interface UploadModalProps {
   onUploadComplete?: () => Promise<void> | void;
 }
 
+type UploadStatus = "queued" | "uploading" | "uploaded" | "failed";
+
+interface UploadQueueItem {
+  id: string;
+  file: File;
+  status: UploadStatus;
+  error?: string;
+  signature: string;
+}
+
+const MAX_PARALLEL_UPLOADS = 6;
+const MAX_UPLOAD_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 800;
+
 const UploadModal: React.FC<UploadModalProps> = ({
   isOpen,
   onClose,
@@ -20,12 +34,24 @@ const UploadModal: React.FC<UploadModalProps> = ({
   onUploadComplete,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<UploadQueueItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const uploadedCount = useMemo(
+    () => selectedFiles.filter((item) => item.status === "uploaded").length,
+    [selectedFiles]
+  );
+  const failedCount = useMemo(
+    () => selectedFiles.filter((item) => item.status === "failed").length,
+    [selectedFiles]
+  );
+  const totalCount = selectedFiles.length;
+  const completedCount = uploadedCount + failedCount;
+  const progressPercent = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -39,8 +65,29 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
   const handleFiles = (files: FileList | null) => {
     if (files) {
-      const newFiles = Array.from(files);
-      setSelectedFiles((prev) => [...prev, ...newFiles]);
+      const now = Date.now();
+      const incoming = Array.from(files);
+      setSelectedFiles((prev) => {
+        const existingSignatures = new Set(prev.map((item) => item.signature));
+        const deduped = incoming
+          .map((file, index) => {
+            const signature = `${file.name}-${file.size}-${file.lastModified}`;
+            return {
+              id: `${signature}-${now}-${index}`,
+              file,
+              signature,
+              status: "queued" as UploadStatus,
+            };
+          })
+          .filter((item) => !existingSignatures.has(item.signature));
+
+        const skippedCount = incoming.length - deduped.length;
+        if (skippedCount > 0) {
+          setStatusMessage(`${skippedCount} duplicate file(s) were skipped.`);
+        }
+
+        return [...prev, ...deduped];
+      });
     }
   };
 
@@ -51,11 +98,54 @@ const UploadModal: React.FC<UploadModalProps> = ({
     handleFiles(e.dataTransfer.files);
   };
 
-  const removeFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeFile = (id: string) => {
+    if (isUploading) return;
+    setSelectedFiles((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const handleUpload = async () => {
+  const setFileStatus = (id: string, status: UploadStatus, error?: string) => {
+    setSelectedFiles((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status, error } : item))
+    );
+  };
+
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const runWithRetry = async (task: () => Promise<void>) => {
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < MAX_UPLOAD_RETRIES; attempt += 1) {
+      try {
+        await task();
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt < MAX_UPLOAD_RETRIES - 1) {
+          const backoff = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+          await sleep(backoff);
+        }
+      }
+    }
+    throw lastError;
+  };
+
+  const uploadFileToGcs = async (filepath: string, selectedFile: File) => {
+    await runWithRetry(async () => {
+      const uploadPolicy = await fileManagerApi.getExternalUploadPolicy(
+        filepath,
+        selectedFile.type,
+        selectedFile.size
+      );
+      await fileManagerApi.uploadExternalFile(uploadPolicy, selectedFile);
+    });
+  };
+
+  const notifyUploadComplete = async (filepath: string, selectedFile: File) => {
+    await runWithRetry(async () => {
+      await fileManagerApi.notifyExternalFileUploaded(filepath, selectedFile);
+    });
+  };
+
+  const handleUpload = async (mode: "all" | "failedOnly" = "all") => {
     if (!uploadPath) {
       setStatusMessage("Open a project folder before uploading files.");
       return;
@@ -68,24 +158,77 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
     try {
       setIsUploading(true);
-      setStatusMessage("Uploading files...");
+      setStatusMessage(`Uploading 0/${selectedFiles.length} files...`);
+      setSelectedFiles((prev) =>
+        prev.map((item) => ({
+          ...item,
+          status: item.status === "failed" ? "queued" : item.status,
+          error: undefined,
+        }))
+      );
 
-      for (const selectedFile of selectedFiles) {
-        const filepath = `${uploadPath.replace(/\/+$/, "")}/${selectedFile.name}`;
-        const uploadPolicy = await fileManagerApi.getExternalUploadPolicy(
-          filepath,
-          selectedFile.type,
-          selectedFile.size
-        );
+      const filesToUpload = selectedFiles.filter((item) => {
+        if (mode === "failedOnly") return item.status === "failed";
+        return item.status !== "uploaded";
+      });
 
-        await fileManagerApi.uploadExternalFile(uploadPolicy, selectedFile);
-        await fileManagerApi.notifyExternalFileUploaded(filepath, selectedFile);
+      if (!filesToUpload.length) {
+        setStatusMessage("No files pending upload.");
+        setIsUploading(false);
+        return;
       }
 
-      setSelectedFiles([]);
-      setStatusMessage(null);
-      await onUploadComplete?.();
-      onClose();
+      let nextIndex = 0;
+      let uploaded = selectedFiles.filter((item) => item.status === "uploaded").length;
+      let failed = 0;
+
+      const uploadSingle = async (item: UploadQueueItem) => {
+        const selectedFile = item.file;
+        const filepath = `${uploadPath.replace(/\/+$/, "")}/${selectedFile.name}`;
+        setFileStatus(item.id, "uploading");
+
+        try {
+          // Keep upload and metadata retries separate:
+          // metadata retries won't re-upload file bytes.
+          await uploadFileToGcs(filepath, selectedFile);
+          await notifyUploadComplete(filepath, selectedFile);
+          uploaded += 1;
+          setFileStatus(item.id, "uploaded");
+        } catch (error: any) {
+          failed += 1;
+          setFileStatus(item.id, "failed", error?.message || "Upload failed.");
+        }
+
+        setStatusMessage(
+          `Uploaded ${uploaded}/${selectedFiles.length} files${failed ? `, failed ${failed}` : ""}.`
+        );
+      };
+
+      const worker = async () => {
+        while (nextIndex < filesToUpload.length) {
+          const currentIndex = nextIndex;
+          nextIndex += 1;
+          await uploadSingle(filesToUpload[currentIndex]);
+        }
+      };
+
+      const workerCount = Math.min(MAX_PARALLEL_UPLOADS, filesToUpload.length);
+      await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+      if (uploaded > 0) {
+        await onUploadComplete?.();
+      }
+
+      if (failed > 0) {
+        setStatusMessage(
+          `Completed with issues. Uploaded ${uploaded}/${selectedFiles.length}, failed ${failed}.`
+        );
+        setSelectedFiles((prev) => prev.filter((item) => item.status === "failed"));
+      } else {
+        setSelectedFiles([]);
+        setStatusMessage(null);
+        onClose();
+      }
     } catch (error: any) {
       setStatusMessage(error?.message || "Upload failed.");
     } finally {
@@ -101,7 +244,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
         {/* Header */}
         <div className="relative p-3 lg:p-5">
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (isUploading) return;
+              onClose();
+            }}
             className="absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-hover hover:bg-white/20"
           >
             <X size={20} />
@@ -115,6 +261,24 @@ const UploadModal: React.FC<UploadModalProps> = ({
             <p className="mt-1 text-xs text-white/40">{uploadPath}</p>
           ) : (
             <p className="mt-1 text-xs text-red-300">Open a folder before uploading files.</p>
+          )}
+          {selectedFiles.length > 0 && (
+            <div className="mt-3 space-y-2 rounded-lg border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center justify-between text-xs text-white/70">
+                <span>
+                  Uploaded {uploadedCount}/{totalCount}
+                </span>
+                <span>
+                  Failed {failedCount} | Pending {Math.max(totalCount - completedCount, 0)}
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-[#E8D1AB] transition-all duration-200"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
           )}
         </div>
 
@@ -152,24 +316,32 @@ const UploadModal: React.FC<UploadModalProps> = ({
           {/* New: File List Area */}
           {selectedFiles.length > 0 && (
             <div className="mt-4 max-h-[200px] overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-white/10">
-              {selectedFiles.map((file, index) => (
+              {selectedFiles.map((item) => (
                 <div
-                  key={`${file.name}-${index}`}
+                  key={item.id}
                   className="flex items-center justify-between rounded-lg bg-white/5 p-3 border border-white/5"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <File size={18} className="text-[#E8D1AB] shrink-0" />
                     <div className="flex flex-col min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{file.name}</p>
-                      <p className="text-xs text-white/40">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <p className="text-sm font-medium text-white truncate">{item.file.name}</p>
+                      <p className="text-xs text-white/40">
+                        {(item.file.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                      <p className="text-[11px] text-white/50 capitalize">
+                        {item.status === "failed"
+                          ? `Failed${item.error ? `: ${item.error}` : ""}`
+                          : item.status}
+                      </p>
                     </div>
                   </div>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeFile(index);
+                      removeFile(item.id);
                     }}
-                    className="p-1.5 text-white/40 hover:text-red-400 transition-colors"
+                    disabled={isUploading}
+                    className="p-1.5 text-white/40 hover:text-red-400 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -188,8 +360,12 @@ const UploadModal: React.FC<UploadModalProps> = ({
         {/* Footer Actions */}
         <div className="flex items-center gap-3 p-3 pt-0 lg:p-5 lg:pt-3">
           <button
-            onClick={onClose}
-            className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 lg:flex-none lg:min-w-[90px]"
+            onClick={() => {
+              if (isUploading) return;
+              onClose();
+            }}
+            className="flex-1 rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 lg:flex-none lg:min-w-[90px]"
+            disabled={isUploading}
           >
             Cancel
           </button>
@@ -198,8 +374,17 @@ const UploadModal: React.FC<UploadModalProps> = ({
             disabled={isUploading || !uploadPath}
             className="flex-1 rounded-lg bg-[#E8D1AB] px-4 py-2 text-sm font-medium text-[#101010] transition-opacity hover:opacity-90 lg:flex-none lg:min-w-[110px]"
           >
-            {isUploading ? "Uploading..." : "Upload File"}
+            {isUploading ? `Uploading ${uploadedCount}/${totalCount}` : "Upload Files"}
           </button>
+          {failedCount > 0 && (
+            <button
+              onClick={() => handleUpload("failedOnly")}
+              disabled={isUploading || !uploadPath}
+              className="rounded-lg border border-[#E8D1AB]/50 px-4 py-2 text-sm font-medium text-[#E8D1AB] transition-opacity hover:bg-[#E8D1AB]/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Retry Failed
+            </button>
+          )}
         </div>
       </div>
     </div>
