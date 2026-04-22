@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Camera, ChevronDown, ChevronUp, Download, Loader2, Search } from "lucide-react";
+import { Camera, Check, ChevronDown, ChevronUp, Download, Loader2, Search } from "lucide-react";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 import Topbar from "@/components/admin/Topbar";
@@ -25,17 +25,36 @@ interface FaceMatchItem {
   url?: string;
 }
 
+interface FaceIndexStatusItem {
+  externalId: string;
+  state: "ready" | "partial" | "not_indexed" | "indexing" | "empty";
+  totalCandidates: number;
+  readyCandidates: number;
+  skippedCandidates?: number;
+  indexingCandidates: number;
+  failedCandidates: number;
+  pendingCandidates: number;
+  coverage: number;
+}
+
 interface ProjectLite {
   project_name?: string;
   stream_project_booking_id?: string | number;
   booking_id?: string | number;
 }
 
-const FAST_SCAN_CANDIDATE_LIMIT = 60;
+const FAST_SCAN_THRESHOLD = 0.78;
+const DEEP_SCAN_THRESHOLD = 0.74;
+const FAST_SCAN_CANDIDATE_LIMIT = 45;
+const FAST_SCAN_FALLBACK_CANDIDATE_LIMIT = 70;
+const COLD_SCAN_CANDIDATE_LIMIT = 50;
+const DEEP_SCAN_CANDIDATE_LIMIT = 90;
+const DEEP_SCAN_FALLBACK_CANDIDATE_LIMIT = 120;
 const FAST_SCAN_MAX_RESULTS = 60;
 const PREVIEW_BATCH_LIMIT = 12;
-const QUERY_IMAGE_MAX_EDGE = 1280;
-const QUERY_IMAGE_QUALITY = 0.88;
+const QUERY_IMAGE_MAX_EDGE = 1600;
+const QUERY_IMAGE_QUALITY = 0.92;
+const BACKGROUND_REINDEX_BATCH_LIMIT = 120;
 
 const getScaledDimensions = (width: number, height: number, maxEdge: number) => {
   if (!width || !height) return { width: maxEdge, height: maxEdge };
@@ -105,6 +124,10 @@ export default function AffiliateFindYourselfPage() {
   const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState<string[]>([]);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
   const [workspaceSearchTerm, setWorkspaceSearchTerm] = useState("");
+  const [workspaceIndexStatusMap, setWorkspaceIndexStatusMap] = useState<
+    Record<string, FaceIndexStatusItem>
+  >({});
+  const [isIndexStatusLoading, setIsIndexStatusLoading] = useState(false);
   const [faceMatches, setFaceMatches] = useState<FaceMatchItem[]>([]);
   const [isHydratingPreviews, setIsHydratingPreviews] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -122,10 +145,26 @@ export default function AffiliateFindYourselfPage() {
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const activeScanIdRef = useRef(0);
   const workspaceDropdownRef = useRef<HTMLDivElement | null>(null);
+  const autoReindexTriggeredRef = useRef<Set<string>>(new Set());
 
   const resultCount = useMemo(() => faceMatches.length, [faceMatches]);
   const selectedWorkspaceCount = useMemo(() => selectedWorkspaceIds.length, [selectedWorkspaceIds]);
   const canStartScan = !loading && !isFaceScanning && selectedWorkspaceCount > 0;
+  const selectedWorkspaceIndexSummary = useMemo(() => {
+    const selectedStatuses = selectedWorkspaceIds
+      .map((workspaceId) => workspaceIndexStatusMap[workspaceId])
+      .filter(Boolean);
+
+    if (!selectedStatuses.length) {
+      return {
+        ready: 0,
+        preparing: selectedWorkspaceIds.length,
+      };
+    }
+
+    const ready = selectedStatuses.filter((item) => item.state === "ready").length;
+    return { ready, preparing: Math.max(0, selectedWorkspaceIds.length - ready) };
+  }, [selectedWorkspaceIds, workspaceIndexStatusMap]);
   const filteredWorkspaceOptions = useMemo(() => {
     if (!workspaceSearchTerm.trim()) return workspaces;
     const term = workspaceSearchTerm.trim().toLowerCase();
@@ -221,6 +260,68 @@ export default function AffiliateFindYourselfPage() {
   }, [workspaces]);
 
   useEffect(() => {
+    const loadSelectedWorkspaceStatus = async () => {
+      if (!selectedWorkspaceIds.length) {
+        setWorkspaceIndexStatusMap({});
+        return;
+      }
+
+      setIsIndexStatusLoading(true);
+      try {
+        const statusResults = await Promise.allSettled(
+          selectedWorkspaceIds.map((workspaceId) =>
+            fileManagerApi.getFaceScanIndexStatus(workspaceId)
+          )
+        );
+
+        const nextMap: Record<string, FaceIndexStatusItem> = {};
+        statusResults.forEach((result) => {
+          if (result.status !== "fulfilled") return;
+          const row = result.value;
+          if (!row?.externalId) return;
+          nextMap[row.externalId] = {
+            externalId: row.externalId,
+            state: row.state || "not_indexed",
+            totalCandidates: Number(row.totalCandidates || 0),
+            readyCandidates: Number(row.readyCandidates || 0),
+            skippedCandidates: Number(row.skippedCandidates || 0),
+            indexingCandidates: Number(row.indexingCandidates || 0),
+            failedCandidates: Number(row.failedCandidates || 0),
+            pendingCandidates: Number(row.pendingCandidates || 0),
+            coverage: Number(row.coverage || 0),
+          };
+        });
+        setWorkspaceIndexStatusMap(nextMap);
+      } finally {
+        setIsIndexStatusLoading(false);
+      }
+    };
+
+    void loadSelectedWorkspaceStatus();
+  }, [selectedWorkspaceIds]);
+
+  useEffect(() => {
+    if (!selectedWorkspaceIds.length) return;
+    selectedWorkspaceIds.forEach((workspaceId) => {
+      if (autoReindexTriggeredRef.current.has(workspaceId)) return;
+
+      const status = workspaceIndexStatusMap[workspaceId];
+      if (!status || status.state === "ready" || status.totalCandidates === 0) return;
+
+      autoReindexTriggeredRef.current.add(workspaceId);
+      void fileManagerApi
+        .reindexFaceEmbeddings({
+          externalId: workspaceId,
+          candidateLimit: BACKGROUND_REINDEX_BATCH_LIMIT,
+          concurrency: 2,
+        })
+        .catch(() => {
+          autoReindexTriggeredRef.current.delete(workspaceId);
+        });
+    });
+  }, [selectedWorkspaceIds, workspaceIndexStatusMap]);
+
+  useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (!workspaceDropdownRef.current) return;
       if (workspaceDropdownRef.current.contains(event.target as Node)) return;
@@ -305,35 +406,84 @@ export default function AffiliateFindYourselfPage() {
     try {
       const scanResults = await Promise.allSettled(
         scanWorkspaces.map(async (workspace) => {
-          const response = await fileManagerApi.searchFaceMatches({
+          const indexStatus = workspaceIndexStatusMap[workspace.externalId];
+          const isColdFolder = !indexStatus || indexStatus.readyCandidates === 0;
+          const fastResponse = await fileManagerApi.searchFaceMatches({
             externalId: workspace.externalId,
             scanImageBase64,
-            threshold: 0.78,
+            threshold: FAST_SCAN_THRESHOLD,
+            minScore: FAST_SCAN_THRESHOLD,
             maxResults: FAST_SCAN_MAX_RESULTS,
-            candidateLimit: FAST_SCAN_CANDIDATE_LIMIT,
+            candidateLimit: isColdFolder ? COLD_SCAN_CANDIDATE_LIMIT : FAST_SCAN_CANDIDATE_LIMIT,
+            fallbackCandidateLimit: FAST_SCAN_FALLBACK_CANDIDATE_LIMIT,
+            backgroundReindex: true,
+            backgroundBatchLimit: BACKGROUND_REINDEX_BATCH_LIMIT,
+            backgroundConcurrency: 2,
           });
 
-          const matches = response?.matches || [];
-          return matches.map((match) => ({
+          const fastMatches = (fastResponse?.matches || []).map((match) => ({
             path: String(match.path || ""),
             score: Number(match.score || 0),
             confidence: Number(match.confidence || match.score || 0),
             workspaceTitle: workspace.title,
             workspaceId: workspace.externalId,
           }));
+
+          if (fastMatches.length >= 2) {
+            return {
+              matches: fastMatches,
+              noFaceDetectedInScanImage: Boolean(fastResponse?.noFaceDetectedInScanImage),
+            };
+          }
+
+          const deepResponse = await fileManagerApi.searchFaceMatches({
+            externalId: workspace.externalId,
+            scanImageBase64,
+            threshold: DEEP_SCAN_THRESHOLD,
+            minScore: DEEP_SCAN_THRESHOLD,
+            maxResults: FAST_SCAN_MAX_RESULTS,
+            candidateLimit: DEEP_SCAN_CANDIDATE_LIMIT,
+            fallbackCandidateLimit: DEEP_SCAN_FALLBACK_CANDIDATE_LIMIT,
+            backgroundReindex: true,
+            backgroundBatchLimit: BACKGROUND_REINDEX_BATCH_LIMIT,
+            backgroundConcurrency: 2,
+          });
+
+          const deepMatches = (deepResponse?.matches || []).map((match) => ({
+            path: String(match.path || ""),
+            score: Number(match.score || 0),
+            confidence: Number(match.confidence || match.score || 0),
+            workspaceTitle: workspace.title,
+            workspaceId: workspace.externalId,
+          }));
+
+          return {
+            matches: deepMatches.length ? deepMatches : fastMatches,
+            noFaceDetectedInScanImage:
+              Boolean(deepResponse?.noFaceDetectedInScanImage) ||
+              Boolean(fastResponse?.noFaceDetectedInScanImage),
+          };
         })
       );
 
       const merged: FaceMatchItem[] = [];
+      let hasNoFaceDetection = false;
       scanResults.forEach((result) => {
         if (result.status === "fulfilled") {
-          merged.push(...result.value.filter((item) => item.path));
+          merged.push(...(result.value.matches || []).filter((item) => item.path));
+          if (result.value.noFaceDetectedInScanImage) {
+            hasNoFaceDetection = true;
+          }
         }
       });
 
       if (!merged.length) {
         setFaceMatches([]);
-        toast.info("No matching photos found in selected folders.");
+        if (hasNoFaceDetection) {
+          toast.error("Face not detected clearly. Please use a clear close-up face photo.");
+        } else {
+          toast.info("No matching photos found in selected folders.");
+        }
         return;
       }
 
@@ -352,6 +502,29 @@ export default function AffiliateFindYourselfPage() {
       setFaceMatches(deduped);
       toast.success(`Found ${deduped.length} matching photo${deduped.length === 1 ? "" : "s"}`);
       void hydratePreviewUrls(scanId, deduped.slice(0, PREVIEW_BATCH_LIMIT));
+      if (selectedWorkspaceIds.length) {
+        const updatedStatuses = await Promise.allSettled(
+          selectedWorkspaceIds.map((workspaceId) => fileManagerApi.getFaceScanIndexStatus(workspaceId))
+        );
+        const nextStatusMap: Record<string, FaceIndexStatusItem> = {};
+        updatedStatuses.forEach((result) => {
+          if (result.status !== "fulfilled") return;
+          const row = result.value;
+          if (!row?.externalId) return;
+          nextStatusMap[row.externalId] = {
+            externalId: row.externalId,
+            state: row.state || "not_indexed",
+            totalCandidates: Number(row.totalCandidates || 0),
+            readyCandidates: Number(row.readyCandidates || 0),
+            skippedCandidates: Number(row.skippedCandidates || 0),
+            indexingCandidates: Number(row.indexingCandidates || 0),
+            failedCandidates: Number(row.failedCandidates || 0),
+            pendingCandidates: Number(row.pendingCandidates || 0),
+            coverage: Number(row.coverage || 0),
+          };
+        });
+        setWorkspaceIndexStatusMap(nextStatusMap);
+      }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Face scan failed");
     } finally {
@@ -545,6 +718,9 @@ export default function AffiliateFindYourselfPage() {
           <p className="text-[#E8D1AB] text-xs">
             Your available folders: {loading ? "Loading..." : workspaces.length}
           </p>
+          <p className="text-white/50 text-[11px]">
+            Old folders are auto-indexed in background while you scan, so each next scan gets faster.
+          </p>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-[#111111] p-4 lg:p-6">
@@ -618,6 +794,8 @@ export default function AffiliateFindYourselfPage() {
                 {filteredWorkspaceOptions.length ? (
                   filteredWorkspaceOptions.map((workspace) => {
                     const isSelected = selectedWorkspaceIds.includes(workspace.externalId);
+                    const indexStatus = workspaceIndexStatusMap[workspace.externalId];
+                    const indexLabel = indexStatus?.state === "ready" ? "Ready" : "Preparing";
                     return (
                       <button
                         key={workspace.externalId}
@@ -627,19 +805,34 @@ export default function AffiliateFindYourselfPage() {
                           }`}
                       >
                         <div
-                          className={`h-4 w-4 rounded-full border flex items-center justify-center transition-colors ${isSelected ? "border-[#E8D1AB] bg-[#E8D1AB]" : "border-white/50"
+                          className={`h-4 w-4 rounded-[4px] border flex items-center justify-center transition-colors ${isSelected ? "border-[#E8D1AB] bg-[#E8D1AB]" : "border-white/50"
                             }`}
                         >
-                          {isSelected ? <div className="h-1 w-1 rounded-full bg-black" /> : null}
+                          {isSelected ? <Check size={11} className="text-black" strokeWidth={3} /> : null}
                         </div>
                         <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
                           <span className="truncate text-sm">{workspace.title}</span>
-                          <span
-                            className={`shrink-0 text-[10px] ${isSelected ? "text-black/65" : "text-white/45"
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`shrink-0 text-[10px] ${isSelected ? "text-black/65" : "text-white/45"
+                                }`}
+                            >
+                              {workspace.isCommonEvent ? "Common Event" : "Project"}
+                            </span>
+                            <span
+                              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${
+                                indexLabel === "Ready"
+                                  ? isSelected
+                                    ? "bg-black/10 text-black/70"
+                                    : "bg-emerald-500/20 text-emerald-200"
+                                  : isSelected
+                                  ? "bg-black/10 text-black/70"
+                                  : "bg-amber-500/20 text-amber-200"
                               }`}
-                          >
-                            {workspace.isCommonEvent ? "Common Event" : "Project"}
-                          </span>
+                            >
+                              {indexLabel}
+                            </span>
+                          </div>
                         </div>
                       </button>
                     );
@@ -653,6 +846,13 @@ export default function AffiliateFindYourselfPage() {
             <p className="text-[11px] text-white/50">
               Fast scan mode: up to {FAST_SCAN_CANDIDATE_LIMIT} candidates per selected folder.
             </p>
+            {selectedWorkspaceCount ? (
+              <p className="text-[11px] text-[#E8D1AB]/90">
+                Folder status: {selectedWorkspaceIndexSummary.ready} ready,{" "}
+                {selectedWorkspaceIndexSummary.preparing} preparing
+                {isIndexStatusLoading ? " (updating...)" : ""}
+              </p>
+            ) : null}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <input
@@ -727,7 +927,7 @@ export default function AffiliateFindYourselfPage() {
                   </button>
                   <div className="space-y-1 p-2 text-xs">
                     <p className="text-white/90">
-                      Confidence: {Math.round((match.confidence || 0) * 100)}%
+                      Matches: {Math.round((match.confidence || 0) * 100)}%
                     </p>
                     <p className="text-[#E8D1AB] truncate">{match.workspaceTitle}</p>
                     <button

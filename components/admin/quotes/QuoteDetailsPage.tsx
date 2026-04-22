@@ -354,6 +354,9 @@ export default function QuoteDetailsPage({
   const [convertIntent, setConvertIntent] = useState<QuoteConvertIntent>("convert_only");
   const [convertedBookingIdOverride, setConvertedBookingIdOverride] = useState<string | null>(null);
   const [isConvertedOverride, setIsConvertedOverride] = useState(false);
+  const [signatureBase64, setSignatureBase64] = useState<string | null>(null);
+  const [signerName, setSignerName] = useState<string | null>(null);
+  const [signedAt, setSignedAt] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -382,6 +385,13 @@ export default function QuoteDetailsPage({
         }
 
         setQuote(quoteDetail);
+        const rawData = response?.data as any;
+        const sig = rawData?.signature_base64 ?? (rawData?.data as any)?.signature_base64;
+        if (sig) {
+          setSignatureBase64(sig);
+          setSignerName(rawData?.signer_name ?? rawData?.data?.signer_name ?? null);
+          setSignedAt(rawData?.signed_at ?? rawData?.data?.signed_at ?? null);
+        }
       } catch (error) {
         console.error("Failed to load quote details", error);
 
@@ -912,7 +922,7 @@ export default function QuoteDetailsPage({
                       <p className="mt-2 text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
                     </div>
                   </div>
-
+                      <div className="flex flex-col items-end gap-2">
                   <span
                     className={`inline-flex h-fit items-center rounded-full px-4 py-2 text-sm font-semibold ${getStatusStyles(
                       quoteStatus
@@ -920,7 +930,18 @@ export default function QuoteDetailsPage({
                   >
                     {formatStatusLabel(quoteStatus)}
                   </span>
+                        {signatureBase64 && (
+                          <div className="mt-3 flex flex-col items-end gap-2">
+                            <div className="border border-white/10 rounded-lg p-2 bg-white/5">
+                              <img src={signatureBase64} alt="Signature" className="max-h-16 max-w-[180px] object-contain" />
+                            </div>
+                            <p className="text-xs text-[#8F8F95]">{signerName ?? "Client"}</p>
+                            {signedAt && <p className="text-xs text-[#8F8F95]">{formatQuoteDate(signedAt)}</p>}
+                          </div>
+                        )}
                 </div>
+                    </div>
+                    
 
                 {isConvertedToBooking ? (
                   <div className="rounded-[20px] border border-[#86EFAC]/20 bg-[#DCFCE7] px-5 py-4">

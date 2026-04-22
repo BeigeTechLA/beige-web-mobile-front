@@ -300,6 +300,15 @@ export default function LeadDetailPage() {
   const booking = lead?.booking;
   const primaryQuote = booking?.primary_quote;
   const projectedQuote = lead?.projected_quote;
+  const rawAdditionalPayment = lead?.custom_quote?.additional_payment;
+  const additionalPaymentOutstandingAmount = Number(
+    rawAdditionalPayment?.outstanding_amount ?? 0
+  );
+  const hasPendingAdditionalPayment =
+    additionalPaymentOutstandingAmount > 0 &&
+    !["paid", "success", "completed"].includes(
+      String(rawAdditionalPayment?.payment_status || "").trim().toLowerCase()
+    );
 
   const isQuoteConvertedLead = useMemo(() => {
     const normalizedSource = String(lead?.lead_source || "").trim().toLowerCase();
@@ -560,6 +569,8 @@ export default function LeadDetailPage() {
       String(lead?.payment_status || "").trim().toLowerCase()
     ) ||
     Boolean(booking?.payment_id || booking?.payment_completed_at);
+  const showCompletedPaymentMessage =
+    isAmountPaid && !hasPendingAdditionalPayment;
   const paidEditTooltipMessage = "Already paid. Editing is disabled for this booking.";
 
   const bookingDate = booking?.event_date
@@ -1452,10 +1463,21 @@ export default function LeadDetailPage() {
                   {isGenerating ? "Generating..." : "Generate Code"}
                 </Button>
 
-                {isAmountPaid && (
+                {showCompletedPaymentMessage && (
                   <div className={`rounded-xl border p-4 transition-colors ${isDark ? "border-emerald-500/25 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50"}`}>
                     <p className={`text-sm font-medium ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
                       Payment is already completed.
+                    </p>
+                  </div>
+                )}
+
+                {hasPendingAdditionalPayment && (
+                  <div className={`rounded-xl border p-4 transition-colors ${isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10" : "border-[#E7D7BC] bg-[#FFF8EA]"}`}>
+                    <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7A5A00]"}`}>
+                      Additional payment is pending.
+                    </p>
+                    <p className={`mt-1 text-xs ${isDark ? "text-[#F3E6CC]/80" : "text-[#8A6A00]"}`}>
+                      Outstanding amount: {formatCurrencyValue(additionalPaymentOutstandingAmount)}.
                     </p>
                   </div>
                 )}
@@ -1504,6 +1526,8 @@ export default function LeadDetailPage() {
               bookingStatus={status}
               isDark={isDark}
               activeLink={lead?.active_payment_link}
+              additionalPaymentStatus={rawAdditionalPayment?.payment_status}
+              additionalPaymentOutstandingAmount={rawAdditionalPayment?.outstanding_amount}
             />
 
             {quotePricingDetails && (
