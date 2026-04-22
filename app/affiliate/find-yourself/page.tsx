@@ -715,9 +715,9 @@ export default function AffiliateFindYourselfPage() {
           <p className="text-white/70 text-xs lg:text-sm">
             Upload your photo or use camera, then we run a fast scan on your selected folders.
           </p>
-          <p className="text-[#E8D1AB] text-xs">
+          {/* <p className="text-[#E8D1AB] text-xs">
             Your available folders: {loading ? "Loading..." : workspaces.length}
-          </p>
+          </p> */}
           <p className="text-white/50 text-[11px]">
             Old folders are auto-indexed in background while you scan, so each next scan gets faster.
           </p>
