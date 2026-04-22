@@ -22,7 +22,18 @@ interface UploadQueueItem {
   signature: string;
 }
 
-const MAX_PARALLEL_UPLOADS = 6;
+const MAX_PARALLEL_UPLOADS = Math.max(
+  1,
+  Number(process.env.NEXT_PUBLIC_FILE_UPLOAD_PARALLELISM || 3)
+);
+const UPLOAD_POLICY_BATCH_SIZE = Math.max(
+  10,
+  Number(process.env.NEXT_PUBLIC_UPLOAD_POLICY_BATCH_SIZE || 100)
+);
+const UPLOAD_METADATA_BATCH_SIZE = Math.max(
+  10,
+  Number(process.env.NEXT_PUBLIC_UPLOAD_METADATA_BATCH_SIZE || 100)
+);
 const MAX_UPLOAD_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 800;
 
@@ -38,6 +49,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const batchPolicySupportedRef = useRef<boolean>(true);
+  const batchMetadataSupportedRef = useRef<boolean>(true);
 
   const uploadedCount = useMemo(
     () => selectedFiles.filter((item) => item.status === "uploaded").length,
@@ -128,20 +141,54 @@ const UploadModal: React.FC<UploadModalProps> = ({
     throw lastError;
   };
 
-  const uploadFileToGcs = async (filepath: string, selectedFile: File) => {
-    await runWithRetry(async () => {
-      const uploadPolicy = await fileManagerApi.getExternalUploadPolicy(
-        filepath,
-        selectedFile.type,
-        selectedFile.size
-      );
-      await fileManagerApi.uploadExternalFile(uploadPolicy, selectedFile);
-    });
+  const isRouteNotFoundError = (error: any) => {
+    const status = Number(error?.response?.status || 0);
+    const message = String(error?.response?.data?.message || error?.message || "").toLowerCase();
+    const path = String(error?.response?.data?.path || "").toLowerCase();
+    return (
+      status === 404 &&
+      (message.includes("route not found") ||
+        path.includes("/upload-policies/batch") ||
+        path.includes("/files-uploaded/batch"))
+    );
   };
 
-  const notifyUploadComplete = async (filepath: string, selectedFile: File) => {
+  const chunkArray = <T,>(items: T[], size: number) => {
+    const chunks: T[][] = [];
+    for (let index = 0; index < items.length; index += size) {
+      chunks.push(items.slice(index, index + size));
+    }
+    return chunks;
+  };
+
+  const runWithConcurrency = async <T,>(
+    items: T[],
+    concurrency: number,
+    task: (item: T, index: number) => Promise<void>
+  ) => {
+    let cursor = 0;
+    const workers = Math.max(1, concurrency);
+
+    const worker = async () => {
+      while (cursor < items.length) {
+        const current = cursor;
+        cursor += 1;
+        // eslint-disable-next-line no-await-in-loop
+        await task(items[current], current);
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(workers, Math.max(items.length, 1)) }, () => worker())
+    );
+  };
+
+  const uploadFileToGcs = async (
+    uploadPolicy: { url: string; fields: Record<string, string> },
+    selectedFile: File
+  ) => {
     await runWithRetry(async () => {
-      await fileManagerApi.notifyExternalFileUploaded(filepath, selectedFile);
+      await fileManagerApi.uploadExternalFile(uploadPolicy, selectedFile);
     });
   };
 
@@ -181,17 +228,110 @@ const UploadModal: React.FC<UploadModalProps> = ({
       let nextIndex = 0;
       let uploaded = selectedFiles.filter((item) => item.status === "uploaded").length;
       let failed = 0;
+      const pendingMetadataItems: Array<{
+        id: string;
+        filepath: string;
+        fileContentType: string;
+        fileSize: number;
+        fileName: string;
+        file: File;
+      }> = [];
+
+      const policyByFilePath = new Map<string, { url: string; fields: Record<string, string> }>();
+      const policyFailedPaths = new Set<string>();
+      const policyRequests = filesToUpload.map((item) => ({
+        filepath: `${uploadPath.replace(/\/+$/, "")}/${item.file.name}`,
+        fileContentType: item.file.type,
+        fileSize: item.file.size,
+      }));
+
+      const policyChunks = chunkArray(policyRequests, UPLOAD_POLICY_BATCH_SIZE);
+      for (let index = 0; index < policyChunks.length; index += 1) {
+        const chunk = policyChunks[index];
+        setStatusMessage(
+          `Preparing upload links ${index + 1}/${policyChunks.length}... Uploaded ${uploaded}/${selectedFiles.length}.`
+        );
+        if (batchPolicySupportedRef.current) {
+          try {
+            const response = await fileManagerApi.getExternalUploadPoliciesBatch(
+              chunk.map((item) => ({
+                filepath: item.filepath,
+                fileContentType: item.fileContentType,
+                fileSize: item.fileSize,
+              }))
+            );
+            const batchItems = Array.isArray((response as any)?.items)
+              ? (response as any).items
+              : Array.isArray((response as any)?.data?.items)
+              ? (response as any).data.items
+              : [];
+
+            batchItems.forEach((item: any) => {
+              if (item.success && item.data?.url && item.data?.fields) {
+                policyByFilePath.set(item.filepath, {
+                  url: item.data.url,
+                  fields: item.data.fields,
+                });
+              } else {
+                policyFailedPaths.add(item.filepath);
+              }
+            });
+            continue;
+          } catch (error: any) {
+            if (isRouteNotFoundError(error)) {
+              batchPolicySupportedRef.current = false;
+            }
+          }
+        }
+
+        // Fallback when batch endpoint is unavailable
+        await runWithConcurrency(chunk, 5, async (item) => {
+          try {
+            const single = await runWithRetry(async () =>
+              fileManagerApi.getExternalUploadPolicy(
+                item.filepath,
+                item.fileContentType,
+                item.fileSize
+              )
+            );
+            if (single?.data?.url && single?.data?.fields) {
+              policyByFilePath.set(item.filepath, {
+                url: single.data.url,
+                fields: single.data.fields,
+              });
+              return;
+            }
+            policyFailedPaths.add(item.filepath);
+          } catch {
+            policyFailedPaths.add(item.filepath);
+          }
+        });
+      }
 
       const uploadSingle = async (item: UploadQueueItem) => {
         const selectedFile = item.file;
         const filepath = `${uploadPath.replace(/\/+$/, "")}/${selectedFile.name}`;
         setFileStatus(item.id, "uploading");
 
+        if (policyFailedPaths.has(filepath) || !policyByFilePath.has(filepath)) {
+          failed += 1;
+          setFileStatus(item.id, "failed", "Failed to prepare upload policy.");
+          setStatusMessage(
+            `Uploaded ${uploaded}/${selectedFiles.length} files${failed ? `, failed ${failed}` : ""}.`
+          );
+          return;
+        }
+
         try {
-          // Keep upload and metadata retries separate:
-          // metadata retries won't re-upload file bytes.
-          await uploadFileToGcs(filepath, selectedFile);
-          await notifyUploadComplete(filepath, selectedFile);
+          await uploadFileToGcs(policyByFilePath.get(filepath)!, selectedFile);
+          pendingMetadataItems.push({
+            id: item.id,
+            filepath,
+            fileContentType: selectedFile.type,
+            fileSize: selectedFile.size,
+            fileName: selectedFile.name,
+            file: selectedFile,
+          });
           uploaded += 1;
           setFileStatus(item.id, "uploaded");
         } catch (error: any) {
@@ -214,6 +354,89 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
       const workerCount = Math.min(MAX_PARALLEL_UPLOADS, filesToUpload.length);
       await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+      if (pendingMetadataItems.length > 0) {
+        const metadataChunks = chunkArray(pendingMetadataItems, UPLOAD_METADATA_BATCH_SIZE);
+        let metadataFailed = 0;
+
+        for (let index = 0; index < metadataChunks.length; index += 1) {
+          const chunk = metadataChunks[index];
+          setStatusMessage(
+            `Saving file metadata ${index + 1}/${metadataChunks.length}... Uploaded ${uploaded}/${selectedFiles.length}.`
+          );
+          if (batchMetadataSupportedRef.current) {
+            try {
+              const response = await runWithRetry(async () =>
+                fileManagerApi.notifyExternalFilesUploadedBatch(
+                  chunk.map((item) => ({
+                    filepath: item.filepath,
+                    fileContentType: item.fileContentType,
+                    fileSize: item.fileSize,
+                    fileName: item.fileName,
+                  }))
+                )
+              );
+              const metadataItems = Array.isArray((response as any)?.items)
+                ? (response as any).items
+                : Array.isArray((response as any)?.data?.items)
+                ? (response as any).data.items
+                : [];
+              const failedPaths = new Set(
+                metadataItems
+                  .filter((item) => !item.success)
+                  .map((item) => item.filepath)
+              );
+
+              if (failedPaths.size > 0) {
+                metadataFailed += failedPaths.size;
+                setSelectedFiles((prev) =>
+                  prev.map((queued) => {
+                    const match = chunk.find((entry) => entry.id === queued.id);
+                    if (!match) return queued;
+                    if (!failedPaths.has(match.filepath)) return queued;
+                    return {
+                      ...queued,
+                      status: "failed",
+                      error: "Metadata save failed. Retry failed files.",
+                    };
+                  })
+                );
+              }
+              continue;
+            } catch (error: any) {
+              if (isRouteNotFoundError(error)) {
+                batchMetadataSupportedRef.current = false;
+              }
+            }
+          }
+
+          // Fallback when batch endpoint is unavailable
+          await runWithConcurrency(chunk, 5, async (entry) => {
+            try {
+              await runWithRetry(async () =>
+                fileManagerApi.notifyExternalFileUploaded(entry.filepath, entry.file)
+              );
+            } catch (singleError: any) {
+              metadataFailed += 1;
+              setSelectedFiles((prev) =>
+                prev.map((queued) => {
+                  if (queued.id !== entry.id) return queued;
+                  return {
+                    ...queued,
+                    status: "failed",
+                    error: singleError?.message || "Metadata save failed. Retry failed files.",
+                  };
+                })
+              );
+            }
+          });
+        }
+
+        if (metadataFailed > 0) {
+          failed += metadataFailed;
+          uploaded = Math.max(0, uploaded - metadataFailed);
+        }
+      }
 
       if (uploaded > 0) {
         await onUploadComplete?.();

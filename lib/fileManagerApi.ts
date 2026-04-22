@@ -208,6 +208,44 @@ interface FaceScanResponse {
   };
 }
 
+interface ExternalBatchUploadPolicyResponse {
+  success: boolean;
+  data: {
+    total: number;
+    successCount: number;
+    failureCount: number;
+    items: Array<{
+      filepath: string;
+      success: boolean;
+      data?: ExternalUploadPolicyResponse["data"];
+      error?: string;
+      code?: number;
+    }>;
+  };
+}
+
+interface ExternalBatchFileUploadedResponse {
+  success: boolean;
+  data: {
+    total: number;
+    successCount: number;
+    failureCount: number;
+    items: Array<{
+      filepath: string;
+      success: boolean;
+      created?: boolean;
+      error?: string;
+      code?: number;
+      data?: {
+        id: string;
+        path: string;
+        name: string;
+        size: number;
+      };
+    }>;
+  };
+}
+
 interface FaceScanIndexStatusResponse {
   success: boolean;
   data: {
@@ -524,6 +562,16 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async getExternalUploadPoliciesBatch(
+    items: Array<{ filepath: string; fileContentType: string; fileSize: number }>
+  ) {
+    const response = await apiClient.post<ExternalBatchUploadPolicyResponse>(
+      "external-file-manager/upload-policies/batch",
+      { items }
+    );
+    return response.data;
+  },
+
   async notifyExternalFileUploaded(filepath: string, file: File) {
     return apiClient.post("external-file-manager/file-uploaded", {
       filepath,
@@ -531,6 +579,16 @@ export const fileManagerApi = {
       fileSize: file.size,
       fileName: file.name,
     });
+  },
+
+  async notifyExternalFilesUploadedBatch(
+    items: Array<{ filepath: string; fileContentType: string; fileSize: number; fileName: string }>
+  ) {
+    const response = await apiClient.post<ExternalBatchFileUploadedResponse>(
+      "external-file-manager/files-uploaded/batch",
+      { items }
+    );
+    return response.data;
   },
 
   async uploadExternalFile(
