@@ -39,8 +39,6 @@ const UploadModal: React.FC<UploadModalProps> = ({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
-
   const uploadedCount = useMemo(
     () => selectedFiles.filter((item) => item.status === "uploaded").length,
     [selectedFiles]
@@ -52,6 +50,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
   const totalCount = selectedFiles.length;
   const completedCount = uploadedCount + failedCount;
   const progressPercent = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  if (!isOpen) return null;
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
