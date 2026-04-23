@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Camera, ChevronDown, ChevronUp, Download, Loader2, Search } from "lucide-react";
+import { Camera, Check, ChevronDown, ChevronUp, Download, Loader2, Search } from "lucide-react";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 import Topbar from "@/components/admin/Topbar";
@@ -715,9 +715,9 @@ export default function AffiliateFindYourselfPage() {
           <p className="text-white/70 text-xs lg:text-sm">
             Upload your photo or use camera, then we run a fast scan on your selected folders.
           </p>
-          <p className="text-[#E8D1AB] text-xs">
+          {/* <p className="text-[#E8D1AB] text-xs">
             Your available folders: {loading ? "Loading..." : workspaces.length}
-          </p>
+          </p> */}
           <p className="text-white/50 text-[11px]">
             Old folders are auto-indexed in background while you scan, so each next scan gets faster.
           </p>
@@ -805,10 +805,10 @@ export default function AffiliateFindYourselfPage() {
                           }`}
                       >
                         <div
-                          className={`h-4 w-4 rounded-full border flex items-center justify-center transition-colors ${isSelected ? "border-[#E8D1AB] bg-[#E8D1AB]" : "border-white/50"
+                          className={`h-4 w-4 rounded-[4px] border flex items-center justify-center transition-colors ${isSelected ? "border-[#E8D1AB] bg-[#E8D1AB]" : "border-white/50"
                             }`}
                         >
-                          {isSelected ? <div className="h-1 w-1 rounded-full bg-black" /> : null}
+                          {isSelected ? <Check size={11} className="text-black" strokeWidth={3} /> : null}
                         </div>
                         <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
                           <span className="truncate text-sm">{workspace.title}</span>
