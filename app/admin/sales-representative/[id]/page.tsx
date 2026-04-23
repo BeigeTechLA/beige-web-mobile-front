@@ -661,16 +661,6 @@ export default function LeadDetailPage() {
       ? Number(primaryQuote?.total ?? totalAfterCredit)
       : totalAfterCredit);
 
-      const total = isQuoteConvertedLead
-    ? Number(
-        additionalPaymentDetails?.revisedTotal ??
-          primaryQuote?.total ??
-          lead?.pricing_breakdown?.total ??
-          0
-      )
-    : lead?.pricing_breakdown?.total || 0;
-
-
   const referralInfo = useMemo(() => {
     const notes = booking?.primary_quote?.notes || "";
     const match = String(notes).match(/Referral applied \(([^)]+)\): -\$(\d+(?:\.\d+)?)/i);
