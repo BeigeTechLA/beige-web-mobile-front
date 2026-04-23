@@ -2915,21 +2915,6 @@ export default function CreateQuotePage() {
   const convertBookingActionLabel = isConvertedToBooking
     ? "Update Booking"
     : "Convert to Booking";
-  const activeQuoteDetail = quoteToEdit ?? previewQuote;
-  const additionalPaymentDetails = React.useMemo(() => {
-    const rawAdditionalPayment = activeQuoteDetail?.additional_payment;
-    if (!rawAdditionalPayment) {
-      return null;
-    }
-
-    const additionalAmount = Number(rawAdditionalPayment.additional_amount ?? 0);
-    if (additionalAmount <= 0) {
-      return null;
-    }
-
-    return { additionalAmount };
-  }, [activeQuoteDetail]);
-
   const getQuoteDraftPayload = (maxStep?: typeof view) =>
     buildQuoteDraftPayload({
       selectedClient,
@@ -3410,12 +3395,6 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (!isConvertedToBooking) {
-      setConvertIntent("view_invoice");
-      setIsConvertModalOpen(true);
-      return;
-    }
-
     await previewQuoteInvoiceRequest();
   };
 
@@ -3454,12 +3433,6 @@ export default function CreateQuotePage() {
   const handleSendInvoice = async () => {
     if (!resolvedInvoiceQuoteId) {
       toast.error("Quote id is missing.");
-      return;
-    }
-
-    if (!isConvertedToBooking) {
-      setConvertIntent("send_invoice");
-      setIsConvertModalOpen(true);
       return;
     }
 
@@ -6571,20 +6544,6 @@ export default function CreateQuotePage() {
                     </span>
                   </div>
 
-                  {additionalPaymentDetails ? (
-                    <>
-                      <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
-
-                      <div className="flex justify-between items-center ">
-                        <span className="text-sm lg:text-base text-white font-medium">
-                          Additional Amount Added
-                        </span>
-                        <span className="text-sm lg:text-base font-semibold text-[#E8D1AB] tracking-tight">
-                          {formatCurrency(additionalPaymentDetails.additionalAmount)}
-                        </span>
-                      </div>
-                    </>
-                  ) : null}
                 </div>
               </div>
             </div>
