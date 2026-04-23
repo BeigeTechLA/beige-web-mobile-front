@@ -642,6 +642,44 @@ export const affiliateApi = {
     }
   },
 
+  // Get client credit summary (available/used/pending)
+  getClientCreditSummary: async (token: string) => {
+    try {
+      const response = await api.get('/client/credit/summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Credit Summary Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch credit summary',
+      };
+    }
+  },
+
+  // Get client credit history (where credit was created/used)
+  getClientCreditHistory: async (
+    token: string,
+    params: { page?: number; limit?: number } = {}
+  ) => {
+    try {
+      const response = await api.get('/client/credit/history', {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Credit History Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch credit history',
+      };
+    }
+  },
+
   // Get shoots count by category (affiliate dashboard)
   getShootsCountByCategory: async (token: string, params: { tab?: string; date_on?: string } = {}) => {
     try {

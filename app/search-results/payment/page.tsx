@@ -1112,40 +1112,52 @@ function StripePaymentFormMulti({
         </div>
 
         {/* Account Credit */}
-        <div className="w-full rounded-[12px] border border-white/20 bg-[#1f1f1f] p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col">
-              <span className="text-sm lg:text-base text-white font-medium">Use Account Credit</span>
-              <span className="text-xs lg:text-sm text-white/60">
-                Available: {formatCurrency(availableCreditAmount || 0)}
-              </span>
-            </div>
-            <label
-              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                canUseAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
-              } ${useAccountCredit ? "bg-[#E8D1AB]" : "bg-white/20"}`}
-            >
+        <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
+          <label
+            className={`flex items-start justify-between gap-4 rounded-xl transition ${
+              canUseAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+            }`}
+          >
+            <div className="flex items-start gap-3">
               <input
                 type="checkbox"
-                className="peer sr-only"
+                className="sr-only"
                 checked={Boolean(useAccountCredit && canUseAccountCredit)}
                 disabled={!canUseAccountCredit}
                 onChange={(e) => onToggleAccountCredit(e.target.checked)}
               />
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
-                  useAccountCredit && canUseAccountCredit ? "translate-x-6" : "translate-x-1"
+              <div
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+                  useAccountCredit && canUseAccountCredit
+                    ? "border-[#E8D1AB] bg-[#E8D1AB] text-black shadow-[0_0_0_3px_rgba(232,209,171,0.2)]"
+                    : "border-white/40 bg-[#272626] text-transparent"
                 }`}
-              />
-            </label>
-          </div>
+              >
+                <Check className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm lg:text-base text-white font-semibold tracking-wide">
+                  Use Account Credit
+                </span>
+                <span className="text-xs lg:text-sm text-white/60 mt-0.5">
+                  Available balance: {formatCurrency(availableCreditAmount || 0)}
+                </span>
+              </div>
+            </div>
+            {canUseAccountCredit && (
+              <span className="text-[10px] lg:text-xs font-semibold uppercase tracking-[0.12em] text-[#E8D1AB] bg-[#E8D1AB]/10 border border-[#E8D1AB]/30 rounded-full px-2.5 py-1">
+                Credit Ready
+              </span>
+            )}
+          </label>
           {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
-            <p className="text-green-400 text-sm mt-2">
-              Credit applied: -{formatCurrency(creditAppliedAmount)}
-            </p>
+            <div className="mt-3 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-300 flex items-center justify-between">
+              <span>Credit applied</span>
+              <span className="font-semibold">-{formatCurrency(creditAppliedAmount)}</span>
+            </div>
           )}
           {!canUseAccountCredit && (
-            <p className="text-white/50 text-sm mt-2">No account credit available for this booking.</p>
+            <p className="text-white/50 text-sm mt-3">No account credit available for this booking.</p>
           )}
         </div>
 

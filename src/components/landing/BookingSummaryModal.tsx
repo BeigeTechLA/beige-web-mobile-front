@@ -394,6 +394,12 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
                         <span>-{formatCurrency(data.pricing.referral_discount)}</span>
                      </div>
                    )}
+                   {data.pricing.credit_applied > 0 && (
+                     <div className="flex justify-between text-sm text-green-500 font-medium">
+                        <span>Account Credit</span>
+                        <span>-{formatCurrency(data.pricing.credit_applied)}</span>
+                     </div>
+                   )}
                    
                    <div className="pt-4 mt-2 border-t border-white/20 print:border-gray-300">
                      <div className="flex items-center justify-between gap-6">
