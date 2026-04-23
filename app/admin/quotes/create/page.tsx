@@ -3440,8 +3440,7 @@ export default function CreateQuotePage() {
       return;
     }
 
-    setConvertIntent("send_invoice");
-    setIsConvertModalOpen(true);
+    await sendQuoteInvoiceRequest();
   };
 
   const handleConvertBookingSubmit = async (
