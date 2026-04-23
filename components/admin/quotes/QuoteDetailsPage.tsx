@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 
 import ConvertBookingModal, {
+  type ConvertBookingModalInitialData,
   type ConvertBookingModalSubmitData,
 } from "@/components/admin/quotes/ConvertBookingModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
@@ -82,6 +83,89 @@ type QuoteActivityLike = {
     name?: string;
     [key: string]: unknown;
   } | null;
+};
+
+type QuoteConvertedBookingDayLike = {
+  date?: string | null;
+  event_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+};
+
+type QuoteConvertedBookingDetailsLike = {
+  booking_type?: string | null;
+  start_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  location?: string | null;
+  booking_days?: QuoteConvertedBookingDayLike[] | null;
+};
+
+const normalizeConvertModalTime = (value?: string | null) =>
+  typeof value === "string" && value.length >= 5 ? value.slice(0, 5) : "";
+
+const buildConvertModalInitialData = (
+  booking?: QuoteConvertedBookingDetailsLike | null
+): ConvertBookingModalInitialData | null => {
+  if (!booking) {
+    return null;
+  }
+
+  const bookingDays = Array.isArray(booking.booking_days)
+    ? booking.booking_days
+        .map((day) => ({
+          date: String(day?.date || day?.event_date || ""),
+          startTime: normalizeConvertModalTime(day?.start_time),
+          endTime: normalizeConvertModalTime(day?.end_time),
+        }))
+        .filter((day) => day.date)
+    : [];
+
+  if (
+    String(booking.booking_type || "").trim().toLowerCase() === "multi_day" ||
+    bookingDays.length > 1
+  ) {
+    const [firstDay] = bookingDays;
+    const sameTimings =
+      bookingDays.length > 0
+        ? bookingDays.every(
+            (day) =>
+              day.startTime === (firstDay?.startTime || "") &&
+              day.endTime === (firstDay?.endTime || "")
+          )
+        : true;
+
+    return {
+      bookingType: "multi_day",
+      location: booking.location || "",
+      multiDay: {
+        sameTimings,
+        sharedStartTime: sameTimings ? firstDay?.startTime || "" : undefined,
+        sharedEndTime: sameTimings ? firstDay?.endTime || "" : undefined,
+        days: bookingDays,
+      },
+    };
+  }
+
+  const singleDate = bookingDays[0]?.date || booking.start_date || "";
+  const singleStartTime =
+    bookingDays[0]?.startTime || normalizeConvertModalTime(booking.start_time);
+  const singleEndTime =
+    bookingDays[0]?.endTime || normalizeConvertModalTime(booking.end_time);
+
+  if (!singleDate) {
+    return null;
+  }
+
+  return {
+    bookingType: "single_day",
+    location: booking.location || "",
+    singleDay: {
+      date: singleDate,
+      startTime: singleStartTime,
+      endTime: singleEndTime,
+    },
+  };
 };
 
 const getActivityBookingId = (activity: QuoteActivityLike | null | undefined) => {
@@ -272,8 +356,6 @@ const QuoteTopActions = ({
   convertDisabled,
   isRejecting,
   isConverting,
-  isConverted,
-  convertedBookingId,
 }: {
   onReject: () => void;
   onConvert: () => void;
@@ -283,8 +365,6 @@ const QuoteTopActions = ({
   convertDisabled: boolean;
   isRejecting: boolean;
   isConverting: boolean;
-  isConverted: boolean;
-  convertedBookingId: string | null;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
     <Button
@@ -296,23 +376,16 @@ const QuoteTopActions = ({
       {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
       {isRejecting ? "Rejecting..." : "Reject Quote"}
     </Button>
-    {isConverted ? (
-      <div className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#86EFAC]/20 bg-[#DCFCE7] px-4 text-sm font-semibold text-[#166534]">
-        <FileText size={18} />
-        {convertedBookingId ? `Booking Created #${convertedBookingId}` : "Converted to Booking"}
-      </div>
-    ) : (
-      <Button
-        type="button"
-        onClick={onConvert}
-        disabled={convertDisabled}
-        variant="outline"
-        className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
-      >
-        {isConverting ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
-        {isConverting ? "Converting..." : "Convert to Booking"}
-      </Button>
-    )}
+    <Button
+      type="button"
+      onClick={onConvert}
+      disabled={convertDisabled}
+      variant="outline"
+      className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
+    >
+      {isConverting ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
+      {isConverting ? "Converting..." : "Convert to Booking"}
+    </Button>
     <Button
       type="button"
       onClick={onPreview}
@@ -352,8 +425,13 @@ export default function QuoteDetailsPage({
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [convertIntent, setConvertIntent] = useState<QuoteConvertIntent>("convert_only");
+  const [convertModalInitialDataOverride, setConvertModalInitialDataOverride] =
+    useState<ConvertBookingModalInitialData | null>(null);
   const [convertedBookingIdOverride, setConvertedBookingIdOverride] = useState<string | null>(null);
   const [isConvertedOverride, setIsConvertedOverride] = useState(false);
+  const [signatureBase64, setSignatureBase64] = useState<string | null>(null);
+  const [signerName, setSignerName] = useState<string | null>(null);
+  const [signedAt, setSignedAt] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -382,6 +460,13 @@ export default function QuoteDetailsPage({
         }
 
         setQuote(quoteDetail);
+        const rawData = response?.data as any;
+        const sig = rawData?.signature_base64 ?? (rawData?.data as any)?.signature_base64;
+        if (sig) {
+          setSignatureBase64(sig);
+          setSignerName(rawData?.signer_name ?? rawData?.data?.signer_name ?? null);
+          setSignedAt(rawData?.signed_at ?? rawData?.data?.signed_at ?? null);
+        }
       } catch (error) {
         console.error("Failed to load quote details", error);
 
@@ -475,7 +560,6 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
-  const isPaidQuote = normalizedQuoteStatus === "paid";
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -525,6 +609,15 @@ export default function QuoteDetailsPage({
 
     return null;
   }, [conversionActivity, convertedBookingIdOverride, quote]);
+
+  const convertModalInitialData = useMemo(
+    () =>
+      convertModalInitialDataOverride ||
+      buildConvertModalInitialData(
+        (quote?.converted_booking_details as QuoteConvertedBookingDetailsLike | undefined) ?? null
+      ),
+    [convertModalInitialDataOverride, quote]
+  );
 
   const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId) || Boolean(conversionActivity);
   const conversionMessage = isConvertedToBooking
@@ -582,6 +675,11 @@ export default function QuoteDetailsPage({
       return;
     }
 
+    setConvertModalInitialDataOverride(
+      buildConvertModalInitialData(
+        (quote?.converted_booking_details as QuoteConvertedBookingDetailsLike | undefined) ?? null
+      )
+    );
     setConvertIntent("convert_only");
     setIsConvertModalOpen(true);
   };
@@ -757,11 +855,42 @@ export default function QuoteDetailsPage({
         setConvertedBookingIdOverride(nextBookingId);
       }
       setIsConvertedOverride(true);
+      setConvertModalInitialDataOverride(bookingData);
       setQuote((current) =>
         current
           ? {
               ...current,
               ...(nextBookingId ? { booking_id: nextBookingId } : {}),
+              converted_booking_details: {
+                booking_type: bookingData.bookingType,
+                location:
+                  bookingData.location ??
+                  ((current.converted_booking_details as QuoteConvertedBookingDetailsLike | undefined)
+                    ?.location || ""),
+                ...(bookingData.bookingType === "single_day" && bookingData.singleDay
+                  ? {
+                      start_date: bookingData.singleDay.date,
+                      start_time: `${bookingData.singleDay.startTime}:00`,
+                      end_time: `${bookingData.singleDay.endTime}:00`,
+                      booking_days: [
+                        {
+                          date: bookingData.singleDay.date,
+                          start_time: `${bookingData.singleDay.startTime}:00`,
+                          end_time: `${bookingData.singleDay.endTime}:00`,
+                        },
+                      ],
+                    }
+                  : {}),
+                ...(bookingData.bookingType === "multi_day" && bookingData.multiDay
+                  ? {
+                      booking_days: bookingData.multiDay.days.map((day) => ({
+                        date: day.date,
+                        start_time: `${day.startTime}:00`,
+                        end_time: `${day.endTime}:00`,
+                      })),
+                    }
+                  : {}),
+              },
             }
           : current
       );
@@ -788,11 +917,6 @@ export default function QuoteDetailsPage({
   };
 
   const handleEditQuote = (targetView: QuoteEditorView) => {
-    if (isPaidQuote) {
-      toast.error("Paid quotes cannot be edited.");
-      return;
-    }
-
     if (quote) {
       persistQuoteEditorNavigationCache(quoteId, quote);
     }
@@ -814,11 +938,9 @@ export default function QuoteDetailsPage({
       onPreview={() => setIsPreviewOpen(true)}
       previewDisabled={!quote || loading}
       rejectDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      convertDisabled={!quote || loading || isRejecting || isConverting || isConvertedToBooking}
+      convertDisabled={!quote || loading || isRejecting || isConverting}
       isRejecting={isRejecting}
       isConverting={isConverting}
-      isConverted={isConvertedToBooking}
-      convertedBookingId={convertedBookingId}
     />
   );
 
@@ -899,8 +1021,8 @@ export default function QuoteDetailsPage({
           <div className="space-y-6">
             <SectionShell
               title="Client Information"
-              actionLabel={isPaidQuote ? undefined : "Edit Details"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("details")}
+              actionLabel="Edit Details"
+              onAction={() => handleEditQuote("details")}
             >
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -918,7 +1040,7 @@ export default function QuoteDetailsPage({
                       <p className="mt-2 text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
                     </div>
                   </div>
-
+                      <div className="flex flex-col items-end gap-2">
                   <span
                     className={`inline-flex h-fit items-center rounded-full px-4 py-2 text-sm font-semibold ${getStatusStyles(
                       quoteStatus
@@ -926,7 +1048,18 @@ export default function QuoteDetailsPage({
                   >
                     {formatStatusLabel(quoteStatus)}
                   </span>
+                        {signatureBase64 && (
+                          <div className="mt-3 flex flex-col items-end gap-2">
+                            <div className="border border-white/10 rounded-lg p-2 bg-white/5">
+                              <img src={signatureBase64} alt="Signature" className="max-h-16 max-w-[180px] object-contain" />
+                            </div>
+                            <p className="text-xs text-[#8F8F95]">{signerName ?? "Client"}</p>
+                            {signedAt && <p className="text-xs text-[#8F8F95]">{formatQuoteDate(signedAt)}</p>}
+                          </div>
+                        )}
                 </div>
+                    </div>
+                    
 
                 {isConvertedToBooking ? (
                   <div className="rounded-[20px] border border-[#86EFAC]/20 bg-[#DCFCE7] px-5 py-4">
@@ -962,8 +1095,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
-              actionLabel={isPaidQuote ? undefined : "Edit Services"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("services")}
+              actionLabel="Edit Services"
+              onAction={() => handleEditQuote("services")}
             >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
@@ -982,8 +1115,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Add-On Includes"
-              actionLabel={isPaidQuote ? undefined : "Edit Add ons"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("addons")}
+              actionLabel="Edit Add ons"
+              onAction={() => handleEditQuote("addons")}
             >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1005,8 +1138,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Logistics"
-              actionLabel={isPaidQuote ? undefined : "Edit Logistics"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("logistics")}
+              actionLabel="Edit Logistics"
+              onAction={() => handleEditQuote("logistics")}
             >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1027,8 +1160,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Custom Line Item"
-              actionLabel={isPaidQuote ? undefined : "Edit Items"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("customlineitems")}
+              actionLabel="Edit Items"
+              onAction={() => handleEditQuote("customlineitems")}
             >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
@@ -1056,8 +1189,8 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Other Details"
-              actionLabel={isPaidQuote ? undefined : "Edit Tax & Discounts"}
-              onAction={isPaidQuote ? undefined : () => handleEditQuote("discounts")}
+              actionLabel="Edit Tax & Discounts"
+              onAction={() => handleEditQuote("discounts")}
             >
               <div className="space-y-6">
                 <div className="inline-flex rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
@@ -1171,18 +1304,35 @@ export default function QuoteDetailsPage({
         }}
         isSubmitting={isConverting}
         isDark={isDark}
+        initialData={convertModalInitialData}
         showLocationField={false}
         title={
           convertIntent === "send_invoice"
-            ? "Convert to Booking Before Sending Invoice"
-            : "Convert to Booking"
+            ? isConvertedToBooking
+              ? "Update Booking Before Sending Invoice"
+              : "Convert to Booking Before Sending Invoice"
+            : isConvertedToBooking
+              ? "Update Booking"
+              : "Convert to Booking"
         }
         description={
           convertIntent === "send_invoice"
-            ? "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
-            : "Select booking type, shoot date and time before continuing."
+            ? isConvertedToBooking
+              ? "Review or update the existing booking date and time below, then continue to send the invoice."
+              : "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
+            : isConvertedToBooking
+              ? "Review or update the existing booking date and time below."
+              : "Select booking type, shoot date and time before continuing."
         }
-        submitLabel="Convert to Booking"
+        submitLabel={
+          convertIntent === "send_invoice"
+            ? isConvertedToBooking
+              ? "Save & Send Invoice"
+              : "Convert & Send Invoice"
+            : isConvertedToBooking
+              ? "Save Booking Details"
+              : "Convert to Booking"
+        }
       />
     </div>
   );

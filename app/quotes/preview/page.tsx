@@ -6,7 +6,7 @@ export default function QuotePreviewPage() {
     <QuotePreviewPageShell
       TopbarComponent={QuotePreviewStandaloneHeader}
       fallbackHref="/"
-      showActionButtons={false}
+      showActionButtons={true}
       showBackButton={false}
       showIntroHeader={false}
       quoteDetailMode="public"
