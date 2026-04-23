@@ -423,6 +423,36 @@ export interface SalesQuoteDetailData {
   final_total?: number | string;
   amount_after_discount?: number | string;
   booking_id?: number | string;
+  additional_payment?: {
+    additional_amount?: number | string | null;
+    previously_paid_amount?: number | string | null;
+    revised_total?: number | string | null;
+    outstanding_amount?: number | string | null;
+    payment_status?: string | null;
+    last_sent_at?: string | null;
+    invoice_number?: string | null;
+    invoice_url?: string | null;
+  } | null;
+  converted_booking_details?: {
+    booking_id?: number | string;
+    booking_type?: string | null;
+    time_zone?: string | null;
+    start_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    duration_hours?: number | string | null;
+    location?: string | null;
+    reference_links?: string | null;
+    special_instructions?: string | null;
+    booking_days?: Array<{
+      date?: string | null;
+      event_date?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+      duration_hours?: number | string | null;
+      time_zone?: string | null;
+    }> | null;
+  } | null;
   accepted_at?: string | null;
   terms_conditions?: string | string[] | null;
   line_items?: SalesQuoteDetailLineItem[];
