@@ -37,12 +37,41 @@ import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 
 const STATUSES = ["Linked", "Unlinked"];
+const PAGE_SIZE = 24;
+const PAGINATION_WINDOW = 1;
+
+const getPageItems = (currentPage: number, totalPages: number) => {
+  if (totalPages <= 1) return [1];
+
+  const items: Array<number | "ellipsis"> = [1];
+  const start = Math.max(2, currentPage - PAGINATION_WINDOW);
+  const end = Math.min(totalPages - 1, currentPage + PAGINATION_WINDOW);
+
+  if (start > 2) {
+    items.push("ellipsis");
+  }
+
+  for (let page = start; page <= end; page += 1) {
+    items.push(page);
+  }
+
+  if (end < totalPages - 1) {
+    items.push("ellipsis");
+  }
+
+  if (totalPages > 1) {
+    items.push(totalPages);
+  }
+
+  return items;
+};
 
 export default function AdminFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [status, setStatus] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -55,6 +84,15 @@ export default function AdminFolderManagerPage() {
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [isCreateCommonEventModalOpen, setIsCreateCommonEventModalOpen] = useState(false);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,12 +123,21 @@ export default function AdminFolderManagerPage() {
     // { name: "Trash", icon: Trash2 },
   ];
 
-  const loadProjects = async () => {
+  const loadProjects = async (page: number = 1, searchQuery: string = debouncedSearchTerm) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await fileManagerApi.listExternalWorkspaces();
-      setProjects(data.map((workspace) => mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")));
+      const { workspaces, pagination: serverPagination } = await fileManagerApi.listExternalWorkspacesPaginated({
+        page,
+        limit: PAGE_SIZE,
+        search: searchQuery,
+      });
+
+      setProjects(workspaces.map((workspace) => mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")));
+      setPagination(serverPagination);
+      if (serverPagination.page !== page) {
+        setCurrentPage(serverPagination.page);
+      }
     } catch (err: any) {
       setError(err?.message || "Failed to load file manager projects");
     } finally {
@@ -99,18 +146,30 @@ export default function AdminFolderManagerPage() {
   };
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm]);
+
+  useEffect(() => {
     let mounted = true;
 
     const load = async () => {
       if (!mounted) return;
-      await loadProjects();
+      await loadProjects(currentPage, debouncedSearchTerm);
     };
 
     load();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [currentPage, debouncedSearchTerm]);
 
   const filteredFolders = useMemo(() => {
     let items = [...projects];
@@ -132,15 +191,6 @@ export default function AdminFolderManagerPage() {
       items = items.filter((item) => !item.isLinked);
     }
 
-    if (searchTerm.trim()) {
-      const query = searchTerm.toLowerCase();
-      items = items.filter(
-        (item) =>
-          item.title.toLowerCase().includes(query) ||
-          (item.category || "").toLowerCase().includes(query)
-      );
-    }
-
     if (selectedDate) {
       items = items.filter((item) => isSameCalendarDate(item.updatedAtRaw, selectedDate));
     }
@@ -152,7 +202,7 @@ export default function AdminFolderManagerPage() {
     });
 
     return items;
-  }, [projects, searchTerm, selectedTab, status, selectedDate]);
+  }, [projects, selectedTab, status, selectedDate]);
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -192,7 +242,7 @@ export default function AdminFolderManagerPage() {
       setIsDeleteModalOpen(false);
       setMenuAnchor(null);
       setSelectedFolder(null);
-      await loadProjects();
+      await loadProjects(currentPage, debouncedSearchTerm);
     } catch (err: any) {
       toast.error(err?.message || "Failed to delete workspace");
     } finally {
@@ -207,7 +257,8 @@ export default function AdminFolderManagerPage() {
       setIsCreatingEvent(true);
       await fileManagerApi.createCommonEvent(eventName);
       toast.success("Common event folder created");
-      await loadProjects();
+      setCurrentPage(1);
+      await loadProjects(1, debouncedSearchTerm);
     } catch (err: any) {
       toast.error(err?.message || "Failed to create common event folder");
     } finally {
@@ -267,7 +318,7 @@ export default function AdminFolderManagerPage() {
           <div className="w-full lg:w-auto flex justify-between lg:justify-end items-center gap-2 text-sm lg:text-base text-[#8F8F8F] bg-[#171717]/50 px-4 py-2 rounded-lg border border-white/5">
             <span className="whitespace-nowrap">Projects:</span>
             <p className="font-medium">
-              <span className="text-[#E8D1AB]">{projects.length}</span>
+              <span className="text-[#E8D1AB]">{pagination.total}</span>
               <span className="mx-1">total</span>
             </p>
           </div>
@@ -469,6 +520,51 @@ export default function AdminFolderManagerPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && pagination.totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-center">
+              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#0E0E0E] p-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={!pagination.hasPreviousPage}
+                  className="h-12 min-w-[112px] rounded-xl border border-white/10 bg-[#131313] px-5 text-sm font-medium text-white/55 transition-colors hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Previous
+                </button>
+
+                {getPageItems(pagination.page, pagination.totalPages).map((item, index) =>
+                  item === "ellipsis" ? (
+                    <span key={`ellipsis-${index}`} className="px-2 text-lg text-white/50">
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={`page-${item}`}
+                      type="button"
+                      onClick={() => setCurrentPage(item)}
+                      className={`h-12 min-w-12 rounded-xl px-4 text-sm font-medium transition-colors ${
+                        item === pagination.page
+                          ? "bg-[#E5D5B8] text-black"
+                          : "text-[#8CA2C5] hover:text-white"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                  disabled={!pagination.hasNextPage}
+                  className="h-12 min-w-[112px] rounded-xl border border-white/10 bg-[#131313] px-5 text-sm font-medium text-[#8CA2C5] transition-colors hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
               </div>
             </div>
           )}

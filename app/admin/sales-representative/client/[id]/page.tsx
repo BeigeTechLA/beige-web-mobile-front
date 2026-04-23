@@ -329,7 +329,17 @@ export default function LeadDetailPage() {
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
   const discountAmount = lead?.pricing_breakdown?.discount || 0;
-  const total = lead?.pricing_breakdown?.total || 0;
+  const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
+  const totalBeforeCredit = Number(
+    lead?.pricing_breakdown?.total_before_credit ??
+      lead?.pricing_breakdown?.total ??
+      0
+  );
+  const total = Number(
+    lead?.pricing_breakdown?.total_after_credit ??
+      lead?.pricing_breakdown?.total ??
+      0
+  );
 
   const referralInfo = useMemo(() => {
     const notes = booking?.primary_quote?.notes || "";
@@ -924,6 +934,20 @@ export default function LeadDetailPage() {
                     <span className="text-[#71717B] text-xs">Referral Discount</span>
                     <span className="text-sm lg:text-base text-red-400">-${referralDiscountAmount.toLocaleString()}</span>
                   </div>
+                )}
+                {creditApplied > 0 && (
+                  <>
+                    <div className="flex justify-between font-medium">
+                      <span className="text-[#71717B] text-xs">Total Before Credit</span>
+                      <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>
+                        ${totalBeforeCredit.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-medium">
+                      <span className="text-[#71717B] text-xs">Account Credit Used</span>
+                      <span className="text-sm lg:text-base text-emerald-400">-${creditApplied.toLocaleString()}</span>
+                    </div>
+                  </>
                 )}
               </div>
               <div className={`h-[1px] w-full ${isDark ? "bg-[#3D3D3D]" : "bg-[#E5E5E5]"}`} />

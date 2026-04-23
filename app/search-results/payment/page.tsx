@@ -310,6 +310,10 @@ function StripePaymentFormMulti({
   shootId,
   booking,
   quote,
+  accountCredit,
+  useAccountCredit,
+  creditAppliedAmount,
+  onToggleAccountCredit,
   setPaymentDetails,
   refreshPaymentIntent, // NEW PROP: used to update price in background
 }: {
@@ -320,8 +324,12 @@ function StripePaymentFormMulti({
   shootId: string | null;
   booking: any;
   quote: any;
+  accountCredit?: any;
+  useAccountCredit: boolean;
+  creditAppliedAmount: number;
+  onToggleAccountCredit: (enabled: boolean) => Promise<void> | void;
   setPaymentDetails: (details: any) => void;
-  refreshPaymentIntent: (updatedDetails: any) => Promise<void>; // NEW TYPE
+  refreshPaymentIntent: (updatedDetails: any, useCreditOverride?: boolean) => Promise<void>; // NEW TYPE
 }) {
   const { user, isAuthenticated } = useAuth()
   const stripe = useStripe();
@@ -352,6 +360,9 @@ function StripePaymentFormMulti({
   const [acceptTerms, setAcceptTerms] = useState(true);
 
   const isFree = amount === 0;
+  const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
+  const canUseAccountCredit =
+    Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
   const isReferralLocked =
     isFree && parseFloat(quote?.discount_total || quote?.discount_amount || 0) > 0;
   const activeDiscountCode = normalizeDiscountCodeValue(
@@ -1100,6 +1111,56 @@ function StripePaymentFormMulti({
           )}
         </div>
 
+        {/* Account Credit */}
+        <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
+          <label
+            className={`flex items-start justify-between gap-4 rounded-xl transition ${
+              canUseAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={Boolean(useAccountCredit && canUseAccountCredit)}
+                disabled={!canUseAccountCredit}
+                onChange={(e) => onToggleAccountCredit(e.target.checked)}
+              />
+              <div
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+                  useAccountCredit && canUseAccountCredit
+                    ? "border-[#E8D1AB] bg-[#E8D1AB] text-black shadow-[0_0_0_3px_rgba(232,209,171,0.2)]"
+                    : "border-white/40 bg-[#272626] text-transparent"
+                }`}
+              >
+                <Check className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm lg:text-base text-white font-semibold tracking-wide">
+                  Use Account Credit
+                </span>
+                <span className="text-xs lg:text-sm text-white/60 mt-0.5">
+                  Available balance: {formatCurrency(availableCreditAmount || 0)}
+                </span>
+              </div>
+            </div>
+            {canUseAccountCredit && (
+              <span className="text-[10px] lg:text-xs font-semibold uppercase tracking-[0.12em] text-[#E8D1AB] bg-[#E8D1AB]/10 border border-[#E8D1AB]/30 rounded-full px-2.5 py-1">
+                Credit Ready
+              </span>
+            )}
+          </label>
+          {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
+            <div className="mt-3 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-300 flex items-center justify-between">
+              <span>Credit applied</span>
+              <span className="font-semibold">-{formatCurrency(creditAppliedAmount)}</span>
+            </div>
+          )}
+          {!canUseAccountCredit && (
+            <p className="text-white/50 text-sm mt-3">No account credit available for this booking.</p>
+          )}
+        </div>
+
         {/* Submit Button */}
         <Button
           type="submit"
@@ -1148,6 +1209,7 @@ function MultiCreatorPaymentContent() {
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
+  const [useAccountCredit, setUseAccountCredit] = useState(false);
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
   const [pricingGroups, setPricingGroups] = useState<{
@@ -1289,9 +1351,15 @@ function MultiCreatorPaymentContent() {
     });
   }, [paymentDetails]);
 
-  const fetchIntent = async (details: any) => {
+  const fetchIntent = async (details: any, useCreditOverride: boolean = useAccountCredit) => {
     if (!details || !shootId) return;
     const { booking, quote } = details;
+    const rawQuoteTotal = parseFloat(quote?.total || 0);
+    const availableCredit = parseFloat(details?.account_credit?.available_credit_amount || 0);
+    const canUseCredit = Boolean(details?.account_credit?.can_use_credit) && availableCredit > 0;
+    const creditToApply =
+      useCreditOverride && canUseCredit ? Math.min(availableCredit, rawQuoteTotal) : 0;
+    const payableAmount = Math.max(rawQuoteTotal - creditToApply, 0);
 
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
@@ -1299,8 +1367,10 @@ function MultiCreatorPaymentContent() {
         `${API_BASE_URL}payments/create-intent-multi`,
         {
           booking_id: shootId,
-          amount: parseFloat(quote.total || 0),
+          amount: payableAmount,
           guest_email: resolveGuestEmail(booking, summaryData?.client_email),
+          use_credit: useCreditOverride && canUseCredit,
+          credit_amount_used: creditToApply,
         },
         {
           headers: getAuthHeaders(),
@@ -1316,9 +1386,9 @@ function MultiCreatorPaymentContent() {
     }
   };
 
-  const refreshPaymentIntent = async (updatedDetails: any) => {
+  const refreshPaymentIntent = async (updatedDetails: any, useCreditOverride?: boolean) => {
     setIsUpdatingIntent(true);
-    await fetchIntent(updatedDetails);
+    await fetchIntent(updatedDetails, useCreditOverride ?? useAccountCredit);
     setIsUpdatingIntent(false);
   };
 
@@ -1379,6 +1449,21 @@ function MultiCreatorPaymentContent() {
     fetchPaymentDetails();
   }, [shootId]);
 
+  useEffect(() => {
+    const availableCredit = parseFloat(paymentDetails?.account_credit?.available_credit_amount || 0);
+    const canUseCredit =
+      Boolean(paymentDetails?.account_credit?.can_use_credit) && availableCredit > 0;
+    if (!canUseCredit && useAccountCredit) {
+      setUseAccountCredit(false);
+      refreshPaymentIntent(paymentDetails, false);
+    }
+  }, [
+    paymentDetails?.account_credit?.available_credit_amount,
+    paymentDetails?.account_credit?.can_use_credit,
+    paymentDetails,
+    useAccountCredit,
+  ]);
+
   const handlePaymentSuccess = async (
     paymentIntentId: string,
     referralCode?: string,
@@ -1391,6 +1476,8 @@ function MultiCreatorPaymentContent() {
           paymentIntentId,
           booking_id: shootId,
           referral_code: referralCode || null,
+          use_credit: useAccountCredit && canUseAccountCredit,
+          credit_amount_used: creditAppliedAmount,
         },
         {
           headers: getAuthHeaders(),
@@ -1442,6 +1529,17 @@ function MultiCreatorPaymentContent() {
   const { booking, creators, quote } = paymentDetails;
   const quoteTotal = (quote && typeof quote.total !== 'undefined') ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
+  const accountCredit = paymentDetails?.account_credit || {};
+  const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
+  const canUseAccountCredit =
+    Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
+  const creditAppliedAmount =
+    isQuoteValid && canUseAccountCredit && useAccountCredit
+      ? Math.min(availableCreditAmount, quoteTotal || 0)
+      : 0;
+  const payableTotal = isQuoteValid
+    ? Math.max((quoteTotal || 0) - creditAppliedAmount, 0)
+    : 0;
 
   const customerName =
     extractContactName(summaryData?.description) ||
@@ -1552,6 +1650,11 @@ function MultiCreatorPaymentContent() {
 
   // Date Time info to manage Multiday shoot format
   const dateTimeInfo = getBookingDetails(booking)
+  const handleAccountCreditToggle = async (enabled: boolean) => {
+    const nextValue = Boolean(enabled && canUseAccountCredit);
+    setUseAccountCredit(nextValue);
+    await refreshPaymentIntent(paymentDetails, nextValue);
+  };
 
   return (
     <div className="pt-20 md:pt-32 pb-20 min-h-screen">
@@ -1590,12 +1693,16 @@ function MultiCreatorPaymentContent() {
                 <Elements stripe={stripePromise}>
                   <StripePaymentFormMulti
                     clientSecret={clientSecret}
-                    amount={quoteTotal || 0}
+                    amount={payableTotal || 0}
                     onSuccess={handlePaymentSuccess}
                     onError={handlePaymentError}
                     shootId={shootId}
                     booking={booking}
                     quote={quote}
+                    accountCredit={accountCredit}
+                    useAccountCredit={useAccountCredit}
+                    creditAppliedAmount={creditAppliedAmount}
+                    onToggleAccountCredit={handleAccountCreditToggle}
                     setPaymentDetails={setPaymentDetails}
                     refreshPaymentIntent={refreshPaymentIntent}
                   />
@@ -1877,6 +1984,15 @@ function MultiCreatorPaymentContent() {
                             </span>
                           </div>
                         )}
+
+                        {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
+                          <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                            <span className="text-green-700 font-medium">Account Credit Applied</span>
+                            <span className="text-green-700 font-bold">
+                              -{formatCurrency(creditAppliedAmount)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="p-6 lg:p-10 text-lg lg:text-2xl flex justify-between items-start bg-[#E8D1AB] rounded-b-[20px]">
@@ -1884,7 +2000,7 @@ function MultiCreatorPaymentContent() {
                         <span className="font-bold">Total</span>
                         <span className="lg:text-lg text-[#545557]">Amount Due</span>
                       </div>
-                      <span className="text-xl lg:text-[30px] font-bold">{formatCurrency(quoteTotal || 0)}</span>
+                      <span className="text-xl lg:text-[30px] font-bold">{formatCurrency(payableTotal || 0)}</span>
                     </div>
                   </>
                 )}

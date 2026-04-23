@@ -34,6 +34,7 @@ import {
 } from "@/lib/fileManagerApi";
 
 const STATUSES = ["Linked", "Unlinked"];
+const FILES_PAGE_SIZE = 20;
 
 const getFileExtension = (title?: string) => {
   const parts = (title || "").toLowerCase().split(".");
@@ -91,6 +92,7 @@ export default function ProductionManagerFolderDetailsPage() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
 
   useEffect(() => {
     let mounted = true;
@@ -175,6 +177,17 @@ export default function ProductionManagerFolderDetailsPage() {
     const query = searchTerm.toLowerCase();
     return filesWithMeta.filter((item) => item.title.toLowerCase().includes(query));
   }, [searchTerm, viewState.files]);
+
+  const visibleFiles = useMemo(
+    () => filteredFiles.slice(0, visibleFileCount),
+    [filteredFiles, visibleFileCount]
+  );
+
+  const hasMoreFiles = filteredFiles.length > visibleFileCount;
+
+  useEffect(() => {
+    setVisibleFileCount(FILES_PAGE_SIZE);
+  }, [searchTerm, projectId, phaseSlug, nestedSlug, viewState.kind]);
 
   return (
     <>
@@ -291,46 +304,70 @@ export default function ProductionManagerFolderDetailsPage() {
                 </div>
               )
             ) : viewMode === "grid" ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-                {filteredFiles.map((file) => (
-                  <FileCard key={file.id} file={file} onMenuTrigger={() => {}} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                  {visibleFiles.map((file) => (
+                    <FileCard key={file.id} file={file} onMenuTrigger={() => {}} />
+                  ))}
+                </div>
+                {hasMoreFiles && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                      className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                    >
+                      View More
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
-                      <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
-                      <th className="py-5 px-6 font-medium text-center">Type</th>
-                      <th className="py-5 px-6 font-medium text-center">Last Updated</th>
-                      <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredFiles.map((item) => (
-                      <tr key={item.id} className="items-center hover:bg-white/[0.02] transition-colors">
-                        <td className="py-5 px-6 text-white flex gap-2 items-center">
-                          <div className={`h-10 w-10 ${item.badgeClass} flex items-center justify-center rounded-md`}>
-                            <item.icon className={item.accentClass} size={20} />
-                          </div>
-                          <span className="text-sm font-semibold">{item.title}</span>
-                        </td>
-                        <td className="py-5 px-6 text-center text-white/60 text-sm">{item.label}</td>
-                        <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
-                        <td className="py-5 px-6 text-right">
-                          <Button
-                            variant="ghost"
-                            className="text-white hover:text-white/90 transition-colors"
-                            onClick={() => {}}
-                          >
-                            <MoreVertical size={30} />
-                          </Button>
-                        </td>
+              <div className="hidden lg:block">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
+                        <th className="rounded-l-xl py-5 px-6 font-medium">Name</th>
+                        <th className="py-5 px-6 font-medium text-center">Type</th>
+                        <th className="py-5 px-6 font-medium text-center">Last Updated</th>
+                        <th className="py-5 px-6 font-medium text-right rounded-r-xl">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {visibleFiles.map((item) => (
+                        <tr key={item.id} className="items-center hover:bg-white/[0.02] transition-colors">
+                          <td className="py-5 px-6 text-white flex gap-2 items-center">
+                            <div className={`h-10 w-10 ${item.badgeClass} flex items-center justify-center rounded-md`}>
+                              <item.icon className={item.accentClass} size={20} />
+                            </div>
+                            <span className="text-sm font-semibold">{item.title}</span>
+                          </td>
+                          <td className="py-5 px-6 text-center text-white/60 text-sm">{item.label}</td>
+                          <td className="py-5 px-6 text-center text-[#8F8F8F] text-sm">{item.lastOpened}</td>
+                          <td className="py-5 px-6 text-right">
+                            <Button
+                              variant="ghost"
+                              className="text-white hover:text-white/90 transition-colors"
+                              onClick={() => {}}
+                            >
+                              <MoreVertical size={30} />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {hasMoreFiles && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                      className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                    >
+                      View More
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>

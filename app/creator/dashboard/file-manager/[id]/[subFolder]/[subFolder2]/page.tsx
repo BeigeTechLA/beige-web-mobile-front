@@ -12,6 +12,7 @@ import {
   Grid3X3,
   Image as ImageIcon,
   List,
+  Loader2,
   Play,
   Search,
   Trash2,
@@ -37,6 +38,7 @@ import { toast } from "sonner";
 
 const defaultImgSrc = "/images/misc/Data.png";
 const STATUSES = ["Linked", "Unlinked"];
+const FILES_PAGE_SIZE = 20;
 
 export default function CreatorSubFolderDetailsPage() {
   const router = useRouter();
@@ -67,6 +69,7 @@ export default function CreatorSubFolderDetailsPage() {
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<Record<string, unknown> | null>(null);
   const [shootDate, setShootDate] = useState<string | null>(null);
+  const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
 
   const isOnOrAfterShootDay = useCallback((date?: string | null) => {
     if (!date) return false;
@@ -176,6 +179,11 @@ export default function CreatorSubFolderDetailsPage() {
     const query = searchTerm.toLowerCase();
     return items.filter((item) => item.title.toLowerCase().includes(query));
   }, [folderFiles, searchTerm, status]);
+  const visibleFiles = useMemo(
+    () => filteredData.slice(0, visibleFileCount),
+    [filteredData, visibleFileCount]
+  );
+  const hasMoreFiles = filteredData.length > visibleFileCount;
 
   const filteredFolders = useMemo(() => {
     if (!searchTerm.trim()) return folderItems;
@@ -196,7 +204,11 @@ export default function CreatorSubFolderDetailsPage() {
   }, [shootDate]);
 
   useEffect(() => {
-    const previewableFiles = folderFiles.filter(
+    setVisibleFileCount(FILES_PAGE_SIZE);
+  }, [currentFolderPath, phaseSlug, projectId, searchTerm, folderFiles.length]);
+
+  useEffect(() => {
+    const previewableFiles = visibleFiles.filter(
       (file) =>
         file.filepath &&
         (file.contentType?.startsWith("image/") || file.contentType?.startsWith("video/"))
@@ -228,7 +240,7 @@ export default function CreatorSubFolderDetailsPage() {
     return () => {
       active = false;
     };
-  }, [folderFiles]);
+  }, [visibleFiles]);
 
   const handleOpenFile = async (file: Record<string, unknown>) => {
     if (typeof file.filepath !== "string" || typeof file.id !== "string") return;
@@ -327,8 +339,11 @@ export default function CreatorSubFolderDetailsPage() {
         </div>
 
         {loading ? (
-          <div className="text-sm text-white/70">Loading files...</div>
-        ) : error ? (
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>      
+         ) : error ? (
           <div className="text-sm text-red-300">{error || "Folder not found"}</div>
         ) : (
           <>
@@ -445,12 +460,13 @@ export default function CreatorSubFolderDetailsPage() {
 	            filteredData.length === 0 ? (
 	              <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
             ) : (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-                {filteredData.map((file) => (
-                  <div
-                    key={file.id}
-                    className="group relative cursor-pointer rounded-xl border border-white/10 bg-[#111111] p-4 transition-all hover:border-white/20 lg:p-[19px]"
-                    onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+	              <div className="space-y-4">
+	                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+	                  {visibleFiles.map((file) => (
+	                  <div
+	                    key={file.id}
+	                    className="group relative cursor-pointer rounded-xl border border-white/10 bg-[#111111] p-4 transition-all hover:border-white/20 lg:p-[19px]"
+	                    onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
                   >
                     <div className="mb-3 flex items-center justify-between">
                       <div className="min-w-0 flex items-center gap-2">
@@ -515,81 +531,106 @@ export default function CreatorSubFolderDetailsPage() {
                           height={150}
                           className="h-full w-full object-cover transition-transform group-hover:scale-105"
                         />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : filteredData.length === 0 ? (
-            <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
-          ) : (
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full text-left text-sm">
-                <thead className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
-                  <tr>
-                    <th className="rounded-l-xl px-6 py-5 font-medium">File title</th>
-                    <th className="px-6 py-5 font-medium">Type</th>
-                    <th className="px-6 py-5 font-medium">Last Opened</th>
-                    <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredData.map((file) => (
-                    <tr
-                      key={file.id}
-                      className="group cursor-pointer transition-colors hover:bg-white/[0.02]"
-                      onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
-                    >
-                      <td className="whitespace-nowrap px-6 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-white/5 bg-[#1A1A1A]">
-                            <Image
-                              src={typeof file.src === "string" ? file.src : defaultImgSrc}
-                              alt={typeof file.title === "string" ? file.title : "Default Image"}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                          <span className="max-w-[200px] truncate font-medium text-white">{file.title}</span>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-5">
-                        <div className="flex items-center gap-2 capitalize text-white/60">
-                          {file.type === "video" ? <FileVideo size={14} className="text-[#E8D1AB]" /> : <ImageIcon size={14} className="text-[#E8D1AB]" />}
-                          {String(file.type || "")}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-5 text-xs italic text-white/40">{file.lastOpened}</td>
-                      <td className="whitespace-nowrap px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownloadFile(file as unknown as Record<string, unknown>);
-                            }}
-                          >
-                            <Download size={16} />
-                          </button>
-                          <button
-                            className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438]"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedFile(file as unknown as Record<string, unknown>);
-                              setIsDeleteModalOpen(true);
-                            }}
-                          >
-                            {openingFileId === file.id ? <span className="text-[10px]">...</span> : <Trash2 size={16} />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+	                      )}
+	                    </div>
+	                  </div>
+	                  ))}
+	                </div>
+	                {hasMoreFiles ? (
+	                  <div className="flex justify-center">
+	                    <Button
+	                      type="button"
+	                      className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+	                      onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+	                    >
+	                      View More
+	                    </Button>
+	                  </div>
+	                ) : null}
+	              </div>
+	            )
+	          ) : filteredData.length === 0 ? (
+	            <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
+	          ) : (
+	            <div className="space-y-4">
+	              <div className="hidden overflow-x-auto lg:block">
+	                <table className="w-full text-left text-sm">
+	                  <thead className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
+	                    <tr>
+	                      <th className="rounded-l-xl px-6 py-5 font-medium">File title</th>
+	                      <th className="px-6 py-5 font-medium">Type</th>
+	                      <th className="px-6 py-5 font-medium">Last Opened</th>
+	                      <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
+	                    </tr>
+	                  </thead>
+	                  <tbody>
+	                    {visibleFiles.map((file) => (
+	                      <tr
+	                        key={file.id}
+	                        className="group cursor-pointer transition-colors hover:bg-white/[0.02]"
+	                        onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+	                      >
+	                        <td className="whitespace-nowrap px-6 py-5">
+	                          <div className="flex items-center gap-3">
+	                            <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-white/5 bg-[#1A1A1A]">
+	                              <Image
+	                                src={typeof file.src === "string" ? file.src : defaultImgSrc}
+	                                alt={typeof file.title === "string" ? file.title : "Default Image"}
+	                                fill
+	                                className="object-cover"
+	                              />
+	                            </div>
+	                            <span className="max-w-[200px] truncate font-medium text-white">{file.title}</span>
+	                          </div>
+	                        </td>
+	                        <td className="whitespace-nowrap px-6 py-5">
+	                          <div className="flex items-center gap-2 capitalize text-white/60">
+	                            {file.type === "video" ? <FileVideo size={14} className="text-[#E8D1AB]" /> : <ImageIcon size={14} className="text-[#E8D1AB]" />}
+	                            {String(file.type || "")}
+	                          </div>
+	                        </td>
+	                        <td className="whitespace-nowrap px-6 py-5 text-xs italic text-white/40">{file.lastOpened}</td>
+	                        <td className="whitespace-nowrap px-6 py-5 text-right">
+	                          <div className="flex items-center justify-end gap-2">
+	                            <button
+	                              className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+	                              onClick={(e) => {
+	                                e.stopPropagation();
+	                                handleDownloadFile(file as unknown as Record<string, unknown>);
+	                              }}
+	                            >
+	                              <Download size={16} />
+	                            </button>
+	                            <button
+	                              className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438]"
+	                              onClick={(e) => {
+	                                e.stopPropagation();
+	                                setSelectedFile(file as unknown as Record<string, unknown>);
+	                                setIsDeleteModalOpen(true);
+	                              }}
+	                            >
+	                              {openingFileId === file.id ? <span className="text-[10px]">...</span> : <Trash2 size={16} />}
+	                            </button>
+	                          </div>
+	                        </td>
+	                      </tr>
+	                    ))}
+	                  </tbody>
+	                </table>
+	              </div>
+	              {hasMoreFiles ? (
+	                <div className="flex justify-center">
+	                  <Button
+	                    type="button"
+	                    className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+	                    onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+	                  >
+	                    View More
+	                  </Button>
+	                </div>
+	              ) : null}
+	            </div>
+	          )}
         </div>
       ) : null}
 

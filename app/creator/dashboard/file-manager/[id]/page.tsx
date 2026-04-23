@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Grid3X3, List, MoreVertical, Search } from "lucide-react";
+import { ArrowLeft, Grid3X3, List, Loader2, MoreVertical, Plus, Search } from "lucide-react";
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ export default function CreatorFolderDetailsPage() {
   const [isCreatingMyFolder, setIsCreatingMyFolder] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [createdCpFolderName, setCreatedCpFolderName] = useState<string>("");
+  const [hasCreatedCpFolders, setHasCreatedCpFolders] = useState<boolean | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
@@ -51,12 +52,14 @@ export default function CreatorFolderDetailsPage() {
     try {
       setLoading(true);
       setError(null);
+      setHasCreatedCpFolders(null);
       const workspaceData = await fileManagerApi.getExternalWorkspace(projectId);
       if (!workspaceData?.workspace) {
         setWorkspaceName("");
         setWorkspaceCode(String(projectId || ""));
         setWorkspaceConsoleUrl(null);
         setFolders([]);
+        setHasCreatedCpFolders(null);
         return;
       }
       setWorkspaceName(workspaceData.workspace.folderName);
@@ -66,15 +69,25 @@ export default function CreatorFolderDetailsPage() {
         mapExternalFoldersToUi(
           workspaceData.folders,
           (folder) =>
-            `/creator/dashboard/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
+          `/creator/dashboard/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
         )
       );
+
+      if (isCommonEventWorkspace) {
+        const [preAccess, postAccess] = await Promise.allSettled([
+          fileManagerApi.getExternalWorkspaceFiles(projectId, "pre"),
+          fileManagerApi.getExternalWorkspaceFiles(projectId, "post"),
+        ]);
+        setHasCreatedCpFolders(preAccess.status === "fulfilled" && postAccess.status === "fulfilled");
+      } else {
+        setHasCreatedCpFolders(null);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load project");
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [isCommonEventWorkspace, projectId]);
 
   useEffect(() => {
     let mounted = true;
@@ -125,20 +138,16 @@ export default function CreatorFolderDetailsPage() {
     const targetHref = folder.href || `/creator/dashboard/file-manager/${projectId}`;
     const phase = getFolderPhase(folder);
 
-    if (!isCommonEventWorkspace || phase !== "pre") {
+    if (!isCommonEventWorkspace || (phase !== "pre" && phase !== "post")) {
       router.push(targetHref);
       return;
     }
 
     try {
-      await fileManagerApi.getExternalWorkspaceFiles(projectId, "pre");
+      await fileManagerApi.getExternalWorkspaceFiles(projectId, phase);
       router.push(targetHref);
     } catch (err: unknown) {
-      toast.error(
-        err instanceof Error
-          ? err.message
-          : "Please create your own folder first, then access Pre-Production in this common event"
-      );
+      toast.error("First create your folder, then you can access your folders and upload files.");
     }
   };
 
@@ -193,6 +202,7 @@ export default function CreatorFolderDetailsPage() {
 
       const folderName = fulfilled[0]?.folderName || "My Folder";
       setCreatedCpFolderName(folderName);
+      setHasCreatedCpFolders(true);
       toast.success("Your Creative Partner folder is ready in Pre and Post Production");
       await loadWorkspace();
       setIsUploadModalOpen(true);
@@ -210,30 +220,14 @@ export default function CreatorFolderDetailsPage() {
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
         </Button>
-        {isCommonEventWorkspace ? (
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleCreateMyEventFolder}
-              disabled={isCreatingMyFolder}
-              className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
-            >
-              {isCreatingMyFolder ? "Creating..." : "Create My CP Folder"}
-            </Button>
-            {createdCpFolderName ? (
-              <Button
-                onClick={() => setIsUploadModalOpen(true)}
-                className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-              >
-                Upload Now
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
       </div>
 
       {loading ? (
-        <div className="text-sm text-white/70">Loading project...</div>
-      ) : error ? (
+        <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+        }`}>
+        <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+      </div>      
+       ) : error ? (
         <div className="text-sm text-red-300">{error || "Workspace not found"}</div>
       ) : !workspaceName ? (
         <div className="rounded-2xl border border-dashed border-white/10 bg-[#111111] p-6 text-sm text-white/65">
@@ -327,6 +321,14 @@ export default function CreatorFolderDetailsPage() {
               </div>
             </div>
 
+            {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
+              <div className="mb-4 rounded-xl border border-[#E5D5B8]/25 bg-[#E5D5B8]/5 p-3 text-xs text-[#E8D1AB] lg:mb-6 lg:text-sm">
+                First create your folder, then you can access your folders and upload files.
+                <br />
+                Once created, you can see your folder in Pre Production and Post Production as well.
+              </div>
+            ) : null}
+
             {viewMode === "grid" ? (
               <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {visibleFolders.map((folder) => (
@@ -354,6 +356,21 @@ export default function CreatorFolderDetailsPage() {
                     onRename={() => toast.info("Folder rename is the next safe step.")}
                   />
                 ))}
+                {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
+                  <button
+                    type="button"
+                    onClick={handleCreateMyEventFolder}
+                    disabled={isCreatingMyFolder}
+                    className="flex min-h-[202px] w-full items-center justify-center rounded-xl border border-dashed border-[#E5D5B8]/35 bg-[#18181b] text-[#E8D1AB] transition-all hover:border-[#E5D5B8]/60 hover:bg-[#1d1d22] disabled:cursor-not-allowed disabled:opacity-60 lg:max-w-[350px] lg:rounded-3xl"
+                  >
+                    <span className="flex flex-col items-center gap-2 text-sm font-medium">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5D5B8]/50 bg-[#E5D5B8]/10">
+                        <Plus size={22} />
+                      </span>
+                      {isCreatingMyFolder ? "Creating..." : "Create Your Folder"}
+                    </span>
+                  </button>
+                ) : null}
               </div>
             ) : (
               <div className="flex flex-col gap-3">

@@ -20,6 +20,7 @@ import {
 } from "@/lib/quoteSummary";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import SignatureModal from "@/components/signature/SignatureModal";
 
 export type QuotePreviewTopbarProps = {
   pathname: string;
@@ -82,6 +83,7 @@ export default function QuotePreviewPageShell({
   const [isPreparingLink, setIsPreparingLink] = useState(false);
   const [generatedPreviewUrl, setGeneratedPreviewUrl] = useState<string | null>(null);
   const copyResetTimeoutRef = useRef<number | null>(null);
+  const [showSignature, setShowSignature] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -286,6 +288,7 @@ export default function QuotePreviewPageShell({
 
   const topbarActions = showActionButtons ? (
     <>
+      {quoteDetailMode !== "public" && (
       <ActionButton
         onClick={() => {
           void handleCopy();
@@ -299,6 +302,20 @@ export default function QuotePreviewPageShell({
         {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
         {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
       </ActionButton>
+      )}
+      {quoteDetailMode === "public" && (
+        <ActionButton
+          onClick={() => setShowSignature(true)}
+          disabled={!resolvedQuoteId || loading}
+          className={`h-11 rounded-xl px-4 ${isDark
+            ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+            : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+            }`}
+        >
+          Sign Quote
+        </ActionButton>
+      )}
+      {quoteDetailMode !== "public" && (
       <ActionButton
         onClick={() => {
           void handleSendQuote();
@@ -313,6 +330,7 @@ export default function QuotePreviewPageShell({
         )}
         {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
       </ActionButton>
+      )}
     </>
   ) : undefined;
 
@@ -327,6 +345,7 @@ export default function QuotePreviewPageShell({
       <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-14 lg:pt-8">
         {showActionButtons ? (
           <div className="mb-6 flex flex-col gap-2 lg:hidden">
+            {quoteDetailMode !== "public" && (
             <ActionButton
               onClick={() => {
                 void handleCopy();
@@ -340,20 +359,29 @@ export default function QuotePreviewPageShell({
               {isPreparingLink ? <Loader2 size={18} className="mr-2 animate-spin" /> : copied ? <Check size={18} className="mr-2" /> : <Copy size={18} className="mr-2" />}
               {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
             </ActionButton>
-            <ActionButton
-              onClick={() => {
-                void handleSendQuote();
-              }}
-              disabled={!canSendQuote || isSending}
-              className="h-11 rounded-xl bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-            >
-              {isSending ? (
-                <Loader2 size={18} className="mr-2 animate-spin" />
-              ) : (
-                <Send size={18} className="mr-2" />
-              )}
-              {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
-            </ActionButton>
+            )}
+            {quoteDetailMode === "public" && (
+              <ActionButton
+                onClick={() => setShowSignature(true)}
+                disabled={!resolvedQuoteId || loading}
+                className={`h-11 rounded-xl ${isDark
+                  ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                  : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                  }`}
+              >
+                Sign Quote
+              </ActionButton>
+            )}
+            {quoteDetailMode !== "public" && (
+              <ActionButton
+                onClick={() => { void handleSendQuote(); }}
+                disabled={!canSendQuote || isSending}
+                className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
+              >
+                {isSending ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Send size={18} className="mr-2" />}
+                {isSending ? "Sending..." : quoteSent ? "Resend Quote" : "Send Quote"}
+              </ActionButton>
+            )}
           </div>
         ) : null}
 
@@ -423,6 +451,21 @@ export default function QuotePreviewPageShell({
           </div>
         )}
       </div>
+      {showSignature && (
+        <SignatureModal
+          quoteId={resolvedQuoteId}
+          signerName={quote?.client_name ?? "Client"}
+          signerEmail={quote?.client_email ?? quote?.guest_email ?? ""}
+          onClose={() => setShowSignature(false)}
+          onSuccess={() => {
+            toast.success("Quote signed successfully!");
+            void salesApi.getQuoteDetail(resolvedQuoteId).then((res) => {
+              const updated = unwrapSalesQuoteDetail(res?.data ?? null);
+              if (updated) setQuote(updated);
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
