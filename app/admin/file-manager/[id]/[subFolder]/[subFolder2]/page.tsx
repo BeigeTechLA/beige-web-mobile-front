@@ -89,6 +89,7 @@ export default function SubFolderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -330,6 +331,43 @@ export default function SubFolderDetailsPage() {
                 </div>
                 <div className="flex gap-2 ">
                   {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
+                  <div className="md:hidden relative">
+                    <Button
+                      onClick={() => setIsOpen((prev) => !prev)}
+                      className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
+                    >
+                      {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
+                    </Button>
+
+                    {isOpen && (
+                      <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+                        <button
+                          onClick={() => {
+                            setViewMode("grid");
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                            viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                          }`}
+                        >
+                          <Grid3X3 size={18} />
+                          Grid View
+                        </button>
+                        <button
+                          onClick={() => {
+                            setViewMode("list");
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                            viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                          }`}
+                        >
+                          <List size={18} />
+                          List View
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
                     <Button
                       onClick={() => setViewMode("grid")}
@@ -448,7 +486,7 @@ export default function SubFolderDetailsPage() {
                   <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
                 ) : (
                   <div className="space-y-4">
-                    <div className="hidden lg:block overflow-x-auto">
+                    <div className="overflow-x-auto">
                       <table className="w-full text-left text-sm">
                       <thead className="bg-[#202020] text-[#E8D1AB] rounded-xl text-sm font-normal cursor-pointer">
                         <tr>
@@ -468,7 +506,30 @@ export default function SubFolderDetailsPage() {
                             <td className="py-5 px-6 whitespace-nowrap">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded bg-[#1A1A1A] overflow-hidden flex-shrink-0 relative border border-white/5">
-                                  <Image src={file.src || defaultImgSrc} alt={file.title || "Default Image"} fill className="object-cover" />
+                                  {file.contentType?.startsWith("image/") && previewUrls[file.id] ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={previewUrls[file.id]}
+                                      alt={file.title || "Preview"}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : file.contentType?.startsWith("video/") && previewUrls[file.id] ? (
+                                    <video
+                                      src={previewUrls[file.id]}
+                                      className="h-full w-full object-cover"
+                                      muted
+                                      playsInline
+                                      preload="metadata"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center bg-white/5">
+                                      {file.type === "video" ? (
+                                        <FileVideo size={14} className="text-[#E8D1AB]" />
+                                      ) : (
+                                        <ImageIcon size={14} className="text-[#E8D1AB]" />
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <span className="font-medium text-white truncate max-w-[200px]">{file.title}</span>
                               </div>
