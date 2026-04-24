@@ -3479,6 +3479,9 @@ export default function CreateQuotePage() {
           start_date: bookingData.singleDay.date,
           start_time: `${bookingData.singleDay.startTime}:00`,
           end_time: `${bookingData.singleDay.endTime}:00`,
+          location: bookingData.location || "",
+          location_latitude: bookingData.location_latitude ?? undefined,
+          location_longitude: bookingData.location_longitude ?? undefined,
         };
       } else {
         if (!bookingData.multiDay) {
@@ -3488,6 +3491,9 @@ export default function CreateQuotePage() {
         payload = {
           booking_type: "multi_day",
           time_zone: browserTimeZone,
+          location: bookingData.location || "",
+          location_latitude: bookingData.location_latitude ?? undefined,
+          location_longitude: bookingData.location_longitude ?? undefined,
           booking_days: bookingData.multiDay.days.map((day) => ({
             date: day.date,
             start_time: `${day.startTime}:00`,

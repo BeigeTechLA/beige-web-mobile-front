@@ -897,6 +897,16 @@ export default function ClientDetailPage() {
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
         location: formData.location,
+        location_latitude:
+          formData.locationDetails?.coordinates?.lat ??
+          formData.locationDetails?.lat ??
+          formData.locationDetails?.center?.[1] ??
+          undefined,
+        location_longitude:
+          formData.locationDetails?.coordinates?.lng ??
+          formData.locationDetails?.lng ??
+          formData.locationDetails?.center?.[0] ??
+          undefined,
         crew_roles: crewRoles,
         crew_size: crewSize,
         selected_crew_ids: formData.selectedCrewIds || [],
