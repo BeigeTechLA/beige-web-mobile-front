@@ -15,12 +15,89 @@ export type NormalizedQuoteLineItem = {
   subtitle?: string;
 };
 
+export type QuoteAdditionalPaymentDetails = {
+  additionalAmount: number;
+  previouslyPaidAmount: number;
+  revisedTotal: number;
+  outstandingAmount: number;
+};
+
 const asRecord = (value: unknown): Record<string, unknown> | null => {
   if (typeof value === "object" && value !== null) {
     return value as Record<string, unknown>;
   }
 
   return null;
+};
+
+const getActivityMetadataRecord = (activity: unknown) => {
+  const activityRecord = asRecord(activity);
+  if (!activityRecord) {
+    return null;
+  }
+
+  const directMetadata = asRecord(activityRecord.metadata);
+  if (directMetadata) {
+    return directMetadata;
+  }
+
+  if (typeof activityRecord.metadata_json === "string" && activityRecord.metadata_json.trim()) {
+    try {
+      return asRecord(JSON.parse(activityRecord.metadata_json));
+    } catch {
+      return null;
+    }
+  }
+
+  return asRecord(activityRecord.metadata_json);
+};
+
+const getLatestQuotePaymentSummaryMetadata = (
+  quote: SalesQuoteDetailData | null | undefined
+) => {
+  if (!Array.isArray(quote?.activities) || quote.activities.length === 0) {
+    return null;
+  }
+
+  let latestMetadata: Record<string, unknown> | null = null;
+  let latestSortKey = Number.NEGATIVE_INFINITY;
+
+  quote.activities.forEach((activity, index) => {
+    const activityRecord = asRecord(activity);
+    const metadata = getActivityMetadataRecord(activity);
+
+    if (!activityRecord || !metadata) {
+      return;
+    }
+
+    const changeSummary = asRecord(metadata.change_summary);
+    const amountSummary = asRecord(changeSummary?.amount_summary);
+    const hasRelevantPaymentSummary =
+      getQuoteNumber(
+        metadata.extra_amount,
+        metadata.collected_amount,
+        metadata.amount_paid,
+        metadata.new_total,
+        metadata.previous_total,
+        amountSummary?.new_total,
+        amountSummary?.total_delta
+      ) !== undefined || Boolean(getQuoteText(metadata.payment_status));
+
+    if (!hasRelevantPaymentSummary) {
+      return;
+    }
+
+    const createdAt = getQuoteText(activityRecord.created_at);
+    const timestamp = createdAt ? new Date(createdAt).getTime() : Number.NaN;
+    const sortKey = Number.isFinite(timestamp) ? timestamp : index;
+
+    if (sortKey >= latestSortKey) {
+      latestSortKey = sortKey;
+      latestMetadata = metadata;
+    }
+  });
+
+  return latestMetadata;
 };
 
 export const getQuoteText = (...values: unknown[]) => {
@@ -412,6 +489,73 @@ export const normalizeQuoteTerms = (
   }
 
   return fallbackTerms;
+};
+
+export const getQuoteAdditionalPaymentDetails = (
+  quote: SalesQuoteDetailData | null | undefined
+): QuoteAdditionalPaymentDetails | null => {
+  const additionalPayment = asRecord(quote?.additional_payment);
+  const latestPaymentMetadata = getLatestQuotePaymentSummaryMetadata(quote);
+  const latestChangeSummary = asRecord(latestPaymentMetadata?.change_summary);
+  const latestAmountSummary = asRecord(latestChangeSummary?.amount_summary);
+
+  if (!additionalPayment && !latestPaymentMetadata && !latestAmountSummary) {
+    return null;
+  }
+
+  const previouslyPaidAmount = Math.max(
+    0,
+    getQuoteNumber(
+      latestPaymentMetadata?.collected_amount,
+      latestPaymentMetadata?.amount_paid,
+      additionalPayment?.previously_paid_amount
+    ) ?? 0
+  );
+  const revisedTotal = Math.max(
+    0,
+    getQuoteNumber(
+      latestAmountSummary?.new_total,
+      latestPaymentMetadata?.new_total,
+      additionalPayment?.revised_total,
+      quote?.final_total,
+      quote?.total_amount,
+      quote?.total
+    ) ?? 0
+  );
+  const derivedAdditionalAmount =
+    revisedTotal > 0 || previouslyPaidAmount > 0
+      ? Math.max(revisedTotal - previouslyPaidAmount, 0)
+      : 0;
+  const additionalAmount = Math.max(
+    0,
+    getQuoteNumber(
+      latestPaymentMetadata?.extra_amount,
+      derivedAdditionalAmount,
+      latestAmountSummary?.total_delta,
+      additionalPayment?.additional_amount
+    ) ?? derivedAdditionalAmount
+  );
+  const outstandingAmount = Math.max(
+    0,
+    getQuoteNumber(additionalPayment?.outstanding_amount, latestPaymentMetadata?.extra_amount) ??
+      Math.max(revisedTotal - previouslyPaidAmount, 0)
+  );
+
+  if (
+    additionalAmount <= 0 &&
+    previouslyPaidAmount <= 0 &&
+    revisedTotal <= 0 &&
+    outstandingAmount <= 0
+  ) {
+    return null;
+  }
+
+  return {
+    additionalAmount,
+    previouslyPaidAmount,
+    revisedTotal,
+    outstandingAmount,
+  };
 };
 
 export const getQuoteSalesperson = (quote: SalesQuoteDetailData | null) => {
