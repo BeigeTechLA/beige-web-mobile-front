@@ -35,7 +35,7 @@ import {
   type QuotesListPagination,
 } from "@/lib/api";
 
-const REQUESTS_PER_PAGE = 20;
+const REQUESTS_PER_PAGE = 10;
 
 type SharedTopbarProps = {
   pathname: string;
@@ -55,6 +55,8 @@ type QuoteChangeRequestState = {
   rows: QuoteChangeRequestItem[];
   pagination: QuotesListPagination | null;
 };
+
+type PaginationItem = number | "...";
 
 const extractRequestState = (
   data: QuoteChangeRequestsResponse["data"]
@@ -147,6 +149,40 @@ const getTypeBadgeClass = (isDark: boolean, value: string | null | undefined) =>
   }
 };
 
+const buildPaginationItems = (
+  currentPage: number,
+  totalPages: number
+): PaginationItem[] => {
+  if (totalPages <= 1) {
+    return [1];
+  }
+
+  const items: PaginationItem[] = [];
+  const delta = 1;
+  const left = Math.max(2, currentPage - delta);
+  const right = Math.min(totalPages - 1, currentPage + delta);
+
+  items.push(1);
+
+  if (left > 2) {
+    items.push("...");
+  }
+
+  for (let page = left; page <= right; page += 1) {
+    items.push(page);
+  }
+
+  if (right < totalPages - 1) {
+    items.push("...");
+  }
+
+  if (totalPages > 1) {
+    items.push(totalPages);
+  }
+
+  return items;
+};
+
 export default function QuoteChangeRequestsWorkspace({
   TopbarComponent,
   title = "Quote Change Request",
@@ -162,10 +198,12 @@ export default function QuoteChangeRequestsWorkspace({
   const [loading, setLoading] = React.useState(true);
   const [page, setPage] = React.useState(1);
   const [searchInput, setSearchInput] = React.useState("");
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [approvalStatusFilter, setApprovalStatusFilter] = React.useState("pending");
+  const [requestTypeFilter, setRequestTypeFilter] = React.useState("all");
   const [selectedRequest, setSelectedRequest] = React.useState<QuoteChangeRequestItem | null>(null);
   const [processingAction, setProcessingAction] = React.useState<"approve" | "reject" | null>(null);
 
-  const deferredSearch = React.useDeferredValue(searchInput.trim());
   const isDark = !mounted || theme === "dark";
 
   React.useEffect(() => {
@@ -174,7 +212,17 @@ export default function QuoteChangeRequestsWorkspace({
 
   React.useEffect(() => {
     setPage(1);
-  }, [deferredSearch]);
+  }, [approvalStatusFilter, requestTypeFilter, searchQuery]);
+
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchInput]);
 
   const loadRequests = React.useCallback(async () => {
     setLoading(true);
@@ -182,8 +230,9 @@ export default function QuoteChangeRequestsWorkspace({
     const response = await salesApi.getQuoteChangeRequests({
       page,
       limit: REQUESTS_PER_PAGE,
-      search: deferredSearch || undefined,
-      approval_status: "all",
+      search: searchQuery || undefined,
+      approval_status: approvalStatusFilter,
+      request_type: requestTypeFilter,
     });
 
     if (response?.success) {
@@ -197,7 +246,7 @@ export default function QuoteChangeRequestsWorkspace({
     }
 
     setLoading(false);
-  }, [deferredSearch, page]);
+  }, [approvalStatusFilter, page, requestTypeFilter, searchQuery]);
 
   React.useEffect(() => {
     void loadRequests();
@@ -212,6 +261,18 @@ export default function QuoteChangeRequestsWorkspace({
     ),
     1
   );
+  const safeCurrentPage = pagination?.page ?? Math.min(page, totalPages);
+  const listStartIndex =
+    totalItems === 0
+      ? 0
+      : (safeCurrentPage - 1) * (pagination?.limit ?? REQUESTS_PER_PAGE);
+  const paginationItems = buildPaginationItems(safeCurrentPage, totalPages);
+
+  React.useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleReview = async (decision: "approve" | "reject") => {
     if (!selectedRequest?.activity_id) {
@@ -234,15 +295,8 @@ export default function QuoteChangeRequestsWorkspace({
     }
 
     const updatedRequest = response.data?.request ?? null;
-
-    if (updatedRequest?.activity_id != null) {
-      setRequests((currentValue) =>
-        currentValue.map((item) =>
-          String(item.activity_id) === String(updatedRequest.activity_id) ? updatedRequest : item
-        )
-      );
-      setSelectedRequest(updatedRequest);
-    }
+    setSelectedRequest(updatedRequest);
+    await loadRequests();
 
     toast.success(
       response.message ||
@@ -314,7 +368,7 @@ export default function QuoteChangeRequestsWorkspace({
           isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-[#101010]"
         }`}
       >
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mb-6 flex flex-col gap-4">
           <div>
             <h1 className="text-xl font-semibold lg:text-2xl">{title}</h1>
             <p className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-black/50"}`}>
@@ -323,19 +377,50 @@ export default function QuoteChangeRequestsWorkspace({
           </div>
 
           <div
-            className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 lg:max-w-md ${
+            className={`grid gap-3 rounded-2xl border p-4 lg:grid-cols-[minmax(0,1.4fr)_220px_220px] ${
               isDark ? "border-white/10 bg-[#171717]" : "border-[#E4E4E4] bg-white"
             }`}
           >
-            <Search size={16} className={isDark ? "text-white/35" : "text-black/35"} />
-            <input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search quote, booking, client, rep"
-              className={`w-full bg-transparent text-sm outline-none ${
-                isDark ? "placeholder:text-white/25" : "placeholder:text-black/25"
+            <div
+              className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 ${
+                isDark ? "border-white/10 bg-[#111111]" : "border-[#E4E4E4] bg-[#FAFAFA]"
               }`}
-            />
+            >
+              <Search size={16} className={isDark ? "text-white/35" : "text-black/35"} />
+              <input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search quote, booking, client, rep"
+                className={`w-full bg-transparent text-sm outline-none ${
+                  isDark ? "placeholder:text-white/25" : "placeholder:text-black/25"
+                }`}
+              />
+            </div>
+
+            <select
+              value={approvalStatusFilter}
+              onChange={(event) => setApprovalStatusFilter(event.target.value)}
+              className={`rounded-2xl border px-4 py-3 text-sm outline-none ${
+                isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#E4E4E4] bg-[#FAFAFA] text-[#101010]"
+              }`}
+            >
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="all">All Statuses</option>
+            </select>
+
+            <select
+              value={requestTypeFilter}
+              onChange={(event) => setRequestTypeFilter(event.target.value)}
+              className={`rounded-2xl border px-4 py-3 text-sm outline-none ${
+                isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#E4E4E4] bg-[#FAFAFA] text-[#101010]"
+              }`}
+            >
+              <option value="all">All Types</option>
+              <option value="increase">Increase</option>
+              <option value="decrease">Decrease</option>
+            </select>
           </div>
         </div>
 
@@ -508,36 +593,74 @@ export default function QuoteChangeRequestsWorkspace({
           </div>
         </div>
 
-        {!loading && requests.length > 0 ? (
-          <div className="mt-5 flex items-center justify-between">
-            <div className={`text-sm ${isDark ? "text-white/50" : "text-black/45"}`}>
-              {totalItems} total requests
+        {!loading && requests.length > 0 && totalPages > 1 ? (
+          <div
+            className={`mt-5 flex flex-col gap-4 rounded-2xl border px-5 py-4 md:flex-row md:items-center md:justify-between ${
+              isDark
+                ? "border-[#3D3D3D] bg-[#161616]"
+                : "border-[#E5E5E5] bg-[#FFFCF6]"
+            }`}
+          >
+            <div className={`text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
+              Showing {listStartIndex + 1} to{" "}
+              {Math.min(listStartIndex + (pagination?.limit ?? REQUESTS_PER_PAGE), totalItems)} of{" "}
+              {totalItems} results
             </div>
-            <div className="flex items-center gap-3">
-              <Button
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
                 type="button"
-                variant="outline"
-                disabled={page <= 1}
-                onClick={() => setPage((currentValue) => Math.max(currentValue - 1, 1))}
-                className={
+                onClick={() => setPage((currentValue) => Math.max(1, currentValue - 1))}
+                disabled={safeCurrentPage === 1}
+                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
                   isDark
-                    ? "border-white/10 bg-[#171717] text-white hover:bg-[#202020] hover:text-white"
-                    : "border-[#E4E4E4] bg-white text-[#101010] hover:bg-[#F5F5F5]"
-                }
+                    ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
+                    : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
+                }`}
               >
                 Previous
-              </Button>
-              <div className={`text-sm ${isDark ? "text-white/55" : "text-black/50"}`}>
-                Page {page} / {totalPages}
+              </button>
+
+              <div className="flex items-center gap-1">
+                {paginationItems.map((item, index) =>
+                  item === "..." ? (
+                    <span
+                      key={`pagination-gap-${index}`}
+                      className={`px-2 text-xs ${isDark ? "text-white/30" : "text-black/30"}`}
+                    >
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setPage(item)}
+                      className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-all ${
+                        safeCurrentPage === item
+                          ? "bg-[#E5D5B8] text-black"
+                          : isDark
+                            ? "text-white/60 hover:bg-white/5 hover:text-white"
+                            : "text-[#666666] hover:bg-black/5"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
               </div>
-              <Button
+
+              <button
                 type="button"
-                disabled={page >= totalPages}
-                onClick={() => setPage((currentValue) => Math.min(currentValue + 1, totalPages))}
-                className="bg-[#E5D5B8] text-black hover:bg-[#d7c7aa]"
+                onClick={() => setPage((currentValue) => Math.min(totalPages, currentValue + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
+                  isDark
+                    ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
+                    : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
+                }`}
               >
                 Next
-              </Button>
+              </button>
             </div>
           </div>
         ) : null}
