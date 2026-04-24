@@ -263,7 +263,7 @@ const QuoteActionMenu = ({
           {allowEdit ? (
             <QuoteActionMenuButton
               icon={<Pencil size={18} />}
-              label="Edit"
+              label="Update Quote"
               onClick={handleMenuAction(onEdit)}
             />
           ) : null}
