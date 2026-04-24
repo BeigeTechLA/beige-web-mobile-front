@@ -238,6 +238,33 @@ const extractContactName = (value?: string | null) => {
   return "";
 };
 
+const isEmail = (value?: string | null) => {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) return false;
+  if (cleaned.includes("@")) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned);
+};
+
+const extractNameFromProjectName = (value?: string | null) => {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) return "";
+
+  const dealPrefixMatch = cleaned.match(/^deal\s*-\s*(.+)$/i);
+  if (dealPrefixMatch?.[1]) return dealPrefixMatch[1].trim();
+
+  return "";
+};
+
+const pickDisplayName = (...values: Array<string | null | undefined>) => {
+  for (const value of values) {
+    const cleaned = String(value || "").trim();
+    if (!cleaned) continue;
+    if (isEmail(cleaned)) continue;
+    return cleaned;
+  }
+  return "";
+};
+
 const getInitials = (value?: string | null) => {
   const cleaned = String(value || "").trim();
   if (!cleaned) return "NA";
@@ -1542,17 +1569,19 @@ function MultiCreatorPaymentContent() {
     : 0;
 
   const customerName =
-    extractContactName(summaryData?.description) ||
-    extractContactName(booking?.description) ||
-    summaryData?.client_name ||
-    summaryData?.clientName ||
-    booking?.full_name ||
-    booking?.fullName ||
-    booking?.client_name ||
-    booking?.guest_name ||
-    booking?.user?.name ||
-    booking?.guest_email ||
-    "Customer";
+    pickDisplayName(
+      extractContactName(summaryData?.description),
+      extractContactName(booking?.description),
+      summaryData?.client_name,
+      summaryData?.clientName,
+      booking?.full_name,
+      booking?.fullName,
+      booking?.client_name,
+      booking?.guest_name,
+      booking?.user?.name,
+      extractNameFromProjectName(summaryData?.project_name),
+      extractNameFromProjectName(booking?.project_name),
+    ) || "Customer";
 
   const shootCategory = toTitleCase(
     (summaryData?.shoot_type || booking?.shoot_type || "").trim(),

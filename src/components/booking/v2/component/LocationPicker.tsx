@@ -256,7 +256,16 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
 
   const confirmLocation = useCallback(() => {
     if (marker) {
-      onChange(marker.address, selectedFeature);
+      const detailPayload = {
+        ...(selectedFeature || {}),
+        lat: marker.lat,
+        lng: marker.lng,
+        coordinates: {
+          lat: marker.lat,
+          lng: marker.lng
+        }
+      };
+      onChange(marker.address, detailPayload);
       setIsExpanded(false);
     }
   }, [marker, onChange, selectedFeature]);
