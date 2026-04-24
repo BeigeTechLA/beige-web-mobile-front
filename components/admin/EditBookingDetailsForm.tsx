@@ -578,6 +578,16 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
       crew_roles: crew_roles,
       crew_size: Object.values(crew_roles).reduce((a, b) => a + b, 0),
       location: formData.location,
+      location_latitude:
+        formData.locationDetails?.coordinates?.lat ??
+        formData.locationDetails?.lat ??
+        formData.locationDetails?.center?.[1] ??
+        undefined,
+      location_longitude:
+        formData.locationDetails?.coordinates?.lng ??
+        formData.locationDetails?.lng ??
+        formData.locationDetails?.center?.[0] ??
+        undefined,
       selected_crew_ids: formData.selectedCrewIds || [],
       is_draft: false,
       skip_discount: true,
@@ -1112,7 +1122,17 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
 
       <div ref={locationRef} className="my-4 lg:my-9">
         <h3 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black/90"} mb-6`}>Location</h3>
-        <LocationPicker value={formData.location} onChange={(address) => updateData({ location: address })} placeholder="Search for a location" colors={isDark ? darkThemeColors : undefined} />
+        <LocationPicker
+          value={formData.location}
+          onChange={(address, details) =>
+            updateData({
+              location: address,
+              locationDetails: details || null,
+            })
+          }
+          placeholder="Search for a location"
+          colors={isDark ? darkThemeColors : undefined}
+        />
       </div>
 
       {!hideCreativeSelector && (

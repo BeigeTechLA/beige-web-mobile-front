@@ -24,6 +24,8 @@ export interface GuestBookingData {
   stream_quality?: string;
   crew_size?: string;
   location?: string;
+  location_latitude?: number;
+  location_longitude?: number;
   streaming_platforms?: string[];
   crew_roles?: string[];
   skills_needed?: string;

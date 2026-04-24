@@ -391,6 +391,8 @@ export const salesApi = createApi({
         booking_id: number;
         crew_roles: Record<string, number>;
         location?: string;           // Added
+        location_latitude?: number;
+        location_longitude?: number;
         description?: string;        // Added
         reference_links?: string;    // Added
       }

@@ -527,6 +527,16 @@ export const BookAShootV3 = () => {
         // end_time: formData.endDate,
         duration_hours: shootHours,
         location: formData.location,
+        location_latitude:
+          formData.locationDetails?.coordinates?.lat ??
+          formData.locationDetails?.lat ??
+          formData.locationDetails?.center?.[1] ??
+          undefined,
+        location_longitude:
+          formData.locationDetails?.coordinates?.lng ??
+          formData.locationDetails?.lng ??
+          formData.locationDetails?.center?.[0] ??
+          undefined,
         quote_id: savedQuoteId, // Attach the calculated price
 
         // User Profile Details
