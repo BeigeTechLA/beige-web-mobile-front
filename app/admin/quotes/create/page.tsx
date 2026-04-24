@@ -60,6 +60,7 @@ import {
 import {
   extractQuoteLineItems,
   formatQuoteItemDisplayName,
+  getQuoteAdditionalPaymentDetails,
   getQuoteLineItemEditingTypeConfiguration,
   getQuoteLineItemEditingTypeLabel,
 } from "@/lib/quoteDetail";
@@ -2848,6 +2849,10 @@ export default function CreateQuotePage() {
   const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
+  const additionalPaymentDetails = React.useMemo(
+    () => getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote),
+    [previewQuote, quoteToEdit],
+  );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
 
@@ -6532,6 +6537,29 @@ export default function CreateQuotePage() {
                       {formatCurrency(totalAfterTax)}
                     </span>
                   </div>
+                  {additionalPaymentDetails ? (
+                    <>
+                      <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm lg:text-base text-[#9F9FA9]">
+                            Previously Paid
+                          </span>
+                          <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                            {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm lg:text-base text-[#9F9FA9]">
+                            Additional Amount
+                          </span>
+                          <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                            {formatCurrency(additionalPaymentDetails.additionalAmount)}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
 
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
 
