@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, UploadCloud, Trash2, File } from "lucide-react";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 
@@ -20,6 +20,7 @@ interface UploadQueueItem {
   status: UploadStatus;
   error?: string;
   signature: string;
+  previewUrl?: string;
 }
 
 const MAX_PARALLEL_UPLOADS = Math.max(
@@ -51,6 +52,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const batchPolicySupportedRef = useRef<boolean>(true);
   const batchMetadataSupportedRef = useRef<boolean>(true);
+  const previewUrlsRef = useRef<Set<string>>(new Set());
 
   const uploadedCount = useMemo(
     () => selectedFiles.filter((item) => item.status === "uploaded").length,
@@ -63,6 +65,29 @@ const UploadModal: React.FC<UploadModalProps> = ({
   const totalCount = selectedFiles.length;
   const completedCount = uploadedCount + failedCount;
   const progressPercent = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  const isImageFile = (file: File) =>
+    file.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(file.name);
+
+  const createImagePreview = (file: File) => {
+    if (!isImageFile(file)) return undefined;
+    const url = URL.createObjectURL(file);
+    previewUrlsRef.current.add(url);
+    return url;
+  };
+
+  const revokePreviewUrl = (url?: string) => {
+    if (!url || !previewUrlsRef.current.has(url)) return;
+    URL.revokeObjectURL(url);
+    previewUrlsRef.current.delete(url);
+  };
+
+  useEffect(() => {
+    return () => {
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current.clear();
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -80,9 +105,11 @@ const UploadModal: React.FC<UploadModalProps> = ({
     if (files) {
       const now = Date.now();
       const incoming = Array.from(files);
+      const validIncoming = incoming.filter((file) => file.size > 0);
+      const emptyFileCount = incoming.length - validIncoming.length;
       setSelectedFiles((prev) => {
         const existingSignatures = new Set(prev.map((item) => item.signature));
-        const deduped = incoming
+        const deduped = validIncoming
           .map((file, index) => {
             const signature = `${file.name}-${file.size}-${file.lastModified}`;
             return {
@@ -90,13 +117,27 @@ const UploadModal: React.FC<UploadModalProps> = ({
               file,
               signature,
               status: "queued" as UploadStatus,
+              previewUrl: createImagePreview(file),
             };
           })
-          .filter((item) => !existingSignatures.has(item.signature));
+          .filter((item) => {
+            if (existingSignatures.has(item.signature)) {
+              revokePreviewUrl(item.previewUrl);
+              return false;
+            }
+            return true;
+          });
 
-        const skippedCount = incoming.length - deduped.length;
-        if (skippedCount > 0) {
-          setStatusMessage(`${skippedCount} duplicate file(s) were skipped.`);
+        const duplicateCount = validIncoming.length - deduped.length;
+        const notices: string[] = [];
+        if (emptyFileCount > 0) {
+          notices.push(`${emptyFileCount} empty file(s) were skipped.`);
+        }
+        if (duplicateCount > 0) {
+          notices.push(`${duplicateCount} duplicate file(s) were skipped.`);
+        }
+        if (notices.length > 0) {
+          setStatusMessage(notices.join(" "));
         }
 
         return [...prev, ...deduped];
@@ -113,7 +154,11 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
   const removeFile = (id: string) => {
     if (isUploading) return;
-    setSelectedFiles((prev) => prev.filter((item) => item.id !== id));
+    setSelectedFiles((prev) => {
+      const target = prev.find((item) => item.id === id);
+      revokePreviewUrl(target?.previewUrl);
+      return prev.filter((item) => item.id !== id);
+    });
   };
 
   const setFileStatus = (id: string, status: UploadStatus, error?: string) => {
@@ -200,6 +245,12 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
     if (!selectedFiles.length) {
       setStatusMessage("Select at least one file.");
+      return;
+    }
+
+    const zeroByteFiles = selectedFiles.filter((item) => item.file.size <= 0);
+    if (zeroByteFiles.length > 0) {
+      setStatusMessage("Remove empty files (0 bytes) before uploading.");
       return;
     }
 
@@ -446,9 +497,19 @@ const UploadModal: React.FC<UploadModalProps> = ({
         setStatusMessage(
           `Completed with issues. Uploaded ${uploaded}/${selectedFiles.length}, failed ${failed}.`
         );
-        setSelectedFiles((prev) => prev.filter((item) => item.status === "failed"));
+        setSelectedFiles((prev) => {
+          prev.forEach((item) => {
+            if (item.status !== "failed") {
+              revokePreviewUrl(item.previewUrl);
+            }
+          });
+          return prev.filter((item) => item.status === "failed");
+        });
       } else {
-        setSelectedFiles([]);
+        setSelectedFiles((prev) => {
+          prev.forEach((item) => revokePreviewUrl(item.previewUrl));
+          return [];
+        });
         setStatusMessage(null);
         onClose();
       }
@@ -545,7 +606,17 @@ const UploadModal: React.FC<UploadModalProps> = ({
                   className="flex items-center justify-between rounded-lg bg-white/5 p-3 border border-white/5"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <File size={18} className="text-[#E8D1AB] shrink-0" />
+                    {item.previewUrl ? (
+                      <img
+                        src={item.previewUrl}
+                        alt={item.file.name}
+                        className="h-11 w-11 rounded-md object-cover shrink-0 border border-white/10"
+                      />
+                    ) : (
+                      <div className="flex h-11 w-11 items-center justify-center rounded-md border border-white/10 bg-white/5 shrink-0">
+                        <File size={18} className="text-[#E8D1AB]" />
+                      </div>
+                    )}
                     <div className="flex flex-col min-w-0">
                       <p className="text-sm font-medium text-white truncate">{item.file.name}</p>
                       <p className="text-xs text-white/40">

@@ -531,12 +531,16 @@ export type SalesQuoteConvertSingleDayPayload = {
   start_time: string;
   end_time: string;
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
 };
 
 export type SalesQuoteConvertMultiDayPayload = {
   booking_type: "multi_day";
   time_zone: string;
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   booking_days: Array<{
     date: string;
     start_time: string;
@@ -557,6 +561,8 @@ export interface SalesQuoteConvertToBookingResponse {
 
 export type LeadBookingScheduleSingleDayPayload = {
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   booking_type: "single_day";
   time_zone: string;
   start_date: string;
@@ -566,6 +572,8 @@ export type LeadBookingScheduleSingleDayPayload = {
 
 export type LeadBookingScheduleMultiDayPayload = {
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   booking_type: "multi_day";
   time_zone: string;
   booking_days: Array<{
