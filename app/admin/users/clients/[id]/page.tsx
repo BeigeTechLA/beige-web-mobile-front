@@ -191,7 +191,7 @@ export default function ClientDetailsPage() {
                 </div>
 
                 {/* Shoots Management Section */}
-                <div className={`border rounded-2xl p-8 space-y-6 ${isDark ? "bg-[#0D0D0D] border-[#222]" : "bg-gray-50 border-gray-100"}`}>
+              {/* <div className={`border rounded-2xl p-8 space-y-6 ${isDark ? "bg-[#0D0D0D] border-[#222]" : "bg-gray-50 border-gray-100"}`}>
                     <div className="flex items-center justify-between">
                         <h2 className="text-2xl font-bold leading-none">Account Credit</h2>
                         <span className={`text-xs px-3 py-1 rounded-full font-semibold ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB] border border-[#E8D1AB]/30" : "bg-[#FFF8EA] text-[#8A6A00] border border-[#E7D7BC]"}`}>
@@ -267,7 +267,7 @@ export default function ClientDetailsPage() {
                             </table>
                         </div>
                     </div>
-                </div>
+                </div>*/}
 
                 <div className="space-y-6 pt-4">
                     <div className="flex items-center justify-between gap-4">
