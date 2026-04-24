@@ -352,6 +352,69 @@ export interface QuotesListResponse {
   error?: string;
 }
 
+export interface QuoteChangeRequestUser {
+  id?: number | string;
+  name?: string | null;
+  email?: string | null;
+  [key: string]: unknown;
+}
+
+export interface QuoteChangeRequestSummary {
+  summary?: string | null;
+  lines?: string[] | null;
+  [key: string]: unknown;
+}
+
+export interface QuoteChangeRequestItem {
+  activity_id?: number | string;
+  quote_id?: number | string | null;
+  quote_number?: string | null;
+  booking_id?: number | string | null;
+  client_name?: string | null;
+  client_email?: string | null;
+  assigned_sales_rep?: QuoteChangeRequestUser | null;
+  requested_by?: QuoteChangeRequestUser | null;
+  request_type?: string | null;
+  previous_total?: number | string | null;
+  new_total?: number | string | null;
+  extra_amount?: number | string | null;
+  reduced_amount?: number | string | null;
+  approval_status?: string | null;
+  overall_change_summary?: QuoteChangeRequestSummary | null;
+  created_at?: string | null;
+  [key: string]: unknown;
+}
+
+export interface QuoteChangeRequestsEnvelope {
+  pagination?: QuotesListPagination | null;
+  items?: QuoteChangeRequestItem[];
+  rows?: QuoteChangeRequestItem[];
+  results?: QuoteChangeRequestItem[];
+  list?: QuoteChangeRequestItem[];
+  data?: QuoteChangeRequestItem[];
+  [key: string]: unknown;
+}
+
+export interface QuoteChangeRequestsResponse {
+  success: boolean;
+  data: QuoteChangeRequestItem[] | QuoteChangeRequestsEnvelope | null;
+  message?: string;
+  error?: string;
+}
+
+export interface QuoteChangeRequestReviewResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    request?: QuoteChangeRequestItem | null;
+    account_credit?: unknown;
+    approved_entries?: unknown[];
+    rejected_entries?: unknown[];
+    [key: string]: unknown;
+  } | null;
+  error?: string;
+}
+
 export interface SalesQuoteDetailLineItem {
   id?: number | string;
   line_item_id?: number | string;
@@ -2201,6 +2264,89 @@ export const salesApi = {
         data: null,
         error: error.response?.data?.message || 'Failed to fetch invoice history',
       };
+    }
+  },
+  getQuoteChangeRequests: async (
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      approval_status?: string;
+      request_type?: string;
+    } = {}
+  ) => {
+    try {
+      const response = await api.get<QuoteChangeRequestsResponse>(
+        '/sales/dashboard/quote-change-requests',
+        { params }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+
+      console.error(
+        'Get Quote Change Requests Error:',
+        axios.isAxiosError(error) ? error.response?.data || error.message : error
+      );
+
+      return {
+        success: false,
+        data: null,
+        message: errorMessage || 'Failed to fetch quote change requests',
+        error: errorMessage || 'Failed to fetch quote change requests',
+      } satisfies QuoteChangeRequestsResponse;
+    }
+  },
+  approveQuoteChangeRequest: async (activityId: number | string) => {
+    try {
+      const response = await api.post<QuoteChangeRequestReviewResponse>(
+        '/sales/dashboard/quote-change-requests/approve',
+        { activity_id: activityId }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+
+      console.error(
+        'Approve Quote Change Request Error:',
+        axios.isAxiosError(error) ? error.response?.data || error.message : error
+      );
+
+      return {
+        success: false,
+        data: null,
+        message: errorMessage || 'Failed to approve quote change request',
+        error: errorMessage || 'Failed to approve quote change request',
+      } satisfies QuoteChangeRequestReviewResponse;
+    }
+  },
+  rejectQuoteChangeRequest: async (activityId: number | string) => {
+    try {
+      const response = await api.post<QuoteChangeRequestReviewResponse>(
+        '/sales/dashboard/quote-change-requests/reject',
+        { activity_id: activityId }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      const errorMessage = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+
+      console.error(
+        'Reject Quote Change Request Error:',
+        axios.isAxiosError(error) ? error.response?.data || error.message : error
+      );
+
+      return {
+        success: false,
+        data: null,
+        message: errorMessage || 'Failed to reject quote change request',
+        error: errorMessage || 'Failed to reject quote change request',
+      } satisfies QuoteChangeRequestReviewResponse;
     }
   },
   previewQuoteInvoice: async (quoteId: number | string) => {

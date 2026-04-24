@@ -54,6 +54,7 @@ const menuItems = [
     link: '/admin/quotes',
     children: [
       { name: 'All Quotes', link: '/admin/quotes' },
+      { name: 'Change Request', link: '/admin/quotes/change-requests' },
       { name: 'Master Pricing', link: '/admin/quotes/pricing' },
     ],
   },
@@ -91,6 +92,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
       if (pathname?.startsWith("/admin/sales-representative") && !next.includes("Sales Representative")) {
         next.push("Sales Representative");
+      }
+
+      if (pathname?.startsWith("/admin/quotes") && !next.includes("Quotes")) {
+        next.push("Quotes");
       }
 
       return next;
