@@ -36,6 +36,7 @@ export default function AdminFolderDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -235,6 +236,43 @@ export default function AdminFolderDetailsPage() {
                 </div>
                 <div className="flex gap-2 ">
                   {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} /> */}
+                  <div className="md:hidden relative">
+                    <Button
+                      onClick={() => setIsOpen((prev) => !prev)}
+                      className="flex items-center gap-2 bg-[#202020] border border-white/10 p-2 h-8 rounded-lg text-white"
+                    >
+                      {viewMode === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
+                    </Button>
+
+                    {isOpen && (
+                      <div className="absolute top-full right-0 mt-2 w-48 bg-[#171717] border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden">
+                        <button
+                          onClick={() => {
+                            setViewMode("grid");
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                            viewMode === "grid" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                          }`}
+                        >
+                          <Grid3X3 size={18} />
+                          Grid View
+                        </button>
+                        <button
+                          onClick={() => {
+                            setViewMode("list");
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                            viewMode === "list" ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5"
+                          }`}
+                        >
+                          <List size={18} />
+                          List View
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div className="hidden lg:flex flex-wrap items-center bg-[#202020] rounded-lg w-full md:w-fit border border-white/5">
                     <Button
                       onClick={() => setViewMode("grid")}

@@ -57,6 +57,8 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
     email: profile.email || "",
     phone_number: profile.phone_number || "",
     location: profile.location || null,
+    latitude: profile.latitude ?? null,
+    longitude: profile.longitude ?? null,
     working_distance: profile.working_distance || "",
   });
 
@@ -67,6 +69,8 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
       email: profile.email || "",
       phone_number: profile.phone_number || "",
       location: profile.location || null,
+      latitude: profile.latitude ?? null,
+      longitude: profile.longitude ?? null,
       working_distance: profile.working_distance || "",
     });
   }, [profile]);
@@ -82,6 +86,17 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
         : newData.location,
     };
     onChange?.(profileUpdate);
+  };
+
+  const handleLocationChange = (address: string, details?: any) => {
+    const newData = {
+      ...formData,
+      location: address,
+      latitude: details?.coordinates?.lat ?? details?.lat ?? details?.center?.[1] ?? null,
+      longitude: details?.coordinates?.lng ?? details?.lng ?? details?.center?.[0] ?? null,
+    };
+    setFormData(newData);
+    onChange?.(newData);
   };
 
   const labelClasses = "text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2 block";
@@ -138,7 +153,7 @@ const PersonalInfoForm = ({ profile = {}, onChange }: any) => {
         <Label className={labelClasses}>Location</Label>
         <LocationPicker
           value={formData.location}
-          onChange={(val) => handleFieldChange("location", val)}
+          onChange={handleLocationChange}
           placeholder="Click to select venue location on map"
           colors={locationPickerDarkTheme} // Pass the dark theme here
         />

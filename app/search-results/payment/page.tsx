@@ -238,6 +238,33 @@ const extractContactName = (value?: string | null) => {
   return "";
 };
 
+const isEmail = (value?: string | null) => {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) return false;
+  if (cleaned.includes("@")) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned);
+};
+
+const extractNameFromProjectName = (value?: string | null) => {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) return "";
+
+  const dealPrefixMatch = cleaned.match(/^deal\s*-\s*(.+)$/i);
+  if (dealPrefixMatch?.[1]) return dealPrefixMatch[1].trim();
+
+  return "";
+};
+
+const pickDisplayName = (...values: Array<string | null | undefined>) => {
+  for (const value of values) {
+    const cleaned = String(value || "").trim();
+    if (!cleaned) continue;
+    if (isEmail(cleaned)) continue;
+    return cleaned;
+  }
+  return "";
+};
+
 const getInitials = (value?: string | null) => {
   const cleaned = String(value || "").trim();
   if (!cleaned) return "NA";
@@ -1112,7 +1139,7 @@ function StripePaymentFormMulti({
         </div>
 
         {/* Account Credit */}
-        <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
+        {/* <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
           <label
             className={`flex items-start justify-between gap-4 rounded-xl transition ${
               canUseAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
@@ -1159,7 +1186,7 @@ function StripePaymentFormMulti({
           {!canUseAccountCredit && (
             <p className="text-white/50 text-sm mt-3">No account credit available for this booking.</p>
           )}
-        </div>
+        </div> */}
 
         {/* Submit Button */}
         <Button
@@ -1542,17 +1569,19 @@ function MultiCreatorPaymentContent() {
     : 0;
 
   const customerName =
-    extractContactName(summaryData?.description) ||
-    extractContactName(booking?.description) ||
-    summaryData?.client_name ||
-    summaryData?.clientName ||
-    booking?.full_name ||
-    booking?.fullName ||
-    booking?.client_name ||
-    booking?.guest_name ||
-    booking?.user?.name ||
-    booking?.guest_email ||
-    "Customer";
+    pickDisplayName(
+      extractContactName(summaryData?.description),
+      extractContactName(booking?.description),
+      summaryData?.client_name,
+      summaryData?.clientName,
+      booking?.full_name,
+      booking?.fullName,
+      booking?.client_name,
+      booking?.guest_name,
+      booking?.user?.name,
+      extractNameFromProjectName(summaryData?.project_name),
+      extractNameFromProjectName(booking?.project_name),
+    ) || "Customer";
 
   const shootCategory = toTitleCase(
     (summaryData?.shoot_type || booking?.shoot_type || "").trim(),

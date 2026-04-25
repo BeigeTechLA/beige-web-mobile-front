@@ -375,7 +375,7 @@ export default function AffiliateOverviewPage() {
             />
           </div>
 
-          <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"}`}>
+          {/* <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"}`}>
             <div className={`flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3 p-5 border-b transition-colors duration-300 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"}`}>
               <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-[#323232]"}`}>
                 Account Credit Usage
@@ -455,7 +455,7 @@ export default function AffiliateOverviewPage() {
                 ))
               )}
             </div>
-          </div>
+          </div> */}
 
           {/* Referrals Table Section */}
           <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"
