@@ -219,21 +219,26 @@ export default function CreateMeetingModal({
   const { user } = useAuth();
   const currentUserId = getCurrentUserId(user);
   const currentUserName = getCurrentUserName(user);
-  const defaultStart = useMemo(() => {
-    const now = new Date();
-    now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
-    return now;
-  }, []);
+ 
+const getNextValidTime = () => {
+  const now = new Date();
+  const next = new Date(now);
+  next.setSeconds(0, 0);
+  next.setHours(now.getHours() + 1, 0, 0, 0);
+  return next;
+};
 
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState(orderId ? String(orderId) : "");
   const [selectedOrder, setSelectedOrder] = useState<ProjectSource | null>(null);
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingType, setMeetingType] = useState<MeetingType>("post_production");
-  const [meetingDate, setMeetingDate] = useState<Date | null>(defaultStart);
-  const [meetingStartTime, setMeetingStartTime] = useState<Date | null>(defaultStart);
+  const initialTime = getNextValidTime();
+
+  const [meetingDate, setMeetingDate] = useState<Date | null>(initialTime);
+  const [meetingStartTime, setMeetingStartTime] = useState<Date | null>(initialTime);
   const [meetingEndTime, setMeetingEndTime] = useState<Date | null>(
-    new Date(defaultStart.getTime() + 60 * 60 * 1000)
+    new Date(initialTime.getTime() + 60 * 60 * 1000)
   );
   const [description, setDescription] = useState("");
   const [meetLink, setMeetLink] = useState("");
@@ -314,9 +319,10 @@ export default function CreateMeetingModal({
 
     setMeetingTitle("");
     setMeetingType("post_production");
-    setMeetingDate(defaultStart);
-    setMeetingStartTime(defaultStart);
-    setMeetingEndTime(new Date(defaultStart.getTime() + 60 * 60 * 1000));
+    const next = getNextValidTime();
+    setMeetingDate(next);
+    setMeetingStartTime(next);
+    setMeetingEndTime(new Date(next.getTime() + 60 * 60 * 1000));
     setDescription("");
     setMeetLink("");
     setSendNotification(true);
@@ -331,7 +337,7 @@ export default function CreateMeetingModal({
     setMemberTab("staff");
     setIsSubmitting(false);
     setIsGeneratingLink(false);
-  }, [defaultStart, isOpen, orderId]);
+  }, [ isOpen, orderId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -461,6 +467,13 @@ export default function CreateMeetingModal({
     };
   }, [isOpen, meetingTitle, selectedOrderId]);
 
+  useEffect(() => {
+    if (meetingStartTime) {
+      const newEnd = new Date(meetingStartTime.getTime() + 60 * 60 * 1000);
+      setMeetingEndTime(newEnd);
+    }
+  }, [meetingStartTime]);
+
   if (!isOpen) return null;
 
   const activeOrderId = selectedOrderId || (orderId ? String(orderId) : "");
@@ -549,6 +562,11 @@ export default function CreateMeetingModal({
     const startIso = combineDateAndTime(meetingDate, meetingStartTime);
     const endIso = combineDateAndTime(meetingDate, meetingEndTime);
 
+    if (startIso && new Date(startIso) < new Date()) {
+      toast.error("Start time cannot be in the past.");
+      return;
+    }
+
     if (!startIso || !endIso) {
       toast.error("Please provide a valid meeting start and end time.");
       return;
@@ -626,6 +644,10 @@ export default function CreateMeetingModal({
 
   const managerOption = projectParticipants.find((participant) => participant.role === "manager") || null;
   const cpOptions = projectParticipants.filter((participant) => participant.role === "cp");
+
+  const isToday = meetingDate
+   ? new Date(meetingDate).toDateString() === new Date().toDateString()
+   : false;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto px-4 pb-8 pt-8">
@@ -712,11 +734,21 @@ export default function CreateMeetingModal({
                   </div>
 
                   <div className="space-y-2">
-                    <TimePicker label="Start Time" value={meetingStartTime} onChange={setMeetingStartTime} />
+                   <TimePicker
+                      label="Start Time"
+                      value={meetingStartTime}
+                      onChange={setMeetingStartTime}
+                      minTime={isToday ? getNextValidTime() : null}
+                    />   
                   </div>
 
                   <div className="space-y-2">
-                    <TimePicker label="End Time" value={meetingEndTime} onChange={setMeetingEndTime} />
+                   <TimePicker
+                      label="End Time"
+                      value={meetingEndTime}
+                      onChange={setMeetingEndTime}
+                      minTime={meetingStartTime || (isToday ? getNextValidTime() : null)}
+                    />
                   </div>
                 </div>
 
@@ -837,6 +869,8 @@ export default function CreateMeetingModal({
 
                   {cpOptions.map((cp) => {
                     const selected = selectedCpIds.includes(cp.id);
+
+                    
                     return (
                       <button
                         key={cp.id}
