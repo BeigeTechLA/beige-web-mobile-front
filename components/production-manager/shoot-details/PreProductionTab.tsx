@@ -15,6 +15,7 @@ export default function PreProductionTab({ isDark = true }: { isDark?: boolean }
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -24,9 +25,17 @@ export default function PreProductionTab({ isDark = true }: { isDark?: boolean }
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size === 0) {
+        setStatusMessage("The selected file is empty (0 bytes) and cannot be uploaded.");
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      } else {
+        setStatusMessage(null);
+        setSelectedFile(file);
+      }
     }
   };
 
@@ -116,7 +125,15 @@ export default function PreProductionTab({ isDark = true }: { isDark?: boolean }
           </button>
         </div>
       )}
-
+      {statusMessage && (
+        <div className={`p-3 rounded-lg border text-sm transition-colors ${
+          isDark 
+            ? "bg-red-500/10 border-red-500/20 text-red-400" 
+            : "bg-red-50 border-red-200 text-red-600"
+        }`}>
+          {statusMessage}
+        </div>
+      )}
       {/* Uploaded Documents List or Empty State */}
       <div className={`border rounded-2xl overflow-hidden min-h-[400px] transition-colors ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#E3E3E3]"
         }`}>
