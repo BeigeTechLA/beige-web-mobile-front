@@ -148,7 +148,7 @@ export default function RequestsShootsPage() {
         pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)
           ? pendingRes.data.filter((p: any) => {
               const dateStr = p.event_date || p.shoot_date;
-              return isUpcomingDate(dateStr) && !isCompletedFlag(p);
+              return isUpcomingDate(dateStr);
             })
           : [];
       if (pendingFiltered.length > 0) {
@@ -253,7 +253,7 @@ export default function RequestsShootsPage() {
 
   const isCompletedFlag = (item: any) => {
     const flag = item?.is_completed ?? item?.project?.is_completed;
-    return flag === true || flag === 1;
+    return flag === true || flag === 1 || flag === "1";
   };
 
   /* ---------------- ACTIONS ---------------- */

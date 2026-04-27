@@ -33,6 +33,9 @@ export type BookingData = {
   startDate: string;
   endDate: string;
   location: string;
+  locationDetails?: any;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
   needStudio: boolean;
   studio: string;
   studioTimeDuration: number;
@@ -53,6 +56,9 @@ const initialData: BookingData = {
   startDate: "",
   endDate: "",
   location: "",
+  locationDetails: null,
+  locationLatitude: null,
+  locationLongitude: null,
   needStudio: false,
   studio: "",
   studioTimeDuration: 0,
@@ -168,6 +174,8 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
         start_date_time: formData.startDate,
         duration_hours: 0, // Required field - will be calculated based on end_date in the future
         location: formData.location || undefined,
+        location_latitude: formData.locationLatitude ?? undefined,
+        location_longitude: formData.locationLongitude ?? undefined,
         budget_min: formData.budgetMin || undefined,
         budget_max: formData.budgetMax || undefined,
         crew_size: formData.crewSize || undefined,

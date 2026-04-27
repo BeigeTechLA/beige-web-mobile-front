@@ -347,6 +347,18 @@ export default function ProfilePage() {
       phone_number: profile.phone_number,
       // Ensure location is a string if the API expects it that way
       location: typeof profile.location === 'object' ? JSON.stringify(profile.location) : profile.location,
+      latitude:
+        profile.latitude ??
+        profile.location?.coordinates?.lat ??
+        profile.location?.lat ??
+        profile.location?.center?.[1] ??
+        null,
+      longitude:
+        profile.longitude ??
+        profile.location?.coordinates?.lng ??
+        profile.location?.lng ??
+        profile.location?.center?.[0] ??
+        null,
       working_distance: profile.working_distance
     };
 

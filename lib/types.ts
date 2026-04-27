@@ -229,6 +229,8 @@ export interface BookingData {
   stream_quality?: string;
   crew_size?: number;
   location?: string;
+  location_latitude?: number;
+  location_longitude?: number;
   streaming_platforms?: string[];
   crew_roles?: string[];
   skills_needed?: string[];

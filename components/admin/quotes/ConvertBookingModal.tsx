@@ -30,6 +30,8 @@ import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/com
 export type ConvertBookingModalSubmitData = {
   bookingType: "single_day" | "multi_day";
   location?: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   singleDay?: {
     date: string;
     startTime: string;
@@ -89,6 +91,7 @@ export default function ConvertBookingModal({
   const [startDateTime, setStartDateTime] = useState("");
   const [endDateTime, setEndDateTime] = useState("");
   const [location, setLocation] = useState("");
+  const [locationDetails, setLocationDetails] = useState<any>(null);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
@@ -150,6 +153,7 @@ export default function ConvertBookingModal({
         : ""
     );
     setLocation(normalizedInitialData?.location ?? "");
+    setLocationDetails(null);
     setSelectedDates(
       initialBookingType === "multi_day"
         ? initialMultiDays
@@ -1005,8 +1009,9 @@ export default function ConvertBookingModal({
               </h3>
               <LocationPicker
                 value={location}
-                onChange={(address) => {
+                onChange={(address, details) => {
                   setLocation(address);
+                  setLocationDetails(details || null);
                   setValidationErrors((prev) => ({ ...prev, location: false }));
                 }}
                 placeholder="Search for a location"
@@ -1043,7 +1048,21 @@ export default function ConvertBookingModal({
               if (bookingType === "single_day") {
                 onSubmit({
                   bookingType,
-                  ...(showLocationField ? { location: location.trim() } : {}),
+                  ...(showLocationField
+                    ? {
+                        location: location.trim(),
+                        location_latitude:
+                          locationDetails?.coordinates?.lat ??
+                          locationDetails?.lat ??
+                          locationDetails?.center?.[1] ??
+                          undefined,
+                        location_longitude:
+                          locationDetails?.coordinates?.lng ??
+                          locationDetails?.lng ??
+                          locationDetails?.center?.[0] ??
+                          undefined,
+                      }
+                    : {}),
                   singleDay: {
                     date: selectedShootDate ? getDateKey(selectedShootDate) : "",
                     startTime: getStartTimeKey(),
@@ -1055,7 +1074,21 @@ export default function ConvertBookingModal({
 
               onSubmit({
                 bookingType,
-                ...(showLocationField ? { location: location.trim() } : {}),
+                ...(showLocationField
+                  ? {
+                      location: location.trim(),
+                      location_latitude:
+                        locationDetails?.coordinates?.lat ??
+                        locationDetails?.lat ??
+                        locationDetails?.center?.[1] ??
+                        undefined,
+                      location_longitude:
+                        locationDetails?.coordinates?.lng ??
+                        locationDetails?.lng ??
+                        locationDetails?.center?.[0] ??
+                        undefined,
+                    }
+                  : {}),
                 multiDay: {
                   sameTimings: sameTimingsMulti,
                   sharedStartTime: sameTimingsMulti ? sharedMultiStartTime : undefined,
