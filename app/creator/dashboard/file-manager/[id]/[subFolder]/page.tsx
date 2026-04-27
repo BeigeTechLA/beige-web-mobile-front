@@ -2,10 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, FolderPlus, Grid3X3, List, Loader2, Search, Upload } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, CalendarClock, Download, FileVideo, FolderOpen, FolderPlus, Grid3X3, Image as ImageIcon, List, Loader2, MoreVertical, Play, Search, Trash2, Upload } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
+import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
@@ -24,9 +26,11 @@ import {
 } from "@/lib/fileManagerApi";
 import { getProject } from "@/lib/api";
 import { toast } from "sonner";
+import { useViewMode } from "@/app/useViewMode";
 
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
+const defaultImgSrc = "/images/misc/Data.png";
 
 export default function CreatorFileManagerPhasePage() {
   const router = useRouter();
@@ -43,13 +47,14 @@ export default function CreatorFileManagerPhasePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const { viewMode, setViewMode } = useViewMode();
   const [status, setStatus] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedFile, setSelectedFile] = useState<Record<string, unknown> | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [viewerFile, setViewerFile] = useState<Record<string, unknown> | null>(null);
@@ -225,6 +230,38 @@ export default function CreatorFileManagerPhasePage() {
   const isCommonEventPreProductionRoot =
     isCommonEventWorkspace && phaseSlug === "pre-production";
   const canCreateFolder = isCommonEventWorkspace && !isCommonEventPreProductionRoot;
+
+  const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>, folder: UiFolderItem) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSelectedFolder(folder);
+
+    const isNearRightEdge = window.innerWidth - rect.right < 250;
+    const isNearBottomEdge = window.innerHeight - rect.bottom < 150;
+
+    setMenuAnchor({
+      x: isNearRightEdge ? rect.left - 210 : rect.right - 10,
+      y: isNearBottomEdge ? rect.top - 230 : rect.top - 20,
+    });
+  };
+
+  const handleDownloadSelectedFolder = async (folder?: UiFolderItem | null) => {
+    const targetFolder = folder || selectedFolder;
+    if (!targetFolder) return;
+
+    try {
+      const slug = targetFolder.href?.split("/").filter(Boolean).pop();
+      const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
+        phase: currentPhase,
+        path: currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined,
+      });
+      if (result?.url) {
+        window.open(result.url, "_blank", "noopener,noreferrer");
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to download folder");
+    }
+  };
 
   const handleDeleteSelectedFolder = async () => {
     if (!selectedFolder?.resourcePath) return;
@@ -445,21 +482,7 @@ export default function CreatorFileManagerPhasePage() {
                       userInitials={folder.userInitials}
                       onOpenLinkModal={() => undefined}
                       href={folder.href}
-                      onDownload={async () => {
-                        setSelectedFolder(folder);
-                        try {
-                          const slug = folder.href?.split("/").filter(Boolean).pop();
-                          const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
-                            phase: currentPhase,
-                            path: currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined,
-                          });
-                          if (result?.url) {
-                            window.open(result.url, "_blank", "noopener,noreferrer");
-                          }
-                        } catch (err: unknown) {
-                          toast.error(err instanceof Error ? err.message : "Failed to download folder");
-                        }
-                      }}
+                      onDownload={() => handleDownloadSelectedFolder(folder)}
                       onDelete={() => {
                         setSelectedFolder(folder);
                         setSelectedFile(null);
@@ -470,112 +493,506 @@ export default function CreatorFileManagerPhasePage() {
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
-                  <div className="lg:hidden">
-                    {filteredFolders.map((folder) => (
+                filteredFolders.length === 0 ? (
+                  <EmptyFileState />
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <div className="lg:hidden">
+                      {filteredFolders.map((folder) => (
                         <MobileFolderRow
                           key={folder.id}
                           folder={folder}
-                          handleOpenMenu={() => undefined}
-                        />
-                    ))}
-                  </div>
-                </div>
-              )
-            ) : viewState.kind === "mixed" ? (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Folders</h3>
-                  {filteredFolders.length === 0 ? (
-                    <EmptyFileState />
-                  ) : (
-                    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                      {filteredFolders.map((folder) => (
-                        <FolderCard
-                          key={folder.id}
-                          title={folder.title}
-                          fileCount={folder.fileCount}
-                          lastOpened={folder.lastOpened}
-                          category={folder.category}
-                          isLinked={folder.isLinked}
-                          userInitials={folder.userInitials}
-                          onOpenLinkModal={() => undefined}
-                          href={folder.href}
-                          showMenu={false}
+                          handleOpenMenu={(e) => handleOpenMenu(e, folder)}
                         />
                       ))}
                     </div>
-                  )}
-                </div>
 
-	                <div>
-	                  <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
-	                  {filteredFiles.length === 0 ? (
-	                    <EmptyFileState />
-	                  ) : (
-	                    <div className="space-y-4">
-	                      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-	                        {visibleFiles.map((file) => (
-	                        <FileCard
-	                          key={file.id}
-	                          file={{ ...file, previewUrl: previewUrls[file.id] }}
-	                          onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
-	                          onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
-                          onDelete={() => {
-                            setSelectedFile(file as unknown as Record<string, unknown>);
-	                            setIsDeleteModalOpen(true);
-	                          }}
-	                        />
-	                        ))}
-	                      </div>
-	                      {hasMoreFiles ? (
-	                        <div className="flex justify-center">
-	                          <Button
-	                            type="button"
-	                            className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
-	                            onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
-	                          >
-	                            View More
-	                          </Button>
-	                        </div>
-	                      ) : null}
-	                    </div>
-	                  )}
-	                </div>
-	              </div>
-	            ) : viewMode === "grid" ? (
+                    <div className="hidden overflow-x-auto lg:block">
+                      <table className="w-full border-collapse text-left">
+                        <thead>
+                          <tr className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
+                            <th className="rounded-l-xl px-6 py-5 font-medium">Name</th>
+                            <th className="px-6 py-5 text-center font-medium">Files</th>
+                            <th className="px-6 py-5 text-center font-medium">Last Updated</th>
+                            <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredFolders.map((item) => (
+                            <tr
+                              key={item.id}
+                              className="cursor-pointer transition-colors hover:bg-white/[0.02]"
+                              onClick={() =>
+                                router.push(item.href || `/creator/dashboard/file-manager/${projectId}/${phaseSlug}`)
+                              }
+                            >
+                              <td className="px-6 py-5">
+                                <div className="flex items-center gap-3">
+                                  <div className="rounded-lg border border-white/5 bg-white/5 p-2">
+                                    <FolderOpen className="text-[#E8D1AB]" size={20} />
+                                  </div>
+                                  <span className="text-sm font-medium text-white">{item.title}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-5 text-center text-sm text-white/60">
+                                {String(item.fileCount).padStart(2, "0")}
+                              </td>
+                              <td className="px-6 py-5 text-center text-sm text-[#8F8F8F]">{item.lastOpened}</td>
+                              <td className="px-6 py-5 text-right">
+                                <Button
+                                  variant="ghost"
+                                  className="h-10 w-10 rounded-full p-0 text-white/40 hover:bg-white/10 hover:text-white"
+                                  onClick={(e) => handleOpenMenu(e, item)}
+                                >
+                                  <MoreVertical size={20} />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
+              )
+            ) : viewState.kind === "mixed" ? (
+              viewMode === "grid" ? (
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Folders</h3>
+                    {filteredFolders.length === 0 ? (
+                      <EmptyFileState />
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                        {filteredFolders.map((folder) => (
+                          <FolderCard
+                            key={folder.id}
+                            title={folder.title}
+                            fileCount={folder.fileCount}
+                            lastOpened={folder.lastOpened}
+                            category={folder.category}
+                            isLinked={folder.isLinked}
+                            userInitials={folder.userInitials}
+                            onOpenLinkModal={() => undefined}
+                            href={folder.href}
+                            showMenu={false}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
+                    {filteredFiles.length === 0 ? (
+                      <EmptyFileState />
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                          {visibleFiles.map((file) => (
+                            <FileCard
+                              key={file.id}
+                              file={{ ...file, previewUrl: previewUrls[file.id] }}
+                              onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+                              onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
+                              onDelete={() => {
+                                setSelectedFile(file as unknown as Record<string, unknown>);
+                                setIsDeleteModalOpen(true);
+                              }}
+                            />
+                          ))}
+                        </div>
+                        {hasMoreFiles ? (
+                          <div className="flex justify-center">
+                            <Button
+                              type="button"
+                              className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                              onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                            >
+                              View More
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Folders</h3>
+                    {filteredFolders.length === 0 ? (
+                      <EmptyFileState />
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="lg:hidden">
+                          {filteredFolders.map((folder) => (
+                            <MobileFolderRow
+                              key={folder.id}
+                              folder={folder}
+                              handleOpenMenu={(e) => handleOpenMenu(e, folder)}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="hidden overflow-x-auto lg:block">
+                          <table className="w-full border-collapse text-left">
+                            <thead>
+                              <tr className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
+                                <th className="rounded-l-xl px-6 py-5 font-medium">Name</th>
+                                <th className="px-6 py-5 text-center font-medium">Files</th>
+                                <th className="px-6 py-5 text-center font-medium">Last Updated</th>
+                                <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredFolders.map((item) => (
+                                <tr
+                                  key={item.id}
+                                  className="cursor-pointer transition-colors hover:bg-white/[0.02]"
+                                  onClick={() => router.push(item.href || `/creator/dashboard/file-manager/${projectId}/${phaseSlug}`)}
+                                >
+                                  <td className="px-6 py-5">
+                                    <div className="flex items-center gap-3">
+                                      <div className="rounded-lg border border-white/5 bg-white/5 p-2">
+                                        <FolderOpen className="text-[#E8D1AB]" size={20} />
+                                      </div>
+                                      <span className="text-sm font-medium text-white">{item.title}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-5 text-center text-sm text-white/60">
+                                    {String(item.fileCount).padStart(2, "0")}
+                                  </td>
+                                  <td className="px-6 py-5 text-center text-sm text-[#8F8F8F]">{item.lastOpened}</td>
+                                  <td className="px-6 py-5 text-right">
+                                    <Button
+                                      variant="ghost"
+                                      className="h-10 w-10 rounded-full p-0 text-white/40 hover:bg-white/10 hover:text-white"
+                                      onClick={(e) => handleOpenMenu(e, item)}
+                                    >
+                                      <MoreVertical size={20} />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
+                    {filteredFiles.length === 0 ? (
+                      <EmptyFileState />
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="hidden overflow-x-auto lg:block">
+                          <table className="w-full border-collapse text-left">
+                            <thead>
+                              <tr className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
+                                <th className="rounded-l-xl px-6 py-5 font-medium">Name</th>
+                                <th className="px-6 py-5 text-center font-medium">Type</th>
+                                <th className="px-6 py-5 text-center font-medium">Last Updated</th>
+                                <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {visibleFiles.map((item) => (
+                                <tr
+                                  key={item.id}
+                                  className="cursor-pointer transition-colors hover:bg-white/[0.02]"
+                                  onClick={() => handleOpenFile(item as unknown as Record<string, unknown>)}
+                                >
+                                  <td className="px-6 py-5 text-white text-sm font-medium">{item.title}</td>
+                                  <td className="px-6 py-5 text-center text-sm text-white/60">
+                                    {item.contentType || "File"}
+                                  </td>
+                                  <td className="px-6 py-5 text-center text-sm text-[#8F8F8F]">{item.lastOpened}</td>
+                                  <td className="px-6 py-5 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        className="text-white/40 hover:text-white"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDownloadFile(item as unknown as Record<string, unknown>);
+                                        }}
+                                      >
+                                        Download
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        className="text-white/40 hover:text-[#F04438]"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedFile(item as unknown as Record<string, unknown>);
+                                          setIsDeleteModalOpen(true);
+                                        }}
+                                      >
+                                        Delete
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="space-y-3 lg:hidden">
+                          {visibleFiles.map((file) => (
+                            <div
+                              key={`file-mobile-${file.id}`}
+                              className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#171717] p-4"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+                                className="min-w-0 flex-1 text-left"
+                              >
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-white">{file.title}</p>
+                                  <p className="mt-1 text-xs text-white/50">Updated {file.lastOpened}</p>
+                                </div>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
+                                className="shrink-0 text-white/50 hover:text-white"
+                              >
+                                Download
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {hasMoreFiles ? (
+                          <div className="flex justify-center">
+                            <Button
+                              type="button"
+                              className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                              onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                            >
+                              View More
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            ) : viewMode === "grid" ? (
               filteredFiles.length === 0 ? (
                 <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
               ) : (
-	                <div className="space-y-4">
-	                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-	                    {visibleFiles.map((file) => (
-	                    <FileCard
-	                      key={file.id}
-	                      file={{ ...file, previewUrl: previewUrls[file.id] }}
-	                      onOpen={() => handleOpenFile(file as unknown as Record<string, unknown>)}
-	                      onDownload={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
-                      onDelete={() => {
-                        setSelectedFile(file as unknown as Record<string, unknown>);
-	                        setIsDeleteModalOpen(true);
-	                      }}
-	                    />
-	                    ))}
-	                  </div>
-	                  {hasMoreFiles ? (
-	                    <div className="flex justify-center">
-	                      <Button
-	                        type="button"
-	                        className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
-	                        onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
-	                      >
-	                        View More
-	                      </Button>
-	                    </div>
-	                  ) : null}
-	                </div>
-	              )
-	            ) : null}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                    {visibleFiles.map((file) => {
+                      const fileType = file.title.toLowerCase().match(/\.(mp4|mov|avi|mkv|webm)$/) ? "video" : "image";
+                      return (
+                        <div
+                          key={file.id}
+                          className="group relative cursor-pointer rounded-xl border border-white/10 bg-[#111111] p-4 transition-all hover:border-white/20 lg:p-[19px]"
+                          onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+                        >
+                          <div className="mb-3 flex items-center justify-between">
+                            <div className="min-w-0 flex items-center gap-2">
+                              {fileType === "video" ? (
+                                <FileVideo size={16} className="shrink-0 text-[#E8D1AB]" />
+                              ) : (
+                                <ImageIcon size={16} className="shrink-0 text-[#E8D1AB]" />
+                              )}
+                              <span className="truncate text-sm text-white lg:text-base">{file.title}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                className="text-white/70 hover:text-white"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadFile(file as unknown as Record<string, unknown>);
+                                }}
+                              >
+                                <Download size={16} />
+                              </button>
+                              {/* <button
+                                className="text-white/70 hover:text-[#F04438]"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedFile(file as unknown as Record<string, unknown>);
+                                  setIsDeleteModalOpen(true);
+                                }}
+                              >
+                                <Trash2 size={16} />
+                              </button> */}
+                            </div>
+                          </div>
+
+                          <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-white/5 bg-[#1A1A1A]">
+                            {file.contentType?.startsWith("image/") && previewUrls[file.id] ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={previewUrls[file.id]}
+                                alt={file.title || "Preview"}
+                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                              />
+                            ) : file.contentType?.startsWith("video/") && previewUrls[file.id] ? (
+                              <div className="relative h-full w-full">
+                                <video
+                                  src={previewUrls[file.id]}
+                                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                                  muted
+                                  playsInline
+                                  preload="metadata"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white">
+                                    <Play size={18} className="ml-0.5" fill="currentColor" />
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <Image
+                                src={defaultImgSrc}
+                                alt={typeof file.title === "string" ? file.title : "Default file icon"}
+                                width={158}
+                                height={150}
+                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {hasMoreFiles ? (
+                    <div className="flex justify-center">
+                      <Button
+                        type="button"
+                        className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                        onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                      >
+                        View More
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            ) : filteredFiles.length === 0 ? (
+                <EmptyFileState onAction={canUpload ? () => setIsUploadModalOpen(true) : undefined} actionLabel={canUpload ? "Upload Files" : undefined} />
+              ) : (
+                <div className="space-y-4">
+                  <div className="hidden overflow-x-auto lg:block">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="cursor-pointer rounded-xl bg-[#202020] text-sm font-normal text-[#E8D1AB]">
+                          <th className="rounded-l-xl px-6 py-5 font-medium">File title</th>
+                          <th className="px-6 py-5 font-medium">Type</th>
+                          <th className="px-6 py-5 font-medium">Last Opened</th>
+                          <th className="rounded-r-xl px-6 py-5 text-right font-medium">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleFiles.map((file) => {
+                          const fileType = file.title.toLowerCase().match(/\.(mp4|mov|avi|mkv|webm)$/) ? "video" : "image";
+                          return (
+                          <tr
+                            key={file.id}
+                            className="group cursor-pointer transition-colors hover:bg-white/[0.02]"
+                            onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+                          >
+                            <td className="whitespace-nowrap px-6 py-5">
+                              <div className="flex items-center gap-3">
+                                <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded border border-white/5 bg-[#1A1A1A]">
+                                  <Image
+                                    src={defaultImgSrc}
+                                    alt={typeof file.title === "string" ? file.title : "Default Image"}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                </div>
+                                <span className="max-w-[200px] truncate font-medium text-white">{file.title}</span>
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-5">
+                              <div className="flex items-center gap-2 capitalize text-white/60">
+                                {fileType === "video" ? <FileVideo size={14} className="text-[#E8D1AB]" /> : <ImageIcon size={14} className="text-[#E8D1AB]" />}
+                                {fileType}
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-5 text-xs italic text-white/40">{file.lastOpened}</td>
+                            <td className="whitespace-nowrap px-6 py-5 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadFile(file as unknown as Record<string, unknown>);
+                                  }}
+                                >
+                                  <Download size={16} />
+                                </button>
+                                {/* <button
+                                  className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/10 hover:text-[#F04438]"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedFile(file as unknown as Record<string, unknown>);
+                                    setIsDeleteModalOpen(true);
+                                  }}
+                                >
+                                  <Trash2 size={16} />
+                                </button> */}
+                              </div>
+                            </td>
+                          </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="space-y-3 lg:hidden">
+                    {visibleFiles.map((file) => (
+                      <div
+                        key={`file-only-mobile-${file.id}`}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#171717] p-4"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleOpenFile(file as unknown as Record<string, unknown>)}
+                          className="min-w-0 flex-1 text-left"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-white">{file.title}</p>
+                            <p className="mt-1 text-xs text-white/50">Updated {file.lastOpened}</p>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadFile(file as unknown as Record<string, unknown>)}
+                          className="shrink-0 text-white/50 hover:text-white"
+                        >
+                          Download
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {hasMoreFiles ? (
+                    <div className="flex justify-center">
+                      <Button
+                        type="button"
+                        className="border border-white/20 bg-[#202020] text-white hover:bg-white/10"
+                        onClick={() => setVisibleFileCount((prev) => prev + FILES_PAGE_SIZE)}
+                      >
+                        View More
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              )}
           </div>
         </>
       )}
@@ -607,6 +1024,24 @@ export default function CreatorFileManagerPhasePage() {
         itemType={selectedFile ? "file" : "folder"}
         isDeleting={isDeleting}
       />
+
+      {menuAnchor && selectedFolder ? (
+        <FileActionMenu
+          folderName={selectedFolder.title}
+          isOpen={true}
+          onClose={() => setMenuAnchor(null)}
+          onOpenLinkModal={() => undefined}
+          anchor={menuAnchor}
+          href={selectedFolder.href}
+          onOpen={() => router.push(selectedFolder.href || `/creator/dashboard/file-manager/${projectId}/${phaseSlug}`)}
+          onDownload={() => void handleDownloadSelectedFolder(selectedFolder)}
+          onDelete={() => {
+            setSelectedFile(null);
+            setIsDeleteModalOpen(true);
+          }}
+          onRename={() => toast.info("Folder rename is the next safe step.")}
+        />
+      ) : null}
 
       <FileViewerModal
         isOpen={!!viewerFile}

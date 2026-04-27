@@ -30,6 +30,7 @@ import {
 import { GetCreatorDashboardDetails } from "@/lib/api";
 import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
+import { useViewMode } from "@/app/useViewMode";
 
 const STATUSES = ["Linked", "Unlinked"];
 
@@ -44,7 +45,7 @@ export default function CreatorFileManagerPage() {
   const router = useRouter();
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const { viewMode, setViewMode } = useViewMode();
   const [status, setStatus] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isOpen, setIsOpen] = useState(false);

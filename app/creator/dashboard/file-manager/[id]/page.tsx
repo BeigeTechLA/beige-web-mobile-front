@@ -20,6 +20,7 @@ import {
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
+import { useViewMode } from "@/app/useViewMode";
 
 const STATUSES = ["Linked", "Unlinked"];
 
@@ -36,7 +37,7 @@ export default function CreatorFolderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const { viewMode, setViewMode } = useViewMode();
   const [status, setStatus] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -133,6 +134,9 @@ export default function CreatorFolderDetailsPage() {
     if (!folder?.title) return "root";
     return folder.title.toLowerCase().includes("post") ? "post" : "pre";
   };
+
+  const canDeleteFolder = (folder?: UiFolderItem | null) =>
+    getFolderPhase(folder) !== "pre";
 
   const openFolderWithAccessCheck = async (folder: UiFolderItem) => {
     const targetHref = folder.href || `/creator/dashboard/file-manager/${projectId}`;
@@ -349,10 +353,14 @@ export default function CreatorFolderDetailsPage() {
                     onDownload={async () => {
                       await handleDownloadSelectedFolder(folder);
                     }}
-                    onDelete={() => {
-                      setSelectedFolder(folder);
-                      setIsDeleteModalOpen(true);
-                    }}
+                    onDelete={
+                      canDeleteFolder(folder)
+                        ? () => {
+                            setSelectedFolder(folder);
+                            setIsDeleteModalOpen(true);
+                          }
+                        : undefined
+                    }
                     onRename={() => toast.info("Folder rename is the next safe step.")}
                   />
                 ))}
@@ -450,7 +458,11 @@ export default function CreatorFolderDetailsPage() {
             }
           }}
           onDownload={handleDownloadSelectedFolder}
-          onDelete={() => setIsDeleteModalOpen(true)}
+          onDelete={
+            canDeleteFolder(selectedFolder)
+              ? () => setIsDeleteModalOpen(true)
+              : undefined
+          }
           onRename={() => toast.info("Folder rename is the next safe step.")}
         />
       )}
