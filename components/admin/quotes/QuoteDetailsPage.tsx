@@ -351,20 +351,28 @@ const QuoteTopActions = ({
   onReject,
   onConvert,
   onPreview,
+  onSendInvoice,
   previewDisabled,
+  sendDisabled,
   rejectDisabled,
   convertDisabled,
+  showSendInvoice,
   isRejecting,
   isConverting,
+  isSendingInvoice,
 }: {
   onReject: () => void;
   onConvert: () => void;
   onPreview: () => void;
+  onSendInvoice: () => void;
   previewDisabled: boolean;
+  sendDisabled: boolean;
   rejectDisabled: boolean;
   convertDisabled: boolean;
+  showSendInvoice: boolean;
   isRejecting: boolean;
   isConverting: boolean;
+  isSendingInvoice: boolean;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
     <Button
@@ -395,6 +403,17 @@ const QuoteTopActions = ({
       <Eye size={18} />
       Preview Quote
     </Button>
+    {showSendInvoice ? (
+      <Button
+        type="button"
+        onClick={onSendInvoice}
+        disabled={sendDisabled}
+        className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
+      >
+        {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
+        {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
+      </Button>
+    ) : null}
   </div>
 );
 
@@ -560,6 +579,9 @@ export default function QuoteDetailsPage({
   const quoteStatus =
     getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
   const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
+  const canSendInvoiceFromDetails = ["accepted", "approved", "confirmed"].includes(
+    normalizedQuoteStatus
+  );
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -936,11 +958,17 @@ export default function QuoteDetailsPage({
         void handleConvertQuoteToBooking();
       }}
       onPreview={() => setIsPreviewOpen(true)}
+      onSendInvoice={() => {
+        void handleSendInvoice();
+      }}
       previewDisabled={!quote || loading}
+      sendDisabled={!quote || loading || isRejecting || isConverting || isSendingInvoice}
       rejectDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       convertDisabled={!quote || loading || isRejecting || isConverting}
+      showSendInvoice={Boolean(quote) && canSendInvoiceFromDetails}
       isRejecting={isRejecting}
       isConverting={isConverting}
+      isSendingInvoice={isSendingInvoice}
     />
   );
 

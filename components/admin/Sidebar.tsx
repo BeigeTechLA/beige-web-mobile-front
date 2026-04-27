@@ -39,14 +39,14 @@ const menuItems = [
       { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
     ]
   },
-  { name: 'Finances', icon: DollarSign, 
-    children: [
-      { name: 'Payouts', link: '/admin/finances/payouts' },
-      { name: 'Transactions', link: '/admin/finances/transactions' },
-      { name: 'Disputes', link: '/admin/finances/disputes' },
-      { name: 'Beige credit points', link: '/admin/finances/creditPoints' },
+  // { name: 'Finances', icon: DollarSign, 
+  //   children: [
+  //     { name: 'Payouts', link: '/admin/finances/payouts' },
+  //     { name: 'Transactions', link: '/admin/finances/transactions' },
+  //     { name: 'Disputes', link: '/admin/finances/disputes' },
+  //     { name: 'Beige credit points', link: '/admin/finances/creditPoints' },
 
-    ] },
+  //   ] },
 
   {
     name: 'Users',
@@ -63,7 +63,7 @@ const menuItems = [
     link: '/admin/quotes',
     children: [
       { name: 'All Quotes', link: '/admin/quotes' },
-      { name: 'Change Request', link: '/admin/quotes/change-requests' },
+      { name: 'Quote Approvals', link: '/admin/quotes/change-requests' },
       { name: 'Master Pricing', link: '/admin/quotes/pricing' },
     ],
   },
