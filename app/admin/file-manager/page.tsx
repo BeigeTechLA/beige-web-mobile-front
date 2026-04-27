@@ -35,6 +35,7 @@ import {
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
+import { useViewMode } from "@/app/useViewMode";
 
 const STATUSES = ["Linked", "Unlinked"];
 const PAGE_SIZE = 24;
@@ -72,7 +73,7 @@ export default function AdminFolderManagerPage() {
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const { viewMode, setViewMode } = useViewMode();
   const [status, setStatus] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isOpen, setIsOpen] = useState(false);

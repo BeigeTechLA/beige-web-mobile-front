@@ -30,6 +30,7 @@ import {
   slugToWorkspaceName,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
+import { useViewMode } from "@/app/useViewMode";
 
 const defaultImgSrc = "/images/misc/Data.png";
 const STATUSES = ["Linked", "Unlinked"];
@@ -88,7 +89,7 @@ export default function SubFolderDetailsPage() {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const { viewMode, setViewMode } = useViewMode();
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [searchTerm, setSearchTerm] = useState("");

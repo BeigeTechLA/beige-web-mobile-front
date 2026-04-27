@@ -14,6 +14,7 @@ import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 
 import { usePathname } from "next/navigation";
 import Topbar from "@/components/production-manager/Topbar";
+import { useViewMode } from "@/app/useViewMode";
 
 const STATUSES = ["Linked", "Unlinked"];
 
@@ -21,7 +22,7 @@ export default function ProductionManagerFileManagerPage() {
   const pathname = usePathname();
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const { viewMode, setViewMode } = useViewMode();
   const [status, setStatus] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isOpen, setIsOpen] = useState(false);
