@@ -42,6 +42,7 @@ import {
 } from "recharts";
 import {
   Copy,
+  DollarSign,
   Download,
   FileText,
   Loader2,
@@ -162,6 +163,7 @@ type QuoteActionMenuProps = {
   onViewDetails: () => void;
   onDuplicate: () => void;
   onEdit: () => void;
+  onPaymentTransaction: () => void;
   onReject: () => void;
   allowEdit?: boolean;
   mobile?: boolean;
@@ -212,6 +214,7 @@ const QuoteActionMenu = ({
   onViewDetails,
   onDuplicate,
   onEdit,
+  onPaymentTransaction,
   onReject,
   allowEdit = true,
   mobile = false,
@@ -267,6 +270,11 @@ const QuoteActionMenu = ({
               onClick={handleMenuAction(onEdit)}
             />
           ) : null}
+          <QuoteActionMenuButton
+            icon={<DollarSign size={18} />}
+            label="Payment Transaction"
+            onClick={handleMenuAction(onPaymentTransaction)}
+          />
         </div>
 
         <div className="h-[1px] w-full bg-white/10" />
@@ -568,9 +576,7 @@ const buildQuoteChartData = (
     }
 
     point.total += 1;
-    const chartStatusKey = normalizeStatusForChart(
-      getText(quote.quote_status, quote.status, "draft").toLowerCase()
-    );
+    const chartStatusKey = normalizeStatusForChart(getPaymentAwareStatusKey(quote));
     if (chartStatusKey) {
       point[chartStatusKey] += 1;
     }
@@ -607,9 +613,84 @@ const getStatusColor = (status: string) => {
   }
 };
 
+const toNumericOrNull = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const getPaymentAwareStatusKey = (quote: SalesQuoteListItem) => {
+  const record = quote as Record<string, unknown>;
+  const defaultStatus = getText(quote.quote_status, quote.status, "draft").toLowerCase() || "draft";
+
+  const paymentStatus = getText(
+    record.payment_status,
+    record.additional_payment_status,
+    getRecord(record.additional_payment)?.payment_status
+  ).toLowerCase();
+  if (["paid", "success", "completed"].includes(paymentStatus)) {
+    return "paid";
+  }
+  if (paymentStatus.includes("partial")) {
+    return "partially_paid";
+  }
+
+  const paidAmount = toNumericOrNull(
+    record.paid_amount ??
+      record.paidAmount ??
+      getRecord(record.additional_payment)?.previously_paid_amount
+  );
+  const outstandingAmount = toNumericOrNull(
+    record.pending_amount ??
+      record.pendingAmount ??
+      record.outstanding_amount ??
+      getRecord(record.additional_payment)?.outstanding_amount
+  );
+  if ((paidAmount ?? 0) > 0 && (outstandingAmount ?? 0) > 0) {
+    return "partially_paid";
+  }
+
+  const activities = Array.isArray(record.activities) ? record.activities : [];
+  const manualEntries = activities
+    .map((activity) => {
+      const activityRecord = getRecord(activity);
+      if (!activityRecord || String(activityRecord.activity_type || "").toLowerCase() !== "payment_completed") {
+        return null;
+      }
+      const rawData = activityRecord.activity_data;
+      const payload =
+        typeof rawData === "string"
+          ? (() => {
+              try {
+                return JSON.parse(rawData) as Record<string, unknown>;
+              } catch {
+                return null;
+              }
+            })()
+          : getRecord(rawData);
+      if (!payload || String(payload.payment_method || "").toLowerCase() !== "manual") return null;
+      return payload;
+    })
+    .filter(Boolean) as Array<Record<string, unknown>>;
+
+  const hasFullManual = manualEntries.some((entry) => String(entry.payment_type || "").toLowerCase() === "full");
+  if (hasFullManual) return "paid";
+  const partialManualTotal = manualEntries.reduce((sum, entry) => {
+    if (String(entry.payment_type || "").toLowerCase() !== "partial") return sum;
+    const amount = toNumericOrNull(entry.amount);
+    return sum + (amount ?? 0);
+  }, 0);
+  if (partialManualTotal > 0) return "partially_paid";
+
+  return defaultStatus;
+};
+
 const buildStatusSummary = (rows: SalesQuoteListItem[]) =>
   rows.reduce<Record<string, number>>((summary, quote) => {
-    const statusKey = getText(quote.quote_status, quote.status, "draft").toLowerCase();
+    const statusKey = getPaymentAwareStatusKey(quote);
 
     if (!statusKey) {
       return summary;
@@ -759,7 +840,7 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     quote.created_by?.name,
     "N/A"
   );
-  const statusKey = getText(quote.quote_status, quote.status, "draft").toLowerCase() || "draft";
+  const statusKey = getPaymentAwareStatusKey(quote);
   const quoteNumber = getText(quote.quote_number);
   const location = getText(
     quote.location,
@@ -839,6 +920,7 @@ export default function QuotesDashboardPage({
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [quoteStatusOverrides, setQuoteStatusOverrides] = useState<Record<string, string>>({});
   const debouncedSearch = useDebounce(searchTerm, 500);
 
   useEffect(() => {
@@ -937,6 +1019,134 @@ export default function QuotesDashboardPage({
     selectedSalesperson,
     selectedStatusFilter,
   ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const quoteIds = quotes
+      .map((quote) => String(quote.sales_quote_id ?? quote.quote_id ?? quote.id ?? ""))
+      .filter(Boolean);
+    if (!quoteIds.length) {
+      setQuoteStatusOverrides({});
+      return;
+    }
+
+    const hydrateStatuses = async () => {
+      const nextMap: Record<string, string> = {};
+      await Promise.all(
+        quoteIds.map(async (id) => {
+          try {
+            const detail = await salesApi.getQuoteDetail(id);
+            const rawDetail = getRecord(detail?.data);
+            const nestedRawDetail = getRecord(rawDetail?.data);
+            const detailData = unwrapSalesQuoteDetail(detail?.data ?? null) as Record<string, unknown> | null;
+            const status =
+              getText(detailData?.payment_status) ||
+              getText(getRecord(detailData?.additional_payment)?.payment_status) ||
+              getText(detailData?.quote_status, detailData?.status);
+            const normalized = status.toLowerCase();
+            if (["paid", "success", "completed"].includes(normalized)) {
+              nextMap[id] = "paid";
+              return;
+            }
+
+            const activities = (detailData?.activities as Array<Record<string, unknown>> | undefined) || [];
+            const manualEntries = activities
+              .filter((activity) => String(activity?.activity_type || "").toLowerCase() === "payment_completed")
+              .map((activity) => {
+                const rawData = activity?.activity_data;
+                if (typeof rawData === "string") {
+                  try {
+                    return JSON.parse(rawData) as Record<string, unknown>;
+                  } catch {
+                    return null;
+                  }
+                }
+                return getRecord(rawData);
+              })
+              .filter((entry) => entry && String(entry.payment_method || "").toLowerCase() === "manual") as Array<Record<string, unknown>>;
+
+            if (manualEntries.some((entry) => String(entry.payment_type || "").toLowerCase() === "full")) {
+              nextMap[id] = "paid";
+              return;
+            }
+            const partialTotal = manualEntries.reduce((sum, entry) => {
+              if (String(entry.payment_type || "").toLowerCase() !== "partial") return sum;
+              const amount = toNumericOrNull(entry.amount);
+              return sum + (amount ?? 0);
+            }, 0);
+            if (partialTotal > 0) {
+              nextMap[id] = "partially_paid";
+              return;
+            }
+
+            const leadId = toNumericOrNull(
+              detailData?.lead_id ??
+                rawDetail?.lead_id ??
+                nestedRawDetail?.lead_id
+            );
+            if (!leadId) {
+              return;
+            }
+
+            const leadMeta = await salesApi.getLeadPaymentMeta(leadId);
+            if (!leadMeta?.success || !leadMeta?.data) {
+              return;
+            }
+
+            const leadData = getRecord(leadMeta.data);
+            const leadPaymentStatus = getText(leadData?.payment_status).toLowerCase();
+            if (["paid", "success", "completed"].includes(leadPaymentStatus)) {
+              nextMap[id] = "paid";
+              return;
+            }
+
+            const leadActivities = Array.isArray(leadData?.activities)
+              ? (leadData.activities as Array<Record<string, unknown>>)
+              : [];
+            const leadManualEntries = leadActivities
+              .filter((activity) => String(activity?.activity_type || "").toLowerCase() === "payment_completed")
+              .map((activity) => {
+                const rawData = activity?.activity_data;
+                if (typeof rawData === "string") {
+                  try {
+                    return JSON.parse(rawData) as Record<string, unknown>;
+                  } catch {
+                    return null;
+                  }
+                }
+                return getRecord(rawData);
+              })
+              .filter((entry) => entry && String(entry.payment_method || "").toLowerCase() === "manual") as Array<Record<string, unknown>>;
+
+            if (leadManualEntries.some((entry) => String(entry.payment_type || "").toLowerCase() === "full")) {
+              nextMap[id] = "paid";
+              return;
+            }
+
+            const leadPartialTotal = leadManualEntries.reduce((sum, entry) => {
+              if (String(entry.payment_type || "").toLowerCase() !== "partial") return sum;
+              const amount = toNumericOrNull(entry.amount);
+              return sum + (amount ?? 0);
+            }, 0);
+            if (leadPartialTotal > 0) {
+              nextMap[id] = "partially_paid";
+            }
+          } catch {
+            // keep list status fallback when detail fetch fails
+          }
+        })
+      );
+
+      if (!cancelled) {
+        setQuoteStatusOverrides(nextMap);
+      }
+    };
+
+    void hydrateStatuses();
+    return () => {
+      cancelled = true;
+    };
+  }, [quotes]);
 
   const handleRejectQuote = async (quoteId: string, currentStatus?: string) => {
     setOpenActionMenuId(null);
@@ -1056,6 +1266,15 @@ export default function QuotesDashboardPage({
     router.push(`${detailBaseHref}/${quoteId}`);
   };
 
+  const handlePaymentTransaction = (quoteId: string) => {
+    if (!quoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+    setOpenActionMenuId(null);
+    router.push(`${detailBaseHref}/${quoteId}?action=payment`);
+  };
+
   const handleEditQuote = (
     quoteId: string,
     targetView: string = "details"
@@ -1142,8 +1361,19 @@ export default function QuotesDashboardPage({
   ];
 
   const displayQuotesData = useMemo(
-    () => quotes.map((quote, index) => normalizeQuoteRow(quote, index)),
-    [quotes]
+    () =>
+      quotes.map((quote, index) => {
+        const row = normalizeQuoteRow(quote, index);
+        const overrideStatus = quoteStatusOverrides[row.id];
+        if (!overrideStatus) return row;
+        return {
+          ...row,
+          statusKey: overrideStatus,
+          status: formatLabel(overrideStatus),
+          statusColor: getStatusColor(overrideStatus),
+        };
+      }),
+    [quoteStatusOverrides, quotes]
   );
 
   const activeChartMetric = useMemo(
@@ -1645,6 +1875,7 @@ export default function QuotesDashboardPage({
                               void handleDuplicateQuote(quote.id);
                             }}
                             onEdit={() => handleEditQuote(quote.id)}
+                            onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
                             onReject={() => {
                               void handleRejectQuote(quote.id, quote.statusKey);
                             }}

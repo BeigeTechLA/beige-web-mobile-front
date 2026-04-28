@@ -19,6 +19,8 @@ interface LeadData {
   intent: string;
   assignedSalesRepName?: string;
   assignedSalesRepEmail?: string;
+  hasManualPaymentHistory?: boolean;
+  isPaymentPending?: boolean;
 }
 
 interface LeadsTableProps {
@@ -33,11 +35,8 @@ interface LeadsTableProps {
   onPageChange: (page: number) => void;
   // Action Props
   onRowClick: (id: number) => void;
-  onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>, name: string, id: number) => void;
+  onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>, name: string, id: number, bookingStatus?: string, allowPaymentTransaction?: boolean) => void;
 }
-
-type IntentType = "Hot" | "Warm" | "Cold";
-
 
 export default function LeadsTable({
   data,
@@ -138,7 +137,7 @@ export default function LeadsTable({
               </td>
               <td className={`p-3 lg:py-5 text-sm lg:text-base border-b group-last:border-0 ${isDark ? "text-white/80 border-[#222]" : "text-[#333] border-[#F0F0F0]"
                 }`}>
-                <IntentBadge intent={(lead.intent || "Hot") as any} />
+                <IntentBadge intent={(lead.intent || "Hot") as "Hot" | "Warm" | "Cold"} />
               </td>
               <td className={`p-3 lg:py-5 border-b group-last:border-0 shrink-0 ${isDark ? "border-[#222]" : "border-[#F0F0F0]"
                 }`}>
@@ -160,7 +159,13 @@ export default function LeadsTable({
                 }`}>
                 <button
                   className={`p-2 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-[#999] hover:text-[#171717]"}`}
-                  onClick={(e) => onOpenMenu(e, lead.clientName, lead.lead_id)}
+                  onClick={(e) => onOpenMenu(
+                    e,
+                    lead.clientName,
+                    lead.lead_id,
+                    String(lead.bookingStatus || ""),
+                    Boolean(lead.isPaymentPending || lead.hasManualPaymentHistory)
+                  )}
                 >
                   <MoreVertical size={18} />
                 </button>

@@ -2594,6 +2594,87 @@ export const salesApi = {
       };
     }
   },
+  recordLeadManualPayment: async (
+    leadId: number | string,
+    payload: {
+      payment_type: "full" | "partial";
+      amount?: number;
+      payment_mode: "cash" | "bank_transfer" | "credit_card" | "other";
+      other_payment_mode?: string;
+      proof_url: string;
+      notes?: string;
+    }
+  ) => {
+    try {
+      const response = await api.post(`/sales/leads/${leadId}/manual-payment`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Record Lead Manual Payment Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to record manual payment',
+      };
+    }
+  },
+  recordClientLeadManualPayment: async (
+    leadId: number | string,
+    payload: {
+      payment_type: "full" | "partial";
+      amount?: number;
+      payment_mode: "cash" | "bank_transfer" | "credit_card" | "other";
+      other_payment_mode?: string;
+      proof_url: string;
+      notes?: string;
+    }
+  ) => {
+    try {
+      const response = await api.post(`/sales/client-leads/${leadId}/manual-payment`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Record Client Lead Manual Payment Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to record manual payment',
+      };
+    }
+  },
+  uploadManualPaymentProof: async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("proof_file", file);
+      const response = await api.post('/sales/leads/manual-payment/upload-proof', formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Upload Manual Payment Proof Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to upload proof file',
+      };
+    }
+  },
+  getLeadPaymentMeta: async (leadId: number | string, isClientLead = false) => {
+    try {
+      const endpoint = isClientLead ? `/sales/client-leads/${leadId}` : `/sales/leads/${leadId}`;
+      const response = await api.get(endpoint);
+      const lead = response?.data?.data || null;
+      return {
+        success: true,
+        data: lead,
+      };
+    } catch (error: any) {
+      console.error('Get Lead Payment Meta Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch lead payment details',
+      };
+    }
+  },
   changeClientLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
     try {
       const response = await api.put(`/sales/client-leads/${leadId}/change-sales-rep`, {
@@ -2674,5 +2755,3 @@ export const salesApi = {
     return `${baseUrl}signatures/download/${quote_id}`;
   },
 };
-
-

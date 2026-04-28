@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowUpToLine,
   Camera,
   DollarSign,
   Eye,
@@ -25,12 +26,13 @@ import ConvertBookingModal, {
 } from "@/components/admin/quotes/ConvertBookingModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   salesApi,
   type SalesQuoteConvertToBookingPayload,
   type SalesQuoteDetailData,
 } from "@/lib/api";
-import { salesApi as salesRtkApi } from "@/lib/redux/features/sales/salesApi";
+import { salesApi as salesRtkApi, useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
 import { useAppDispatch } from "@/lib/redux/hooks";
 import {
   persistQuoteEditorNavigationCache,
@@ -72,6 +74,7 @@ type QuoteConvertIntent = "convert_only" | "send_invoice";
 type QuoteActivityLike = {
   activity_type?: string;
   message?: string;
+  activity_data?: unknown;
   metadata?: {
     booking_id?: number | string;
     lead_id?: number | string;
@@ -99,6 +102,32 @@ type QuoteConvertedBookingDetailsLike = {
   end_time?: string | null;
   location?: string | null;
   booking_days?: QuoteConvertedBookingDayLike[] | null;
+};
+
+type ManualPaymentMode = "cash" | "bank_transfer" | "credit_card" | "other";
+type ManualPaymentActivityMeta = {
+  payment_method?: string;
+  payment_type?: "full" | "partial";
+  payment_mode?: string;
+  amount?: number | string | null;
+  total_amount?: number | string | null;
+  proof_url?: string | null;
+};
+
+type ManualPaymentEntry = {
+  createdAt: string | null;
+  data: ManualPaymentActivityMeta;
+};
+
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
+const resolveS3ProofUrl = (value?: string | null) => {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return "";
+  if (/^https?:\/\//i.test(rawValue)) return rawValue;
+  const normalizedPrefix = String(S3_PREFIX || "").replace(/\/+$/, "");
+  const normalizedPath = rawValue.replace(/^\/+/, "");
+  return normalizedPrefix ? `${normalizedPrefix}/${normalizedPath}` : rawValue;
 };
 
 const normalizeConvertModalTime = (value?: string | null) =>
@@ -212,6 +241,10 @@ const getStatusStyles = (status: string) => {
 
   if (["paid"].includes(normalizedStatus)) {
     return "border border-[#86EFAC]/20 bg-[#DCFCE7] text-[#166534]";
+  }
+
+  if (normalizedStatus === "partially paid") {
+    return "border border-[#FCD34D]/25 bg-[#FEF3C7] text-[#92400E]";
   }
 
   if (["accepted", "approved", "confirmed"].includes(normalizedStatus)) {
@@ -350,19 +383,23 @@ const ServiceLineCard = ({
 const QuoteTopActions = ({
   onReject,
   onConvert,
+  onPaymentTransaction,
   onPreview,
   previewDisabled,
   rejectDisabled,
   convertDisabled,
+  paymentDisabled,
   isRejecting,
   isConverting,
 }: {
   onReject: () => void;
   onConvert: () => void;
+  onPaymentTransaction: () => void;
   onPreview: () => void;
   previewDisabled: boolean;
   rejectDisabled: boolean;
   convertDisabled: boolean;
+  paymentDisabled: boolean;
   isRejecting: boolean;
   isConverting: boolean;
 }) => (
@@ -385,6 +422,16 @@ const QuoteTopActions = ({
     >
       {isConverting ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
       {isConverting ? "Converting..." : "Convert to Booking"}
+    </Button>
+    <Button
+      type="button"
+      onClick={onPaymentTransaction}
+      disabled={paymentDisabled}
+      variant="outline"
+      className="h-11 rounded-xl border-[#E8D1AB]/30 bg-[#201A10] px-4 text-[#E8D1AB] hover:bg-[#2A2114]"
+    >
+      <DollarSign size={18} />
+      Payment Transaction
     </Button>
     <Button
       type="button"
@@ -413,6 +460,7 @@ export default function QuoteDetailsPage({
   const dispatch = useAppDispatch();
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -432,6 +480,17 @@ export default function QuoteDetailsPage({
   const [signatureBase64, setSignatureBase64] = useState<string | null>(null);
   const [signerName, setSignerName] = useState<string | null>(null);
   const [signedAt, setSignedAt] = useState<string | null>(null);
+  const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
+  const [manualPaymentAmount, setManualPaymentAmount] = useState("");
+  const [manualPaymentMode, setManualPaymentMode] = useState<ManualPaymentMode>("cash");
+  const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
+  const [manualPaymentNotes, setManualPaymentNotes] = useState("");
+  const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
+  const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
+  const [isUploadingManualProof, setIsUploadingManualProof] = useState(false);
+  const [isSubmittingManualPayment, setIsSubmittingManualPayment] = useState(false);
+  const paymentSectionRef = useRef<HTMLDivElement | null>(null);
+  const hasTriggeredPaymentActionRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -460,8 +519,10 @@ export default function QuoteDetailsPage({
         }
 
         setQuote(quoteDetail);
-        const rawData = response?.data as any;
-        const sig = rawData?.signature_base64 ?? (rawData?.data as any)?.signature_base64;
+        const rawData = (response?.data ?? null) as
+          | (Record<string, unknown> & { data?: Record<string, unknown> | null })
+          | null;
+        const sig = (rawData?.signature_base64 ?? rawData?.data?.signature_base64) as string | null | undefined;
         if (sig) {
           setSignatureBase64(sig);
           setSignerName(rawData?.signer_name ?? rawData?.data?.signer_name ?? null);
@@ -570,6 +631,13 @@ export default function QuoteDetailsPage({
   const resolvedQuoteId = String(
     quote?.sales_quote_id ?? quote?.quote_id ?? quote?.id ?? quoteId
   );
+  const quoteLeadId = useMemo(() => {
+    const leadId = Number((quote as Record<string, unknown> | null)?.["lead_id"]);
+    return Number.isInteger(leadId) && leadId > 0 ? leadId : null;
+  }, [quote]);
+  const { data: linkedLeadDetails, refetch: refetchLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
+    skip: !quoteLeadId,
+  });
   const conversionActivity = useMemo(() => {
     const activities = (quote?.activities as QuoteActivityLike[] | undefined) || [];
 
@@ -626,6 +694,194 @@ export default function QuoteDetailsPage({
   const conversionMetaLabel = conversionActivity?.created_at
     ? `Converted on ${formatQuoteDate(conversionActivity.created_at)}${conversionActivity?.performed_by?.name ? ` by ${conversionActivity.performed_by.name}` : ""}`
     : null;
+  const bookingIdFromQuote = Number(convertedBookingId ?? quote?.booking_id);
+  const resolvedBookingId = Number.isInteger(bookingIdFromQuote) && bookingIdFromQuote > 0 ? bookingIdFromQuote : null;
+  const manualPaymentEntries = useMemo<ManualPaymentEntry[]>(() => {
+    const parseEntries = (activities: Array<{ activity_type?: string; activity_data?: unknown; created_at?: string | null }> | undefined) =>
+      (activities || [])
+        .filter((activity) => activity?.activity_type === "payment_completed" && activity?.activity_data)
+        .map((activity) => {
+          try {
+            const payload =
+              typeof activity.activity_data === "string"
+                ? JSON.parse(activity.activity_data)
+                : activity.activity_data;
+            if (!payload || (payload as ManualPaymentActivityMeta).payment_method !== "manual") return null;
+            return {
+              createdAt: activity.created_at || null,
+              data: payload as ManualPaymentActivityMeta,
+            };
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean) as ManualPaymentEntry[];
+
+    const leadEntries = parseEntries(linkedLeadDetails?.activities);
+    const quoteEntries = parseEntries(quote?.activities as Array<{ activity_type?: string; activity_data?: unknown; created_at?: string | null }> | undefined);
+    const merged = [...leadEntries, ...quoteEntries];
+
+    const unique = merged.filter((entry, index, arr) => {
+      const key = `${entry.createdAt || ""}|${entry.data.payment_type || ""}|${entry.data.amount || ""}|${entry.data.proof_url || ""}`;
+      return index === arr.findIndex((candidate) => {
+        const candidateKey = `${candidate.createdAt || ""}|${candidate.data.payment_type || ""}|${candidate.data.amount || ""}|${candidate.data.proof_url || ""}`;
+        return candidateKey === key;
+      });
+    });
+
+    return unique.sort(
+      (a, b) =>
+        new Date(String(b.createdAt || 0)).getTime() -
+        new Date(String(a.createdAt || 0)).getTime()
+    );
+  }, [linkedLeadDetails?.activities, quote?.activities]);
+  const leadPaymentStatus = String(linkedLeadDetails?.payment_status || "").toLowerCase();
+  const totalPaymentAmount = Number(linkedLeadDetails?.pricing_breakdown?.total || finalTotal || 0);
+  const hasFullPaymentFromActivity = manualPaymentEntries.some((entry) => entry.data.payment_type === "full");
+  const partialPaidFromActivity = manualPaymentEntries.reduce((sum, entry) => {
+    if (entry.data.payment_type !== "partial") return sum;
+    const numeric = Number(entry.data.amount || 0);
+    return sum + (Number.isFinite(numeric) ? numeric : 0);
+  }, 0);
+  const hasFullPayment =
+    hasFullPaymentFromActivity ||
+    ["paid", "success", "completed"].includes(leadPaymentStatus);
+  const paidAmount = hasFullPayment ? totalPaymentAmount : partialPaidFromActivity;
+  const pendingAmount = Math.max(totalPaymentAmount - paidAmount, 0);
+  const isPartiallyPaid = !hasFullPayment && paidAmount > 0 && pendingAmount > 0;
+  const latestManualPaymentEntry = manualPaymentEntries[0] || null;
+  const canTakeManualPayment = !hasFullPayment && pendingAmount > 0;
+  const displayStatus = hasFullPayment
+    ? "Paid"
+    : isPartiallyPaid
+      ? "Partially Paid"
+      : quoteStatus;
+
+  const ensureBookingForPayment = useCallback(async () => {
+    if (resolvedBookingId) {
+      return { bookingId: resolvedBookingId, leadId: quoteLeadId ?? undefined };
+    }
+    if (!resolvedQuoteId) {
+      toast.error("Quote id is missing.");
+      return null;
+    }
+
+    const convertedDetails = (quote?.converted_booking_details as QuoteConvertedBookingDetailsLike | undefined) ?? null;
+    const booking = linkedLeadDetails?.booking;
+    const startDate = String(convertedDetails?.start_date || booking?.event_date || "").trim();
+    const startTime = String(convertedDetails?.start_time || booking?.start_time || "").slice(0, 5);
+    const endTime = String(convertedDetails?.end_time || booking?.end_time || "").slice(0, 5);
+    if (!startDate || !startTime || !endTime) {
+      toast.error("Missing booking date/time to auto-convert. Please convert once, then continue payment.");
+      return null;
+    }
+
+    const response = await salesApi.convertQuoteToBooking(resolvedQuoteId, {
+      booking_type: "single_day",
+      time_zone: getBrowserTimeZone(),
+      start_date: startDate,
+      start_time: `${startTime}:00`,
+      end_time: `${endTime}:00`,
+      location: convertedDetails?.location || "",
+    });
+
+    if (!response?.success || !response?.data?.booking_id) {
+      toast.error(response?.error || "Failed to convert quote to booking");
+      return null;
+    }
+
+    setConvertedBookingIdOverride(String(response.data.booking_id));
+    setIsConvertedOverride(true);
+    toast.success(`Converted to booking #${response.data.booking_id}`);
+    return {
+      bookingId: Number(response.data.booking_id),
+      leadId: quoteLeadId ?? (response.data.lead_id ? Number(response.data.lead_id) : undefined),
+    };
+  }, [linkedLeadDetails?.booking, quote, quoteLeadId, resolvedBookingId, resolvedQuoteId]);
+
+  const handleManualProofUpload = async (file: File | null) => {
+    if (!file) return;
+    setIsUploadingManualProof(true);
+    try {
+      const response = await salesApi.uploadManualPaymentProof(file);
+      if (!response?.success || !response?.data?.proof_url) {
+        toast.error(response?.error || response?.message || "Failed to upload proof");
+        return;
+      }
+      setManualPaymentProofUrl(response.data.proof_url);
+      setManualPaymentProofFileName(file.name);
+      toast.success("Proof uploaded successfully");
+    } finally {
+      setIsUploadingManualProof(false);
+    }
+  };
+
+  const handleManualPaymentSubmit = async () => {
+    if (!quoteLeadId) {
+      toast.error("Lead not linked with this quote");
+      return;
+    }
+    if (!manualPaymentProofUrl.trim()) {
+      toast.error("Proof upload is required");
+      return;
+    }
+    if (manualPaymentType === "partial") {
+      const amount = Number(manualPaymentAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        toast.error("Enter valid partial amount");
+        return;
+      }
+      if (amount > pendingAmount) {
+        toast.error("Partial amount cannot exceed pending amount");
+        return;
+      }
+    }
+
+    const ensured = await ensureBookingForPayment();
+    if (!ensured) return;
+
+    setIsSubmittingManualPayment(true);
+    try {
+      const amount = Number(manualPaymentAmount);
+      const response = await salesApi.recordLeadManualPayment(ensured.leadId ?? quoteLeadId, {
+        payment_type: manualPaymentType,
+        amount: manualPaymentType === "partial" ? amount : undefined,
+        payment_mode: manualPaymentMode,
+        other_payment_mode: manualPaymentMode === "other" ? manualPaymentOtherMode.trim() : undefined,
+        proof_url: manualPaymentProofUrl.trim(),
+        notes: manualPaymentNotes.trim() || undefined,
+      });
+      if (!response?.success) {
+        toast.error(response?.error || response?.message || "Failed to save payment");
+        return;
+      }
+      toast.success("Manual payment saved");
+      setManualPaymentAmount("");
+      setManualPaymentOtherMode("");
+      setManualPaymentNotes("");
+      setManualPaymentProofUrl("");
+      setManualPaymentProofFileName("");
+      void refetchLeadDetails();
+    } finally {
+      setIsSubmittingManualPayment(false);
+    }
+  };
+
+  const handlePaymentTransactionAction = useCallback(async () => {
+    if (!quoteLeadId) {
+      toast.error("Lead is not linked with this quote yet.");
+      return;
+    }
+    await ensureBookingForPayment();
+    paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [ensureBookingForPayment, quoteLeadId]);
+
+  useEffect(() => {
+    if (searchParams.get("action") !== "payment") return;
+    if (!quote || hasTriggeredPaymentActionRef.current) return;
+    hasTriggeredPaymentActionRef.current = true;
+    void handlePaymentTransactionAction();
+  }, [handlePaymentTransactionAction, quote, searchParams]);
 
   const breadcrumbOverrides = useMemo(
     () => ({
@@ -935,10 +1191,14 @@ export default function QuoteDetailsPage({
       onConvert={() => {
         void handleConvertQuoteToBooking();
       }}
+      onPaymentTransaction={() => {
+        void handlePaymentTransactionAction();
+      }}
       onPreview={() => setIsPreviewOpen(true)}
       previewDisabled={!quote || loading}
       rejectDisabled={!quote || loading || isRejecting || isConverting || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       convertDisabled={!quote || loading || isRejecting || isConverting}
+      paymentDisabled={!quote || loading || isRejecting || isConverting || isSubmittingManualPayment}
       isRejecting={isRejecting}
       isConverting={isConverting}
     />
@@ -1043,10 +1303,10 @@ export default function QuoteDetailsPage({
                       <div className="flex flex-col items-end gap-2">
                   <span
                     className={`inline-flex h-fit items-center rounded-full px-4 py-2 text-sm font-semibold ${getStatusStyles(
-                      quoteStatus
+                      displayStatus
                     )}`}
                   >
-                    {formatStatusLabel(quoteStatus)}
+                    {formatStatusLabel(displayStatus)}
                   </span>
                         {signatureBase64 && (
                           <div className="mt-3 flex flex-col items-end gap-2">
@@ -1090,6 +1350,171 @@ export default function QuoteDetailsPage({
                   <MapPin size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />
                   <span className="break-words">{clientAddress}</span>
                 </div>
+              </div>
+            </SectionShell>
+
+            <SectionShell title="Payment">
+              <div className="space-y-4" ref={paymentSectionRef}>
+                {quoteLeadId ? (
+                  <div className="rounded-[22px] border border-[#2B2B2B] bg-[#111111] p-4">
+                    <h3 className="text-base font-semibold text-white">Manual Payment Update</h3>
+                    {latestManualPaymentEntry?.createdAt ? (
+                      <p className="mt-1 text-xs text-white/55">
+                        Last updated {formatQuoteDate(latestManualPaymentEntry.createdAt)}
+                      </p>
+                    ) : null}
+                    <p className="mt-2 text-xs text-white/70">
+                      Paid: <span className="text-emerald-400">{formatQuoteCurrency(paidAmount)}</span>
+                      {" · "}
+                      Pending: <span className="text-amber-400">{formatQuoteCurrency(pendingAmount)}</span>
+                    </p>
+                    {hasFullPayment ? (
+                      <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                        Full payment already completed. New payment entry is locked.
+                      </div>
+                    ) : null}
+
+                    {canTakeManualPayment ? (
+                      <>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {(["full", "partial"] as const).map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setManualPaymentType(type)}
+                              disabled={hasFullPayment}
+                              className={`h-10 rounded-lg border text-sm font-medium ${
+                                manualPaymentType === type
+                                  ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                                  : "border-white/20 text-white/70"
+                              }`}
+                            >
+                              {type === "full" ? "Full Payment" : "Partial Payment"}
+                            </button>
+                          ))}
+                        </div>
+
+                        {manualPaymentType === "partial" ? (
+                          <input
+                            type="number"
+                            value={manualPaymentAmount}
+                            onChange={(event) => setManualPaymentAmount(event.target.value)}
+                            placeholder="Enter partial amount"
+                            className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
+                          />
+                        ) : null}
+
+                        <Select value={manualPaymentMode} onValueChange={(value) => setManualPaymentMode(value as ManualPaymentMode)}>
+                          <SelectTrigger className="mt-3 h-11 rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white">
+                            <SelectValue placeholder="Select payment mode" />
+                          </SelectTrigger>
+                          <SelectContent className="border-[#333333] bg-[#111111] text-white">
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                            <SelectItem value="credit_card">Credit Card</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        {manualPaymentMode === "other" ? (
+                          <input
+                            type="text"
+                            value={manualPaymentOtherMode}
+                            onChange={(event) => setManualPaymentOtherMode(event.target.value)}
+                            placeholder="Enter payment mode"
+                            className="mt-3 h-11 w-full rounded-lg border border-white/20 bg-transparent px-3 text-sm text-white outline-none"
+                          />
+                        ) : null}
+
+                        <div className="mt-3 rounded-lg border border-white/20 p-3">
+                          <label className="mb-2 block text-xs text-[#71717B]">Proof Upload (Required)</label>
+                          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 text-sm text-white">
+                            <ArrowUpToLine size={14} />
+                            {isUploadingManualProof ? "Uploading..." : "Choose File"}
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="hidden"
+                              onChange={(event) => {
+                                const file = event.target.files?.[0] || null;
+                                void handleManualProofUpload(file);
+                              }}
+                            />
+                          </label>
+                          {manualPaymentProofFileName ? (
+                            <p className="mt-2 text-xs text-[#71717B]">{manualPaymentProofFileName}</p>
+                          ) : null}
+                        </div>
+
+                        <textarea
+                          value={manualPaymentNotes}
+                          onChange={(event) => setManualPaymentNotes(event.target.value)}
+                          placeholder="Add notes"
+                          className="mt-3 min-h-[84px] w-full rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm text-white outline-none"
+                        />
+
+                        <div className="mt-3 flex justify-end">
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              void handleManualPaymentSubmit();
+                            }}
+                            disabled={isSubmittingManualPayment || isUploadingManualProof || hasFullPayment}
+                            className="h-11 rounded-xl bg-[#E8D1AB] px-6 text-black hover:bg-[#E8D1AB]/90"
+                          >
+                            {isSubmittingManualPayment ? <Loader2 size={16} className="animate-spin" /> : null}
+                            {isSubmittingManualPayment ? "Saving..." : "Save Manual Payment"}
+                          </Button>
+                        </div>
+                      </>
+                    ) : null}
+
+                    {manualPaymentEntries.length > 0 ? (
+                      <div className="mt-3 rounded-lg border border-white/15 bg-white/[0.02] p-3">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[#71717B]">
+                          Uploaded Payment Proofs
+                        </p>
+                        <div className="space-y-2">
+                          {manualPaymentEntries.map((entry, index) => {
+                            const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
+                            const paidMode = entry.data.payment_mode
+                              ? String(entry.data.payment_mode).replace(/_/g, " ")
+                              : "manual";
+
+                            return (
+                              <div
+                                key={`${entry.createdAt || "entry"}-${index}`}
+                                className="rounded-md border border-white/10 px-3 py-2 text-xs"
+                              >
+                                <p className="text-white/80">
+                                  {entry.data.payment_type === "partial"
+                                    ? `Partial paid ${formatQuoteCurrency(Number(entry.data.amount || 0))}`
+                                    : "Full payment marked"}{" "}
+                                  via {paidMode}
+                                </p>
+                                <p className="mt-1 text-white/45">
+                                  {entry.createdAt ? formatQuoteDate(entry.createdAt) : "Date unavailable"}
+                                </p>
+                                {proofUrl ? (
+                                  <a
+                                    href={proofUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
+                                  >
+                                    Download Proof
+                                  </a>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#8F8F95]">Lead is not linked with this quote yet.</p>
+                )}
               </div>
             </SectionShell>
 
