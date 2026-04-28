@@ -880,6 +880,7 @@ export default function QuotesDashboardPage({
     targetView: string;
     shootDateValue?: string;
   } | null>(null);
+  const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1131,6 +1132,46 @@ export default function QuotesDashboardPage({
       targetView,
       shootDateValue: quote.shootDateValue,
     });
+  };
+
+  const handleEditAccessProceed = async (payload: {
+    reason: string;
+    opsReviewConfirmed: boolean;
+  }) => {
+    if (!editAccessState?.quoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    setIsEditAccessSubmitting(true);
+
+    try {
+      const response = await salesApi.updateQuote(editAccessState.quoteId, {
+        edit_reason: payload.reason,
+        ops_review_confirmed: payload.opsReviewConfirmed,
+      });
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to confirm restricted edit access"
+        );
+      }
+
+      const { quoteId, targetView } = editAccessState;
+      setEditAccessState(null);
+      proceedToEditQuote(quoteId, targetView);
+    } catch (error) {
+      console.error("Failed to confirm restricted quote edit access", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to confirm restricted quote edit access"
+      );
+    } finally {
+      setIsEditAccessSubmitting(false);
+    }
   };
 
   const statsIcons: Record<string, React.ReactNode> = {
@@ -1816,19 +1857,19 @@ export default function QuotesDashboardPage({
 
       <QuoteEditAccessModal
         open={Boolean(editAccessState)}
-        onClose={() => setEditAccessState(null)}
-        onProceed={() => {
-          if (!editAccessState) {
+        onClose={() => {
+          if (isEditAccessSubmitting) {
             return;
           }
-
-          const { quoteId, targetView } = editAccessState;
           setEditAccessState(null);
-          proceedToEditQuote(quoteId, targetView);
+        }}
+        onProceed={(payload) => {
+          void handleEditAccessProceed(payload);
         }}
         quoteNumber={editAccessState?.quoteNumber || "Pending"}
         clientName={editAccessState?.clientName || "Client"}
         shootDateValue={editAccessState?.shootDateValue}
+        isSubmitting={isEditAccessSubmitting}
       />
 
     </div>

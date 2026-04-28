@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 type QuoteEditAccessModalProps = {
   open: boolean;
   onClose: () => void;
-  onProceed: () => void;
+  onProceed: (payload: { reason: string; opsReviewConfirmed: boolean }) => void;
   quoteNumber: string;
   clientName: string;
   shootDateValue?: string | null;
@@ -233,7 +233,10 @@ export default function QuoteEditAccessModal({
                   return;
                 }
 
-                onProceed();
+                onProceed({
+                  reason: reason.trim(),
+                  opsReviewConfirmed: isConfirmed,
+                });
               }}
               className="h-[44px] min-w-[190px] rounded-[12px] bg-[#EED4A7] px-5 text-[14px] font-semibold text-black hover:bg-[#EED4A7]/92 lg:h-[46px] lg:min-w-[220px] lg:text-[15px]"
             >
