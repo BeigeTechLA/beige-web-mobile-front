@@ -167,7 +167,7 @@ export default function QuotePreviewDocument({
   if (!quoteData) {
     return null;
   }
-
+  const isRejected = getQuoteText(quoteData.status)?.toLowerCase() === "rejected";
   const lineItems = normalizeQuoteLineItems(quoteData);
   const serviceItems = lineItems.filter((item) => item.section === "service");
   const addonItems = lineItems.filter((item) => item.section === "addon");
@@ -372,12 +372,15 @@ export default function QuotePreviewDocument({
       ))}
     </ul>
 
+
+
     {/* Right - Signature */}
+  {!isRejected && (
     <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
       {quoteData.signature_base64 ? (
         <>
           <div className={`border rounded-lg p-3 w-full max-w-[220px] ${
-            isDark ? "border-white/20 bg-white/5" : "border-gray-200 bg-gray-50"
+            isDark ? "border-white/20 bg-white" : "border-gray-200 bg-gray-50"
           }`}>
             <img
               src={quoteData.signature_base64}
@@ -400,7 +403,7 @@ export default function QuotePreviewDocument({
         </div>
       )}
     </div>
-
+    )}
   </div>
 </section>
 
