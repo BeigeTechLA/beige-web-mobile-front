@@ -23,6 +23,7 @@ import ConvertBookingModal, {
   type ConvertBookingModalInitialData,
   type ConvertBookingModalSubmitData,
 } from "@/components/admin/quotes/ConvertBookingModal";
+import QuoteEditAccessModal from "@/components/admin/quotes/QuoteEditAccessModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { Button } from "@/components/ui/button";
 import {
@@ -166,6 +167,31 @@ const buildConvertModalInitialData = (
       endTime: singleEndTime,
     },
   };
+};
+
+const getQuoteEditShootDateValue = (quote?: SalesQuoteDetailData | null) => {
+  const bookingDays = quote?.converted_booking_details?.booking_days ?? [];
+  const firstBookingDay = Array.isArray(bookingDays) ? bookingDays[0] : null;
+  const dateValue = getQuoteText(
+    firstBookingDay?.date,
+    firstBookingDay?.event_date,
+    quote?.converted_booking_details?.start_date
+  );
+  const startTimeValue = getQuoteText(
+    firstBookingDay?.start_time,
+    quote?.converted_booking_details?.start_time
+  );
+
+  if (!dateValue) {
+    return "";
+  }
+
+  if (!startTimeValue) {
+    return dateValue;
+  }
+
+  const normalizedTime = startTimeValue.length === 5 ? `${startTimeValue}:00` : startTimeValue;
+  return `${dateValue}T${normalizedTime}`;
 };
 
 const getActivityBookingId = (activity: QuoteActivityLike | null | undefined) => {
@@ -425,6 +451,7 @@ export default function QuoteDetailsPage({
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [convertIntent, setConvertIntent] = useState<QuoteConvertIntent>("convert_only");
+  const [pendingEditView, setPendingEditView] = useState<QuoteEditorView | null>(null);
   const [convertModalInitialDataOverride, setConvertModalInitialDataOverride] =
     useState<ConvertBookingModalInitialData | null>(null);
   const [convertedBookingIdOverride, setConvertedBookingIdOverride] = useState<string | null>(null);
@@ -460,12 +487,36 @@ export default function QuoteDetailsPage({
         }
 
         setQuote(quoteDetail);
-        const rawData = response?.data as any;
-        const sig = rawData?.signature_base64 ?? (rawData?.data as any)?.signature_base64;
+        const rawData =
+          response?.data && typeof response.data === "object"
+            ? (response.data as Record<string, unknown>)
+            : null;
+        const nestedData =
+          rawData?.data && typeof rawData.data === "object"
+            ? (rawData.data as Record<string, unknown>)
+            : null;
+        const sig =
+          typeof rawData?.signature_base64 === "string"
+            ? rawData.signature_base64
+            : typeof nestedData?.signature_base64 === "string"
+              ? nestedData.signature_base64
+              : null;
         if (sig) {
           setSignatureBase64(sig);
-          setSignerName(rawData?.signer_name ?? rawData?.data?.signer_name ?? null);
-          setSignedAt(rawData?.signed_at ?? rawData?.data?.signed_at ?? null);
+          setSignerName(
+            typeof rawData?.signer_name === "string"
+              ? rawData.signer_name
+              : typeof nestedData?.signer_name === "string"
+                ? nestedData.signer_name
+                : null
+          );
+          setSignedAt(
+            typeof rawData?.signed_at === "string"
+              ? rawData.signed_at
+              : typeof nestedData?.signed_at === "string"
+                ? nestedData.signed_at
+                : null
+          );
         }
       } catch (error) {
         console.error("Failed to load quote details", error);
@@ -563,6 +614,7 @@ export default function QuoteDetailsPage({
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
+  const editAccessShootDateValue = getQuoteEditShootDateValue(quote);
   const terms = normalizeQuoteTerms(
     quote?.terms_conditions,
     getDefaultQuoteTerms(getQuoteText(quote?.valid_until, quote?.expires_at) || null)
@@ -916,7 +968,7 @@ export default function QuoteDetailsPage({
     }
   };
 
-  const handleEditQuote = (targetView: QuoteEditorView) => {
+  const proceedToEditQuote = (targetView: QuoteEditorView) => {
     if (quote) {
       persistQuoteEditorNavigationCache(quoteId, quote);
     }
@@ -1022,7 +1074,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Client Information"
               actionLabel="Edit Details"
-              onAction={() => handleEditQuote("details")}
+              onAction={() => setPendingEditView("details")}
             >
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -1096,7 +1148,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title={`Service Includes (${String(serviceItems.length).padStart(2, "0")})`}
               actionLabel="Edit Services"
-              onAction={() => handleEditQuote("services")}
+              onAction={() => setPendingEditView("services")}
             >
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
@@ -1116,7 +1168,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Add-On Includes"
               actionLabel="Edit Add ons"
-              onAction={() => handleEditQuote("addons")}
+              onAction={() => setPendingEditView("addons")}
             >
               {addonItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1139,7 +1191,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Logistics"
               actionLabel="Edit Logistics"
-              onAction={() => handleEditQuote("logistics")}
+              onAction={() => setPendingEditView("logistics")}
             >
               {logisticsItems.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
@@ -1161,7 +1213,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Custom Line Item"
               actionLabel="Edit Items"
-              onAction={() => handleEditQuote("customlineitems")}
+              onAction={() => setPendingEditView("customlineitems")}
             >
               {customItems.length > 0 ? (
                 <div className="space-y-3">
@@ -1190,7 +1242,7 @@ export default function QuoteDetailsPage({
             <SectionShell
               title="Other Details"
               actionLabel="Edit Tax & Discounts"
-              onAction={() => handleEditQuote("discounts")}
+              onAction={() => setPendingEditView("discounts")}
             >
               <div className="space-y-6">
                 <div className="inline-flex rounded-[16px] border border-[#2B2B2B] bg-[#111111] p-1">
@@ -1295,6 +1347,22 @@ export default function QuoteDetailsPage({
         onClose={() => setIsPreviewOpen(false)}
         quote={quote}
         quoteId={quoteId}
+      />
+      <QuoteEditAccessModal
+        open={pendingEditView !== null}
+        onClose={() => setPendingEditView(null)}
+        onProceed={() => {
+          if (!pendingEditView) {
+            return;
+          }
+
+          const nextView = pendingEditView;
+          setPendingEditView(null);
+          proceedToEditQuote(nextView);
+        }}
+        quoteNumber={quoteNumber}
+        clientName={clientName}
+        shootDateValue={editAccessShootDateValue}
       />
       <ConvertBookingModal
         open={isConvertModalOpen}
