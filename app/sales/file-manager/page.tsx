@@ -39,6 +39,23 @@ const STATUSES = ["Linked", "Unlinked"];
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
+const PAGE_SIZE = 24;
+const PAGINATION_WINDOW = 1;
+
+const getPageItems = (currentPage: number, totalPages: number) => {
+  if (totalPages <= 1) return [1];
+  const items: Array<number | "ellipsis"> = [1];
+  const start = Math.max(2, currentPage - PAGINATION_WINDOW);
+  const end = Math.min(totalPages - 1, currentPage + PAGINATION_WINDOW);
+  if (start > 2) items.push("ellipsis");
+  for (let page = start; page <= end; page += 1) {
+    items.push(page);
+  }
+  if (end < totalPages - 1) items.push("ellipsis");
+  if (totalPages > 1) items.push(totalPages);
+  return items;
+};
+
 interface SalesLeadsResponse {
   success: boolean;
   data: {
@@ -70,6 +87,17 @@ export default function SalesFolderManagerPage() {
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedTab, status]);
 
   const tabs = [
     { name: "All Files", icon: FolderOpen },
@@ -79,13 +107,17 @@ export default function SalesFolderManagerPage() {
     // { name: "Trash", icon: Trash2 },
   ];
 
-  const loadProjects = async () => {
+  const loadProjects = async (page: number = 1, searchQuery: string = searchTerm) => {
     try {
       setLoading(true);
       setError(null);
 
       const [workspaceData, leadsResponse] = await Promise.all([
-        fileManagerApi.listExternalWorkspaces(),
+        fileManagerApi.listExternalWorkspacesPaginated({
+          page,
+          limit: PAGE_SIZE,
+          search: searchQuery,
+        }),
         apiClient.get<SalesLeadsResponse>("sales/leads", { page: 1, limit: 500 }),
       ]);
 
@@ -97,8 +129,8 @@ export default function SalesFolderManagerPage() {
       );
 
       const filteredWorkspaces = isSalesAdmin
-        ? workspaceData
-        : workspaceData.filter((workspace) =>
+        ? workspaceData.workspaces
+        : workspaceData.workspaces.filter((workspace) =>
             isCommonEventWorkspaceId(workspace.externalId) ||
             assignedBookingIds.has(String(workspace.externalId))
           );
@@ -108,6 +140,9 @@ export default function SalesFolderManagerPage() {
           mapExternalWorkspaceToFolderCard(workspace, "/sales/file-manager")
         )
       );
+
+      setPagination(workspaceData.pagination);
+      
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to load sales file manager projects"));
     } finally {
@@ -120,16 +155,18 @@ export default function SalesFolderManagerPage() {
 
     const load = async () => {
       if (!mounted) return;
-      await loadProjects();
+      await loadProjects(currentPage, searchTerm);
     };
 
-    load();
+    const timer = setTimeout(load, 400); 
+
     return () => {
       mounted = false;
+      clearTimeout(timer);
     };
-  }, []);
+  }, [currentPage, searchTerm, selectedTab]); 
 
-  const filteredFolders = useMemo(() => {
+const filteredFolders = useMemo(() => {
     let items = [...projects];
 
     if (selectedTab === "Linked to folders") {
@@ -137,9 +174,6 @@ export default function SalesFolderManagerPage() {
     } else if (selectedTab === "Recent") {
       items = items.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5));
     }
-    // } else if (selectedTab === "Shared" || selectedTab === "Trash") {
-    //   items = [];
-    // }
 
     if (status === "Linked") {
       items = items.filter((item) => item.isLinked);
@@ -155,9 +189,8 @@ export default function SalesFolderManagerPage() {
           (item.category || "").toLowerCase().includes(query)
       );
     }
-
     return items;
-  }, [projects, searchTerm, selectedTab, status]);
+  }, [projects, searchTerm, selectedTab, status, currentPage]);
 
   const handleOpenMenu = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -242,7 +275,7 @@ export default function SalesFolderManagerPage() {
           <div className="w-full lg:w-auto flex justify-between lg:justify-end items-center gap-2 text-sm lg:text-base text-[#8F8F8F] bg-[#171717]/50 px-4 py-2 rounded-lg border border-white/5">
             <span className="whitespace-nowrap">Projects:</span>
             <p className="font-medium">
-              <span className="text-[#E8D1AB]">{projects.length}</span>
+              <span className="text-[#E8D1AB]">{pagination.total}</span>
               <span className="mx-1">total</span>
             </p>
           </div>
@@ -437,6 +470,49 @@ export default function SalesFolderManagerPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+          {/* Pagination UI */}
+          {!loading && !error && pagination.totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-center">
+              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#0E0E0E] p-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={!pagination.hasPreviousPage}
+                  className="h-12 min-w-[112px] rounded-xl border border-white/10 bg-[#131313] px-5 text-sm font-medium text-white/55 transition-colors hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Previous
+                </button>
+
+                {getPageItems(currentPage, pagination.totalPages).map((item, index) =>
+                  item === "ellipsis" ? (
+                    <span key={`ellipsis-${index}`} className="px-2 text-lg text-white/50">...</span>
+                  ) : (
+                    <button
+                      key={`page-${item}`}
+                      type="button"
+                      onClick={() => setCurrentPage(item)}
+                      className={`h-12 min-w-12 rounded-xl px-4 text-sm font-medium transition-colors ${
+                        item === currentPage
+                          ? "bg-[#E5D5B8] text-black"
+                          : "text-[#8CA2C5] hover:text-white"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                  disabled={!pagination.hasNextPage}
+                  className="h-12 min-w-[112px] rounded-xl border border-white/10 bg-[#131313] px-5 text-sm font-medium text-[#8CA2C5] transition-colors hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
               </div>
             </div>
           )}

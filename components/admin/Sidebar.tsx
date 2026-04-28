@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon, Receipt } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon, Receipt, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -39,6 +39,15 @@ const menuItems = [
       { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
     ]
   },
+  // { name: 'Finances', icon: DollarSign, 
+  //   children: [
+  //     { name: 'Payouts', link: '/admin/finances/payouts' },
+  //     { name: 'Transactions', link: '/admin/finances/transactions' },
+  //     { name: 'Disputes', link: '/admin/finances/disputes' },
+  //     { name: 'Beige credit points', link: '/admin/finances/creditPoints' },
+
+  //   ] },
+
   {
     name: 'Users',
     icon: Users,
@@ -54,7 +63,7 @@ const menuItems = [
     link: '/admin/quotes',
     children: [
       { name: 'All Quotes', link: '/admin/quotes' },
-      { name: 'Change Request', link: '/admin/quotes/change-requests' },
+      { name: 'Quote Approvals', link: '/admin/quotes/change-requests' },
       { name: 'Master Pricing', link: '/admin/quotes/pricing' },
     ],
   },

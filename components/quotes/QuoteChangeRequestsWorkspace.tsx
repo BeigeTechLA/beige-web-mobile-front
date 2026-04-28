@@ -6,28 +6,24 @@ import { format, isValid, parseISO } from "date-fns";
 import {
   ArrowDownRight,
   ArrowUpRight,
-  CheckCircle2,
-  Clock3,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
   Eye,
-  FileText,
-  RefreshCcw,
   Search,
-  User2,
-  XCircle,
+  TrendingUp,
+  UserRound,
+  UsersRound,
+  X,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   salesApi,
   type QuoteChangeRequestItem,
@@ -106,6 +102,15 @@ const formatDateTime = (value: string | null | undefined) => {
   const parsed = parseISO(value);
   if (!isValid(parsed)) return value;
 
+  return format(parsed, "MMMM d, yyyy\nh:mm a");
+};
+
+const formatShortDateTime = (value: string | null | undefined) => {
+  if (!value) return "Not available";
+
+  const parsed = parseISO(value);
+  if (!isValid(parsed)) return value;
+
   return format(parsed, "MMM d, yyyy h:mm a");
 };
 
@@ -114,40 +119,6 @@ const normalizeStatus = (value: string | null | undefined) =>
 
 const normalizeRequestType = (value: string | null | undefined) =>
   String(value || "unknown").trim().toLowerCase();
-
-const getStatusBadgeClass = (isDark: boolean, value: string | null | undefined) => {
-  switch (normalizeStatus(value)) {
-    case "approved":
-      return isDark
-        ? "border-[#28533B] bg-[#102317] text-[#88E0AD]"
-        : "border-[#D5F0DF] bg-[#F2FCF5] text-[#15803D]";
-    case "rejected":
-      return isDark
-        ? "border-[#5B2A2A] bg-[#261313] text-[#FFB4B4]"
-        : "border-[#F3D4D4] bg-[#FFF1F1] text-[#C62828]";
-    default:
-      return isDark
-        ? "border-[#614C28] bg-[#20170D] text-[#E8D1AB]"
-        : "border-[#E9DEC9] bg-[#FBF6EC] text-[#8A6A30]";
-  }
-};
-
-const getTypeBadgeClass = (isDark: boolean, value: string | null | undefined) => {
-  switch (normalizeRequestType(value)) {
-    case "increase":
-      return isDark
-        ? "border-[#1E4568] bg-[#0F1E2B] text-[#8CC8FF]"
-        : "border-[#D4E6FA] bg-[#F4F9FF] text-[#1D4ED8]";
-    case "decrease":
-      return isDark
-        ? "border-[#694221] bg-[#24170E] text-[#FFC088]"
-        : "border-[#F4DEC8] bg-[#FFF7ED] text-[#C2410C]";
-    default:
-      return isDark
-        ? "border-white/10 bg-white/5 text-white/70"
-        : "border-black/10 bg-black/[0.03] text-black/60";
-  }
-};
 
 const buildPaginationItems = (
   currentPage: number,
@@ -183,6 +154,376 @@ const buildPaginationItems = (
   return items;
 };
 
+const getStatusBadgeClass = (status: string) => {
+  switch (normalizeStatus(status)) {
+    case "approved":
+      return "bg-[#C8F5D2] text-[#1F9D4A]";
+    case "rejected":
+      return "bg-[#FFC9C9] text-[#E44E4E]";
+    default:
+      return "bg-[#F5E2AF] text-[#C87913]";
+  }
+};
+
+const getRequestTypeMeta = (requestType: string) => {
+  if (normalizeRequestType(requestType) === "increase") {
+    return {
+      label: "Increase",
+      amountClass: "text-[#22c55e]",
+      Icon: ArrowUpRight,
+      iconWrapClass: "bg-[#232323] text-[#22c55e]",
+    };
+  }
+
+  return {
+    label: "Decrease",
+    amountClass: "text-[#ef4444]",
+    Icon: ArrowDownRight,
+    iconWrapClass: "bg-[#232323] text-[#ef4444]",
+  };
+};
+
+const getInitials = (value: string) =>
+  value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "NA";
+
+const AVATAR_SWATCHES = [
+  "bg-[#F2DFB9] text-[#1D1D1D]",
+  "bg-[#C5D9F7] text-[#1D1D1D]",
+  "bg-[#E9E0D0] text-[#1D1D1D]",
+  "bg-[#D7F0B8] text-[#1D1D1D]",
+  "bg-[#F1C5E8] text-[#1D1D1D]",
+  "bg-[#FFB680] text-[#1D1D1D]",
+  "bg-[#A78BFA] text-white",
+  "bg-[#EBC9F5] text-[#1D1D1D]",
+  "bg-[#FFC1C1] text-[#1D1D1D]",
+  "bg-[#F1E3CC] text-[#1D1D1D]",
+];
+
+const getAvatarClass = (value: string) => {
+  const charCode = value.charCodeAt(0) || 0;
+  return AVATAR_SWATCHES[charCode % AVATAR_SWATCHES.length];
+};
+
+const toNumber = (value: number | string | null | undefined) => {
+  const numericValue = Number(value ?? 0);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const TableRow = ({
+  request,
+  onView,
+}: {
+  request: QuoteChangeRequestItem;
+  onView: () => void;
+}) => {
+  const quoteLabel = request.quote_number || `Beige - ${request.quote_id ?? "-"}`;
+  const clientName = request.client_name || "Client not available";
+  const requestTypeMeta = getRequestTypeMeta(request.request_type || "");
+  const changeAmount =
+    normalizeRequestType(request.request_type) === "increase"
+      ? request.extra_amount
+      : request.reduced_amount;
+  const status = normalizeStatus(request.approval_status);
+
+  return (
+    <tr className="border-t border-white/[0.05] transition-colors hover:bg-white/[0.02]">
+      <td className="px-4 py-4">
+        <div className="text-[15px] font-medium text-white">{quoteLabel}</div>
+        <div className="mt-1 text-xs text-white/28">{`Activity #${request.activity_id ?? "-"}`}</div>
+      </td>
+      <td className="px-4 py-4">
+        <div className="flex items-center gap-3">
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] text-sm font-semibold ${getAvatarClass(
+              clientName
+            )}`}
+          >
+            {getInitials(clientName)}
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-[15px] font-medium text-white">{clientName}</div>
+            <div className="mt-1 truncate text-xs text-white/28">
+              {`Booking ID #${request.booking_id ?? "1234"}`}
+            </div>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-4">
+        <div className="flex items-center gap-4">
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${requestTypeMeta.iconWrapClass}`}
+          >
+            <requestTypeMeta.Icon size={20} strokeWidth={2.5} />
+          </div>
+          <div>
+            <div className={`text-[16px] font-semibold ${requestTypeMeta.amountClass}`}>
+              {formatCurrency(changeAmount)}
+            </div>
+            <div className="mt-1 text-[13px] text-white/38">{requestTypeMeta.label}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-4 text-[14px] leading-6 text-white/84">
+        <div>{`Before: ${formatCurrency(request.previous_total)}`}</div>
+        <div>{`After : ${formatCurrency(request.new_total)}`}</div>
+      </td>
+      <td className="px-4 py-4">
+        <span
+          className={`inline-flex min-w-[84px] items-center justify-center rounded-full px-3 py-1 text-xs font-medium capitalize ${getStatusBadgeClass(
+            status
+          )}`}
+        >
+          {status}
+        </span>
+      </td>
+      <td className="px-4 py-4">
+        <div className="text-[14px] leading-5 text-white whitespace-pre-line">
+          {formatDateTime(request.created_at)}
+        </div>
+      </td>
+      <td className="px-4 py-4 text-center">
+        <button
+          type="button"
+          onClick={onView}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-transparent text-white/90 transition-colors hover:bg-white/[0.06]"
+          aria-label="View details"
+        >
+          <Eye size={17} />
+        </button>
+      </td>
+    </tr>
+  );
+};
+
+const RequestDetailsModal = ({
+  request,
+  detailsHrefBase,
+  onClose,
+  onApprove,
+  onReject,
+  processingAction,
+}: {
+  request: QuoteChangeRequestItem;
+  detailsHrefBase: string;
+  onClose: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+  processingAction: "approve" | "reject" | null;
+}) => {
+  const status = normalizeStatus(request.approval_status);
+  const requestType = normalizeRequestType(request.request_type);
+  const canReview = status === "pending";
+  const extraAmount = toNumber(request.extra_amount);
+  const reducedAmount = toNumber(request.reduced_amount);
+  const previousTotal = toNumber(request.previous_total);
+  const newTotal = toNumber(request.new_total);
+  const changeSummary = request.overall_change_summary?.summary;
+  const summaryLines = request.overall_change_summary?.lines ?? [];
+  const requestTypeMeta = getRequestTypeMeta(request.request_type || "");
+
+  return (
+    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+      <div className="relative max-h-[90vh] w-full max-w-[1120px] overflow-y-auto rounded-[24px] border border-[rgba(255,255,255,0.18)] bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_30px_120px_rgba(0,0,0,0.72)]">
+        <div className="flex items-start justify-between gap-6 border-b border-white/20 px-6 py-6 lg:px-9 lg:py-7">
+          <h2 className="text-[28px] font-semibold leading-none lg:text-[38px]">View Details</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-[60px] w-[60px] items-center justify-center rounded-full bg-[#2D2725] text-white transition-colors hover:bg-[#39312E]"
+            aria-label="Close modal"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="space-y-5 px-6 py-6 lg:px-9 lg:py-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h3 className="text-[26px] font-semibold text-white">
+                {request.quote_number || `BEIGE-${request.quote_id ?? "117"}`}
+              </h3>
+              <p className="mt-2 text-[14px] text-white/58 lg:text-[16px]">
+                Review the quote change request details and approve or reject from this popup.
+              </p>
+            </div>
+            <span
+              className={`inline-flex h-fit min-w-[110px] items-center justify-center rounded-full px-5 py-2.5 text-[14px] font-medium capitalize ${getStatusBadgeClass(
+                status
+              )}`}
+            >
+              {status}
+            </span>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="flex items-center gap-4 rounded-[16px] border border-white/10 bg-[#1A1A1A] px-4 py-4">
+              <div className="flex h-[54px] w-[54px] items-center justify-center rounded-[12px] bg-[#1B2840] text-[#58A6FF]">
+                <CalendarDays size={24} />
+              </div>
+              <div className="min-w-0 text-[15px] leading-7 text-white/62 lg:text-[16px]">
+                <span className="text-white/62">Requested At : </span>
+                <span className="font-semibold text-white">{formatShortDateTime(request.created_at)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 rounded-[16px] border border-white/10 bg-[#1A1A1A] px-4 py-4">
+              <div className="flex h-[54px] w-[54px] items-center justify-center rounded-[12px] bg-[#17331E] text-[#1ED760]">
+                <TrendingUp size={24} />
+              </div>
+              <div className="min-w-0 text-[15px] leading-7 text-white/62 lg:text-[16px]">
+                <span className="text-white/62">Request Type : </span>
+                <span className={requestTypeMeta.amountClass}>{requestTypeMeta.label}</span>
+              </div>
+            </div>
+          </div>
+
+          <section className="rounded-[16px] border border-white/10 bg-[#1A1A1A] p-4 lg:p-5">
+            <h4 className="text-[21px] font-medium text-white">Request Info</h4>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-4">
+              {[
+                {
+                  label: "Booking ID:",
+                  value: `B - ${request.booking_id ?? "1234"}`,
+                  icon: ClipboardList,
+                  valueClass: "text-white",
+                },
+                {
+                  label: "Client Name:",
+                  value: request.client_name || "Ethan Carter",
+                  icon: UserRound,
+                  valueClass: "text-white",
+                },
+                {
+                  label: "Requested By:",
+                  value: request.requested_by?.name || "Admin",
+                  icon: UsersRound,
+                  valueClass: "text-white",
+                },
+                {
+                  label: "Assigned Sales Rep:",
+                  value: request.assigned_sales_rep?.name || "Beige Sales",
+                  icon: UserRound,
+                  valueClass: "text-[#E7D2AB]",
+                },
+              ].map(({ label, value, icon: Icon, valueClass }, index) => (
+                <div
+                  key={label}
+                  className={`flex flex-col items-start ${
+                    index < 3 ? "lg:border-r lg:border-white/12 lg:pr-6" : ""
+                  }`}
+                >
+                  <div className="flex h-[46px] w-[46px] items-center justify-center rounded-[10px] bg-[#EFD6A9] text-black">
+                    <Icon size={22} />
+                  </div>
+                  <div className="mt-3 text-[15px] text-white/58 lg:text-[16px]">{label}</div>
+                  <div className={`mt-1 text-[17px] font-medium lg:text-[18px] ${valueClass}`}>
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 overflow-hidden rounded-[12px] border border-white/12 bg-[#0B0B0B]">
+              <div className="border-b border-white/10 px-5 py-5 text-[21px] font-medium text-[#E7D2AB]">
+                Total Amount
+              </div>
+              <div className="grid gap-4 px-5 py-5 lg:grid-cols-[1fr_auto]">
+                <div className="space-y-2 text-[16px] leading-8 text-white/62">
+                  <div>Previous Total</div>
+                  <div>Increase Amount</div>
+                  <div>Reduced Amount</div>
+                  <div>New Total</div>
+                </div>
+                <div className="space-y-2 text-right text-[16px] leading-8">
+                  <div className="font-semibold text-white">{formatCurrency(previousTotal)}</div>
+                  <div className="font-semibold text-[#1ED760]">{formatCurrency(extraAmount)}</div>
+                  <div className="font-semibold text-white">{formatCurrency(reducedAmount)}</div>
+                  <div className="font-semibold text-[#E7D2AB]">{formatCurrency(newTotal)}</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[16px] border border-white/10 bg-[#1A1A1A] p-4 lg:p-5">
+            <h4 className="text-[21px] font-medium text-white">Change Summary</h4>
+
+            <div className="mt-5 overflow-hidden rounded-[12px] border border-white/12 bg-[#0B0B0B]">
+              <div className="border-b border-white/10 px-5 py-6 text-[18px] font-semibold leading-8 text-[#E7D2AB]">
+                {changeSummary ||
+                  `Quote total changed from ${formatCurrency(previousTotal)} to ${formatCurrency(
+                    newTotal
+                  )} (${requestType === "increase" ? "+" : "-"}${formatCurrency(
+                    requestType === "increase" ? extraAmount : reducedAmount
+                  )}) across 1 update.`}
+              </div>
+              <div className="space-y-4 px-5 py-5 text-[15px] leading-8 text-white/58 lg:text-[16px]">
+                {summaryLines.length > 0 ? (
+                  summaryLines.map((line, index) => (
+                    <p key={`${request.activity_id}-line-${index}`}>{line}</p>
+                  ))
+                ) : (
+                  <p>This request contains quote updates that require review before approval.</p>
+                )}
+
+                {request.quote_id ? (
+                  <Link href={`${detailsHrefBase}/${request.quote_id}`}>
+                    <Button
+                      type="button"
+                      className="mt-2 h-[54px] rounded-[14px] bg-[#EED4A7] px-5 text-[15px] font-semibold text-black hover:bg-[#EED4A7]/92"
+                    >
+                      View Full Quote Details
+                    </Button>
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
+          <div className="flex flex-col gap-4 pt-1 lg:flex-row lg:items-center lg:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="h-[58px] rounded-[14px] border-white/12 bg-[#111111] px-7 text-[16px] text-white hover:bg-[#181818]"
+            >
+              Close
+            </Button>
+
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <Button
+                type="button"
+                onClick={onReject}
+                disabled={!canReview}
+                isLoading={processingAction === "reject"}
+                className="h-[58px] min-w-[180px] rounded-[14px] border border-[#A31D1D] bg-[#2A0E0E] px-7 text-[16px] text-[#FF7B7B] hover:bg-[#341111]"
+              >
+                <X size={20} />
+                Reject
+              </Button>
+              <Button
+                type="button"
+                onClick={onApprove}
+                disabled={!canReview}
+                isLoading={processingAction === "approve"}
+                className="h-[58px] min-w-[180px] rounded-[14px] bg-[#22C55E] px-7 text-[16px] font-semibold text-black hover:bg-[#28d165]"
+              >
+                <Check size={20} />
+                Accept
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function QuoteChangeRequestsWorkspace({
   TopbarComponent,
   title = "Quote Change Request",
@@ -199,7 +540,7 @@ export default function QuoteChangeRequestsWorkspace({
   const [page, setPage] = React.useState(1);
   const [searchInput, setSearchInput] = React.useState("");
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [approvalStatusFilter, setApprovalStatusFilter] = React.useState("pending");
+  const [approvalStatusFilter, setApprovalStatusFilter] = React.useState("all");
   const [requestTypeFilter, setRequestTypeFilter] = React.useState("all");
   const [selectedRequest, setSelectedRequest] = React.useState<QuoteChangeRequestItem | null>(null);
   const [processingAction, setProcessingAction] = React.useState<"approve" | "reject" | null>(null);
@@ -262,10 +603,6 @@ export default function QuoteChangeRequestsWorkspace({
     1
   );
   const safeCurrentPage = pagination?.page ?? Math.min(page, totalPages);
-  const listStartIndex =
-    totalItems === 0
-      ? 0
-      : (safeCurrentPage - 1) * (pagination?.limit ?? REQUESTS_PER_PAGE);
   const paginationItems = buildPaginationItems(safeCurrentPage, totalPages);
 
   React.useEffect(() => {
@@ -306,578 +643,244 @@ export default function QuoteChangeRequestsWorkspace({
     );
   };
 
-  const renderDelta = (request: QuoteChangeRequestItem) => {
-    const requestType = normalizeRequestType(request.request_type);
-    const isIncrease = requestType === "increase";
-    const amount = isIncrease ? request.extra_amount : request.reduced_amount;
-
-    return (
-      <div className="flex items-center gap-2">
-        <span
-          className={`inline-flex h-8 w-8 items-center justify-center rounded-full ${
-            isIncrease
-              ? isDark
-                ? "bg-[#102235] text-[#8CC8FF]"
-                : "bg-[#EFF6FF] text-[#1D4ED8]"
-              : isDark
-                ? "bg-[#2A1A10] text-[#FFC088]"
-                : "bg-[#FFF7ED] text-[#C2410C]"
-          }`}
-        >
-          {isIncrease ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-        </span>
-        <div>
-          <div className={`text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>
-            {formatCurrency(amount)}
-          </div>
-          <div className={`text-xs capitalize ${isDark ? "text-white/45" : "text-black/45"}`}>
-            {requestType}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const selectedStatus = normalizeStatus(selectedRequest?.approval_status);
-  const canReviewSelected = selectedStatus === "pending";
-  const selectedSummaryLines = selectedRequest?.overall_change_summary?.lines ?? [];
-
   return (
     <div className="relative overflow-hidden">
-      <TopbarComponent
-        pathname={pathname}
-        actions={
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void loadRequests()}
-            className={
-              isDark
-                ? "border-white/10 bg-[#171717] text-white hover:bg-[#202020] hover:text-white"
-                : "border-[#E4E4E4] bg-white text-[#101010] hover:bg-[#F5F5F5]"
-            }
-          >
-            <RefreshCcw size={16} />
-            Refresh
-          </Button>
-        }
-      />
+      <TopbarComponent pathname={pathname} />
 
       <div
-        className={`min-h-screen px-4 pb-16 pt-6 lg:px-10 lg:pb-20 lg:pt-9 ${
+        className={`min-h-screen px-4 pb-12 pt-6 lg:px-5 lg:pb-16 lg:pt-8 ${
           isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-[#101010]"
         }`}
       >
-        <div className="mb-6 flex flex-col gap-4">
-          <div>
-            <h1 className="text-xl font-semibold lg:text-2xl">{title}</h1>
-            <p className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-black/50"}`}>
-              {description}
-            </p>
+        <div className="mx-auto w-full max-w-[1480px]">
+          <div className="mb-6">
+            <h1 className="text-[22px] font-semibold text-white">{title}</h1>
+            <p className="mt-1 text-sm text-white/45">{description}</p>
           </div>
 
-          <div
-            className={`grid gap-3 rounded-2xl border p-4 lg:grid-cols-[minmax(0,1.4fr)_220px_220px] ${
-              isDark ? "border-white/10 bg-[#171717]" : "border-[#E4E4E4] bg-white"
-            }`}
-          >
-            <div
-              className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 ${
-                isDark ? "border-white/10 bg-[#111111]" : "border-[#E4E4E4] bg-[#FAFAFA]"
-              }`}
-            >
-              <Search size={16} className={isDark ? "text-white/35" : "text-black/35"} />
+          <div className="mb-4 border-t border-dashed border-white/10" />
+
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row">
+            <div className="flex min-w-0 flex-1 items-center rounded-[14px] border border-white/10 bg-[#242424] px-4 py-3">
+              <Search size={17} className="mr-3 text-white/35" />
               <input
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Search quote, booking, client, rep"
-                className={`w-full bg-transparent text-sm outline-none ${
-                  isDark ? "placeholder:text-white/25" : "placeholder:text-black/25"
-                }`}
+                placeholder="Search quotes, booking, Client , rep"
+                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/28"
               />
             </div>
 
-            <select
-              value={approvalStatusFilter}
-              onChange={(event) => setApprovalStatusFilter(event.target.value)}
-              className={`rounded-2xl border px-4 py-3 text-sm outline-none ${
-                isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#E4E4E4] bg-[#FAFAFA] text-[#101010]"
-              }`}
-            >
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="all">All Statuses</option>
-            </select>
+            <div className="flex gap-3">
+              <div className="relative">
+                <select
+                  value={requestTypeFilter}
+                  onChange={(event) => setRequestTypeFilter(event.target.value)}
+                  className="h-[46px] appearance-none rounded-[14px] border border-white/10 bg-[#242424] pl-4 pr-10 text-sm text-white outline-none"
+                >
+                  <option value="all">All Types</option>
+                  <option value="increase">Increase</option>
+                  <option value="decrease">Decrease</option>
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/60"
+                />
+              </div>
 
-            <select
-              value={requestTypeFilter}
-              onChange={(event) => setRequestTypeFilter(event.target.value)}
-              className={`rounded-2xl border px-4 py-3 text-sm outline-none ${
-                isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#E4E4E4] bg-[#FAFAFA] text-[#101010]"
-              }`}
-            >
-              <option value="all">All Types</option>
-              <option value="increase">Increase</option>
-              <option value="decrease">Decrease</option>
-            </select>
+              <div className="relative">
+                <select
+                  value={approvalStatusFilter}
+                  onChange={(event) => setApprovalStatusFilter(event.target.value)}
+                  className="h-[46px] appearance-none rounded-[14px] border border-white/10 bg-[#242424] pl-4 pr-10 text-sm text-white outline-none"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Accepted</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/60"
+                />
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div
-          className={`overflow-hidden rounded-3xl border ${
-            isDark ? "border-white/10 bg-[#171717]" : "border-[#E7E7E7] bg-white shadow-sm"
-          }`}
-        >
-          <div className="hidden overflow-x-auto lg:block">
-            <table className="min-w-full">
-              <thead>
-                <tr className={isDark ? "bg-[#111111]" : "bg-[#FBFBFB]"}>
-                  {["Quote", "Client", "Change", "Totals", "Status", "Requested At", "View"].map((label) => (
-                    <th
-                      key={label}
-                      className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] ${
-                        isDark ? "text-white/35" : "text-black/35"
-                      }`}
-                    >
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <tr key={index} className={isDark ? "border-t border-white/5" : "border-t border-black/5"}>
-                      {Array.from({ length: 7 }).map((__, cellIndex) => (
-                        <td key={cellIndex} className="px-6 py-5">
-                          <div className={`h-4 animate-pulse rounded ${isDark ? "bg-white/10" : "bg-black/10"}`} />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                ) : requests.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-20 text-center">
-                      <div className="flex flex-col items-center">
-                        <FileText size={32} className={isDark ? "text-[#E8D1AB]" : "text-[#8A6A30]"} />
-                        <p className="mt-4 text-lg font-semibold">No change requests found</p>
-                        <p className={`mt-2 text-sm ${isDark ? "text-white/50" : "text-black/45"}`}>
-                          When a quote update requires review, it will appear here.
-                        </p>
-                      </div>
-                    </td>
+          <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#171717]">
+            <div className="hidden lg:block">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b border-white/[0.04] bg-[#141414] text-left text-[11px] text-[#E7D2AB]">
+                    {["Quote", "Client", "Changes", "Total Amount", "Status", "Requested At", "Action"].map(
+                      (label) => (
+                        <th key={label} className="px-4 py-4 font-medium">
+                          {label}
+                        </th>
+                      )
+                    )}
                   </tr>
-                ) : (
-                  requests.map((request) => (
-                    <tr
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 10 }).map((_, index) => (
+                      <tr key={index} className="border-t border-white/[0.05]">
+                        {Array.from({ length: 7 }).map((__, cellIndex) => (
+                          <td key={cellIndex} className="px-4 py-4">
+                            <div className="h-5 animate-pulse rounded bg-white/8" />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : requests.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-20 text-center text-white/58">
+                        No change requests found
+                      </td>
+                    </tr>
+                  ) : (
+                    requests.map((request) => (
+                      <TableRow
+                        key={String(request.activity_id)}
+                        request={request}
+                        onView={() => setSelectedRequest(request)}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-3 p-4 lg:hidden">
+              {loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="rounded-[16px] border border-white/10 bg-[#141414] p-4">
+                    <div className="h-4 animate-pulse rounded bg-white/8" />
+                    <div className="mt-3 h-4 animate-pulse rounded bg-white/8" />
+                    <div className="mt-3 h-10 animate-pulse rounded bg-white/8" />
+                  </div>
+                ))
+              ) : requests.length === 0 ? (
+                <div className="py-12 text-center text-white/58">No change requests found</div>
+              ) : (
+                requests.map((request) => {
+                  const clientName = request.client_name || "Client not available";
+                  const requestTypeMeta = getRequestTypeMeta(request.request_type || "");
+                  const status = normalizeStatus(request.approval_status);
+                  const changeAmount =
+                    normalizeRequestType(request.request_type) === "increase"
+                      ? request.extra_amount
+                      : request.reduced_amount;
+
+                  return (
+                    <button
                       key={String(request.activity_id)}
+                      type="button"
                       onClick={() => setSelectedRequest(request)}
-                      className={`cursor-pointer transition-colors ${
-                        isDark
-                          ? "border-t border-white/5 hover:bg-white/[0.03]"
-                          : "border-t border-black/5 hover:bg-[#FAFAFA]"
-                      }`}
+                      className="w-full rounded-[16px] border border-white/10 bg-[#141414] p-4 text-left"
                     >
-                      <td className="px-6 py-5">
-                        <div className="font-semibold">
-                          {request.quote_number || `Quote #${request.quote_id ?? "-"}`}
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-[15px] font-medium text-white">
+                            {request.quote_number || `Beige - ${request.quote_id ?? "-"}`}
+                          </div>
+                          <div className="mt-1 text-xs text-white/28">{clientName}</div>
                         </div>
-                        <div className={`text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>
-                          Activity #{request.activity_id}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="font-medium">{request.client_name || "Client not available"}</div>
-                        <div className={`text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>
-                          Booking #{request.booking_id ?? "-"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">{renderDelta(request)}</td>
-                      <td className="px-6 py-5">
-                        <div className="text-sm">
-                          <div>Before: {formatCurrency(request.previous_total)}</div>
-                          <div>After: {formatCurrency(request.new_total)}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
                         <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${getStatusBadgeClass(
-                            isDark,
-                            request.approval_status
+                          className={`inline-flex min-w-[84px] items-center justify-center rounded-full px-3 py-1 text-xs font-medium capitalize ${getStatusBadgeClass(
+                            status
                           )}`}
                         >
-                          {normalizeStatus(request.approval_status)}
+                          {status}
                         </span>
-                      </td>
-                      <td className="px-6 py-5 text-sm">{formatDateTime(request.created_at)}</td>
-                      <td className="px-6 py-5">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedRequest(request);
-                          }}
-                          className={
-                            isDark
-                              ? "border-white/10 bg-[#111111] text-white hover:bg-[#1D1D1D] hover:text-white"
-                              : "border-[#E4E4E4] bg-white text-[#101010] hover:bg-[#F4F4F4]"
-                          }
-                        >
-                          <Eye size={16} />
-                          View
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                      </div>
 
-          <div className="space-y-4 p-4 lg:hidden">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, index) => (
-                <div
-                  key={index}
-                  className={`rounded-2xl border p-4 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E4E4E4] bg-white"}`}
-                >
-                  <div className={`mb-3 h-4 animate-pulse rounded ${isDark ? "bg-white/10" : "bg-black/10"}`} />
-                  <div className={`mb-3 h-4 animate-pulse rounded ${isDark ? "bg-white/10" : "bg-black/10"}`} />
-                  <div className={`h-10 animate-pulse rounded ${isDark ? "bg-white/10" : "bg-black/10"}`} />
+                      <div className="mt-4 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${requestTypeMeta.iconWrapClass}`}
+                          >
+                            <requestTypeMeta.Icon size={20} strokeWidth={2.5} />
+                          </div>
+                          <div>
+                            <div className={`text-[15px] font-semibold ${requestTypeMeta.amountClass}`}>
+                              {formatCurrency(changeAmount)}
+                            </div>
+                            <div className="mt-0.5 text-xs text-white/28">
+                              {requestTypeMeta.label}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right text-xs leading-5 text-white/48">
+                          {formatDateTime(request.created_at)}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {!loading && requests.length > 0 ? (
+              <div className="flex flex-col gap-4 border-t border-white/[0.05] px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="text-sm text-white/58">{`Page ${safeCurrentPage} to ${totalPages}`}</div>
+
+                <div className="flex items-center gap-2 self-end">
+                  <button
+                    type="button"
+                    onClick={() => setPage((currentValue) => Math.max(1, currentValue - 1))}
+                    disabled={safeCurrentPage === 1}
+                    className="flex h-9 w-9 items-center justify-center rounded-[10px] text-white/48 transition-colors hover:bg-white/[0.04] disabled:opacity-35"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+
+                  {paginationItems.map((item, index) =>
+                    item === "..." ? (
+                      <span key={`ellipsis-${index}`} className="px-2 text-sm text-white/28">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setPage(item)}
+                        className={`flex h-9 min-w-9 items-center justify-center rounded-[10px] px-3 text-sm transition-colors ${
+                          safeCurrentPage === item
+                            ? "border border-[#5A4A32] bg-[#221B13] text-[#E7D2AB]"
+                            : "text-white/58 hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setPage((currentValue) => Math.min(totalPages, currentValue + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    className="flex h-9 w-9 items-center justify-center rounded-[10px] text-white/48 transition-colors hover:bg-white/[0.04] disabled:opacity-35"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
-              ))
-            ) : requests.length === 0 ? (
-              <div className="py-12 text-center">
-                <FileText size={30} className={`mx-auto ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A30]"}`} />
-                <p className="mt-4 text-lg font-semibold">No change requests found</p>
               </div>
-            ) : (
-              requests.map((request) => (
-                <button
-                  key={String(request.activity_id)}
-                  type="button"
-                  onClick={() => setSelectedRequest(request)}
-                  className={`w-full rounded-2xl border p-4 text-left ${
-                    isDark ? "border-white/10 bg-[#171717]" : "border-[#E4E4E4] bg-white"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-semibold">
-                        {request.quote_number || `Quote #${request.quote_id ?? "-"}`}
-                      </div>
-                      <div className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-black/50"}`}>
-                        {request.client_name || "Client not available"}
-                      </div>
-                    </div>
-                    <span
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${getStatusBadgeClass(
-                        isDark,
-                        request.approval_status
-                      )}`}
-                    >
-                      {normalizeStatus(request.approval_status)}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between gap-4">
-                    {renderDelta(request)}
-                    <div className={`text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                      {formatDateTime(request.created_at)}
-                    </div>
-                  </div>
-                </button>
-              ))
-            )}
+            ) : null}
           </div>
         </div>
-
-        {!loading && requests.length > 0 && totalPages > 1 ? (
-          <div
-            className={`mt-5 flex flex-col gap-4 rounded-2xl border px-5 py-4 md:flex-row md:items-center md:justify-between ${
-              isDark
-                ? "border-[#3D3D3D] bg-[#161616]"
-                : "border-[#E5E5E5] bg-[#FFFCF6]"
-            }`}
-          >
-            <div className={`text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
-              Showing {listStartIndex + 1} to{" "}
-              {Math.min(listStartIndex + (pagination?.limit ?? REQUESTS_PER_PAGE), totalItems)} of{" "}
-              {totalItems} results
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((currentValue) => Math.max(1, currentValue - 1))}
-                disabled={safeCurrentPage === 1}
-                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
-                  isDark
-                    ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
-                    : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
-                }`}
-              >
-                Previous
-              </button>
-
-              <div className="flex items-center gap-1">
-                {paginationItems.map((item, index) =>
-                  item === "..." ? (
-                    <span
-                      key={`pagination-gap-${index}`}
-                      className={`px-2 text-xs ${isDark ? "text-white/30" : "text-black/30"}`}
-                    >
-                      ...
-                    </span>
-                  ) : (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => setPage(item)}
-                      className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-all ${
-                        safeCurrentPage === item
-                          ? "bg-[#E5D5B8] text-black"
-                          : isDark
-                            ? "text-white/60 hover:bg-white/5 hover:text-white"
-                            : "text-[#666666] hover:bg-black/5"
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  )
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setPage((currentValue) => Math.min(totalPages, currentValue + 1))}
-                disabled={safeCurrentPage === totalPages}
-                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-30 ${
-                  isDark
-                    ? "border-[#333333] bg-[#101010] text-white/60 hover:bg-white/10 hover:text-white"
-                    : "border-[#E5E5E5] bg-white text-[#333333] hover:bg-black/5"
-                }`}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        ) : null}
       </div>
 
-      <Dialog open={Boolean(selectedRequest)} onOpenChange={(open) => !open && setSelectedRequest(null)}>
-        <DialogContent
-          className={`max-h-[90vh] max-w-3xl overflow-y-auto border ${
-            isDark ? "border-[#2E2E2E] bg-[#171717] text-white" : "border-[#E4E4E4] bg-white text-[#101010]"
-          }`}
-        >
-          {selectedRequest ? (
-            <>
-              <DialogHeader>
-                <DialogTitle className={isDark ? "text-white" : "text-[#101010]"}>
-                  {selectedRequest.quote_number || `Quote #${selectedRequest.quote_id ?? "-"}`}
-                </DialogTitle>
-                <DialogDescription className={isDark ? "text-white/55" : "text-black/50"}>
-                  Review the quote change request details and approve or reject from this popup.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-5">
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div
-                    className={`rounded-2xl border p-4 ${
-                      isDark ? "border-white/10 bg-[#111111]" : "border-[#ECECEC] bg-[#FAFAFA]"
-                    }`}
-                  >
-                    <div className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-white/35" : "text-black/35"}`}>
-                      Status
-                    </div>
-                    <div className="mt-3">
-                      <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${getStatusBadgeClass(
-                          isDark,
-                          selectedRequest.approval_status
-                        )}`}
-                      >
-                        {normalizeStatus(selectedRequest.approval_status)}
-                      </span>
-                    </div>
-                  </div>
-                  <div
-                    className={`rounded-2xl border p-4 ${
-                      isDark ? "border-white/10 bg-[#111111]" : "border-[#ECECEC] bg-[#FAFAFA]"
-                    }`}
-                  >
-                    <div className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-white/35" : "text-black/35"}`}>
-                      Request Type
-                    </div>
-                    <div className="mt-3">
-                      <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${getTypeBadgeClass(
-                          isDark,
-                          selectedRequest.request_type
-                        )}`}
-                      >
-                        {normalizeRequestType(selectedRequest.request_type)}
-                      </span>
-                    </div>
-                  </div>
-                  <div
-                    className={`rounded-2xl border p-4 ${
-                      isDark ? "border-white/10 bg-[#111111]" : "border-[#ECECEC] bg-[#FAFAFA]"
-                    }`}
-                  >
-                    <div className={`text-xs uppercase tracking-[0.18em] ${isDark ? "text-white/35" : "text-black/35"}`}>
-                      Requested At
-                    </div>
-                    <div className="mt-3 text-sm font-medium">{formatDateTime(selectedRequest.created_at)}</div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div
-                    className={`rounded-2xl border p-5 ${
-                      isDark ? "border-white/10 bg-[#111111]" : "border-[#ECECEC] bg-[#FAFAFA]"
-                    }`}
-                  >
-                    <div className="mb-4 flex items-center gap-2">
-                      <User2 size={16} className={isDark ? "text-[#E8D1AB]" : "text-[#8A6A30]"} />
-                      <h3 className="font-semibold">Request Info</h3>
-                    </div>
-                    <div className="space-y-3 text-sm">
-                      <div>
-                        <div className={isDark ? "text-white/40" : "text-black/40"}>Client</div>
-                        <div className="font-medium">{selectedRequest.client_name || "Not available"}</div>
-                      </div>
-                      <div>
-                        <div className={isDark ? "text-white/40" : "text-black/40"}>Booking Id</div>
-                        <div className="font-medium">{selectedRequest.booking_id ?? "-"}</div>
-                      </div>
-                      <div>
-                        <div className={isDark ? "text-white/40" : "text-black/40"}>Requested By</div>
-                        <div className="font-medium">{selectedRequest.requested_by?.name || "System"}</div>
-                      </div>
-                      <div>
-                        <div className={isDark ? "text-white/40" : "text-black/40"}>Assigned Sales Rep</div>
-                        <div className="font-medium">{selectedRequest.assigned_sales_rep?.name || "-"}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`rounded-2xl border p-5 ${
-                      isDark ? "border-white/10 bg-[#111111]" : "border-[#ECECEC] bg-[#FAFAFA]"
-                    }`}
-                  >
-                    <div className="mb-4 flex items-center gap-2">
-                      <Clock3 size={16} className={isDark ? "text-[#E8D1AB]" : "text-[#8A6A30]"} />
-                      <h3 className="font-semibold">Totals</h3>
-                    </div>
-                    <div className="space-y-3 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className={isDark ? "text-white/40" : "text-black/40"}>Previous Total</span>
-                        <span className="font-semibold">{formatCurrency(selectedRequest.previous_total)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className={isDark ? "text-white/40" : "text-black/40"}>New Total</span>
-                        <span className="font-semibold">{formatCurrency(selectedRequest.new_total)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className={isDark ? "text-white/40" : "text-black/40"}>Increase Amount</span>
-                        <span className="font-semibold">{formatCurrency(selectedRequest.extra_amount)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className={isDark ? "text-white/40" : "text-black/40"}>Reduced Amount</span>
-                        <span className="font-semibold">{formatCurrency(selectedRequest.reduced_amount)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  className={`rounded-2xl border p-5 ${
-                    isDark ? "border-white/10 bg-[#111111]" : "border-[#ECECEC] bg-[#FAFAFA]"
-                  }`}
-                >
-                  <h3 className="mb-3 font-semibold">Change Summary</h3>
-                  <p className={`text-sm leading-6 ${isDark ? "text-white/70" : "text-black/65"}`}>
-                    {selectedRequest.overall_change_summary?.summary ||
-                      "This request contains quote changes that require admin review."}
-                  </p>
-
-                  {selectedSummaryLines.length > 0 ? (
-                    <div className="mt-4 space-y-2">
-                      {selectedSummaryLines.map((line, index) => (
-                        <div
-                          key={`${selectedRequest.activity_id}-summary-${index}`}
-                          className={`rounded-xl px-4 py-3 text-sm ${
-                            isDark ? "bg-[#171717] text-white/75" : "bg-white text-black/70"
-                          }`}
-                        >
-                          {line}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-
-                {selectedRequest.quote_id ? (
-                  <div className="text-sm">
-                    <Link
-                      href={`${detailsHrefBase}/${selectedRequest.quote_id}`}
-                      className={`font-medium underline-offset-4 hover:underline ${
-                        isDark ? "text-[#E8D1AB]" : "text-[#8A6A30]"
-                      }`}
-                    >
-                      Open full quote details
-                    </Link>
-                  </div>
-                ) : null}
-              </div>
-
-              <DialogFooter className="mt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setSelectedRequest(null)}
-                  className={
-                    isDark
-                      ? "border-white/10 bg-[#111111] text-white hover:bg-[#1D1D1D] hover:text-white"
-                      : "border-[#E4E4E4] bg-white text-[#101010] hover:bg-[#F4F4F4]"
-                  }
-                >
-                  Close
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => void handleReview("reject")}
-                  disabled={!canReviewSelected}
-                  isLoading={processingAction === "reject"}
-                  className={
-                    isDark
-                      ? "bg-[#2A1414] text-[#FFB4B4] hover:bg-[#351818]"
-                      : "bg-[#FFF1F1] text-[#C62828] hover:bg-[#FFE4E4]"
-                  }
-                >
-                  <XCircle size={16} />
-                  Reject
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => void handleReview("approve")}
-                  disabled={!canReviewSelected}
-                  isLoading={processingAction === "approve"}
-                  className="bg-[#E5D5B8] text-black hover:bg-[#d7c7aa]"
-                >
-                  <CheckCircle2 size={16} />
-                  Approve
-                </Button>
-              </DialogFooter>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      {selectedRequest ? (
+        <RequestDetailsModal
+          request={selectedRequest}
+          detailsHrefBase={detailsHrefBase}
+          onClose={() => setSelectedRequest(null)}
+          onApprove={() => void handleReview("approve")}
+          onReject={() => void handleReview("reject")}
+          processingAction={processingAction}
+        />
+      ) : null}
     </div>
   );
 }

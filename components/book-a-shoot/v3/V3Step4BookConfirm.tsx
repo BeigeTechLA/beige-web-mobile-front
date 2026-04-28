@@ -700,35 +700,63 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
+                  <div className={`flex gap-3 ${isMultiDay && !allSameTime ? "items-start" : "items-center"}`}>
+                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center shrink-0">
                       <Calendar size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-base lg:text-lg font-medium capitalize">
-                    {summaryDateText}
-                      </span>
-                      <span className="text-sm text-[#A9A9A9]">Date</span>
+                      {isMultiDay ? (
+                        <>
+                          <span className="text-[#A9A9A9] text-sm mb-1">
+                            {sortedBookingDays.length} Days
+                          </span>
+                          {sortedBookingDays.map((day, idx) => (
+                            
+                            <span key={idx} className="text-white text-sm lg:text-base font-medium">
+                            <span className="text-[#A9A9A9]">• </span>
+                              {formatSummaryDate(day.date)}
+                            </span>
+                          ))}
+                        </>
+                      ) : (
+                        <span className="text-white text-base lg:text-lg font-medium capitalize">
+                          {summaryDateText}
+                        </span>
+                      )}
+                      
                     </div>
                   </div>
                 </div>
-              {!isEditingOnly && (
-                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
+                {!isEditingOnly && (
+                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 h-fit">
+                  <div className={`flex gap-3 ${isMultiDay && !allSameTime ? "items-start" : "items-center"}`}>
+                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center shrink-0">
                       <Clock size={32} className="text-[#9D9595]" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-white text-base lg:text-lg font-medium capitalize">
-                        {displayTimeText}
-                      </span>
-                      <span className="text-sm text-[#A9A9A9]">Time</span>
+                      {isMultiDay && !allSameTime ? (
+                        <>
+                          <span className="text-[#A9A9A9] text-sm mb-1">Per Day</span>
+                          {sortedBookingDays.map((day, idx) => (
+                            <span key={idx} className="text-white text-sm lg:text-base font-medium">
+                              <span className="text-[#A9A9A9]">• </span>
+                              {day.startTime && day.endTime
+                                ? `${formatDisplayTime(day.startTime)} – ${formatDisplayTime(day.endTime)}`
+                                : "Time not set"}
+                            </span>
+                          ))}
+                        </>
+                      ) : (
+                        <span className="text-white text-base lg:text-lg font-medium capitalize">
+                          {displayTimeText}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-                 )}
+                )}
               </div>
-             
+                             
               {!isEditingOnly && (
               <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
                 <div className="flex items-center gap-3">
