@@ -431,7 +431,7 @@ const QuoteTopActions = ({
       className="h-11 rounded-xl border-[#E8D1AB]/30 bg-[#201A10] px-4 text-[#E8D1AB] hover:bg-[#2A2114]"
     >
       <DollarSign size={18} />
-      Payment Transaction
+      Record Payment
     </Button>
     <Button
       type="button"

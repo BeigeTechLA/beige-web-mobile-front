@@ -272,7 +272,7 @@ const QuoteActionMenu = ({
           ) : null}
           <QuoteActionMenuButton
             icon={<DollarSign size={18} />}
-            label="Payment Transaction"
+            label="Record Payment"
             onClick={handleMenuAction(onPaymentTransaction)}
           />
         </div>

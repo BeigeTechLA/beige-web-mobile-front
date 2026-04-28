@@ -134,7 +134,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
           {(itemType === "lead" || itemType === "client") && allowPaymentTransaction && (
             <MenuButton
               icon={<TicketPercent size={18} />}
-              label="Payment Transaction"
+              label="Record Payment"
               onClick={() => setIsPaymentModalOpen(true)}
               isDark={isDark}
             />
