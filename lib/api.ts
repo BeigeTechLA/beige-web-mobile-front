@@ -301,6 +301,9 @@ export interface SalesQuoteListItem {
   id?: number | string;
   quote_id?: number | string;
   sales_quote_id?: number | string;
+  client_user_id?: number | string;
+  user_id?: number | string;
+  client_id?: number | string;
   quote_number?: string;
   client_name?: string;
   client?: string;
@@ -2220,6 +2223,53 @@ export const salesApi = {
       };
     }
   },
+  getClientQuotesList: async (
+    clientUserId: number | string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      range?: string;
+      date_on?: string;
+      assigned_sales_rep_id?: number | string;
+    } = {}
+  ) => {
+    try {
+      const response = await api.get<QuotesListResponse>('/sales/quotes', {
+        params: {
+          ...params,
+          client_user_id: clientUserId,
+          user_id: clientUserId,
+          client_id: clientUserId,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Quotes List Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch client quotes list',
+      };
+    }
+  },
+  updateAffiliateQuoteStatus: async (quoteId: number | string, status: string) => {
+    try {
+      void status;
+      const response = await api.get<SalesQuoteStatusUpdateResponse>(
+        `/sales/quotes/reject/${quoteId}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Affiliate Quote Status Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update affiliate quote status',
+      };
+    }
+  },
   getQuoteDetail: async (quoteId: number | string) => {
     try {
       const response = await api.get<SalesQuoteDetailResponse>(`/sales/quotes/${quoteId}`);
@@ -2797,6 +2847,33 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to save signature',
+      };
+    }
+  },
+
+  signAndAcceptQuote: async (payload: {
+    quote_id: number | string;
+    signature: File;
+    signer_email: string;
+    signer_name: string;
+  }) => {
+    try {
+      const formData = new FormData();
+      formData.append('quote_id', String(payload.quote_id));
+      formData.append('signature', payload.signature);
+      formData.append('signer_email', payload.signer_email);
+      formData.append('signer_name', payload.signer_name);
+
+      const response = await api.post('/signatures/sign', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Sign And Accept Quote Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to sign and accept quote',
       };
     }
   },

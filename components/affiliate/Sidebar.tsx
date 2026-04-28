@@ -7,6 +7,22 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 
+const CustomQuotesIcon = ({ size = 24 }) => (
+  <div
+    style={{
+      width: size,
+      height: size,
+      backgroundColor: 'currentColor',
+      WebkitMaskImage: `url('/images/misc/Quotes.svg')`,
+      maskImage: `url('/images/misc/Quotes.svg')`,
+      WebkitMaskRepeat: 'no-repeat',
+      maskRepeat: 'no-repeat',
+      WebkitMaskSize: 'contain',
+      maskSize: 'contain'
+    }}
+  />
+);
+
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard' },
   { name: 'Affiliate Overview', icon: Users, link: '/affiliate/overview' },
@@ -15,6 +31,7 @@ const menuItems = [
   { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings' },
   { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages'},
   { name: 'Shoots', icon: Camera, link: '/affiliate/shoots' },
+  { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes' },
   { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot' },
   { name: 'Finances', icon: DollarSign, link: '/affiliate/finances' },
   { name: 'Profile', icon: Settings, link: '/affiliate/profile' },
