@@ -66,6 +66,8 @@ interface LeadData {
   intent: string;
   assignedSalesRepName?: string;
   assignedSalesRepEmail?: string;
+  hasManualPaymentHistory?: boolean;
+  isPaymentPending?: boolean;
 }
 
 type OverviewMetric = {
@@ -331,6 +333,8 @@ export default function SalesLeadsPage() {
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
+  const [selectedBookingStatus, setSelectedBookingStatus] = useState<string | null>(null);
+  const [selectedAllowPaymentTransaction, setSelectedAllowPaymentTransaction] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [activeTab, setActiveTab] = useState<TabType>("Booking");
@@ -680,6 +684,13 @@ export default function SalesLeadsPage() {
         intent: lead.intent || "Hot",
         assignedSalesRepName: lead.assigned_sales_rep?.name || "",
         assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
+        hasManualPaymentHistory: Boolean(
+          lead?.manual_payment_summary?.paidAmount > 0 ||
+            lead?.manual_payment_summary?.hasFullPayment
+        ),
+        isPaymentPending: !["paid", "booked"].includes(
+          String(lead.booking_status || "").trim().toLowerCase()
+        ),
       }));
       setDisplayLeads(mapped);
     } else if (leadsApiData) {
@@ -709,10 +720,14 @@ export default function SalesLeadsPage() {
     e: React.MouseEvent<HTMLButtonElement>,
     client: string,
     id: number | string,
+    bookingStatus?: string | null,
+    allowPaymentTransaction?: boolean,
   ) => {
     e.stopPropagation();
     setSelectedClient(client);
     setSelectedLeadId(id);
+    setSelectedBookingStatus(bookingStatus || null);
+    setSelectedAllowPaymentTransaction(Boolean(allowPaymentTransaction));
 
     const rect = e.currentTarget.getBoundingClientRect();
     const menuWidth = 220;
@@ -1076,7 +1091,15 @@ export default function SalesLeadsPage() {
                 <MobileLeadRow
                   key={lead.lead_id}
                   lead={lead}
-                  onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
+                  onOpenMenu={(e) =>
+                    handleOpenMenu(
+                      e,
+                      lead.clientName,
+                      lead.lead_id,
+                      lead.bookingStatus,
+                      Boolean(lead.isPaymentPending || lead.hasManualPaymentHistory)
+                    )
+                  }
                 />
               ))}
             </div>
@@ -1142,12 +1165,12 @@ export default function SalesLeadsPage() {
                 </td>
                 <td className="py-5 px-6 text-right">
                   <button
-                    className={`transition-colors p-1 ${isDark ? "text-[#666] hover:text-white" : "text-[#999] hover:text-black"}`}
-                    onClick={(e) => {
-                      const rawId = user.id.replace('#', '');
-                      handleOpenMenu(e, user.name, rawId as any);
-                    }}
-                  >
+                      className={`transition-colors p-1 ${isDark ? "text-[#666] hover:text-white" : "text-[#999] hover:text-black"}`}
+                      onClick={(e) => {
+                        const rawId = user.id.replace('#', '');
+                        handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
+                      }}
+                    >
                     <MoreVertical size={20} />
                   </button>
                 </td>
@@ -1189,11 +1212,20 @@ export default function SalesLeadsPage() {
           <ActionMenu
             client={selectedClient}
             leadId={selectedLeadId}
+            bookingStatus={selectedBookingStatus || undefined}
+            allowPaymentTransaction={selectedAllowPaymentTransaction}
             isOpen={true}
             onClose={() => setMenuAnchor(null)}
             anchor={menuAnchor}
             hideDelete={!isUserTypeSeven}
             onDeleteSuccess={() => {
+              refetchLeads();
+              fetchDashboardOverview();
+              if (activeTab !== "Booking") {
+                fetchUsers();
+              }
+            }}
+            onManualPaymentSuccess={() => {
               refetchLeads();
               fetchDashboardOverview();
               if (activeTab !== "Booking") {

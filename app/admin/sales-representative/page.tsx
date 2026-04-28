@@ -68,6 +68,8 @@ interface LeadData {
   intent: string;
   assignedSalesRepName?: string;
   assignedSalesRepEmail?: string;
+  hasManualPaymentHistory?: boolean;
+  isPaymentPending?: boolean;
 }
 
 type OverviewMetric = {
@@ -109,6 +111,13 @@ const mapLeadStatusToUI = (
 ): "Paid" | "In-Progress" => {
   if (paymentStatus === "paid") return "Paid";
   return "In-Progress";
+};
+
+const normalizeBookingStatusForList = (value: string): string => {
+  if (String(value || "").trim().toLowerCase() === "booked") {
+    return "Paid";
+  }
+  return value;
 };
 
 // Helper function to format relative time
@@ -330,6 +339,8 @@ export default function AdminSaleRepManagerPage() {
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
+  const [selectedBookingStatus, setSelectedBookingStatus] = useState<string | null>(null);
+  const [selectedAllowPaymentTransaction, setSelectedAllowPaymentTransaction] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [activeTab, setActiveTab] = useState<TabType>("Booking");
@@ -643,12 +654,14 @@ export default function AdminSaleRepManagerPage() {
         clientName: lead.client_name || lead.guest_email || "Unknown User",
         email: lead.guest_email || "No email",
         leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
-        bookingStatus: lead.booking_status || "Unknown",
+        bookingStatus: normalizeBookingStatusForList(lead.booking_status || "Unknown"),
         lastActivity: formatRelativeTime(lead.last_activity_at),
         date: new Date(lead.created_at),
         intent: lead.intent || "Hot",
         assignedSalesRepName: lead.assigned_sales_rep?.name || "",
         assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
+        hasManualPaymentHistory: Boolean(lead?.manual_payment_summary?.paidAmount > 0 || lead?.manual_payment_summary?.hasFullPayment),
+        isPaymentPending: !["paid", "booked"].includes(String(lead.booking_status || "").trim().toLowerCase()),
       }));
       setDisplayLeads(mapped);
     } else if (leadsApiData) {
@@ -676,10 +689,14 @@ export default function AdminSaleRepManagerPage() {
     e: React.MouseEvent<HTMLButtonElement>,
     client: string,
     id: number | string,
+    bookingStatus?: string | null,
+    allowPaymentTransaction?: boolean,
   ) => {
     e.stopPropagation();
     setSelectedClient(client);
     setSelectedLeadId(id);
+    setSelectedBookingStatus(bookingStatus || null);
+    setSelectedAllowPaymentTransaction(Boolean(allowPaymentTransaction));
 
     const rect = e.currentTarget.getBoundingClientRect();
     const menuWidth = 220;
@@ -883,7 +900,13 @@ export default function AdminSaleRepManagerPage() {
                 <MobileLeadRow
                   key={lead.lead_id}
                   lead={lead}
-                  onOpenMenu={(e) => handleOpenMenu(e, lead.clientName, lead.lead_id)}
+                  onOpenMenu={(e) => handleOpenMenu(
+                    e,
+                    lead.clientName,
+                    lead.lead_id,
+                    lead.bookingStatus,
+                    Boolean(lead.isPaymentPending || lead.hasManualPaymentHistory)
+                  )}
                 />
               ))}
             </div>
@@ -952,7 +975,7 @@ export default function AdminSaleRepManagerPage() {
                     className={`transition-colors p-1 ${isDark ? "text-[#666] hover:text-white" : "text-[#999] hover:text-black"}`}
                     onClick={(e) => {
                       const rawId = user.id.replace('#', '');
-                      handleOpenMenu(e, user.name, rawId as any);
+                      handleOpenMenu(e, user.name, rawId as any, user.bookingStatus || null, false);
                     }}
                   >
                     <MoreVertical size={20} />
@@ -997,10 +1020,18 @@ export default function AdminSaleRepManagerPage() {
           <ActionMenu
             client={selectedClient}
             leadId={selectedLeadId}
+            allowPaymentTransaction={selectedAllowPaymentTransaction}
             isOpen={true}
             onClose={() => setMenuAnchor(null)}
             anchor={menuAnchor}
             onDeleteSuccess={() => {
+              refetchLeads();
+              fetchDashboardOverview();
+              if (activeTab !== "Booking") {
+                fetchUsers();
+              }
+            }}
+            onManualPaymentSuccess={() => {
               refetchLeads();
               fetchDashboardOverview();
               if (activeTab !== "Booking") {

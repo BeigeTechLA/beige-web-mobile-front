@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
+import PaymentTransactionModal from "@/components/admin/sales-representative/PaymentTransactionModal";
 
 interface ActionMenuProps {
   isOpen: boolean;
@@ -24,6 +25,8 @@ interface ActionMenuProps {
   basePath?: string;
   hideDelete?: boolean;
   onDeleteSuccess?: () => void;
+  onManualPaymentSuccess?: () => void;
+  allowPaymentTransaction?: boolean;
 }
 
 const ActionMenu: React.FC<ActionMenuProps> = ({
@@ -35,6 +38,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   basePath,
   hideDelete = false,
   onDeleteSuccess,
+  onManualPaymentSuccess,
+  allowPaymentTransaction = true,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -44,6 +49,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   const [deleteLead, { isLoading: isDeletingLead }] = useDeleteLeadMutation();
   const [deleteClientLead, { isLoading: isDeletingClientLead }] =
     useDeleteClientLeadMutation();
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const numericLeadId = Number(leadId);
   const resolvedPath = basePath ? basePath : pathname;
 
@@ -55,7 +61,6 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
 
   const canDelete = !hideDelete && (itemType === "lead" || itemType === "client");
   const isDeleting = isDeletingLead || isDeletingClientLead;
-
   if (!isOpen) return null;
 
   const navigateToDetails = () => {
@@ -126,6 +131,14 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
             onClick={navigateToDetails}
             isDark={isDark}
           />
+          {(itemType === "lead" || itemType === "client") && allowPaymentTransaction && (
+            <MenuButton
+              icon={<TicketPercent size={18} />}
+              label="Record Payment"
+              onClick={() => setIsPaymentModalOpen(true)}
+              isDark={isDark}
+            />
+          )}
         </div>
 
         <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#F0F0F0]"}`} />
@@ -161,6 +174,18 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
         isLoading={isDeleting}
         title={itemType === "client" ? "Delete Client Lead" : "Delete Sales Lead"}
         description={`Are you sure you want to delete ${client ? String(client) : "this record"}? This action cannot be undone.`}
+      />
+      <PaymentTransactionModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        leadId={numericLeadId}
+        isClientLead={itemType === "client"}
+        isDark={isDark}
+        onSaved={() => {
+          setIsPaymentModalOpen(false);
+          onClose();
+          onManualPaymentSuccess?.();
+        }}
       />
     </>
   );

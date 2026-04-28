@@ -31,6 +31,7 @@ interface GeneratePaymentLinkProps {
   additionalPaymentOutstandingAmount?: number | string | null;
   isClientLead?: boolean;
   isDark?: boolean;
+  onBeforeGenerate?: () => Promise<{ bookingId: number; leadId?: number } | null>;
 }
 
 const formatCurrencyValue = (value?: number | string | null) => {
@@ -47,6 +48,21 @@ const formatCurrencyValue = (value?: number | string | null) => {
   }).format(numericValue);
 };
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (
+    error &&
+    typeof error === "object" &&
+    "data" in error &&
+    error.data &&
+    typeof error.data === "object" &&
+    "message" in error.data &&
+    typeof error.data.message === "string"
+  ) {
+    return error.data.message;
+  }
+  return fallback;
+};
+
 const GeneratePaymentLink = ({
   leadId,
   bookingId,
@@ -59,9 +75,13 @@ const GeneratePaymentLink = ({
   additionalPaymentOutstandingAmount,
   isClientLead,
   isDark = true,
+  onBeforeGenerate,
 }: GeneratePaymentLinkProps) => {
   const [attachDiscount, setAttachDiscount] = useState<"Yes" | "No" | null>("No");
   const [paymentData, setPaymentData] = useState<{ url: string; id: number; isExpired: boolean } | null>(null);
+  const [resolvedBookingId, setResolvedBookingId] = useState<number | null>(null);
+  const [resolvedLeadId, setResolvedLeadId] = useState<number | null>(null);
+  const [isPreparingBooking, setIsPreparingBooking] = useState(false);
   const effectiveDiscountLockMessage =
     discountLockedMessage?.trim() ||
     "This payment is tied to quote pricing. Apply or update discounts in Quote Create/Edit, then save the quote before generating the payment link.";
@@ -89,6 +109,8 @@ const GeneratePaymentLink = ({
   const [notifyLink, { isLoading: isNotifying }] = useNotifyPaymentLinkMutation();
   const [previewInvoice, { isLoading: isPreviewingInvoice }] = usePreviewInvoiceMutation();
   const [sendInvoice, { isLoading: isSendingInvoice }] = useSendInvoiceMutation();
+  const effectiveBookingId = resolvedBookingId ?? bookingId;
+  const effectiveLeadId = resolvedLeadId ?? leadId;
 
   const isPaidBooking = String(bookingStatus || "").toLowerCase() === "paid";
   const hasPendingAdditionalPayment =
@@ -106,24 +128,46 @@ const GeneratePaymentLink = ({
     !discountLocked && attachDiscount === "Yes" && Boolean(discountCodeId);
 
   const handleGenerate = async () => {
-    if (!bookingId) {
+    let nextBookingId = effectiveBookingId;
+    let nextLeadId = effectiveLeadId;
+
+    if (!nextBookingId && onBeforeGenerate) {
+      setIsPreparingBooking(true);
+      try {
+        const prepared = await onBeforeGenerate();
+        if (prepared?.bookingId) {
+          nextBookingId = prepared.bookingId;
+          setResolvedBookingId(prepared.bookingId);
+        }
+        if (prepared?.leadId) {
+          nextLeadId = prepared.leadId;
+          setResolvedLeadId(prepared.leadId);
+        }
+      } finally {
+        setIsPreparingBooking(false);
+      }
+    }
+
+    if (!nextBookingId) {
       toast.error("Booking ID is required");
       return;
     }
 
     try {
-      let response: any;
-      if (isClientLead && leadId) {
+      let response:
+        | { success?: boolean; data?: { url?: string; payment_link_id?: number } }
+        | undefined;
+      if (isClientLead && nextLeadId) {
         response = await generateClientLink({
-          client_lead_id: leadId,
-          booking_id: bookingId,
+          client_lead_id: nextLeadId,
+          booking_id: nextBookingId,
           discount_code_id: shouldAttachDiscount ? discountCodeId : undefined,
           expiry_hours: 2 // User requested 2 hours in example
         }).unwrap();
       } else {
         response = await generateLink({
-          lead_id: leadId,
-          booking_id: bookingId,
+          lead_id: nextLeadId,
+          booking_id: nextBookingId,
           discount_code_id: shouldAttachDiscount ? discountCodeId : undefined,
           expiry_hours: 48
         }).unwrap();
@@ -137,8 +181,8 @@ const GeneratePaymentLink = ({
         });
         toast.success("Payment link generated successfully");
       }
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to generate payment link");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to generate payment link"));
     }
   };
 
@@ -148,22 +192,22 @@ const GeneratePaymentLink = ({
     try {
       await notifyLink({ payment_link_id: paymentData.id }).unwrap();
       toast.success("Payment link sent successfully");
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to send notification");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to send notification"));
     }
   };
 
   const handlePreviewInvoice = async () => {
-    if (!bookingId) return;
+    if (!effectiveBookingId) return;
 
     try {
-      const response = await previewInvoice({ booking_id: bookingId }).unwrap();
+      const response = await previewInvoice({ booking_id: effectiveBookingId }).unwrap();
       if (response.success) {
         const hostedInvoiceUrl = response.data?.invoiceUrl || null;
         const invoicePdfUrl = response.data?.invoicePdf || null;
         const apiBase = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "");
-        const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${bookingId}?t=${Date.now()}`;
-        const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${bookingId}?download=1&t=${Date.now()}`;
+        const proxiedPdfUrl = `${apiBase}/sales/invoice-pdf/${effectiveBookingId}?t=${Date.now()}`;
+        const proxiedDownloadUrl = `${apiBase}/sales/invoice-pdf/${effectiveBookingId}?download=1&t=${Date.now()}`;
 
         if (!hostedInvoiceUrl && !invoicePdfUrl) {
           toast.error("Preview URL not available");
@@ -186,21 +230,21 @@ const GeneratePaymentLink = ({
 
         toast.success("Invoice opened and download started");
       }
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to preview invoice");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to preview invoice"));
     }
   };
 
   const handleSendInvoice = async () => {
-    if (!bookingId) return;
+    if (!effectiveBookingId) return;
 
     try {
-      const response = await sendInvoice({ booking_id: bookingId }).unwrap();
+      const response = await sendInvoice({ booking_id: effectiveBookingId }).unwrap();
       if (response.success) {
         toast.success("Invoice sent successfully to client email");
       }
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to send invoice");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to send invoice"));
     }
   };
 
@@ -299,7 +343,7 @@ const GeneratePaymentLink = ({
                     type="button"
                     onClick={() => {
                       if (discountLocked) return;
-                      setAttachDiscount(opt as any);
+                      setAttachDiscount(opt as "Yes" | "No");
                     }}
                     disabled={discountLocked}
                     title={discountLocked ? effectiveDiscountLockMessage : undefined}
@@ -324,11 +368,11 @@ const GeneratePaymentLink = ({
 
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating}
+              disabled={isGenerating || isPreparingBooking}
               className={`h-12 w-full font-semibold rounded-xl transition-all ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"
                 }`}
             >
-              {isGenerating ? "Generating..." : "Generate Payment Link"}
+              {isPreparingBooking ? "Preparing Booking..." : isGenerating ? "Generating..." : "Generate Payment Link"}
             </Button>
           </div>
         ) : paymentData && !isPaidBooking ? (
