@@ -197,7 +197,16 @@ export const Step3DateTime = ({ data, updateData, onNext, onBack }: Props) => {
           {/* LOCATION */}
           <LocationPicker
             value={data.location}
-            onChange={(address) => updateData({ location: address })}
+            onChange={(address, details) =>
+              updateData({
+                location: address,
+                locationDetails: details || null,
+                locationLatitude:
+                  details?.coordinates?.lat ?? details?.lat ?? details?.center?.[1] ?? null,
+                locationLongitude:
+                  details?.coordinates?.lng ?? details?.lng ?? details?.center?.[0] ?? null,
+              })
+            }
             placeholder="Click to select location on map"
             colors={darkThemeColors}
           />

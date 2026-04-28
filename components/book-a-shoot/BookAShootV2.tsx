@@ -58,6 +58,9 @@ export type BookingData = {
   startDate: string;
   endDate: string;
   location: string;
+  locationDetails?: any;
+  locationLatitude?: number | null;
+  locationLongitude?: number | null;
   needStudio: boolean;
   studio: string;
   studioTimeDuration: number;
@@ -85,6 +88,9 @@ const initialData: BookingData = {
   startDate: "",
   endDate: "",
   location: "",
+  locationDetails: null,
+  locationLatitude: null,
+  locationLongitude: null,
   needStudio: false,
   studio: "",
   studioTimeDuration: 3,
@@ -224,6 +230,8 @@ export const BookAShootV2 = () => {
         budget_max: quote?.total || formData.budgetMax,
         crew_size: String(formData.crewSize),
         location: formData.location,
+        location_latitude: formData.locationLatitude ?? undefined,
+        location_longitude: formData.locationLongitude ?? undefined,
         skills_needed: formData.contentType.join(","),
         equipments_needed:
           selectedItems.length > 0 ? JSON.stringify(selectedItems) : undefined,

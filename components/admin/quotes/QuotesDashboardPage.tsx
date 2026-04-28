@@ -263,7 +263,7 @@ const QuoteActionMenu = ({
           {allowEdit ? (
             <QuoteActionMenuButton
               icon={<Pencil size={18} />}
-              label="Edit"
+              label="Update Quote"
               onClick={handleMenuAction(onEdit)}
             />
           ) : null}
@@ -583,6 +583,10 @@ const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
     case "paid":
       return "bg-[#D6FFE6] text-[#27AE60] border-transparent";
+    case "partially paid":
+    case "partial_paid":
+    case "partially_paid":
+      return "bg-[#FFF6E9] text-[#D4A017] border-transparent";
     case "accepted":
     case "confirmed":
       return "bg-[#D6FFE6] text-[#27AE60] border-transparent";
@@ -1619,7 +1623,7 @@ export default function QuotesDashboardPage({
                         </td>
                         <td className="px-4 py-4 text-right md:px-6 md:text-left">
                           <span
-                            className={`rounded-full border px-3 py-1 text-[12px] font-medium md:text-base ${quote.statusColor}`}
+                            className={`inline-flex w-fit items-center justify-center whitespace-nowrap rounded-full border px-3 py-1 text-[12px] font-medium leading-none md:text-sm ${quote.statusColor}`}
                           >
                             {quote.status}
                           </span>

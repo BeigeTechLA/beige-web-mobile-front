@@ -60,6 +60,7 @@ import {
 import {
   extractQuoteLineItems,
   formatQuoteItemDisplayName,
+  getQuoteAdditionalPaymentDetails,
   getQuoteLineItemEditingTypeConfiguration,
   getQuoteLineItemEditingTypeLabel,
 } from "@/lib/quoteDetail";
@@ -2848,6 +2849,10 @@ export default function CreateQuotePage() {
   const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
+  const additionalPaymentDetails = React.useMemo(
+    () => getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote),
+    [previewQuote, quoteToEdit],
+  );
   React.useEffect(() => {
     const currentValue = Number(discountValue);
 
@@ -2912,7 +2917,9 @@ export default function CreateQuotePage() {
   const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId);
   const showInvoiceActions = view === "tax" && isQuoteSaved && Boolean(resolvedInvoiceQuoteId);
   const showPreviewAction = view === "tax";
-
+  const convertBookingActionLabel = isConvertedToBooking
+    ? "Update Booking"
+    : "Convert to Booking";
   const getQuoteDraftPayload = (maxStep?: typeof view) =>
     buildQuoteDraftPayload({
       selectedClient,
@@ -3393,12 +3400,6 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (!isConvertedToBooking) {
-      setConvertIntent("view_invoice");
-      setIsConvertModalOpen(true);
-      return;
-    }
-
     await previewQuoteInvoiceRequest();
   };
 
@@ -3440,7 +3441,16 @@ export default function CreateQuotePage() {
       return;
     }
 
-    setConvertIntent("send_invoice");
+    await sendQuoteInvoiceRequest();
+  };
+
+  const handleConvertToBooking = () => {
+    if (!resolvedInvoiceQuoteId) {
+      toast.error("Quote id is missing.");
+      return;
+    }
+
+    setConvertIntent("convert_only");
     setIsConvertModalOpen(true);
   };
 
@@ -3469,6 +3479,9 @@ export default function CreateQuotePage() {
           start_date: bookingData.singleDay.date,
           start_time: `${bookingData.singleDay.startTime}:00`,
           end_time: `${bookingData.singleDay.endTime}:00`,
+          location: bookingData.location || "",
+          location_latitude: bookingData.location_latitude ?? undefined,
+          location_longitude: bookingData.location_longitude ?? undefined,
         };
       } else {
         if (!bookingData.multiDay) {
@@ -3478,6 +3491,9 @@ export default function CreateQuotePage() {
         payload = {
           booking_type: "multi_day",
           time_zone: browserTimeZone,
+          location: bookingData.location || "",
+          location_latitude: bookingData.location_latitude ?? undefined,
+          location_longitude: bookingData.location_longitude ?? undefined,
           booking_days: bookingData.multiDay.days.map((day) => ({
             date: day.date,
             start_time: `${day.startTime}:00`,
@@ -6527,6 +6543,29 @@ export default function CreateQuotePage() {
                       {formatCurrency(totalAfterTax)}
                     </span>
                   </div>
+                  {additionalPaymentDetails ? (
+                    <>
+                      <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm lg:text-base text-[#9F9FA9]">
+                            Previously Paid
+                          </span>
+                          <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                            {formatCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm lg:text-base text-[#9F9FA9]">
+                            Additional Amount
+                          </span>
+                          <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                            {formatCurrency(additionalPaymentDetails.additionalAmount)}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
 
                   <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
 
@@ -6538,6 +6577,7 @@ export default function CreateQuotePage() {
                       {formatCurrency(totalAfterDiscount)}
                     </span>
                   </div>
+
                 </div>
               </div>
             </div>
@@ -7023,6 +7063,16 @@ export default function CreateQuotePage() {
               <>
                 <Button
                   type="button"
+                  onClick={handleConvertToBooking}
+                  disabled={isViewingInvoice || isSendingInvoice || isConverting}
+                  variant="outline"
+                  className="border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all shadow-lg disabled:opacity-70"
+                >
+                  {isConverting ? <Loader2 size={20} className="animate-spin" /> : null}
+                  {isConverting ? "Converting..." : convertBookingActionLabel}
+                </Button>
+                <Button
+                  type="button"
                   onClick={() => {
                     void handleViewInvoice();
                   }}
@@ -7084,7 +7134,15 @@ export default function CreateQuotePage() {
       {/* --- FLOATING MOBILE BUTTON --- */}
       <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#0f0f0f]`}>
         {showInvoiceActions ? (
-          <div className="flex gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Button
+              type="button"
+              onClick={handleConvertToBooking}
+              disabled={isViewingInvoice || isSendingInvoice || isConverting}
+              className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-14 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
+            >
+              {isConverting ? "Converting..." : convertBookingActionLabel}
+            </Button>
             <Button
               type="button"
               onClick={() => {
@@ -7279,7 +7337,9 @@ export default function CreateQuotePage() {
               : "Convert to Booking Before Sending Invoice"
             : convertIntent === "view_invoice"
               ? "Convert to Booking Before Viewing Invoice"
-            : "Convert to Booking"
+            : isConvertedToBooking
+              ? "Update Booking"
+              : "Convert to Booking"
         }
         description={
           convertIntent === "send_invoice"
@@ -7288,14 +7348,18 @@ export default function CreateQuotePage() {
               : "This quote must be converted to a booking before an invoice can be sent. Complete the booking details below to continue."
             : convertIntent === "view_invoice"
               ? "This quote must be converted to a booking before an invoice can be viewed. Complete the booking details below to continue."
-            : "Select booking type, shoot date and time before continuing."
+            : isConvertedToBooking
+              ? "Review or update the booking date and time below."
+              : "Select booking type, shoot date and time before continuing."
         }
         submitLabel={
           convertIntent === "send_invoice"
             ? isConvertedToBooking
               ? "Save & Send Invoice"
               : "Convert & Send Invoice"
-            : "Convert to Booking"
+            : isConvertedToBooking
+              ? "Save Booking Details"
+              : "Convert to Booking"
         }
       />
       <QuoteSummaryModal

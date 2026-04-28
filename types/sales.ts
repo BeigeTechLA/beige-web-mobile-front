@@ -67,6 +67,36 @@ export interface SalesLead {
     discount: number;
     total: number;
   };
+  projected_quote?: {
+    source?: string;
+    quote_id?: number;
+    total?: number;
+    subtotal?: number;
+    discount_amount?: number;
+    shoot_hours?: string | number;
+    line_items?: Array<{
+      item_id?: number | null;
+      name?: string;
+      quantity?: number;
+      unit_price?: number;
+      total?: number;
+    }>;
+  };
+  custom_quote?: {
+    sales_quote_id?: number;
+    quote_number?: string;
+    status?: string;
+    additional_payment?: {
+      additional_amount?: number | string;
+      previously_paid_amount?: number | string;
+      revised_total?: number | string;
+      outstanding_amount?: number | string;
+      payment_status?: string | null;
+      last_sent_at?: string | null;
+      invoice_number?: string | null;
+      invoice_url?: string | null;
+    };
+  };
   custom_quote_id?: number;
   custom_quote_number?: string;
   custom_quote_status?: string;

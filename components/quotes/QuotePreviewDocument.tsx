@@ -4,6 +4,7 @@ import React from "react";
 
 import type { SalesQuoteDetailData } from "@/lib/api";
 import {
+  getQuoteAdditionalPaymentDetails,
   formatQuoteCurrency,
   formatQuoteDate,
   getQuoteNumber,
@@ -186,6 +187,7 @@ export default function QuotePreviewDocument({
   const taxAmount = discountedSubtotal * (taxRate / 100);
   const amountAfterTax = discountedSubtotal + taxAmount;
   const finalTotal = amountAfterTax;
+  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quoteData);
 
   const resolvedQuoteId = String(
     quoteData.sales_quote_id ?? quoteData.quote_id ?? quoteData.id ?? quoteId ?? ""
@@ -314,6 +316,31 @@ export default function QuotePreviewDocument({
               <span>{taxType} ({taxRate}%)</span>
               <span className="font-semibold">{formatQuoteCurrency(taxAmount)}</span>
             </div>
+            {additionalPaymentDetails ? (
+              <>
+                <div className="mt-2 border-t border-black/10 pt-3" />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-6">
+                    <span>Previously Paid</span>
+                    <span className="font-semibold">
+                      {formatQuoteCurrency(additionalPaymentDetails.previouslyPaidAmount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-6">
+                    <span>Additional Amount</span>
+                    <span className="font-semibold">
+                      {formatQuoteCurrency(additionalPaymentDetails.additionalAmount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-6">
+                    <span>Outstanding Amount</span>
+                    <span className="font-semibold">
+                      {formatQuoteCurrency(additionalPaymentDetails.outstandingAmount)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
 
           <div className={`mt-5 rounded-[16px] px-4 py-4 lg:px-5 ${isDark ? "bg-[#171717]" : "bg-white"}`}>

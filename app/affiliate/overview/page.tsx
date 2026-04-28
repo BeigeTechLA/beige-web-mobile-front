@@ -41,6 +41,8 @@ export default function AffiliateOverviewPage() {
   const [isDataRefreshing, setIsDataRefreshing] = useState(false);
   const [dashboardSummary, setDashboardSummary] = useState<any>(null);
   const [pendingProjects, setPendingProjects] = useState<any[]>([]);
+  const [creditSummary, setCreditSummary] = useState<any>(null);
+  const [creditHistory, setCreditHistory] = useState<any[]>([]);
 
   useEffect(() => setMounted(true), []);
 
@@ -58,16 +60,25 @@ export default function AffiliateOverviewPage() {
 
         const params: any = {};
 
-        const [statsData, referralHistory, summaryData, pendingData] = await Promise.all([
+        const [statsData, referralHistory, summaryData, pendingData, creditSummaryData, creditHistoryData] = await Promise.all([
           affiliateApi.getDashboardStats(token),
           affiliateApi.getReferralHistory(token),
           affiliateApi.getDashboardSummary(token, params),
           affiliateApi.getProjectFormSubmission(token),
+          affiliateApi.getClientCreditSummary(token),
+          affiliateApi.getClientCreditHistory(token, { page: 1, limit: 5 }),
         ]);
         setStats(statsData);
         setReferrals(referralHistory.referrals || []);
         setDashboardSummary(summaryData.data);
         setNewCode(statsData.affiliate.referral_code);
+
+        if (!creditSummaryData?.error) {
+          setCreditSummary(creditSummaryData?.data || null);
+        }
+        if (!creditHistoryData?.error) {
+          setCreditHistory(creditHistoryData?.data?.history || []);
+        }
 
         if (!pendingData.error) {
           setPendingProjects(pendingData.projects || []);
@@ -363,6 +374,88 @@ export default function AffiliateOverviewPage() {
               hoverBorder="hover:border-purple-500/30"
             />
           </div>
+
+          {/* <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"}`}>
+            <div className={`flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3 p-5 border-b transition-colors duration-300 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"}`}>
+              <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-[#323232]"}`}>
+                Account Credit Usage
+              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className={`rounded-full px-3 py-1 text-xs font-semibold ${isDark ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
+                  Available: {formatCurrency(creditSummary?.available_credit_amount || 0)}
+                </div>
+                <div className={`rounded-full px-3 py-1 text-xs font-semibold ${isDark ? "bg-orange-500/10 text-orange-400 border border-orange-500/30" : "bg-orange-50 text-orange-700 border border-orange-200"}`}>
+                  Used: {formatCurrency(creditSummary?.used_credit_amount || 0)}
+                </div>
+              </div>
+            </div>
+
+            <div className="hidden lg:block w-full overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className={isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"}>
+                  <tr className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>
+                    <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Date</th>
+                    <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Type</th>
+                    <th className={`py-4 px-4 border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Booking</th>
+                    <th className={`py-4 px-4 text-right border-b ${isDark ? "border-b-[#3D3D3D]" : "border-b-[#E3E3E3]"}`}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {creditHistory.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className={`px-6 py-10 text-center ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
+                        No credit activity yet
+                      </td>
+                    </tr>
+                  ) : (
+                    creditHistory.map((item, idx) => (
+                      <tr key={`${item.account_credit_ledger_id}-${idx}`} className={`${isDark ? "border-b border-white/5" : "border-b border-[#E3E3E3]"}`}>
+                        <td className={`px-4 py-4 ${isDark ? "text-white/80" : "text-[#323232]"}`}>
+                          {item.created_at ? formatDate(item.created_at) : "-"}
+                        </td>
+                        <td className={`px-4 py-4 capitalize ${isDark ? "text-white/60" : "text-[#32323266]"}`}>
+                          {item.entry_type === "credit_used" ? "Used" : item.entry_type === "credit_created" ? "Created" : item.entry_type}
+                        </td>
+                        <td className={`px-4 py-4 ${isDark ? "text-white/60" : "text-[#32323266]"}`}>
+                          {item.booking_name || (item.booking_id ? `Booking #${item.booking_id}` : "-")}
+                        </td>
+                        <td className={`px-4 py-4 text-right font-medium ${item.direction === "debit" ? "text-orange-400" : "text-green-500"}`}>
+                          {item.direction === "debit" ? "-" : "+"}{formatCurrency(item.amount || 0)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="lg:hidden p-4 space-y-3">
+              {creditHistory.length === 0 ? (
+                <div className={`text-center py-6 ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
+                  No credit activity yet
+                </div>
+              ) : (
+                creditHistory.map((item, idx) => (
+                  <div key={`${item.account_credit_ledger_id}-${idx}`} className={`rounded-xl p-4 border ${isDark ? "bg-[#101010] border-white/10" : "bg-[#FFFCF6] border-[#E3E3E3]"}`}>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className={`text-sm font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>
+                        {item.entry_type === "credit_used" ? "Used" : item.entry_type === "credit_created" ? "Created" : item.entry_type}
+                      </span>
+                      <span className={`text-sm font-semibold ${item.direction === "debit" ? "text-orange-400" : "text-green-500"}`}>
+                        {item.direction === "debit" ? "-" : "+"}{formatCurrency(item.amount || 0)}
+                      </span>
+                    </div>
+                    <p className={`text-xs ${isDark ? "text-white/60" : "text-[#32323266]"}`}>
+                      {item.booking_name || (item.booking_id ? `Booking #${item.booking_id}` : "No booking linked")}
+                    </p>
+                    <p className={`text-[11px] mt-1 ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
+                      {item.created_at ? formatDate(item.created_at) : "-"}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div> */}
 
           {/* Referrals Table Section */}
           <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"

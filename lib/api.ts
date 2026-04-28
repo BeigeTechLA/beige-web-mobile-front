@@ -423,6 +423,36 @@ export interface SalesQuoteDetailData {
   final_total?: number | string;
   amount_after_discount?: number | string;
   booking_id?: number | string;
+  additional_payment?: {
+    additional_amount?: number | string | null;
+    previously_paid_amount?: number | string | null;
+    revised_total?: number | string | null;
+    outstanding_amount?: number | string | null;
+    payment_status?: string | null;
+    last_sent_at?: string | null;
+    invoice_number?: string | null;
+    invoice_url?: string | null;
+  } | null;
+  converted_booking_details?: {
+    booking_id?: number | string;
+    booking_type?: string | null;
+    time_zone?: string | null;
+    start_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    duration_hours?: number | string | null;
+    location?: string | null;
+    reference_links?: string | null;
+    special_instructions?: string | null;
+    booking_days?: Array<{
+      date?: string | null;
+      event_date?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+      duration_hours?: number | string | null;
+      time_zone?: string | null;
+    }> | null;
+  } | null;
   accepted_at?: string | null;
   terms_conditions?: string | string[] | null;
   line_items?: SalesQuoteDetailLineItem[];
@@ -501,12 +531,16 @@ export type SalesQuoteConvertSingleDayPayload = {
   start_time: string;
   end_time: string;
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
 };
 
 export type SalesQuoteConvertMultiDayPayload = {
   booking_type: "multi_day";
   time_zone: string;
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   booking_days: Array<{
     date: string;
     start_time: string;
@@ -527,6 +561,8 @@ export interface SalesQuoteConvertToBookingResponse {
 
 export type LeadBookingScheduleSingleDayPayload = {
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   booking_type: "single_day";
   time_zone: string;
   start_date: string;
@@ -536,6 +572,8 @@ export type LeadBookingScheduleSingleDayPayload = {
 
 export type LeadBookingScheduleMultiDayPayload = {
   location: string;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   booking_type: "multi_day";
   time_zone: string;
   booking_days: Array<{
@@ -638,6 +676,44 @@ export const affiliateApi = {
         success: false,
         data: null,
         error: 'Failed to fetch dashboard summary',
+      };
+    }
+  },
+
+  // Get client credit summary (available/used/pending)
+  getClientCreditSummary: async (token: string) => {
+    try {
+      const response = await api.get('/client/credit/summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Credit Summary Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch credit summary',
+      };
+    }
+  },
+
+  // Get client credit history (where credit was created/used)
+  getClientCreditHistory: async (
+    token: string,
+    params: { page?: number; limit?: number } = {}
+  ) => {
+    try {
+      const response = await api.get('/client/credit/history', {
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Client Credit History Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch credit history',
       };
     }
   },
