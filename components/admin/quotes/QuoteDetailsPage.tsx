@@ -103,31 +103,29 @@ type QuoteConvertedBookingDetailsLike = {
   location?: string | null;
   booking_days?: QuoteConvertedBookingDayLike[] | null;
 };
+const S3_PREFIX =
+  process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
-type ManualPaymentMode = "cash" | "bank_transfer" | "credit_card" | "other";
-type ManualPaymentActivityMeta = {
-  payment_method?: string;
-  payment_type?: "full" | "partial";
-  payment_mode?: string;
-  amount?: number | string | null;
-  total_amount?: number | string | null;
-  proof_url?: string | null;
+const joinAssetUrl = (baseUrl: string, assetPath: string) => {
+  const normalizedBase = baseUrl.replace(/\/+$/, "");
+  const normalizedPath = assetPath.replace(/^\/+/, "");
+  return `${normalizedBase}/${normalizedPath}`;
 };
 
-type ManualPaymentEntry = {
-  createdAt: string | null;
-  data: ManualPaymentActivityMeta;
-};
+const resolveSignatureSource = (rawData: any) => {
+  const source =
+    rawData?.signature_base64 ??
+    rawData?.data?.signature_base64 ??
+    rawData?.signature_path ??
+    rawData?.data?.signature_path;
 
-const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+  if (!source) return null;
 
-const resolveS3ProofUrl = (value?: string | null) => {
-  const rawValue = String(value || "").trim();
-  if (!rawValue) return "";
-  if (/^https?:\/\//i.test(rawValue)) return rawValue;
-  const normalizedPrefix = String(S3_PREFIX || "").replace(/\/+$/, "");
-  const normalizedPath = rawValue.replace(/^\/+/, "");
-  return normalizedPrefix ? `${normalizedPrefix}/${normalizedPath}` : rawValue;
+  if (source.startsWith("http") || source.startsWith("data:")) {
+    return source;
+  }
+
+  return joinAssetUrl(S3_PREFIX, source);
 };
 
 const normalizeConvertModalTime = (value?: string | null) =>
@@ -538,10 +536,8 @@ export default function QuoteDetailsPage({
         }
 
         setQuote(quoteDetail);
-        const rawData = (response?.data ?? null) as
-          | (Record<string, unknown> & { data?: Record<string, unknown> | null })
-          | null;
-        const sig = (rawData?.signature_base64 ?? rawData?.data?.signature_base64) as string | null | undefined;
+        const rawData = response?.data as any;
+        const sig = resolveSignatureSource(rawData);
         if (sig) {
           setSignatureBase64(sig);
           setSignerName(rawData?.signer_name ?? rawData?.data?.signer_name ?? null);
@@ -1338,7 +1334,7 @@ export default function QuoteDetailsPage({
                   </span>
                         {signatureBase64 && (
                           <div className="mt-3 flex flex-col items-end gap-2">
-                            <div className="border border-white/10 rounded-lg p-2 bg-white/5">
+                            <div className="border border-white/10 rounded-lg p-2 bg-white">
                               <img src={signatureBase64} alt="Signature" className="max-h-16 max-w-[180px] object-contain" />
                             </div>
                             <p className="text-xs text-[#8F8F95]">{signerName ?? "Client"}</p>
