@@ -31,6 +31,31 @@ const COMPANY_PROFILE = {
   phone: "323-826-7230",
 };
 
+const S3_PREFIX =
+  process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
+
+const resolveSignatureSource = (...sources: Array<unknown>) => {
+  const baseUrl = S3_PREFIX.replace(/\/+$/, "");
+
+  for (const source of sources) {
+    if (typeof source !== "string") {
+      continue;
+    }
+
+    const value = source.trim();
+    if (!value) continue;
+    if (value.startsWith("data:")) return value;
+    if (/^https?:\/\//i.test(value) && !/localhost|127\.0\.0\.1|::1/i.test(value)) {
+      return value;
+    }
+
+    const path = (value.match(/(?:^|\/)(signatures\/.+)$/i)?.[1] ?? value).replace(/^\/+/, "");
+    return `${baseUrl}/${path}`;
+  }
+
+  return null;
+};
+
 const formatCount = (value: number) => String(Math.max(0, value)).padStart(2, "0");
 
 const formatDuration = (value: number) => {
@@ -219,6 +244,12 @@ export default function QuotePreviewDocument({
     fallbackTerms
   );
   const terms = isLegacyDefaultQuoteTerms(normalizedTerms) ? fallbackTerms : normalizedTerms;
+  const signatureSource = resolveSignatureSource(
+    quoteData.signature_base64,
+    quoteData.signature_path,
+    (quote as Record<string, unknown>)?.signature_base64,
+    (quote as Record<string, unknown>)?.signature_path,
+  );
   return (
     <div
       className={`rounded-[24px] px-5 py-5 lg:px-10 lg:py-9 ${isDark ? "border border-white/10 bg-[#171717]" : "border border-[#DFDDDD] bg-white"
@@ -377,13 +408,13 @@ export default function QuotePreviewDocument({
     {/* Right - Signature */}
   {!isRejected && (
     <div className="flex flex-col items-center lg:items-end gap-3 lg:min-w-[220px]">
-      {quoteData.signature_base64 ? (
+      {signatureSource ? (
         <>
           <div className={`border rounded-lg p-3 w-full max-w-[220px] ${
             isDark ? "border-white/20 bg-white" : "border-gray-200 bg-gray-50"
           }`}>
             <img
-              src={quoteData.signature_base64}
+              src={signatureSource}
               alt="Signature"
               className="w-full max-h-20 object-contain"
             />
