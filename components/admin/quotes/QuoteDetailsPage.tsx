@@ -415,7 +415,7 @@ const QuoteTopActions = ({
           </SelectTrigger>
           <SelectContent className="border-white/10 bg-[#1B1B1B] text-white">
             {versions.map((v) => (
-              <SelectItem key={v.id} value={v.id.toString()}>
+              <SelectItem key={v.sales_quote_version_id || v.id} value={(v.sales_quote_version_id || v.id).toString()}>
                 Version {v.version_number}
               </SelectItem>
             ))}

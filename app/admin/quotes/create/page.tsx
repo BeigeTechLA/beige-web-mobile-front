@@ -7992,7 +7992,7 @@ export default function CreateQuotePage() {
                 setIsVersionSaveSuccessOpen(false);
                 const targetId = createdQuoteId || editQuoteId || effectiveQuoteId;
                 const targetUrl = targetId 
-                  ? `/admin/quotes/${encodeURIComponent(String(targetId))}`
+                  ? `/admin/quotes/${encodeURIComponent(String(targetId))}/summary`
                   : "/admin/quotes";
                 router.push(targetUrl);
               }}
