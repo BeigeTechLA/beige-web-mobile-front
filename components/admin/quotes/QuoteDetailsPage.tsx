@@ -452,6 +452,7 @@ export default function QuoteDetailsPage({
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [convertIntent, setConvertIntent] = useState<QuoteConvertIntent>("convert_only");
   const [pendingEditView, setPendingEditView] = useState<QuoteEditorView | null>(null);
+  const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [convertModalInitialDataOverride, setConvertModalInitialDataOverride] =
     useState<ConvertBookingModalInitialData | null>(null);
   const [convertedBookingIdOverride, setConvertedBookingIdOverride] = useState<string | null>(null);
@@ -979,6 +980,45 @@ export default function QuoteDetailsPage({
     }, 450);
   };
 
+  const handleEditAccessProceed = async (payload: {
+    reason: string;
+    opsReviewConfirmed: boolean;
+  }) => {
+    if (!pendingEditView) {
+      return;
+    }
+
+    setIsEditAccessSubmitting(true);
+
+    try {
+      const response = await salesApi.updateQuote(quoteId, {
+        edit_reason: payload.reason,
+        ops_review_confirmed: payload.opsReviewConfirmed,
+      });
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to confirm restricted edit access"
+        );
+      }
+
+      const nextView = pendingEditView;
+      setPendingEditView(null);
+      proceedToEditQuote(nextView);
+    } catch (error) {
+      console.error("Failed to confirm restricted quote edit access", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to confirm restricted quote edit access"
+      );
+    } finally {
+      setIsEditAccessSubmitting(false);
+    }
+  };
+
   const topbarActions = (
     <QuoteTopActions
       onReject={() => {
@@ -1350,19 +1390,19 @@ export default function QuoteDetailsPage({
       />
       <QuoteEditAccessModal
         open={pendingEditView !== null}
-        onClose={() => setPendingEditView(null)}
-        onProceed={() => {
-          if (!pendingEditView) {
+        onClose={() => {
+          if (isEditAccessSubmitting) {
             return;
           }
-
-          const nextView = pendingEditView;
           setPendingEditView(null);
-          proceedToEditQuote(nextView);
+        }}
+        onProceed={(payload) => {
+          void handleEditAccessProceed(payload);
         }}
         quoteNumber={quoteNumber}
         clientName={clientName}
         shootDateValue={editAccessShootDateValue}
+        isSubmitting={isEditAccessSubmitting}
       />
       <ConvertBookingModal
         open={isConvertModalOpen}
