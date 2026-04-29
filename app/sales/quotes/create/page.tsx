@@ -267,8 +267,15 @@ const clampTextLength = (
   maxLength = MAX_QUOTE_OPTION_LABEL_LENGTH
 ) => value.slice(0, maxLength);
 
+const parseRawPrice = (value: string) => {
+  let cleaned = value.replace(/[^0-9.]/g, "");
+  const parts = cleaned.split(".");
+  if (parts.length > 2) cleaned = parts[0] + "." + parts.slice(1).join("");
+  return cleaned;
+};
+
 const sanitizeCurrencyInput = (value: string) => {
-  const normalizedValue = value.replace(/[^\d.]/g, "");
+  const normalizedValue = parseRawPrice(value);
   const decimalIndex = normalizedValue.indexOf(".");
 
   if (decimalIndex === -1) {
@@ -4729,22 +4736,19 @@ export default function CreateQuotePage() {
                                       value={
                                         inputValue[item.id] !== undefined
                                           ? inputValue[item.id]
-                                          : `$ ${formatAddonDisplayValue(config.price)}`
+                                          : config.price.toFixed(2)
                                       }
                                       onChange={(e) => {
-                                        const raw = sanitizeCurrencyInput(e.target.value);
-                                        setInputValue((prev) => ({
-                                          ...prev,
-                                          [item.id]: `$ ${raw}`,
-                                        }));
+                                        const raw = parseRawPrice(e.target.value);
+                                        setInputValue((prev) => ({ ...prev, [item.id]: raw }));
 
-                                        const numericVal = Number.parseFloat(raw);
-                                        if (!Number.isNaN(numericVal)) {
+                                        const num = parseFloat(raw);
+                                        if (!isNaN(num)) {
                                           setLogisticsConfigs((prev) => ({
                                             ...prev,
                                             [item.id]: {
                                               ...prev[item.id],
-                                              price: numericVal,
+                                              price: num,
                                             },
                                           }));
                                         }
@@ -5117,17 +5121,32 @@ export default function CreateQuotePage() {
                                 </div>
 
                                 {/* Price Override */}
-                                <div className="relative w-[190px]">
-                                  <Input
-                                    value={`$ ${getAddonDraftPrice(addonId).toFixed(2)}`}
-                                    onChange={(e) =>
-                                      handleAddonPriceUpdate(
-                                        addonId,
-                                        e.target.value,
-                                      )
+                                <div className="relative w-[190px] h-[50px] bg-[#1A1A1F] border border-[#3B3B46] rounded-xl flex items-center px-5 transition-all focus-within:border-[#E8D1AB]">
+                                  <span className="text-white text-base font-medium mr-1 opacity-80">$</span>
+                                  <input
+                                    value={
+                                      inputValue[addonId] !== undefined
+                                        ? inputValue[addonId]
+                                        : config.price.toFixed(2)
                                     }
+                                    onChange={(e) => {
+                                      const raw = parseRawPrice(e.target.value);
+                                      setInputValue((prev) => ({ ...prev, [addonId]: raw }));
+
+                                      const num = parseFloat(raw);
+                                      if (!isNaN(num)) {
+                                        handleAddonConfigUpdate(addonId, "price", num);
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      setInputValue((prev) => {
+                                        const next = { ...prev };
+                                        delete next[addonId];
+                                        return next;
+                                      });
+                                    }}
+                                    className="bg-transparent border-0 outline-none text-white font-normal text-base w-full p-0 focus:ring-0"
                                     inputMode="decimal"
-                                    className="h-[50px] bg-[#1A1A1F] border-[#3B3B46] rounded-xl text-white text-base pl-5"
                                   />
                                 </div>
 
@@ -5720,7 +5739,7 @@ export default function CreateQuotePage() {
                                             handleConfigUpdate(
                                               serviceId,
                                               "duration",
-                                              config.duration - 1,
+                                              config.duration - 0.5,
                                             )
                                           }
                                           className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
@@ -5735,7 +5754,7 @@ export default function CreateQuotePage() {
                                             handleConfigUpdate(
                                               serviceId,
                                               "duration",
-                                              config.duration + 1,
+                                              config.duration + 0.5,
                                             )
                                           }
                                           className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
@@ -5804,60 +5823,63 @@ export default function CreateQuotePage() {
                                     </span>
                                     <div className="flex items-center gap-2 h-9">
                                       <button
-                                        onClick={() =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity,
-                                                estimatedPrice: Math.max(0, estimatedPrice - 50),
-                                              },
-                                            }))
-                                            : handleConfigUpdate(
-                                              serviceId,
-                                              "estimatedPrice",
-                                              config.estimatedPrice - 50,
-                                            )
-                                        }
+                                        type="button"
+                                        onClick={() => {
+                                          const current = isEditingService ? estimatedPrice : config.estimatedPrice;
+                                          const val = Math.max(0, current - 50);
+                                          if (isEditingService) {
+                                            setEditingTypeConfigs((p) => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: val } }));
+                                          } else {
+                                            handleConfigUpdate(serviceId, "estimatedPrice", val);
+                                          }
+                                        }}
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Minus size={16} strokeWidth={2.5} />
                                       </button>
-                                      <Input
-                                        value={`$ ${formatAddonDisplayValue(isEditingService ? estimatedPrice : getServiceDraftPrice(serviceId))}`}
-                                        onChange={(e) =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity,
-                                                estimatedPrice: parseCurrencyInput(e.target.value),
-                                              },
-                                            }))
-                                            : handleServicePriceUpdate(
-                                              serviceId,
-                                              e.target.value,
-                                            )
-                                        }
-                                        inputMode="decimal"
-                                        className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] text-white font-normal text-sm text-center"
-                                      />
+                                      <div className="flex-1 h-full bg-[#1A1A1F] border border-[#3B3B46] rounded-[8px] flex items-center justify-center group focus-within:border-[#E8D1AB] transition-all px-2">
+                                        <span className="text-white text-sm font-medium mr-1 opacity-80">$</span>
+                                        <input
+                                          value={
+                                            inputValue[cardKey] !== undefined
+                                              ? inputValue[cardKey]
+                                              : (isEditingService ? estimatedPrice : config.estimatedPrice).toFixed(2)
+                                          }
+                                          onChange={(e) => {
+                                            const raw = parseRawPrice(e.target.value);
+                                            setInputValue((prev) => ({ ...prev, [cardKey]: raw }));
+
+                                            const num = parseFloat(raw);
+                                            if (!isNaN(num)) {
+                                              if (isEditingService) {
+                                                setEditingTypeConfigs((p) => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: num } }));
+                                              } else {
+                                                handleConfigUpdate(serviceId, "estimatedPrice", num);
+                                              }
+                                            }
+                                          }}
+                                          onBlur={() => {
+                                            setInputValue((prev) => {
+                                              const next = { ...prev };
+                                              delete next[cardKey];
+                                              return next;
+                                            });
+                                          }}
+                                          className="bg-transparent border-0 outline-none text-white font-normal text-sm w-[70px] p-0 focus:ring-0"
+                                          inputMode="decimal"
+                                        />
+                                      </div>
                                       <button
-                                        onClick={() =>
-                                          isEditingService
-                                            ? setEditingTypeConfigs((prev) => ({
-                                              ...prev,
-                                              [editingTypeId]: {
-                                                quantity,
-                                                estimatedPrice: Math.max(0, estimatedPrice + 50),
-                                              },
-                                            }))
-                                            : handleConfigUpdate(
-                                              serviceId,
-                                              "estimatedPrice",
-                                              config.estimatedPrice + 50,
-                                            )
-                                        }
+                                        type="button"
+                                        onClick={() => {
+                                          const current = isEditingService ? estimatedPrice : config.estimatedPrice;
+                                          const val = current + 50;
+                                          if (isEditingService) {
+                                            setEditingTypeConfigs((p) => ({ ...p, [editingTypeId]: { ...p[editingTypeId], estimatedPrice: val } }));
+                                          } else {
+                                            handleConfigUpdate(serviceId, "estimatedPrice", val);
+                                          }
+                                        }}
                                         className="w-10 h-full flex items-center justify-center bg-[#F0DCB1] rounded-[8px] text-black hover:opacity-90 transition-all active:scale-95"
                                       >
                                         <Plus size={16} strokeWidth={2.5} />
@@ -6068,35 +6090,33 @@ export default function CreateQuotePage() {
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                               /> */}
                               <Input
-                                //  Use defaultValue so the input is "uncontrolled" while typing
-                                defaultValue={`$ ${(config?.price || 0).toFixed(2)}`}
-
-                                // The key ensures the input resets if the external state changes 
-                                key={item.id + (config?.price || 0)}
-
+                                value={
+                                  inputValue[item.id] !== undefined
+                                    ? inputValue[item.id]
+                                    : (config?.price || 0).toFixed(2)
+                                }
                                 onChange={(e) => {
-                                  // Clean the input and update the background state
-                                  const raw = sanitizeCurrencyInput(e.target.value);
-                                  const numericVal = parseCurrencyInput(raw);
+                                  const raw = parseRawPrice(e.target.value);
+                                  setInputValue((prev) => ({ ...prev, [item.id]: raw }));
 
-                                  if (!Number.isNaN(numericVal)) {
+                                  const numericVal = parseFloat(raw);
+                                  if (!isNaN(numericVal)) {
                                     setLineItemConfigs((prev) => ({
                                       ...prev,
                                       [item.id]: {
                                         ...prev[item.id],
-                                        price: numericVal
+                                        price: numericVal,
                                       },
                                     }));
                                   }
                                 }}
-
-                                onBlur={(e) => {
-                                  // Clean up the display when they click away
-                                  const raw = sanitizeCurrencyInput(e.target.value);
-                                  const finalVal = parseCurrencyInput(raw);
-                                  e.target.value = `$ ${finalVal.toFixed(2)}`;
+                                onBlur={() => {
+                                  setInputValue((prev) => {
+                                    const next = { ...prev };
+                                    delete next[item.id];
+                                    return next;
+                                  });
                                 }}
-
                                 className="h-9 bg-[#1A1A1F] border-[#3B3B46] rounded-[8px] text-white text-sm pl-3"
                                 inputMode="decimal"
                               />
@@ -6706,7 +6726,7 @@ export default function CreateQuotePage() {
                     return (
                       <>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                          {[3, 5, 7].map((days: number) => (
+                          {[3, 7, 10].map((days: number) => (
                             <button
                               key={days}
                               onClick={() => handleValiditySelect(days)}

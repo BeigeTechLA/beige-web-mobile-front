@@ -558,9 +558,11 @@ export default function QuoteDetailsPage({
           const versionsData = Array.isArray(versionsRes.data) ? versionsRes.data : versionsRes.data?.versions || [];
           setVersions(versionsData);
           // Set initial selected version to the current one if found
-          const currentVersion = versionsData.find((v: any) => v.is_current) || versionsData[0];
-          if (currentVersion && !selectedVersionId) {
-            setSelectedVersionId(currentVersion.id.toString());
+          const currentVersion =
+            versionsData.find((v: any) => v?.is_current && v?.id != null) ||
+            versionsData.find((v: any) => v?.id != null);
+          if (currentVersion?.id != null && !selectedVersionId) {
+            setSelectedVersionId(String(currentVersion.id));
           }
         }
       } catch (error) {
@@ -1118,7 +1120,7 @@ export default function QuoteDetailsPage({
 
   const selectedVersionNumber = useMemo(() => {
      if (!selectedVersionId || versions.length === 0) return null;
-     const v = versions.find(v => v.id.toString() === selectedVersionId);
+     const v = versions.find((version) => version?.id != null && String(version.id) === selectedVersionId);
      return v ? v.version_number : null;
   }, [selectedVersionId, versions]);
 
