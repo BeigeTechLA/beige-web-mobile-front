@@ -18,6 +18,13 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import ConvertBookingModal, {
   type ConvertBookingModalInitialData,
@@ -382,6 +389,9 @@ const QuoteTopActions = ({
   convertDisabled,
   isRejecting,
   isConverting,
+  versions,
+  selectedVersionId,
+  onVersionChange,
 }: {
   onReject: () => void;
   onConvert: () => void;
@@ -391,8 +401,28 @@ const QuoteTopActions = ({
   convertDisabled: boolean;
   isRejecting: boolean;
   isConverting: boolean;
+  versions: any[];
+  selectedVersionId: string | null;
+  onVersionChange: (val: string) => void;
 }) => (
   <div className="flex flex-wrap items-center gap-3">
+    {versions.length > 0 && (
+      <div className="mr-2 flex items-center gap-2">
+        <span className="text-sm font-medium text-[#8F8F95]">Version:</span>
+        <Select value={selectedVersionId || ""} onValueChange={onVersionChange}>
+          <SelectTrigger className="h-11 w-[140px] rounded-xl border-white/10 bg-[#1B1B1B] text-white">
+            <SelectValue placeholder="Select version" />
+          </SelectTrigger>
+          <SelectContent className="border-white/10 bg-[#1B1B1B] text-white">
+            {versions.map((v) => (
+              <SelectItem key={v.id} value={v.id.toString()}>
+                Version {v.version_number}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    )}
     <Button
       type="button"
       onClick={onReject}
@@ -442,6 +472,8 @@ export default function QuoteDetailsPage({
   const router = useRouter();
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [versions, setVersions] = useState<any[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [otherDetailsTab, setOtherDetailsTab] = useState<OtherDetailsTab>("discounts");
@@ -519,6 +551,18 @@ export default function QuoteDetailsPage({
                 : null
           );
         }
+
+        // Fetch versions after loading initial details
+        const versionsRes = await salesApi.getQuoteVersions(quoteId);
+        if (versionsRes?.success && isMounted) {
+          const versionsData = Array.isArray(versionsRes.data) ? versionsRes.data : versionsRes.data?.versions || [];
+          setVersions(versionsData);
+          // Set initial selected version to the current one if found
+          const currentVersion = versionsData.find((v: any) => v.is_current) || versionsData[0];
+          if (currentVersion && !selectedVersionId) {
+            setSelectedVersionId(currentVersion.id.toString());
+          }
+        }
       } catch (error) {
         console.error("Failed to load quote details", error);
 
@@ -543,6 +587,39 @@ export default function QuoteDetailsPage({
       isMounted = false;
     };
   }, [quoteId]);
+
+  useEffect(() => {
+    if (!selectedVersionId) return;
+    
+    // Skip if this is already the currently displayed quote's version
+    if (quote && (quote.version_id?.toString() === selectedVersionId || quote.id?.toString() === selectedVersionId)) {
+       return;
+    }
+
+    let isMounted = true;
+    const fetchVersionDetail = async () => {
+      setLoading(true);
+      try {
+        const response = await salesApi.getQuoteVersionDetail(quoteId, selectedVersionId);
+        if (response?.success && isMounted) {
+          const quoteDetail = unwrapSalesQuoteDetail(response?.data ?? null);
+          if (quoteDetail) {
+            setQuote(quoteDetail);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch quote version detail", error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    void fetchVersionDetail();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedVersionId, quoteId]);
 
   useEffect(() => {
     const editViews: QuoteEditorView[] = [
@@ -1033,8 +1110,17 @@ export default function QuoteDetailsPage({
       convertDisabled={!quote || loading || isRejecting || isConverting}
       isRejecting={isRejecting}
       isConverting={isConverting}
+      versions={versions}
+      selectedVersionId={selectedVersionId}
+      onVersionChange={(val) => setSelectedVersionId(val)}
     />
   );
+
+  const selectedVersionNumber = useMemo(() => {
+     if (!selectedVersionId || versions.length === 0) return null;
+     const v = versions.find(v => v.id.toString() === selectedVersionId);
+     return v ? v.version_number : null;
+  }, [selectedVersionId, versions]);
 
   return (
     <div
@@ -1060,32 +1146,6 @@ export default function QuoteDetailsPage({
             <ArrowLeft size={18} />
             Back
           </button>
-
-          {/* <div className="flex flex-col gap-3 sm:flex-row">
-            <Button
-              type="button"
-              onClick={() => {
-                void handleViewInvoice();
-              }}
-              disabled={loading || !quote || isViewingInvoice || isSendingInvoice}
-              variant="outline"
-              className="h-11 rounded-xl border-white/10 bg-[#1B1B1B] px-4 text-white hover:bg-[#232323]"
-            >
-              {isViewingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
-              {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                void handleSendInvoice();
-              }}
-              disabled={loading || !quote || isRejecting || isConverting || isSendingInvoice}
-              className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90"
-            >
-              {isSendingInvoice ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
-              {isSendingInvoice ? "Sending Invoice..." : "Send Invoice"}
-            </Button>
-          </div> */}
         </div>
 
         {loading ? (
@@ -1123,9 +1183,23 @@ export default function QuoteDetailsPage({
                       {getInitials(clientName)}
                     </div>
                     <div className="min-w-0">
-                      <p className="break-words text-[26px] font-semibold leading-tight text-white">
-                        {clientName}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        <p className="break-words text-[26px] font-semibold leading-tight text-white">
+                          {clientName}
+                        </p>
+                        {selectedVersionNumber && (
+                           <div className="flex flex-col items-start gap-1">
+                             <span className="rounded-full bg-[#E8D1AB]/10 px-3 py-1 text-xs font-semibold text-[#E8D1AB] border border-[#E8D1AB]/20">
+                               Quote Version {selectedVersionNumber}
+                             </span>
+                             {quote?.edit_reason && (
+                               <p className="max-w-[300px] text-[13px] italic text-[#8F8F95] line-clamp-2" title={quote.edit_reason}>
+                                 "{quote.edit_reason}"
+                               </p>
+                             )}
+                           </div>
+                        )}
+                      </div>
                       <p className="mt-1 text-[24px] font-medium text-[#D8BC87]">
                         Amount: {formatQuoteCurrency(finalTotal)}
                       </p>
