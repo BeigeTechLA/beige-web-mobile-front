@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -7706,7 +7706,13 @@ export default function CreateQuotePage() {
             <div className="rounded-[14px] bg-[#E7D0A4] px-5 py-4 text-black">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 text-[16px] font-semibold">
-                  <TrendingDown size={18} />
+                  {reviewChangesData.delta < 0 ? (
+                    <TrendingDown size={18} />
+                  ) : reviewChangesData.delta > 0 ? (
+                    <TrendingDown size={18} className="rotate-180" />
+                  ) : (
+                    <Minus size={18} />
+                  )}
                   <span>
                     {reviewChangesData.delta < 0
                       ? "Price Decrease"
@@ -7716,7 +7722,7 @@ export default function CreateQuotePage() {
                   </span>
                 </div>
                 <div className="text-[22px] font-bold tracking-tight">
-                  {`${reviewChangesData.delta > 0 ? "+" : ""}${formatCurrency(Math.abs(reviewChangesData.delta))}`}
+                  {`${reviewChangesData.delta > 0 ? "+" : reviewChangesData.delta < 0 ? "-" : ""}${formatCurrency(Math.abs(reviewChangesData.delta))}`}
                 </div>
               </div>
             </div>
@@ -7886,7 +7892,7 @@ export default function CreateQuotePage() {
             </div>
           </div>
 
-          <DialogFooter className="border-t border-white/10 px-7 py-7 sm:justify-between">
+          <DialogFooter className="flex flex-col gap-3 border-t border-white/10 px-7 py-7 sm:flex-row sm:justify-end sm:gap-4">
             <Button
               type="button"
               variant="outline"
@@ -7911,36 +7917,47 @@ export default function CreateQuotePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={isVersionSaveSuccessOpen}
-        onOpenChange={(open) => {
-          setIsVersionSaveSuccessOpen(open);
-        }}
-      >
-        <DialogContent className="max-w-[760px] border-none bg-[#111111] px-10 py-16 text-center text-white sm:rounded-[24px]">
-          <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-[#E8D1AB] text-black">
-            <Check size={62} strokeWidth={3} />
-          </div>
-          <DialogTitle className="mt-10 text-[44px] font-semibold leading-tight text-white">
-            New Quote Version Created Successfully
-          </DialogTitle>
-          <p className="mx-auto mt-5 max-w-[520px] text-[20px] leading-8 text-[#B4B4BA]">
-            A new version of this quote has been saved with updated changes.
-          </p>
-          <div className="mt-10">
-            <Button
+      <AnimatePresence>
+        {isVersionSaveSuccessOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#111111] px-4"
+          >
+            <div className="relative mb-8 flex flex-col items-center justify-center">
+              <div className="relative h-[220px] w-[360px] lg:h-[344px] lg:w-[548px]">
+                <Image
+                  src="/images/misc/PaymentSuccess.gif"
+                  alt="Success Animation"
+                  fill
+                  className="object-contain"
+                  priority
+                  unoptimized
+                />
+              </div>
+            </div>
+            
+            <h2 className="mb-2 text-center text-[28px] font-bold leading-tight text-white sm:text-[36px] lg:text-[40px]">
+              New Quote Version Created Successfully
+            </h2>
+            <p className="mx-auto mb-10 max-w-[450px] text-center text-[16px] text-[#A1A1AA] sm:text-[18px]">
+              A New Version Of This Quote Has Been Saved <br className="hidden sm:block" /> With Updated Changes.
+            </p>
+            
+            <button
               type="button"
               onClick={() => {
                 setIsVersionSaveSuccessOpen(false);
                 router.push(editQuoteDetailsHref);
               }}
-              className="h-16 rounded-xl bg-[#E8D1AB] px-10 text-xl font-semibold text-black hover:bg-[#E8D1AB]/90"
+              className="flex h-14 min-w-[240px] items-center justify-center rounded-[12px] bg-[#E7D0A4] px-10 text-[16px] font-semibold text-black transition-colors hover:bg-[#E7D0A4]/90 sm:h-[60px]"
             >
               View Updated Summary
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <Dialog
         open={Boolean(editCatalogItem)}
         onOpenChange={(open) => {

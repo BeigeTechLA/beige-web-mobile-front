@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
+  Check,
   ClipboardList,
   Clock3,
   UserRound,
@@ -197,20 +198,21 @@ export default function QuoteEditAccessModal({
           <button
             type="button"
             onClick={() => setIsConfirmed((current) => !current)}
-            className="flex items-start gap-4 pt-1 text-left"
+            className="flex items-center gap-4 pt-1 text-left"
+            aria-pressed={isConfirmed}
           >
             <span
-              className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border lg:h-8 lg:w-8 lg:rounded-[8px] ${
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border transition-colors lg:h-10 lg:w-10 ${
                 isConfirmed
-                  ? "border-[#EED4A7] bg-[#EED4A7] text-black"
+                  ? "border-[#C9AE7C] bg-[#111111] text-[#EED4A7]"
                   : checkboxError
-                    ? "border-[#E24D4D]"
-                    : "border-[#C4AC82]"
+                    ? "border-[#E24D4D] bg-[#000000] text-transparent"
+                    : "border-[#9C8967] bg-[#000000] text-transparent"
               }`}
             >
-              {isConfirmed ? <span className="text-xs font-semibold">+</span> : null}
+              {isConfirmed ? <Check size={18} strokeWidth={2.5} /> : null}
             </span>
-            <span className="text-[13px] leading-5 text-[#A4A4A9] lg:text-[14px] lg:leading-6">
+            <span className="text-[14px] leading-6 text-[#9F9FA4] lg:text-[16px]">
               I confirm Ops team / CP availability has been reviewed.
             </span>
           </button>
