@@ -2955,8 +2955,8 @@ export default function CreateQuotePage() {
     isCreatingQuoteDraft &&
     activeQuoteAction !== "draft" &&
     !previewQuote;
-  const editQuoteDetailsHref = editQuoteId
-    ? `/admin/quotes/${encodeURIComponent(editQuoteId)}`
+  const editQuoteDetailsHref = effectiveQuoteId
+    ? `/admin/quotes/${encodeURIComponent(String(effectiveQuoteId))}`
     : "/admin/quotes";
   const resolvedInvoiceQuoteId = effectiveQuoteId ? String(effectiveQuoteId) : null;
   const convertedBookingId = React.useMemo(() => {
@@ -7949,7 +7949,11 @@ export default function CreateQuotePage() {
               type="button"
               onClick={() => {
                 setIsVersionSaveSuccessOpen(false);
-                router.push(editQuoteDetailsHref);
+                const targetId = createdQuoteId || editQuoteId || effectiveQuoteId;
+                const targetUrl = targetId 
+                  ? `/admin/quotes/${encodeURIComponent(String(targetId))}`
+                  : "/admin/quotes";
+                router.push(targetUrl);
               }}
               className="flex h-14 min-w-[240px] items-center justify-center rounded-[12px] bg-[#E7D0A4] px-10 text-[16px] font-semibold text-black transition-colors hover:bg-[#E7D0A4]/90 sm:h-[60px]"
             >

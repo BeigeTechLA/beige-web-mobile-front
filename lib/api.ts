@@ -2170,6 +2170,32 @@ export const salesApi = {
       };
     }
   },
+  getQuoteVersions: async (quoteId: number | string) => {
+    try {
+      const response = await api.get(`/sales/quotes/${quoteId}/versions`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Versions Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch quote versions',
+      };
+    }
+  },
+  getQuoteVersionDetail: async (quoteId: number | string, versionId: number | string) => {
+    try {
+      const response = await api.get(`/sales/quotes/${quoteId}/versions/${versionId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Version Detail Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch quote version detail',
+      };
+    }
+  },
   getPublicQuoteDetail: async (quoteId: number | string) => {
     try {
       const response = await publicApi.get<SalesQuoteDetailResponse>(
